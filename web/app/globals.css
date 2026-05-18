@@ -184,3 +184,14 @@
   .sl-skel { animation: none; }
 }
 
+/* ── Desktop browser frame — the app as a phone on a calm dark backdrop.
+   Mobile is untouched (full-screen app); this only kicks in ≥1024px. ── */
+@media (min-width: 1024px) {
+  .sl-shell {
+    background:
+      radial-gradient(circle at 50% 0%, rgba(37,99,235,0.18), transparent 60%),
+      radial-gradient(circle at 100% 100%, rgba(5,150,105,0.12), transparent 60%),
+      #0b1220;
+  }
+}
+
