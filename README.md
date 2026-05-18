@@ -1,5 +1,7 @@
 # Salapi
 
+[![CI](https://github.com/Ariqhermawan/salapi/actions/workflows/ci.yml/badge.svg)](https://github.com/Ariqhermawan/salapi/actions/workflows/ci.yml)
+
 A crypto-invisible financial app for non-crypto Filipinos: GCash-funded Stellar
 wallet + programmable vaults (disaster relief, paluwagan, smart savings) + P2P
 transfer. Users see only pesos — USDC on Stellar is invisible plumbing.
