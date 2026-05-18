@@ -115,3 +115,51 @@
     text-underline-offset: 2px;
   }
 }
+
+/* ── Motion kit (design-agnostic, reduced-motion aware) ──────────── */
+@keyframes s-fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes s-pop {
+  0%   { transform: scale(0.8); opacity: 0; }
+  60%  { transform: scale(1.05); opacity: 1; }
+  100% { transform: scale(1); }
+}
+@keyframes s-shimmer {
+  100% { transform: translateX(100%); }
+}
+@keyframes s-check {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes s-confetti {
+  0%   { transform: translateY(0) rotate(0); opacity: 1; }
+  100% { transform: translateY(120px) rotate(360deg); opacity: 0; }
+}
+.s-anim-up { animation: s-fade-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.s-anim-pop { animation: s-pop 0.4s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.s-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--color-hairline);
+  border-radius: 0.5rem;
+}
+.s-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.65),
+    transparent
+  );
+  animation: s-shimmer 1.4s infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .s-anim-up,
+  .s-anim-pop { animation: none; }
+  .s-skeleton::after { animation: none; }
+}
+

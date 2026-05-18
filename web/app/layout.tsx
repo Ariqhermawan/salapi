@@ -5,6 +5,7 @@ import Link from "next/link";
 import BottomNav from "@/components/BottomNav";
 import PwaRegister from "@/components/PwaRegister";
 import { I18nProvider } from "@/components/I18nProvider";
+import InstallBanner from "@/components/InstallBanner";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({
@@ -69,6 +70,7 @@ export default function RootLayout({
             </div>
           </header>
 
+          <InstallBanner />
           <main className="flex-1 overflow-y-auto pb-28">{children}</main>
 
           <div className="pointer-events-none fixed bottom-0 left-1/2 z-20 w-full max-w-[460px] -translate-x-1/2">

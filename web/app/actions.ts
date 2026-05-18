@@ -50,6 +50,19 @@ export async function topUpSandbox() {
   };
 }
 
+/** Simulated GCash withdrawal (labeled sandbox). Real off-ramp = a
+ *  licensed Stellar anchor at Build Award. Balance stays real on-chain. */
+export async function withdrawSandbox(pesos: number) {
+  const bal = await getNativeBalance(demoPublic());
+  return {
+    ok: true as const,
+    note:
+      "Sandbox: in production, Salapi cashes out to your GCash via a licensed Stellar anchor. On testnet the on-chain balance is unchanged.",
+    pesoLabel: fmtPeso(stroopsToPesos(bal)),
+    requested: pesos,
+  };
+}
+
 export async function disasterContribute(pesos: number) {
   if (!(pesos > 0)) return { ok: false as const, error: "Enter an amount" };
   const r = await invoke(CONTRACTS.disaster, "contribute", [
