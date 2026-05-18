@@ -8,6 +8,7 @@ transfer. Users see only pesos — USDC on Stellar is invisible plumbing.
 
 > Submitted to the **Stellar Philippines Ambassador Chapter** — Instaward.
 > Scope, budget, and 30-day plan are provided to the Chapter Lead separately.
+> **Live on Stellar testnet** — verifiable contract IDs + tx hashes: [`DEPLOYMENTS.md`](DEPLOYMENTS.md)
 
 This README doubles as the **reviewer evidence index**.
 
@@ -49,7 +50,7 @@ cargo build --workspace --target wasm32-unknown-unknown --release
 | Week | Checkpoint | This repo |
 |---|---|---|
 | **1 · Foundation** | Lock core, tests, something breakable | ✅ workspace, base-vault + username-registry, **5 unit tests pass**, WASM builds (via WSL), architecture README |
-| 2 · Scaffold | Deploy on testnet, verifiable tx trails | ⏳ rule-set modules, `stellar` CLI deploy scripts, Friendbot funding |
+| **2 · Scaffold** | Deploy on testnet, verifiable tx trails | ✅ 3 contracts live on testnet + full verifiable tx trail ([DEPLOYMENTS.md](DEPLOYMENTS.md)); disaster rule-set + tests. ⏳ paluwagan + smart-savings next |
 | 3 · Connect | Wire front-end, indexer, real user | ⏳ Next.js + GCash sandbox + transparency dashboard |
 | 4 · Prove | Demo + docs for non-technical reviewer | ⏳ walkthrough video, tagged release |
 

@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "contracts/base-vault",
     "contracts/username-registry",
+    "contracts/disaster",
 ]
 
 [workspace.package]
