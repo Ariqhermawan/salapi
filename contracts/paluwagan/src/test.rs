@@ -39,8 +39,12 @@ fn full_round_rotates_payout() {
     p.initialize(&tok, &members, &100);
     assert_eq!(p.round(), 0);
     assert_eq!(p.recipient_of(&0), a);
+    assert_eq!(p.amount(), 100);
+    assert_eq!(p.paid_count(&0), 0);
 
     p.contribute(&a);
+    assert!(p.has_paid(&0, &a));
+    assert_eq!(p.paid_count(&0), 1);
     p.contribute(&b);
     // payout must fail until everyone has paid this round
     assert!(p.try_payout().is_err());

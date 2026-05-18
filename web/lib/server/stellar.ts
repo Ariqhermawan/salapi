@@ -58,6 +58,7 @@ export function demoPublic(): string {
 export const sc = {
   addr: (a: string) => new Address(a).toScVal(),
   i128: (v: bigint) => nativeToScVal(v, { type: "i128" }),
+  u32: (v: number) => nativeToScVal(v, { type: "u32" }),
   str: (v: string) => nativeToScVal(v, { type: "string" }),
   bool: (v: boolean) => nativeToScVal(v),
 };
@@ -153,3 +154,60 @@ export async function invoke(
 
 export const txLink = (h: string) =>
   `https://stellar.expert/explorer/testnet/tx/${h}`;
+
+// ── Paluwagan demo circle (provisioned by scripts/wsl-paluwagan-setup.sh) ──
+export function paluwaganId(): string | null {
+  return process.env.PALUWAGAN_CONTRACT ?? null;
+}
+export const FRIENDS = [
+  {
+    label: "Teman A",
+    pub: () => process.env.FRIEND1_PUBLIC ?? "",
+    secret: () => process.env.FRIEND1_SECRET ?? "",
+  },
+  {
+    label: "Teman B",
+    pub: () => process.env.FRIEND2_PUBLIC ?? "",
+    secret: () => process.env.FRIEND2_SECRET ?? "",
+  },
+];
+
+/** Like invoke(), but signed by an arbitrary secret (used for demo friends). */
+export async function invokeAs(
+  secret: string,
+  contractId: string,
+  method: string,
+  args: xdr.ScVal[] = []
+): Promise<TxResult> {
+  try {
+    const srv = server();
+    const kp = Keypair.fromSecret(secret);
+    const source = await srv.getAccount(kp.publicKey());
+    const built = new TransactionBuilder(source, {
+      fee: BASE_FEE,
+      networkPassphrase: Networks.TESTNET,
+    })
+      .addOperation(new Contract(contractId).call(method, ...args))
+      .setTimeout(60)
+      .build();
+    const prepared = await srv.prepareTransaction(built);
+    prepared.sign(kp);
+    const sent = await srv.sendTransaction(prepared);
+    if (sent.status === "ERROR")
+      return { ok: false, error: JSON.stringify(sent.errorResult ?? sent) };
+    let gt = await srv.getTransaction(sent.hash);
+    for (let i = 0; i < 30 && gt.status === "NOT_FOUND"; i++) {
+      await new Promise((r) => setTimeout(r, 1000));
+      gt = await srv.getTransaction(sent.hash);
+    }
+    if (gt.status === "SUCCESS")
+      return {
+        ok: true,
+        hash: sent.hash,
+        value: gt.returnValue != null ? scValToNative(gt.returnValue) : null,
+      };
+    return { ok: false, error: `tx ${gt.status}` };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}

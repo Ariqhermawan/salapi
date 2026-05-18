@@ -156,6 +156,26 @@ impl Paluwagan {
             .ok_or(Error::NotInitialized)?;
         Ok(members.get(round % members.len()).unwrap())
     }
+
+    /// How many members have paid in `round` (for the live circle UI).
+    pub fn paid_count(env: Env, round: u32) -> u32 {
+        env.storage()
+            .persistent()
+            .get(&DataKey::PaidCount(round))
+            .unwrap_or(0)
+    }
+
+    /// Whether `member` has paid their share in `round`.
+    pub fn has_paid(env: Env, round: u32, member: Address) -> bool {
+        env.storage()
+            .persistent()
+            .get(&DataKey::Paid(round, member))
+            .unwrap_or(false)
+    }
+
+    pub fn amount(env: Env) -> i128 {
+        env.storage().instance().get(&DataKey::Amount).unwrap_or(0)
+    }
 }
 
 mod test;

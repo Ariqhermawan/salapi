@@ -6,12 +6,15 @@ import {
   fmtPeso,
   getNativeBalance,
   invoke,
+  invokeAs,
   pesosToStroops,
   readContract,
   sc,
   stroopsToPesos,
   txLink,
   FRIENDBOT,
+  paluwaganId,
+  FRIENDS,
 } from "@/lib/server/stellar";
 
 export async function walletState() {
@@ -103,6 +106,89 @@ export async function sendByUsername(name: string, pesos: number) {
   ]);
   return r.ok
     ? { ok: true as const, to, hash: r.hash, link: txLink(r.hash) }
+    : { ok: false as const, error: r.error };
+}
+
+// ── Paluwagan (arisan) ────────────────────────────────────────────
+export async function paluwaganState() {
+  const id = paluwaganId();
+  if (!id) return { ready: false as const };
+  try {
+    const members = (await readContract(id, "members")) as string[];
+    const round = Number(await readContract(id, "round")) || 0;
+    const amount = BigInt((await readContract(id, "amount")) as number);
+    const recipient = (await readContract(id, "recipient_of", [
+      sc.u32(round),
+    ])) as string;
+    const me = demoPublic();
+    const fpub = FRIENDS.map((f) => f.pub());
+    const seats = await Promise.all(
+      members.map(async (addr, i) => {
+        const paid = Boolean(
+          await readContract(id, "has_paid", [sc.u32(round), sc.addr(addr)])
+        );
+        let label = `Member ${i + 1}`;
+        if (addr === me) label = "Ikaw (You)";
+        else {
+          const fi = fpub.indexOf(addr);
+          if (fi >= 0) label = FRIENDS[fi].label;
+        }
+        return { addr, label, paid, isRecipient: addr === recipient };
+      })
+    );
+    const allPaid = seats.every((s) => s.paid);
+    return {
+      ready: true as const,
+      round,
+      seats,
+      sharePeso: fmtPeso(stroopsToPesos(amount)),
+      potPeso: fmtPeso(stroopsToPesos(amount * BigInt(members.length))),
+      allPaid,
+      recipientLabel:
+        seats.find((s) => s.isRecipient)?.label ?? recipient.slice(0, 6),
+    };
+  } catch (e) {
+    return {
+      ready: false as const,
+      error: e instanceof Error ? e.message : String(e),
+    };
+  }
+}
+
+export async function paluwaganPayMine() {
+  const id = paluwaganId();
+  if (!id) return { ok: false as const, error: "Circle not set up" };
+  const r = await invoke(id, "contribute", [sc.addr(demoPublic())]);
+  return r.ok
+    ? { ok: true as const, link: txLink(r.hash) }
+    : { ok: false as const, error: r.error };
+}
+
+export async function paluwaganFriendsPay() {
+  const id = paluwaganId();
+  if (!id) return { ok: false as const, error: "Circle not set up" };
+  const round = Number(await readContract(id, "round")) || 0;
+  let paid = 0;
+  for (const f of FRIENDS) {
+    const already = Boolean(
+      await readContract(id, "has_paid", [sc.u32(round), sc.addr(f.pub())])
+    );
+    if (already) continue;
+    const r = await invokeAs(f.secret(), id, "contribute", [
+      sc.addr(f.pub()),
+    ]);
+    if (r.ok) paid++;
+    else return { ok: false as const, error: `${f.label}: ${r.error}` };
+  }
+  return { ok: true as const, paid };
+}
+
+export async function paluwaganCollect() {
+  const id = paluwaganId();
+  if (!id) return { ok: false as const, error: "Circle not set up" };
+  const r = await invoke(id, "payout", []);
+  return r.ok
+    ? { ok: true as const, link: txLink(r.hash) }
     : { ok: false as const, error: r.error };
 }
 

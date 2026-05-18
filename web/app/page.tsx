@@ -1,4 +1,32 @@
+import Link from "next/link";
 import Wallet from "@/components/Wallet";
+
+const ACTIONS = [
+  {
+    href: "/paluwagan",
+    title: "Arisan bareng teman & keluarga",
+    desc: "Mau mulai paluwagan anti-kabur? Ayo — kontrak yang pegang pot.",
+    cta: "Mulai arisan",
+  },
+  {
+    href: "/transparency",
+    title: "Bantu korban bencana",
+    desc: "Tiap peso terlacak on-chain. Tanpa politikus, tanpa calo.",
+    cta: "Donasi sekarang",
+  },
+  {
+    href: "/send",
+    title: "Kirim uang lewat @username",
+    desc: "Tanpa alamat panjang. Cukup nama teman.",
+    cta: "Kirim uang",
+  },
+  {
+    href: "/vaults",
+    title: "Nabung dengan tujuan",
+    desc: "Kunci uang ke target; cair saat tercapai.",
+    cta: "Lihat vaults",
+  },
+];
 
 export default function Home() {
   return (
@@ -6,49 +34,58 @@ export default function Home() {
       <div className="px-5 pt-5">
         <h1 className="s-h1">Kumusta 👋</h1>
         <p className="s-sub mt-1">
-          Save, send, and give — all in pesos. No wallet, no seed phrase.
+          Nabung, kirim, berbagi — semua dalam peso. Tanpa dompet, tanpa seed
+          phrase.
         </p>
       </div>
 
       <Wallet />
 
       <section className="mt-8 px-5">
-        <h2 className="s-label">What you can do</h2>
+        <h2 className="s-label">Ayo mulai</h2>
         <ul className="mt-3 space-y-2.5">
-          <Item
-            title="Disaster relief, fully transparent"
-            desc="Every peso traceable on-chain. No politician, no broker."
-          />
-          <Item
-            title="Paluwagan that can't be stolen"
-            desc="A smart contract holds the pot — not a human organiser."
-          />
-          <Item
-            title="Smart savings with a goal"
-            desc="Lock money toward a target; withdraw when you reach it."
-          />
-          <Item
-            title="Send by @username"
-            desc="No long addresses. Just a name."
-          />
+          {ACTIONS.map((a) => (
+            <li key={a.href}>
+              <Link
+                href={a.href}
+                className="s-card flex items-center gap-3 !p-4 transition-colors hover:border-[var(--color-action)]"
+              >
+                <div className="flex-1">
+                  <div className="font-semibold text-[var(--color-ink)]">
+                    {a.title}
+                  </div>
+                  <div className="mt-0.5 text-sm text-[var(--color-slate)]">
+                    {a.desc}
+                  </div>
+                  <div className="mt-1.5 text-xs font-bold text-[var(--color-action-deep)]">
+                    {a.cta} →
+                  </div>
+                </div>
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  style={{ color: "var(--color-action)" }}
+                >
+                  <path d="M9 6l6 6-6 6" />
+                </svg>
+              </Link>
+            </li>
+          ))}
         </ul>
       </section>
 
       <p className="mt-8 px-5 text-[11px] leading-relaxed text-[var(--color-slate)]">
-        Stellar PH Ambassador Chapter — Instaward. Testnet demo: balances and
-        transactions are real on Stellar testnet (no real value). GCash &
-        sign-in are sandbox seams; production = a licensed anchor. DAO
-        governance + AI Tribunal are Build-Award vision, out of this scope.
+        Stellar PH Ambassador Chapter — Instaward. Demo testnet: saldo &
+        transaksi nyata di Stellar testnet (tanpa nilai riil). GCash & sign-in
+        adalah sandbox seam; produksi = anchor berlisensi. DAO governance + AI
+        Tribunal adalah visi Build-Award, di luar scope ini.
       </p>
     </div>
-  );
-}
-
-function Item({ title, desc }: { title: string; desc: string }) {
-  return (
-    <li className="s-card !p-3.5">
-      <div className="font-semibold text-[var(--color-ink)]">{title}</div>
-      <div className="mt-0.5 text-sm text-[var(--color-slate)]">{desc}</div>
-    </li>
   );
 }
