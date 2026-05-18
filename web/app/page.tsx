@@ -1,50 +1,51 @@
+"use client";
+
 import Link from "next/link";
 import Wallet from "@/components/Wallet";
-
-const ACTIONS = [
-  {
-    href: "/paluwagan",
-    title: "Arisan bareng teman & keluarga",
-    desc: "Mau mulai paluwagan anti-kabur? Ayo — kontrak yang pegang pot.",
-    cta: "Mulai arisan",
-  },
-  {
-    href: "/transparency",
-    title: "Bantu korban bencana",
-    desc: "Tiap peso terlacak on-chain. Tanpa politikus, tanpa calo.",
-    cta: "Donasi sekarang",
-  },
-  {
-    href: "/send",
-    title: "Kirim uang lewat @username",
-    desc: "Tanpa alamat panjang. Cukup nama teman.",
-    cta: "Kirim uang",
-  },
-  {
-    href: "/savings",
-    title: "Nabung dengan tujuan",
-    desc: "Kunci uang ke target; cair saat tercapai. Niat nabung jadi nyata.",
-    cta: "Mulai nabung",
-  },
-];
+import { useT } from "@/components/I18nProvider";
 
 export default function Home() {
+  const { t } = useT();
+  const actions = [
+    {
+      href: "/paluwagan",
+      title: t("home.palTitle"),
+      desc: t("home.palDesc"),
+      cta: t("home.palCta"),
+    },
+    {
+      href: "/transparency",
+      title: t("home.disTitle"),
+      desc: t("home.disDesc"),
+      cta: t("home.disCta"),
+    },
+    {
+      href: "/send",
+      title: t("home.sendTitle"),
+      desc: t("home.sendDesc"),
+      cta: t("home.sendCta"),
+    },
+    {
+      href: "/savings",
+      title: t("home.savTitle"),
+      desc: t("home.savDesc"),
+      cta: t("home.savCta"),
+    },
+  ];
+
   return (
     <div className="pb-8">
       <div className="px-5 pt-5">
-        <h1 className="s-h1">Kumusta 👋</h1>
-        <p className="s-sub mt-1">
-          Nabung, kirim, berbagi — semua dalam peso. Tanpa dompet, tanpa seed
-          phrase.
-        </p>
+        <h1 className="s-h1">{t("home.greeting")}</h1>
+        <p className="s-sub mt-1">{t("home.tagline")}</p>
       </div>
 
       <Wallet />
 
       <section className="mt-8 px-5">
-        <h2 className="s-label">Ayo mulai</h2>
+        <h2 className="s-label">{t("home.start")}</h2>
         <ul className="mt-3 space-y-2.5">
-          {ACTIONS.map((a) => (
+          {actions.map((a) => (
             <li key={a.href}>
               <Link
                 href={a.href}
@@ -81,10 +82,7 @@ export default function Home() {
       </section>
 
       <p className="mt-8 px-5 text-[11px] leading-relaxed text-[var(--color-slate)]">
-        Stellar PH Ambassador Chapter — Instaward. Demo testnet: saldo &
-        transaksi nyata di Stellar testnet (tanpa nilai riil). GCash & sign-in
-        adalah sandbox seam; produksi = anchor berlisensi. DAO governance + AI
-        Tribunal adalah visi Build-Award, di luar scope ini.
+        {t("home.footnote")}
       </p>
     </div>
   );
