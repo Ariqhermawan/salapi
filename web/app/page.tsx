@@ -21,10 +21,10 @@ const ACTIONS = [
     cta: "Kirim uang",
   },
   {
-    href: "/vaults",
+    href: "/savings",
     title: "Nabung dengan tujuan",
-    desc: "Kunci uang ke target; cair saat tercapai.",
-    cta: "Lihat vaults",
+    desc: "Kunci uang ke target; cair saat tercapai. Niat nabung jadi nyata.",
+    cta: "Mulai nabung",
   },
 ];
 

@@ -14,6 +14,7 @@ import {
   txLink,
   FRIENDBOT,
   paluwaganId,
+  smartSavingsId,
   FRIENDS,
 } from "@/lib/server/stellar";
 
@@ -187,6 +188,70 @@ export async function paluwaganCollect() {
   const id = paluwaganId();
   if (!id) return { ok: false as const, error: "Circle not set up" };
   const r = await invoke(id, "payout", []);
+  return r.ok
+    ? { ok: true as const, link: txLink(r.hash) }
+    : { ok: false as const, error: r.error };
+}
+
+// ── Smart Savings (goal vault) ────────────────────────────────────
+export async function smartSavingsState() {
+  const id = smartSavingsId();
+  if (!id) return { ready: false as const };
+  try {
+    const g = (await readContract(id, "goal_of", [
+      sc.addr(demoPublic()),
+    ])) as { target: number | bigint; saved: number | bigint };
+    const target = BigInt(g.target);
+    const saved = BigInt(g.saved);
+    const pct =
+      target > 0n
+        ? Math.min(100, Number((saved * 100n) / target))
+        : 0;
+    return {
+      ready: true as const,
+      hasGoal: true as const,
+      targetPeso: fmtPeso(stroopsToPesos(target)),
+      savedPeso: fmtPeso(stroopsToPesos(saved)),
+      pct,
+      unlocked: saved >= target,
+    };
+  } catch {
+    return { ready: true as const, hasGoal: false as const };
+  }
+}
+
+export async function smartSavingsOpen(targetPesos: number) {
+  const id = smartSavingsId();
+  if (!id) return { ok: false as const, error: "Vault not set up" };
+  if (!(targetPesos > 0))
+    return { ok: false as const, error: "Enter a target amount" };
+  const r = await invoke(id, "open_goal", [
+    sc.addr(demoPublic()),
+    sc.i128(pesosToStroops(targetPesos)),
+    sc.u32(4_000_000_000), // far-future ledger → target-driven unlock
+  ]);
+  return r.ok
+    ? { ok: true as const, link: txLink(r.hash) }
+    : { ok: false as const, error: r.error };
+}
+
+export async function smartSavingsDeposit(pesos: number) {
+  const id = smartSavingsId();
+  if (!id) return { ok: false as const, error: "Vault not set up" };
+  if (!(pesos > 0)) return { ok: false as const, error: "Enter an amount" };
+  const r = await invoke(id, "deposit", [
+    sc.addr(demoPublic()),
+    sc.i128(pesosToStroops(pesos)),
+  ]);
+  return r.ok
+    ? { ok: true as const, link: txLink(r.hash) }
+    : { ok: false as const, error: r.error };
+}
+
+export async function smartSavingsWithdraw() {
+  const id = smartSavingsId();
+  if (!id) return { ok: false as const, error: "Vault not set up" };
+  const r = await invoke(id, "withdraw", [sc.addr(demoPublic())]);
   return r.ok
     ? { ok: true as const, link: txLink(r.hash) }
     : { ok: false as const, error: r.error };

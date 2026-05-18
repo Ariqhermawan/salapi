@@ -159,6 +159,9 @@ export const txLink = (h: string) =>
 export function paluwaganId(): string | null {
   return process.env.PALUWAGAN_CONTRACT ?? null;
 }
+export function smartSavingsId(): string | null {
+  return process.env.SMARTSAVINGS_CONTRACT ?? null;
+}
 export const FRIENDS = [
   {
     label: "Teman A",
