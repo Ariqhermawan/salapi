@@ -1,7 +1,9 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { createSupabaseBrowser } from "@/lib/supabase/client";
+import { supabaseConfigured } from "@/lib/supabase/env";
 import { T, Btn, Wordmark, TestnetPill, PoweredByStellar } from "@/components/ui/kit";
 
 function GoogleMark() {
@@ -19,7 +21,32 @@ function GoogleMark() {
 export default function SignInScreen() {
   const router = useRouter();
   const [pending, start] = useTransition();
+  const [busy, setBusy] = useState(false);
+  const configured = supabaseConfigured();
+
   const enter = () => start(() => void router.push("/"));
+
+  async function google() {
+    if (!configured) return enter();
+    setBusy(true);
+    try {
+      const supabase = createSupabaseBrowser();
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: `${window.location.origin}/auth/callback` },
+      });
+      if (error) {
+        setBusy(false);
+        enter();
+      }
+      // success → browser is redirecting to Google
+    } catch {
+      setBusy(false);
+      enter();
+    }
+  }
+
+  const working = pending || busy;
 
   return (
     <div style={{ fontFamily: T.fontSans, color: T.ink, minHeight: "100%", display: "flex", flexDirection: "column", paddingBottom: 110 }}>
@@ -37,17 +64,18 @@ export default function SignInScreen() {
       </div>
 
       <div style={{ padding: "40px 16px 0", display: "flex", flexDirection: "column", gap: 10 }}>
-        <Btn kind="primary" disabled={pending} loading={pending} leading={!pending && <GoogleMark />} onClick={enter}>
-          {pending ? "Continuing…" : "Continue with Google"}
+        <Btn kind="primary" disabled={working} loading={working} leading={!working && <GoogleMark />} onClick={google}>
+          {busy ? "Redirecting to Google…" : "Continue with Google"}
         </Btn>
-        <Btn kind="secondary" disabled={pending} onClick={enter}>Continue with phone number</Btn>
-        <Btn kind="ghost" disabled={pending} onClick={enter}>Use email instead</Btn>
+        <Btn kind="secondary" disabled={working} onClick={enter}>Continue with phone number</Btn>
+        <Btn kind="ghost" disabled={working} onClick={enter}>Use email instead</Btn>
       </div>
 
       <div style={{ marginTop: "auto", padding: "24px 24px 0", textAlign: "center" }}>
         <div style={{ fontSize: 11, color: T.slate, lineHeight: 1.6, marginBottom: 8 }}>
-          Sandbox sign-in seam — no real account is created. Production = Google
-          OAuth via the platform auth provider (Build Award).
+          {configured
+            ? "Real Google sign-in via Supabase — your own Stellar wallet is created on first login. Phone/email are sandbox seams."
+            : "Sandbox sign-in seam — no real account is created. Google OAuth activates once Supabase is configured."}
         </div>
         <div style={{ fontSize: 11, color: T.slate, lineHeight: 1.6, marginBottom: 14 }}>
           By continuing, you agree to our Terms and Privacy Policy.

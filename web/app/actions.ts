@@ -2,10 +2,8 @@
 
 import {
   CONTRACTS,
-  demoPublic,
   fmtPeso,
   getNativeBalance,
-  invoke,
   invokeAs,
   pesosToStroops,
   readContract,
@@ -17,9 +15,10 @@ import {
   smartSavingsId,
   FRIENDS,
 } from "@/lib/server/stellar";
+import { getSigner } from "@/lib/server/userWallet";
 
 export async function walletState() {
-  const address = demoPublic();
+  const { publicKey: address } = await getSigner();
   const bal = await getNativeBalance(address);
   const pesos = stroopsToPesos(bal);
   return { address, pesos, pesoLabel: fmtPeso(pesos) };
@@ -29,7 +28,7 @@ export async function walletState() {
  *  Build Award. On testnet the wallet is Friendbot-funded; this confirms the
  *  flow and refreshes the (real, on-chain) balance. */
 export async function topUpSandbox() {
-  const address = demoPublic();
+  const { publicKey: address } = await getSigner();
   let funded = false;
   try {
     const r = await fetch(`${FRIENDBOT}/?addr=${address}`, {
@@ -53,7 +52,8 @@ export async function topUpSandbox() {
 /** Simulated GCash withdrawal (labeled sandbox). Real off-ramp = a
  *  licensed Stellar anchor at Build Award. Balance stays real on-chain. */
 export async function withdrawSandbox(pesos: number) {
-  const bal = await getNativeBalance(demoPublic());
+  const { publicKey } = await getSigner();
+  const bal = await getNativeBalance(publicKey);
   return {
     ok: true as const,
     note:
@@ -65,8 +65,9 @@ export async function withdrawSandbox(pesos: number) {
 
 export async function disasterContribute(pesos: number) {
   if (!(pesos > 0)) return { ok: false as const, error: "Enter an amount" };
-  const r = await invoke(CONTRACTS.disaster, "contribute", [
-    sc.addr(demoPublic()),
+  const s = await getSigner();
+  const r = await invokeAs(s.secret, CONTRACTS.disaster, "contribute", [
+    sc.addr(s.publicKey),
     sc.i128(pesosToStroops(pesos)),
   ]);
   return r.ok
@@ -78,8 +79,9 @@ export async function registerUsername(name: string) {
   const clean = name.trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
   if (clean.length < 3)
     return { ok: false as const, error: "Min 3 chars (a-z, 0-9, _)" };
-  const r = await invoke(CONTRACTS.usernameRegistry, "register", [
-    sc.addr(demoPublic()),
+  const s = await getSigner();
+  const r = await invokeAs(s.secret, CONTRACTS.usernameRegistry, "register", [
+    sc.addr(s.publicKey),
     sc.str(clean),
   ]);
   return r.ok
@@ -89,8 +91,9 @@ export async function registerUsername(name: string) {
 
 export async function myUsername() {
   try {
+    const { publicKey } = await getSigner();
     const u = await readContract(CONTRACTS.usernameRegistry, "username_of", [
-      sc.addr(demoPublic()),
+      sc.addr(publicKey),
     ]);
     return typeof u === "string" ? u : null;
   } catch {
@@ -113,8 +116,9 @@ export async function sendByUsername(name: string, pesos: number) {
   } catch {
     return { ok: false as const, error: `@${clean} not found` };
   }
-  const r = await invoke(CONTRACTS.tokenXlmSac, "transfer", [
-    sc.addr(demoPublic()),
+  const s = await getSigner();
+  const r = await invokeAs(s.secret, CONTRACTS.tokenXlmSac, "transfer", [
+    sc.addr(s.publicKey),
     sc.addr(to),
     sc.i128(pesosToStroops(pesos)),
   ]);
@@ -134,7 +138,7 @@ export async function paluwaganState() {
     const recipient = (await readContract(id, "recipient_of", [
       sc.u32(round),
     ])) as string;
-    const me = demoPublic();
+    const me = (await getSigner()).publicKey;
     const fpub = FRIENDS.map((f) => f.pub());
     const seats = await Promise.all(
       members.map(async (addr, i) => {
@@ -172,7 +176,10 @@ export async function paluwaganState() {
 export async function paluwaganPayMine() {
   const id = paluwaganId();
   if (!id) return { ok: false as const, error: "Circle not set up" };
-  const r = await invoke(id, "contribute", [sc.addr(demoPublic())]);
+  const s = await getSigner();
+  const r = await invokeAs(s.secret, id, "contribute", [
+    sc.addr(s.publicKey),
+  ]);
   return r.ok
     ? { ok: true as const, link: txLink(r.hash) }
     : { ok: false as const, error: r.error };
@@ -200,7 +207,8 @@ export async function paluwaganFriendsPay() {
 export async function paluwaganCollect() {
   const id = paluwaganId();
   if (!id) return { ok: false as const, error: "Circle not set up" };
-  const r = await invoke(id, "payout", []);
+  const s = await getSigner();
+  const r = await invokeAs(s.secret, id, "payout", []);
   return r.ok
     ? { ok: true as const, link: txLink(r.hash) }
     : { ok: false as const, error: r.error };
@@ -211,8 +219,9 @@ export async function smartSavingsState() {
   const id = smartSavingsId();
   if (!id) return { ready: false as const };
   try {
+    const { publicKey } = await getSigner();
     const g = (await readContract(id, "goal_of", [
-      sc.addr(demoPublic()),
+      sc.addr(publicKey),
     ])) as { target: number | bigint; saved: number | bigint };
     const target = BigInt(g.target);
     const saved = BigInt(g.saved);
@@ -238,8 +247,9 @@ export async function smartSavingsOpen(targetPesos: number) {
   if (!id) return { ok: false as const, error: "Vault not set up" };
   if (!(targetPesos > 0))
     return { ok: false as const, error: "Enter a target amount" };
-  const r = await invoke(id, "open_goal", [
-    sc.addr(demoPublic()),
+  const s = await getSigner();
+  const r = await invokeAs(s.secret, id, "open_goal", [
+    sc.addr(s.publicKey),
     sc.i128(pesosToStroops(targetPesos)),
     sc.u32(4_000_000_000), // far-future ledger → target-driven unlock
   ]);
@@ -252,8 +262,9 @@ export async function smartSavingsDeposit(pesos: number) {
   const id = smartSavingsId();
   if (!id) return { ok: false as const, error: "Vault not set up" };
   if (!(pesos > 0)) return { ok: false as const, error: "Enter an amount" };
-  const r = await invoke(id, "deposit", [
-    sc.addr(demoPublic()),
+  const s = await getSigner();
+  const r = await invokeAs(s.secret, id, "deposit", [
+    sc.addr(s.publicKey),
     sc.i128(pesosToStroops(pesos)),
   ]);
   return r.ok
@@ -264,7 +275,8 @@ export async function smartSavingsDeposit(pesos: number) {
 export async function smartSavingsWithdraw() {
   const id = smartSavingsId();
   if (!id) return { ok: false as const, error: "Vault not set up" };
-  const r = await invoke(id, "withdraw", [sc.addr(demoPublic())]);
+  const s = await getSigner();
+  const r = await invokeAs(s.secret, id, "withdraw", [sc.addr(s.publicKey)]);
   return r.ok
     ? { ok: true as const, link: txLink(r.hash) }
     : { ok: false as const, error: r.error };
