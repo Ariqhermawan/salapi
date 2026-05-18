@@ -1,58 +1,32 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { TabBar, Ico } from "@/components/ui/kit";
 import { useT } from "@/components/I18nProvider";
-
-const TABS = [
-  { href: "/", key: "nav.home", d: "M3 11.5 12 4l9 7.5M5 10v10h14V10" },
-  { href: "/send", key: "nav.send", d: "M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z" },
-  {
-    href: "/vaults",
-    key: "nav.vaults",
-    d: "M4 7V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2M3 7h18v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Zm9 5v3",
-  },
-  { href: "/activity", key: "nav.activity", d: "M3 12h4l3 8 4-16 3 8h4" },
-];
 
 export default function BottomNav() {
   const path = usePathname();
+  const router = useRouter();
   const { t } = useT();
+
+  const items = [
+    { id: "/", label: t("nav.home"), icon: Ico.home },
+    { id: "/vaults", label: t("nav.vaults"), icon: Ico.vault },
+    { id: "/send", label: t("nav.send"), icon: Ico.send, fab: true },
+    { id: "/activity", label: t("nav.activity"), icon: Ico.activity },
+    { id: "/settings", label: t("common.you"), icon: Ico.user },
+  ];
+
+  const active =
+    path === "/"
+      ? "/"
+      : items.find((i) => i.id !== "/" && path.startsWith(i.id))?.id ?? "/";
+
   return (
-    <nav>
-      <ul className="flex">
-        {TABS.map((tab) => {
-          const active =
-            tab.href === "/" ? path === "/" : path.startsWith(tab.href);
-          return (
-            <li key={tab.href} className="flex-1">
-              <Link
-                href={tab.href}
-                className="flex flex-col items-center gap-1 py-2.5 text-[11px] font-semibold"
-                style={{
-                  color: active
-                    ? "var(--color-action)"
-                    : "var(--color-slate)",
-                }}
-              >
-                <svg
-                  width="22"
-                  height="22"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={active ? 2.4 : 2}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d={tab.d} />
-                </svg>
-                {t(tab.key)}
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </nav>
+    <TabBar
+      items={items}
+      active={active}
+      onNav={(id) => router.push(id)}
+    />
   );
 }
