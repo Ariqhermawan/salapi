@@ -6,14 +6,18 @@ import { usePathname } from "next/navigation";
 const TABS = [
   { href: "/", label: "Home", d: "M3 11.5 12 4l9 7.5M5 10v10h14V10" },
   { href: "/send", label: "Send", d: "M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z" },
-  { href: "/vaults", label: "Vaults", d: "M4 7V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2M3 7h18v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Zm9 5v3" },
+  {
+    href: "/vaults",
+    label: "Vaults",
+    d: "M4 7V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2M3 7h18v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Zm9 5v3",
+  },
   { href: "/activity", label: "Activity", d: "M3 12h4l3 8 4-16 3 8h4" },
 ];
 
 export default function BottomNav() {
   const path = usePathname();
   return (
-    <nav className="fixed bottom-0 left-1/2 z-20 w-full max-w-[480px] -translate-x-1/2 border-t border-zinc-200 bg-white/95 backdrop-blur">
+    <nav>
       <ul className="flex">
         {TABS.map((t) => {
           const active =
@@ -22,9 +26,12 @@ export default function BottomNav() {
             <li key={t.href} className="flex-1">
               <Link
                 href={t.href}
-                className={`flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium ${
-                  active ? "text-blue-700" : "text-zinc-400"
-                }`}
+                className="flex flex-col items-center gap-1 py-2.5 text-[11px] font-semibold"
+                style={{
+                  color: active
+                    ? "var(--color-action)"
+                    : "var(--color-slate)",
+                }}
               >
                 <svg
                   width="22"
@@ -32,7 +39,7 @@ export default function BottomNav() {
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
-                  strokeWidth="2"
+                  strokeWidth={active ? 2.4 : 2}
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 >

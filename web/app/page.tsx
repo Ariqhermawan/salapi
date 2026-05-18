@@ -2,19 +2,19 @@ import Wallet from "@/components/Wallet";
 
 export default function Home() {
   return (
-    <div className="pb-6">
+    <div className="pb-8">
       <div className="px-5 pt-5">
-        <h1 className="text-xl font-bold tracking-tight">Kumusta 👋</h1>
-        <p className="mt-1 text-sm text-zinc-500">
+        <h1 className="s-h1">Kumusta 👋</h1>
+        <p className="s-sub mt-1">
           Save, send, and give — all in pesos. No wallet, no seed phrase.
         </p>
       </div>
 
       <Wallet />
 
-      <section className="mt-7 px-5">
-        <h2 className="text-sm font-semibold text-zinc-700">What you can do</h2>
-        <ul className="mt-3 space-y-2 text-sm">
+      <section className="mt-8 px-5">
+        <h2 className="s-label">What you can do</h2>
+        <ul className="mt-3 space-y-2.5">
           <Item
             title="Disaster relief, fully transparent"
             desc="Every peso traceable on-chain. No politician, no broker."
@@ -34,11 +34,11 @@ export default function Home() {
         </ul>
       </section>
 
-      <p className="mt-7 px-5 text-[11px] leading-relaxed text-zinc-400">
+      <p className="mt-8 px-5 text-[11px] leading-relaxed text-[var(--color-slate)]">
         Stellar PH Ambassador Chapter — Instaward. Testnet demo: balances and
         transactions are real on Stellar testnet (no real value). GCash &
-        sign-in are sandbox seams; production = licensed anchor. DAO governance
-        + AI Tribunal are Build-Award vision, out of this scope.
+        sign-in are sandbox seams; production = a licensed anchor. DAO
+        governance + AI Tribunal are Build-Award vision, out of this scope.
       </p>
     </div>
   );
@@ -46,9 +46,9 @@ export default function Home() {
 
 function Item({ title, desc }: { title: string; desc: string }) {
   return (
-    <li className="rounded-xl border border-zinc-200 p-3">
-      <div className="font-medium text-zinc-800">{title}</div>
-      <div className="mt-0.5 text-zinc-500">{desc}</div>
+    <li className="s-card !p-3.5">
+      <div className="font-semibold text-[var(--color-ink)]">{title}</div>
+      <div className="mt-0.5 text-sm text-[var(--color-slate)]">{desc}</div>
     </li>
   );
 }

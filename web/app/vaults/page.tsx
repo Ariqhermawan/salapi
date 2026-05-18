@@ -10,8 +10,8 @@ export const metadata = { title: "Vaults · Salapi" };
 export default function VaultsPage() {
   return (
     <div className="px-5 py-6">
-      <h1 className="text-xl font-bold tracking-tight">Vaults</h1>
-      <p className="mt-1 mb-5 text-sm text-zinc-500">
+      <h1 className="s-h1">Vaults</h1>
+      <p className="s-sub mt-1 mb-5">
         One primitive, different rules. All live on Stellar testnet.
       </p>
 

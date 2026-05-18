@@ -9,8 +9,8 @@ export default function ActivityPage() {
   const account = `https://stellar.expert/explorer/testnet/account/${addr}`;
   return (
     <div className="px-5 py-6">
-      <h1 className="text-xl font-bold tracking-tight">Activity</h1>
-      <p className="mt-1 text-sm text-zinc-500">
+      <h1 className="s-h1">Activity</h1>
+      <p className="s-sub mt-1">
         Everything is real & independently verifiable on Stellar testnet.
       </p>
 

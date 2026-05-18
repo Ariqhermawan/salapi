@@ -1,26 +1,117 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ── Invisible Rails — design tokens ─────────────────────────────── */
+@theme {
+  --color-ink: #0b1220;
+  --color-slate: #5b6472;
+  --color-hairline: #e6e8ee;
+  --color-canvas: #f4f6fb;
+  --color-surface: #ffffff;
+  --color-action: #2563eb;
+  --color-action-deep: #1d4ed8;
+  --color-money: #059669;
+  --color-warn: #b45309;
+  --font-sans: var(--font-geist-sans), system-ui, sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* Base — light, high-contrast, intentional. No dark-mode flip:
+   Salapi is a deliberately light fintech surface. */
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    background: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  input,
+  button {
+    font: inherit;
+  }
+  ::placeholder {
+    color: #9aa3b2;
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Reusable, guaranteed-contrast components */
+@layer components {
+  .s-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-hairline);
+    border-radius: 1rem;
+    padding: 1.25rem;
+  }
+  .s-h1 {
+    color: var(--color-ink);
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .s-sub {
+    color: var(--color-slate);
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+  .s-label {
+    color: var(--color-slate);
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .s-muted {
+    color: var(--color-slate);
+    font-size: 0.8rem;
+  }
+  .s-input {
+    width: 100%;
+    background: #fff;
+    color: var(--color-ink);
+    border: 1px solid #d6dae3;
+    border-radius: 0.75rem;
+    padding: 0.75rem 0.9rem;
+    font-size: 0.95rem;
+    outline: none;
+  }
+  .s-input:focus {
+    border-color: var(--color-action);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  }
+  .s-btn {
+    width: 100%;
+    background: var(--color-action-deep);
+    color: #fff;
+    border-radius: 0.75rem;
+    padding: 0.85rem 1rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    transition: background 0.15s;
+  }
+  .s-btn:hover {
+    background: #1740b8;
+  }
+  .s-btn:disabled {
+    opacity: 0.55;
+  }
+  .s-btn-ghost {
+    border: 1px solid var(--color-hairline);
+    color: var(--color-ink);
+    background: #fff;
+    border-radius: 0.75rem;
+    padding: 0.85rem 1rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+  .s-link {
+    color: var(--color-action-deep);
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
 }

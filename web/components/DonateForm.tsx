@@ -26,10 +26,10 @@ export default function DonateForm() {
       const r = await disasterContribute(Number(amount));
       if (r.ok) {
         setMsg(
-          <div className="rounded-lg bg-green-50 px-3 py-2 text-green-700">
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-[var(--color-money)]">
             ✓ Donated ₱{amount} ·{" "}
             <a
-              className="underline"
+              className="s-link"
               href={r.link}
               target="_blank"
               rel="noopener noreferrer"
@@ -42,7 +42,7 @@ export default function DonateForm() {
         await refresh();
       } else {
         setMsg(
-          <div className="rounded-lg bg-red-50 px-3 py-2 text-red-700">
+          <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-red-700">
             {r.error}
           </div>
         );
@@ -51,30 +51,39 @@ export default function DonateForm() {
   }
 
   return (
-    <div className="rounded-xl border border-zinc-200 p-4">
-      <div className="flex items-baseline justify-between">
-        <h2 className="text-sm font-semibold">Disaster relief pool</h2>
-        <span className="text-xs text-zinc-500">
-          {active === null ? "" : active ? "ACTIVE" : "standby"}
+    <div className="s-card">
+      <div className="flex items-center justify-between">
+        <h2 className="s-label">Disaster relief pool</h2>
+        <span
+          className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+          style={
+            active
+              ? { background: "#fee2e2", color: "#b91c1c" }
+              : { background: "#eef1f6", color: "var(--color-slate)" }
+          }
+        >
+          {active === null ? "…" : active ? "Active" : "Standby"}
         </span>
       </div>
-      <div className="mt-1 text-2xl font-bold text-blue-700">{pool}</div>
-      <p className="mt-1 text-xs text-zinc-500">
+      <div className="tabular mt-1.5 text-3xl font-extrabold text-[var(--color-ink)]">
+        {pool}
+      </div>
+      <p className="s-muted mt-1">
         Every peso traceable on-chain. The contract is the disbursement
         authority.
       </p>
-      <div className="mt-3 flex gap-2">
+      <div className="mt-4 flex gap-2">
         <input
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           inputMode="decimal"
           placeholder="amount in ₱"
-          className="flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+          className="s-input flex-1"
         />
         <button
           onClick={donate}
           disabled={pending}
-          className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+          className="s-btn !w-auto px-5"
         >
           {pending ? "…" : "Donate"}
         </button>

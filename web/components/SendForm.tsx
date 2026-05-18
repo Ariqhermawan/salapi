@@ -27,32 +27,34 @@ export default function SendForm() {
   function doSend() {
     start(async () => {
       const r = await sendByUsername(to, Number(amount));
-      if (r.ok)
-        setMsg(<Ok link={r.link}>Sent ₱{amount} to @{to}</Ok>);
+      if (r.ok) setMsg(<Ok link={r.link}>Sent ₱{amount} to @{to}</Ok>);
       else setMsg(<Err>{r.error}</Err>);
     });
   }
 
   return (
-    <div className="space-y-6">
-      <section className="rounded-xl border border-zinc-200 p-4">
-        <h2 className="text-sm font-semibold">Your username</h2>
+    <div className="space-y-4">
+      <section className="s-card">
+        <h2 className="s-label">Your username</h2>
         {mine ? (
-          <p className="mt-2 text-sm">
-            You are <span className="font-semibold text-blue-700">@{mine}</span>
+          <p className="mt-2 text-[15px] text-[var(--color-ink)]">
+            You are{" "}
+            <span className="font-bold text-[var(--color-action-deep)]">
+              @{mine}
+            </span>
           </p>
         ) : (
-          <div className="mt-2 flex gap-2">
+          <div className="mt-3 flex gap-2">
             <input
               value={claim}
               onChange={(e) => setClaim(e.target.value)}
               placeholder="choose a username"
-              className="flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+              className="s-input flex-1"
             />
             <button
               onClick={doClaim}
               disabled={pending}
-              className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              className="s-btn !w-auto px-5"
             >
               Claim
             </button>
@@ -60,27 +62,23 @@ export default function SendForm() {
         )}
       </section>
 
-      <section className="rounded-xl border border-zinc-200 p-4">
-        <h2 className="text-sm font-semibold">Send money</h2>
-        <div className="mt-2 space-y-2">
+      <section className="s-card">
+        <h2 className="s-label">Send money</h2>
+        <div className="mt-3 space-y-2.5">
           <input
             value={to}
             onChange={(e) => setTo(e.target.value)}
             placeholder="to @username"
-            className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+            className="s-input"
           />
           <input
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             inputMode="decimal"
             placeholder="amount in ₱"
-            className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+            className="s-input"
           />
-          <button
-            onClick={doSend}
-            disabled={pending}
-            className="w-full rounded-lg bg-blue-700 py-3 text-sm font-semibold text-white disabled:opacity-60"
-          >
+          <button onClick={doSend} disabled={pending} className="s-btn">
             {pending ? "Sending…" : "Send"}
           </button>
         </div>
@@ -93,14 +91,9 @@ export default function SendForm() {
 
 function Ok({ children, link }: { children: React.ReactNode; link: string }) {
   return (
-    <div className="rounded-lg bg-green-50 px-3 py-2 text-green-700">
+    <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-[var(--color-money)]">
       ✓ {children} ·{" "}
-      <a
-        className="underline"
-        href={link}
-        target="_blank"
-        rel="noopener noreferrer"
-      >
+      <a className="s-link" href={link} target="_blank" rel="noopener noreferrer">
         view on-chain
       </a>
     </div>
@@ -108,7 +101,7 @@ function Ok({ children, link }: { children: React.ReactNode; link: string }) {
 }
 function Err({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-lg bg-red-50 px-3 py-2 text-red-700">
+    <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-red-700">
       {children}
     </div>
   );

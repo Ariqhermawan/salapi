@@ -29,44 +29,83 @@ export default function Wallet() {
 
   return (
     <div className="px-5">
-      <div className="mt-4 rounded-2xl bg-gradient-to-br from-blue-700 to-blue-900 p-5 text-white shadow-lg">
-        <div className="text-xs font-medium uppercase tracking-wide text-blue-200">
+      <div
+        className="mt-4 rounded-2xl p-6 text-white"
+        style={{
+          background:
+            "linear-gradient(150deg,#1d4ed8 0%,#1e3a8a 60%,#0b1220 100%)",
+          boxShadow: "0 16px 40px -16px rgba(29,78,216,0.55)",
+        }}
+      >
+        <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-blue-200">
           Available balance
         </div>
-        <div className="mt-1 text-4xl font-bold">{bal}</div>
-        <div className="mt-1 text-[11px] text-blue-200">
-          {addr ? `wallet ${addr.slice(0, 6)}…${addr.slice(-4)}` : ""} · crypto
+        <div className="tabular mt-1.5 text-[2.6rem] font-extrabold leading-none">
+          {bal}
+        </div>
+        <div className="mt-2 text-[11px] text-blue-200/90">
+          {addr ? `wallet ${addr.slice(0, 6)}…${addr.slice(-4)} · ` : ""}crypto
           invisible
         </div>
         <button
           onClick={topUp}
           disabled={pending}
-          className="mt-4 w-full rounded-xl bg-white py-3 text-sm font-semibold text-blue-800 disabled:opacity-60"
+          className="mt-5 w-full rounded-xl bg-white py-3 text-sm font-bold text-[var(--color-action-deep)] transition-opacity disabled:opacity-60"
         >
           {pending ? "Processing…" : "Top up with GCash"}
         </button>
       </div>
+
       {note && (
-        <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+        <p className="mt-2.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-[var(--color-warn)]">
           {note}
         </p>
       )}
 
       <div className="mt-5 grid grid-cols-3 gap-3">
-        <Action href="/send" label="Send" />
-        <Action href="/vaults" label="Vaults" />
-        <Action href="/transparency" label="Donate" />
+        <Action href="/send" label="Send" d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z" />
+        <Action
+          href="/vaults"
+          label="Vaults"
+          d="M4 7V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2M3 7h18v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Zm9 5v3"
+        />
+        <Action
+          href="/transparency"
+          label="Donate"
+          d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"
+        />
       </div>
     </div>
   );
 }
 
-function Action({ href, label }: { href: string; label: string }) {
+function Action({
+  href,
+  label,
+  d,
+}: {
+  href: string;
+  label: string;
+  d: string;
+}) {
   return (
     <Link
       href={href}
-      className="flex flex-col items-center gap-1 rounded-xl border border-zinc-200 py-4 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+      className="flex flex-col items-center gap-2 rounded-xl border border-[var(--color-hairline)] bg-white py-4 text-sm font-semibold text-[var(--color-ink)] transition-colors hover:border-[var(--color-action)]"
     >
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{ color: "var(--color-action)" }}
+      >
+        <path d={d} />
+      </svg>
       {label}
     </Link>
   );
