@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Salapi">
+  <rect width="512" height="512" rx="112" fill="#1d4ed8"/>
+  <text x="50%" y="54%" text-anchor="middle" dominant-baseline="middle"
+        font-family="Geist, Arial, sans-serif" font-size="300" font-weight="800" fill="#ffffff">S</text>
+  <circle cx="372" cy="360" r="34" fill="#60a5fa"/>
+</svg>
