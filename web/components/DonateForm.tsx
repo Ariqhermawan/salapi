@@ -2,9 +2,12 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { disasterContribute, disasterState } from "@/app/actions";
+import { useT } from "@/components/I18nProvider";
+import { Badge, Button, Card, Input, Label, Toast } from "@/components/ui";
 
 export default function DonateForm() {
-  const [pool, setPool] = useState<string>("…");
+  const { t } = useT();
+  const [pool, setPool] = useState("…");
   const [active, setActive] = useState<boolean | null>(null);
   const [amount, setAmount] = useState("");
   const [msg, setMsg] = useState<React.ReactNode>("");
@@ -26,69 +29,53 @@ export default function DonateForm() {
       const r = await disasterContribute(Number(amount));
       if (r.ok) {
         setMsg(
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-[var(--color-money)]">
-            ✓ Donated ₱{amount} ·{" "}
+          <Toast tone="success">
+            ✓ {t("donate.donatedOk", { amt: amount })} ·{" "}
             <a
               className="s-link"
               href={r.link}
               target="_blank"
               rel="noopener noreferrer"
             >
-              view on-chain
+              {t("common.viewOnChain")}
             </a>
-          </div>
+          </Toast>
         );
         setAmount("");
         await refresh();
-      } else {
-        setMsg(
-          <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-red-700">
-            {r.error}
-          </div>
-        );
-      }
+      } else setMsg(<Toast tone="error">{r.error}</Toast>);
     });
   }
 
   return (
-    <div className="s-card">
+    <Card>
       <div className="flex items-center justify-between">
-        <h2 className="s-label">Disaster relief pool</h2>
-        <span
-          className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider"
-          style={
-            active
-              ? { background: "#fee2e2", color: "#b91c1c" }
-              : { background: "#eef1f6", color: "var(--color-slate)" }
-          }
-        >
-          {active === null ? "…" : active ? "Active" : "Standby"}
-        </span>
+        <Label>{t("donate.poolTitle")}</Label>
+        <Badge tone={active ? "active" : "neutral"}>
+          {active === null
+            ? "…"
+            : active
+              ? t("donate.active")
+              : t("donate.standby")}
+        </Badge>
       </div>
       <div className="tabular mt-1.5 text-3xl font-extrabold text-[var(--color-ink)]">
         {pool}
       </div>
-      <p className="s-muted mt-1">
-        Every peso traceable on-chain. The contract is the disbursement
-        authority.
-      </p>
+      <p className="s-muted mt-1">{t("donate.note")}</p>
       <div className="mt-4 flex gap-2">
-        <input
+        <Input
+          className="flex-1"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           inputMode="decimal"
-          placeholder="amount in ₱"
-          className="s-input flex-1"
+          placeholder={t("common.amountPeso")}
         />
-        <button
-          onClick={donate}
-          disabled={pending}
-          className="s-btn !w-auto px-5"
-        >
-          {pending ? "…" : "Donate"}
-        </button>
+        <Button className="!w-auto px-5" disabled={pending} onClick={donate}>
+          {pending ? "…" : t("donate.donate")}
+        </Button>
       </div>
-      {msg && <div className="mt-3 text-sm">{msg}</div>}
-    </div>
+      {msg && <div className="mt-3">{msg}</div>}
+    </Card>
   );
 }

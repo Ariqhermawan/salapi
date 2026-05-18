@@ -7,14 +7,19 @@ import {
   smartSavingsDeposit,
   smartSavingsWithdraw,
 } from "@/app/actions";
+import { useT } from "@/components/I18nProvider";
+import { Button, Card, Input, Label, Progress, Toast } from "@/components/ui";
+import { Confetti } from "@/components/ui/motion";
 
 type State = Awaited<ReturnType<typeof smartSavingsState>>;
 
 export default function SmartSavings() {
+  const { t } = useT();
   const [st, setSt] = useState<State | null>(null);
   const [target, setTarget] = useState("");
   const [dep, setDep] = useState("");
   const [msg, setMsg] = useState<React.ReactNode>("");
+  const [party, setParty] = useState(false);
   const [pending, start] = useTransition();
 
   async function refresh() {
@@ -26,14 +31,15 @@ export default function SmartSavings() {
 
   function run(
     fn: () => Promise<{ ok: boolean; link?: string; error?: string }>,
-    okText: string
+    okText: string,
+    celebrate = false
   ) {
     start(async () => {
       setMsg("");
       const r = await fn();
-      setMsg(
-        r.ok ? (
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-[var(--color-money)]">
+      if (r.ok) {
+        setMsg(
+          <Toast tone="success">
             ✓ {okText}
             {r.link && (
               <>
@@ -44,17 +50,17 @@ export default function SmartSavings() {
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  view on-chain
+                  {t("common.viewOnChain")}
                 </a>
               </>
             )}
-          </div>
-        ) : (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-red-700">
-            {r.error}
-          </div>
-        )
-      );
+          </Toast>
+        );
+        if (celebrate) {
+          setParty(true);
+          setTimeout(() => setParty(false), 1800);
+        }
+      } else setMsg(<Toast tone="error">{r.error}</Toast>);
       setDep("");
       setTarget("");
       await refresh();
@@ -63,6 +69,7 @@ export default function SmartSavings() {
 
   return (
     <div className="space-y-4">
+      <Confetti fire={party} />
       <div
         className="rounded-2xl p-5 text-white"
         style={{
@@ -71,135 +78,120 @@ export default function SmartSavings() {
         }}
       >
         <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-blue-200">
-          Smart savings · ipon
+          {t("sav.kicker")}
         </div>
         <h2 className="mt-1 text-xl font-extrabold leading-snug">
-          Punya impian? Nabung pelan-pelan.
+          {t("sav.title")}
         </h2>
-        <p className="mt-1.5 text-sm text-blue-100">
-          Kunci uang ke target. Tidak bisa diutak-atik sampai tercapai —
-          biar niat nabung benar-benar jadi.
-        </p>
+        <p className="mt-1.5 text-sm text-blue-100">{t("sav.sub")}</p>
       </div>
 
       {st === null ? (
-        <p className="s-muted">Memuat…</p>
+        <p className="s-muted">{t("common.loading")}</p>
       ) : !st.ready ? (
-        <div className="s-card">
-          <p className="text-sm">Vault belum siap. Provisioning…</p>
-        </div>
+        <Card>
+          <p className="text-sm">{t("common.notReady")}</p>
+        </Card>
       ) : !st.hasGoal ? (
-        <div className="s-card">
-          <h3 className="s-label">Mulai tujuan baru</h3>
-          <p className="s-muted mt-1">
-            Mau nabung berapa? (mis. ₱5,000 buat sekolah anak)
-          </p>
+        <Card>
+          <Label>{t("sav.startTitle")}</Label>
+          <p className="s-muted mt-1">{t("sav.startHint")}</p>
           <div className="mt-3 flex gap-2">
-            <input
+            <Input
+              className="flex-1"
               value={target}
               onChange={(e) => setTarget(e.target.value)}
               inputMode="decimal"
-              placeholder="target dalam ₱"
-              className="s-input flex-1"
+              placeholder={t("sav.targetPh")}
             />
-            <button
-              className="s-btn !w-auto px-5"
+            <Button
+              className="!w-auto px-5"
               disabled={pending}
               onClick={() =>
                 run(
                   () => smartSavingsOpen(Number(target)),
-                  "Tujuan dibuat — ayo mulai setor!"
+                  t("sav.startedOk")
                 )
               }
             >
-              {pending ? "…" : "Mulai"}
-            </button>
+              {pending ? "…" : t("sav.start")}
+            </Button>
           </div>
-        </div>
+        </Card>
       ) : (
         <>
-          <div className="s-card">
+          <Card>
             <div className="flex items-end justify-between">
               <div>
-                <h3 className="s-label">Tabungan kamu</h3>
+                <Label>{t("sav.yourSavings")}</Label>
                 <div className="tabular mt-1 text-3xl font-extrabold text-[var(--color-ink)]">
                   {st.savedPeso}
                 </div>
               </div>
               <div className="text-right">
-                <div className="s-muted">target</div>
+                <div className="s-muted">{t("sav.target")}</div>
                 <div className="font-semibold text-[var(--color-ink)]">
                   {st.targetPeso}
                 </div>
               </div>
             </div>
-            <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-[var(--color-hairline)]">
-              <div
-                className="h-full rounded-full transition-all duration-700"
-                style={{
-                  width: `${st.pct}%`,
-                  background:
-                    "linear-gradient(90deg,#2563eb,#059669)",
-                }}
-              />
+            <div className="mt-3">
+              <Progress pct={st.pct} />
             </div>
             <div className="s-muted mt-1.5">
-              {st.pct}% tercapai{" "}
-              {st.unlocked ? "· siap dicairkan 🎉" : "· terkunci sampai target"}
+              {t("sav.pct", { pct: st.pct })}{" "}
+              {st.unlocked ? t("sav.ready") : t("sav.locked")}
             </div>
-          </div>
+          </Card>
 
-          <div className="s-card">
-            <h3 className="s-label">Setor lagi</h3>
+          <Card>
+            <Label>{t("sav.depositTitle")}</Label>
             <div className="mt-3 flex gap-2">
-              <input
+              <Input
+                className="flex-1"
                 value={dep}
                 onChange={(e) => setDep(e.target.value)}
                 inputMode="decimal"
-                placeholder="jumlah dalam ₱"
-                className="s-input flex-1"
+                placeholder={t("sav.amountPh")}
               />
-              <button
-                className="s-btn !w-auto px-5"
+              <Button
+                className="!w-auto px-5"
                 disabled={pending}
                 onClick={() =>
                   run(
                     () => smartSavingsDeposit(Number(dep)),
-                    `Setoran ₱${dep} masuk tabungan`
+                    t("sav.depositedOk", { amt: dep })
                   )
                 }
               >
-                {pending ? "…" : "Setor"}
-              </button>
+                {pending ? "…" : t("sav.deposit")}
+              </Button>
             </div>
-          </div>
+          </Card>
 
-          <button
-            className="s-btn"
+          <Button
+            disabled={pending || !st.unlocked}
             style={{
               background: st.unlocked
                 ? "var(--color-money)"
                 : "var(--color-hairline)",
               color: st.unlocked ? "#fff" : "var(--color-slate)",
             }}
-            disabled={pending || !st.unlocked}
             onClick={() =>
-              run(smartSavingsWithdraw, "Tabungan cair — selamat! 🎉")
+              run(smartSavingsWithdraw, t("sav.withdrewOk"), true)
             }
           >
             {st.unlocked
-              ? `Cairkan ${st.savedPeso}`
-              : "Cairkan (tunggu target tercapai)"}
-          </button>
+              ? t("sav.withdrawReady", { amt: st.savedPeso })
+              : t("sav.withdrawLocked")}
+          </Button>
 
-          {msg && <div className="text-sm">{msg}</div>}
+          {msg && <div>{msg}</div>}
         </>
       )}
 
       <p className="text-[11px] leading-relaxed text-[var(--color-slate)]">
-        Semua aksi = transaksi nyata di Stellar testnet. Uang terkunci di
-        smart contract sampai target tercapai — kamu sendiri pun tak bisa
-        ambil lebih awal.
+        {t("sav.note")}
       </p>
     </div>
   );

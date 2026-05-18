@@ -2,8 +2,11 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { registerUsername, myUsername, sendByUsername } from "@/app/actions";
+import { useT } from "@/components/I18nProvider";
+import { Button, Card, Input, Label, Toast } from "@/components/ui";
 
 export default function SendForm() {
+  const { t } = useT();
   const [mine, setMine] = useState<string | null>(null);
   const [claim, setClaim] = useState("");
   const [to, setTo] = useState("");
@@ -15,94 +18,81 @@ export default function SendForm() {
     myUsername().then(setMine);
   }, []);
 
+  const ok = (text: string, link: string) => (
+    <Toast tone="success">
+      ✓ {text} ·{" "}
+      <a className="s-link" href={link} target="_blank" rel="noopener noreferrer">
+        {t("common.viewOnChain")}
+      </a>
+    </Toast>
+  );
+  const err = (e: string) => <Toast tone="error">{e}</Toast>;
+
   function doClaim() {
     start(async () => {
       const r = await registerUsername(claim);
       if (r.ok) {
         setMine(r.name);
-        setMsg(<Ok link={r.link}>Claimed @{r.name}</Ok>);
-      } else setMsg(<Err>{r.error}</Err>);
+        setMsg(ok(t("send.claimedOk", { name: r.name }), r.link));
+      } else setMsg(err(r.error));
     });
   }
   function doSend() {
     start(async () => {
       const r = await sendByUsername(to, Number(amount));
-      if (r.ok) setMsg(<Ok link={r.link}>Sent ₱{amount} to @{to}</Ok>);
-      else setMsg(<Err>{r.error}</Err>);
+      if (r.ok)
+        setMsg(ok(t("send.sentOk", { amt: amount, to }), r.link));
+      else setMsg(err(r.error));
     });
   }
 
   return (
     <div className="space-y-4">
-      <section className="s-card">
-        <h2 className="s-label">Your username</h2>
+      <Card>
+        <Label>{t("send.yourUsername")}</Label>
         {mine ? (
           <p className="mt-2 text-[15px] text-[var(--color-ink)]">
-            You are{" "}
+            {t("send.youAre")}{" "}
             <span className="font-bold text-[var(--color-action-deep)]">
               @{mine}
             </span>
           </p>
         ) : (
           <div className="mt-3 flex gap-2">
-            <input
+            <Input
+              className="flex-1"
               value={claim}
               onChange={(e) => setClaim(e.target.value)}
-              placeholder="choose a username"
-              className="s-input flex-1"
+              placeholder={t("send.choose")}
             />
-            <button
-              onClick={doClaim}
-              disabled={pending}
-              className="s-btn !w-auto px-5"
-            >
-              Claim
-            </button>
+            <Button className="!w-auto px-5" disabled={pending} onClick={doClaim}>
+              {t("send.claim")}
+            </Button>
           </div>
         )}
-      </section>
+      </Card>
 
-      <section className="s-card">
-        <h2 className="s-label">Send money</h2>
+      <Card>
+        <Label>{t("send.sendMoney")}</Label>
         <div className="mt-3 space-y-2.5">
-          <input
+          <Input
             value={to}
             onChange={(e) => setTo(e.target.value)}
-            placeholder="to @username"
-            className="s-input"
+            placeholder={t("send.toUsername")}
           />
-          <input
+          <Input
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             inputMode="decimal"
-            placeholder="amount in ₱"
-            className="s-input"
+            placeholder={t("common.amountPeso")}
           />
-          <button onClick={doSend} disabled={pending} className="s-btn">
-            {pending ? "Sending…" : "Send"}
-          </button>
+          <Button disabled={pending} onClick={doSend}>
+            {pending ? t("send.sending") : t("send.send")}
+          </Button>
         </div>
-      </section>
+      </Card>
 
-      {msg && <div className="text-sm">{msg}</div>}
-    </div>
-  );
-}
-
-function Ok({ children, link }: { children: React.ReactNode; link: string }) {
-  return (
-    <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-[var(--color-money)]">
-      ✓ {children} ·{" "}
-      <a className="s-link" href={link} target="_blank" rel="noopener noreferrer">
-        view on-chain
-      </a>
-    </div>
-  );
-}
-function Err({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-red-700">
-      {children}
+      {msg && <div>{msg}</div>}
     </div>
   );
 }

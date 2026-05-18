@@ -1,19 +1,19 @@
+"use client";
+
 import Link from "next/link";
 import DonateForm from "@/components/DonateForm";
 import { CONTRACTS } from "@/lib/salapi";
+import { useT } from "@/components/I18nProvider";
 
 const ex = (id: string) =>
   `https://stellar.expert/explorer/testnet/contract/${id}`;
 
-export const metadata = { title: "Vaults · Salapi" };
-
 export default function VaultsPage() {
+  const { t } = useT();
   return (
     <div className="px-5 py-6">
-      <h1 className="s-h1">Vaults</h1>
-      <p className="s-sub mt-1 mb-5">
-        Satu primitive, beda aturan. Semua live di Stellar testnet.
-      </p>
+      <h1 className="s-h1">{t("vaults.title")}</h1>
+      <p className="s-sub mt-1 mb-5">{t("vaults.sub")}</p>
 
       <DonateForm />
 
@@ -21,7 +21,7 @@ export default function VaultsPage() {
         href="/transparency"
         className="mt-3 block text-center text-sm font-semibold text-[var(--color-action-deep)]"
       >
-        Lihat dashboard transparansi lengkap →
+        {t("vaults.fullDashboard")}
       </Link>
 
       <Link
@@ -30,14 +30,13 @@ export default function VaultsPage() {
       >
         <div className="flex items-center justify-between">
           <h3 className="font-semibold text-[var(--color-ink)]">Paluwagan</h3>
-          <span className="s-label">arisan anti-kabur</span>
+          <span className="s-label">{t("vaults.palTag")}</span>
         </div>
         <p className="mt-1 text-sm text-[var(--color-slate)]">
-          Mau arisan bareng teman atau keluarga? Smart contract pegang pot,
-          rotasi otomatis. Live & interaktif.
+          {t("vaults.palDesc")}
         </p>
         <div className="mt-2 text-xs font-bold text-[var(--color-action-deep)]">
-          Buka circle →
+          {t("vaults.palCta")}
         </div>
       </Link>
 
@@ -49,14 +48,13 @@ export default function VaultsPage() {
           <h3 className="font-semibold text-[var(--color-ink)]">
             Smart Savings
           </h3>
-          <span className="s-label">goal vault</span>
+          <span className="s-label">{t("vaults.savTag")}</span>
         </div>
         <p className="mt-1 text-sm text-[var(--color-slate)]">
-          Punya impian? Kunci uang ke target; cair saat tercapai. Niat
-          nabung jadi nyata. Live & interaktif.
+          {t("vaults.savDesc")}
         </p>
         <div className="mt-2 text-xs font-bold text-[var(--color-action-deep)]">
-          Mulai nabung →
+          {t("vaults.savCta")}
         </div>
       </Link>
 
@@ -70,7 +68,7 @@ export default function VaultsPage() {
         >
           {CONTRACTS.disaster.slice(0, 12)}…
         </a>
-        . DAO governance + AI Tribunal = visi Build-Award, di luar scope.
+        . DAO governance + AI Tribunal = Build-Award vision.
       </p>
     </div>
   );

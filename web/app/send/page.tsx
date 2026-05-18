@@ -1,15 +1,14 @@
-import SendForm from "@/components/SendForm";
+"use client";
 
-export const metadata = { title: "Send · Salapi" };
+import SendForm from "@/components/SendForm";
+import { useT } from "@/components/I18nProvider";
 
 export default function SendPage() {
+  const { t } = useT();
   return (
     <div className="px-5 py-6">
-      <h1 className="s-h1">Send money</h1>
-      <p className="s-sub mt-1 mb-5">
-        By @username — no addresses, no seed phrases. Real transfer on Stellar
-        testnet.
-      </p>
+      <h1 className="s-h1">{t("send.title")}</h1>
+      <p className="s-sub mt-1 mb-5">{t("send.sub")}</p>
       <SendForm />
     </div>
   );

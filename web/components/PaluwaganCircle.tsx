@@ -7,12 +7,17 @@ import {
   paluwaganFriendsPay,
   paluwaganCollect,
 } from "@/app/actions";
+import { useT } from "@/components/I18nProvider";
+import { Avatar, Button, Card, Toast } from "@/components/ui";
+import { Confetti } from "@/components/ui/motion";
 
 type State = Awaited<ReturnType<typeof paluwaganState>>;
 
 export default function PaluwaganCircle() {
+  const { t } = useT();
   const [st, setSt] = useState<State | null>(null);
   const [msg, setMsg] = useState<React.ReactNode>("");
+  const [party, setParty] = useState(false);
   const [pending, start] = useTransition();
 
   async function refresh() {
@@ -24,14 +29,15 @@ export default function PaluwaganCircle() {
 
   function run(
     fn: () => Promise<{ ok: boolean; link?: string; error?: string }>,
-    okText: string
+    okText: string,
+    celebrate = false
   ) {
     start(async () => {
       setMsg("");
       const r = await fn();
-      if (r.ok)
+      if (r.ok) {
         setMsg(
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-[var(--color-money)]">
+          <Toast tone="success">
             ✓ {okText}
             {r.link && (
               <>
@@ -42,25 +48,24 @@ export default function PaluwaganCircle() {
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  view on-chain
+                  {t("common.viewOnChain")}
                 </a>
               </>
             )}
-          </div>
+          </Toast>
         );
-      else
-        setMsg(
-          <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-red-700">
-            {r.error}
-          </div>
-        );
+        if (celebrate) {
+          setParty(true);
+          setTimeout(() => setParty(false), 1800);
+        }
+      } else setMsg(<Toast tone="error">{r.error}</Toast>);
       await refresh();
     });
   }
 
   return (
     <div className="space-y-4">
-      {/* Invitation */}
+      <Confetti fire={party} />
       <div
         className="rounded-2xl p-5 text-white"
         style={{
@@ -69,59 +74,43 @@ export default function PaluwaganCircle() {
         }}
       >
         <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-blue-200">
-          Arisan · anti-kabur
+          {t("pal.kicker")}
         </div>
         <h2 className="mt-1 text-xl font-extrabold leading-snug">
-          Mau arisan bareng teman atau keluarga?
+          {t("pal.title")}
         </h2>
-        <p className="mt-1.5 text-sm text-blue-100">
-          Ayo mulai — uang dipegang smart contract, bukan pengurus. Tiap
-          giliran cair otomatis. Tidak ada yang bisa kabur bawa pot.
-        </p>
+        <p className="mt-1.5 text-sm text-blue-100">{t("pal.sub")}</p>
       </div>
 
       {st === null ? (
-        <p className="s-muted">Memuat circle…</p>
+        <p className="s-muted">{t("common.loading")}</p>
       ) : !st.ready ? (
-        <div className="s-card">
-          <p className="text-sm text-[var(--color-ink)]">
-            Circle demo belum siap.{" "}
-            <span className="s-muted">
-              {("error" in st && st.error) || "Provisioning…"}
-            </span>
-          </p>
-        </div>
+        <Card>
+          <p className="text-sm">{t("common.notReady")}</p>
+        </Card>
       ) : (
         <>
-          <div className="s-card">
+          <Card>
             <div className="flex items-center justify-between">
-              <h3 className="s-label">Circle kamu · Ronde #{st.round + 1}</h3>
+              <h3 className="s-label">
+                {t("pal.round", { n: st.round + 1 })}
+              </h3>
               <span className="s-muted">
-                {st.sharePeso}/ronde · pot {st.potPeso}
+                {t("pal.meta", { share: st.sharePeso, pot: st.potPeso })}
               </span>
             </div>
-
             <ul className="mt-3 space-y-2">
               {st.seats.map((s) => (
                 <li
                   key={s.addr}
                   className="flex items-center gap-3 rounded-xl border border-[var(--color-hairline)] px-3 py-2.5"
                 >
-                  <span
-                    className="flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold text-white"
-                    style={{
-                      background: s.isRecipient
-                        ? "var(--color-money)"
-                        : "var(--color-action)",
-                    }}
-                  >
-                    {s.label.slice(0, 1).toUpperCase()}
-                  </span>
+                  <Avatar label={s.label} highlight={s.isRecipient} />
                   <span className="flex-1 text-sm font-medium text-[var(--color-ink)]">
                     {s.label}
                     {s.isRecipient && (
                       <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase text-[var(--color-money)]">
-                        Giliran cair
+                        {t("pal.turn")}
                       </span>
                     )}
                   </span>
@@ -133,59 +122,63 @@ export default function PaluwaganCircle() {
                         : "var(--color-slate)",
                     }}
                   >
-                    {s.paid ? "✓ Sudah bayar" : "Belum"}
+                    {s.paid ? t("pal.paid") : t("pal.notPaid")}
                   </span>
                 </li>
               ))}
             </ul>
-          </div>
+          </Card>
 
           <div className="space-y-2.5">
-            <button
-              className="s-btn"
+            <Button
               disabled={pending}
               onClick={() =>
-                run(paluwaganPayMine, "Setoran kamu masuk circle")
+                run(
+                  paluwaganPayMine,
+                  t("pal.payMine", { share: st.sharePeso })
+                )
               }
             >
-              {pending ? "…" : `Bayar bagianku (${st.sharePeso})`}
-            </button>
-            <button
-              className="s-btn-ghost w-full"
+              {pending ? "…" : t("pal.payMine", { share: st.sharePeso })}
+            </Button>
+            <Button
+              variant="ghost"
               disabled={pending}
-              onClick={() =>
-                run(paluwaganFriendsPay, "Teman A & B ikut menyetor (demo)")
-              }
+              onClick={() => run(paluwaganFriendsPay, t("pal.friendsPay"))}
             >
-              Teman ikut bayar — demo
-            </button>
-            <button
-              className="s-btn"
+              {t("pal.friendsPay")}
+            </Button>
+            <Button
+              disabled={pending || !st.allPaid}
               style={{
                 background: st.allPaid
                   ? "var(--color-money)"
                   : "var(--color-hairline)",
                 color: st.allPaid ? "#fff" : "var(--color-slate)",
               }}
-              disabled={pending || !st.allPaid}
               onClick={() =>
                 run(
                   paluwaganCollect,
-                  `Pot ${st.potPeso} cair ke ${st.recipientLabel}`
+                  t("pal.collect", {
+                    pot: st.potPeso,
+                    who: st.recipientLabel,
+                  }),
+                  true
                 )
               }
             >
               {st.allPaid
-                ? `Cairkan pot ${st.potPeso} → ${st.recipientLabel}`
-                : "Cairkan (tunggu semua bayar)"}
-            </button>
+                ? t("pal.collect", {
+                    pot: st.potPeso,
+                    who: st.recipientLabel,
+                  })
+                : t("pal.collectWait")}
+            </Button>
           </div>
 
-          {msg && <div className="text-sm">{msg}</div>}
+          {msg && <div>{msg}</div>}
           <p className="text-[11px] leading-relaxed text-[var(--color-slate)]">
-            Semua aksi = transaksi nyata di Stellar testnet. &quot;Teman&quot;
-            adalah dompet demo yang dikelola server (berlabel) supaya rotasi
-            bisa kamu lihat utuh; di produksi tiap anggota tanda tangan sendiri.
+            {t("pal.demoNote")}
           </p>
         </>
       )}

@@ -163,3 +163,24 @@
   .s-skeleton::after { animation: none; }
 }
 
+/* ── Claude Design motion (ported from salapi/tokens.jsx) ────────── */
+.sl-mono { font-family: var(--font-geist-mono), ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+.sl-balance { font-family: var(--font-geist-mono), ui-monospace, monospace; font-feature-settings: "tnum","ss01"; letter-spacing: -0.02em; }
+@keyframes sl-rise { from { transform: translateY(8px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+.sl-rise { animation: sl-rise .42s cubic-bezier(.2,.7,.3,1) both; }
+@keyframes sl-tick { 0%,100% { transform: scale(1) } 50% { transform: scale(1.18) } }
+.sl-tick { animation: sl-tick .6s cubic-bezier(.4,1.8,.4,1) both; }
+@keyframes sl-shimmer { 0% { background-position: -200% 0 } 100% { background-position: 200% 0 } }
+.sl-skel { background: linear-gradient(90deg,#E6E8EE 0%,#F2F4F8 50%,#E6E8EE 100%); background-size: 200% 100%; animation: sl-shimmer 1.4s linear infinite; }
+@keyframes sl-pulse { 0%,100% { opacity: 1 } 50% { opacity: .55 } }
+.sl-pulse { animation: sl-pulse 1.6s ease-in-out infinite; }
+@keyframes sl-spin { to { transform: rotate(360deg) } }
+.sl-spin { animation: sl-spin .9s linear infinite; }
+@keyframes sl-fly { 0% { transform: translate(0,0) rotate(-10deg); opacity:1 } 60% { opacity:1 } 100% { transform: translate(180px,-160px) rotate(20deg); opacity:0 } }
+.sl-fly { animation: sl-fly .8s cubic-bezier(.4,0,.6,1) forwards; }
+@keyframes sl-confetti { 0% { transform: translateY(0) rotate(0); opacity: 1 } 100% { transform: translateY(120px) rotate(540deg); opacity: 0 } }
+@media (prefers-reduced-motion: reduce) {
+  .sl-rise,.sl-tick,.sl-pulse,.sl-spin,.sl-fly { animation: none; }
+  .sl-skel { animation: none; }
+}
+
