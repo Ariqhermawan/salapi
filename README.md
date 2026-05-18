@@ -50,7 +50,7 @@ cargo build --workspace --target wasm32-unknown-unknown --release
 | Week | Checkpoint | This repo |
 |---|---|---|
 | **1 · Foundation** | Lock core, tests, something breakable | ✅ workspace, base-vault + username-registry, **5 unit tests pass**, WASM builds (via WSL), architecture README |
-| **2 · Scaffold** | Deploy on testnet, verifiable tx trails | ✅ 3 contracts live on testnet + full verifiable tx trail ([DEPLOYMENTS.md](DEPLOYMENTS.md)); disaster rule-set + tests. ⏳ paluwagan + smart-savings next |
+| **2 · Scaffold** | Deploy on testnet, verifiable tx trails | ✅ 5 contracts build + **11 tests pass**; 3 live on testnet w/ verifiable tx trail ([DEPLOYMENTS.md](DEPLOYMENTS.md)); disaster + paluwagan + smart-savings rule-sets added |
 | 3 · Connect | Wire front-end, indexer, real user | ⏳ Next.js + GCash sandbox + transparency dashboard |
 | 4 · Prove | Demo + docs for non-technical reviewer | ⏳ walkthrough video, tagged release |
 

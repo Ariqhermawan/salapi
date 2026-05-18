@@ -4,6 +4,8 @@ members = [
     "contracts/base-vault",
     "contracts/username-registry",
     "contracts/disaster",
+    "contracts/paluwagan",
+    "contracts/smart-savings",
 ]
 
 [workspace.package]
