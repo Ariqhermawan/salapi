@@ -14,7 +14,6 @@ export default function BottomNav() {
     { id: "/vaults", label: t("nav.vaults"), icon: Ico.vault },
     { id: "/send", label: t("nav.send"), icon: Ico.send, fab: true },
     { id: "/activity", label: t("nav.activity"), icon: Ico.activity },
-    { id: "/learn", label: t("nav.learn"), icon: Ico.globe },
     { id: "/settings", label: t("common.you"), icon: Ico.user },
   ];
 
