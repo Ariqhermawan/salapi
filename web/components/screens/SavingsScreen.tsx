@@ -19,6 +19,7 @@ import {
   Money,
   PoweredByStellar,
 } from "@/components/ui/kit";
+import { SalapiMascot } from "@/components/ui/mascot";
 
 type State = Awaited<ReturnType<typeof smartSavingsState>>;
 
@@ -187,6 +188,9 @@ export default function SavingsScreen() {
         <div style={{ padding: "32px 28px 0", textAlign: "center" }}>
           <div className="sl-tick" style={{ width: 88, height: 88, margin: "0 auto", borderRadius: 99, background: T.moneyIn, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 18px 40px -8px rgba(5,150,105,0.5)" }}>
             {Ico.check({ size: 44, c: "#fff" })}
+          </div>
+          <div style={{ display: "flex", justifyContent: "center", marginTop: 14 }}>
+            <SalapiMascot size={52} c={T.moneyIn} pose="cheer" />
           </div>
           <div style={{ marginTop: 22, fontSize: 11, fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase", color: T.moneyIn }}>Goal reached</div>
           <div className="sl-rise" style={{ marginTop: 12 }}><Money value={Number(st.savedPeso.replace(/[^0-9.]/g, "")) || 0} size={46} /></div>

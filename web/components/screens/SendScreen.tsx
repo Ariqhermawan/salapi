@@ -16,6 +16,7 @@ import {
   Money,
   Avatar,
 } from "@/components/ui/kit";
+import { SalapiMascot } from "@/components/ui/mascot";
 
 const box: React.CSSProperties = {
   display: "flex",
@@ -83,6 +84,9 @@ export default function SendScreen() {
             }}
           >
             {Ico.check({ size: 48, c: T.moneyIn })}
+          </div>
+          <div style={{ display: "flex", justifyContent: "center", marginTop: 14 }}>
+            <SalapiMascot size={50} c={T.moneyIn} pose="cheer" />
           </div>
           <div
             style={{

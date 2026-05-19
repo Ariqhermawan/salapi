@@ -15,6 +15,7 @@ import {
   Money,
   PoweredByStellar,
 } from "@/components/ui/kit";
+import { SalapiMascot } from "@/components/ui/mascot";
 
 const QUICK = ["500", "1000", "2000", "5000", "10000"];
 
@@ -113,6 +114,9 @@ export default function TopUpScreen() {
         <div style={{ padding: "48px 32px 0", textAlign: "center" }}>
           <div className="sl-tick" style={{ width: 88, height: 88, borderRadius: 99, background: T.moneyIn, color: "#fff", display: "inline-flex", alignItems: "center", justifyContent: "center", boxShadow: "0 18px 40px -10px rgba(5,150,105,0.5)" }}>
             {Ico.check({ size: 42, c: "#fff" })}
+          </div>
+          <div style={{ display: "flex", justifyContent: "center", marginTop: 14 }}>
+            <SalapiMascot size={50} c={T.moneyIn} pose="cheer" />
           </div>
           <div style={{ marginTop: 22, fontSize: 13, color: T.slate, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase" }}>
             Top up complete

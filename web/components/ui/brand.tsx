@@ -122,15 +122,17 @@ export function MakerLockup({ c = T.slate, size = 11 }: { c?: string; size?: num
   );
 }
 
-// Official Stellar mark — faithful geometric placeholder (circle bisected by
-// two parallel slanted lines). Swap for the licensed SVG at implementation.
+// Stellar kinship mark — an ORIGINAL geometric symbol (a circle crossed by two
+// transit arcs) that echoes Stellar's orbit motif so the "Powered by Stellar"
+// pairing reads as family. This is intentionally NOT the trademarked Stellar
+// logo: production should drop in Stellar's official brand-kit asset (licensed).
 export function StellarMark({ size = 14, c = T.slate }: { size?: number; c?: string }) {
   const sw = Math.max(1, size * 0.085);
   return (
     <svg width={size} height={size} viewBox="0 0 20 20" fill="none" aria-label="Stellar" role="img" style={{ display: "block" }}>
       <circle cx="10" cy="10" r="8.4" stroke={c} strokeWidth={sw} fill="none" />
-      <path d="M2 13 L18 7" stroke={c} strokeWidth={sw} strokeLinecap="round" />
-      <path d="M2.6 16 L17.4 10" stroke={c} strokeWidth={sw} strokeLinecap="round" />
+      <path d="M2.6 12.4 Q10 8.6 17.4 7" stroke={c} strokeWidth={sw} strokeLinecap="round" />
+      <path d="M2.6 13 Q10 11.4 17.4 13.6" stroke={c} strokeWidth={sw} strokeLinecap="round" />
     </svg>
   );
 }
