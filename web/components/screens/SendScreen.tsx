@@ -13,7 +13,7 @@ import {
   Row,
   Btn,
   Chip,
-  Peso,
+  Money,
   Avatar,
 } from "@/components/ui/kit";
 
@@ -97,7 +97,7 @@ export default function SendScreen() {
             {t("send.sentOk", { amt: amount, to: to.replace(/^@/, "") })}
           </div>
           <div className="sl-rise" style={{ marginTop: 8 }}>
-            <Peso value={Number(amount) || 0} size={42} />
+            <Money value={Number(amount) || 0} size={42} />
           </div>
           <div style={{ marginTop: 8, fontSize: 14, color: T.slate }}>
             → <span style={{ color: T.ink, fontWeight: 600 }}>@{to.replace(/^@/, "")}</span>

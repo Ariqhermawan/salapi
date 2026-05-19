@@ -7,6 +7,8 @@
 import type { CSSProperties, ReactNode } from "react";
 import { T } from "@/lib/ui/tokens";
 import { Ico } from "@/components/ui/icons";
+import { useT } from "@/components/I18nProvider";
+import { formatParts, formatUsdc } from "@/lib/ui/currency";
 import {
   SalapiLockup,
   PoweredByStellarV2,
@@ -156,6 +158,46 @@ export function Peso({ value = 0, size = 44, color, weight = 600, sign }: { valu
       <span style={{ fontSize: size * 0.62, opacity: 0.7, marginRight: 2 }}>{sign === "+" ? "+" : sign === "-" ? "-" : ""}₱</span>
       <span>{n.split(".")[0]}</span>
       <span style={{ fontSize: size * 0.5, opacity: 0.55 }}>.{n.split(".")[1] || "00"}</span>
+    </span>
+  );
+}
+
+// Locale-aware money: primary amount in the active locale's currency, with a
+// small constant "≈ X USDC" beneath (the real rail). Drop-in for Peso.
+export function Money({
+  value = 0,
+  size = 44,
+  color,
+  weight = 600,
+  sign,
+  usdc = true,
+}: {
+  value?: number;
+  size?: number;
+  color?: string;
+  weight?: number;
+  sign?: "+" | "-";
+  usdc?: boolean;
+}) {
+  const { locale } = useT();
+  const { symbol, int, dec, dp } = formatParts(value, locale);
+  const light = typeof color === "string" && /#fff|255,\s*255,\s*255|white/i.test(color);
+  const secondary = light ? "rgba(255,255,255,0.62)" : T.slate;
+  return (
+    <span style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", lineHeight: 1 }}>
+      <span className="sl-balance" style={{ fontSize: size, fontWeight: weight, color: color ?? T.ink, letterSpacing: "-0.025em", display: "inline-flex", alignItems: "baseline" }}>
+        <span style={{ fontSize: size * 0.62, opacity: 0.7, marginRight: 2 }}>
+          {sign === "+" ? "+" : sign === "-" ? "-" : ""}
+          {symbol}
+        </span>
+        <span>{int}</span>
+        {dp > 0 && <span style={{ fontSize: size * 0.5, opacity: 0.55 }}>.{dec || "".padEnd(dp, "0")}</span>}
+      </span>
+      {usdc && (
+        <span style={{ marginTop: Math.max(3, size * 0.08), fontSize: Math.max(11, size * 0.3), fontWeight: 500, color: secondary, fontFamily: T.fontMono }}>
+          ≈ {formatUsdc(value)}
+        </span>
+      )}
     </span>
   );
 }

@@ -12,7 +12,7 @@ import {
   Row,
   Btn,
   Chip,
-  Peso,
+  Money,
   PoweredByStellar,
 } from "@/components/ui/kit";
 
@@ -104,7 +104,7 @@ export default function WithdrawScreen() {
             Withdrawal complete
           </div>
           <div className="sl-rise" style={{ marginTop: 8 }}>
-            <Peso value={amt} size={46} />
+            <Money value={amt} size={46} />
           </div>
           <div style={{ marginTop: 8, fontSize: 14, color: T.slate }}>
             to your GCash · <span style={{ color: T.ink, fontWeight: 600 }}>sandbox</span>

@@ -5,9 +5,10 @@ import Link from "next/link";
 import { walletState, topUpSandbox } from "@/app/actions";
 import { useT } from "@/components/I18nProvider";
 import { CountUp } from "@/components/ui/motion";
+import { CURRENCY, localAmount, formatUsdc } from "@/lib/ui/currency";
 
 export default function Wallet() {
-  const { t } = useT();
+  const { t, locale } = useT();
   const [pesos, setPesos] = useState(0);
   const [addr, setAddr] = useState("");
   const [note, setNote] = useState("");
@@ -36,10 +37,13 @@ export default function Wallet() {
           {t("wallet.balance")}
         </div>
         <CountUp
-          value={pesos}
-          prefix="₱"
+          value={localAmount(pesos, locale)}
+          prefix={CURRENCY[locale].symbol}
           className="tabular mt-1.5 block text-[2.6rem] font-extrabold leading-none"
         />
+        <div className="mt-1 font-mono text-[12px] text-blue-200/80">
+          ≈ {formatUsdc(pesos)}
+        </div>
         <div className="mt-2 text-[11px] text-blue-200/90">
           {addr ? `wallet ${addr.slice(0, 6)}…${addr.slice(-4)} · ` : ""}
           {t("wallet.cryptoInvisible")}

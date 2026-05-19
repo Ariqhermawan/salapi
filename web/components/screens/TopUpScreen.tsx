@@ -12,7 +12,7 @@ import {
   Row,
   Btn,
   Chip,
-  Peso,
+  Money,
   PoweredByStellar,
 } from "@/components/ui/kit";
 
@@ -118,7 +118,7 @@ export default function TopUpScreen() {
             Top up complete
           </div>
           <div className="sl-rise" style={{ marginTop: 8 }}>
-            <Peso value={amt} size={46} color={T.moneyIn} sign="+" />
+            <Money value={amt} size={46} color={T.moneyIn} sign="+" />
           </div>
           <div style={{ marginTop: 12, fontSize: 14, color: T.slate }}>
             New balance <span className="sl-balance" style={{ color: T.ink, fontWeight: 600 }}>{result.pesoLabel}</span>

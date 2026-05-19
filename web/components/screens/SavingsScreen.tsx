@@ -16,7 +16,7 @@ import {
   Card,
   Btn,
   Chip,
-  Peso,
+  Money,
   PoweredByStellar,
 } from "@/components/ui/kit";
 
@@ -189,7 +189,7 @@ export default function SavingsScreen() {
             {Ico.check({ size: 44, c: "#fff" })}
           </div>
           <div style={{ marginTop: 22, fontSize: 11, fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase", color: T.moneyIn }}>Goal reached</div>
-          <div className="sl-rise" style={{ marginTop: 12 }}><Peso value={Number(st.savedPeso.replace(/[^0-9.]/g, "")) || 0} size={46} /></div>
+          <div className="sl-rise" style={{ marginTop: 12 }}><Money value={Number(st.savedPeso.replace(/[^0-9.]/g, "")) || 0} size={46} /></div>
           <div style={{ marginTop: 8, fontSize: 13, color: T.slate }}>Locked, on-chain — the contract held it the whole way.</div>
         </div>
         <Toast />

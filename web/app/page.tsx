@@ -11,7 +11,7 @@ import {
   Chip,
   Btn,
   Avatar,
-  Peso,
+  Money,
   Row,
   IconButton,
   TestnetPill,
@@ -116,7 +116,7 @@ export default function Home() {
             <TestnetPill />
           </div>
           <div className="sl-rise" style={{ marginTop: 10 }}>
-            <Peso value={pesos} size={38} color="#fff" />
+            <Money value={pesos} size={38} color="#fff" />
           </div>
           <div
             style={{
