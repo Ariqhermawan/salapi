@@ -13,7 +13,7 @@ friction); production = USDC. Contracts are asset-agnostic (`token: Address`).
 | Contract | Contract ID | Deploy tx |
 |---|---|---|
 | base-vault | `CBC6BTKW5VA6Y2XH6WP4IEPWDZ7TBPYSIIOZQMTEH62N62NFT4F4VYDD` | [`d0d15411…67ba0`](https://stellar.expert/explorer/testnet/tx/d0d154113feac26e1f4505195c86483e3ce228febc720de4afbed98e95e67ba0) |
-| username-registry | `CDKYFIAB3WGWAVS4UVZLHIOH7IOP2IYPNBOYVTF677LKUCXPGBO6IQ7V` | [`6d3819ae…0bb82`](https://stellar.expert/explorer/testnet/tx/6d3819aeda38372f7882edf3082f580060f318cdfdffbf3af7c9701b54c0bb82) |
+| username-registry | `CDDINUQXTF6SHZN2ZJ36IT7P4YOJ3OZN3H6LTYHVCQ35YYO7YTAWM4G3` | [`b98b8d76…489a`](https://stellar.expert/explorer/testnet/tx/b98b8d76042e67d941ee6d59e5a80062d57797f332102df69a64c6829b98489a) |
 | disaster (hero) | `CCKQ3UVBZ75KSZDO6IPA5U6PFARJG4PLRGN2SAIW5RAGQ6K4B7ZDWBUZ` | [`1bed6a16…91d12`](https://stellar.expert/explorer/testnet/tx/1bed6a16e6b6b2a8fddf3c8e247764f77f80bc18f58cd019bec225e60d891d12) |
 
 Token (native XLM SAC): `CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC`
@@ -49,3 +49,9 @@ Deployed this round: base-vault, username-registry, disaster (hero) + native
 token SAC. `paluwagan` and `smart-savings` rule-set modules are the next Week-2
 item (scaffold + tests, then deploy). DAO governance + AI Tribunal remain
 Build-Award vision, explicitly out of the 30-day scope (see SOW §13).
+
+**Update:** `username-registry` was redeployed adding `rename()` so users can
+change their display @username. The previous name is kept as a permanent
+money-safe alias (still resolves to the same account). The new contract starts
+empty, so the historical `register/resolve("juandelacruz")` trail (#1–2) is on
+the now-superseded contract id.

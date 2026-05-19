@@ -89,6 +89,24 @@ export async function registerUsername(name: string) {
     : { ok: false as const, error: r.error };
 }
 
+export async function renameUsername(name: string) {
+  const clean = name.trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
+  if (clean.length < 3)
+    return { ok: false as const, error: "Min 3 chars (a-z, 0-9, _)" };
+  const s = await getSigner();
+  const r = await invokeAs(s.secret, CONTRACTS.usernameRegistry, "rename", [
+    sc.addr(s.publicKey),
+    sc.str(clean),
+  ]);
+  if (r.ok)
+    return { ok: true as const, name: clean, hash: r.hash, link: txLink(r.hash) };
+  const taken = /taken|#1/i.test(r.error ?? "");
+  return {
+    ok: false as const,
+    error: taken ? `@${clean} is already taken` : r.error || "Couldn't rename",
+  };
+}
+
 export async function myUsername() {
   try {
     const { publicKey } = await getSigner();

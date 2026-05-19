@@ -1,7 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { myUsername, walletState } from "@/app/actions";
+import { useEffect, useState, useTransition } from "react";
+import {
+  myUsername,
+  walletState,
+  registerUsername,
+  renameUsername,
+} from "@/app/actions";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { createSupabaseBrowser } from "@/lib/supabase/client";
 import { supabaseConfigured } from "@/lib/supabase/env";
@@ -42,6 +47,99 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
     <div style={{ padding: "16px 24px 8px", fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: T.slate }}>
       {children}
     </div>
+  );
+}
+
+function UsernamePanel({
+  current,
+  onChanged,
+}: {
+  current: string | null;
+  onChanged: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState("");
+  const [msg, setMsg] = useState<{ ok: boolean; text: string; link?: string } | null>(null);
+  const [pending, start] = useTransition();
+  const has = Boolean(current);
+
+  function save() {
+    const clean = val.trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
+    if (clean.length < 3) {
+      setMsg({ ok: false, text: "Min 3 chars (a-z, 0-9, _)" });
+      return;
+    }
+    start(async () => {
+      setMsg(null);
+      const r = has ? await renameUsername(clean) : await registerUsername(clean);
+      if (r.ok) {
+        setMsg({ ok: true, text: `Username is now @${r.name}`, link: r.link });
+        setEditing(false);
+        setVal("");
+        onChanged();
+      } else {
+        setMsg({ ok: false, text: r.error || "Couldn't save" });
+      }
+    });
+  }
+
+  return (
+    <Card p={0}>
+      <Row
+        leading={
+          <div style={{ width: 34, height: 34, borderRadius: 10, background: T.actionTint, color: T.action, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {Ico.user({ c: T.action })}
+          </div>
+        }
+        title={has ? `@${current}` : "No username yet"}
+        sub={has ? "Your name on Salapi — for receiving" : "Claim a name so people can send to you"}
+        trailing={
+          !editing ? (
+            <Btn kind="ghost" size="sm" full={false} onClick={() => { setEditing(true); setMsg(null); setVal(""); }}>
+              {has ? "Change" : "Claim"}
+            </Btn>
+          ) : null
+        }
+        divider={editing || Boolean(msg)}
+      />
+      {editing && (
+        <div style={{ padding: "12px 16px 14px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, background: T.canvas, borderRadius: 12, padding: "10px 14px", boxShadow: "inset 0 0 0 1px " + T.hairline }}>
+            <span style={{ fontSize: 16, color: T.slate, fontWeight: 600 }}>@</span>
+            <input
+              autoFocus
+              value={val}
+              onChange={(e) => setVal(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+              placeholder="newname"
+              style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 16, color: T.ink, fontFamily: T.fontSans }}
+            />
+          </div>
+          <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+            <Btn kind="primary" size="md" disabled={pending || val.length < 3} loading={pending} onClick={save}>
+              {has ? "Save new username" : "Claim username"}
+            </Btn>
+            <Btn kind="ghost" size="md" full={false} onClick={() => { setEditing(false); setMsg(null); }}>
+              Cancel
+            </Btn>
+          </div>
+          <div style={{ marginTop: 8, fontSize: 12, color: T.slate, lineHeight: 1.4 }}>
+            Lowercase letters, numbers, _ · min 3. Your old name keeps working too.
+          </div>
+        </div>
+      )}
+      {msg && (
+        <div style={{ padding: "0 16px 14px" }}>
+          <div style={{ padding: "10px 12px", borderRadius: 10, background: msg.ok ? T.moneyInTint : "#FBEAE8", color: msg.ok ? T.moneyIn : T.danger, fontSize: 13, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <span style={{ fontWeight: 600 }}>{msg.ok ? "✓ " : ""}{msg.text}</span>
+            {msg.link && (
+              <a href={msg.link} target="_blank" rel="noopener noreferrer" style={{ color: T.action, fontFamily: T.fontMono, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 4 }}>
+                View {Ico.link({ size: 13, c: T.action })}
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+    </Card>
   );
 }
 
@@ -100,6 +198,12 @@ export default function SettingsScreen() {
             <TestnetPill />
           </div>
         </Card>
+      </div>
+
+      {/* Username */}
+      <SectionLabel>Username</SectionLabel>
+      <div style={{ padding: "0 16px" }}>
+        <UsernamePanel current={name} onChanged={() => myUsername().then(setName)} />
       </div>
 
       {/* Accounts */}
