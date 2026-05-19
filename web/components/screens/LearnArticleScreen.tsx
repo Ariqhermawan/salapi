@@ -169,6 +169,20 @@ const HERO_IMG: Partial<Record<LearnTopicId, string>> = {
   fund: "/learn/fund-hero.webp",
   circle: "/learn/circle-hero.webp",
 };
+// Real primary/authoritative sources per case (index-aligned: PH, ID, VN).
+// Team can swap for the exact article they prefer.
+const CASE_URL: Partial<Record<LearnTopicId, string[]>> = {
+  fund: [
+    "https://en.wikipedia.org/wiki/Pork_barrel_scam",
+    "https://www.thejakartapost.com/news/2021/08/23/juliari-gets-12-years-imprisonment-for-covid-19-aid-bribery.html",
+    "https://en.wikipedia.org/wiki/Vi%E1%BB%87t_%C3%81_scandal",
+  ],
+  circle: [
+    "https://en.wikipedia.org/wiki/Aman_Futures_pyramid_scam_case",
+    "https://sikapiuangmu.ojk.go.id/FrontEnd/CMS/Article/10411",
+    "https://vanban.chinhphu.vn/default.aspx?pageid=27160&docid=196233",
+  ],
+};
 
 function DoodleHero({ topic, pose }: { topic: LearnTopicId; pose: MascotPose }) {
   const hero = HERO_IMG[topic];
@@ -230,28 +244,32 @@ export default function LearnArticleScreen({ topic }: { topic: LearnTopicId }) {
         <Spotted doodle={spot(sp[1], { size: 44 })}>{d.p2}</Spotted>
         <Spotted doodle={spot(sp[2], { size: 44 })}>{d.p3}</Spotted>
         <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
-          {d.cases.map((cs) => (
-            <div
-              key={cs.country}
-              style={{ background: CREAM, borderRadius: 12, padding: "14px 16px", boxShadow: "inset 0 0 0 1px " + T.hairline, borderLeft: "3px solid " + T.action }}
-            >
-              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: T.slate }}>
-                <span style={{ marginRight: 6 }}>{cs.flag}</span>
-                {cs.country}
+          {d.cases.map((cs, ci) => {
+            const href = cs.url ?? CASE_URL.fund?.[ci];
+            const label = href ? cs.source.replace(/\s*[·—-]\s*(tim:|team:|nhóm:)[\s\S]*$/i, "") : cs.source;
+            return (
+              <div
+                key={cs.country}
+                style={{ background: CREAM, borderRadius: 12, padding: "14px 16px", boxShadow: "inset 0 0 0 1px " + T.hairline, borderLeft: "3px solid " + T.action }}
+              >
+                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: T.slate }}>
+                  <span style={{ marginRight: 6 }}>{cs.flag}</span>
+                  {cs.country}
+                </div>
+                <div style={{ marginTop: 8, fontSize: 13.5, color: T.ink, lineHeight: 1.6 }}>{cs.story}</div>
+                <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid " + T.hairline }}>
+                  {href ? (
+                    <a href={href} target="_blank" rel="noopener noreferrer" style={{ fontFamily: T.fontMono, fontSize: 10.5, color: T.action, fontWeight: 600, letterSpacing: "0.02em", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      {label}
+                      <span aria-hidden>{"↗"}</span>
+                    </a>
+                  ) : (
+                    <div style={{ fontFamily: T.fontMono, fontSize: 10.5, color: T.slate, letterSpacing: "0.02em" }}>{cs.source}</div>
+                  )}
+                </div>
               </div>
-              <div style={{ marginTop: 8, fontSize: 13.5, color: T.ink, lineHeight: 1.6 }}>{cs.story}</div>
-              <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid " + T.hairline }}>
-                {cs.url ? (
-                  <a href={cs.url} target="_blank" rel="noopener noreferrer" style={{ fontFamily: T.fontMono, fontSize: 10.5, color: T.action, fontWeight: 600, letterSpacing: "0.02em", display: "inline-flex", alignItems: "center", gap: 6 }}>
-                    {cs.source}
-                    <span aria-hidden>{"↗"}</span>
-                  </a>
-                ) : (
-                  <div style={{ fontFamily: T.fontMono, fontSize: 10.5, color: T.slate, letterSpacing: "0.02em" }}>{cs.source}</div>
-                )}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
         <PromiseCard>{d.promise}</PromiseCard>
         <div style={{ marginTop: 14, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
@@ -285,28 +303,32 @@ export default function LearnArticleScreen({ topic }: { topic: LearnTopicId }) {
         <Spotted doodle={spot(sp[1], { size: 46 })}>{d.p2}</Spotted>
         <Spotted doodle={spot(sp[2], { size: 44 })}>{d.p3}</Spotted>
         <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
-          {d.cases.map((cs) => (
-            <div
-              key={cs.country}
-              style={{ background: CREAM, borderRadius: 12, padding: "14px 16px", boxShadow: "inset 0 0 0 1px " + T.hairline, borderLeft: "3px solid " + T.action }}
-            >
-              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: T.slate }}>
-                <span style={{ marginRight: 6 }}>{cs.flag}</span>
-                {cs.country}
+          {d.cases.map((cs, ci) => {
+            const href = cs.url ?? CASE_URL.circle?.[ci];
+            const label = href ? cs.source.replace(/\s*[·—-]\s*(tim:|team:|nhóm:)[\s\S]*$/i, "") : cs.source;
+            return (
+              <div
+                key={cs.country}
+                style={{ background: CREAM, borderRadius: 12, padding: "14px 16px", boxShadow: "inset 0 0 0 1px " + T.hairline, borderLeft: "3px solid " + T.action }}
+              >
+                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: T.slate }}>
+                  <span style={{ marginRight: 6 }}>{cs.flag}</span>
+                  {cs.country}
+                </div>
+                <div style={{ marginTop: 8, fontSize: 13.5, color: T.ink, lineHeight: 1.6 }}>{cs.story}</div>
+                <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid " + T.hairline }}>
+                  {href ? (
+                    <a href={href} target="_blank" rel="noopener noreferrer" style={{ fontFamily: T.fontMono, fontSize: 10.5, color: T.action, fontWeight: 600, letterSpacing: "0.02em", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      {label}
+                      <span aria-hidden>{"↗"}</span>
+                    </a>
+                  ) : (
+                    <div style={{ fontFamily: T.fontMono, fontSize: 10.5, color: T.slate, letterSpacing: "0.02em" }}>{cs.source}</div>
+                  )}
+                </div>
               </div>
-              <div style={{ marginTop: 8, fontSize: 13.5, color: T.ink, lineHeight: 1.6 }}>{cs.story}</div>
-              <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid " + T.hairline }}>
-                {cs.url ? (
-                  <a href={cs.url} target="_blank" rel="noopener noreferrer" style={{ fontFamily: T.fontMono, fontSize: 10.5, color: T.action, fontWeight: 600, letterSpacing: "0.02em", display: "inline-flex", alignItems: "center", gap: 6 }}>
-                    {cs.source}
-                    <span aria-hidden>{"↗"}</span>
-                  </a>
-                ) : (
-                  <div style={{ fontFamily: T.fontMono, fontSize: 10.5, color: T.slate, letterSpacing: "0.02em" }}>{cs.source}</div>
-                )}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
         <PromiseCard>{d.promise}</PromiseCard>
       </>
