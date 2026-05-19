@@ -18,7 +18,8 @@ export type LearnCard = {
 type Nav = { home: string; vaults: string; learn: string; activity: string; you: string };
 type KV = { k: string; v: string };
 type Glossary = { lang: string; word: string };
-type FundTopic = { eyebrow: string; title: string; lede: string; p1: string; p2: string; p3: string; promise: string; stats: KV[] };
+type Case = { flag: string; country: string; story: string; source: string };
+type FundTopic = { eyebrow: string; title: string; lede: string; p1: string; p2: string; p3: string; promise: string; cases: Case[]; stats: KV[] };
 type CircleTopic = { eyebrow: string; title: string; lede: string; p1: string; p2: string; p3: string; promise: string; glossary: Glossary[] };
 type GrowTopic = { eyebrow: string; title: string; lede: string; p1: string; p2: string; p3: string; promise: string; apy: { label: string; value: string }; stack: { t: string; s: string }[] };
 export type LearnLang = {
@@ -47,12 +48,17 @@ export const LEARN: Record<Locale, LearnLang> = {
     ],
     fund: {
       eyebrow: ".fund · Disaster Relief",
-      title: "Where does the relief money actually go?",
-      lede: "After every typhoon, the same question — by the time the trucks arrive, has anything reached the families who needed it?",
-      p1: "Across decades of disasters in the Philippines and Indonesia, billions in donations have moved through hands that were never accountable to the people they were raised for. Some of it reached the ground. A great deal of it did not.",
-      p2: "Salapi's relief vault is built on the simplest possible premise: every peso in, every peso out, in public, on a ledger anyone can read. Donations land in a vault held by a Stellar smart contract. Disbursements only release on conditions agreed by the partner NGOs — receipts attached, units verified.",
-      p3: "You don't need a wallet, or a chain, or a token to use it. You give pesos. The pot grows in public. When trucks roll out with food packs, the disbursement is signed and the line appears on the dashboard within seconds. Anyone with a browser can see it — donors, NGOs, journalists, BSP regulators, and the families themselves.",
-      promise: "A civic promise, not a crypto pitch: when you give for relief, you should be able to see it land.",
+      title: "After the storm, where does the money go?",
+      lede: "The water goes down. The cameras leave. The giving was generous — but by the time a family needs it, can anyone say where it went?",
+      p1: "In this region, generosity has rarely been the problem. Accountability has. Money raised in good faith passes through agencies, intermediaries and local hands, and somewhere in those layers the trail goes cold. Some reaches the tents. A great deal never does — and no one is required to show why.",
+      p2: "Salapi's relief vault changes one thing: the trail can't go cold. Every contribution lands in a vault held by a smart contract on Stellar. Every release is signed, conditional and public — receipts attached, recipients named. Not a promise of honesty; a ledger of it.",
+      p3: "You give in your own money — no wallet, no chain, no token to learn. The pot grows in the open. When relief moves, the line appears on a public dashboard in seconds: donors, NGOs, journalists, regulators and the families themselves all read the same page.",
+      promise: "A civic promise, not a crypto pitch: when you give for relief, you should be able to watch it land.",
+      cases: [
+        { flag: "🇵🇭", country: "Philippines", story: "The Philippines lies in the path of around twenty tropical cyclones in a typical year; the strongest have levelled whole towns and triggered some of the largest relief operations in the country's history. After each one, the same question returns — how much actually reached the hardest-hit barangays?", source: "Source: team to verify — NDRRMC / primary report" },
+        { flag: "🇮🇩", country: "Indonesia", story: "Indonesia sits on the Ring of Fire: earthquakes, tsunamis and seasonal floods displace large numbers of people most years. Aid is raised fast and at scale; following it to the last household has always been the hardest part.", source: "Source: team to verify — BNPB / primary report" },
+        { flag: "🇻🇳", country: "Vietnam", story: "Central Vietnam faces annual typhoons and river floods that can submerge homes and farmland for weeks. Communities rebuild quickly — the money meant to help them rebuild is far harder to trace.", source: "Source: team to verify — primary report" },
+      ],
       stats: [
         { k: "Pesos in pool today", v: "[verified figure]" },
         { k: "Families served", v: "[verified figure]" },
@@ -103,12 +109,17 @@ export const LEARN: Record<Locale, LearnLang> = {
     ],
     fund: {
       eyebrow: ".fund · Tulong sa sakuna",
-      title: "Saan talaga napupunta ang pera ng tulong?",
-      lede: "Bawat bagyo, parehong tanong — bago dumating ang mga trak, may nakarating na ba sa mga pamilyang nangangailangan?",
-      p1: "Sa dekada ng kalamidad sa Pilipinas at Indonesia, bilyong piso ang dumaan sa mga kamay na walang pananagutan sa mga taong pinaglilingkuran. Iilang piso ang nakarating. Marami ang hindi.",
-      p2: "Itinatayo namin ang relief vault sa pinakasimpleng prinsipyo: bawat pisong pumapasok, bawat pisong lumalabas — sa publiko, sa ledger na kayang basahin ng kahit sino. Tumatapos ang donasyon sa vault na hawak ng Stellar smart contract. Lumalabas lamang ang disbursement kapag tugma sa kondisyong itinakda ng NGO partner — may resibo, may bilang ng unit.",
-      p3: "Hindi mo kailangan ng wallet, chain o token para gamitin. Piso ang ibibigay mo. Lumalaki ang pot sa harap ng madla. Pag may umalis na trak na may dalang food pack, naka-sign na ang disbursement at sa loob ng segundo, lumalabas ang linya sa dashboard. Kayang makita ng kahit sino na may browser — mga donor, NGO, mamamahayag, BSP, at ang mga pamilya mismo.",
-      promise: "Hindi pitch sa crypto, pangako sa lipunan: kapag nagbigay ka para sa tulong, dapat mong makita kung saan ito napupunta.",
+      title: "Pagkatapos ng bagyo, saan napupunta ang pera?",
+      lede: "Humuhupa ang tubig. Umaalis ang mga kamera. Bukas-palad ang pagbibigay — ngunit pagdating sa pamilyang nangangailangan, may makakapagsabi ba kung saan ito napunta?",
+      p1: "Sa rehiyong ito, bihirang ang pagbibigay ang problema. Ang pananagutan ang problema. Ang perang tinipon nang taos-puso ay dumadaan sa mga ahensya, tagapamagitan, at lokal na kamay — at sa isang lugar doon, naglalaho ang bakas. May nakakarating sa mga tolda. Marami ang hindi — at walang inoobligang magpaliwanag kung bakit.",
+      p2: "Isang bagay ang binabago ng relief vault ng Salapi: hindi puwedeng maglaho ang bakas. Bawat kontribusyon ay napupunta sa vault na hawak ng smart contract sa Stellar. Bawat paglabas ay naka-sign, may kondisyon, at pampubliko — may resibo, may pangalan ang tatanggap. Hindi pangako ng katapatan; isang ledger nito.",
+      p3: "Nagbibigay ka sa sarili mong pera — walang wallet, chain, o token na pag-aaralan. Lumalaki ang pot sa harap ng lahat. Pag may inilabas na tulong, lumalabas ang linya sa pampublikong dashboard sa loob ng segundo: donor, NGO, mamamahayag, regulator, at ang mga pamilya mismo — iisang pahina ang binabasa nila.",
+      promise: "Pangako sa lipunan, hindi pitch sa crypto: kapag nagbigay ka para sa tulong, dapat mong makitang nakarating ito.",
+      cases: [
+        { flag: "🇵🇭", country: "Pilipinas", story: "Nasa landas ang Pilipinas ng humigit-kumulang dalawampung bagyo bawat taon; ang pinakamalalakas ay nagpatag ng buong bayan at nagdulot ng ilan sa pinakamalalaking operasyong tulong sa kasaysayan ng bansa. Pagkatapos ng bawat isa, bumabalik ang tanong — magkano talaga ang nakarating sa pinakatamaang barangay?", source: "Pinagmulan: ipa-verify ng team — NDRRMC / primaryong ulat" },
+        { flag: "🇮🇩", country: "Indonesia", story: "Nasa Ring of Fire ang Indonesia: lindol, tsunami, at pana-panahong baha ang nagpapalikas ng napakaraming tao halos bawat taon. Mabilis at malawakan ang pagtitipon ng tulong; ang pagsubaybay dito hanggang sa huling pamilya ang laging pinakamahirap.", source: "Pinagmulan: ipa-verify ng team — BNPB / primaryong ulat" },
+        { flag: "🇻🇳", country: "Vietnam", story: "Hinaharap ng gitnang Vietnam ang taunang bagyo at pagbaha ng ilog na lumulubog sa mga tahanan at sakahan nang maraming linggo. Mabilis muling nagtatayo ang komunidad — ang perang nakalaan para rito ang mas mahirap subaybayan.", source: "Pinagmulan: ipa-verify ng team — primaryong ulat" },
+      ],
       stats: [
         { k: "Piso sa pool ngayon", v: "[verified na bilang]" },
         { k: "Pamilyang natulungan", v: "[verified na bilang]" },
@@ -159,12 +170,17 @@ export const LEARN: Record<Locale, LearnLang> = {
     ],
     fund: {
       eyebrow: ".fund · Bantuan bencana",
-      title: "Ke mana sebenarnya dana bantuan pergi?",
-      lede: "Setelah setiap bencana, pertanyaan yang sama — saat truk tiba, apakah sudah ada yang sampai ke keluarga yang membutuhkan?",
-      p1: "Selama puluhan tahun bencana di Filipina dan Indonesia, miliaran sumbangan berpindah tangan tanpa pertanggungjawaban kepada mereka yang menjadi tujuannya. Sebagian sampai. Sebagian besar tidak.",
-      p2: "Vault bantuan Salapi dibangun di atas prinsip paling sederhana: setiap rupiah masuk, setiap rupiah keluar, di depan publik, di ledger yang bisa dibaca siapa saja. Donasi mendarat di vault yang dipegang kontrak pintar Stellar. Pencairan hanya keluar sesuai syarat yang disepakati mitra NGO — kuitansi terlampir, unit terverifikasi.",
-      p3: "Kamu tidak perlu wallet, blockchain, atau token. Kamu memberi rupiah. Pot tumbuh di depan umum. Saat truk berangkat dengan paket makanan, pencairan ditandatangani dan baris muncul di dashboard dalam hitungan detik. Siapa pun dengan browser bisa melihatnya — donatur, NGO, jurnalis, OJK, dan keluarga itu sendiri.",
+      title: "Setelah badai, ke mana uangnya pergi?",
+      lede: "Air surut. Kamera pergi. Pemberian begitu murah hati — tapi saat sebuah keluarga membutuhkannya, adakah yang bisa memastikan ke mana perginya?",
+      p1: "Di kawasan ini, kemurahan hati jarang jadi masalah. Pertanggungjawaban yang jadi masalah. Uang yang dikumpulkan dengan niat baik berpindah melewati lembaga, perantara, dan tangan lokal — dan di suatu titik, jejaknya hilang. Sebagian sampai ke tenda pengungsian. Sebagian besar tidak — dan tak ada yang wajib menjelaskan kenapa.",
+      p2: "Vault bantuan Salapi mengubah satu hal: jejaknya tidak bisa hilang. Setiap kontribusi mendarat di vault yang dipegang kontrak pintar di Stellar. Setiap pencairan ditandatangani, bersyarat, dan publik — kuitansi terlampir, penerima disebut namanya. Bukan janji kejujuran; tapi catatan yang membuktikannya.",
+      p3: "Kamu memberi dalam uangmu sendiri — tanpa wallet, blockchain, atau token yang harus dipelajari. Pot tumbuh terbuka. Saat bantuan bergerak, barisnya muncul di dashboard publik dalam hitungan detik: donatur, NGO, jurnalis, regulator, dan keluarga itu sendiri membaca halaman yang sama.",
       promise: "Janji publik, bukan promosi kripto: saat kamu memberi untuk bantuan, kamu harus bisa melihatnya sampai.",
+      cases: [
+        { flag: "🇵🇭", country: "Filipina", story: "Filipina berada di jalur sekitar dua puluh siklon tropis dalam setahun; yang terkuat meratakan kota dan memicu sebagian operasi bantuan terbesar dalam sejarah negeri itu. Setelah tiap bencana, pertanyaan yang sama kembali — berapa yang benar-benar sampai ke barangay terparah?", source: "Sumber: tim verifikasi — NDRRMC / laporan primer" },
+        { flag: "🇮🇩", country: "Indonesia", story: "Indonesia berada di Cincin Api: gempa, tsunami, dan banjir musiman menggusur banyak orang hampir tiap tahun. Bantuan terkumpul cepat dan besar; melacaknya sampai keluarga terakhir selalu jadi bagian tersulit.", source: "Sumber: tim verifikasi — BNPB / laporan primer" },
+        { flag: "🇻🇳", country: "Vietnam", story: "Vietnam tengah menghadapi topan tahunan dan banjir sungai yang merendam rumah dan sawah berminggu-minggu. Komunitas membangun kembali dengan cepat — uang yang dimaksudkan membantu mereka jauh lebih sulit dilacak.", source: "Sumber: tim verifikasi — laporan primer" },
+      ],
       stats: [
         { k: "Rupiah di pool hari ini", v: "[angka terverifikasi]" },
         { k: "Keluarga yang dibantu", v: "[angka terverifikasi]" },
@@ -215,12 +231,17 @@ export const LEARN: Record<Locale, LearnLang> = {
     ],
     fund: {
       eyebrow: ".fund · Cứu trợ thiên tai",
-      title: "Tiền cứu trợ thật sự đi đâu?",
-      lede: "Sau mỗi cơn bão, cùng một câu hỏi — khi xe tải đến nơi, đã có đồng nào tới được những gia đình cần nhất chưa?",
-      p1: "Qua nhiều thập kỷ thảm hoạ ở Philippines và Indonesia, hàng tỷ tiền quyên góp đã đi qua những bàn tay không phải chịu trách nhiệm với người mà số tiền đó được gây ra cho. Một phần tới được nơi cần. Phần lớn thì không.",
-      p2: "Két cứu trợ Salapi dựa trên một nguyên tắc đơn giản: mỗi đồng vào, mỗi đồng ra, công khai, trên sổ cái mà ai cũng đọc được. Khoản quyên góp đáp xuống két do hợp đồng thông minh Stellar giữ. Giải ngân chỉ thoát ra khi đáp ứng các điều kiện đã thoả thuận với NGO đối tác — kèm hoá đơn, kèm số đơn vị xác nhận.",
-      p3: "Bạn không cần ví, không cần chain, không cần token. Bạn cho tiền địa phương. Hũ lớn lên giữa thanh thiên bạch nhật. Khi xe tải lăn bánh với gói lương thực, khoản giải ngân được ký và dòng tin hiện lên dashboard trong vài giây. Bất kỳ ai có trình duyệt đều xem được — nhà tài trợ, NGO, nhà báo, cơ quan quản lý, và chính các gia đình đó.",
-      promise: "Lời hứa công dân, không phải quảng cáo crypto: khi bạn cho để cứu trợ, bạn phải thấy nó tới nơi.",
+      title: "Sau cơn bão, tiền đi về đâu?",
+      lede: "Nước rút. Máy quay rời đi. Lòng hảo tâm thì rộng rãi — nhưng đến khi một gia đình cần, ai có thể nói tiền đã đi đâu?",
+      p1: "Ở vùng này, hảo tâm hiếm khi là vấn đề. Trách nhiệm giải trình mới là vấn đề. Tiền quyên góp bằng thiện chí đi qua các cơ quan, trung gian và những bàn tay địa phương — và ở đâu đó, dấu vết nguội lạnh. Một phần tới được lều bạt. Phần lớn thì không — và không ai buộc phải giải thích vì sao.",
+      p2: "Két cứu trợ Salapi thay đổi một điều: dấu vết không thể nguội lạnh. Mỗi khoản đóng góp đáp xuống két do hợp đồng thông minh trên Stellar giữ. Mỗi lần giải ngân đều được ký, có điều kiện và công khai — kèm hoá đơn, nêu tên người nhận. Không phải lời hứa trung thực; mà là sổ cái chứng minh điều đó.",
+      p3: "Bạn cho bằng đồng tiền của mình — không ví, không chain, không token phải học. Hũ lớn lên giữa thanh thiên bạch nhật. Khi cứu trợ chuyển đi, dòng tin hiện trên bảng công khai trong vài giây: nhà tài trợ, NGO, nhà báo, cơ quan quản lý và chính các gia đình cùng đọc một trang.",
+      promise: "Lời hứa công dân, không phải quảng cáo crypto: khi bạn cho để cứu trợ, bạn phải thấy được nó tới nơi.",
+      cases: [
+        { flag: "🇵🇭", country: "Philippines", story: "Philippines nằm trên đường đi của khoảng hai mươi cơn bão nhiệt đới mỗi năm; những cơn mạnh nhất san phẳng cả thị trấn và châm ngòi cho vài chiến dịch cứu trợ lớn nhất lịch sử nước này. Sau mỗi lần, câu hỏi cũ trở lại — bao nhiêu thực sự tới được những barangay thiệt hại nặng nhất?", source: "Nguồn: nhóm kiểm chứng — NDRRMC / báo cáo gốc" },
+        { flag: "🇮🇩", country: "Indonesia", story: "Indonesia nằm trên Vành đai Lửa: động đất, sóng thần và lũ theo mùa khiến rất nhiều người mất nhà gần như mỗi năm. Viện trợ được quyên nhanh và lớn; lần theo nó tới hộ gia đình cuối cùng luôn là phần khó nhất.", source: "Nguồn: nhóm kiểm chứng — BNPB / báo cáo gốc" },
+        { flag: "🇻🇳", country: "Việt Nam", story: "Miền Trung Việt Nam hứng bão hằng năm và lũ sông nhấn chìm nhà cửa, ruộng đồng hàng tuần. Cộng đồng dựng lại rất nhanh — tiền dành để giúp họ thì khó lần theo hơn nhiều.", source: "Nguồn: nhóm kiểm chứng — báo cáo gốc" },
+      ],
       stats: [
         { k: "Tiền trong quỹ hôm nay", v: "[con số đã kiểm chứng]" },
         { k: "Số gia đình được giúp", v: "[con số đã kiểm chứng]" },

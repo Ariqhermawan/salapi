@@ -215,6 +215,18 @@ export default function LearnArticleScreen({ topic }: { topic: LearnTopicId }) {
         <Spotted doodle={spot(sp[0], { size: 44 })}>{d.p1}</Spotted>
         <Spotted doodle={spot(sp[1], { size: 44 })}>{d.p2}</Spotted>
         <Spotted doodle={spot(sp[2], { size: 44 })}>{d.p3}</Spotted>
+        <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 8 }}>
+          {d.cases.map((cs) => (
+            <div key={cs.country} style={{ background: CREAM, borderRadius: 12, padding: "12px 14px", boxShadow: "inset 0 0 0 1px " + T.hairline }}>
+              <div style={{ fontSize: 13, fontWeight: 600 }}>
+                <span style={{ marginRight: 6 }}>{cs.flag}</span>
+                {cs.country}
+              </div>
+              <div style={{ marginTop: 4, fontSize: 12.5, color: T.slate, lineHeight: 1.55 }}>{cs.story}</div>
+              <div style={{ marginTop: 6, fontFamily: T.fontMono, fontSize: 10, color: T.slate, letterSpacing: "0.02em" }}>{cs.source}</div>
+            </div>
+          ))}
+        </div>
         <PromiseCard>{d.promise}</PromiseCard>
         <div style={{ marginTop: 14, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
           {d.stats.map((s) => (
