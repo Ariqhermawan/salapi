@@ -20,7 +20,7 @@ type KV = { k: string; v: string };
 type Glossary = { lang: string; word: string };
 type Case = { flag: string; country: string; story: string; source: string };
 type FundTopic = { eyebrow: string; title: string; lede: string; p1: string; p2: string; p3: string; promise: string; cases: Case[]; stats: KV[] };
-type CircleTopic = { eyebrow: string; title: string; lede: string; p1: string; p2: string; p3: string; promise: string; glossary: Glossary[] };
+type CircleTopic = { eyebrow: string; title: string; lede: string; p1: string; p2: string; p3: string; promise: string; glossary: Glossary[]; cases: Case[] };
 type GrowTopic = { eyebrow: string; title: string; lede: string; p1: string; p2: string; p3: string; promise: string; apy: { label: string; value: string }; stack: { t: string; s: string }[] };
 export type LearnLang = {
   nav: Nav;
@@ -67,17 +67,22 @@ export const LEARN: Record<Locale, LearnLang> = {
     },
     circle: {
       eyebrow: ".circles · Saving together",
-      title: "Saving circles — Paluwagan, Arisan, Chơi hụi.",
-      lede: "A practice older than banks. Every culture in this region knows it by a different name.",
-      p1: "A handful of trusted people agree to put in a small amount on a schedule. Each cycle, one of them takes the pot. The next cycle, another. It is the oldest peer-to-peer savings system in the region — Paluwagan in the Philippines, Arisan in Indonesia, Chơi hụi in Vietnam, Tanda in Mexico, Susu in West Africa.",
-      p2: "There is only ever one real fear in a circle: the person holding the money for the round disappears. It is a fear earned across generations.",
-      p3: "Salapi keeps the social ritual exactly as it is — friends, family, neighbours, names you trust — and changes only the holder. The pot is held by a contract on Stellar that is forbidden to release the funds except to the named recipient for that round, at the agreed time. The contract cannot block you. It cannot keep your money. It cannot pick a favourite.",
+      title: "The circle works. The person holding it sometimes doesn't.",
+      lede: "Arisan, paluwagan, hụi — the same idea under different names, older than any bank here. It almost never fails for the reason people fear. It fails for the one they don't say aloud.",
+      p1: "A handful of people you trust each put in a little, on a schedule. One takes the pot this round; someone else the next. For generations it has quietly done what banks would not: turned neighbours into a savings account.",
+      p2: "We built Salapi's circles because the ritual was never the problem — the holder is. So we kept everything human about it (the people, the names you trust, the turn-taking) and replaced only the weak link: a contract on Stellar holds the pot now, not a person who could vanish with it. That single substitution is the whole product.",
+      p3: "The contract is bound by rules it cannot break — release only to the named recipient for that round, only at the agreed time. It cannot block you, cannot keep your money, cannot pick a favourite. Each round settles on a page anyone can read: check, don't trust.",
       promise: "The contract holds the pot. No one can run away with it.",
       glossary: [
         { lang: "EN", word: "Saving circle" },
         { lang: "TL", word: "Paluwagan" },
         { lang: "ID", word: "Arisan" },
         { lang: "VI", word: "Chơi hụi" },
+      ],
+      cases: [
+        { flag: "🇵🇭", country: "Philippines · Aman Futures", story: "Around 2012 in Pagadian City, a scheme marketed like a paluwagan — “double your money” — pulled in thousands of small savers before it collapsed. The Securities and Exchange Commission and the courts pursued it for years; most contributors never recovered what they put in.", source: "Source: Philippine SEC; Philippine Daily Inquirer; Rappler — 2012– · team: attach links" },
+        { flag: "🇮🇩", country: "Indonesia · arisan bodong", story: "“Arisan bodong” — fake or online arisan where the bandar collects the rounds and disappears — recurs often enough that the financial authority (OJK) issues public warnings and police log fresh cases most years. The ritual is sound; the single holder is the hole.", source: "Source: OJK; Indonesian police reports; Kompas / Detik — recurring · team: attach links" },
+        { flag: "🇻🇳", country: "Vietnam · vỡ hụi", story: "“Vỡ hụi” — a hụi collapsing when the chủ hụi absconds or the chain breaks — is common enough that Vietnam regulates hụi/họ/biêu/phường by government decree (Decree 19/2019/NĐ-CP). Regulation helps; it still depends on a person behaving.", source: "Source: Decree 19/2019/NĐ-CP; VnExpress / Tuổi Trẻ — 2019– · team: attach links" },
       ],
     },
     grow: {
@@ -128,17 +133,22 @@ export const LEARN: Record<Locale, LearnLang> = {
     },
     circle: {
       eyebrow: ".circles · Sama-samang nag-iipon",
-      title: "Paluwagan — Arisan, Chơi hụi.",
-      lede: "Mas matanda kaysa sa bangko. Bawat kultura sa rehiyon, may sariling pangalan dito.",
-      p1: "Ilang taong magkakakilala ang sumasang-ayon na magbigay ng kaunti, sunod-sunod. Bawat ikot, isa sa kanila ang kumukuha ng pot. Sa sunod na ikot, iba naman. Ito ang pinakamatandang peer-to-peer na pag-iipon sa rehiyon — Paluwagan sa Pilipinas, Arisan sa Indonesia, Chơi hụi sa Vietnam.",
-      p2: "Iisa lang ang tunay na takot sa paluwagan: nawala ang humahawak ng pera para sa ikot na iyon. Takot na napatunayan ng maraming henerasyon.",
-      p3: "Inilalagay ng Salapi ang sosyal na ritwal kung paano siya talaga — magkakaibigan, magkapamilya, magkakapitbahay — at ang humahawak lang ng pera ang binabago. Hawak ng kontrata sa Stellar ang pot, bawal magpalabas maliban sa nominado para sa ikot na ito, sa napagkasunduang oras. Hindi ka maaaring i-block ng kontrata. Hindi nito kayang itago ang pera mo. Hindi nito kayang may paboritism.",
+      title: "Maganda ang sistema. Ang humahawak minsan hindi.",
+      lede: "Arisan, paluwagan, hụi — iisang ideya, iba-ibang pangalan, mas matanda pa sa kahit anong bangko rito. Bihirang pumalpak sa kinakatakutan ng lahat. Pumapalpak sa hindi binibigkas.",
+      p1: "Ilang taong pinagkakatiwalaan mo, kaunti ang bawat isa, sunod-sunod. May kumukuha ng pot ngayong ikot; iba naman sa susunod. Sa loob ng mga henerasyon, tahimik nitong ginawa ang ayaw gawin ng bangko: ginawang savings account ang kapitbahay.",
+      p2: "Itinayo namin ang Salapi Circles dahil hindi kailanman ang ritwal ang problema — ang humahawak. Kaya iningatan namin ang lahat ng makatao rito (ang mga tao, ang pangalang tinitiwalaan mo, ang pagsasalitan) at pinalitan lang ang mahinang bahagi: kontrata na sa Stellar ang humahawak ng pot ngayon, hindi taong puwedeng maglaho dala ito. Iyon lang ang buong produkto.",
+      p3: "Nakatali ang kontrata sa patakarang hindi nito kayang labagin — ilalabas lang sa nominadong tatanggap para sa ikot na iyon, sa napagkasunduang oras. Hindi ka nito kayang i-block, hindi kayang itago ang pera mo, hindi kayang may paborito. Bawat ikot, kitang-kita sa pahinang kayang basahin ng lahat: tingnan, huwag basta magtiwala.",
       promise: "Ang kontrata ang humahawak sa pot. Walang makakatakas dito.",
       glossary: [
         { lang: "EN", word: "Saving circle" },
         { lang: "TL", word: "Paluwagan" },
         { lang: "ID", word: "Arisan" },
         { lang: "VI", word: "Chơi hụi" },
+      ],
+      cases: [
+        { flag: "🇵🇭", country: "Pilipinas · Aman Futures", story: "Noong mga 2012 sa Pagadian City, isang iskemang ibinenta na parang paluwagan — “doblehin ang pera” — ang nakahikayat ng libu-libong maliliit na nag-iipon bago ito bumagsak. Hinabol ito ng Securities and Exchange Commission at ng korte nang ilang taon; karamihan ay hindi na nabawi ang inilagay.", source: "Pinagmulan: Philippine SEC; Philippine Daily Inquirer; Rappler — 2012– · team: ilakip ang link" },
+        { flag: "🇮🇩", country: "Indonesia · arisan bodong", story: "“Arisan bodong” — pekeng o online na arisan kung saan kinokolekta ng bandar ang mga ikot tapos naglalaho — paulit-ulit kaya naglalabas ng babala ang awtoridad pampinansyal (OJK) at may bagong kaso ang pulis taon-taon. Maganda ang ritwal; ang nag-iisang humahawak ang butas.", source: "Pinagmulan: OJK; ulat ng pulis ng Indonesia; Kompas / Detik — paulit-ulit · team: ilakip ang link" },
+        { flag: "🇻🇳", country: "Vietnam · vỡ hụi", story: "“Vỡ hụi” — pagbagsak ng hụi kapag tumakas ang chủ hụi o naputol ang kadena — karaniwan kaya may pamahalaang dekreto ang Vietnam para sa hụi/họ/biêu/phường (Decree 19/2019/NĐ-CP). Nakakatulong ang regulasyon; nakasalalay pa rin sa taong kikilos nang tama.", source: "Pinagmulan: Decree 19/2019/NĐ-CP; VnExpress / Tuổi Trẻ — 2019– · team: ilakip ang link" },
       ],
     },
     grow: {
@@ -189,17 +199,22 @@ export const LEARN: Record<Locale, LearnLang> = {
     },
     circle: {
       eyebrow: ".circles · Menabung bersama",
-      title: "Arisan — Paluwagan, Chơi hụi.",
-      lede: "Lebih tua daripada bank. Setiap budaya di kawasan ini punya namanya sendiri.",
-      p1: "Beberapa orang yang saling percaya sepakat memasukkan jumlah kecil secara berkala. Setiap putaran, salah satu mengambil pot. Putaran berikutnya, yang lain. Ini sistem tabungan peer-to-peer tertua di kawasan — Arisan di Indonesia, Paluwagan di Filipina, Chơi hụi di Vietnam.",
-      p2: "Hanya ada satu ketakutan nyata di arisan: orang yang memegang uang putaran itu menghilang. Ketakutan yang dipelajari turun-temurun.",
-      p3: "Salapi mempertahankan ritual sosialnya persis seperti adanya — teman, keluarga, tetangga, nama yang kamu percaya — dan hanya mengganti pemegangnya. Pot dipegang oleh kontrak di Stellar yang dilarang merilis dana kecuali kepada penerima yang ditentukan untuk putaran itu, pada waktu yang disepakati. Kontrak tidak bisa memblokirmu. Tidak bisa menahan uangmu. Tidak bisa pilih kasih.",
+      title: "Sistemnya bagus. Yang memegangnya kadang tidak.",
+      lede: "Arisan, paluwagan, hụi — satu ide, beda nama, lebih tua dari bank mana pun di sini. Hampir tak pernah gagal karena hal yang ditakuti orang. Gagalnya karena hal yang tak diucapkan.",
+      p1: "Beberapa orang yang kamu percaya menyetor sedikit, secara berkala. Satu orang ambil pot putaran ini; orang lain putaran berikutnya. Selama bergenerasi, ia diam-diam melakukan yang tak mau dilakukan bank: menjadikan tetangga sebuah rekening tabungan.",
+      p2: "Kami membangun Salapi Circles karena ritualnya tak pernah jadi masalah — pemegangnya. Maka kami pertahankan semua yang manusiawi (orang-orangnya, nama yang kamu percaya, gilirannya) dan hanya mengganti mata rantai lemahnya: kini kontrak di Stellar yang memegang pot, bukan orang yang bisa raib membawanya. Substitusi tunggal itulah seluruh produknya.",
+      p3: "Kontrak terikat aturan yang tak bisa ia langgar — mencairkan hanya ke penerima yang ditentukan untuk putaran itu, hanya pada waktu yang disepakati. Tak bisa memblokirmu, tak bisa menahan uangmu, tak bisa pilih kasih. Tiap putaran selesai di halaman yang bisa dibaca siapa saja: periksa, jangan sekadar percaya.",
       promise: "Kontrak yang memegang pot. Tidak ada yang bisa lari membawanya.",
       glossary: [
         { lang: "EN", word: "Saving circle" },
         { lang: "TL", word: "Paluwagan" },
         { lang: "ID", word: "Arisan" },
         { lang: "VI", word: "Chơi hụi" },
+      ],
+      cases: [
+        { flag: "🇵🇭", country: "Filipina · Aman Futures", story: "Sekitar 2012 di Pagadian City, sebuah skema yang dipasarkan seperti paluwagan — “lipatgandakan uangmu” — menyedot ribuan penabung kecil sebelum ambruk. Securities and Exchange Commission dan pengadilan mengusutnya bertahun-tahun; sebagian besar peserta tak pernah menarik kembali uangnya.", source: "Sumber: Philippine SEC; Philippine Daily Inquirer; Rappler — 2012– · tim: lampirkan tautan" },
+        { flag: "🇮🇩", country: "Indonesia · arisan bodong", story: "“Arisan bodong” — arisan palsu atau online di mana bandar mengumpulkan setoran lalu menghilang — cukup berulang sehingga OJK rutin mengeluarkan peringatan dan polisi mencatat kasus baru hampir tiap tahun. Ritualnya sehat; pemegang tunggal itulah lubangnya.", source: "Sumber: OJK; laporan kepolisian; Kompas / Detik — berulang · tim: lampirkan tautan" },
+        { flag: "🇻🇳", country: "Vietnam · vỡ hụi", story: "“Vỡ hụi” — runtuhnya hụi saat chủ hụi kabur atau rantai putus — cukup umum sehingga Vietnam mengatur hụi/họ/biêu/phường lewat peraturan pemerintah (Decree 19/2019/NĐ-CP). Regulasi membantu; tetap bergantung pada orang yang berperilaku benar.", source: "Sumber: Decree 19/2019/NĐ-CP; VnExpress / Tuổi Trẻ — 2019– · tim: lampirkan tautan" },
       ],
     },
     grow: {
@@ -250,17 +265,22 @@ export const LEARN: Record<Locale, LearnLang> = {
     },
     circle: {
       eyebrow: ".circles · Tiết kiệm cùng nhau",
-      title: "Chơi hụi — Paluwagan, Arisan.",
-      lede: "Cổ hơn cả ngân hàng. Mỗi nền văn hoá trong vùng gọi nó bằng một cái tên riêng.",
-      p1: "Một nhóm người tin cậy thoả thuận đóng một khoản nhỏ theo lịch. Mỗi vòng, một người nhận hũ. Vòng sau, người khác. Đây là hệ thống tiết kiệm peer-to-peer lâu đời nhất trong vùng — Chơi hụi ở Việt Nam, Paluwagan ở Philippines, Arisan ở Indonesia.",
-      p2: "Chỉ có duy nhất một nỗi sợ thực sự trong hụi: người giữ tiền của vòng đó biến mất. Một nỗi sợ học được qua nhiều thế hệ.",
-      p3: "Salapi giữ nguyên nghi thức xã hội — bạn bè, gia đình, hàng xóm, những cái tên bạn tin — chỉ đổi người giữ tiền. Hũ do hợp đồng trên Stellar giữ, bị cấm giải phóng quỹ trừ khi đúng người nhận đã định cho vòng đó, đúng giờ đã thoả thuận. Hợp đồng không thể chặn bạn. Không thể giữ tiền bạn. Không thể thiên vị.",
+      title: "Vòng hụi vẫn ổn. Người giữ nó thì đôi khi không.",
+      lede: "Arisan, paluwagan, hụi — cùng một ý tưởng, khác tên gọi, cổ hơn mọi ngân hàng ở đây. Hầu như không bao giờ hỏng vì lý do người ta sợ. Nó hỏng vì điều người ta không nói ra.",
+      p1: "Vài người bạn tin, mỗi người góp một ít, theo lịch. Vòng này một người lấy hũ; vòng sau người khác. Qua nhiều thế hệ, nó lặng lẽ làm điều ngân hàng không làm: biến hàng xóm thành một tài khoản tiết kiệm.",
+      p2: "Chúng tôi dựng Salapi Circles vì nghi thức chưa bao giờ là vấn đề — người giữ mới là. Nên chúng tôi giữ mọi thứ thuộc về con người (những người, những cái tên bạn tin, lượt xoay vòng) và chỉ thay mắt xích yếu: giờ hợp đồng trên Stellar giữ hũ, không phải một người có thể ôm tiền biến mất. Phép thay thế duy nhất đó chính là toàn bộ sản phẩm.",
+      p3: "Hợp đồng bị ràng bởi luật nó không thể phá — chỉ chi cho đúng người nhận của vòng đó, đúng thời điểm đã hẹn. Không thể chặn bạn, không thể giữ tiền bạn, không thể thiên vị. Mỗi vòng kết toán trên một trang ai cũng đọc được: kiểm chứng, đừng chỉ tin.",
       promise: "Hợp đồng giữ hũ tiền. Không ai có thể ôm tiền chạy.",
       glossary: [
         { lang: "EN", word: "Saving circle" },
         { lang: "TL", word: "Paluwagan" },
         { lang: "ID", word: "Arisan" },
         { lang: "VI", word: "Chơi hụi" },
+      ],
+      cases: [
+        { flag: "🇵🇭", country: "Philippines · Aman Futures", story: "Khoảng 2012 ở Pagadian City, một mô hình rao như paluwagan — “nhân đôi tiền của bạn” — hút hàng nghìn người tiết kiệm nhỏ trước khi sụp đổ. Uỷ ban Chứng khoán (SEC) và toà án theo đuổi nhiều năm; phần lớn người góp không bao giờ lấy lại được khoản đã bỏ vào.", source: "Nguồn: Philippine SEC; Philippine Daily Inquirer; Rappler — 2012– · nhóm: đính kèm link" },
+        { flag: "🇮🇩", country: "Indonesia · arisan bodong", story: "“Arisan bodong” — arisan giả hoặc online nơi bandar gom các vòng rồi biến mất — lặp lại đủ thường xuyên đến mức cơ quan tài chính (OJK) ra cảnh báo và cảnh sát ghi nhận vụ mới gần như mỗi năm. Nghi thức thì lành; lỗ hổng là người giữ duy nhất.", source: "Nguồn: OJK; báo cáo cảnh sát Indonesia; Kompas / Detik — lặp lại · nhóm: đính kèm link" },
+        { flag: "🇻🇳", country: "Việt Nam · vỡ hụi", story: "“Vỡ hụi” — hụi sụp khi chủ hụi ôm tiền bỏ trốn hoặc dây hụi đứt — phổ biến đến mức Việt Nam quản lý hụi/họ/biêu/phường bằng nghị định (Nghị định 19/2019/NĐ-CP). Quy định có giúp; vẫn phụ thuộc vào việc một con người hành xử đúng.", source: "Nguồn: Nghị định 19/2019/NĐ-CP; VnExpress / Tuổi Trẻ — 2019– · nhóm: đính kèm link" },
       ],
     },
     grow: {

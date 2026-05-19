@@ -165,15 +165,22 @@ function LearnCTA({
 }
 
 // Language-agnostic illustrations (original editorial art).
-const FUND_HERO = "/learn/fund-hero.webp";
-const FUND_CASE_IMG = ["/learn/fund-ph.webp", "/learn/fund-id.webp", "/learn/fund-vn.webp"];
+const HERO_IMG: Partial<Record<LearnTopicId, string>> = {
+  fund: "/learn/fund-hero.webp",
+  circle: "/learn/circle-hero.webp",
+};
+const CASE_IMG: Partial<Record<LearnTopicId, string[]>> = {
+  fund: ["/learn/fund-ph.webp", "/learn/fund-id.webp", "/learn/fund-vn.webp"],
+  circle: ["/learn/circle-ph.webp", "/learn/circle-id.webp", "/learn/circle-vn.webp"],
+};
 
 function DoodleHero({ topic, pose }: { topic: LearnTopicId; pose: MascotPose }) {
-  if (topic === "fund") {
+  const hero = HERO_IMG[topic];
+  if (hero) {
     return (
       <div style={{ position: "relative", borderRadius: 16, overflow: "hidden", boxShadow: "inset 0 0 0 1px " + T.hairline, background: CREAM }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={FUND_HERO} alt="" style={{ display: "block", width: "100%", aspectRatio: "16 / 9", objectFit: "cover" }} />
+        <img src={hero} alt="" style={{ display: "block", width: "100%", aspectRatio: "16 / 9", objectFit: "cover" }} />
       </div>
     );
   }
@@ -229,9 +236,9 @@ export default function LearnArticleScreen({ topic }: { topic: LearnTopicId }) {
         <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
           {d.cases.map((cs, ci) => (
             <div key={cs.country} style={{ background: CREAM, borderRadius: 12, overflow: "hidden", boxShadow: "inset 0 0 0 1px " + T.hairline }}>
-              {FUND_CASE_IMG[ci] && (
+              {CASE_IMG.fund?.[ci] && (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={FUND_CASE_IMG[ci]} alt="" style={{ display: "block", width: "100%", aspectRatio: "3 / 2", objectFit: "cover" }} />
+                <img src={CASE_IMG.fund[ci]} alt="" style={{ display: "block", width: "100%", aspectRatio: "3 / 2", objectFit: "cover" }} />
               )}
               <div style={{ padding: "12px 14px" }}>
                 <div style={{ fontSize: 13, fontWeight: 600 }}>
@@ -275,6 +282,24 @@ export default function LearnArticleScreen({ topic }: { topic: LearnTopicId }) {
         </div>
         <Spotted doodle={spot(sp[1], { size: 46 })}>{d.p2}</Spotted>
         <Spotted doodle={spot(sp[2], { size: 44 })}>{d.p3}</Spotted>
+        <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+          {d.cases.map((cs, ci) => (
+            <div key={cs.country} style={{ background: CREAM, borderRadius: 12, overflow: "hidden", boxShadow: "inset 0 0 0 1px " + T.hairline }}>
+              {CASE_IMG.circle?.[ci] && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={CASE_IMG.circle[ci]} alt="" style={{ display: "block", width: "100%", aspectRatio: "3 / 2", objectFit: "cover" }} />
+              )}
+              <div style={{ padding: "12px 14px" }}>
+                <div style={{ fontSize: 13, fontWeight: 600 }}>
+                  <span style={{ marginRight: 6 }}>{cs.flag}</span>
+                  {cs.country}
+                </div>
+                <div style={{ marginTop: 4, fontSize: 12.5, color: T.slate, lineHeight: 1.55 }}>{cs.story}</div>
+                <div style={{ marginTop: 6, fontFamily: T.fontMono, fontSize: 10, color: T.slate, letterSpacing: "0.02em" }}>{cs.source}</div>
+              </div>
+            </div>
+          ))}
+        </div>
         <PromiseCard>{d.promise}</PromiseCard>
       </>
     );
