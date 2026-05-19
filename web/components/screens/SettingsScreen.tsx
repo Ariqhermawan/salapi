@@ -293,20 +293,6 @@ export default function SettingsScreen() {
         <Card p={0}>
           <Row title="Version" trailing={<span style={{ fontSize: 13, color: T.slate, fontFamily: T.fontMono }}>1.0 · testnet</span>} />
           <Row
-            title="Open source"
-            sub="github.com/Ariqhermawan/salapi"
-            trailing={
-              <a
-                href="https://github.com/Ariqhermawan/salapi"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ color: T.action }}
-              >
-                {Ico.link({ size: 15, c: T.action })}
-              </a>
-            }
-          />
-          <Row
             title="Salapi"
             sub="A crypto-invisible money app for the Philippines & Indonesia, built on Stellar."
             trailing={null}
