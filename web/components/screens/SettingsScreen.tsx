@@ -13,6 +13,7 @@ import {
   Chip,
   TestnetPill,
   PoweredByStellar,
+  MakerLockup,
 } from "@/components/ui/kit";
 
 function Switch({ on }: { on: boolean }) {
@@ -179,7 +180,8 @@ export default function SettingsScreen() {
         </Card>
       </div>
 
-      <div style={{ padding: "22px 16px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+      <div style={{ padding: "22px 16px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+        <MakerLockup />
         <PoweredByStellar />
         <span style={{ fontSize: 12, color: T.slate }}>For the Filipino people.</span>
       </div>

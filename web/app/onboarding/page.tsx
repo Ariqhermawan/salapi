@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useT } from "@/components/I18nProvider";
 import { Button } from "@/components/ui";
 import { FadeIn } from "@/components/ui/motion";
+import { MakerLockup } from "@/components/ui/kit";
 
 export default function Onboarding() {
   const { t } = useT();
@@ -41,6 +42,9 @@ export default function Onboarding() {
       ) : (
         <Button onClick={() => setI(i + 1)}>{t("home.start")}</Button>
       )}
+      <div className="mt-6 flex justify-center">
+        <MakerLockup />
+      </div>
     </div>
   );
 }

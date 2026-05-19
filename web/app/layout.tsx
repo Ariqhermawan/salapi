@@ -5,7 +5,7 @@ import BottomNav from "@/components/BottomNav";
 import PwaRegister from "@/components/PwaRegister";
 import { I18nProvider } from "@/components/I18nProvider";
 import InstallBanner from "@/components/InstallBanner";
-import { Wordmark, PoweredByStellar } from "@/components/ui/kit";
+import { Wordmark, PoweredByStellar, MakerLockup } from "@/components/ui/kit";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({
@@ -44,7 +44,10 @@ export default function RootLayout({
               browser view reads as intentional instead of a lonely column. */}
           <div className="sl-shell flex min-h-dvh w-full flex-col lg:flex-row lg:items-center lg:justify-center lg:gap-12 xl:gap-20">
             <aside className="hidden text-white lg:flex lg:max-w-[420px] lg:flex-col lg:gap-7 lg:px-8">
-              <Wordmark size={24} c="#fff" />
+              <div className="flex flex-col gap-2">
+                <Wordmark size={24} c="#fff" />
+                <MakerLockup c="rgba(255,255,255,0.55)" />
+              </div>
               <div>
                 <h1 className="text-[40px] font-semibold leading-[1.1] tracking-[-0.025em]">
                   Money for everyone.

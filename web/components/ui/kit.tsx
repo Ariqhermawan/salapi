@@ -7,34 +7,39 @@
 import type { CSSProperties, ReactNode } from "react";
 import { T } from "@/lib/ui/tokens";
 import { Ico } from "@/components/ui/icons";
+import {
+  SalapiLockup,
+  PoweredByStellarV2,
+  TestnetPillV2,
+} from "@/components/ui/brand";
 
 export { T, Ico };
+export {
+  SalapiMark,
+  SalapiMarkAlt,
+  SalapiLockup,
+  MakerLockup,
+  StellarMark,
+  PoweredByStellarV2,
+  TestnetPillV2,
+  TestnetStrip,
+  GRAD,
+} from "@/components/ui/brand";
 
+// Brand wordmark — now the real mark + "Salapi." lockup (V4). Signature kept
+// so every existing call site rolls forward unchanged.
 export function Wordmark({ size = 22, c = T.ink, dot = T.action }: { size?: number; c?: string; dot?: string }) {
-  return (
-    <span style={{ display: "inline-flex", alignItems: "baseline", fontFamily: T.fontSans, fontWeight: 700, fontSize: size, letterSpacing: "-0.02em", color: c }}>
-      <span>Salapi</span>
-      <span style={{ color: dot, marginLeft: 1 }}>.</span>
-    </span>
-  );
+  return <SalapiLockup size={size} c={c} dot={dot} />;
 }
 
+// "Powered by Stellar" — now uses the real Stellar kinship mark, not a sparkle.
 export function PoweredByStellar({ c = T.slate, size = 11 }: { c?: string; size?: number }) {
-  return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, color: c, fontSize: size, fontFamily: T.fontSans, letterSpacing: 0.4 }}>
-      {Ico.sparkle({ c, size: size + 1 })}
-      <span>Powered by Stellar</span>
-    </span>
-  );
+  return <PoweredByStellarV2 c={c} size={size} />;
 }
 
+// "Testnet version" pill (V4).
 export function TestnetPill() {
-  return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "2px 7px", borderRadius: 999, background: T.warnTint, color: T.warn, fontFamily: T.fontMono, fontSize: 10, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase" }}>
-      <span style={{ width: 5, height: 5, borderRadius: 99, background: T.warn }} />
-      Testnet
-    </span>
-  );
+  return <TestnetPillV2 />;
 }
 
 export function IconButton({ children, onClick, size = 36 }: { children: ReactNode; onClick?: () => void; size?: number }) {
