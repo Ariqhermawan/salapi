@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { myUsername, walletState } from "@/app/actions";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { createSupabaseBrowser } from "@/lib/supabase/client";
+import { supabaseConfigured } from "@/lib/supabase/env";
 import {
   T,
   Ico,
@@ -11,6 +13,7 @@ import {
   Row,
   Avatar,
   Chip,
+  Btn,
   TestnetPill,
   PoweredByStellar,
   MakerLockup,
@@ -45,11 +48,27 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 export default function SettingsScreen() {
   const [name, setName] = useState<string | null>(null);
   const [addr, setAddr] = useState<string>("");
+  const [supaEmail, setSupaEmail] = useState<string | null>(null);
 
   useEffect(() => {
     myUsername().then(setName);
     walletState().then((w) => setAddr(w.address));
+    if (supabaseConfigured()) {
+      createSupabaseBrowser()
+        .auth.getUser()
+        .then(({ data }) => setSupaEmail(data.user?.email ?? null))
+        .catch(() => {});
+    }
   }, []);
+
+  async function signOut() {
+    try {
+      await createSupabaseBrowser().auth.signOut();
+    } catch {
+      /* ignore */
+    }
+    window.location.href = "/signin";
+  }
 
   const display = name ? `@${name}` : "Salapi user";
   const shortAddr = addr ? `${addr.slice(0, 4)}…${addr.slice(-4)}` : "—";
@@ -87,6 +106,18 @@ export default function SettingsScreen() {
       <SectionLabel>Accounts</SectionLabel>
       <div style={{ padding: "0 16px" }}>
         <Card p={0}>
+          {supaEmail && (
+            <Row
+              leading={iconBox(Ico.user({ c: T.moneyIn }), T.moneyInTint, T.moneyIn)}
+              title="Signed in with Google"
+              sub={supaEmail}
+              trailing={
+                <Btn kind="ghost" size="sm" full={false} onClick={signOut}>
+                  Sign out
+                </Btn>
+              }
+            />
+          )}
           <Row
             leading={iconBox(Ico.arrowDown({ c: T.action }), T.actionTint, T.action)}
             title="GCash"
