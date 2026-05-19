@@ -137,12 +137,22 @@ export function StellarMark({ size = 14, c = T.slate }: { size?: number; c?: str
   );
 }
 
+// Official Stellar lockup (symbol + wordmark) from Stellar's brand kit,
+// unmodified, used for sanctioned "Powered by Stellar" attribution. Black on
+// light, white on dark, per Stellar brand guidelines.
 export function PoweredByStellarV2({ c = T.slate, size = 11 }: { c?: string; size?: number }) {
+  const onDark = typeof c === "string" && /255\s*,\s*255\s*,\s*255|#fff/i.test(c);
+  const h = size + 5;
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, color: c, fontSize: size, fontFamily: T.fontSans, letterSpacing: 0.02 }}>
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 7, color: c, fontSize: size, fontFamily: T.fontSans, letterSpacing: 0.02 }}>
       <span style={{ fontWeight: 400, opacity: 0.75 }}>Powered by</span>
-      <StellarMark size={size + 3} c={c} />
-      <span style={{ fontWeight: 600, letterSpacing: "-0.005em" }}>Stellar</span>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={onDark ? "/stellar-white.png" : "/stellar.png"}
+        alt="Stellar"
+        height={h}
+        style={{ height: h, width: "auto", display: "block" }}
+      />
     </span>
   );
 }
