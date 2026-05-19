@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Salapi — crypto-invisible fintech for the Philippines",
+  title: "Salapi — crypto-invisible fintech for the Philippines & Indonesia",
   description:
     "GCash-funded Stellar wallet: disaster relief, paluwagan, smart savings, P2P. Crypto invisible.",
   appleWebApp: { capable: true, title: "Salapi", statusBarStyle: "default" },
@@ -56,8 +56,8 @@ export default function RootLayout({
                 </h1>
                 <p className="mt-4 max-w-[380px] text-[15px] leading-relaxed text-white/70">
                   Open Salapi anywhere — phone, tablet or laptop. The same calm
-                  app, just bigger. Pesos in, pesos out — no wallets, no chains,
-                  no jargon.
+                  app, just bigger. Money in, money out — no wallets, no
+                  chains, no jargon.
                 </p>
               </div>
               <div className="flex items-center gap-4">

@@ -26,7 +26,7 @@ function GcashRow() {
       </div>
       <div style={{ flex: 1 }}>
         <div style={{ fontSize: 13, fontWeight: 600 }}>GCash · sandbox</div>
-        <div style={{ fontSize: 11, color: T.slate }}>No fees · licensed anchor at Build Award</div>
+        <div style={{ fontSize: 11, color: T.slate }}>Licensed anchor at Build Award</div>
       </div>
     </div>
   );

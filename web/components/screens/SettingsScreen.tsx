@@ -173,7 +173,7 @@ export default function SettingsScreen() {
           />
           <Row
             title="Salapi"
-            sub="A crypto-invisible peso wallet for the Philippines, built on Stellar."
+            sub="A crypto-invisible money app for the Philippines & Indonesia, built on Stellar."
             trailing={null}
             divider={false}
           />
@@ -183,7 +183,7 @@ export default function SettingsScreen() {
       <div style={{ padding: "22px 16px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
         <MakerLockup />
         <PoweredByStellar />
-        <span style={{ fontSize: 12, color: T.slate }}>For the Filipino people.</span>
+        <span style={{ fontSize: 12, color: T.slate }}>For Southeast Asia.</span>
       </div>
     </div>
   );

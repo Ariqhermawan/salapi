@@ -169,7 +169,7 @@ export default function PaluwaganScreen() {
             {[
               { ico: Ico.shield, t: "Locked pot", s: "No one holds it" },
               { ico: Ico.check, t: "Auto rotate", s: "Each round, on time" },
-              { ico: Ico.refresh, t: "Withdraw free", s: "No fees, ever" },
+              { ico: Ico.refresh, t: "Withdraw anytime", s: "Fee shown before you confirm" },
             ].map((it) => (
               <div key={it.t} style={{ background: T.surface, borderRadius: 14, padding: "14px 12px", boxShadow: "inset 0 0 0 1px " + T.hairline, display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
                 <div style={{ width: 30, height: 30, borderRadius: 9, background: T.actionTint, color: T.action, display: "flex", alignItems: "center", justifyContent: "center" }}>

@@ -18,7 +18,7 @@ const en = {
   home: {
     greeting: "Hi 👋",
     tagline:
-      "Save, send, and give — all in pesos. No wallet, no seed phrase.",
+      "Save, send, and give — no wallet, no seed phrase.",
     start: "Let's start",
     footnote:
       "Stellar PH Ambassador Chapter — Instaward. Testnet demo: balances and transactions are real on Stellar testnet (no real value). GCash & sign-in are sandbox seams; production = a licensed anchor.",
@@ -122,7 +122,7 @@ const en = {
     language: "Language",
     about: "About",
     aboutText:
-      "Salapi — a crypto-invisible financial app for the Philippines, built on the Stellar blockchain. Testnet demo.",
+      "Salapi — a crypto-invisible financial app for the Philippines & Indonesia, built on the Stellar blockchain. Testnet demo.",
   },
   lang: { choose: "Choose your language" },
 };
@@ -144,7 +144,7 @@ const tl: Dict = {
   home: {
     greeting: "Kumusta 👋",
     tagline:
-      "Mag-ipon, magpadala, magbigay — lahat sa piso. Walang wallet, walang seed phrase.",
+      "Mag-ipon, magpadala, magbigay — walang wallet, walang seed phrase.",
     start: "Simulan na",
     footnote:
       "Stellar PH Ambassador Chapter — Instaward. Testnet demo: tunay sa Stellar testnet ang balanse at transaksyon (walang tunay na halaga). Ang GCash at sign-in ay sandbox; produksyon = lisensyadong anchor.",
@@ -250,7 +250,7 @@ const tl: Dict = {
     language: "Wika",
     about: "Tungkol",
     aboutText:
-      "Salapi — crypto-invisible na financial app para sa Pilipinas, gawa sa Stellar blockchain. Testnet demo.",
+      "Salapi — crypto-invisible na financial app para sa Pilipinas at Indonesia, gawa sa Stellar blockchain. Testnet demo.",
   },
   lang: { choose: "Piliin ang iyong wika" },
 };
@@ -270,7 +270,7 @@ const id: Dict = {
   home: {
     greeting: "Halo 👋",
     tagline:
-      "Menabung, kirim, berbagi — semua dalam peso. Tanpa dompet, tanpa seed phrase.",
+      "Menabung, kirim, berbagi — tanpa dompet, tanpa seed phrase.",
     start: "Ayo mulai",
     footnote:
       "Stellar PH Ambassador Chapter — Instaward. Demo testnet: saldo & transaksi nyata di Stellar testnet (tanpa nilai riil). GCash & sign-in adalah sandbox; produksi = anchor berlisensi.",
@@ -375,7 +375,7 @@ const id: Dict = {
     language: "Bahasa",
     about: "Tentang",
     aboutText:
-      "Salapi — aplikasi keuangan crypto-invisible untuk Filipina, dibangun di blockchain Stellar. Demo testnet.",
+      "Salapi — aplikasi keuangan crypto-invisible untuk Filipina dan Indonesia, dibangun di blockchain Stellar. Demo testnet.",
   },
   lang: { choose: "Pilih bahasa kamu" },
 };
@@ -395,7 +395,7 @@ const vi: Dict = {
   home: {
     greeting: "Xin chào 👋",
     tagline:
-      "Tiết kiệm, gửi, cho đi — tất cả bằng peso. Không ví, không seed phrase.",
+      "Tiết kiệm, gửi, cho đi — không ví, không seed phrase.",
     start: "Bắt đầu nào",
     footnote:
       "Stellar PH Ambassador Chapter — Instaward. Demo testnet: số dư & giao dịch là thật trên Stellar testnet (không có giá trị thật). GCash & đăng nhập là sandbox; bản chính thức = anchor được cấp phép.",
@@ -501,7 +501,7 @@ const vi: Dict = {
     language: "Ngôn ngữ",
     about: "Giới thiệu",
     aboutText:
-      "Salapi — ứng dụng tài chính ẩn-crypto cho Philippines, xây trên blockchain Stellar. Demo testnet.",
+      "Salapi — ứng dụng tài chính ẩn-crypto cho Philippines và Indonesia, xây trên blockchain Stellar. Demo testnet.",
   },
   lang: { choose: "Chọn ngôn ngữ của bạn" },
 };

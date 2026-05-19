@@ -168,7 +168,7 @@ export default function WithdrawScreen() {
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 13, fontWeight: 600 }}>GCash · sandbox</div>
-            <div style={{ fontSize: 11, color: T.slate }}>Arrives in seconds · No fees · licensed anchor at Build Award</div>
+            <div style={{ fontSize: 11, color: T.slate }}>Arrives in seconds · licensed anchor at Build Award</div>
           </div>
         </div>
         <div style={{ marginTop: 14, padding: "12px 14px", borderRadius: 12, background: T.warnTint, color: T.warn, display: "flex", gap: 10, alignItems: "flex-start" }}>
