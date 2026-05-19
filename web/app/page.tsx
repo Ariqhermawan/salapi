@@ -60,7 +60,7 @@ export default function Home() {
           </div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <IconButton onClick={go("/learn")}>{Ico.globe({})}</IconButton>
+          <IconButton onClick={go("/learn")}>{Ico.bulb({})}</IconButton>
           <IconButton onClick={go("/activity")}>{Ico.bell({})}</IconButton>
           <IconButton onClick={go("/receive")}>{Ico.qr({})}</IconButton>
         </div>

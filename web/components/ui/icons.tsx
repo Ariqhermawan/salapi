@@ -60,6 +60,9 @@ export const Ico = {
   globe: ({ size = 20, c = "currentColor" }: P = {}) => (
     <svg {...S(size)} viewBox="0 0 20 20" stroke={c}><circle cx="10" cy="10" r="7" /><path d="M3 10h14M10 3c2.5 2.5 2.5 11.5 0 14M10 3c-2.5 2.5-2.5 11.5 0 14" /></svg>
   ),
+  bulb: ({ size = 20, c = "currentColor" }: P = {}) => (
+    <svg {...S(size)} viewBox="0 0 20 20" stroke={c}><path d="M10 2.5a5 5 0 0 0-3 9c.6.5 1 1.2 1 2h4c0-.8.4-1.5 1-2a5 5 0 0 0-3-9Z" /><path d="M8 15.5h4M8.8 17.5h2.4" /></svg>
+  ),
   search: ({ size = 20, c = "currentColor" }: P = {}) => (
     <svg {...S(size)} viewBox="0 0 20 20" stroke={c}><circle cx="9" cy="9" r="5.5" /><path d="M13 13l4 4" /></svg>
   ),
