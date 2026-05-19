@@ -7,7 +7,7 @@ import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { T, Ico, AppBar, IconButton, PoweredByStellar } from "@/components/ui/kit";
 import { SalapiMascot, type MascotPose } from "@/components/ui/mascot";
-import { spot, HeroFund, HeroCircle, HeroGrow, DooStars } from "@/components/ui/doodles";
+import { spot, HeroCircle, HeroGrow, DooStars } from "@/components/ui/doodles";
 import { useT } from "@/components/I18nProvider";
 import { LEARN, LEARN_X, type LearnTopicId } from "@/lib/learn-content";
 
@@ -164,7 +164,19 @@ function LearnCTA({
   );
 }
 
+// Language-agnostic illustrations (original editorial art).
+const FUND_HERO = "/learn/fund-hero.webp";
+const FUND_CASE_IMG = ["/learn/fund-ph.webp", "/learn/fund-id.webp", "/learn/fund-vn.webp"];
+
 function DoodleHero({ topic, pose }: { topic: LearnTopicId; pose: MascotPose }) {
+  if (topic === "fund") {
+    return (
+      <div style={{ position: "relative", borderRadius: 16, overflow: "hidden", boxShadow: "inset 0 0 0 1px " + T.hairline, background: CREAM }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={FUND_HERO} alt="" style={{ display: "block", width: "100%", aspectRatio: "16 / 9", objectFit: "cover" }} />
+      </div>
+    );
+  }
   return (
     <div
       style={{
@@ -186,7 +198,6 @@ function DoodleHero({ topic, pose }: { topic: LearnTopicId; pose: MascotPose }) 
         }}
       />
       <div style={{ position: "relative", display: "flex", justifyContent: "center" }}>
-        {topic === "fund" && <HeroFund width={260} />}
         {topic === "circle" && <HeroCircle width={260} />}
         {topic === "grow" && <HeroGrow width={260} />}
       </div>
@@ -215,15 +226,21 @@ export default function LearnArticleScreen({ topic }: { topic: LearnTopicId }) {
         <Spotted doodle={spot(sp[0], { size: 44 })}>{d.p1}</Spotted>
         <Spotted doodle={spot(sp[1], { size: 44 })}>{d.p2}</Spotted>
         <Spotted doodle={spot(sp[2], { size: 44 })}>{d.p3}</Spotted>
-        <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 8 }}>
-          {d.cases.map((cs) => (
-            <div key={cs.country} style={{ background: CREAM, borderRadius: 12, padding: "12px 14px", boxShadow: "inset 0 0 0 1px " + T.hairline }}>
-              <div style={{ fontSize: 13, fontWeight: 600 }}>
-                <span style={{ marginRight: 6 }}>{cs.flag}</span>
-                {cs.country}
+        <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+          {d.cases.map((cs, ci) => (
+            <div key={cs.country} style={{ background: CREAM, borderRadius: 12, overflow: "hidden", boxShadow: "inset 0 0 0 1px " + T.hairline }}>
+              {FUND_CASE_IMG[ci] && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={FUND_CASE_IMG[ci]} alt="" style={{ display: "block", width: "100%", aspectRatio: "3 / 2", objectFit: "cover" }} />
+              )}
+              <div style={{ padding: "12px 14px" }}>
+                <div style={{ fontSize: 13, fontWeight: 600 }}>
+                  <span style={{ marginRight: 6 }}>{cs.flag}</span>
+                  {cs.country}
+                </div>
+                <div style={{ marginTop: 4, fontSize: 12.5, color: T.slate, lineHeight: 1.55 }}>{cs.story}</div>
+                <div style={{ marginTop: 6, fontFamily: T.fontMono, fontSize: 10, color: T.slate, letterSpacing: "0.02em" }}>{cs.source}</div>
               </div>
-              <div style={{ marginTop: 4, fontSize: 12.5, color: T.slate, lineHeight: 1.55 }}>{cs.story}</div>
-              <div style={{ marginTop: 6, fontFamily: T.fontMono, fontSize: 10, color: T.slate, letterSpacing: "0.02em" }}>{cs.source}</div>
             </div>
           ))}
         </div>
