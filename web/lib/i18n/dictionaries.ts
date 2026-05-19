@@ -14,7 +14,7 @@ const en = {
     amountPeso: "amount in ₱",
     notReady: "Not set up yet. Provisioning…",
   },
-  nav: { home: "Home", send: "Send", vaults: "Vaults", activity: "Activity" },
+  nav: { home: "Home", send: "Send", vaults: "Vaults", activity: "Activity", learn: "Learn" },
   home: {
     greeting: "Hi 👋",
     tagline:
@@ -140,7 +140,7 @@ const tl: Dict = {
     amountPeso: "halaga sa ₱",
     notReady: "Hindi pa handa. Inihahanda…",
   },
-  nav: { home: "Home", send: "Padala", vaults: "Vault", activity: "Aktibidad" },
+  nav: { home: "Home", send: "Padala", vaults: "Vault", activity: "Aktibidad", learn: "Alamin" },
   home: {
     greeting: "Kumusta 👋",
     tagline:
@@ -266,7 +266,7 @@ const id: Dict = {
     amountPeso: "jumlah dalam ₱",
     notReady: "Belum siap. Menyiapkan…",
   },
-  nav: { home: "Beranda", send: "Kirim", vaults: "Vault", activity: "Aktivitas" },
+  nav: { home: "Beranda", send: "Kirim", vaults: "Vault", activity: "Aktivitas", learn: "Pelajari" },
   home: {
     greeting: "Halo 👋",
     tagline:
@@ -391,7 +391,7 @@ const vi: Dict = {
     amountPeso: "số tiền (₱)",
     notReady: "Chưa sẵn sàng. Đang thiết lập…",
   },
-  nav: { home: "Trang chủ", send: "Gửi", vaults: "Két", activity: "Hoạt động" },
+  nav: { home: "Trang chủ", send: "Gửi", vaults: "Két", activity: "Hoạt động", learn: "Tìm hiểu" },
   home: {
     greeting: "Xin chào 👋",
     tagline:
