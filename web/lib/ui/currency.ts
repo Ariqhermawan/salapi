@@ -1,7 +1,9 @@
-// Salapi — display currency. The transaction rail is USDC; the app shows a
-// local currency per locale with a small USDC figure beside it. Rates are
-// ILLUSTRATIVE (testnet) — one USDC anchor, matching the V4 brief example
-// (200 USDC ≈ $200 · ₱11,600 · Rp 3,200,000 · ₫5,100,000).
+// Salapi — display currency. The transaction rail is USDC, but the app is
+// crypto-invisible: the user only ever sees their local currency plus a small
+// PLAIN-DOLLAR anchor ("≈ $10.60") — never the token name "USDC". The literal
+// "USDC" + tx hash live only in the on-chain receipt / "View on Stellar" layer.
+// Rates are ILLUSTRATIVE (testnet) — one dollar anchor, matching the V4 brief
+// example (≈ $200 · ₱11,600 · Rp 3,200,000 · ₫5,100,000).
 //
 // The app's existing numeric values are PHP pesos, so PHP is the anchor:
 // usdc = php / PHP_PER_USDC, then local = usdc * perUsdc.
@@ -52,13 +54,17 @@ export function formatParts(
   return { symbol: m.symbol, int: match[1], dec: match[2], dp: m.dp };
 }
 
-// The constant USDC figure shown beside the local amount.
+// The stable dollar-value anchor shown beside the local amount. Crypto-
+// invisible: the rail is USDC (≈ US$1) but the user sees a plain "$" figure,
+// never the token name. (Name kept as formatUsdc to avoid churn across call
+// sites; output is the USD anchor.)
 export function formatUsdc(php: number): string {
   const u = pesoToUsdc(php);
   return (
+    "$" +
     u.toLocaleString("en-US", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
-    }) + " USDC"
+    })
   );
 }
