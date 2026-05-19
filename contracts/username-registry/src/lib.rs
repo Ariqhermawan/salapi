@@ -52,6 +52,39 @@ impl UsernameRegistry {
         Ok(())
     }
 
+    /// Change the caller's display username to `new_username`.
+    /// The previous name is intentionally kept as a permanent alias that
+    /// still resolves to this account, so money addressed to the old handle
+    /// is never misrouted. Reverse lookup (`username_of`) returns the new
+    /// name — that is the one shown in the app.
+    pub fn rename(env: Env, user: Address, new_username: String) -> Result<(), Error> {
+        user.require_auth();
+        let current: String = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Owner(user.clone()))
+            .ok_or(Error::NotFound)?;
+        if current == new_username {
+            return Ok(());
+        }
+        if env
+            .storage()
+            .persistent()
+            .has(&DataKey::Name(new_username.clone()))
+        {
+            return Err(Error::UsernameTaken);
+        }
+        env.storage()
+            .persistent()
+            .set(&DataKey::Name(new_username.clone()), &user);
+        env.storage()
+            .persistent()
+            .set(&DataKey::Owner(user), &new_username);
+        // The old DataKey::Name(current) mapping is left in place on purpose:
+        // it stays a permanent alias to this account (money-safe).
+        Ok(())
+    }
+
     /// Resolve a username to the account it points to (used by P2P send).
     pub fn resolve(env: Env, username: String) -> Result<Address, Error> {
         env.storage()
