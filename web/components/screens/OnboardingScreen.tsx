@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { T, Ico, Btn, Wordmark, Avatar, Peso, MakerLockup } from "@/components/ui/kit";
+import { T, Ico, Btn, Wordmark, Avatar, Peso, MakerLockup, PoweredByStellar } from "@/components/ui/kit";
+import { useT } from "@/components/I18nProvider";
 
 function BalanceVisual() {
   return (
@@ -58,32 +59,48 @@ function CircleVisual() {
   );
 }
 
-const SLIDES = [
-  { eyebrow: "PESOS, NOT TOKENS", title: "Your money,\nstays as pesos.", body: "Top up with GCash. See pesos. Pay in pesos. No wallets, seed phrases or tokens to manage, ever.", visual: <BalanceVisual /> },
-  { eyebrow: "SEND BY @USERNAME", title: "Send money\nby name, not number.", body: "Claim your @username. Send to anyone the same way. No long numbers, no addresses, no mistakes.", visual: <SendVisual /> },
-  { eyebrow: "COMMUNITY", title: "Paluwagan,\nwithout the worry.", body: "Start a savings circle with friends or family. The contract holds the pot. No one can run away with it.", visual: <CircleVisual /> },
-];
+const SLIDE_VISUALS = [<BalanceVisual />, <SendVisual />, <CircleVisual />];
 
 export default function OnboardingScreen() {
   const router = useRouter();
+  const { t } = useT();
   const [i, setI] = useState(0);
-  const s = SLIDES[i];
-  const last = i === SLIDES.length - 1;
+  const last = i === SLIDE_VISUALS.length - 1;
+  const slideKey = `onboarding.slide${i}`;
 
   return (
     <div style={{ fontFamily: T.fontSans, color: T.ink, minHeight: "100%", display: "flex", flexDirection: "column", paddingBottom: 110 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px 0" }}>
         <Wordmark size={20} />
         <button onClick={() => router.push("/")} style={{ fontSize: 13, color: T.slate, fontWeight: 500, background: "none", border: "none", cursor: "pointer", fontFamily: T.fontSans }}>
-          Skip
+          {t("onboarding.skip")}
         </button>
       </div>
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "20px 24px 0", textAlign: "center" }}>
-        <div style={{ marginBottom: 16, minHeight: 180, display: "flex", alignItems: "center" }}>{s.visual}</div>
-        <div style={{ fontSize: 11, color: T.action, fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>{s.eyebrow}</div>
-        <div style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.15, whiteSpace: "pre-line", maxWidth: 280 }}>{s.title}</div>
-        <div style={{ marginTop: 10, fontSize: 14, color: T.slate, lineHeight: 1.5, maxWidth: 280 }}>{s.body}</div>
+        <div style={{ marginBottom: 16, minHeight: 180, display: "flex", alignItems: "center" }}>{SLIDE_VISUALS[i]}</div>
+        <div style={{ fontSize: 11, color: T.action, fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>{t(`${slideKey}.eyebrow`)}</div>
+        <div style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.15, whiteSpace: "pre-line", maxWidth: 280 }}>{t(`${slideKey}.title`)}</div>
+        <div style={{ marginTop: 10, fontSize: 14, color: T.slate, lineHeight: 1.5, maxWidth: 280 }}>{t(`${slideKey}.body`)}</div>
+
+        {/* Gap fix 4 - empathetic "why we built this" caption, slide 0 only. */}
+        {i === 0 && (
+          <div
+            role="note"
+            aria-label={t("onboarding.painPoint.caption")}
+            style={{
+              marginTop: 16,
+              paddingTop: 14,
+              borderTop: "1px solid " + T.hairline,
+              fontSize: 12.5,
+              lineHeight: 1.55,
+              color: T.slate,
+              maxWidth: 320,
+            }}
+          >
+            {t("onboarding.painPoint.caption")}
+          </div>
+        )}
       </div>
 
       <div style={{ padding: "16px 16px 0" }}>
@@ -93,11 +110,17 @@ export default function OnboardingScreen() {
           ))}
         </div>
         <Btn kind="primary" onClick={() => (last ? router.push("/signin") : setI(i + 1))}>
-          {last ? "Get started" : "Next"}
+          {last ? t("onboarding.getStarted") : t("onboarding.next")}
         </Btn>
         <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
           <MakerLockup />
         </div>
+        {/* Final-slide brand footer per Gap fix 3 audit. */}
+        {last && (
+          <div style={{ display: "flex", justifyContent: "center", marginTop: 10 }}>
+            <PoweredByStellar />
+          </div>
+        )}
       </div>
     </div>
   );
