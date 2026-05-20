@@ -145,6 +145,68 @@ const en = {
     installTitle: "Add to your home screen",
     installSub: "for faster opens and offline.",
   },
+  cakBudi: {
+    eyebrow: "Why this exists",
+    title: "An honest path for operational costs",
+    intro:
+      "In Indonesia and the Philippines, individual organizers who help others either absorb real costs (transport, time, documentation) and burn out, or quietly take a slice with no disclosure, which breaks donor trust.",
+    body: "In 2017, a man named Cak Budi (Budi Utomo) raised Rp 1.7 billion in donations through Kitabisa and personal Instagram accounts to help people in need across Indonesia. The intent was good. He used the funds to buy a Toyota Fortuner and an iPhone 7, framed as operational tools for distributing aid. The rail offered no honest way to disclose the cost. The donations were used without prior donor consent.",
+    caseEyebrow: "Documented case, Indonesia 2017",
+    closing:
+      "The failure was not that he wanted operational means. The failure was that the donation rail offered no honest way to take it.",
+    gatesHeading: "The five trust gates of Salapi's Operational Allowance",
+    gates: {
+      split: {
+        title: "Donor sees the split",
+        body: "Before donating, the donor sees exactly what percentage goes to operational allowance and what reaches the beneficiary. No surprises after the fact.",
+      },
+      kyc: {
+        title: "KYC tier ceiling",
+        body: "Operational allowance is capped by the organizer's verified KYC tier. A higher allowance requires a higher tier and a longer reputation history.",
+      },
+      proof: {
+        title: "Proof of delivery escrow",
+        body: "Funds are held in escrow on Stellar. Operational allowance unlocks only when proof of delivery is published. No proof, no release.",
+      },
+      dispute: {
+        title: "Seven-day dispute window",
+        body: "Donors have seven days after each disbursement to dispute. A successful dispute claws back the allowance and slashes organizer reputation.",
+      },
+      rep: {
+        title: "Slashable reputation",
+        body: "Organizers stake reputation, not just funds. Bad behaviour is on-chain, public, and permanent. Future circles see it before they pledge.",
+      },
+    },
+    scope:
+      "Operational Allowance ships at Build-Award stage 2, after Salapi Circles itself launches.",
+    source: "Sources: BBC Indonesia, NU Online, Tempo (2017).",
+    gotIt: "Got it",
+    close: "Close",
+  },
+  onboarding: {
+    skip: "Skip",
+    next: "Next",
+    getStarted: "Get started",
+    painPoint: {
+      caption:
+        "Built for the millions burned by donation scandals, ghost projects, and savings circles that broke. Every peso, every rupiah, on a public receipt.",
+    },
+    slide0: {
+      eyebrow: "PESOS, NOT TOKENS",
+      title: "Your money,\nstays as pesos.",
+      body: "Top up with GCash. See pesos. Pay in pesos. No wallets, seed phrases or tokens to manage, ever.",
+    },
+    slide1: {
+      eyebrow: "SEND BY @USERNAME",
+      title: "Send money\nby name, not number.",
+      body: "Claim your @username. Send to anyone the same way. No long numbers, no addresses, no mistakes.",
+    },
+    slide2: {
+      eyebrow: "COMMUNITY",
+      title: "Paluwagan,\nwithout the worry.",
+      body: "Start a savings circle with friends or family. The contract holds the pot. No one can run away with it.",
+    },
+  },
 };
 
 type Dict = typeof en;
@@ -294,6 +356,68 @@ const tl: Dict = {
     installTitle: "Idagdag sa home screen",
     installSub: "para mas mabilis at gumagana kahit offline.",
   },
+  cakBudi: {
+    eyebrow: "Bakit ito umiiral",
+    title: "Isang tapat na daan para sa gastos sa operasyon",
+    intro:
+      "Sa Pilipinas at Indonesia, ang mga indibidwal na nag-oorganisa ng tulong ay alinman sa kinakaya ang totoong gastos (transport, oras, dokumentasyon) at nauubusan, o tahimik na kumukuha ng parte nang walang anunsyo, na sumisira sa tiwala ng donor.",
+    body: "Noong 2017, ang isang lalaking nagngangalang Cak Budi (Budi Utomo) ay nakalikom ng Rp 1.7 bilyong donasyon sa pamamagitan ng Kitabisa at personal na Instagram para tulungan ang mga nangangailangan sa Indonesia. Mabuti ang layunin. Ginamit niya ang pondo para bumili ng Toyota Fortuner at iPhone 7, na sinabing operational tools para sa pagdedeliver ng tulong. Walang paraan ang rail noon para tapat na ibunyag ang gastos na ito. Nagamit ang donasyon nang walang paunang pahintulot ng mga donor.",
+    caseEyebrow: "Dokumentadong kaso, Indonesia 2017",
+    closing:
+      "Hindi ang gusto niyang magkaroon ng operational means ang kasalanan. Ang kasalanan ay hindi nag-aalok ang donation rail ng tapat na paraan upang ito ay kuhanin.",
+    gatesHeading: "Limang trust gate ng Operational Allowance ng Salapi",
+    gates: {
+      split: {
+        title: "Nakikita ng donor ang hatian",
+        body: "Bago mag-donate, nakikita ng donor kung ilang porsyento ang mapupunta sa operational allowance at kung ilan ang aabot sa benepisyaryo. Walang gulat pagkatapos.",
+      },
+      kyc: {
+        title: "Hangganan base sa KYC tier",
+        body: "Ang operational allowance ay may hangganan ayon sa verified KYC tier ng organizer. Mas mataas na allowance, mas mataas na tier at mas mahabang reputation history ang kailangan.",
+      },
+      proof: {
+        title: "Proof of delivery escrow",
+        body: "Hawak ang pondo sa escrow sa Stellar. Bumubukas lang ang operational allowance kapag na-publish ang proof of delivery. Walang proof, walang release.",
+      },
+      dispute: {
+        title: "Pitong araw na dispute window",
+        body: "May pitong araw ang mga donor pagkatapos ng bawat disbursement para mag-dispute. Ang nanalong dispute ay babawi sa allowance at magpuputol sa reputation ng organizer.",
+      },
+      rep: {
+        title: "Reputation na puwedeng putulin",
+        body: "Hindi lang pondo ang ipinupusta ng organizer kundi reputation. Pampubliko at permanente sa chain ang masamang asal. Makikita ito ng susunod na circle bago sila mangako.",
+      },
+    },
+    scope:
+      "Naglulunsad ang Operational Allowance sa Build-Award stage 2, pagkatapos mismong mailunsad ang Salapi Circles.",
+    source: "Mga pinagkunan: BBC Indonesia, NU Online, Tempo (2017).",
+    gotIt: "Naintindihan",
+    close: "Isara",
+  },
+  onboarding: {
+    skip: "Laktawan",
+    next: "Susunod",
+    getStarted: "Magsimula",
+    painPoint: {
+      caption:
+        "Para sa milyun-milyong nasunog ng donation scandals, ghost projects, at paluwagan na pumutok. Bawat piso, bawat rupiah, nasa pampublikong receipt.",
+    },
+    slide0: {
+      eyebrow: "PISO, HINDI TOKEN",
+      title: "Ang pera mo,\nnananatiling piso.",
+      body: "Mag-top up gamit ang GCash. Piso ang nakikita. Piso ang ibinabayad. Walang wallet, seed phrase, o token na alagaan, kailanman.",
+    },
+    slide1: {
+      eyebrow: "PADALA GAMIT ANG @USERNAME",
+      title: "Magpadala ng pera\nsa pangalan, hindi sa numero.",
+      body: "Kunin ang iyong @username. Magpadala sa kahit sino sa parehong paraan. Walang mahabang numero, walang address, walang mali.",
+    },
+    slide2: {
+      eyebrow: "KOMUNIDAD",
+      title: "Paluwagan,\nwalang takasan.",
+      body: "Magsimula ng paluwagan kasama ang pamilya o kaibigan. Ang kontrata ang humahawak sa pot. Walang makakatakas dala ang pondo.",
+    },
+  },
 };
 
 const id: Dict = {
@@ -438,6 +562,68 @@ const id: Dict = {
       "Buka Salapi di mana saja. HP, tablet, atau laptop. App yang sama, lebih lega. Uang masuk, uang keluar. Tanpa wallet, tanpa chain, tanpa jargon.",
     installTitle: "Tambahkan ke layar utama",
     installSub: "biar lebih cepat dan bisa dipakai offline.",
+  },
+  cakBudi: {
+    eyebrow: "Mengapa ini ada",
+    title: "Jalur jujur untuk biaya operasional",
+    intro:
+      "Di Indonesia dan Filipina, organizer perorangan yang membantu orang lain bisa menanggung biaya nyata (transportasi, waktu, dokumentasi) lalu kelelahan, atau diam-diam mengambil potongan tanpa pemberitahuan, sehingga kepercayaan donor patah.",
+    body: "Pada 2017, seorang pria bernama Cak Budi (Budi Utomo) menghimpun donasi Rp 1,7 miliar melalui Kitabisa dan akun Instagram pribadi untuk membantu orang yang membutuhkan di seluruh Indonesia. Niatnya baik. Ia memakai dana tersebut untuk membeli Toyota Fortuner dan iPhone 7, dengan alasan sebagai alat operasional penyaluran bantuan. Rel donasi saat itu tidak menyediakan cara jujur untuk mengungkap biaya tersebut. Donasi terpakai tanpa persetujuan donor.",
+    caseEyebrow: "Kasus terdokumentasi, Indonesia 2017",
+    closing:
+      "Kegagalannya bukan karena ia ingin sarana operasional. Kegagalannya adalah rel donasi tidak menawarkan cara jujur untuk mengambilnya.",
+    gatesHeading: "Lima gerbang kepercayaan Operational Allowance Salapi",
+    gates: {
+      split: {
+        title: "Donor melihat pembagian",
+        body: "Sebelum berdonasi, donor melihat persis berapa persen untuk operasional dan berapa yang sampai ke penerima. Tidak ada kejutan setelahnya.",
+      },
+      kyc: {
+        title: "Batas atas berdasarkan tier KYC",
+        body: "Alokasi operasional dibatasi oleh tier KYC organizer yang terverifikasi. Alokasi lebih tinggi memerlukan tier lebih tinggi dan rekam reputasi lebih panjang.",
+      },
+      proof: {
+        title: "Escrow bukti penyaluran",
+        body: "Dana ditahan dalam escrow di Stellar. Operational allowance terbuka hanya saat bukti penyaluran dipublikasikan. Tidak ada bukti, tidak ada pencairan.",
+      },
+      dispute: {
+        title: "Jendela sengketa 7 hari",
+        body: "Donor punya 7 hari setelah setiap pencairan untuk mengajukan sengketa. Sengketa yang berhasil menarik kembali alokasi dan memotong reputasi organizer.",
+      },
+      rep: {
+        title: "Reputasi yang bisa dipotong",
+        body: "Organizer mempertaruhkan reputasi, bukan hanya dana. Perilaku buruk tercatat on-chain, publik, dan permanen. Circle berikutnya akan melihatnya sebelum berjanji.",
+      },
+    },
+    scope:
+      "Operational Allowance dirilis di Build-Award tahap 2, setelah Salapi Circles sendiri diluncurkan.",
+    source: "Sumber: BBC Indonesia, NU Online, Tempo (2017).",
+    gotIt: "Mengerti",
+    close: "Tutup",
+  },
+  onboarding: {
+    skip: "Lewati",
+    next: "Lanjut",
+    getStarted: "Mulai",
+    painPoint: {
+      caption:
+        "Dibuat untuk jutaan orang yang terbakar oleh skandal donasi, proyek hantu, dan arisan yang putus. Setiap peso, setiap rupiah, di atas struk publik.",
+    },
+    slide0: {
+      eyebrow: "RUPIAH, BUKAN TOKEN",
+      title: "Uangmu,\ntetap rupiah.",
+      body: "Isi saldo lewat GCash. Lihat rupiah. Bayar pakai rupiah. Tanpa dompet, frasa rahasia, atau token untuk diurus, selamanya.",
+    },
+    slide1: {
+      eyebrow: "KIRIM LEWAT @USERNAME",
+      title: "Kirim uang\ndengan nama, bukan nomor.",
+      body: "Klaim @username kamu. Kirim ke siapa saja dengan cara yang sama. Tanpa nomor panjang, tanpa alamat, tanpa salah.",
+    },
+    slide2: {
+      eyebrow: "KOMUNITAS",
+      title: "Arisan,\ntanpa khawatir.",
+      body: "Mulai arisan bareng teman atau keluarga. Kontrak yang pegang pot. Tidak ada yang bisa kabur bawa dana.",
+    },
   },
 };
 
@@ -584,6 +770,68 @@ const vi: Dict = {
       "Mở Salapi ở bất cứ đâu. Điện thoại, máy tính bảng, hay laptop. Cùng một ứng dụng êm, chỉ lớn hơn. Tiền vào, tiền ra. Không ví, không chain, không thuật ngữ.",
     installTitle: "Thêm vào màn hình chính",
     installSub: "để mở nhanh hơn và dùng offline.",
+  },
+  cakBudi: {
+    eyebrow: "Vì sao có công cụ này",
+    title: "Một lối đi minh bạch cho chi phí vận hành",
+    intro:
+      "Ở Indonesia và Philippines, những người tổ chức cá nhân giúp đỡ người khác hoặc tự gánh chi phí thực (đi lại, thời gian, giấy tờ) rồi kiệt sức, hoặc lặng lẽ giữ lại một phần mà không công bố, làm mất lòng tin của người ủng hộ.",
+    body: "Năm 2017, một người tên Cak Budi (Budi Utomo) đã huy động 1,7 tỷ Rupiah quyên góp qua Kitabisa và Instagram cá nhân để giúp người gặp khó khăn khắp Indonesia. Ý định tốt. Anh dùng số tiền đó để mua một chiếc Toyota Fortuner và một chiếc iPhone 7, gọi đó là công cụ vận hành để phân phối cứu trợ. Cơ chế lúc đó không có cách trung thực nào để công khai chi phí này. Khoản quyên góp đã được dùng mà không có sự đồng thuận trước của người ủng hộ.",
+    caseEyebrow: "Trường hợp ghi nhận, Indonesia 2017",
+    closing:
+      "Thất bại không phải vì anh muốn có phương tiện vận hành. Thất bại là vì cơ chế quyên góp không có cách minh bạch để lấy nó.",
+    gatesHeading: "Năm cánh cổng tin cậy của Operational Allowance ở Salapi",
+    gates: {
+      split: {
+        title: "Người ủng hộ thấy rõ phân chia",
+        body: "Trước khi quyên góp, người ủng hộ thấy chính xác bao nhiêu phần trăm dùng cho vận hành và bao nhiêu đến tay người thụ hưởng. Không bất ngờ về sau.",
+      },
+      kyc: {
+        title: "Mức trần theo cấp KYC",
+        body: "Mức vận hành bị giới hạn bởi cấp KYC đã xác minh của người tổ chức. Muốn mức cao hơn cần cấp cao hơn và lịch sử uy tín dài hơn.",
+      },
+      proof: {
+        title: "Ký quỹ với bằng chứng giao nhận",
+        body: "Tiền được giữ trong ký quỹ trên Stellar. Mức vận hành chỉ mở khi bằng chứng giao nhận được công bố. Không có bằng chứng, không giải ngân.",
+      },
+      dispute: {
+        title: "Cửa sổ khiếu nại bảy ngày",
+        body: "Người ủng hộ có bảy ngày sau mỗi lần giải ngân để khiếu nại. Khiếu nại thành công sẽ thu hồi mức vận hành và cắt giảm uy tín của người tổ chức.",
+      },
+      rep: {
+        title: "Uy tín có thể bị cắt",
+        body: "Người tổ chức đặt cược cả uy tín, không chỉ tiền. Hành vi xấu nằm trên chuỗi, công khai và vĩnh viễn. Vòng sau sẽ thấy trước khi cam kết.",
+      },
+    },
+    scope:
+      "Operational Allowance ra mắt ở Build-Award giai đoạn 2, sau khi chính Salapi Circles được phát hành.",
+    source: "Nguồn: BBC Indonesia, NU Online, Tempo (2017).",
+    gotIt: "Đã hiểu",
+    close: "Đóng",
+  },
+  onboarding: {
+    skip: "Bỏ qua",
+    next: "Tiếp",
+    getStarted: "Bắt đầu",
+    painPoint: {
+      caption:
+        "Dành cho hàng triệu người đã bị tổn thương vì các bê bối quyên góp, dự án ma và nhóm góp tiền tan vỡ. Mọi đồng peso, mọi đồng rupiah, đều có biên nhận công khai.",
+    },
+    slide0: {
+      eyebrow: "ĐỒNG, KHÔNG PHẢI TOKEN",
+      title: "Tiền của bạn,\nvẫn là đồng.",
+      body: "Nạp qua GCash. Thấy bằng đồng. Trả bằng đồng. Không ví, không cụm từ bí mật, không token nào để quản lý, mãi mãi.",
+    },
+    slide1: {
+      eyebrow: "GỬI BẰNG @USERNAME",
+      title: "Gửi tiền\nbằng tên, không phải số.",
+      body: "Đăng ký @username của bạn. Gửi cho ai cũng theo cách đó. Không số dài, không địa chỉ, không sai sót.",
+    },
+    slide2: {
+      eyebrow: "CỘNG ĐỒNG",
+      title: "Hụi,\nkhông lo mất.",
+      body: "Tạo nhóm tiết kiệm cùng bạn bè hoặc gia đình. Hợp đồng giữ hũ. Không ai có thể ôm tiền bỏ trốn.",
+    },
   },
 };
 
