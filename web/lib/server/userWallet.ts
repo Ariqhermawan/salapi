@@ -49,7 +49,12 @@ export async function getSigner(): Promise<Signer> {
       };
     }
 
-    // First sign-in for this user → mint + fund + store an encrypted wallet.
+    // First sign-in for this user → mint + fund + persist an encrypted wallet.
+    // Concurrency: `wallets.user_id` is the PRIMARY KEY, so two parallel
+    // first-sign-in requests for the same user would race on insert. We use
+    // upsert(ignoreDuplicates) so the race-loser quietly no-ops, then we
+    // re-SELECT the canonical row and return it — guaranteeing this request
+    // and every later request resolve to the SAME keypair (never an orphan).
     const kp = Keypair.random();
     try {
       await fetch(`${FRIENDBOT}/?addr=${kp.publicKey()}`, {
@@ -58,11 +63,28 @@ export async function getSigner(): Promise<Signer> {
     } catch {
       /* funding is best-effort; balance can be topped up later */
     }
-    await admin.from("wallets").insert({
-      user_id: user.id,
-      public_key: kp.publicKey(),
-      secret_cipher: encryptSecret(kp.secret()),
-    });
+    await admin.from("wallets").upsert(
+      {
+        user_id: user.id,
+        public_key: kp.publicKey(),
+        secret_cipher: encryptSecret(kp.secret()),
+      },
+      { onConflict: "user_id", ignoreDuplicates: true }
+    );
+
+    const { data: row } = await admin
+      .from("wallets")
+      .select("public_key, secret_cipher")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (row?.public_key && row?.secret_cipher) {
+      return {
+        publicKey: row.public_key as string,
+        secret: decryptSecret(row.secret_cipher as string),
+        demo: false,
+      };
+    }
+    // Re-read failed (transient): fall back to our freshly minted keypair.
     return { publicKey: kp.publicKey(), secret: kp.secret(), demo: false };
   } catch {
     return demoSigner();

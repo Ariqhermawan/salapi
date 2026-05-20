@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createSupabaseBrowser } from "@/lib/supabase/client";
 import { supabaseConfigured } from "@/lib/supabase/env";
 import { T, Btn, Wordmark, TestnetPill, PoweredByStellar } from "@/components/ui/kit";
@@ -20,15 +20,28 @@ function GoogleMark() {
 
 export default function SignInScreen() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [pending, start] = useTransition();
   const [busy, setBusy] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const configured = supabaseConfigured();
+
+  // If auth/callback bounced us here with ?error=oauth (exchangeCodeForSession
+  // failed) surface that, so the user knows why they're back on this screen
+  // instead of being silently dropped. Derived during render — no setState
+  // inside useEffect (React 19 react-hooks/set-state-in-effect).
+  const urlError =
+    searchParams?.get("error") === "oauth"
+      ? "Google sign-in didn't complete. Please try again."
+      : null;
+  const authError = submitError ?? urlError;
 
   const enter = () => start(() => void router.push("/"));
 
   async function google() {
     if (!configured) return enter();
     setBusy(true);
+    setSubmitError(null);
     try {
       const supabase = createSupabaseBrowser();
       const { error } = await supabase.auth.signInWithOAuth({
@@ -37,12 +50,14 @@ export default function SignInScreen() {
       });
       if (error) {
         setBusy(false);
-        enter();
+        setSubmitError(error.message || "Couldn't start Google sign-in.");
       }
       // success → browser is redirecting to Google
-    } catch {
+    } catch (e) {
       setBusy(false);
-      enter();
+      setSubmitError(
+        e instanceof Error ? e.message : "Couldn't start Google sign-in."
+      );
     }
   }
 
@@ -64,6 +79,11 @@ export default function SignInScreen() {
       </div>
 
       <div style={{ padding: "40px 16px 0", display: "flex", flexDirection: "column", gap: 10 }}>
+        {authError && (
+          <div role="alert" style={{ background: "#FEF2F2", color: "#B91C1C", border: "1px solid #FECACA", borderRadius: 12, padding: "10px 12px", fontSize: 13, lineHeight: 1.4, textAlign: "center" }}>
+            {authError}
+          </div>
+        )}
         <Btn kind="primary" disabled={working} loading={working} leading={!working && <GoogleMark />} onClick={google}>
           {busy ? "Redirecting to Google…" : "Continue with Google"}
         </Btn>

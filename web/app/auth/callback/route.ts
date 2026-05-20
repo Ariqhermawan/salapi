@@ -10,7 +10,14 @@ export async function GET(request: Request) {
 
   if (code && supabaseConfigured()) {
     const supabase = await createSupabaseServer();
-    await supabase.auth.exchangeCodeForSession(code);
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) {
+      console.error(
+        "[auth/callback] exchangeCodeForSession failed:",
+        error.message
+      );
+      return NextResponse.redirect(`${origin}/signin?error=oauth`);
+    }
   }
 
   return NextResponse.redirect(`${origin}${next}`);
