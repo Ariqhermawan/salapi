@@ -17,6 +17,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { T, Ico } from "@/components/ui/kit";
+import { useT } from "@/components/I18nProvider";
 
 /* ───────────────────────── modal hygiene helper ───────────────────────── */
 function useModalA11y(open: boolean, onClose: () => void) {
@@ -345,6 +346,7 @@ function TrustAndSafetyModal({
   open: boolean;
   onClose: () => void;
 }) {
+  const { t } = useT();
   return (
     <ModalShell open={open} onClose={onClose}>
       <div
@@ -369,8 +371,21 @@ function TrustAndSafetyModal({
         >
           {Ico.shield({ size: 18, c: T.warn })}
         </div>
-        <div style={{ fontSize: 17, fontWeight: 600, lineHeight: 1.2 }}>
-          Why an honest operational allowance exists.
+        <div>
+          <div
+            style={{
+              fontSize: 10.5,
+              fontWeight: 700,
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              color: T.slate,
+            }}
+          >
+            {t("cakBudi.eyebrow")}
+          </div>
+          <div style={{ marginTop: 2, fontSize: 16.5, fontWeight: 600, lineHeight: 1.25 }}>
+            {t("cakBudi.title")}
+          </div>
         </div>
       </div>
 
@@ -382,12 +397,10 @@ function TrustAndSafetyModal({
           color: T.slate,
         }}
       >
-        In Indonesia and the Philippines, individual organizers who help others
-        either absorb real costs (transport, time, documentation) and burn out,
-        or quietly take a slice with no disclosure, which breaks donor trust.
+        {t("cakBudi.intro")}
       </p>
 
-      {/* Cak Budi block, empathetic framing */}
+      {/* Cak Budi case block */}
       <div
         style={{
           marginTop: 12,
@@ -409,23 +422,11 @@ function TrustAndSafetyModal({
             marginBottom: 6,
           }}
         >
-          Documented case: Cak Budi, Indonesia 2017
+          {t("cakBudi.caseEyebrow")}
         </div>
-        <p style={{ margin: 0 }}>
-          Budi Utomo raised donations via Kitabisa and Instagram, used Rp 1.7B
-          of donor funds to buy a Toyota Fortuner and an iPhone 7 framed as
-          operational tools, faced public outcry, and eventually sold the
-          Fortuner and donated the proceeds back.
-        </p>
-        <p
-          style={{
-            margin: "10px 0 0",
-            fontSize: 12.5,
-            color: T.slate,
-          }}
-        >
-          The failure was not that he wanted operational means. The failure was
-          that the donation rail offered no honest way to take it.
+        <p style={{ margin: 0 }}>{t("cakBudi.body")}</p>
+        <p style={{ margin: "10px 0 0", fontSize: 12.5, color: T.slate }}>
+          {t("cakBudi.closing")}
         </p>
       </div>
 
@@ -440,7 +441,7 @@ function TrustAndSafetyModal({
           color: T.slate,
         }}
       >
-        Five trust gates
+        {t("cakBudi.gatesHeading")}
       </div>
       <ol
         style={{
@@ -451,26 +452,11 @@ function TrustAndSafetyModal({
           color: T.ink,
         }}
       >
-        <Gate
-          title="Donor sees the split before donating."
-          body='The donate screen renders the math: "Of every Rp 100,000 you send, Rp 92,000 to beneficiary, Rp 8,000 operational cost for the organizer." Not fine print, not a hidden tab.'
-        />
-        <Gate
-          title="KYC and reputation tier the ceiling."
-          body="Brand-new account: 0 percent. Tier 1 (basic ID): up to 5 percent. Tier 2 (enhanced KYC plus 3 prior circles closed with verified delivery): up to 10 percent."
-        />
-        <Gate
-          title="Allowance escrowed until proof of delivery."
-          body="The contract holds the allowance until the organizer uploads proof of beneficiary receipt (photo, signature, or receipt), hashed on-chain."
-        />
-        <Gate
-          title="Seven-day dispute window."
-          body="A multi-donor signal triggers a freeze and a community review. If the dispute holds, the allowance returns pro-rata to donors."
-        />
-        <Gate
-          title="Reputation slashable on-chain."
-          body="The record is permanent and visible to every future donor. One bad close locks Tier 2 for a cool-off; repeated failures bar the account."
-        />
+        <Gate title={t("cakBudi.gates.split.title")} body={t("cakBudi.gates.split.body")} />
+        <Gate title={t("cakBudi.gates.kyc.title")} body={t("cakBudi.gates.kyc.body")} />
+        <Gate title={t("cakBudi.gates.proof.title")} body={t("cakBudi.gates.proof.body")} />
+        <Gate title={t("cakBudi.gates.dispute.title")} body={t("cakBudi.gates.dispute.body")} />
+        <Gate title={t("cakBudi.gates.rep.title")} body={t("cakBudi.gates.rep.body")} />
       </ol>
 
       <div
@@ -485,8 +471,7 @@ function TrustAndSafetyModal({
           fontWeight: 600,
         }}
       >
-        Operational Allowance ships at Build-Award stage 2, after Salapi
-        Circles itself launches.
+        {t("cakBudi.scope")}
       </div>
 
       <div
@@ -498,11 +483,7 @@ function TrustAndSafetyModal({
           fontFamily: T.fontMono,
         }}
       >
-        Sources: BBC Indonesia, &ldquo;Kasus Cak Budi: Akhirnya Fortuner dijual
-        dan donasi Rp1,7 miliar&rdquo; (3 May 2017); NU Online, &ldquo;Kasus
-        Cak Budi, Mensos Khofifah Angkat Bicara&rdquo; (2 May 2017); Tempo,
-        &ldquo;Kontroversi Penyaluran Donasi, Kitabisa.com Tutup Akun Cak
-        Budi&rdquo; (2017).
+        {t("cakBudi.source")}
       </div>
 
       <button
@@ -522,7 +503,7 @@ function TrustAndSafetyModal({
           cursor: "pointer",
         }}
       >
-        Got it
+        {t("cakBudi.gotIt")}
       </button>
     </ModalShell>
   );
