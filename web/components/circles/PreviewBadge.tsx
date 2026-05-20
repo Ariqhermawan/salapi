@@ -5,11 +5,27 @@
 // opens a modal explaining the scope. Mirrors the SOW Spotlight Section 7
 // framing. Used by every Circles screen.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { T, Ico } from "@/components/ui/kit";
 
 export default function PreviewBadge() {
   const [open, setOpen] = useState(false);
+
+  // Modal hygiene: close on Escape, lock body scroll while open.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [open]);
+
   return (
     <>
       <button

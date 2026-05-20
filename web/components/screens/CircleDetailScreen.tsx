@@ -48,7 +48,7 @@ export default function CircleDetailScreen({ circle }: { circle: Circle }) {
         fontFamily: T.fontSans,
         color: T.ink,
         minHeight: "100%",
-        paddingBottom: 140,
+        paddingBottom: 110,
       }}
     >
       <AppBar
@@ -414,59 +414,39 @@ export default function CircleDetailScreen({ circle }: { circle: Circle }) {
         </div>
       )}
 
-      {/* Footer + powered-by */}
+      {/* Donate CTA - in-flow, anchored inside the phone-frame so it does
+          not overlap BottomNav (which sits at the bottom of the same frame).
+          A fixed-position CTA would float at the viewport bottom on desktop
+          (outside the app shell) and collide with BottomNav on mobile. */}
+      <div style={{ padding: "24px 16px 0" }}>
+        <Btn
+          kind="primary"
+          leading={Ico.shield({ c: "#fff" })}
+          onClick={() => router.push(`/circles/${circle.id}/donate`)}
+        >
+          Donate to this circle
+        </Btn>
+        <div
+          style={{
+            marginTop: 8,
+            fontSize: 11,
+            color: T.slate,
+            textAlign: "center",
+            lineHeight: 1.45,
+          }}
+        >
+          Preview - your pledge joins the launch waitlist; no charge today.
+        </div>
+      </div>
+
       <div
         style={{
-          padding: "26px 16px 0",
+          padding: "22px 16px 0",
           display: "flex",
           justifyContent: "center",
         }}
       >
         <PoweredByStellar />
-      </div>
-
-      {/* Sticky Donate CTA */}
-      <div
-        style={{
-          position: "fixed",
-          left: 0,
-          right: 0,
-          bottom: 0,
-          padding: "12px 16px calc(20px + env(safe-area-inset-bottom))",
-          background:
-            "linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.92) 35%, #fff 70%)",
-          pointerEvents: "none",
-          zIndex: 30,
-        }}
-      >
-        <div
-          style={{
-            maxWidth: 460,
-            margin: "0 auto",
-            pointerEvents: "auto",
-            display: "flex",
-            flexDirection: "column",
-            gap: 8,
-          }}
-        >
-          <Btn
-            kind="primary"
-            leading={Ico.shield({ c: "#fff" })}
-            onClick={() => router.push(`/circles/${circle.id}/donate`)}
-          >
-            Donate to this circle
-          </Btn>
-          <div
-            style={{
-              fontSize: 10.5,
-              color: T.slate,
-              textAlign: "center",
-              lineHeight: 1.4,
-            }}
-          >
-            Preview - your pledge joins the launch waitlist; no charge today.
-          </div>
-        </div>
       </div>
     </div>
   );

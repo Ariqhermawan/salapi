@@ -331,6 +331,10 @@ export async function joinCirclesWaitlist(input: {
   anonymous: boolean;
   marketingOk: boolean;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
+  // Server Functions are reachable via direct POST per Next 16 docs, so any
+  // assumption about the shape of `input` must be defended at runtime.
+  if (!input || typeof input !== "object")
+    return { ok: false, error: "Invalid request." };
   const email = (input.email ?? "").trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
     return { ok: false, error: "Enter a valid email." };
