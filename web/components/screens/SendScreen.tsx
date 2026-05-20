@@ -15,6 +15,7 @@ import {
   Chip,
   Money,
   Avatar,
+  PoweredByStellar,
 } from "@/components/ui/kit";
 import { SalapiMascot } from "@/components/ui/mascot";
 
@@ -129,6 +130,9 @@ export default function SendScreen() {
         <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
           <Btn kind="secondary" onClick={() => { setDone(null); setAmount(""); setTo(""); }}>Send again</Btn>
           <Btn kind="ghost" onClick={() => router.push("/")}>Done</Btn>
+        </div>
+        <div style={{ padding: "16px 16px 0", display: "flex", justifyContent: "center" }}>
+          <PoweredByStellar />
         </div>
       </div>
     );
@@ -247,6 +251,9 @@ export default function SendScreen() {
         <Btn kind="primary" disabled={pending || !to || !amount} loading={pending} onClick={doSend} trailing={!pending && Ico.chev({ c: "#fff" })}>
           {pending ? t("send.sending") : t("send.send")}
         </Btn>
+      </div>
+      <div style={{ padding: "18px 16px 0", display: "flex", justifyContent: "center" }}>
+        <PoweredByStellar />
       </div>
     </div>
   );
