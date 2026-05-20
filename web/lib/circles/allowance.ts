@@ -68,6 +68,42 @@ export function splitDonation(
   return { beneficiary, allowance };
 }
 
+// "Of every X" preview sample formatted in the user's locale with a value
+// that reads naturally there (100 in en/tl, 100_000 in id/vi). Avoids the
+// awkward conversion of "100 PHP" via formatParts which yields non-round
+// numbers like "Rp 27,586" in IDR. Display-only; no contract round-trip.
+import { CURRENCY } from "@/lib/ui/currency";
+import type { Locale } from "@/lib/i18n/config";
+
+export type AllowancePreviewSplit = {
+  fmtSample: string;
+  fmtBeneficiary: string;
+  fmtAllowance: string;
+};
+
+export function localePreviewSplit(
+  locale: Locale,
+  allowancePct: number
+): AllowancePreviewSplit {
+  const m = CURRENCY[locale];
+  // A round local-currency sample that reads naturally in each market.
+  const sample = m.dp === 0 ? 100_000 : 100;
+  const pct = Math.max(0, Math.min(10, allowancePct));
+  const allowance = Math.round((sample * pct) / 100);
+  const beneficiary = sample - allowance;
+  const fmt = (n: number) =>
+    m.symbol +
+    n.toLocaleString(m.intl, {
+      minimumFractionDigits: m.dp,
+      maximumFractionDigits: m.dp,
+    });
+  return {
+    fmtSample: fmt(sample),
+    fmtBeneficiary: fmt(beneficiary),
+    fmtAllowance: fmt(allowance),
+  };
+}
+
 // Reputation score model for the preview manage screen. Pure presentation;
 // the on-chain reputation in stage 2 will be derived from closed circles
 // with verified delivery (no dispute resolved against the organizer).

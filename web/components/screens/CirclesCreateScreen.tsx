@@ -36,7 +36,7 @@ import {
   KYC_TIER_LABEL,
   KYC_TIER_NAME,
   clampToTier,
-  splitDonation,
+  localePreviewSplit,
   type KycTier,
 } from "@/lib/circles/allowance";
 import {
@@ -509,11 +509,8 @@ export default function CirclesCreateScreen() {
   if (step === 3) {
     const ceiling = KYC_TIER_CEILING[previewTier];
     const clamped = clampToTier(allowancePct, previewTier);
-    // The split preview always renders the math "of every ₱100" in the user's
-    // locale, so it is immediately legible regardless of donation size.
-    const samplePer = 100;
-    const { beneficiary: beneficiaryPer, allowance: allowancePer } =
-      splitDonation(samplePer, clamped);
+    // Locale-aware round sample - ₱100 / Rp 100,000 / $100 / ₫100,000.
+    const preview = localePreviewSplit(locale, clamped);
     return (
       <div style={shell}>
         <Header pill={<Stage2Pill />} step={step} onBack={back} onExit={onExit} />
@@ -578,7 +575,12 @@ export default function CirclesCreateScreen() {
                 type="button"
                 onClick={() => {
                   setPreviewTier(t);
+                  // Clamp the existing allowance to the new tier's ceiling
+                  // and reset the immutable-after-donation ack: any new
+                  // value must be re-acknowledged so users cannot bypass
+                  // the checkbox by switching tiers around it.
                   setAllowancePct((p) => clampToTier(p, t));
+                  setAllowanceAck(false);
                 }}
                 style={{
                   padding: "12px 10px",
@@ -726,22 +728,10 @@ export default function CirclesCreateScreen() {
                 color: T.ink,
               }}
             >
-              Of every {formatParts(samplePer, locale).symbol}
-              {formatParts(samplePer, locale).int}
-              {formatParts(samplePer, locale).dp > 0
-                ? "." + formatParts(samplePer, locale).dec
-                : ""}{" "}
-              you donate,{" "}
-              <strong>
-                {formatParts(beneficiaryPer, locale).symbol}
-                {formatParts(beneficiaryPer, locale).int}
-              </strong>{" "}
-              goes to the beneficiary,{" "}
-              <strong>
-                {formatParts(allowancePer, locale).symbol}
-                {formatParts(allowancePer, locale).int}
-              </strong>{" "}
-              covers operational cost.
+              Of every {preview.fmtSample} you donate,{" "}
+              <strong>{preview.fmtBeneficiary}</strong> goes to the
+              beneficiary, <strong>{preview.fmtAllowance}</strong> covers
+              operational cost.
             </p>
             {/* Stacked bar */}
             <div

@@ -33,7 +33,10 @@ import {
   progressPct,
   type Circle,
 } from "@/lib/circles/types";
-import { KYC_TIER_LABEL, splitDonation } from "@/lib/circles/allowance";
+import {
+  KYC_TIER_LABEL,
+  localePreviewSplit,
+} from "@/lib/circles/allowance";
 
 type Tab = "story" | "recent" | "transparency";
 
@@ -49,6 +52,9 @@ export default function CircleDetailScreen({ circle }: { circle: Circle }) {
   const allowance = circle.allowance;
   const allowancePct = allowance?.percentage ?? 0;
   const hasAllowance = allowancePct > 0;
+  // Locale-aware round sample ("Of every Rp 100,000..." vs awkward
+  // "Of every Rp 27,586..." from PHP-to-IDR conversion).
+  const preview = localePreviewSplit(locale, allowancePct);
 
   return (
     <div
@@ -500,19 +506,10 @@ export default function CircleDetailScreen({ circle }: { circle: Circle }) {
                   color: T.ink,
                 }}
               >
-                Of every{" "}
-                {formatParts(100, locale).symbol}
-                {formatParts(100, locale).int} you donate,{" "}
-                <strong>
-                  {formatParts(splitDonation(100, allowancePct).beneficiary, locale).symbol}
-                  {formatParts(splitDonation(100, allowancePct).beneficiary, locale).int}
-                </strong>{" "}
-                goes directly to the beneficiary.{" "}
-                <strong>
-                  {formatParts(splitDonation(100, allowancePct).allowance, locale).symbol}
-                  {formatParts(splitDonation(100, allowancePct).allowance, locale).int}
-                </strong>{" "}
-                covers operational cost for{" "}
+                Of every {preview.fmtSample} you donate,{" "}
+                <strong>{preview.fmtBeneficiary}</strong> goes directly to the
+                beneficiary. <strong>{preview.fmtAllowance}</strong> covers
+                operational cost for{" "}
                 <strong>{allowance.organizerName}</strong>, who is verified{" "}
                 <strong>{KYC_TIER_LABEL[allowance.tier]}</strong>. The
                 operational allowance is held by the contract until the

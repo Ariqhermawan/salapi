@@ -72,15 +72,27 @@ export default function CircleManageScreen({ circle }: { circle: Circle }) {
     [allowance]
   );
 
-  // Stable dispute-window deadline per circle id (so countdown does not jump
-  // between renders within the same tab session).
-  const [disputeEndsAt] = useState<string>(() => mockDisputeWindowEndsAt());
-  const [remaining, setRemaining] = useState(() => formatRemaining(disputeEndsAt));
+  // Dispute-window deadline is time-dependent (new Date()), so server and
+  // client would compute different values and React 19 would log a hydration
+  // mismatch on this dynamic-SSR route. Defer to post-mount: SSR + initial
+  // client render both show the same neutral "—", then useEffect populates
+  // it client-side. The setState here is the documented "subscribe to an
+  // external system (the system clock)" pattern, not derived from URL/props.
+  const [remaining, setRemaining] = useState<string>("—");
   useEffect(() => {
     if (!hasAllowance) return;
-    const t = setInterval(() => setRemaining(formatRemaining(disputeEndsAt)), 60_000);
-    return () => clearInterval(t);
-  }, [disputeEndsAt, hasAllowance]);
+    const ends = mockDisputeWindowEndsAt();
+    const tick = () => setRemaining(formatRemaining(ends));
+    // setState lives in async callbacks (timer + interval) so React 19's
+    // react-hooks/set-state-in-effect rule is satisfied; the first tick is
+    // scheduled immediately rather than waiting a full minute.
+    const initial = setTimeout(tick, 0);
+    const interval = setInterval(tick, 60_000);
+    return () => {
+      clearTimeout(initial);
+      clearInterval(interval);
+    };
+  }, [hasAllowance]);
 
   // Inline toast (Upload proof of delivery is non-functional preview).
   const [toast, setToast] = useState<string | null>(null);
