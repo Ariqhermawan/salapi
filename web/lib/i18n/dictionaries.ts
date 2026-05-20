@@ -23,7 +23,7 @@ const en = {
     footnote:
       "Stellar PH Ambassador Chapter — Instaward. Testnet demo: balances and transactions are real on Stellar testnet (no real value). GCash & sign-in are sandbox seams; production = a licensed anchor.",
     palTitle: "A savings circle with friends & family",
-    palDesc: "Want a no-runaway circle? Let's go — the contract holds the pot.",
+    palDesc: "Want a runaway-proof savings circle? The contract holds the pot.",
     palCta: "Start a circle",
     disTitle: "Help disaster survivors",
     disDesc: "Every peso traceable on-chain. No politician, no broker.",
@@ -34,10 +34,16 @@ const en = {
     savTitle: "Save toward a goal",
     savDesc: "Lock money to a target; it unlocks when you reach it.",
     savCta: "Start saving",
+    zoneLive: "LIVE TODAY",
+    zoneVision: "VISION · BUILD-AWARD",
+    circlesDesc: "Open community fund-raising. Same rail, opened to any cause.",
+    circlesBadge: "Preview · Build-Award",
   },
   wallet: {
     balance: "Available balance",
     topup: "Top up with GCash",
+    withdraw: "Withdraw",
+    live: "Live",
     cryptoInvisible: "crypto invisible",
     send: "Send",
     vaults: "Vaults",
@@ -150,7 +156,7 @@ const tl: Dict = {
       "Stellar PH Ambassador Chapter — Instaward. Testnet demo: tunay sa Stellar testnet ang balanse at transaksyon (walang tunay na halaga). Ang GCash at sign-in ay sandbox; produksyon = lisensyadong anchor.",
     palTitle: "Paluwagan kasama ang pamilya't kaibigan",
     palDesc:
-      "Gustong mag-paluwagan na walang takasan? Tara — kontrata ang humahawak ng pondo.",
+      "Gusto ng paluwagan na hindi takbuhan? Ang kontrata ang humahawak ng pondo.",
     palCta: "Magsimula",
     disTitle: "Tumulong sa biktima ng sakuna",
     disDesc:
@@ -162,10 +168,17 @@ const tl: Dict = {
     savTitle: "Mag-ipon para sa layunin",
     savDesc: "I-lock ang pera sa target; bubukas kapag naabot mo.",
     savCta: "Mag-ipon",
+    zoneLive: "AKTIBO NGAYON",
+    zoneVision: "BISYON · BUILD-AWARD",
+    circlesDesc:
+      "Bukas na pangangalap ng pondo para sa komunidad. Iisang rail, bukas sa anumang dahilan.",
+    circlesBadge: "Preview · Build-Award",
   },
   wallet: {
     balance: "Magagamit na balanse",
     topup: "Mag-top up sa GCash",
+    withdraw: "Mag-withdraw",
+    live: "Live",
     cryptoInvisible: "crypto invisible",
     send: "Padala",
     vaults: "Vault",
@@ -275,8 +288,7 @@ const id: Dict = {
     footnote:
       "Stellar PH Ambassador Chapter — Instaward. Demo testnet: saldo & transaksi nyata di Stellar testnet (tanpa nilai riil). GCash & sign-in adalah sandbox; produksi = anchor berlisensi.",
     palTitle: "Arisan bareng teman & keluarga",
-    palDesc:
-      "Mau arisan anti-kabur? Ayo — kontrak yang pegang pot.",
+    palDesc: "Mau arisan anti-kabur? Kontrak yang pegang pot.",
     palCta: "Mulai arisan",
     disTitle: "Bantu korban bencana",
     disDesc: "Tiap peso terlacak on-chain. Tanpa politikus, tanpa calo.",
@@ -287,10 +299,17 @@ const id: Dict = {
     savTitle: "Nabung dengan tujuan",
     savDesc: "Kunci uang ke target; cair saat tercapai.",
     savCta: "Mulai nabung",
+    zoneLive: "SEKARANG JALAN",
+    zoneVision: "VISI · BUILD-AWARD",
+    circlesDesc:
+      "Galang dana terbuka untuk komunitas. Rel yang sama, untuk apapun yang membutuhkan.",
+    circlesBadge: "Pratinjau · Build-Award",
   },
   wallet: {
     balance: "Saldo tersedia",
     topup: "Isi saldo via GCash",
+    withdraw: "Tarik dana",
+    live: "Aktif",
     cryptoInvisible: "crypto invisible",
     send: "Kirim",
     vaults: "Vault",
@@ -400,8 +419,7 @@ const vi: Dict = {
     footnote:
       "Stellar PH Ambassador Chapter — Instaward. Demo testnet: số dư & giao dịch là thật trên Stellar testnet (không có giá trị thật). GCash & đăng nhập là sandbox; bản chính thức = anchor được cấp phép.",
     palTitle: "Chơi hụi cùng bạn bè & gia đình",
-    palDesc:
-      "Muốn chơi hụi không sợ giật? Bắt đầu nào — hợp đồng giữ quỹ.",
+    palDesc: "Muốn chơi hụi không sợ giật? Hợp đồng giữ quỹ.",
     palCta: "Tạo hụi",
     disTitle: "Giúp nạn nhân thiên tai",
     disDesc:
@@ -413,10 +431,17 @@ const vi: Dict = {
     savTitle: "Tiết kiệm theo mục tiêu",
     savDesc: "Khóa tiền tới mục tiêu; mở khi đạt được.",
     savCta: "Tiết kiệm",
+    zoneLive: "ĐANG CHẠY",
+    zoneVision: "TẦM NHÌN · BUILD-AWARD",
+    circlesDesc:
+      "Gây quỹ cộng đồng mở. Cùng một rail, mở cho mọi nguyên nhân.",
+    circlesBadge: "Bản xem trước · Build-Award",
   },
   wallet: {
     balance: "Số dư khả dụng",
     topup: "Nạp qua GCash",
+    withdraw: "Rút",
+    live: "Đang chạy",
     cryptoInvisible: "ẩn crypto",
     send: "Gửi",
     vaults: "Két",

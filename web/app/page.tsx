@@ -12,7 +12,6 @@ import {
   Btn,
   Avatar,
   Money,
-  Row,
   IconButton,
   TestnetPill,
   PoweredByStellar,
@@ -137,7 +136,7 @@ export default function Home() {
                 background: T.moneyIn,
               }}
             />
-            Live · {t("wallet.cryptoInvisible")}
+            {t("wallet.live")} · {t("wallet.cryptoInvisible")}
           </div>
           <div
             style={{
@@ -186,7 +185,7 @@ export default function Home() {
                 cursor: "pointer",
               }}
             >
-              {Ico.arrowUp({ c: "#fff" })} Withdraw
+              {Ico.arrowUp({ c: "#fff" })} {t("wallet.withdraw")}
             </button>
           </div>
         </div>
@@ -243,7 +242,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* For you */}
+      {/* Zone 1: LIVE TODAY (day-30 features verifiable on Stellar testnet) */}
       <div style={{ padding: "0 16px" }}>
         <div
           style={{
@@ -255,7 +254,7 @@ export default function Home() {
             padding: "4px 4px 10px",
           }}
         >
-          {t("home.start")}
+          {t("home.zoneLive")}
         </div>
         <Card p={0} style={{ overflow: "hidden", marginBottom: 10 }}>
           <div style={{ padding: "18px 18px 16px" }}>
@@ -368,14 +367,52 @@ export default function Home() {
             </div>
           </Card>
         </div>
+      </div>
 
-        {/* Salapi Circles — Build-Award preview entry. Sits ALONGSIDE the
-            day-30 tiles above; does NOT replace any of them. Tap goes to
-            /circles, which carries the persistent Preview pill + info modal. */}
+      {/* Zone 2: VISION · BUILD-AWARD (preview surfaces, NOT on-chain today).
+          Visually paired with the LIVE TODAY zone above via a wider top
+          margin and an indigo accent dot on the header so the reader knows
+          they have crossed a tier without being shouted at. Every card in
+          this zone must continue to carry its own "Preview · Build-Award"
+          badge (the Salapi Circles card already does). */}
+      <div style={{ padding: "22px 16px 0" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "4px 4px 10px",
+          }}
+        >
+          <span
+            aria-hidden
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: 99,
+              background: T.action,
+            }}
+          />
+          <div
+            style={{
+              fontSize: 11,
+              color: T.slate,
+              fontWeight: 600,
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+            }}
+          >
+            {t("home.zoneVision")}
+          </div>
+        </div>
+
+        {/* Salapi Circles teaser. Visual unchanged from its previous bottom-
+            of-page position; only its location and its body/badge strings
+            (now from the dictionary) are updated. Tap routes to /circles
+            which carries the persistent Preview pill + info modal. */}
         <Card
           p={0}
           style={{
-            marginTop: 10,
             overflow: "hidden",
             cursor: "pointer",
             background: "linear-gradient(160deg,#fff 0%, #FBF1E0 110%)",
@@ -413,16 +450,23 @@ export default function Home() {
                     color: T.warn,
                   }}
                 >
-                  Preview · Build-Award
+                  {t("home.circlesBadge")}
                 </span>
               </div>
               <div style={{ fontSize: 12, color: T.slate, marginTop: 3, lineHeight: 1.4 }}>
-                Open community fund-raising. Same rail, opened to any cause.
+                {t("home.circlesDesc")}
               </div>
             </div>
             <span style={{ color: T.slate, flex: "0 0 auto" }}>{Ico.chev({ c: T.slate })}</span>
           </div>
         </Card>
+
+        {/* Operational Allowance preview card lands here when /circles
+            Operational Allowance build merges. Keep this comment until a
+            teaser card component for the OA flow exists (the parallel
+            session ships /circles/[id]/manage and /you/kyc-tier; if they
+            later expose an OA home-page teaser, render it as the second
+            card in this zone). */}
       </div>
 
       <div style={{ padding: "24px 16px 28px", textAlign: "center" }}>
