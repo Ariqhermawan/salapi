@@ -205,7 +205,7 @@ export default function Home() {
         >
           {[
             { ico: Ico.send, label: t("wallet.send"), to: "/send" },
-            { ico: Ico.qr, label: t("home.disCta").split(" ")[0], to: "/receive" },
+            { ico: Ico.qr, label: t("wallet.receive"), to: "/receive" },
             { ico: Ico.vault, label: t("wallet.vaults"), to: "/vaults" },
             { ico: Ico.activity, label: t("nav.activity"), to: "/activity" },
           ].map((it) => (
