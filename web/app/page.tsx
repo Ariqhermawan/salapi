@@ -368,6 +368,61 @@ export default function Home() {
             </div>
           </Card>
         </div>
+
+        {/* Salapi Circles — Build-Award preview entry. Sits ALONGSIDE the
+            day-30 tiles above; does NOT replace any of them. Tap goes to
+            /circles, which carries the persistent Preview pill + info modal. */}
+        <Card
+          p={0}
+          style={{
+            marginTop: 10,
+            overflow: "hidden",
+            cursor: "pointer",
+            background: "linear-gradient(160deg,#fff 0%, #FBF1E0 110%)",
+          }}
+          onClick={go("/circles")}
+        >
+          <div style={{ padding: "16px 18px", display: "flex", alignItems: "center", gap: 14 }}>
+            <div
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: 14,
+                background: "#fff",
+                color: T.warn,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow: "inset 0 0 0 1px " + T.hairline,
+              }}
+            >
+              {Ico.globe({ c: T.warn, size: 22 })}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ fontSize: 15, fontWeight: 600 }}>Salapi Circles</div>
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    letterSpacing: "0.06em",
+                    textTransform: "uppercase",
+                    padding: "2px 7px",
+                    borderRadius: 99,
+                    background: T.warnTint,
+                    color: T.warn,
+                  }}
+                >
+                  Preview · Build-Award
+                </span>
+              </div>
+              <div style={{ fontSize: 12, color: T.slate, marginTop: 3, lineHeight: 1.4 }}>
+                Open community fund-raising. Same rail, opened to any cause.
+              </div>
+            </div>
+            <span style={{ color: T.slate, flex: "0 0 auto" }}>{Ico.chev({ c: T.slate })}</span>
+          </div>
+        </Card>
       </div>
 
       <div style={{ padding: "24px 16px 28px", textAlign: "center" }}>

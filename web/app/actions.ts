@@ -16,6 +16,8 @@ import {
   FRIENDS,
 } from "@/lib/server/stellar";
 import { getSigner } from "@/lib/server/userWallet";
+import { supabaseAdminConfigured } from "@/lib/supabase/env";
+import { createSupabaseAdmin } from "@/lib/supabase/admin";
 
 export async function walletState() {
   const { publicKey: address } = await getSigner();
@@ -313,5 +315,75 @@ export async function disasterState() {
     };
   } catch (e) {
     return { ok: false as const, error: e instanceof Error ? e.message : "x" };
+  }
+}
+
+// ── Salapi Circles waitlist (Build-Award preview) ─────────────────────────
+// NO on-chain transfer. Persists a pledge to public.circles_waitlist when
+// Supabase service-role is configured; otherwise logs to the server console
+// and returns ok so the preview UI keeps working in dev / unconfigured envs.
+// Schema: web/supabase/circles_waitlist.sql.
+export async function joinCirclesWaitlist(input: {
+  email: string;
+  circleId: string;
+  locale: string;
+  pesoPledge: number;
+  anonymous: boolean;
+  marketingOk: boolean;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const email = (input.email ?? "").trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+    return { ok: false, error: "Enter a valid email." };
+  if (email.length > 200)
+    return { ok: false, error: "Email is too long." };
+
+  const circleId =
+    typeof input.circleId === "string" && input.circleId.length <= 120
+      ? input.circleId
+      : null;
+  const locale =
+    typeof input.locale === "string" && input.locale.length <= 8
+      ? input.locale
+      : null;
+  const pesoPledge =
+    Number.isFinite(input.pesoPledge) && input.pesoPledge >= 0
+      ? Math.min(10_000_000, Math.floor(input.pesoPledge))
+      : 0;
+  const anonymous = Boolean(input.anonymous);
+  const marketingOk = Boolean(input.marketingOk);
+
+  // Graceful fallback when Supabase is not configured (local dev without
+  // .env.local, or an environment without the service-role key): log it and
+  // return ok so the preview flow stays clickable end-to-end.
+  if (!supabaseAdminConfigured()) {
+    console.log("[circles/waitlist] (preview, no Supabase configured)", {
+      email,
+      circleId,
+      pesoPledge,
+      anonymous,
+      marketingOk,
+      locale,
+    });
+    return { ok: true };
+  }
+
+  try {
+    const admin = createSupabaseAdmin();
+    const { error } = await admin.from("circles_waitlist").insert({
+      email,
+      circle_id: circleId,
+      peso_pledge: pesoPledge,
+      anonymous,
+      marketing_ok: marketingOk,
+      locale,
+    });
+    if (error) {
+      console.error("[circles/waitlist] insert failed:", error.message);
+      return { ok: false, error: "Couldn't save right now. Please try again." };
+    }
+    return { ok: true };
+  } catch (e) {
+    console.error("[circles/waitlist] unexpected error:", e);
+    return { ok: false, error: "Couldn't save right now. Please try again." };
   }
 }
