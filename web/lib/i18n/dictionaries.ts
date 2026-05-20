@@ -38,6 +38,11 @@ const en = {
     zoneVision: "VISION · BUILD-AWARD",
     circlesDesc: "Open community fund-raising. Same rail, opened to any cause.",
     circlesBadge: "Preview · Build-Award",
+    tilePal: "Savings circle",
+    tileSav: "Smart savings",
+    tileDis: "Disaster relief",
+    tileSend: "Send by @",
+    tileCircles: "Salapi Circles",
   },
   wallet: {
     balance: "Available balance",
@@ -182,6 +187,11 @@ const tl: Dict = {
     circlesDesc:
       "Bukas na pangangalap ng pondo para sa komunidad. Iisang rail, bukas sa anumang dahilan.",
     circlesBadge: "Preview · Build-Award",
+    tilePal: "Paluwagan",
+    tileSav: "Ipon",
+    tileDis: "Tulong sa sakuna",
+    tileSend: "Padala @",
+    tileCircles: "Salapi Circles",
   },
   wallet: {
     balance: "Magagamit na balanse",
@@ -322,6 +332,11 @@ const id: Dict = {
     circlesDesc:
       "Galang dana terbuka untuk komunitas. Rel yang sama, untuk apapun yang membutuhkan.",
     circlesBadge: "Pratinjau · Build-Award",
+    tilePal: "Arisan",
+    tileSav: "Nabung",
+    tileDis: "Bantu bencana",
+    tileSend: "Kirim @",
+    tileCircles: "Salapi Circles",
   },
   wallet: {
     balance: "Saldo tersedia",
@@ -463,6 +478,11 @@ const vi: Dict = {
     circlesDesc:
       "Gây quỹ cộng đồng mở. Cùng một rail, mở cho mọi nguyên nhân.",
     circlesBadge: "Bản xem trước · Build-Award",
+    tilePal: "Chơi hụi",
+    tileSav: "Tiết kiệm",
+    tileDis: "Cứu trợ",
+    tileSend: "Gửi @",
+    tileCircles: "Salapi Circles",
   },
   wallet: {
     balance: "Số dư khả dụng",

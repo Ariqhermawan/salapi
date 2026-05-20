@@ -1,5 +1,19 @@
 "use client";
 
+// Salapi homepage. Mobile-first density: the full home (header + balance +
+// LIVE TODAY 2x2 tile grid + VISION compact tile + powered-by) is designed
+// to fit an iPhone 14 viewport (390x844) without scroll. Quick Actions row
+// was removed because every action it offered duplicated either the
+// BottomNav (Vaults, Activity), the FAB (Send), or the header QR icon
+// (Receive). The 2x2 tile grid + a single compact VISION tile compresses
+// what was ~370px of LIVE TODAY plus a separate ~96px Circles teaser into
+// a single tighter rhythm.
+//
+// Tier honesty preserved: LIVE TODAY tiles route to day-30 features only
+// (no Preview badge). The VISION tile carries its "Preview, Build-Award"
+// badge unchanged. Operational Allowance teaser slot is a comment marker
+// for the parallel session to fill in.
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { walletState, myUsername } from "@/app/actions";
@@ -8,14 +22,23 @@ import {
   T,
   Ico,
   Card,
-  Chip,
-  Btn,
   Avatar,
   Money,
   IconButton,
   TestnetPill,
   PoweredByStellar,
 } from "@/components/ui/kit";
+
+type IconFn = (p?: { size?: number; c?: string }) => React.ReactNode;
+
+type LiveTile = {
+  key: string;
+  ico: IconFn;
+  bg: string;
+  fg: string;
+  titleKey: string;
+  to: string;
+};
 
 export default function Home() {
   const { t } = useT();
@@ -33,19 +56,58 @@ export default function Home() {
 
   const go = (p: string) => () => router.push(p);
 
+  // LIVE TODAY 2x2 grid. Each tile = icon + short label. The full screens
+  // (Paluwagan, Savings, Disaster, Send) carry the longer descriptions. The
+  // 4th tile (Send by @username) is a day-30 feature surfaced as a tile
+  // because the user already removed Quick Actions row.
+  const liveTiles: LiveTile[] = [
+    {
+      key: "pal",
+      ico: Ico.star,
+      bg: T.actionTint,
+      fg: T.action,
+      titleKey: "home.tilePal",
+      to: "/paluwagan",
+    },
+    {
+      key: "sav",
+      ico: Ico.shield,
+      bg: T.moneyInTint,
+      fg: T.moneyIn,
+      titleKey: "home.tileSav",
+      to: "/savings",
+    },
+    {
+      key: "dis",
+      ico: Ico.shield,
+      bg: T.warnTint,
+      fg: T.warn,
+      titleKey: "home.tileDis",
+      to: "/transparency",
+    },
+    {
+      key: "send",
+      ico: Ico.send,
+      bg: T.actionTint,
+      fg: T.action,
+      titleKey: "home.tileSend",
+      to: "/send",
+    },
+  ];
+
   return (
     <div style={{ fontFamily: T.fontSans, color: T.ink }}>
-      {/* Greeting */}
+      {/* Greeting - tighter padding for mobile density. */}
       <div
         style={{
-          padding: "16px 20px 8px",
+          padding: "12px 16px 4px",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <Avatar name="Salapi" size={38} />
+          <Avatar name="Salapi" size={34} />
           <div>
             <div style={{ fontSize: 11, color: T.slate, fontWeight: 500 }}>
               {t("home.greeting")}
@@ -58,22 +120,23 @@ export default function Home() {
             </div>
           </div>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 6 }}>
           <IconButton onClick={go("/learn")}>{Ico.bulb({})}</IconButton>
           <IconButton onClick={go("/activity")}>{Ico.bell({})}</IconButton>
           <IconButton onClick={go("/receive")}>{Ico.qr({})}</IconButton>
         </div>
       </div>
 
-      {/* Balance card */}
-      <div style={{ padding: "8px 16px 16px" }}>
+      {/* Balance card - compressed: smaller numeral (28 vs 38), tighter
+          padding, 40px buttons (was 44). Still tap-friendly and readable. */}
+      <div style={{ padding: "8px 16px 12px" }}>
         <div
           style={{
-            borderRadius: 20,
+            borderRadius: 18,
             background: T.ink,
             color: "#fff",
-            padding: "22px 22px 20px",
-            boxShadow: "0 18px 40px -16px rgba(11,18,32,0.4)",
+            padding: "14px 16px 14px",
+            boxShadow: "0 14px 32px -16px rgba(11,18,32,0.4)",
             position: "relative",
             overflow: "hidden",
           }}
@@ -81,12 +144,13 @@ export default function Home() {
           <div
             style={{
               position: "absolute",
-              right: -28,
-              top: -28,
-              width: 140,
-              height: 140,
+              right: -24,
+              top: -24,
+              width: 110,
+              height: 110,
               opacity: 0.06,
             }}
+            aria-hidden
           >
             <svg viewBox="0 0 100 100">
               <path
@@ -104,7 +168,7 @@ export default function Home() {
           >
             <div
               style={{
-                fontSize: 11,
+                fontSize: 10.5,
                 fontWeight: 600,
                 letterSpacing: "0.12em",
                 textTransform: "uppercase",
@@ -115,13 +179,13 @@ export default function Home() {
             </div>
             <TestnetPill />
           </div>
-          <div className="sl-rise" style={{ marginTop: 10 }}>
-            <Money value={pesos} size={38} color="#fff" />
+          <div className="sl-rise" style={{ marginTop: 6 }}>
+            <Money value={pesos} size={28} color="#fff" />
           </div>
           <div
             style={{
-              marginTop: 8,
-              fontSize: 12,
+              marginTop: 5,
+              fontSize: 11,
               color: "rgba(255,255,255,0.55)",
               display: "flex",
               alignItems: "center",
@@ -129,6 +193,7 @@ export default function Home() {
             }}
           >
             <span
+              aria-hidden
               style={{
                 width: 6,
                 height: 6,
@@ -140,109 +205,63 @@ export default function Home() {
           </div>
           <div
             style={{
-              marginTop: 18,
+              marginTop: 12,
               display: "grid",
               gridTemplateColumns: "1fr 1fr",
-              gap: 10,
+              gap: 8,
             }}
           >
             <button
               onClick={go("/topup")}
               style={{
-                height: 44,
-                borderRadius: 12,
+                height: 40,
+                borderRadius: 11,
                 border: "none",
                 background: "#fff",
                 color: T.ink,
                 fontFamily: T.fontSans,
                 fontWeight: 600,
-                fontSize: 14,
+                fontSize: 13.5,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                gap: 8,
+                gap: 7,
                 cursor: "pointer",
               }}
             >
-              {Ico.arrowDown({ c: T.action })} {t("wallet.topup")}
+              {Ico.arrowDown({ c: T.action, size: 16 })} {t("wallet.topup")}
             </button>
             <button
               onClick={go("/withdraw")}
               style={{
-                height: 44,
-                borderRadius: 12,
+                height: 40,
+                borderRadius: 11,
                 border: "none",
                 background: "rgba(255,255,255,0.1)",
                 color: "#fff",
                 fontFamily: T.fontSans,
                 fontWeight: 600,
-                fontSize: 14,
+                fontSize: 13.5,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                gap: 8,
+                gap: 7,
                 boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.18)",
                 cursor: "pointer",
               }}
             >
-              {Ico.arrowUp({ c: "#fff" })} {t("wallet.withdraw")}
+              {Ico.arrowUp({ c: "#fff", size: 16 })} {t("wallet.withdraw")}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Quick actions */}
-      <div style={{ padding: "0 16px 16px" }}>
-        <div
-          style={{
-            background: T.surface,
-            borderRadius: T.rCard,
-            padding: "8px 0",
-            boxShadow: "inset 0 0 0 1px " + T.hairline,
-            display: "grid",
-            gridTemplateColumns: "repeat(4,1fr)",
-          }}
-        >
-          {[
-            { ico: Ico.send, label: t("wallet.send"), to: "/send" },
-            { ico: Ico.qr, label: t("wallet.receive"), to: "/receive" },
-            { ico: Ico.vault, label: t("wallet.vaults"), to: "/vaults" },
-            { ico: Ico.activity, label: t("nav.activity"), to: "/activity" },
-          ].map((it) => (
-            <div
-              key={it.label}
-              onClick={go(it.to)}
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "10px 4px",
-                gap: 6,
-                cursor: "pointer",
-              }}
-            >
-              <div
-                style={{
-                  width: 42,
-                  height: 42,
-                  borderRadius: 14,
-                  background: T.actionTint,
-                  color: T.action,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                {it.ico({ size: 20, c: T.action })}
-              </div>
-              <div style={{ fontSize: 12, fontWeight: 500 }}>{it.label}</div>
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* Quick Actions row removed. Send is the FAB in BottomNav. Vaults
+          and Activity also live in BottomNav. Receive (QR) is the rightmost
+          icon in the greeting header above. Keeping a Quick Actions row was
+          ~80px of vertical waste duplicating those entry points. */}
 
-      {/* Zone 1: LIVE TODAY (day-30 features verifiable on Stellar testnet) */}
+      {/* Zone 1: LIVE TODAY - 2x2 compact tile grid of day-30 features. */}
       <div style={{ padding: "0 16px" }}>
         <div
           style={{
@@ -251,137 +270,73 @@ export default function Home() {
             fontWeight: 600,
             letterSpacing: "0.1em",
             textTransform: "uppercase",
-            padding: "4px 4px 10px",
+            padding: "2px 4px 8px",
           }}
         >
           {t("home.zoneLive")}
         </div>
-        <Card p={0} style={{ overflow: "hidden", marginBottom: 10 }}>
-          <div style={{ padding: "18px 18px 16px" }}>
-            <Chip kind="action" leading={Ico.star({ size: 11, c: T.action })}>
-              {t("pal.kicker")}
-            </Chip>
-            <div
-              style={{
-                fontSize: 18,
-                fontWeight: 600,
-                letterSpacing: "-0.01em",
-                marginTop: 12,
-                lineHeight: 1.3,
-              }}
-            >
-              {t("home.palTitle")}
-            </div>
-            <div
-              style={{
-                fontSize: 13,
-                color: T.slate,
-                marginTop: 6,
-                lineHeight: 1.5,
-              }}
-            >
-              {t("home.palDesc")}
-            </div>
-            <div style={{ marginTop: 14 }}>
-              <Btn
-                kind="primary"
-                size="md"
-                full={false}
-                onClick={go("/paluwagan")}
-                trailing={Ico.chev({ c: "#fff" })}
-              >
-                {t("home.palCta")}
-              </Btn>
-            </div>
-          </div>
-        </Card>
         <div
           style={{
             display: "grid",
             gridTemplateColumns: "1fr 1fr",
-            gap: 10,
+            gap: 8,
           }}
         >
-          <Card
-            p={16}
-            onClick={go("/savings")}
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 10,
-              minHeight: 130,
-              cursor: "pointer",
-            }}
-          >
-            <div
+          {liveTiles.map((tile) => (
+            <Card
+              key={tile.key}
+              p={12}
+              onClick={go(tile.to)}
               style={{
-                width: 38,
-                height: 38,
-                borderRadius: 11,
-                background: T.moneyInTint,
-                color: T.moneyIn,
+                cursor: "pointer",
+                minHeight: 84,
                 display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
+                flexDirection: "column",
+                gap: 8,
               }}
             >
-              {Ico.shield({ c: T.moneyIn })}
-            </div>
-            <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.3 }}>
-              {t("home.savTitle")}
-            </div>
-            <div style={{ fontSize: 11, color: T.slate, lineHeight: 1.4 }}>
-              {t("home.savDesc")}
-            </div>
-          </Card>
-          <Card
-            p={16}
-            onClick={go("/transparency")}
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 10,
-              minHeight: 130,
-              cursor: "pointer",
-            }}
-          >
-            <div
-              style={{
-                width: 38,
-                height: 38,
-                borderRadius: 11,
-                background: T.warnTint,
-                color: T.warn,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              {Ico.shield({ c: T.warn })}
-            </div>
-            <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.3 }}>
-              {t("home.disTitle")}
-            </div>
-            <div style={{ fontSize: 11, color: T.slate, lineHeight: 1.4 }}>
-              {t("home.disDesc")}
-            </div>
-          </Card>
+              <div
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 10,
+                  background: tile.bg,
+                  color: tile.fg,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+                aria-hidden
+              >
+                {tile.ico({ size: 18, c: tile.fg })}
+              </div>
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  lineHeight: 1.25,
+                  color: T.ink,
+                }}
+              >
+                {t(tile.titleKey)}
+              </div>
+            </Card>
+          ))}
         </div>
       </div>
 
-      {/* Zone 2: VISION · BUILD-AWARD (preview surfaces, NOT on-chain today).
-          Visually paired with the LIVE TODAY zone above via a wider top
-          margin and an indigo accent dot on the header so the reader knows
-          they have crossed a tier without being shouted at. Every card in
-          this zone must continue to carry its own "Preview · Build-Award"
-          badge (the Salapi Circles card already does). */}
-      <div style={{ padding: "22px 16px 0" }}>
+      {/* Zone 2: VISION, BUILD-AWARD - compact tile mirroring LIVE TODAY's
+          shape so the eye reads them as the same kind of object, just in a
+          different tier. The indigo accent dot on the header signals the
+          tier change without shouting. Every tile in this zone carries its
+          own "Preview, Build-Award" badge. */}
+      <div style={{ padding: "14px 16px 0" }}>
         <div
           style={{
             display: "flex",
             alignItems: "center",
             gap: 8,
-            padding: "4px 4px 10px",
+            padding: "2px 4px 8px",
           }}
         >
           <span
@@ -406,70 +361,74 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Salapi Circles teaser. Visual unchanged from its previous bottom-
-            of-page position; only its location and its body/badge strings
-            (now from the dictionary) are updated. Tap routes to /circles
-            which carries the persistent Preview pill + info modal. */}
+        {/* Salapi Circles tile (full-width). Mirrors the LIVE TODAY tile
+            shape vertically; carries its own "Preview, Build-Award" badge
+            so the tier is unmistakable.
+            When the parallel /circles Operational Allowance build adds its
+            own home-page teaser tile, swap this wrapper for a 2-col grid
+            and drop the OA tile as the second cell. Marker: `Operational
+            Allowance tile lands here when /circles Operational Allowance
+            build merges.` */}
         <Card
-          p={0}
+          p={14}
+          onClick={go("/circles")}
           style={{
-            overflow: "hidden",
             cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
             background: "linear-gradient(160deg,#fff 0%, #FBF1E0 110%)",
           }}
-          onClick={go("/circles")}
         >
-          <div style={{ padding: "16px 18px", display: "flex", alignItems: "center", gap: 14 }}>
+          <div
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 11,
+              background: "#fff",
+              color: T.warn,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "inset 0 0 0 1px " + T.hairline,
+              flex: "0 0 auto",
+            }}
+            aria-hidden
+          >
+            {Ico.globe({ size: 18, c: T.warn })}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <div
               style={{
-                width: 48,
-                height: 48,
-                borderRadius: 14,
-                background: "#fff",
-                color: T.warn,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                boxShadow: "inset 0 0 0 1px " + T.hairline,
+                fontSize: 14,
+                fontWeight: 600,
+                lineHeight: 1.25,
+                color: T.ink,
               }}
             >
-              {Ico.globe({ c: T.warn, size: 22 })}
+              {t("home.tileCircles")}
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ fontSize: 15, fontWeight: 600 }}>Salapi Circles</div>
-                <span
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    letterSpacing: "0.06em",
-                    textTransform: "uppercase",
-                    padding: "2px 7px",
-                    borderRadius: 99,
-                    background: T.warnTint,
-                    color: T.warn,
-                  }}
-                >
-                  {t("home.circlesBadge")}
-                </span>
-              </div>
-              <div style={{ fontSize: 12, color: T.slate, marginTop: 3, lineHeight: 1.4 }}>
-                {t("home.circlesDesc")}
-              </div>
-            </div>
-            <span style={{ color: T.slate, flex: "0 0 auto" }}>{Ico.chev({ c: T.slate })}</span>
           </div>
+          <span
+            style={{
+              fontSize: 9,
+              fontWeight: 700,
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+              padding: "3px 7px",
+              borderRadius: 99,
+              background: T.warnTint,
+              color: T.warn,
+              whiteSpace: "nowrap",
+              flex: "0 0 auto",
+            }}
+          >
+            {t("home.circlesBadge")}
+          </span>
         </Card>
-
-        {/* Operational Allowance preview card lands here when /circles
-            Operational Allowance build merges. Keep this comment until a
-            teaser card component for the OA flow exists (the parallel
-            session ships /circles/[id]/manage and /you/kyc-tier; if they
-            later expose an OA home-page teaser, render it as the second
-            card in this zone). */}
       </div>
 
-      <div style={{ padding: "24px 16px 28px", textAlign: "center" }}>
+      <div style={{ padding: "14px 16px 16px", textAlign: "center" }}>
         <PoweredByStellar />
       </div>
     </div>
