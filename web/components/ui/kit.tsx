@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-// Salapi design-system primitives — faithful port of salapi/primitives.jsx
+// Salapi design-system primitives, faithful port of salapi/primitives.jsx
 // + tokens.jsx marks. Additive (does not touch components/ui/index.tsx).
 // New screens compose THESE to match the Claude Design pixel language.
 
@@ -28,13 +28,13 @@ export {
   GRAD,
 } from "@/components/ui/brand";
 
-// Brand wordmark — now the real mark + "Salapi." lockup (V4). Signature kept
+// Brand wordmark, now the real mark + "Salapi." lockup (V4). Signature kept
 // so every existing call site rolls forward unchanged.
 export function Wordmark({ size = 22, c = T.ink, dot = T.action }: { size?: number; c?: string; dot?: string }) {
   return <SalapiLockup size={size} c={c} dot={dot} />;
 }
 
-// "Powered by Stellar" — now uses the real Stellar kinship mark, not a sparkle.
+// "Powered by Stellar", now uses the real Stellar kinship mark, not a sparkle.
 export function PoweredByStellar({ c = T.slate, size = 11 }: { c?: string; size?: number }) {
   return <PoweredByStellarV2 c={c} size={size} />;
 }

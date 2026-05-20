@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -28,7 +28,7 @@ export default function SignInScreen() {
 
   // If auth/callback bounced us here with ?error=oauth (exchangeCodeForSession
   // failed) surface that, so the user knows why they're back on this screen
-  // instead of being silently dropped. Derived during render — no setState
+  // instead of being silently dropped. Derived during render, no setState
   // inside useEffect (React 19 react-hooks/set-state-in-effect).
   const urlError =
     searchParams?.get("error") === "oauth"
@@ -94,8 +94,8 @@ export default function SignInScreen() {
       <div style={{ marginTop: "auto", padding: "24px 24px 0", textAlign: "center" }}>
         <div style={{ fontSize: 11, color: T.slate, lineHeight: 1.6, marginBottom: 8 }}>
           {configured
-            ? "Real Google sign-in via Supabase — your own Stellar wallet is created on first login. Phone/email are sandbox seams."
-            : "Sandbox sign-in seam — no real account is created. Google OAuth activates once Supabase is configured."}
+            ? "Real Google sign-in via Supabase. Your own Stellar wallet is created on first login. Phone/email are sandbox seams."
+            : "Sandbox sign-in seam. No real account is created. Google OAuth activates once Supabase is configured."}
         </div>
         <div style={{ fontSize: 11, color: T.slate, lineHeight: 1.6, marginBottom: 14 }}>
           By continuing, you agree to our Terms and Privacy Policy.

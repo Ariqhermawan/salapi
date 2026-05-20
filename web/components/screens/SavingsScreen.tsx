@@ -167,7 +167,7 @@ export default function SavingsScreen() {
         <div style={{ padding: "20px 16px 0" }}>
           <div style={{ padding: "12px 14px", borderRadius: 12, background: T.warnTint, color: T.warn, fontSize: 12, display: "flex", gap: 10, alignItems: "flex-start", lineHeight: 1.4 }}>
             {Ico.lock({ size: 18, c: T.warn })}
-            <div>Funds are <strong>locked</strong> by the contract until you hit the target — to protect you from yourself. Verifiable on Stellar.</div>
+            <div>Funds are <strong>locked</strong> by the contract until you hit the target, to protect you from yourself. Verifiable on Stellar.</div>
           </div>
         </div>
         <Toast />
@@ -194,14 +194,14 @@ export default function SavingsScreen() {
           </div>
           <div style={{ marginTop: 22, fontSize: 11, fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase", color: T.moneyIn }}>Goal reached</div>
           <div className="sl-rise" style={{ marginTop: 12 }}><Money value={Number(st.savedPeso.replace(/[^0-9.]/g, "")) || 0} size={46} /></div>
-          <div style={{ marginTop: 8, fontSize: 13, color: T.slate }}>Locked, on-chain — the contract held it the whole way.</div>
+          <div style={{ marginTop: 8, fontSize: 13, color: T.slate }}>Locked, on-chain. The contract held it the whole way.</div>
         </div>
         <Toast />
         <div style={{ padding: "30px 16px 0" }}>
           <Card>
             <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "2px 0 12px" }}>
               <div style={{ width: 30, height: 30, borderRadius: 9, background: T.actionTint, color: T.action, display: "flex", alignItems: "center", justifyContent: "center" }}>{Ico.star({ size: 14, c: T.action })}</div>
-              <div style={{ fontSize: 13, fontWeight: 600 }}>It&apos;s yours — release the funds</div>
+              <div style={{ fontSize: 13, fontWeight: 600 }}>It&apos;s yours. Release the funds</div>
             </div>
             <Btn kind="primary" disabled={pending} loading={pending} leading={!pending && Ico.arrowUp({ c: "#fff" })} onClick={() => run(smartSavingsWithdraw, "Released to your balance")}>
               Release to my balance

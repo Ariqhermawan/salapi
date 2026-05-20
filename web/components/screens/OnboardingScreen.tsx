@@ -59,9 +59,9 @@ function CircleVisual() {
 }
 
 const SLIDES = [
-  { eyebrow: "PESOS, NOT TOKENS", title: "Your money,\nstays as pesos.", body: "Top up with GCash. See pesos. Pay in pesos. No wallets, seed phrases or tokens to manage — ever.", visual: <BalanceVisual /> },
+  { eyebrow: "PESOS, NOT TOKENS", title: "Your money,\nstays as pesos.", body: "Top up with GCash. See pesos. Pay in pesos. No wallets, seed phrases or tokens to manage, ever.", visual: <BalanceVisual /> },
   { eyebrow: "SEND BY @USERNAME", title: "Send money\nby name, not number.", body: "Claim your @username. Send to anyone the same way. No long numbers, no addresses, no mistakes.", visual: <SendVisual /> },
-  { eyebrow: "COMMUNITY", title: "Paluwagan,\nwithout the worry.", body: "Start a savings circle with friends or family. The contract holds the pot — no one can run away with it.", visual: <CircleVisual /> },
+  { eyebrow: "COMMUNITY", title: "Paluwagan,\nwithout the worry.", body: "Start a savings circle with friends or family. The contract holds the pot. No one can run away with it.", visual: <CircleVisual /> },
 ];
 
 export default function OnboardingScreen() {

@@ -178,7 +178,7 @@ export default function WithdrawScreen() {
         <div style={{ marginTop: 14, padding: "12px 14px", borderRadius: 12, background: T.warnTint, color: T.warn, display: "flex", gap: 10, alignItems: "flex-start" }}>
           {Ico.shield({ size: 18, c: T.warn })}
           <div style={{ fontSize: 12, lineHeight: 1.4 }}>
-            On testnet your on-chain balance stays put — this confirms the off-ramp flow end to end.
+            On testnet your on-chain balance stays put. This confirms the off-ramp flow end to end.
           </div>
         </div>
       </div>

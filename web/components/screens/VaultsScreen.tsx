@@ -43,7 +43,7 @@ export default function VaultsScreen() {
     paddingBottom: 110,
   };
 
-  const label = (s: string) => (s === "—" ? "?" : s);
+  const label = (s: string) => (s === "-" ? "?" : s);
 
   return (
     <div style={shell}>
@@ -77,13 +77,13 @@ export default function VaultsScreen() {
                 {pal && pal.ready ? `Pot · round ${String(pal.round + 1).padStart(2, "0")}` : "Pot"}
               </div>
               <div className="sl-balance" style={{ marginTop: 4, fontSize: 18, fontWeight: 600 }}>
-                {pal && pal.ready ? pal.potPeso : "—"}
+                {pal && pal.ready ? pal.potPeso : "-"}
               </div>
             </div>
             <div style={{ textAlign: "right" }}>
               <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: T.slate }}>This round to</div>
               <div style={{ marginTop: 4, fontSize: 14, fontWeight: 600 }}>
-                {pal && pal.ready ? pal.recipientLabel : "—"}
+                {pal && pal.ready ? pal.recipientLabel : "-"}
               </div>
             </div>
           </div>

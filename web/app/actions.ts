@@ -1,4 +1,4 @@
-"use server";
+﻿"use server";
 
 import {
   CONTRACTS,
@@ -38,7 +38,7 @@ export async function topUpSandbox() {
     });
     funded = r.ok;
   } catch {
-    /* already funded — expected */
+    /* already funded, expected */
   }
   const bal = await getNativeBalance(address);
   return {

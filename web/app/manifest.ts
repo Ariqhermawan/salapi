@@ -2,10 +2,10 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Salapi — crypto-invisible fintech",
+    name: "Salapi, crypto-invisible fintech",
     short_name: "Salapi",
     description:
-      "GCash-funded savings, paluwagan, disaster relief & P2P on Stellar — crypto invisible.",
+      "GCash-funded savings, paluwagan, disaster relief & P2P on Stellar. Crypto invisible.",
     start_url: "/",
     display: "standalone",
     orientation: "portrait",

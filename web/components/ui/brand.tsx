@@ -1,4 +1,4 @@
-// Salapi — V4 brand primitives. Faithful port of salapi/brand.jsx.
+﻿// Salapi, V4 brand primitives. Faithful port of salapi/brand.jsx.
 // Real logomark (two parallel rails → S), the maker lockup, the Stellar
 // kinship mark, and the testnet trust signals. Server-safe pure SVG/markup.
 // MakerLockup is Title Case "Salapi by Catatu" per the product owner.
@@ -7,7 +7,7 @@ import { T } from "@/lib/ui/tokens";
 
 export const GRAD = "linear-gradient(160deg, #2563EB 0%, #1D4ED8 55%, #0B1220 100%)";
 
-// Primary symbol — "Invisible Rails": two parallel rounded strokes leaning
+// Primary symbol, "Invisible Rails": two parallel rounded strokes leaning
 // forward, curling into an S / peso-in-motion.
 export function SalapiMark({
   size = 64,
@@ -38,7 +38,7 @@ export function SalapiMark({
   );
 }
 
-// Alternative concept — quiet ₱ roundel (kept on file; used by the mascot family).
+// Alternative concept, quiet ₱ roundel (kept on file; used by the mascot family).
 export function SalapiMarkAlt({
   size = 64,
   c = "#fff",
@@ -101,7 +101,7 @@ export function SalapiLockup({
   );
 }
 
-// "Salapi by Catatu" — quiet maker attribution. Always subordinate.
+// "Salapi by Catatu", quiet maker attribution. Always subordinate.
 export function MakerLockup({ c = T.slate, size = 11 }: { c?: string; size?: number }) {
   return (
     <span
@@ -122,7 +122,7 @@ export function MakerLockup({ c = T.slate, size = 11 }: { c?: string; size?: num
   );
 }
 
-// Stellar kinship mark — an ORIGINAL geometric symbol (a circle crossed by two
+// Stellar kinship mark, an ORIGINAL geometric symbol (a circle crossed by two
 // transit arcs) that echoes Stellar's orbit motif so the "Powered by Stellar"
 // pairing reads as family. This is intentionally NOT the trademarked Stellar
 // logo: production should drop in Stellar's official brand-kit asset (licensed).

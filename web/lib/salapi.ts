@@ -1,5 +1,5 @@
-// Server-side helpers for reading Salapi's LIVE state from Stellar testnet.
-// No secrets, no signing — read-only contract simulation over public RPC.
+﻿// Server-side helpers for reading Salapi's LIVE state from Stellar testnet.
+// No secrets, no signing, read-only contract simulation over public RPC.
 
 import {
   rpc,
@@ -13,7 +13,7 @@ import {
 
 export const TESTNET_RPC = "https://soroban-testnet.stellar.org";
 
-// Deployed on Stellar testnet — see DEPLOYMENTS.md (canonical).
+// Deployed on Stellar testnet, see DEPLOYMENTS.md (canonical).
 export const CONTRACTS = {
   disaster: "CCKQ3UVBZ75KSZDO6IPA5U6PFARJG4PLRGN2SAIW5RAGQ6K4B7ZDWBUZ",
   baseVault: "CBC6BTKW5VA6Y2XH6WP4IEPWDZ7TBPYSIIOZQMTEH62N62NFT4F4VYDD",

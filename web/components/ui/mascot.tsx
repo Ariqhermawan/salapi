@@ -1,7 +1,7 @@
-// Salapi — Mascot. Faithful port of salapi/mascot.jsx (V4).
+﻿// Salapi, Mascot. Faithful port of salapi/mascot.jsx (V4).
 // Additive to the abstract mark, never replacing it. Derived from the ₱ roundel:
 // a single-weight geometric coin-being. Used in Learn pages, empty/success
-// states — never on money screens. Server-safe pure SVG.
+// states, never on money screens. Server-safe pure SVG.
 
 const GRAD = "linear-gradient(160deg, #2563EB 0%, #1D4ED8 55%, #0B1220 100%)";
 
@@ -39,7 +39,7 @@ export function SalapiMascot({
       height={size}
       viewBox="0 0 40 40"
       fill="none"
-      aria-label={`Salapi mascot — ${pose}`}
+      aria-label={`Salapi mascot, ${pose}`}
       role="img"
       style={{ display: "block" }}
     >
@@ -65,7 +65,7 @@ export function SalapiMascot({
   );
 }
 
-// Mascot inside the locked app-icon gradient — for Learn launcher icons.
+// Mascot inside the locked app-icon gradient, for Learn launcher icons.
 export function MascotTile({
   size = 96,
   pose = "wave",

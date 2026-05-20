@@ -1,4 +1,4 @@
-// Salapi — Learn doodles (v2, "Patient Line"). Hand-drawn single-weight line
+﻿// Salapi, Learn doodles (v2, "Patient Line"). Hand-drawn single-weight line
 // illustrations, richer composition per the concept direction. Strict palette:
 // Ink line + one Action-blue accent, emerald only for growth, warn only for
 // the testnet flag. Server-safe pure SVG. Exports & signatures unchanged so
@@ -15,7 +15,7 @@ const g = (c: string, w: number) => ({
   strokeLinejoin: "round" as const,
 });
 
-// Minimal coin-being mascot (matches mascot.tsx) — used inside heroes.
+// Minimal coin-being mascot (matches mascot.tsx), used inside heroes.
 function Mascot({ x = 0, y = 0, s = 1, pose = "wave", c = T.ink }: { x?: number; y?: number; s?: number; pose?: "wave" | "point" | "cheer"; c?: string }) {
   const arms: Record<string, string[]> = {
     wave: ["M11 26 L9 30", "M30 17 L33 11"],
@@ -272,7 +272,7 @@ export function DooHandGive({ size = 42, accent = T.action, c = T.ink }: { size?
   );
 }
 
-// ── spot() — name → element. Mirrors the original map (unchanged API). ───────
+// ── spot(), name → element. Mirrors the original map (unchanged API). ───────
 export function spot(
   name: string,
   { size = 42, accent = T.action }: { size?: number; accent?: string } = {}
@@ -298,13 +298,13 @@ export function spot(
   return map[name] || null;
 }
 
-// ── Hero doodles — composed scenes (the "Patient Line" direction) ────────────
+// ── Hero doodles, composed scenes (the "Patient Line" direction) ────────────
 // viewBox 0 0 300 186; rendered at width≈260 (article banner) and 78 (thumb).
 
 export function HeroFund({ width = 300, c = T.ink, accent = T.action }: { width?: number; c?: string; accent?: string }) {
   return (
     <svg width={width} height={Math.round(width * 0.62)} viewBox="0 0 300 186" style={{ display: "block" }} aria-hidden>
-      {/* faded "old opaque way" — crossed-out tangle + ? */}
+      {/* faded "old opaque way", crossed-out tangle + ? */}
       <g {...g(c, 2.6)} opacity={0.16}>
         <path d="M30 40 q14 -16 27 3 q-18 10 -6 25 q16 8 4 23" />
         <path d="M22 30 l34 40 M56 30 l-34 40" />
@@ -336,7 +336,7 @@ export function HeroFund({ width = 300, c = T.ink, accent = T.action }: { width?
         <path d="M225 113 V123 M225 113 H230 a2.6 2.6 0 0 1 0 5 H225" />
       </g>
 
-      {/* watching eyes — accountability */}
+      {/* watching eyes, accountability */}
       <g {...g(c, 2.6)}>
         <path d="M218 160 Q234 147 250 160 Q234 173 218 160 Z" />
         <path d="M256 160 Q272 147 288 160 Q272 173 256 160 Z" />

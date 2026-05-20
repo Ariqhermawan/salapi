@@ -147,7 +147,7 @@ export default function SendScreen() {
             @{notFound}
           </div>
           <div style={{ marginTop: 6, fontSize: 14, color: T.slate, lineHeight: 1.5, maxWidth: 260, margin: "6px auto 0" }}>
-            {t("send.title")} — no one has claimed this @username yet. Check the
+            {t("send.title")}. No one has claimed this @username yet. Check the
             spelling or invite them.
           </div>
         </div>

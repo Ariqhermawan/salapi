@@ -1,8 +1,8 @@
-// Salapi — display currency. The transaction rail is USDC, but the app is
+﻿// Salapi, display currency. The transaction rail is USDC, but the app is
 // crypto-invisible: the user only ever sees their local currency plus a small
-// PLAIN-DOLLAR anchor ("≈ $10.60") — never the token name "USDC". The literal
+// PLAIN-DOLLAR anchor ("≈ $10.60"), never the token name "USDC". The literal
 // "USDC" + tx hash live only in the on-chain receipt / "View on Stellar" layer.
-// Rates are ILLUSTRATIVE (testnet) — one dollar anchor, matching the V4 brief
+// Rates are ILLUSTRATIVE (testnet), one dollar anchor, matching the V4 brief
 // example (≈ $200 · ₱11,600 · Rp 3,200,000 · ₫5,100,000).
 //
 // The app's existing numeric values are PHP pesos, so PHP is the anchor:

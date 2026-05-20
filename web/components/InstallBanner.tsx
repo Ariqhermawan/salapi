@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { useInstallPrompt } from "@/hooks/useInstallPrompt";
@@ -25,7 +25,7 @@ export default function InstallBanner() {
           Install Salapi
         </div>
         <div className="text-[var(--color-slate)]">
-          Add to your home screen — works offline.
+          Add to your home screen. Works offline.
         </div>
       </div>
       <button

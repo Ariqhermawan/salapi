@@ -140,7 +140,7 @@ export default function TopUpScreen() {
                     On Stellar {Ico.link({ size: 13, c: T.action })}
                   </a>
                 ) : (
-                  <span style={{ fontSize: 13, color: T.slate }}>—</span>
+                  <span style={{ fontSize: 13, color: T.slate }}>-</span>
                 )
               }
               divider={false}

@@ -93,7 +93,7 @@ function UsernamePanel({
           </div>
         }
         title={has ? `@${current}` : "No username yet"}
-        sub={has ? "Your name on Salapi — for receiving" : "Claim a name so people can send to you"}
+        sub={has ? "Your name on Salapi, for receiving" : "Claim a name so people can send to you"}
         trailing={
           !editing ? (
             <Btn kind="ghost" size="sm" full={false} onClick={() => { setEditing(true); setMsg(null); setVal(""); }}>
@@ -171,7 +171,7 @@ export default function SettingsScreen() {
   }
 
   const display = name ? `@${name}` : "Salapi user";
-  const shortAddr = addr ? `${addr.slice(0, 4)}…${addr.slice(-4)}` : "—";
+  const shortAddr = addr ? `${addr.slice(0, 4)}…${addr.slice(-4)}` : "-";
   const explorer = addr
     ? `https://stellar.expert/explorer/testnet/account/${addr}`
     : undefined;

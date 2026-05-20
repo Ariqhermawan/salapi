@@ -21,7 +21,7 @@ export default function ReceivePage() {
         {t("nav.send") /* placeholder header */}
       </div>
       <p style={{ fontSize: 13, color: T.slate, margin: "6px 0 18px" }}>
-        Share your @username — anyone on Salapi can send you pesos.
+        Share your @username. Anyone on Salapi can send you pesos.
       </p>
       <Card p={20} style={{ textAlign: "center" }}>
         <div

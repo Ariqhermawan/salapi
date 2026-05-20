@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-// Salapi — Learn article. Faithful port of V4 salapi/learn.jsx LearnArticle,
+// Salapi, Learn article. Faithful port of V4 salapi/learn.jsx LearnArticle,
 // adapted to the web screen pattern (global BottomNav; no own TabBar).
 
 import type { ReactNode } from "react";
@@ -246,7 +246,7 @@ export default function LearnArticleScreen({ topic }: { topic: LearnTopicId }) {
         <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
           {d.cases.map((cs, ci) => {
             const href = cs.url ?? CASE_URL.fund?.[ci];
-            const label = href ? cs.source.replace(/\s*[·—-]\s*(tim:|team:|nhóm:)[\s\S]*$/i, "") : cs.source;
+            const label = href ? cs.source.replace(/\s*[·-]\s*(tim:|team:|nhóm:)[\s\S]*$/i, "") : cs.source;
             return (
               <div
                 key={cs.country}
@@ -305,7 +305,7 @@ export default function LearnArticleScreen({ topic }: { topic: LearnTopicId }) {
         <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
           {d.cases.map((cs, ci) => {
             const href = cs.url ?? CASE_URL.circle?.[ci];
-            const label = href ? cs.source.replace(/\s*[·—-]\s*(tim:|team:|nhóm:)[\s\S]*$/i, "") : cs.source;
+            const label = href ? cs.source.replace(/\s*[·-]\s*(tim:|team:|nhóm:)[\s\S]*$/i, "") : cs.source;
             return (
               <div
                 key={cs.country}

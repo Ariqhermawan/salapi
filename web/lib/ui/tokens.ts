@@ -1,4 +1,4 @@
-// Salapi design tokens — ported verbatim from the Claude Design delivery
+﻿// Salapi design tokens, ported verbatim from the Claude Design delivery
 // (salapi/tokens.jsx). Single source of truth for the design-system port.
 
 export const T = {

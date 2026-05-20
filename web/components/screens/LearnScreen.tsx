@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-// Salapi — Learn index. Faithful port of V4 salapi/learn.jsx LearnIndex,
+// Salapi, Learn index. Faithful port of V4 salapi/learn.jsx LearnIndex,
 // adapted to the web screen pattern (global BottomNav; no own TabBar).
 
 import { useRouter } from "next/navigation";
@@ -32,7 +32,7 @@ export default function LearnScreen() {
         trailing={<TestnetPill />}
       />
 
-      {/* Mascot intro — notebook-cream so Learn feels warmer than the rest */}
+      {/* Mascot intro, notebook-cream so Learn feels warmer than the rest */}
       <div style={{ padding: "8px 16px 14px" }}>
         <div
           style={{

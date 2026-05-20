@@ -154,7 +154,7 @@ export default function TransparencyScreen() {
             <Chip kind="warn">Active relief</Chip>
             <div style={{ marginTop: 10, fontSize: 18, fontWeight: 600, letterSpacing: "-0.01em" }}>Disaster Relief Pool</div>
             <div style={{ marginTop: 6, fontSize: 13, color: T.slate, lineHeight: 1.5 }}>
-              100% of donations are held by the contract and disbursed only while a disaster is active — every peso published live.
+              100% of donations are held by the contract and disbursed only while a disaster is active. Every peso published live.
             </div>
           </Card>
         </div>
@@ -210,9 +210,9 @@ export default function TransparencyScreen() {
       />
       <div style={{ padding: "4px 20px 8px" }}>
         <Chip kind="warn">Live now</Chip>
-        <div style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-0.02em", marginTop: 8, lineHeight: 1.2 }}>Disaster Relief — public ledger</div>
+        <div style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-0.02em", marginTop: 8, lineHeight: 1.2 }}>Disaster Relief, public ledger</div>
         <div style={{ fontSize: 13, color: T.slate, marginTop: 6, lineHeight: 1.5 }}>
-          Every peso in, every peso out — independently verifiable on Stellar. No login, no middleman.
+          Every peso in, every peso out, independently verifiable on Stellar. No login, no middleman.
         </div>
       </div>
 
@@ -226,14 +226,14 @@ export default function TransparencyScreen() {
             ) : pool.ok ? (
               <Peso value={Number(pool.pesoLabel.replace(/[^0-9.]/g, "")) || 0} size={36} color="#fff" />
             ) : (
-              <div style={{ fontSize: 16, color: "rgba(255,255,255,0.7)" }}>RPC unavailable — verify on explorer below</div>
+              <div style={{ fontSize: 16, color: "rgba(255,255,255,0.7)" }}>RPC unavailable, verify on explorer below</div>
             )}
           </div>
           <div style={{ marginTop: 14, display: "flex", gap: 10 }}>
             <div style={{ flex: 1, padding: "8px 10px", background: "rgba(255,255,255,0.06)", borderRadius: 8 }}>
               <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.45)" }}>Status</div>
               <div className="sl-mono" style={{ fontSize: 15, fontWeight: 600, marginTop: 3 }}>
-                {pool && pool.ok ? (pool.active ? "Active" : "Standby") : "—"}
+                {pool && pool.ok ? (pool.active ? "Active" : "Standby") : "-"}
               </div>
             </div>
             <div style={{ flex: 1, padding: "8px 10px", background: "rgba(255,255,255,0.06)", borderRadius: 8 }}>

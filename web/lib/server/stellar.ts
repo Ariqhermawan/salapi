@@ -1,5 +1,5 @@
-// Server-only Stellar layer. Signs + submits REAL testnet transactions with
-// the managed demo signer (testnet, no real value — SOW §13 managed-wallet
+﻿// Server-only Stellar layer. Signs + submits REAL testnet transactions with
+// the managed demo signer (testnet, no real value, SOW §13 managed-wallet
 // model). Never import from a Client Component.
 
 import {
@@ -21,14 +21,14 @@ export const RPC_URL =
 export const HORIZON = "https://horizon-testnet.stellar.org";
 export const FRIENDBOT = "https://friendbot.stellar.org";
 
-// Deployed on testnet — see DEPLOYMENTS.md.
+// Deployed on testnet, see DEPLOYMENTS.md.
 export const CONTRACTS = {
   disaster: "CCKQ3UVBZ75KSZDO6IPA5U6PFARJG4PLRGN2SAIW5RAGQ6K4B7ZDWBUZ",
   usernameRegistry: "CDDINUQXTF6SHZN2ZJ36IT7P4YOJ3OZN3H6LTYHVCQ35YYO7YTAWM4G3",
   tokenXlmSac: "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC",
 } as const;
 
-// Cosmetic peso framing — testnet XLM has no value (crypto invisible UX).
+// Cosmetic peso framing, testnet XLM has no value (crypto invisible UX).
 export const PESO_PER_XLM = 6.5;
 const STROOPS = 10_000_000n;
 

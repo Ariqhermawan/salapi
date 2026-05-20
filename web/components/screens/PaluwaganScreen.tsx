@@ -161,7 +161,7 @@ export default function PaluwaganScreen() {
             with friends or family?
           </div>
           <div style={{ marginTop: 10, fontSize: 14, color: T.slate, textAlign: "center", lineHeight: 1.5, padding: "0 8px" }}>
-            A rotating savings circle, run by everyone, owned by no one. The contract holds the pot — no one can run away with it.
+            A rotating savings circle, run by everyone, owned by no one. The contract holds the pot. No one can run away with it.
           </div>
         </div>
         <div style={{ padding: "28px 16px 0" }}>

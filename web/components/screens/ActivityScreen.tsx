@@ -102,7 +102,7 @@ export default function ActivityScreen() {
         </Card>
         <div style={{ marginTop: 12, fontSize: 12, color: T.slate, lineHeight: 1.5, padding: "0 4px" }}>
           Every send, top-up, paluwagan and donation you make in the app posts a
-          real transaction here — independently checkable, no login.
+          real transaction here. Independently checkable, no login.
         </div>
       </div>
 

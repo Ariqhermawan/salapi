@@ -18,10 +18,10 @@ const en = {
   home: {
     greeting: "Hi 👋",
     tagline:
-      "Save, send, and give — no wallet, no seed phrase.",
+      "Save, send, and give. No wallet, no seed phrase.",
     start: "Let's start",
     footnote:
-      "Stellar PH Ambassador Chapter — Instaward. Testnet demo: balances and transactions are real on Stellar testnet (no real value). GCash & sign-in are sandbox seams; production = a licensed anchor.",
+      "Stellar PH Ambassador Chapter, Instaward. Testnet demo: balances and transactions are real on Stellar testnet (no real value). GCash & sign-in are sandbox seams; production = a licensed anchor.",
     palTitle: "A savings circle with friends & family",
     palDesc: "Want a runaway-proof savings circle? The contract holds the pot.",
     palCta: "Start a circle",
@@ -52,7 +52,7 @@ const en = {
   },
   send: {
     title: "Send money",
-    sub: "By @username — no addresses, no seed phrases. Real transfer on Stellar testnet.",
+    sub: "By @username. No addresses, no seed phrases. Real transfer on Stellar testnet.",
     yourUsername: "Your username",
     choose: "choose a username",
     claim: "Claim",
@@ -88,14 +88,14 @@ const en = {
   pal: {
     kicker: "Savings circle · no runaway",
     title: "Want a savings circle with friends or family?",
-    sub: "Let's start — a smart contract holds the money, not an organiser. Each turn pays out automatically. Nobody can run off with the pot.",
+    sub: "Let's start. A smart contract holds the money, not an organiser. Each turn pays out automatically. Nobody can run off with the pot.",
     round: "Your circle · Round #{n}",
     meta: "{share}/round · pot {pot}",
     turn: "Receiving this turn",
     paid: "✓ Paid",
     notPaid: "Not yet",
     payMine: "Pay my share ({share})",
-    friendsPay: "Friends pay — demo",
+    friendsPay: "Friends pay (demo)",
     collect: "Release pot {pot} → {who}",
     collectWait: "Release (waiting for everyone)",
     demoNote:
@@ -104,12 +104,12 @@ const en = {
   sav: {
     kicker: "Smart savings · ipon",
     title: "Got a dream? Save little by little.",
-    sub: "Lock money to a target. It can't be touched until you reach it — so the intention to save actually sticks.",
+    sub: "Lock money to a target. It can't be touched until you reach it, so the intention to save actually sticks.",
     startTitle: "Start a new goal",
     startHint: "How much to save? (e.g. ₱5,000 for school)",
     targetPh: "target in ₱",
     start: "Start",
-    startedOk: "Goal created — let's start saving!",
+    startedOk: "Goal created. Let's start saving!",
     yourSavings: "Your savings",
     target: "target",
     pct: "{pct}% reached",
@@ -121,17 +121,25 @@ const en = {
     depositedOk: "Deposited ₱{amt}",
     withdrawReady: "Withdraw {amt}",
     withdrawLocked: "Withdraw (reach target first)",
-    withdrewOk: "Savings released — congratulations! 🎉",
-    note: "Every action is a real Stellar testnet transaction. Money is locked in the smart contract until the target — not even you can take it early.",
+    withdrewOk: "Savings released. Congratulations! 🎉",
+    note: "Every action is a real Stellar testnet transaction. Money is locked in the smart contract until the target. Not even you can take it early.",
   },
   settings: {
     title: "Settings",
     language: "Language",
     about: "About",
     aboutText:
-      "Salapi — a crypto-invisible financial app for the Philippines & Indonesia, built on the Stellar blockchain. Testnet demo.",
+      "Salapi, a crypto-invisible financial app for the Philippines & Indonesia, built on the Stellar blockchain. Testnet demo.",
   },
   lang: { choose: "Choose your language" },
+  landing: {
+    h1Line1: "Money for everyone.",
+    h1Line2: "Technology, invisible.",
+    tagline:
+      "Open Salapi anywhere. Phone, tablet, or laptop. The same calm app, just bigger. Money in, money out. No wallets, no chains, no jargon.",
+    installTitle: "Add to your home screen",
+    installSub: "for faster opens and offline.",
+  },
 };
 
 type Dict = typeof en;
@@ -151,10 +159,10 @@ const tl: Dict = {
   home: {
     greeting: "Kumusta 👋",
     tagline:
-      "Mag-ipon, magpadala, magbigay — walang wallet, walang seed phrase.",
+      "Mag-ipon, magpadala, magbigay. Walang wallet, walang seed phrase.",
     start: "Simulan na",
     footnote:
-      "Stellar PH Ambassador Chapter — Instaward. Testnet demo: tunay sa Stellar testnet ang balanse at transaksyon (walang tunay na halaga). Ang GCash at sign-in ay sandbox; produksyon = lisensyadong anchor.",
+      "Stellar PH Ambassador Chapter, Instaward. Testnet demo: tunay sa Stellar testnet ang balanse at transaksyon (walang tunay na halaga). Ang GCash at sign-in ay sandbox; produksyon = lisensyadong anchor.",
     palTitle: "Paluwagan kasama ang pamilya't kaibigan",
     palDesc:
       "Gusto ng paluwagan na hindi takbuhan? Ang kontrata ang humahawak ng pondo.",
@@ -188,7 +196,7 @@ const tl: Dict = {
   },
   send: {
     title: "Magpadala ng pera",
-    sub: "Gamit ang @username — walang address, walang seed phrase. Tunay na padala sa Stellar testnet.",
+    sub: "Gamit ang @username. Walang address, walang seed phrase. Tunay na padala sa Stellar testnet.",
     yourUsername: "Iyong username",
     choose: "pumili ng username",
     claim: "Kunin",
@@ -224,14 +232,14 @@ const tl: Dict = {
   pal: {
     kicker: "Paluwagan · walang takasan",
     title: "Gustong mag-paluwagan kasama kaibigan o pamilya?",
-    sub: "Tara simulan — smart contract ang humahawak ng pera, hindi tao. Bawat hilera awtomatikong nilalabas. Walang makakatakas dala ang pondo.",
+    sub: "Tara simulan. Smart contract ang humahawak ng pera, hindi tao. Bawat hilera awtomatikong nilalabas. Walang makakatakas dala ang pondo.",
     round: "Iyong circle · Hilera #{n}",
     meta: "{share}/hilera · pondo {pot}",
     turn: "Tatanggap ngayong hilera",
     paid: "✓ Bayad na",
     notPaid: "Hindi pa",
     payMine: "Bayaran ang parte ko ({share})",
-    friendsPay: "Magbayad ang kaibigan — demo",
+    friendsPay: "Magbayad ang kaibigan (demo)",
     collect: "Ilabas ang pondo {pot} → {who}",
     collectWait: "Ilabas (hintayin lahat)",
     demoNote:
@@ -240,12 +248,12 @@ const tl: Dict = {
   sav: {
     kicker: "Matalinong ipon",
     title: "May pangarap? Mag-ipon paunti-unti.",
-    sub: "I-lock ang pera sa target. Hindi magagalaw hangga't hindi naaabot — para tumagal talaga ang ipon.",
+    sub: "I-lock ang pera sa target. Hindi magagalaw hangga't hindi naaabot, para tumagal talaga ang ipon.",
     startTitle: "Magsimula ng bagong layunin",
     startHint: "Magkano ipon? (hal. ₱5,000 para sa eskwela)",
     targetPh: "target sa ₱",
     start: "Simulan",
-    startedOk: "Nagawa ang layunin — mag-ipon na tayo!",
+    startedOk: "Nagawa ang layunin. Mag-ipon na tayo!",
     yourSavings: "Iyong ipon",
     target: "target",
     pct: "{pct}% naabot",
@@ -257,17 +265,25 @@ const tl: Dict = {
     depositedOk: "Nag-deposito ng ₱{amt}",
     withdrawReady: "I-withdraw ang {amt}",
     withdrawLocked: "I-withdraw (abutin muna ang target)",
-    withdrewOk: "Nailabas ang ipon — binabati kita! 🎉",
-    note: "Bawat aksyon ay tunay na transaksyon sa Stellar testnet. Naka-lock ang pera sa smart contract hanggang sa target — kahit ikaw hindi makakakuha nang maaga.",
+    withdrewOk: "Nailabas ang ipon. Binabati kita! 🎉",
+    note: "Bawat aksyon ay tunay na transaksyon sa Stellar testnet. Naka-lock ang pera sa smart contract hanggang sa target. Kahit ikaw hindi makakakuha nang maaga.",
   },
   settings: {
     title: "Mga Setting",
     language: "Wika",
     about: "Tungkol",
     aboutText:
-      "Salapi — crypto-invisible na financial app para sa Pilipinas at Indonesia, gawa sa Stellar blockchain. Testnet demo.",
+      "Salapi, crypto-invisible na financial app para sa Pilipinas at Indonesia, gawa sa Stellar blockchain. Testnet demo.",
   },
   lang: { choose: "Piliin ang iyong wika" },
+  landing: {
+    h1Line1: "Pera para sa lahat.",
+    h1Line2: "Teknolohiya, hindi nakikita.",
+    tagline:
+      "Buksan ang Salapi kahit saan. Phone, tablet, o laptop. Parehong kalmadong app, mas malaki. Pera papasok, pera lalabas. Walang wallet, walang chain, walang jargon.",
+    installTitle: "Idagdag sa home screen",
+    installSub: "para mas mabilis at gumagana kahit offline.",
+  },
 };
 
 const id: Dict = {
@@ -285,10 +301,10 @@ const id: Dict = {
   home: {
     greeting: "Halo 👋",
     tagline:
-      "Menabung, kirim, berbagi — tanpa dompet, tanpa seed phrase.",
+      "Menabung, kirim, berbagi. Tanpa dompet, tanpa seed phrase.",
     start: "Ayo mulai",
     footnote:
-      "Stellar PH Ambassador Chapter — Instaward. Demo testnet: saldo & transaksi nyata di Stellar testnet (tanpa nilai riil). GCash & sign-in adalah sandbox; produksi = anchor berlisensi.",
+      "Stellar PH Ambassador Chapter, Instaward. Demo testnet: saldo & transaksi nyata di Stellar testnet (tanpa nilai riil). GCash & sign-in adalah sandbox; produksi = anchor berlisensi.",
     palTitle: "Arisan bareng teman & keluarga",
     palDesc: "Mau arisan anti-kabur? Kontrak yang pegang pot.",
     palCta: "Mulai arisan",
@@ -320,7 +336,7 @@ const id: Dict = {
   },
   send: {
     title: "Kirim uang",
-    sub: "Lewat @username — tanpa alamat, tanpa seed phrase. Transfer nyata di Stellar testnet.",
+    sub: "Lewat @username. Tanpa alamat, tanpa seed phrase. Transfer nyata di Stellar testnet.",
     yourUsername: "Username kamu",
     choose: "pilih username",
     claim: "Klaim",
@@ -356,14 +372,14 @@ const id: Dict = {
   pal: {
     kicker: "Arisan · anti-kabur",
     title: "Mau arisan bareng teman atau keluarga?",
-    sub: "Ayo mulai — uang dipegang smart contract, bukan pengurus. Tiap giliran cair otomatis. Tidak ada yang bisa kabur bawa pot.",
+    sub: "Ayo mulai. Uang dipegang smart contract, bukan pengurus. Tiap giliran cair otomatis. Tidak ada yang bisa kabur bawa pot.",
     round: "Circle kamu · Ronde #{n}",
     meta: "{share}/ronde · pot {pot}",
     turn: "Giliran cair",
     paid: "✓ Sudah bayar",
     notPaid: "Belum",
     payMine: "Bayar bagianku ({share})",
-    friendsPay: "Teman ikut bayar — demo",
+    friendsPay: "Teman ikut bayar (demo)",
     collect: "Cairkan pot {pot} → {who}",
     collectWait: "Cairkan (tunggu semua bayar)",
     demoNote:
@@ -372,12 +388,12 @@ const id: Dict = {
   sav: {
     kicker: "Smart savings · ipon",
     title: "Punya impian? Nabung pelan-pelan.",
-    sub: "Kunci uang ke target. Tidak bisa diutak-atik sampai tercapai — biar niat nabung benar-benar jadi.",
+    sub: "Kunci uang ke target. Tidak bisa diutak-atik sampai tercapai, biar niat nabung benar-benar jadi.",
     startTitle: "Mulai tujuan baru",
     startHint: "Mau nabung berapa? (mis. ₱5.000 buat sekolah)",
     targetPh: "target dalam ₱",
     start: "Mulai",
-    startedOk: "Tujuan dibuat — ayo mulai setor!",
+    startedOk: "Tujuan dibuat. Ayo mulai setor!",
     yourSavings: "Tabungan kamu",
     target: "target",
     pct: "{pct}% tercapai",
@@ -389,17 +405,25 @@ const id: Dict = {
     depositedOk: "Setoran ₱{amt} masuk",
     withdrawReady: "Cairkan {amt}",
     withdrawLocked: "Cairkan (tunggu target tercapai)",
-    withdrewOk: "Tabungan cair — selamat! 🎉",
-    note: "Semua aksi = transaksi nyata di Stellar testnet. Uang terkunci di smart contract sampai target — kamu sendiri pun tak bisa ambil lebih awal.",
+    withdrewOk: "Tabungan cair. Selamat! 🎉",
+    note: "Semua aksi = transaksi nyata di Stellar testnet. Uang terkunci di smart contract sampai target. Kamu sendiri pun tak bisa ambil lebih awal.",
   },
   settings: {
     title: "Pengaturan",
     language: "Bahasa",
     about: "Tentang",
     aboutText:
-      "Salapi — aplikasi keuangan crypto-invisible untuk Filipina dan Indonesia, dibangun di blockchain Stellar. Demo testnet.",
+      "Salapi, aplikasi keuangan crypto-invisible untuk Filipina dan Indonesia, dibangun di blockchain Stellar. Demo testnet.",
   },
   lang: { choose: "Pilih bahasa kamu" },
+  landing: {
+    h1Line1: "Uang untuk semua orang.",
+    h1Line2: "Teknologi, tak terlihat.",
+    tagline:
+      "Buka Salapi di mana saja. HP, tablet, atau laptop. App yang sama, lebih lega. Uang masuk, uang keluar. Tanpa wallet, tanpa chain, tanpa jargon.",
+    installTitle: "Tambahkan ke layar utama",
+    installSub: "biar lebih cepat dan bisa dipakai offline.",
+  },
 };
 
 const vi: Dict = {
@@ -417,10 +441,10 @@ const vi: Dict = {
   home: {
     greeting: "Xin chào 👋",
     tagline:
-      "Tiết kiệm, gửi, cho đi — không ví, không seed phrase.",
+      "Tiết kiệm, gửi, cho đi. Không ví, không seed phrase.",
     start: "Bắt đầu nào",
     footnote:
-      "Stellar PH Ambassador Chapter — Instaward. Demo testnet: số dư & giao dịch là thật trên Stellar testnet (không có giá trị thật). GCash & đăng nhập là sandbox; bản chính thức = anchor được cấp phép.",
+      "Stellar PH Ambassador Chapter, Instaward. Demo testnet: số dư & giao dịch là thật trên Stellar testnet (không có giá trị thật). GCash & đăng nhập là sandbox; bản chính thức = anchor được cấp phép.",
     palTitle: "Chơi hụi cùng bạn bè & gia đình",
     palDesc: "Muốn chơi hụi không sợ giật? Hợp đồng giữ quỹ.",
     palCta: "Tạo hụi",
@@ -453,7 +477,7 @@ const vi: Dict = {
   },
   send: {
     title: "Gửi tiền",
-    sub: "Bằng @username — không địa chỉ, không seed phrase. Chuyển khoản thật trên Stellar testnet.",
+    sub: "Bằng @username. Không địa chỉ, không seed phrase. Chuyển khoản thật trên Stellar testnet.",
     yourUsername: "Tên người dùng của bạn",
     choose: "chọn tên người dùng",
     claim: "Nhận",
@@ -489,14 +513,14 @@ const vi: Dict = {
   pal: {
     kicker: "Hụi · không sợ giật",
     title: "Muốn chơi hụi cùng bạn bè hay gia đình?",
-    sub: "Bắt đầu nào — smart contract giữ tiền, không phải người. Mỗi lượt tự giải ngân. Không ai ôm quỹ bỏ trốn được.",
+    sub: "Bắt đầu nào. Smart contract giữ tiền, không phải người. Mỗi lượt tự giải ngân. Không ai ôm quỹ bỏ trốn được.",
     round: "Hụi của bạn · Lượt #{n}",
     meta: "{share}/lượt · quỹ {pot}",
     turn: "Nhận lượt này",
     paid: "✓ Đã đóng",
     notPaid: "Chưa",
     payMine: "Đóng phần của tôi ({share})",
-    friendsPay: "Bạn bè đóng — demo",
+    friendsPay: "Bạn bè đóng (demo)",
     collect: "Giải ngân {pot} → {who}",
     collectWait: "Giải ngân (chờ mọi người)",
     demoNote:
@@ -505,12 +529,12 @@ const vi: Dict = {
   sav: {
     kicker: "Tiết kiệm thông minh",
     title: "Có ước mơ? Tiết kiệm từng chút.",
-    sub: "Khóa tiền tới mục tiêu. Không đụng được tới khi đạt — để ý định tiết kiệm thật sự bền.",
+    sub: "Khóa tiền tới mục tiêu. Không đụng được tới khi đạt, để ý định tiết kiệm thật sự bền.",
     startTitle: "Tạo mục tiêu mới",
     startHint: "Muốn tiết kiệm bao nhiêu? (vd ₱5.000 cho học phí)",
     targetPh: "mục tiêu (₱)",
     start: "Bắt đầu",
-    startedOk: "Đã tạo mục tiêu — bắt đầu nạp nào!",
+    startedOk: "Đã tạo mục tiêu. Bắt đầu nạp nào!",
     yourSavings: "Tiền tiết kiệm",
     target: "mục tiêu",
     pct: "đạt {pct}%",
@@ -522,17 +546,25 @@ const vi: Dict = {
     depositedOk: "Đã nạp ₱{amt}",
     withdrawReady: "Rút {amt}",
     withdrawLocked: "Rút (đạt mục tiêu trước)",
-    withdrewOk: "Đã rút tiền tiết kiệm — chúc mừng! 🎉",
-    note: "Mọi thao tác là giao dịch thật trên Stellar testnet. Tiền khóa trong smart contract tới mục tiêu — chính bạn cũng không rút sớm được.",
+    withdrewOk: "Đã rút tiền tiết kiệm. Chúc mừng! 🎉",
+    note: "Mọi thao tác là giao dịch thật trên Stellar testnet. Tiền khóa trong smart contract tới mục tiêu. Chính bạn cũng không rút sớm được.",
   },
   settings: {
     title: "Cài đặt",
     language: "Ngôn ngữ",
     about: "Giới thiệu",
     aboutText:
-      "Salapi — ứng dụng tài chính ẩn-crypto cho Philippines và Indonesia, xây trên blockchain Stellar. Demo testnet.",
+      "Salapi, ứng dụng tài chính ẩn-crypto cho Philippines và Indonesia, xây trên blockchain Stellar. Demo testnet.",
   },
   lang: { choose: "Chọn ngôn ngữ của bạn" },
+  landing: {
+    h1Line1: "Tiền cho tất cả mọi người.",
+    h1Line2: "Công nghệ, vô hình.",
+    tagline:
+      "Mở Salapi ở bất cứ đâu. Điện thoại, máy tính bảng, hay laptop. Cùng một ứng dụng êm, chỉ lớn hơn. Tiền vào, tiền ra. Không ví, không chain, không thuật ngữ.",
+    installTitle: "Thêm vào màn hình chính",
+    installSub: "để mở nhanh hơn và dùng offline.",
+  },
 };
 
 export const DICTS: Record<Locale, Dict> = { en, tl, id, vi };

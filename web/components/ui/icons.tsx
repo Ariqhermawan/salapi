@@ -1,4 +1,4 @@
-// Salapi iconography — ported from the Claude Design delivery. 1.6 stroke,
+﻿// Salapi iconography, ported from the Claude Design delivery. 1.6 stroke,
 // rounded caps. Server-safe pure SVG (usable in server or client components).
 
 type P = { size?: number; c?: string };

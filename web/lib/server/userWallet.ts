@@ -1,4 +1,4 @@
-// Resolves the Stellar signer for the *current request*:
+﻿// Resolves the Stellar signer for the *current request*:
 //  - signed-in Supabase user  → their own custodial testnet wallet
 //    (generated + Friendbot-funded + AES-GCM-encrypted on first use)
 //  - no Supabase env / no session → the shared demo signer (unchanged behaviour)
@@ -53,7 +53,7 @@ export async function getSigner(): Promise<Signer> {
     // Concurrency: `wallets.user_id` is the PRIMARY KEY, so two parallel
     // first-sign-in requests for the same user would race on insert. We use
     // upsert(ignoreDuplicates) so the race-loser quietly no-ops, then we
-    // re-SELECT the canonical row and return it — guaranteeing this request
+    // re-SELECT the canonical row and return it, guaranteeing this request
     // and every later request resolve to the SAME keypair (never an orphan).
     const kp = Keypair.random();
     try {
