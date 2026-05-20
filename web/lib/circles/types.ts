@@ -3,6 +3,10 @@
 // data so a reviewer at salapi-blond.vercel.app can see the vision rendered.
 // The real Circles surface (open verification, moderation, dispute handling,
 // on-chain receipts) launches at Build-Award. See SOW v2 Spotlight Section 7.
+// The optional `allowance` field reflects SOW Section 8 "Honest creator
+// economy" - also Build-Award (stage 2), preview only here.
+
+import type { AllowanceConfig } from "./allowance";
 
 export type CircleCategory =
   | "disaster"
@@ -57,6 +61,10 @@ export type Circle = {
   // Truthy iff this circle was created from the /circles/create flow in this
   // session (we never persist created circles — preview only).
   ephemeral?: boolean;
+  // Build-Award stage 2 preview: organizer's operational allowance config.
+  // Absent or { percentage: 0, tier: 0 } = day-30 default (100 percent to
+  // beneficiary, no organizer cut).
+  allowance?: AllowanceConfig;
 };
 
 export function progressPct(c: Pick<Circle, "pesoRaised" | "pesoTarget">): number {

@@ -8,6 +8,10 @@
 
 import type { Circle } from "./types";
 
+// preview seed data, Build-Award stage 2 - operational allowance on a
+// subset of circles. SOW Section 8: capped at 10 percent, default 0 percent,
+// gated by KYC tier. None of these are on-chain today.
+
 export const SEED_CIRCLES: Circle[] = [
   {
     id: "tino-relief",
@@ -49,6 +53,14 @@ export const SEED_CIRCLES: Circle[] = [
       { id: "d3", donorLabel: "Ruth T.", pesoAmount: 200, whenLabel: "2 days ago" },
       { id: "d4", donorLabel: "Anonymous", pesoAmount: 5000, whenLabel: "3 days ago" },
     ],
+    allowance: {
+      percentage: 5,
+      tier: 1,
+      organizerName: "Mei's family",
+      proofRequired: true,
+      escrowed: true,
+      pesoAccrued: 3_115, // 5 percent of pesoRaised 62_300
+    },
   },
   {
     id: "arisan-banjir-jakarta",
@@ -88,6 +100,14 @@ export const SEED_CIRCLES: Circle[] = [
       { id: "d2", donorLabel: "Lola Linda", pesoAmount: 2000, whenLabel: "3 days ago", note: "Para sa mga apo ko." },
       { id: "d3", donorLabel: "Anonymous", pesoAmount: 100, whenLabel: "4 days ago" },
     ],
+    allowance: {
+      percentage: 8,
+      tier: 2,
+      organizerName: "Teachers' Circle, Tubigon",
+      proofRequired: true,
+      escrowed: true,
+      pesoAccrued: 3_112, // 8 percent of pesoRaised 38_900
+    },
   },
   {
     id: "ofw-family-tuition",
@@ -126,6 +146,14 @@ export const SEED_CIRCLES: Circle[] = [
       { id: "d2", donorLabel: "Iya R.", pesoAmount: 1000, whenLabel: "2 days ago", note: "Salamat for keeping the script alive." },
       { id: "d3", donorLabel: "Anonymous", pesoAmount: 500, whenLabel: "4 days ago" },
     ],
+    allowance: {
+      percentage: 7,
+      tier: 1,
+      organizerName: "@kapatid.tinta",
+      proofRequired: true,
+      escrowed: true,
+      pesoAccrued: 1_708, // 7 percent of pesoRaised 24_400
+    },
   },
 ];
 

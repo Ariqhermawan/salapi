@@ -1,12 +1,17 @@
 "use client";
 
-// Salapi Circles — Create-a-circle multi-step preview (Build-Award scope).
+// Salapi Circles - Create-a-circle multi-step preview (Build-Award scope).
 // Nothing is persisted to a contract; the only persistence is the optional
 // waitlist email captured at the share-screen, via joinCirclesWaitlist (same
 // server action as the Donate flow). Real organizer verification + open-cause
 // moderation ship at Build-Award.
+//
+// Step 3 "Operational Allowance" is the Build-Award STAGE 2 extension (SOW
+// Section 8 "Honest creator economy"). The selector is preview-only; no
+// allowance is encoded into any contract today. Day-30 Disaster Vault is
+// 0 percent organizer cut.
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { joinCirclesWaitlist } from "@/app/actions";
 import {
@@ -23,15 +28,28 @@ import { formatParts, CURRENCY } from "@/lib/ui/currency";
 import { useT } from "@/components/I18nProvider";
 import PreviewBadge from "@/components/circles/PreviewBadge";
 import {
+  Stage2Pill,
+  WhyExistsLink,
+} from "@/components/ui/OperationalAllowanceExplainer";
+import {
+  KYC_TIER_CEILING,
+  KYC_TIER_LABEL,
+  KYC_TIER_NAME,
+  clampToTier,
+  splitDonation,
+  type KycTier,
+} from "@/lib/circles/allowance";
+import {
   CATEGORY_LABEL,
   type CircleCategory,
 } from "@/lib/circles/types";
 
-type Step = 0 | 1 | 2 | 3 | 4 | 5;
+type Step = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 const STEPS = [
   "Title",
   "Story",
   "Goal",
+  "Allowance",
   "Cover",
   "Verify",
   "Share",
@@ -84,6 +102,11 @@ export default function CirclesCreateScreen() {
   const [days, setDays] = useState<number>(30);
   const [gradient, setGradient] = useState<[string, string]>(GRADIENTS[0]);
 
+  // Build-Award stage 2 (SOW Section 8) preview state.
+  const [previewTier, setPreviewTier] = useState<KycTier>(0);
+  const [allowancePct, setAllowancePct] = useState<number>(0);
+  const [allowanceAck, setAllowanceAck] = useState<boolean>(false);
+
   const [email, setEmail] = useState("");
   const [err, setErr] = useState("");
   const [pending, start] = useTransition();
@@ -113,7 +136,13 @@ export default function CirclesCreateScreen() {
       setErr("Pick a goal amount above zero.");
       return;
     }
-    setStep((s) => Math.min(5, (s + 1) as Step) as Step);
+    if (step === 3 && allowancePct > 0 && !allowanceAck) {
+      setErr(
+        "Confirm you understand the allowance percentage locks in at the first donation."
+      );
+      return;
+    }
+    setStep((s) => Math.min(6, (s + 1) as Step) as Step);
   }
   function back() {
     setErr("");
@@ -141,59 +170,15 @@ export default function CirclesCreateScreen() {
     });
   }
 
-  // ── HEADER + STEPPER ──
-  const Header = (
-    <>
-      <AppBar
-        leading={
-          <IconButton
-            onClick={() => (step === 0 ? router.push("/circles") : back())}
-          >
-            {step === 0 ? Ico.x({}) : Ico.back({})}
-          </IconButton>
-        }
-        title="Start a circle"
-        trailing={<PreviewBadge />}
-      />
-      <div
-        style={{
-          padding: "4px 20px 12px",
-          display: "flex",
-          gap: 6,
-          alignItems: "center",
-        }}
-      >
-        {STEPS.map((_, i) => (
-          <div
-            key={i}
-            style={{
-              flex: 1,
-              height: 4,
-              borderRadius: 99,
-              background: i <= step ? T.action : T.hairline,
-              transition: "background .2s",
-            }}
-          />
-        ))}
-        <div
-          style={{
-            marginLeft: 6,
-            fontSize: 11,
-            color: T.slate,
-            fontFamily: T.fontMono,
-          }}
-        >
-          {step + 1}/{STEPS.length}
-        </div>
-      </div>
-    </>
-  );
+  // Header callbacks are stable closures; the Header itself lives at module
+  // level (below) to satisfy React 19's react-hooks/static-components rule.
+  const onExit = () => router.push("/circles");
 
   // ── STEP 0: Title ──
   if (step === 0) {
     return (
       <div style={shell}>
-        {Header}
+        <Header pill={<PreviewBadge />} step={step} onBack={back} onExit={onExit} />
         <div style={{ padding: "8px 20px 0" }}>
           <h1
             style={{
@@ -260,7 +245,7 @@ export default function CirclesCreateScreen() {
   if (step === 1) {
     return (
       <div style={shell}>
-        {Header}
+        <Header pill={<PreviewBadge />} step={step} onBack={back} onExit={onExit} />
         <div style={{ padding: "8px 20px 0" }}>
           <h1
             style={{
@@ -331,7 +316,7 @@ export default function CirclesCreateScreen() {
     const amt = formatParts(pesoTarget, locale);
     return (
       <div style={shell}>
-        {Header}
+        <Header pill={<PreviewBadge />} step={step} onBack={back} onExit={onExit} />
         <div style={{ padding: "8px 20px 0" }}>
           <h1
             style={{
@@ -381,7 +366,9 @@ export default function CirclesCreateScreen() {
               value={String(pesoTarget)}
               onChange={(e) => {
                 const raw = e.target.value.replace(/[^0-9]/g, "");
-                setPesoTarget(raw === "" ? 0 : Math.min(10_000_000, Number(raw)));
+                setPesoTarget(
+                  raw === "" ? 0 : Math.min(10_000_000, Number(raw))
+                );
               }}
               inputMode="numeric"
               style={{
@@ -498,11 +485,410 @@ export default function CirclesCreateScreen() {
               }}
             >
               {d.label}
-              <div style={{ fontSize: 11, color: T.slate, marginTop: 2, fontWeight: 500 }}>
+              <div
+                style={{
+                  fontSize: 11,
+                  color: T.slate,
+                  marginTop: 2,
+                  fontWeight: 500,
+                }}
+              >
                 {d.d} days
               </div>
             </button>
           ))}
+        </div>
+
+        {err && <ErrorBanner err={err} />}
+        <BottomNext onNext={next} label="Next: operational allowance" />
+      </div>
+    );
+  }
+
+  // ── STEP 3 (NEW): Operational Allowance, Build-Award stage 2 ──
+  if (step === 3) {
+    const ceiling = KYC_TIER_CEILING[previewTier];
+    const clamped = clampToTier(allowancePct, previewTier);
+    // The split preview always renders the math "of every ₱100" in the user's
+    // locale, so it is immediately legible regardless of donation size.
+    const samplePer = 100;
+    const { beneficiary: beneficiaryPer, allowance: allowancePer } =
+      splitDonation(samplePer, clamped);
+    return (
+      <div style={shell}>
+        <Header pill={<Stage2Pill />} step={step} onBack={back} onExit={onExit} />
+
+        <div style={{ padding: "8px 20px 0" }}>
+          <h1
+            style={{
+              fontSize: 22,
+              fontWeight: 600,
+              letterSpacing: "-0.015em",
+              lineHeight: 1.25,
+              margin: 0,
+            }}
+          >
+            Operational allowance
+          </h1>
+          <p
+            style={{
+              marginTop: 8,
+              fontSize: 13.5,
+              color: T.slate,
+              lineHeight: 1.55,
+            }}
+          >
+            Optional. A transparent reimbursement for real field costs
+            (transport, time, documentation, delivery). Capped by your KYC
+            tier. Encoded at circle creation, immutable after the first
+            donation lands.
+          </p>
+          <div style={{ marginTop: 6 }}>
+            <WhyExistsLink label="Why this exists - read the case" />
+          </div>
+        </div>
+
+        {/* Tier selector. Tap to demo a tier; the slider responds. */}
+        <div style={{ padding: "16px 24px 6px" }}>
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+              color: T.slate,
+            }}
+          >
+            Your KYC tier
+          </div>
+        </div>
+        <div
+          style={{
+            padding: "0 16px",
+            display: "grid",
+            gridTemplateColumns: "repeat(3,1fr)",
+            gap: 8,
+          }}
+        >
+          {([0, 1, 2] as KycTier[]).map((t) => {
+            const active = t === previewTier;
+            return (
+              <button
+                key={t}
+                type="button"
+                onClick={() => {
+                  setPreviewTier(t);
+                  setAllowancePct((p) => clampToTier(p, t));
+                }}
+                style={{
+                  padding: "12px 10px",
+                  borderRadius: 12,
+                  border: "none",
+                  background: active ? T.ink : T.surface,
+                  color: active ? "#fff" : T.ink,
+                  fontFamily: T.fontSans,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  textAlign: "center",
+                  boxShadow: active
+                    ? "0 1px 2px rgba(11,18,32,0.1)"
+                    : "inset 0 0 0 1px " + T.hairline,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 4,
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    letterSpacing: "0.05em",
+                    color: active ? "rgba(255,255,255,0.65)" : T.slate,
+                    textTransform: "uppercase",
+                  }}
+                >
+                  {KYC_TIER_LABEL[t]}
+                </span>
+                <span>up to {KYC_TIER_CEILING[t]}%</span>
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 500,
+                    color: active ? "rgba(255,255,255,0.75)" : T.slate,
+                  }}
+                >
+                  {KYC_TIER_NAME[t]}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <div
+          style={{
+            padding: "8px 24px 0",
+            fontSize: 11.5,
+            color: T.slate,
+            lineHeight: 1.5,
+          }}
+        >
+          Preview: tap a tier to see its slider ceiling. Real verification
+          ships at Build-Award stage 2.
+        </div>
+
+        {/* Slider */}
+        <div style={{ padding: "20px 20px 0" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "baseline",
+            }}
+          >
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                color: T.slate,
+              }}
+            >
+              Allowance
+            </div>
+            <div
+              style={{
+                fontSize: 22,
+                fontWeight: 600,
+                letterSpacing: "-0.01em",
+              }}
+            >
+              {clamped}
+              <span style={{ fontSize: 14, color: T.slate, marginLeft: 2 }}>
+                %
+              </span>
+            </div>
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={Math.max(ceiling, 1)}
+            value={clamped}
+            disabled={ceiling === 0}
+            onChange={(e) => {
+              setAllowancePct(clampToTier(Number(e.target.value), previewTier));
+              setAllowanceAck(false);
+            }}
+            aria-label="Operational allowance percentage"
+            style={{
+              width: "100%",
+              marginTop: 10,
+              accentColor: T.action,
+              opacity: ceiling === 0 ? 0.5 : 1,
+              cursor: ceiling === 0 ? "not-allowed" : "pointer",
+            }}
+          />
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              marginTop: 4,
+              fontSize: 10.5,
+              color: T.slate,
+              fontFamily: T.fontMono,
+            }}
+          >
+            <span>0%</span>
+            <span>{ceiling}% (ceiling for {KYC_TIER_LABEL[previewTier]})</span>
+          </div>
+        </div>
+
+        {/* Live split preview */}
+        <div style={{ padding: "16px 16px 0" }}>
+          <Card>
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                color: T.slate,
+              }}
+            >
+              Donor sees
+            </div>
+            <p
+              style={{
+                margin: "8px 0 12px",
+                fontSize: 14.5,
+                lineHeight: 1.5,
+                color: T.ink,
+              }}
+            >
+              Of every {formatParts(samplePer, locale).symbol}
+              {formatParts(samplePer, locale).int}
+              {formatParts(samplePer, locale).dp > 0
+                ? "." + formatParts(samplePer, locale).dec
+                : ""}{" "}
+              you donate,{" "}
+              <strong>
+                {formatParts(beneficiaryPer, locale).symbol}
+                {formatParts(beneficiaryPer, locale).int}
+              </strong>{" "}
+              goes to the beneficiary,{" "}
+              <strong>
+                {formatParts(allowancePer, locale).symbol}
+                {formatParts(allowancePer, locale).int}
+              </strong>{" "}
+              covers operational cost.
+            </p>
+            {/* Stacked bar */}
+            <div
+              style={{
+                height: 12,
+                borderRadius: 99,
+                background: T.hairline,
+                overflow: "hidden",
+                display: "flex",
+              }}
+            >
+              <div
+                style={{
+                  width: `${100 - clamped}%`,
+                  background: T.moneyIn,
+                }}
+                aria-label={`${100 - clamped}% beneficiary`}
+              />
+              <div
+                style={{
+                  width: `${clamped}%`,
+                  background: T.warn,
+                }}
+                aria-label={`${clamped}% operational allowance`}
+              />
+            </div>
+            <div
+              style={{
+                marginTop: 8,
+                display: "flex",
+                justifyContent: "space-between",
+                fontSize: 11.5,
+                color: T.slate,
+              }}
+            >
+              <span>
+                <span
+                  style={{
+                    display: "inline-block",
+                    width: 8,
+                    height: 8,
+                    borderRadius: 99,
+                    background: T.moneyIn,
+                    marginRight: 6,
+                    verticalAlign: "middle",
+                  }}
+                />
+                Beneficiary {100 - clamped}%
+              </span>
+              <span>
+                <span
+                  style={{
+                    display: "inline-block",
+                    width: 8,
+                    height: 8,
+                    borderRadius: 99,
+                    background: T.warn,
+                    marginRight: 6,
+                    verticalAlign: "middle",
+                  }}
+                />
+                Operational {clamped}%
+              </span>
+            </div>
+          </Card>
+        </div>
+
+        {/* Mandatory ack */}
+        {clamped > 0 && (
+          <div style={{ padding: "14px 16px 0" }}>
+            <Card>
+              <button
+                type="button"
+                onClick={() => setAllowanceAck((v) => !v)}
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 10,
+                  padding: 0,
+                  background: "transparent",
+                  border: "none",
+                  textAlign: "left",
+                  cursor: "pointer",
+                  color: T.ink,
+                  fontFamily: T.fontSans,
+                }}
+                aria-pressed={allowanceAck}
+              >
+                <span
+                  style={{
+                    flex: "0 0 auto",
+                    width: 22,
+                    height: 22,
+                    borderRadius: 6,
+                    border: "2px solid " + (allowanceAck ? T.action : T.hairline),
+                    background: allowanceAck ? T.action : "transparent",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    marginTop: 1,
+                  }}
+                >
+                  {allowanceAck && Ico.check({ size: 14, c: "#fff" })}
+                </span>
+                <span
+                  style={{
+                    fontSize: 13,
+                    lineHeight: 1.55,
+                    color: T.ink,
+                  }}
+                >
+                  I understand this percentage is locked into the on-chain
+                  contract at circle creation. It cannot change after the first
+                  donation. (Build-Award stage 2 contract behavior; not
+                  enforced in this preview.)
+                </span>
+              </button>
+            </Card>
+          </div>
+        )}
+
+        {/* Build-Award stage 2 footer */}
+        <div style={{ padding: "16px 16px 0" }}>
+          <div
+            style={{
+              padding: "12px 14px",
+              borderRadius: 12,
+              background: T.canvas,
+              fontSize: 12.5,
+              color: T.slate,
+              lineHeight: 1.55,
+              display: "flex",
+              gap: 10,
+              alignItems: "flex-start",
+            }}
+          >
+            <div style={{ marginTop: 1, color: T.warn }}>
+              {Ico.shield({ size: 16, c: T.warn })}
+            </div>
+            <div>
+              <strong style={{ color: T.ink }}>Build-Award stage 2.</strong>{" "}
+              Day-30 ships a 0% allowance Disaster Vault with a whitelisted
+              NGO shortlist. This slider, KYC tiering, escrow, and dispute
+              window arrive at stage 2 with Operational Allowance.
+            </div>
+          </div>
         </div>
 
         {err && <ErrorBanner err={err} />}
@@ -511,11 +897,11 @@ export default function CirclesCreateScreen() {
     );
   }
 
-  // ── STEP 3: Cover (placeholder gradient picker) ──
-  if (step === 3) {
+  // ── STEP 4 (was 3): Cover (placeholder gradient picker) ──
+  if (step === 4) {
     return (
       <div style={shell}>
-        {Header}
+        <Header pill={<PreviewBadge />} step={step} onBack={back} onExit={onExit} />
         <div style={{ padding: "8px 20px 0" }}>
           <h1
             style={{
@@ -642,11 +1028,11 @@ export default function CirclesCreateScreen() {
     );
   }
 
-  // ── STEP 4: Organizer verification placeholder ──
-  if (step === 4) {
+  // ── STEP 5 (was 4): Organizer verification placeholder ──
+  if (step === 5) {
     return (
       <div style={shell}>
-        {Header}
+        <Header pill={<PreviewBadge />} step={step} onBack={back} onExit={onExit} />
         <div style={{ padding: "8px 20px 0" }}>
           <h1
             style={{
@@ -676,10 +1062,26 @@ export default function CirclesCreateScreen() {
         <div style={{ padding: "18px 16px 0" }}>
           <Card>
             {[
-              { ico: Ico.user, label: "Government ID", sub: "Photo + name match" },
-              { ico: Ico.verify, label: "Selfie video", sub: "Liveness + face match" },
-              { ico: Ico.shield, label: "Recipient account", sub: "Confirm payout account ownership" },
-              { ico: Ico.globe, label: "Community vouch", sub: "Two existing Salapi users vouch" },
+              {
+                ico: Ico.user,
+                label: "Government ID",
+                sub: "Photo + name match",
+              },
+              {
+                ico: Ico.verify,
+                label: "Selfie video",
+                sub: "Liveness + face match",
+              },
+              {
+                ico: Ico.shield,
+                label: "Recipient account",
+                sub: "Confirm payout account ownership",
+              },
+              {
+                ico: Ico.globe,
+                label: "Community vouch",
+                sub: "Two existing Salapi users vouch",
+              },
             ].map((row, i, arr) => (
               <div
                 key={row.label}
@@ -752,10 +1154,10 @@ export default function CirclesCreateScreen() {
     );
   }
 
-  // ── STEP 5: Share + waitlist signup ──
+  // ── STEP 6 (was 5): Share + waitlist signup ──
   return (
     <div style={shell}>
-      {Header}
+      <Header pill={<PreviewBadge />} step={step} onBack={back} onExit={onExit} />
       <div style={{ padding: "10px 28px 0", textAlign: "center" }}>
         <div
           style={{
@@ -830,6 +1232,26 @@ export default function CirclesCreateScreen() {
           >
             Link is illustrative; real share URLs activate at Build-Award.
           </div>
+          {allowancePct > 0 && (
+            <div
+              style={{
+                marginTop: 12,
+                padding: "10px 12px",
+                borderRadius: 10,
+                background: T.canvas,
+                fontSize: 12,
+                color: T.slate,
+                lineHeight: 1.5,
+              }}
+            >
+              Allowance configured: <strong style={{ color: T.ink }}>
+                {allowancePct}%
+              </strong>{" "}
+              ({KYC_TIER_LABEL[previewTier]}, max{" "}
+              {KYC_TIER_CEILING[previewTier]}%). Locks at first donation at
+              Build-Award stage 2.
+            </div>
+          )}
         </Card>
       </div>
 
@@ -929,8 +1351,10 @@ export default function CirclesCreateScreen() {
                   Draft saved. We&apos;ll email you at launch.
                 </div>
                 <div style={{ fontSize: 12, color: T.slate, marginTop: 2 }}>
-                  Title, story, goal of {formatParts(pesoTarget, locale).symbol}
-                  {formatParts(pesoTarget, locale).int}, duration {days} days.
+                  Title, story, goal of{" "}
+                  {formatParts(pesoTarget, locale).symbol}
+                  {formatParts(pesoTarget, locale).int}, duration {days} days,
+                  allowance {allowancePct}%.
                 </div>
               </div>
             </div>
@@ -953,6 +1377,64 @@ export default function CirclesCreateScreen() {
         <PoweredByStellar />
       </div>
     </div>
+  );
+}
+
+// Header lives at module level (React 19 react-hooks/static-components rule).
+function Header({
+  pill,
+  step,
+  onBack,
+  onExit,
+}: {
+  pill: ReactNode;
+  step: number;
+  onBack: () => void;
+  onExit: () => void;
+}) {
+  return (
+    <>
+      <AppBar
+        leading={
+          <IconButton onClick={step === 0 ? onExit : onBack}>
+            {step === 0 ? Ico.x({}) : Ico.back({})}
+          </IconButton>
+        }
+        title="Start a circle"
+        trailing={pill}
+      />
+      <div
+        style={{
+          padding: "4px 20px 12px",
+          display: "flex",
+          gap: 6,
+          alignItems: "center",
+        }}
+      >
+        {STEPS.map((_, i) => (
+          <div
+            key={i}
+            style={{
+              flex: 1,
+              height: 4,
+              borderRadius: 99,
+              background: i <= step ? T.action : T.hairline,
+              transition: "background .2s",
+            }}
+          />
+        ))}
+        <div
+          style={{
+            marginLeft: 6,
+            fontSize: 11,
+            color: T.slate,
+            fontFamily: T.fontMono,
+          }}
+        >
+          {step + 1}/{STEPS.length}
+        </div>
+      </div>
+    </>
   );
 }
 

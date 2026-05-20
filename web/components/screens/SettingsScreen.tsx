@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   myUsername,
   walletState,
@@ -144,6 +145,7 @@ function UsernamePanel({
 }
 
 export default function SettingsScreen() {
+  const router = useRouter();
   const [name, setName] = useState<string | null>(null);
   const [addr, setAddr] = useState<string>("");
   const [supaEmail, setSupaEmail] = useState<string | null>(null);
@@ -249,6 +251,25 @@ export default function SettingsScreen() {
               ) : (
                 <span style={{ fontSize: 13, color: T.slate }}>Loading…</span>
               )
+            }
+            divider={false}
+          />
+        </Card>
+      </div>
+
+      {/* Verification & trust - Build-Award stage 2 preview entry */}
+      <SectionLabel>Verification &amp; trust</SectionLabel>
+      <div style={{ padding: "0 16px" }}>
+        <Card p={0}>
+          <Row
+            leading={iconBox(Ico.verify({ c: T.action }), T.actionTint, T.action)}
+            title="KYC tier"
+            sub="Tier 0 - no verification yet"
+            onClick={() => router.push("/you/kyc-tier")}
+            trailing={
+              <Chip kind="warn" size="sm">
+                Preview · Stage 2
+              </Chip>
             }
             divider={false}
           />

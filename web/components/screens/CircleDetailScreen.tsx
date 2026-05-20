@@ -25,10 +25,15 @@ import { formatParts } from "@/lib/ui/currency";
 import { useT } from "@/components/I18nProvider";
 import PreviewBadge from "@/components/circles/PreviewBadge";
 import {
+  Stage2Pill,
+  WhyExistsLink,
+} from "@/components/ui/OperationalAllowanceExplainer";
+import {
   CATEGORY_LABEL,
   progressPct,
   type Circle,
 } from "@/lib/circles/types";
+import { KYC_TIER_LABEL, splitDonation } from "@/lib/circles/allowance";
 
 type Tab = "story" | "recent" | "transparency";
 
@@ -41,6 +46,9 @@ export default function CircleDetailScreen({ circle }: { circle: Circle }) {
   const raised = formatParts(circle.pesoRaised, locale);
   const target = formatParts(circle.pesoTarget, locale);
   const [from, to] = circle.coverGradient;
+  const allowance = circle.allowance;
+  const allowancePct = allowance?.percentage ?? 0;
+  const hasAllowance = allowancePct > 0;
 
   return (
     <div
@@ -58,7 +66,7 @@ export default function CircleDetailScreen({ circle }: { circle: Circle }) {
           </IconButton>
         }
         title=""
-        trailing={<PreviewBadge />}
+        trailing={hasAllowance ? <Stage2Pill /> : <PreviewBadge />}
       />
 
       {/* Cover */}
@@ -128,9 +136,33 @@ export default function CircleDetailScreen({ circle }: { circle: Circle }) {
             </div>
           </div>
           <span style={{ marginLeft: "auto" }}>
-            <Chip kind="action" leading={Ico.verify({ size: 11, c: T.action })}>
-              Verified at launch
-            </Chip>
+            {allowance ? (
+              <button
+                type="button"
+                onClick={() => router.push("/you/kyc-tier")}
+                aria-label={`Organizer KYC ${KYC_TIER_LABEL[allowance.tier]} - learn more`}
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  padding: 0,
+                  cursor: "pointer",
+                }}
+              >
+                <Chip
+                  kind={allowance.tier === 2 ? "success" : "action"}
+                  leading={Ico.verify({
+                    size: 11,
+                    c: allowance.tier === 2 ? T.moneyIn : T.action,
+                  })}
+                >
+                  {KYC_TIER_LABEL[allowance.tier]} · KYC
+                </Chip>
+              </button>
+            ) : (
+              <Chip kind="action" leading={Ico.verify({ size: 11, c: T.action })}>
+                Verified at launch
+              </Chip>
+            )}
           </span>
         </div>
       </div>
@@ -414,11 +446,205 @@ export default function CircleDetailScreen({ circle }: { circle: Circle }) {
         </div>
       )}
 
+      {/* Donation breakdown - SOW Section 8 "Honest creator economy".
+          When the organizer has an operational allowance configured, donors
+          see the split BEFORE they donate (one of the five trust gates).
+          When the allowance is 0 (day-30 Disaster Vault default), the card
+          still appears, plainly stating 100 percent to beneficiary. */}
+      <div style={{ padding: "20px 16px 0" }}>
+        <Card>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              marginBottom: 8,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                color: T.slate,
+              }}
+            >
+              Donation breakdown
+            </div>
+            {hasAllowance && (
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                  padding: "2px 7px",
+                  borderRadius: 99,
+                  background: T.ink,
+                  color: "#fff",
+                }}
+              >
+                Stage 2
+              </span>
+            )}
+          </div>
+
+          {hasAllowance && allowance ? (
+            <>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: 14,
+                  lineHeight: 1.55,
+                  color: T.ink,
+                }}
+              >
+                Of every{" "}
+                {formatParts(100, locale).symbol}
+                {formatParts(100, locale).int} you donate,{" "}
+                <strong>
+                  {formatParts(splitDonation(100, allowancePct).beneficiary, locale).symbol}
+                  {formatParts(splitDonation(100, allowancePct).beneficiary, locale).int}
+                </strong>{" "}
+                goes directly to the beneficiary.{" "}
+                <strong>
+                  {formatParts(splitDonation(100, allowancePct).allowance, locale).symbol}
+                  {formatParts(splitDonation(100, allowancePct).allowance, locale).int}
+                </strong>{" "}
+                covers operational cost for{" "}
+                <strong>{allowance.organizerName}</strong>, who is verified{" "}
+                <strong>{KYC_TIER_LABEL[allowance.tier]}</strong>. The
+                operational allowance is held by the contract until the
+                organizer uploads proof of beneficiary receipt.
+              </p>
+              {/* Stacked bar */}
+              <div
+                style={{
+                  marginTop: 14,
+                  height: 12,
+                  borderRadius: 99,
+                  background: T.hairline,
+                  overflow: "hidden",
+                  display: "flex",
+                }}
+              >
+                <div
+                  style={{
+                    width: `${100 - allowancePct}%`,
+                    background: T.moneyIn,
+                  }}
+                />
+                <div
+                  style={{
+                    width: `${allowancePct}%`,
+                    background: T.warn,
+                  }}
+                />
+              </div>
+              <div
+                style={{
+                  marginTop: 8,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  fontSize: 11.5,
+                  color: T.slate,
+                }}
+              >
+                <span>
+                  <span
+                    style={{
+                      display: "inline-block",
+                      width: 8,
+                      height: 8,
+                      borderRadius: 99,
+                      background: T.moneyIn,
+                      marginRight: 6,
+                      verticalAlign: "middle",
+                    }}
+                  />
+                  Beneficiary {100 - allowancePct}%
+                </span>
+                <span>
+                  <span
+                    style={{
+                      display: "inline-block",
+                      width: 8,
+                      height: 8,
+                      borderRadius: 99,
+                      background: T.warn,
+                      marginRight: 6,
+                      verticalAlign: "middle",
+                    }}
+                  />
+                  Operational {allowancePct}%
+                </span>
+              </div>
+              <div
+                style={{
+                  marginTop: 12,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
+                <WhyExistsLink label="Why this split exists" />
+                <span
+                  style={{
+                    fontSize: 11,
+                    color: T.slate,
+                    fontFamily: T.fontMono,
+                  }}
+                >
+                  preview - not on-chain today
+                </span>
+              </div>
+            </>
+          ) : (
+            <>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: 14,
+                  lineHeight: 1.55,
+                  color: T.ink,
+                }}
+              >
+                <strong>100% to beneficiary.</strong> No operational allowance
+                set - this circle uses the day-30 Disaster Vault model: every
+                peso reaches the beneficiary, no organizer cut.
+              </p>
+              <div
+                style={{
+                  marginTop: 12,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
+                <WhyExistsLink label="About operational allowance" />
+                <span
+                  style={{
+                    fontSize: 11,
+                    color: T.slate,
+                    fontFamily: T.fontMono,
+                  }}
+                >
+                  default 0%
+                </span>
+              </div>
+            </>
+          )}
+        </Card>
+      </div>
+
       {/* Donate CTA - in-flow, anchored inside the phone-frame so it does
           not overlap BottomNav (which sits at the bottom of the same frame).
           A fixed-position CTA would float at the viewport bottom on desktop
           (outside the app shell) and collide with BottomNav on mobile. */}
-      <div style={{ padding: "24px 16px 0" }}>
+      <div style={{ padding: "16px 16px 0" }}>
         <Btn
           kind="primary"
           leading={Ico.shield({ c: "#fff" })}
@@ -447,6 +673,22 @@ export default function CircleDetailScreen({ circle }: { circle: Circle }) {
         }}
       >
         <PoweredByStellar />
+      </div>
+      <div
+        style={{
+          padding: "10px 16px 0",
+          display: "flex",
+          justifyContent: "center",
+        }}
+      >
+        <Btn
+          kind="ghost"
+          size="sm"
+          full={false}
+          onClick={() => router.push(`/circles/${circle.id}/manage`)}
+        >
+          Organizer view (preview) →
+        </Btn>
       </div>
     </div>
   );
