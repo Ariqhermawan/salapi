@@ -79,7 +79,7 @@ function CircleCard({ circle }: { circle: Circle }) {
           Build-Award launch (upload + moderation pipeline). */}
       <div
         style={{
-          height: 132,
+          height: 110,
           background: `linear-gradient(140deg, ${from} 0%, ${to} 100%)`,
           position: "relative",
           overflow: "hidden",
@@ -140,10 +140,10 @@ function CircleCard({ circle }: { circle: Circle }) {
             : "Closing"}
         </div>
       </div>
-      <div style={{ padding: "14px 16px 16px" }}>
+      <div style={{ padding: "12px 14px 14px" }}>
         <div
           style={{
-            fontSize: 15.5,
+            fontSize: 14.5,
             fontWeight: 600,
             lineHeight: 1.3,
             letterSpacing: "-0.01em",
@@ -154,25 +154,25 @@ function CircleCard({ circle }: { circle: Circle }) {
         </div>
         <div
           style={{
-            marginTop: 4,
+            marginTop: 2,
             fontSize: 12,
             color: T.slate,
           }}
         >
           by {circle.organizer} · {circle.organizerLocation}
         </div>
-        <div style={{ marginTop: 12 }}>
+        <div style={{ marginTop: 8 }}>
           <Progress pct={pct} h={6} />
           <div
             style={{
-              marginTop: 8,
+              marginTop: 6,
               display: "flex",
               justifyContent: "space-between",
               alignItems: "baseline",
               gap: 8,
             }}
           >
-            <div style={{ fontSize: 13.5, fontWeight: 600 }}>
+            <div style={{ fontSize: 13, fontWeight: 600 }}>
               {raised.symbol}
               {raised.int}
               {raised.dp > 0 && (
@@ -185,7 +185,7 @@ function CircleCard({ circle }: { circle: Circle }) {
                 {target.int}
               </span>
             </div>
-            <div style={{ fontSize: 12, color: T.slate, fontWeight: 500 }}>
+            <div style={{ fontSize: 11.5, color: T.slate, fontWeight: 500 }}>
               {circle.donorCount} donors · {pct}%
             </div>
           </div>
@@ -226,7 +226,7 @@ export default function CirclesDiscoverScreen() {
       />
 
       {/* Hero: Spotlight Section 7 framing */}
-      <div style={{ padding: "4px 20px 16px" }}>
+      <div style={{ padding: "2px 16px 10px" }}>
         <div
           style={{
             fontSize: 11,
@@ -240,10 +240,10 @@ export default function CirclesDiscoverScreen() {
         </div>
         <div
           style={{
-            fontSize: 26,
+            fontSize: 22,
             fontWeight: 600,
             letterSpacing: "-0.02em",
-            marginTop: 6,
+            marginTop: 4,
             lineHeight: 1.15,
           }}
         >
@@ -251,10 +251,10 @@ export default function CirclesDiscoverScreen() {
         </div>
         <div
           style={{
-            fontSize: 14,
+            fontSize: 13,
             color: T.slate,
-            marginTop: 8,
-            lineHeight: 1.55,
+            marginTop: 4,
+            lineHeight: 1.5,
             maxWidth: 420,
           }}
         >
@@ -265,7 +265,7 @@ export default function CirclesDiscoverScreen() {
       </div>
 
       {/* The three differentiators */}
-      <div style={{ padding: "0 16px 14px" }}>
+      <div style={{ padding: "0 16px 10px" }}>
         <Card p={0} style={{ overflow: "hidden" }}>
           {[
             {
@@ -288,16 +288,16 @@ export default function CirclesDiscoverScreen() {
               key={row.title}
               style={{
                 display: "flex",
-                gap: 12,
-                padding: "12px 16px",
+                gap: 10,
+                padding: "10px 14px",
                 borderBottom: i < arr.length - 1 ? "1px solid " + T.hairline : "none",
               }}
             >
               <div
                 style={{
-                  width: 34,
-                  height: 34,
-                  borderRadius: 10,
+                  width: 30,
+                  height: 30,
+                  borderRadius: 9,
                   background: T.actionTint,
                   color: T.action,
                   display: "flex",
@@ -306,18 +306,18 @@ export default function CirclesDiscoverScreen() {
                   flex: "0 0 auto",
                 }}
               >
-                {row.ico({ size: 18, c: T.action })}
+                {row.ico({ size: 16, c: T.action })}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13.5, fontWeight: 600 }}>
+                <div style={{ fontSize: 13, fontWeight: 600 }}>
                   {row.title}
                 </div>
                 <div
                   style={{
-                    fontSize: 12,
+                    fontSize: 11.5,
                     color: T.slate,
-                    lineHeight: 1.5,
-                    marginTop: 2,
+                    lineHeight: 1.45,
+                    marginTop: 1,
                   }}
                 >
                   {row.body}
@@ -372,7 +372,7 @@ export default function CirclesDiscoverScreen() {
           padding: "0 16px",
           display: "flex",
           flexDirection: "column",
-          gap: 12,
+          gap: 10,
         }}
       >
         {visible.map((c) => (
@@ -381,18 +381,19 @@ export default function CirclesDiscoverScreen() {
       </div>
 
       {/* Start your own */}
-      <div style={{ padding: "18px 16px 0" }}>
+      <div style={{ padding: "12px 16px 0" }}>
         <Card
+          p={14}
           style={{
             background: "linear-gradient(160deg, #fff 0%, #EFF4FE 110%)",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div
               style={{
-                width: 44,
-                height: 44,
-                borderRadius: 14,
+                width: 40,
+                height: 40,
+                borderRadius: 12,
                 background: T.action,
                 color: "#fff",
                 display: "flex",
@@ -400,17 +401,17 @@ export default function CirclesDiscoverScreen() {
                 justifyContent: "center",
               }}
             >
-              {Ico.plus({ c: "#fff", size: 22 })}
+              {Ico.plus({ c: "#fff", size: 20 })}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 14.5, fontWeight: 600 }}>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>
                 Start your own circle
               </div>
               <div
                 style={{
                   fontSize: 12,
                   color: T.slate,
-                  marginTop: 2,
+                  marginTop: 1,
                   lineHeight: 1.4,
                 }}
               >
@@ -433,11 +434,11 @@ export default function CirclesDiscoverScreen() {
       {/* Honesty footer */}
       <div
         style={{
-          padding: "22px 24px 0",
+          padding: "14px 20px 0",
           textAlign: "center",
           fontSize: 11,
           color: T.slate,
-          lineHeight: 1.6,
+          lineHeight: 1.5,
         }}
       >
         Day-30 ships the Disaster Vault live on Stellar testnet. Salapi
@@ -445,11 +446,11 @@ export default function CirclesDiscoverScreen() {
       </div>
       <div
         style={{
-          padding: "10px 16px 0",
+          padding: "6px 16px 0",
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          gap: 6,
+          gap: 4,
         }}
       >
         <Btn
@@ -462,7 +463,7 @@ export default function CirclesDiscoverScreen() {
       </div>
       <div
         style={{
-          padding: "16px 16px 0",
+          padding: "10px 16px 0",
           display: "flex",
           justifyContent: "center",
         }}

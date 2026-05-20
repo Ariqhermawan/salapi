@@ -140,14 +140,14 @@ export default function SavingsScreen() {
     return (
       <div style={shell}>
         <AppBar leading={<IconButton onClick={() => router.push("/")}>{Ico.back({})}</IconButton>} title="New goal" />
-        <div style={{ padding: "8px 24px 16px" }}>
+        <div style={{ padding: "6px 20px 8px" }}>
           <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: T.slate }}>Smart savings</div>
-          <div style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-0.02em", marginTop: 6 }}>What are you saving for?</div>
+          <div style={{ fontSize: 20, fontWeight: 600, letterSpacing: "-0.02em", marginTop: 4 }}>What are you saving for?</div>
         </div>
-        <div style={{ padding: "8px 24px 0", textAlign: "center" }}>
+        <div style={{ padding: "4px 24px 0", textAlign: "center" }}>
           <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: T.slate }}>Target amount</div>
-          <div className="sl-balance" style={{ marginTop: 10, fontSize: 56, fontWeight: 600, letterSpacing: "-0.03em", display: "inline-flex", alignItems: "baseline", gap: 4 }}>
-            <span style={{ fontSize: 30, color: T.slate, fontWeight: 500 }}>₱</span>
+          <div className="sl-balance" style={{ marginTop: 6, fontSize: 42, fontWeight: 600, letterSpacing: "-0.03em", display: "inline-flex", alignItems: "baseline", gap: 4 }}>
+            <span style={{ fontSize: 24, color: T.slate, fontWeight: 500 }}>₱</span>
             <input
               value={target}
               onChange={(e) => setTarget(e.target.value.replace(/[^0-9]/g, ""))}
@@ -157,21 +157,21 @@ export default function SavingsScreen() {
             />
           </div>
         </div>
-        <div style={{ padding: "20px 16px 0", display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
+        <div style={{ padding: "14px 16px 0", display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
           {TARGETS.map((a) => (
             <span key={a} onClick={() => setTarget(a)} style={{ cursor: "pointer" }}>
               <Chip kind={a === target ? "action" : "neutral"} size="md">₱{Number(a).toLocaleString("en-PH")}</Chip>
             </span>
           ))}
         </div>
-        <div style={{ padding: "20px 16px 0" }}>
-          <div style={{ padding: "12px 14px", borderRadius: 12, background: T.warnTint, color: T.warn, fontSize: 12, display: "flex", gap: 10, alignItems: "flex-start", lineHeight: 1.4 }}>
-            {Ico.lock({ size: 18, c: T.warn })}
+        <div style={{ padding: "14px 16px 0" }}>
+          <div style={{ padding: "10px 12px", borderRadius: 10, background: T.warnTint, color: T.warn, fontSize: 12, display: "flex", gap: 8, alignItems: "flex-start", lineHeight: 1.4 }}>
+            {Ico.lock({ size: 16, c: T.warn })}
             <div>Funds are <strong>locked</strong> by the contract until you hit the target, to protect you from yourself. Verifiable on Stellar.</div>
           </div>
         </div>
         <Toast />
-        <div style={{ padding: "24px 16px 0" }}>
+        <div style={{ padding: "16px 16px 0" }}>
           <Btn kind="primary" disabled={pending || tnum <= 0} loading={pending} onClick={() => run(() => smartSavingsOpen(tnum), `Goal opened · target ₱${tnum.toLocaleString("en-PH")}`)}>
             Open this goal
           </Btn>
@@ -221,36 +221,36 @@ export default function SavingsScreen() {
         title="Smart Savings"
         trailing={<IconButton onClick={() => router.push("/")}>{Ico.shield({})}</IconButton>}
       />
-      <div style={{ padding: "8px 20px 16px" }}>
+      <div style={{ padding: "6px 16px 10px" }}>
         <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: T.slate }}>Smart savings · locked</div>
-        <div style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-0.02em", marginTop: 4 }}>Your goal</div>
+        <div style={{ fontSize: 20, fontWeight: 600, letterSpacing: "-0.02em", marginTop: 2 }}>Your goal</div>
       </div>
-      <div style={{ padding: "4px 24px 0", display: "flex", alignItems: "center", gap: 18 }}>
+      <div style={{ padding: "2px 20px 0", display: "flex", alignItems: "center", gap: 14 }}>
         <Ring pct={st.pct} />
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: T.slate }}>Saved so far</div>
-          <div className="sl-balance" style={{ marginTop: 4, fontSize: 28, fontWeight: 600 }}>{st.savedPeso}</div>
-          <div style={{ marginTop: 6, fontSize: 13, color: T.slate }}>
+          <div className="sl-balance" style={{ marginTop: 2, fontSize: 24, fontWeight: 600 }}>{st.savedPeso}</div>
+          <div style={{ marginTop: 4, fontSize: 12, color: T.slate }}>
             of <span style={{ color: T.ink, fontWeight: 600 }}>{st.targetPeso}</span> · locked until reached
           </div>
         </div>
       </div>
 
-      <div style={{ padding: "20px 16px 0" }}>
-        <Card>
+      <div style={{ padding: "14px 16px 0" }}>
+        <Card p={14}>
           <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: T.slate }}>Add to goal</div>
-          <div style={{ marginTop: 10, display: "flex", alignItems: "baseline", gap: 4 }}>
-            <span style={{ fontSize: 22, color: T.slate, fontWeight: 500 }}>₱</span>
+          <div style={{ marginTop: 6, display: "flex", alignItems: "baseline", gap: 4 }}>
+            <span style={{ fontSize: 20, color: T.slate, fontWeight: 500 }}>₱</span>
             <input
               value={add}
               onChange={(e) => setAdd(e.target.value.replace(/[^0-9.]/g, ""))}
               inputMode="decimal"
               placeholder="0"
               className="sl-balance"
-              style={{ width: Math.max(3, add.length || 1) + "ch", border: "none", outline: "none", background: "transparent", fontSize: 30, fontWeight: 600, color: T.ink }}
+              style={{ width: Math.max(3, add.length || 1) + "ch", border: "none", outline: "none", background: "transparent", fontSize: 26, fontWeight: 600, color: T.ink }}
             />
           </div>
-          <div style={{ marginTop: 14, display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
             {ADDS.map((a) => (
               <span key={a} onClick={() => setAdd(a)} style={{ cursor: "pointer" }}>
                 <Chip kind={a === add ? "action" : "neutral"} size="md">₱{Number(a).toLocaleString("en-PH")}</Chip>
@@ -262,7 +262,7 @@ export default function SavingsScreen() {
 
       <Toast />
 
-      <div style={{ padding: "22px 16px 0" }}>
+      <div style={{ padding: "14px 16px 0" }}>
         <Btn
           kind="primary"
           disabled={pending || anum <= 0}
@@ -272,7 +272,7 @@ export default function SavingsScreen() {
         >
           Add ₱{anum.toLocaleString("en-PH")}
         </Btn>
-        <div style={{ marginTop: 12, display: "flex", justifyContent: "center" }}>
+        <div style={{ marginTop: 10, display: "flex", justifyContent: "center" }}>
           <PoweredByStellar />
         </div>
       </div>

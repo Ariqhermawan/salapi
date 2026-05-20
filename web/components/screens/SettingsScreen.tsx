@@ -45,7 +45,7 @@ function Switch({ on }: { on: boolean }) {
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ padding: "16px 24px 8px", fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: T.slate }}>
+    <div style={{ padding: "12px 20px 6px", fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: T.slate }}>
       {children}
     </div>
   );
@@ -187,13 +187,13 @@ export default function SettingsScreen() {
       <AppBar large title="You" sub="Your profile & preferences" />
 
       {/* Profile header */}
-      <div style={{ padding: "8px 16px 0" }}>
-        <Card>
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <Avatar name={name || "Salapi"} size={56} />
+      <div style={{ padding: "4px 16px 0" }}>
+        <Card p={14}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <Avatar name={name || "Salapi"} size={48} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 18, fontWeight: 600, letterSpacing: "-0.01em" }}>{display}</div>
-              <div style={{ fontSize: 13, color: T.slate, fontFamily: T.fontMono, marginTop: 2 }}>
+              <div style={{ fontSize: 17, fontWeight: 600, letterSpacing: "-0.01em" }}>{display}</div>
+              <div style={{ fontSize: 12, color: T.slate, fontFamily: T.fontMono, marginTop: 1 }}>
                 {shortAddr} · Stellar
               </div>
             </div>
@@ -322,7 +322,7 @@ export default function SettingsScreen() {
         </Card>
       </div>
 
-      <div style={{ padding: "22px 16px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+      <div style={{ padding: "14px 16px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
         <MakerLockup />
         <PoweredByStellar />
         <span style={{ fontSize: 12, color: T.slate }}>For Southeast Asia.</span>

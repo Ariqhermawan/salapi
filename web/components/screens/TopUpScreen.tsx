@@ -21,8 +21,8 @@ const QUICK = ["500", "1000", "2000", "5000", "10000"];
 
 function GcashRow() {
   return (
-    <div style={{ marginTop: 20, padding: "14px 16px", background: T.surface, borderRadius: 14, boxShadow: "inset 0 0 0 1px " + T.hairline, display: "flex", alignItems: "center", gap: 12 }}>
-      <div style={{ width: 36, height: 36, borderRadius: 10, background: "#0079FF", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 12 }}>
+    <div style={{ marginTop: 14, padding: "12px 14px", background: T.surface, borderRadius: 12, boxShadow: "inset 0 0 0 1px " + T.hairline, display: "flex", alignItems: "center", gap: 12 }}>
+      <div style={{ width: 34, height: 34, borderRadius: 10, background: "#0079FF", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 12 }}>
         GC
       </div>
       <div style={{ flex: 1 }}>
@@ -71,22 +71,22 @@ export default function TopUpScreen() {
     return (
       <div style={shell}>
         <AppBar leading={<IconButton onClick={() => router.push("/")}>{Ico.x({})}</IconButton>} title="Processing" />
-        <div style={{ padding: "70px 36px 0", textAlign: "center" }}>
-          <div style={{ width: 84, height: 84, borderRadius: 99, background: T.actionTint, color: T.action, display: "inline-flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+        <div style={{ padding: "32px 28px 0", textAlign: "center" }}>
+          <div style={{ width: 68, height: 68, borderRadius: 99, background: T.actionTint, color: T.action, display: "inline-flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
             <span className="sl-spin" style={{ position: "absolute", inset: 0, borderRadius: 99, border: "3px solid " + T.action, borderTopColor: "transparent" }} />
-            {Ico.arrowDown({ size: 32, c: T.action })}
+            {Ico.arrowDown({ size: 26, c: T.action })}
           </div>
-          <div style={{ marginTop: 24, fontSize: 22, fontWeight: 600, letterSpacing: "-0.01em" }}>
+          <div style={{ marginTop: 14, fontSize: 19, fontWeight: 600, letterSpacing: "-0.01em" }}>
             Topping up ₱{amt.toLocaleString("en-PH")}
           </div>
-          <div style={{ marginTop: 8, fontSize: 14, color: T.slate, lineHeight: 1.5 }}>
+          <div style={{ marginTop: 4, fontSize: 13, color: T.slate, lineHeight: 1.5 }}>
             Confirming the sandbox top-up. A few seconds.
           </div>
         </div>
-        <div style={{ padding: "42px 16px 0" }}>
-          <Card>
+        <div style={{ padding: "22px 16px 0" }}>
+          <Card p={14}>
             {["Authorized in GCash (sandbox)", "Posting to your wallet", "Confirming on Stellar"].map((s, i) => (
-              <div key={s} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: i < 2 ? "1px solid " + T.hairline : "none" }}>
+              <div key={s} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 0", borderBottom: i < 2 ? "1px solid " + T.hairline : "none" }}>
                 {i < 2 ? (
                   <div style={{ width: 22, height: 22, borderRadius: 99, background: T.moneyInTint, color: T.moneyIn, display: "flex", alignItems: "center", justifyContent: "center" }}>
                     {Ico.check({ size: 14, c: T.moneyIn })}
@@ -98,7 +98,7 @@ export default function TopUpScreen() {
               </div>
             ))}
           </Card>
-          <div style={{ marginTop: 24, display: "flex", justifyContent: "center" }}>
+          <div style={{ marginTop: 16, display: "flex", justifyContent: "center" }}>
             <PoweredByStellar />
           </div>
         </div>
@@ -111,25 +111,25 @@ export default function TopUpScreen() {
     return (
       <div style={shell}>
         <AppBar leading={<IconButton onClick={() => router.push("/")}>{Ico.x({})}</IconButton>} title="" />
-        <div style={{ padding: "48px 32px 0", textAlign: "center" }}>
-          <div className="sl-tick" style={{ width: 88, height: 88, borderRadius: 99, background: T.moneyIn, color: "#fff", display: "inline-flex", alignItems: "center", justifyContent: "center", boxShadow: "0 18px 40px -10px rgba(5,150,105,0.5)" }}>
-            {Ico.check({ size: 42, c: "#fff" })}
+        <div style={{ padding: "20px 24px 0", textAlign: "center" }}>
+          <div className="sl-tick" style={{ width: 72, height: 72, borderRadius: 99, background: T.moneyIn, color: "#fff", display: "inline-flex", alignItems: "center", justifyContent: "center", boxShadow: "0 14px 30px -10px rgba(5,150,105,0.5)" }}>
+            {Ico.check({ size: 34, c: "#fff" })}
           </div>
-          <div style={{ display: "flex", justifyContent: "center", marginTop: 14 }}>
-            <SalapiMascot size={50} c={T.moneyIn} pose="cheer" />
+          <div style={{ display: "flex", justifyContent: "center", marginTop: 10 }}>
+            <SalapiMascot size={42} c={T.moneyIn} pose="cheer" />
           </div>
-          <div style={{ marginTop: 22, fontSize: 13, color: T.slate, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase" }}>
+          <div style={{ marginTop: 14, fontSize: 12, color: T.slate, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase" }}>
             Top up complete
           </div>
-          <div className="sl-rise" style={{ marginTop: 8 }}>
-            <Money value={amt} size={46} color={T.moneyIn} sign="+" />
+          <div className="sl-rise" style={{ marginTop: 6 }}>
+            <Money value={amt} size={38} color={T.moneyIn} sign="+" />
           </div>
-          <div style={{ marginTop: 12, fontSize: 14, color: T.slate }}>
+          <div style={{ marginTop: 8, fontSize: 13, color: T.slate }}>
             New balance <span className="sl-balance" style={{ color: T.ink, fontWeight: 600 }}>{result.pesoLabel}</span>
           </div>
         </div>
-        <div style={{ padding: "32px 16px 0" }}>
-          <Card>
+        <div style={{ padding: "16px 16px 0" }}>
+          <Card p={14}>
             <Row title="From" trailing={<span style={{ fontWeight: 500, fontSize: 14 }}>GCash · sandbox</span>} divider />
             <Row title="Fee" trailing={<span style={{ fontSize: 14, color: T.moneyIn, fontWeight: 600 }}>Free</span>} divider />
             <Row
@@ -146,11 +146,11 @@ export default function TopUpScreen() {
               divider={false}
             />
           </Card>
-          <div style={{ marginTop: 14, padding: "12px 14px", borderRadius: 12, background: T.canvas, fontSize: 12, color: T.slate, lineHeight: 1.5 }}>
+          <div style={{ marginTop: 10, padding: "10px 12px", borderRadius: 10, background: T.canvas, fontSize: 12, color: T.slate, lineHeight: 1.5 }}>
             {result.note}
           </div>
         </div>
-        <div style={{ padding: "22px 16px 0", display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ padding: "14px 16px 0", display: "flex", flexDirection: "column", gap: 8 }}>
           <Btn kind="primary" onClick={() => router.push("/")}>Done</Btn>
           <Btn kind="ghost" onClick={() => { setResult(null); setPhase("amount"); }}>Top up again</Btn>
         </div>
@@ -162,17 +162,17 @@ export default function TopUpScreen() {
   return (
     <div style={shell}>
       <AppBar leading={<IconButton onClick={() => router.push("/")}>{Ico.back({})}</IconButton>} title="Top up" />
-      <div style={{ padding: "16px 24px 8px" }}>
+      <div style={{ padding: "8px 20px 4px" }}>
         <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: T.slate }}>
           From GCash to your wallet
         </div>
-        <div style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-0.02em", marginTop: 6 }}>
+        <div style={{ fontSize: 20, fontWeight: 600, letterSpacing: "-0.02em", marginTop: 4 }}>
           How much do you want to top up?
         </div>
       </div>
-      <div style={{ padding: "18px 24px 0", textAlign: "center" }}>
-        <div className="sl-balance" style={{ fontSize: 60, fontWeight: 600, letterSpacing: "-0.03em", display: "inline-flex", alignItems: "baseline", gap: 4 }}>
-          <span style={{ fontSize: 34, color: T.slate, fontWeight: 500 }}>₱</span>
+      <div style={{ padding: "12px 24px 0", textAlign: "center" }}>
+        <div className="sl-balance" style={{ fontSize: 44, fontWeight: 600, letterSpacing: "-0.03em", display: "inline-flex", alignItems: "baseline", gap: 4 }}>
+          <span style={{ fontSize: 26, color: T.slate, fontWeight: 500 }}>₱</span>
           <input
             value={amount}
             onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ""))}
@@ -181,9 +181,9 @@ export default function TopUpScreen() {
             style={{ width: Math.max(2, amount.length || 1) + "ch", border: "none", outline: "none", background: "transparent", font: "inherit", color: T.ink, textAlign: "center" }}
           />
         </div>
-        <div style={{ marginTop: 10, fontSize: 13, color: T.slate }}>Min ₱20 · Max ₱50,000 / day</div>
+        <div style={{ marginTop: 6, fontSize: 12, color: T.slate }}>Min ₱20 · Max ₱50,000 / day</div>
       </div>
-      <div style={{ padding: "24px 16px 0" }}>
+      <div style={{ padding: "14px 16px 0" }}>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
           {QUICK.map((a) => (
             <span key={a} onClick={() => setAmount(a)} style={{ cursor: "pointer" }}>
@@ -195,7 +195,7 @@ export default function TopUpScreen() {
         </div>
         <GcashRow />
       </div>
-      <div style={{ padding: "26px 16px 0" }}>
+      <div style={{ padding: "16px 16px 0" }}>
         <Btn kind="primary" disabled={pending || amt <= 0} loading={pending} trailing={!pending && Ico.chev({ c: "#fff" })} onClick={go}>
           Top up with GCash
         </Btn>

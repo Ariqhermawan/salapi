@@ -47,19 +47,19 @@ export default function ActivityScreen() {
 
       {/* Your wallet → full real history */}
       <div style={{ padding: "4px 16px 0" }}>
-        <Card onClick={() => account && window.open(account, "_blank", "noopener,noreferrer")} style={{ cursor: account ? "pointer" : "default" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{ width: 44, height: 44, borderRadius: 13, background: T.actionTint, color: T.action, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              {Ico.sparkle({ c: T.action })}
+        <Card p={14} onClick={() => account && window.open(account, "_blank", "noopener,noreferrer")} style={{ cursor: account ? "pointer" : "default" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 40, height: 40, borderRadius: 12, background: T.actionTint, color: T.action, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {Ico.sparkle({ c: T.action, size: 20 })}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: T.slate }}>
                 Your wallet · managed demo
               </div>
-              <div style={{ fontSize: 13, fontFamily: T.fontMono, marginTop: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              <div style={{ fontSize: 13, fontFamily: T.fontMono, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                 {shortAddr}
               </div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: T.action, marginTop: 6, display: "inline-flex", alignItems: "center", gap: 5 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: T.action, marginTop: 4, display: "inline-flex", alignItems: "center", gap: 5 }}>
                 Open full history on explorer {Ico.link({ size: 13, c: T.action })}
               </div>
             </div>
@@ -68,8 +68,8 @@ export default function ActivityScreen() {
       </div>
 
       {/* Founding on-chain trail · Week 2 (real, verifiable) */}
-      <div style={{ padding: "20px 16px 0" }}>
-        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: T.slate, padding: "2px 4px 8px" }}>
+      <div style={{ padding: "14px 16px 0" }}>
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: T.slate, padding: "2px 4px 6px" }}>
           Founding on-chain trail · Week 2
         </div>
         <Card p={0}>
@@ -82,16 +82,16 @@ export default function ActivityScreen() {
                 href={`${EXPLORER}/tx/${t.hash}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderBottom: i < TRAIL.length - 1 ? "1px solid " + T.hairline : "none", color: T.ink, textDecoration: "none" }}
+                style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderBottom: i < TRAIL.length - 1 ? "1px solid " + T.hairline : "none", color: T.ink, textDecoration: "none", minHeight: 44 }}
               >
-                <div style={{ width: 38, height: 38, borderRadius: 11, background: bg, color: c, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  {t.ico({ size: 20, c })}
+                <div style={{ width: 34, height: 34, borderRadius: 10, background: bg, color: c, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  {t.ico({ size: 18, c })}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.25, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 600, lineHeight: 1.25, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                     {t.step}
                   </div>
-                  <div style={{ fontSize: 12, color: T.slate, marginTop: 2, fontFamily: T.fontMono }}>
+                  <div style={{ fontSize: 11, color: T.slate, marginTop: 1, fontFamily: T.fontMono }}>
                     tx · {t.hash.slice(0, 16)}…
                   </div>
                 </div>
@@ -100,13 +100,13 @@ export default function ActivityScreen() {
             );
           })}
         </Card>
-        <div style={{ marginTop: 12, fontSize: 12, color: T.slate, lineHeight: 1.5, padding: "0 4px" }}>
+        <div style={{ marginTop: 10, fontSize: 12, color: T.slate, lineHeight: 1.45, padding: "0 4px" }}>
           Every send, top-up, paluwagan and donation you make in the app posts a
           real transaction here. Independently checkable, no login.
         </div>
       </div>
 
-      <div style={{ padding: "24px 16px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+      <div style={{ padding: "16px 16px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
         <PoweredByStellar />
         <span style={{ fontSize: 11, color: T.slate, fontFamily: T.fontMono }}>Read-only · anyone can verify</span>
       </div>

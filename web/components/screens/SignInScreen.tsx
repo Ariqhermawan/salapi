@@ -65,20 +65,20 @@ export default function SignInScreen() {
 
   return (
     <div style={{ fontFamily: T.fontSans, color: T.ink, minHeight: "100%", display: "flex", flexDirection: "column", paddingBottom: 110 }}>
-      <div style={{ padding: "16px 24px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div style={{ padding: "12px 16px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <Wordmark size={20} />
         <TestnetPill />
       </div>
 
-      <div style={{ padding: "56px 28px 0", display: "flex", flexDirection: "column", alignItems: "center" }}>
-        <div style={{ width: 64, height: 64, borderRadius: 18, background: "linear-gradient(160deg,#2563EB,#0B1220)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20, boxShadow: "0 18px 40px -12px rgba(37,99,235,.5)" }}>
-          <span style={{ color: "#fff", fontSize: 30, fontWeight: 700, letterSpacing: "-0.04em" }}>S.</span>
+      <div style={{ padding: "28px 24px 0", display: "flex", flexDirection: "column", alignItems: "center" }}>
+        <div style={{ width: 54, height: 54, borderRadius: 16, background: "linear-gradient(160deg,#2563EB,#0B1220)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14, boxShadow: "0 14px 30px -10px rgba(37,99,235,.5)" }}>
+          <span style={{ color: "#fff", fontSize: 24, fontWeight: 700, letterSpacing: "-0.04em" }}>S.</span>
         </div>
-        <div style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-0.02em", textAlign: "center", lineHeight: 1.2 }}>Welcome to Salapi.</div>
-        <div style={{ marginTop: 6, fontSize: 14, color: T.slate, textAlign: "center" }}>Sign in to continue.</div>
+        <div style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em", textAlign: "center", lineHeight: 1.2 }}>Welcome to Salapi.</div>
+        <div style={{ marginTop: 4, fontSize: 13, color: T.slate, textAlign: "center" }}>Sign in to continue.</div>
       </div>
 
-      <div style={{ padding: "40px 16px 0", display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ padding: "20px 16px 0", display: "flex", flexDirection: "column", gap: 8 }}>
         {authError && (
           <div role="alert" style={{ background: "#FEF2F2", color: "#B91C1C", border: "1px solid #FECACA", borderRadius: 12, padding: "10px 12px", fontSize: 13, lineHeight: 1.4, textAlign: "center" }}>
             {authError}
@@ -91,13 +91,13 @@ export default function SignInScreen() {
         <Btn kind="ghost" disabled={working} onClick={enter}>Use email instead</Btn>
       </div>
 
-      <div style={{ marginTop: "auto", padding: "24px 24px 0", textAlign: "center" }}>
-        <div style={{ fontSize: 11, color: T.slate, lineHeight: 1.6, marginBottom: 8 }}>
+      <div style={{ marginTop: "auto", padding: "16px 20px 0", textAlign: "center" }}>
+        <div style={{ fontSize: 11, color: T.slate, lineHeight: 1.5, marginBottom: 6 }}>
           {configured
             ? "Real Google sign-in via Supabase. Your own Stellar wallet is created on first login. Phone/email are sandbox seams."
             : "Sandbox sign-in seam. No real account is created. Google OAuth activates once Supabase is configured."}
         </div>
-        <div style={{ fontSize: 11, color: T.slate, lineHeight: 1.6, marginBottom: 14 }}>
+        <div style={{ fontSize: 11, color: T.slate, lineHeight: 1.5, marginBottom: 10 }}>
           By continuing, you agree to our Terms and Privacy Policy.
         </div>
         <div style={{ display: "flex", justifyContent: "center" }}>

@@ -207,7 +207,7 @@ export default function PaluwaganScreen() {
         trailing={<IconButton onClick={() => router.push("/activity")}>{Ico.activity({})}</IconButton>}
       />
 
-      <div style={{ padding: "4px 20px 4px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div style={{ padding: "4px 16px 4px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", gap: 8 }}>
           <Chip kind="action">
             Round {pad2(st.round + 1)} / {pad2(total)}
@@ -223,14 +223,14 @@ export default function PaluwaganScreen() {
       </div>
 
       {/* Circle visual */}
-      <div style={{ padding: "14px 16px 0" }}>
-        <div style={{ position: "relative", width: "100%", height: 280, background: T.surface, borderRadius: 24, boxShadow: "inset 0 0 0 1px " + T.hairline, overflow: "hidden" }}>
-          <div style={{ position: "absolute", inset: "30px 60px", borderRadius: 99, border: "2px dashed " + T.hairline }} />
+      <div style={{ padding: "10px 16px 0" }}>
+        <div style={{ position: "relative", width: "100%", height: 220, background: T.surface, borderRadius: 20, boxShadow: "inset 0 0 0 1px " + T.hairline, overflow: "hidden" }}>
+          <div style={{ position: "absolute", inset: "24px 50px", borderRadius: 99, border: "2px dashed " + T.hairline }} />
           {seats.map((m, i) => {
             const a = (i / total) * Math.PI * 2 - Math.PI / 2;
-            const r = 100;
+            const r = 80;
             const turn = m.isRecipient;
-            const w = turn ? 60 : 48;
+            const w = turn ? 50 : 40;
             return (
               <div
                 key={m.addr}
@@ -253,7 +253,7 @@ export default function PaluwaganScreen() {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    fontSize: turn ? 18 : 16,
+                    fontSize: turn ? 16 : 14,
                     fontWeight: 600,
                     boxShadow: turn
                       ? "0 0 0 3px " + T.action + ", 0 8px 24px -6px rgba(37,99,235,.5)"
@@ -265,12 +265,12 @@ export default function PaluwaganScreen() {
                 >
                   {m.label.trim().charAt(0).toUpperCase()}
                   {m.paid && !turn && (
-                    <div style={{ position: "absolute", bottom: -2, right: -2, width: 18, height: 18, borderRadius: 99, background: T.moneyIn, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 0 0 2px " + T.surface }}>
-                      {Ico.check({ size: 11, c: "#fff" })}
+                    <div style={{ position: "absolute", bottom: -2, right: -2, width: 16, height: 16, borderRadius: 99, background: T.moneyIn, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 0 0 2px " + T.surface }}>
+                      {Ico.check({ size: 10, c: "#fff" })}
                     </div>
                   )}
                   {turn && (
-                    <div style={{ position: "absolute", top: -26, left: "50%", transform: "translateX(-50%)", fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", color: T.action, whiteSpace: "nowrap" }}>
+                    <div style={{ position: "absolute", top: -22, left: "50%", transform: "translateX(-50%)", fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", color: T.action, whiteSpace: "nowrap" }}>
                       ↓ NEXT
                     </div>
                   )}
@@ -278,11 +278,11 @@ export default function PaluwaganScreen() {
               </div>
             );
           })}
-          <div style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)", width: 124, height: 124, borderRadius: 99, background: T.ink, color: "#fff", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2, boxShadow: "0 12px 32px -8px rgba(11,18,32,.4)" }}>
+          <div style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)", width: 104, height: 104, borderRadius: 99, background: T.ink, color: "#fff", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2, boxShadow: "0 10px 28px -8px rgba(11,18,32,.4)" }}>
             <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.55)" }}>
               Pot
             </div>
-            <div className="sl-balance" style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em" }}>
+            <div className="sl-balance" style={{ fontSize: 19, fontWeight: 600, letterSpacing: "-0.02em" }}>
               {st.potPeso}
             </div>
             <div style={{ fontSize: 9, color: "rgba(255,255,255,0.5)", fontFamily: T.fontMono }}>
@@ -293,28 +293,28 @@ export default function PaluwaganScreen() {
       </div>
 
       {/* Status card */}
-      <div style={{ padding: "16px 16px 0" }}>
-        <Card>
+      <div style={{ padding: "12px 16px 0" }}>
+        <Card p={14}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
             <div>
               <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: T.slate }}>
                 This round goes to
               </div>
-              <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 8 }}>
-                <Avatar name={st.recipientLabel} size={28} />
-                <div style={{ fontSize: 16, fontWeight: 600 }}>{st.recipientLabel}</div>
+              <div style={{ marginTop: 4, display: "flex", alignItems: "center", gap: 8 }}>
+                <Avatar name={st.recipientLabel} size={26} />
+                <div style={{ fontSize: 15, fontWeight: 600 }}>{st.recipientLabel}</div>
               </div>
             </div>
             <div style={{ textAlign: "right" }}>
               <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: T.slate }}>
                 Share each
               </div>
-              <div className="sl-balance" style={{ marginTop: 6, fontSize: 18, fontWeight: 600 }}>
+              <div className="sl-balance" style={{ marginTop: 4, fontSize: 17, fontWeight: 600 }}>
                 {st.sharePeso}
               </div>
             </div>
           </div>
-          <div style={{ marginTop: 14, padding: "10px 12px", borderRadius: 10, background: T.canvas, fontSize: 12, color: T.slate, display: "flex", gap: 8, alignItems: "center" }}>
+          <div style={{ marginTop: 10, padding: "8px 10px", borderRadius: 10, background: T.canvas, fontSize: 12, color: T.slate, display: "flex", gap: 8, alignItems: "center" }}>
             {Ico.shield({ size: 14, c: iPaid ? T.moneyIn : T.slate })}
             <span>
               {iPaid
@@ -326,10 +326,10 @@ export default function PaluwaganScreen() {
       </div>
 
       {msg && (
-        <div style={{ padding: "14px 16px 0" }}>
+        <div style={{ padding: "10px 16px 0" }}>
           <div
             style={{
-              padding: "12px 14px",
+              padding: "10px 12px",
               borderRadius: 12,
               background: msg.tone === "ok" ? T.moneyInTint : "#FBEAE8",
               color: msg.tone === "ok" ? T.moneyIn : T.danger,
@@ -359,7 +359,7 @@ export default function PaluwaganScreen() {
       )}
 
       {/* Actions */}
-      <div style={{ padding: "20px 16px 0", display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ padding: "12px 16px 0", display: "flex", flexDirection: "column", gap: 8 }}>
         {st.allPaid ? (
           <Btn
             kind="primary"
@@ -392,7 +392,7 @@ export default function PaluwaganScreen() {
         </Btn>
       </div>
 
-      <div style={{ padding: "18px 16px 0", display: "flex", justifyContent: "center" }}>
+      <div style={{ padding: "12px 16px 0", display: "flex", justifyContent: "center" }}>
         <PoweredByStellar />
       </div>
     </div>

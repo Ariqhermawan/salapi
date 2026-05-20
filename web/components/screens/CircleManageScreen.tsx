@@ -78,7 +78,7 @@ export default function CircleManageScreen({ circle }: { circle: Circle }) {
   // client render both show the same neutral "—", then useEffect populates
   // it client-side. The setState here is the documented "subscribe to an
   // external system (the system clock)" pattern, not derived from URL/props.
-  const [remaining, setRemaining] = useState<string>("—");
+  const [remaining, setRemaining] = useState<string>("-");
   useEffect(() => {
     if (!hasAllowance) return;
     const ends = mockDisputeWindowEndsAt();
@@ -400,7 +400,7 @@ export default function CircleManageScreen({ circle }: { circle: Circle }) {
                 fontWeight: 700,
               }}
             >
-              {reputation.score || "—"}
+              {reputation.score || "-"}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 14, fontWeight: 600 }}>

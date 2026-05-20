@@ -69,12 +69,12 @@ export default function SendScreen() {
     return (
       <div style={{ fontFamily: T.fontSans, color: T.ink, minHeight: "100%" }}>
         <AppBar leading={<IconButton onClick={() => router.push("/")}>{Ico.x({})}</IconButton>} title="" />
-        <div style={{ padding: "40px 32px 0", textAlign: "center" }}>
+        <div style={{ padding: "20px 24px 0", textAlign: "center" }}>
           <div
             className="sl-tick"
             style={{
-              width: 96,
-              height: 96,
+              width: 72,
+              height: 72,
               borderRadius: 99,
               background: T.moneyInTint,
               color: T.moneyIn,
@@ -83,15 +83,15 @@ export default function SendScreen() {
               justifyContent: "center",
             }}
           >
-            {Ico.check({ size: 48, c: T.moneyIn })}
+            {Ico.check({ size: 38, c: T.moneyIn })}
           </div>
-          <div style={{ display: "flex", justifyContent: "center", marginTop: 14 }}>
-            <SalapiMascot size={50} c={T.moneyIn} pose="cheer" />
+          <div style={{ display: "flex", justifyContent: "center", marginTop: 10 }}>
+            <SalapiMascot size={42} c={T.moneyIn} pose="cheer" />
           </div>
           <div
             style={{
-              marginTop: 22,
-              fontSize: 13,
+              marginTop: 14,
+              fontSize: 12,
               color: T.slate,
               fontWeight: 600,
               letterSpacing: "0.12em",
@@ -100,15 +100,15 @@ export default function SendScreen() {
           >
             {t("send.sentOk", { amt: amount, to: to.replace(/^@/, "") })}
           </div>
-          <div className="sl-rise" style={{ marginTop: 8 }}>
-            <Money value={Number(amount) || 0} size={42} />
+          <div className="sl-rise" style={{ marginTop: 6 }}>
+            <Money value={Number(amount) || 0} size={36} />
           </div>
-          <div style={{ marginTop: 8, fontSize: 14, color: T.slate }}>
+          <div style={{ marginTop: 6, fontSize: 13, color: T.slate }}>
             → <span style={{ color: T.ink, fontWeight: 600 }}>@{to.replace(/^@/, "")}</span>
           </div>
         </div>
-        <div style={{ padding: "28px 16px 0" }}>
-          <Card>
+        <div style={{ padding: "16px 16px 0" }}>
+          <Card p={14}>
             <Row title="Arrives" trailing={<span style={{ fontSize: 14, fontWeight: 600, color: T.moneyIn }}>Instantly · Free</span>} divider />
             <Row
               title="Receipt"
@@ -126,7 +126,7 @@ export default function SendScreen() {
             />
           </Card>
         </div>
-        <div style={{ padding: "20px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
           <Btn kind="secondary" onClick={() => { setDone(null); setAmount(""); setTo(""); }}>Send again</Btn>
           <Btn kind="ghost" onClick={() => router.push("/")}>Done</Btn>
         </div>
@@ -139,19 +139,19 @@ export default function SendScreen() {
     return (
       <div style={{ fontFamily: T.fontSans, color: T.ink, minHeight: "100%" }}>
         <AppBar leading={<IconButton onClick={() => setNotFound(null)}>{Ico.back({})}</IconButton>} title={t("send.title")} />
-        <div style={{ padding: "24px 24px 0", textAlign: "center" }}>
-          <div style={{ width: 80, height: 80, margin: "0 auto", borderRadius: 99, background: T.canvas, display: "flex", alignItems: "center", justifyContent: "center", color: T.slate }}>
-            {Ico.search({ size: 36, c: T.slate })}
+        <div style={{ padding: "18px 24px 0", textAlign: "center" }}>
+          <div style={{ width: 64, height: 64, margin: "0 auto", borderRadius: 99, background: T.canvas, display: "flex", alignItems: "center", justifyContent: "center", color: T.slate }}>
+            {Ico.search({ size: 28, c: T.slate })}
           </div>
-          <div style={{ marginTop: 18, fontSize: 18, fontWeight: 600 }}>
+          <div style={{ marginTop: 12, fontSize: 17, fontWeight: 600 }}>
             @{notFound}
           </div>
-          <div style={{ marginTop: 6, fontSize: 14, color: T.slate, lineHeight: 1.5, maxWidth: 260, margin: "6px auto 0" }}>
+          <div style={{ marginTop: 4, fontSize: 13, color: T.slate, lineHeight: 1.5, maxWidth: 260, margin: "4px auto 0" }}>
             {t("send.title")}. No one has claimed this @username yet. Check the
             spelling or invite them.
           </div>
         </div>
-        <div style={{ padding: "26px 16px 0", display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ padding: "18px 16px 0", display: "flex", flexDirection: "column", gap: 8 }}>
           <Btn kind="primary" onClick={() => setNotFound(null)}>
             {t("send.send")}
           </Btn>
@@ -170,18 +170,18 @@ export default function SendScreen() {
       />
 
       {/* Your username */}
-      <div style={{ padding: "8px 16px 0" }}>
-        <Card p={16}>
+      <div style={{ padding: "4px 16px 0" }}>
+        <Card p={14}>
           <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: T.slate }}>
             {t("send.yourUsername")}
           </div>
           {mine ? (
-            <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8 }}>
-              <Avatar name={mine} size={32} />
+            <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 8 }}>
+              <Avatar name={mine} size={28} />
               <span style={{ fontWeight: 700, color: T.action }}>@{mine}</span>
             </div>
           ) : (
-            <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
+            <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
               <div style={{ ...box, flex: 1 }}>
                 <span style={{ color: T.slate }}>@</span>
                 <input
@@ -200,7 +200,7 @@ export default function SendScreen() {
       </div>
 
       {/* Recipient */}
-      <div style={{ padding: "12px 16px 0" }}>
+      <div style={{ padding: "8px 16px 0" }}>
         <div style={box}>
           <span style={{ color: T.slate }}>@</span>
           <input
@@ -214,12 +214,12 @@ export default function SendScreen() {
       </div>
 
       {/* Amount */}
-      <div style={{ padding: "30px 24px 0", textAlign: "center" }}>
-        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: T.slate, marginBottom: 12 }}>
+      <div style={{ padding: "16px 24px 0", textAlign: "center" }}>
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: T.slate, marginBottom: 8 }}>
           {t("send.sendMoney")}
         </div>
-        <div className="sl-balance" style={{ fontSize: 56, fontWeight: 600, letterSpacing: "-0.03em", display: "inline-flex", alignItems: "baseline", gap: 4 }}>
-          <span style={{ fontSize: 30, color: T.slate, fontWeight: 500 }}>₱</span>
+        <div className="sl-balance" style={{ fontSize: 42, fontWeight: 600, letterSpacing: "-0.03em", display: "inline-flex", alignItems: "baseline", gap: 4 }}>
+          <span style={{ fontSize: 24, color: T.slate, fontWeight: 500 }}>₱</span>
           <input
             value={amount}
             onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
@@ -229,7 +229,7 @@ export default function SendScreen() {
           />
         </div>
       </div>
-      <div style={{ padding: "22px 16px 0", display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
+      <div style={{ padding: "14px 16px 0", display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
         {["100", "500", "1000", "2000"].map((q) => (
           <span key={q} onClick={() => setAmount(q)} style={{ cursor: "pointer" }}>
             <Chip kind={amount === q ? "action" : "neutral"} size="md">₱{Number(q).toLocaleString("en-PH")}</Chip>
@@ -238,12 +238,12 @@ export default function SendScreen() {
       </div>
 
       {err && (
-        <div style={{ margin: "16px 16px 0", padding: "12px 14px", borderRadius: 12, background: "#FBEAE8", color: T.danger, fontSize: 13 }}>
+        <div style={{ margin: "12px 16px 0", padding: "10px 14px", borderRadius: 12, background: "#FBEAE8", color: T.danger, fontSize: 13 }}>
           {err}
         </div>
       )}
 
-      <div style={{ padding: "26px 16px 0" }}>
+      <div style={{ padding: "16px 16px 0" }}>
         <Btn kind="primary" disabled={pending || !to || !amount} loading={pending} onClick={doSend} trailing={!pending && Ico.chev({ c: "#fff" })}>
           {pending ? t("send.sending") : t("send.send")}
         </Btn>

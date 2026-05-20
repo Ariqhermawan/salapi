@@ -97,10 +97,10 @@ export default function KycTierScreen() {
       />
 
       {/* Hero */}
-      <div style={{ padding: "8px 20px 0" }}>
+      <div style={{ padding: "4px 16px 0" }}>
         <h1
           style={{
-            fontSize: 24,
+            fontSize: 22,
             fontWeight: 600,
             letterSpacing: "-0.02em",
             lineHeight: 1.2,
@@ -111,24 +111,25 @@ export default function KycTierScreen() {
         </h1>
         <p
           style={{
-            marginTop: 8,
-            fontSize: 13.5,
+            marginTop: 6,
+            fontSize: 13,
             color: T.slate,
-            lineHeight: 1.55,
+            lineHeight: 1.5,
           }}
         >
           KYC tier caps the operational allowance you can set when organizing
           a Salapi Circle. The cap is encoded into the smart contract at
           circle creation, immutable once the first donation lands.
         </p>
-        <div style={{ marginTop: 6 }}>
+        <div style={{ marginTop: 4 }}>
           <WhyExistsLink label="Why an honest allowance exists" />
         </div>
       </div>
 
       {/* Current tier banner */}
-      <div style={{ padding: "16px 16px 0" }}>
+      <div style={{ padding: "12px 16px 0" }}>
         <Card
+          p={14}
           style={{
             background: "linear-gradient(160deg, #fff 0%, #EFF4FE 110%)",
           }}
@@ -181,7 +182,7 @@ export default function KycTierScreen() {
       {/* Tier ladder */}
       <div
         style={{
-          padding: "16px 24px 8px",
+          padding: "12px 20px 6px",
           fontSize: 11,
           fontWeight: 600,
           letterSpacing: "0.1em",
@@ -196,7 +197,7 @@ export default function KycTierScreen() {
           padding: "0 16px",
           display: "flex",
           flexDirection: "column",
-          gap: 12,
+          gap: 10,
         }}
       >
         {TIERS.map((row) => {
@@ -391,17 +392,17 @@ export default function KycTierScreen() {
       </div>
 
       {/* Honesty banner */}
-      <div style={{ padding: "18px 16px 0" }}>
+      <div style={{ padding: "12px 16px 0" }}>
         <div
           style={{
-            padding: "12px 14px",
-            borderRadius: 12,
+            padding: "10px 12px",
+            borderRadius: 10,
             background: T.warnTint,
             color: T.warn,
-            fontSize: 12.5,
-            lineHeight: 1.5,
+            fontSize: 12,
+            lineHeight: 1.45,
             display: "flex",
-            gap: 10,
+            gap: 8,
             alignItems: "flex-start",
           }}
         >
@@ -419,7 +420,7 @@ export default function KycTierScreen() {
 
       <div
         style={{
-          padding: "22px 16px 0",
+          padding: "14px 16px 0",
           display: "flex",
           justifyContent: "center",
         }}
