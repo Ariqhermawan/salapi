@@ -11,6 +11,7 @@
 
 import { useT } from "@/components/I18nProvider";
 import { Wordmark, MakerLockup, PoweredByStellar } from "@/components/ui/kit";
+import { SalapiMark } from "@/components/ui/brand";
 
 export default function MarketingAside() {
   const { t } = useT();
@@ -32,11 +33,11 @@ export default function MarketingAside() {
       </div>
       <div className="flex items-center gap-4">
         <div
-          className="flex h-11 w-11 items-center justify-center rounded-xl text-xl font-bold text-white"
+          className="flex h-11 w-11 items-center justify-center rounded-xl"
           style={{ background: "linear-gradient(160deg,#2563EB,#0B1220)" }}
           aria-hidden
         >
-          S.
+          <SalapiMark size={27} c="#fff" />
         </div>
         <div className="text-xs leading-snug text-white/60">
           {t("landing.installTitle")}

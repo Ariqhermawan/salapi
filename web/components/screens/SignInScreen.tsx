@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createSupabaseBrowser } from "@/lib/supabase/client";
 import { supabaseConfigured } from "@/lib/supabase/env";
 import { T, Btn, Wordmark, TestnetPill, PoweredByStellar } from "@/components/ui/kit";
+import { SalapiMark } from "@/components/ui/brand";
 
 function GoogleMark() {
   return (
@@ -72,7 +73,7 @@ export default function SignInScreen() {
 
       <div style={{ padding: "28px 24px 0", display: "flex", flexDirection: "column", alignItems: "center" }}>
         <div style={{ width: 54, height: 54, borderRadius: 16, background: "linear-gradient(160deg,#2563EB,#0B1220)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14, boxShadow: "0 14px 30px -10px rgba(37,99,235,.5)" }}>
-          <span style={{ color: "#fff", fontSize: 24, fontWeight: 700, letterSpacing: "-0.04em" }}>S.</span>
+          <SalapiMark size={33} c="#fff" />
         </div>
         <div style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em", textAlign: "center", lineHeight: 1.2 }}>Welcome to Salapi.</div>
         <div style={{ marginTop: 4, fontSize: 13, color: T.slate, textAlign: "center" }}>Sign in to continue.</div>
