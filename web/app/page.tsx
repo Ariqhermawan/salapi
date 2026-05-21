@@ -9,14 +9,23 @@
 // what was ~370px of LIVE TODAY plus a separate ~96px Circles teaser into
 // a single tighter rhythm.
 //
+// V6: each LIVE TODAY tile carries a live status line pulled from real
+// on-chain state (Arisan round, Savings goal %, Disaster active flag) so the
+// "LIVE TODAY" framing is literally true on the tile, not just the header.
+//
 // Tier honesty preserved: LIVE TODAY tiles route to day-30 features only
 // (no Preview badge). The VISION tile carries its "Preview, Build-Award"
-// badge unchanged. Operational Allowance teaser slot is a comment marker
-// for the parallel session to fill in.
+// badge unchanged.
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { walletState, myUsername } from "@/app/actions";
+import {
+  walletState,
+  myUsername,
+  paluwaganState,
+  smartSavingsState,
+  disasterState,
+} from "@/app/actions";
 import { useT } from "@/components/I18nProvider";
 import {
   T,
@@ -30,6 +39,9 @@ import {
 } from "@/components/ui/kit";
 
 type IconFn = (p?: { size?: number; c?: string }) => React.ReactNode;
+type Pal = Awaited<ReturnType<typeof paluwaganState>>;
+type Sav = Awaited<ReturnType<typeof smartSavingsState>>;
+type Dis = Awaited<ReturnType<typeof disasterState>>;
 
 type LiveTile = {
   key: string;
@@ -45,6 +57,9 @@ export default function Home() {
   const router = useRouter();
   const [pesos, setPesos] = useState(0);
   const [handle, setHandle] = useState("");
+  const [pal, setPal] = useState<Pal | null>(null);
+  const [sav, setSav] = useState<Sav | null>(null);
+  const [dis, setDis] = useState<Dis | null>(null);
 
   useEffect(() => {
     walletState().then((s) => {
@@ -52,14 +67,15 @@ export default function Home() {
       setHandle(`${s.address.slice(0, 4)}…${s.address.slice(-4)}`);
     });
     myUsername().then((u) => u && setHandle("@" + u));
+    paluwaganState().then(setPal);
+    smartSavingsState().then(setSav);
+    disasterState().then(setDis);
   }, []);
 
   const go = (p: string) => () => router.push(p);
 
-  // LIVE TODAY 2x2 grid. Each tile = icon + short label. The full screens
-  // (Paluwagan, Savings, Disaster, Send) carry the longer descriptions. The
-  // 4th tile (Send by @username) is a day-30 feature surfaced as a tile
-  // because the user already removed Quick Actions row.
+  // LIVE TODAY 2x2 grid. Each tile = icon + short label + a live status line
+  // (when state has loaded). The full screens carry the longer descriptions.
   const liveTiles: LiveTile[] = [
     {
       key: "pal",
@@ -94,6 +110,22 @@ export default function Home() {
       to: "/send",
     },
   ];
+
+  // Live status line per tile, drawn from real on-chain state. Returns null
+  // until state loads (the tile then shows just icon + label, no placeholder).
+  function tileStatus(key: string): { text: string; color: string } | null {
+    if (key === "pal" && pal && pal.ready)
+      return { text: t("vaults.arisanRound", { n: pal.round + 1 }), color: T.action };
+    if (key === "sav" && sav && sav.ready)
+      return sav.hasGoal
+        ? { text: t("vaults.savingsStatGoal", { pct: sav.pct }), color: T.moneyIn }
+        : { text: t("vaults.savingsStatStart"), color: T.slate };
+    if (key === "dis" && dis && dis.ok)
+      return dis.active
+        ? { text: t("vaults.statusActive"), color: T.warn }
+        : { text: t("vaults.statusStandby"), color: T.slate };
+    return null;
+  }
 
   return (
     <div style={{ fontFamily: T.fontSans, color: T.ink }}>
@@ -282,46 +314,62 @@ export default function Home() {
             gap: 8,
           }}
         >
-          {liveTiles.map((tile) => (
-            <Card
-              key={tile.key}
-              p={12}
-              onClick={go(tile.to)}
-              style={{
-                cursor: "pointer",
-                minHeight: 84,
-                display: "flex",
-                flexDirection: "column",
-                gap: 8,
-              }}
-            >
-              <div
+          {liveTiles.map((tile) => {
+            const status = tileStatus(tile.key);
+            return (
+              <Card
+                key={tile.key}
+                p={12}
+                onClick={go(tile.to)}
                 style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 10,
-                  background: tile.bg,
-                  color: tile.fg,
+                  cursor: "pointer",
+                  minHeight: 92,
                   display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-                aria-hidden
-              >
-                {tile.ico({ size: 18, c: tile.fg })}
-              </div>
-              <div
-                style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  lineHeight: 1.25,
-                  color: T.ink,
+                  flexDirection: "column",
+                  gap: 8,
                 }}
               >
-                {t(tile.titleKey)}
-              </div>
-            </Card>
-          ))}
+                <div
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 10,
+                    background: tile.bg,
+                    color: tile.fg,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                  aria-hidden
+                >
+                  {tile.ico({ size: 18, c: tile.fg })}
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      lineHeight: 1.25,
+                      color: T.ink,
+                    }}
+                  >
+                    {t(tile.titleKey)}
+                  </div>
+                  {status && (
+                    <div
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: status.color,
+                      }}
+                    >
+                      {status.text}
+                    </div>
+                  )}
+                </div>
+              </Card>
+            );
+          })}
         </div>
       </div>
 
@@ -362,13 +410,8 @@ export default function Home() {
         </div>
 
         {/* Salapi Circles tile (full-width). Mirrors the LIVE TODAY tile
-            shape vertically; carries its own "Preview, Build-Award" badge
-            so the tier is unmistakable.
-            When the parallel /circles Operational Allowance build adds its
-            own home-page teaser tile, swap this wrapper for a 2-col grid
-            and drop the OA tile as the second cell. Marker: `Operational
-            Allowance tile lands here when /circles Operational Allowance
-            build merges.` */}
+            shape; carries its own "Preview, Build-Award" badge so the tier
+            is unmistakable. */}
         <Card
           p={14}
           onClick={go("/circles")}
