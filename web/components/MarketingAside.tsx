@@ -11,7 +11,6 @@
 
 import { useT } from "@/components/I18nProvider";
 import { Wordmark, MakerLockup, PoweredByStellar } from "@/components/ui/kit";
-import { SalapiMark } from "@/components/ui/brand";
 
 export default function MarketingAside() {
   const { t } = useT();
@@ -30,20 +29,6 @@ export default function MarketingAside() {
         <p className="mt-4 max-w-[380px] text-[15px] leading-relaxed text-white/70">
           {t("landing.tagline")}
         </p>
-      </div>
-      <div className="flex items-center gap-4">
-        <div
-          className="flex h-11 w-11 items-center justify-center rounded-xl"
-          style={{ background: "linear-gradient(160deg,#2563EB,#0B1220)" }}
-          aria-hidden
-        >
-          <SalapiMark size={27} c="#fff" />
-        </div>
-        <div className="text-xs leading-snug text-white/60">
-          {t("landing.installTitle")}
-          <br />
-          {t("landing.installSub")}
-        </div>
       </div>
       <PoweredByStellar c="rgba(255,255,255,0.5)" />
     </aside>
