@@ -246,6 +246,45 @@ const en = {
     version: "Version",
     forSEA: "For Southeast Asia.",
   },
+  kyc: {
+    title: "KYC tier",
+    heroTitle: "Your verification tier",
+    heroBody:
+      "KYC tier caps the operational allowance you can set when organizing a Salapi Circle. The cap is encoded into the smart contract at circle creation, immutable once the first donation lands.",
+    whyLink: "Why an honest allowance exists",
+    currently: "Currently",
+    ceiling: "ceiling",
+    ladderLabel: "Tier ladder",
+    tier0Name: "No KYC",
+    tier1Name: "Basic ID",
+    tier2Name: "Enhanced KYC + 3 closes",
+    tier0Required:
+      "Default for every new Salapi account. No documents collected.",
+    tier1Required:
+      "Government ID with photo. Face-match selfie. Recipient account ownership confirmation.",
+    tier2Required:
+      "Tier 1 verification plus three prior circles closed with verified delivery and zero unresolved disputes.",
+    tier0Unlocks:
+      "Use Salapi normally: send by username, top up, save, join the Disaster Vault. Operational allowance on any circle you organize is 0 percent.",
+    tier1Unlocks:
+      "Organize a Salapi Circle with operational allowance up to 5 percent of donations. Allowance held in escrow until proof of delivery uploaded.",
+    tier2Unlocks:
+      "Operational allowance up to 10 percent (the cap). Reputation visible to every future donor.",
+    requiredLabel: "Required",
+    unlocksLabel: "Unlocks",
+    current: "Current",
+    verifyCta: "Verify identity",
+    verifyNote: "Preview, no document uploaded today.",
+    tier2Lock:
+      "Tier 2 requires history. Complete three circles with verified delivery first, then upgrade from Tier 1.",
+    honestyStrong: "Build-Award stage 2.",
+    honestyBody:
+      "Day-30 ships a 0 percent allowance Disaster Vault with a whitelisted NGO shortlist. The KYC tier system above arrives at stage 2 alongside Operational Allowance. This preview does not collect any actual ID data.",
+    toast:
+      "Real KYC ships at Build-Award. We do not collect ID data in this preview.",
+    privacyNote:
+      "Your KYC documents stay encrypted on Salapi servers. They are not stored on-chain, ever.",
+  },
   lang: { choose: "Choose your language" },
   landing: {
     h1Line1: "Money for everyone.",
@@ -568,6 +607,45 @@ const tl: Dict = {
     version: "Bersyon",
     forSEA: "Para sa Timog-Silangang Asya.",
   },
+  kyc: {
+    title: "KYC tier",
+    heroTitle: "Ang iyong verification tier",
+    heroBody:
+      "Nililimitahan ng KYC tier ang operational allowance na puwede mong itakda kapag nag-oorganisa ng Salapi Circle. Naka-encode ang cap sa smart contract sa paggawa ng circle, hindi na mababago kapag dumating ang unang donasyon.",
+    whyLink: "Bakit may tapat na allowance",
+    currently: "Kasalukuyan",
+    ceiling: "ceiling",
+    ladderLabel: "Tier ladder",
+    tier0Name: "Walang KYC",
+    tier1Name: "Basic ID",
+    tier2Name: "Enhanced KYC + 3 closes",
+    tier0Required:
+      "Default para sa bawat bagong Salapi account. Walang dokumentong kinokolekta.",
+    tier1Required:
+      "Government ID na may litrato. Face-match selfie. Kumpirmasyon ng pagmamay-ari ng recipient account.",
+    tier2Required:
+      "Tier 1 verification plus tatlong naunang circle na nagsara nang may verified delivery at walang hindi nareresolbang dispute.",
+    tier0Unlocks:
+      "Gamitin ang Salapi nang normal: magpadala sa username, mag-top up, mag-ipon, sumali sa Disaster Vault. Ang operational allowance sa kahit anong circle na ino-organize mo ay 0 porsyento.",
+    tier1Unlocks:
+      "Mag-organisa ng Salapi Circle na may operational allowance hanggang 5 porsyento ng donasyon. Hawak sa escrow ang allowance hangga't hindi na-upload ang proof of delivery.",
+    tier2Unlocks:
+      "Operational allowance hanggang 10 porsyento (ang cap). Nakikita ng bawat susunod na donor ang reputation.",
+    requiredLabel: "Kailangan",
+    unlocksLabel: "Binubuksan",
+    current: "Kasalukuyan",
+    verifyCta: "I-verify ang pagkakakilanlan",
+    verifyNote: "Preview, walang dokumentong na-upload ngayon.",
+    tier2Lock:
+      "Kailangan ng history ang Tier 2. Tapusin muna ang tatlong circle na may verified delivery, tapos mag-upgrade mula Tier 1.",
+    honestyStrong: "Build-Award stage 2.",
+    honestyBody:
+      "Sa Day-30, naglulunsad ng 0 porsyentong allowance na Disaster Vault na may whitelisted na NGO shortlist. Darating sa stage 2 ang KYC tier system sa itaas kasama ang Operational Allowance. Walang aktwal na ID data na kinokolekta sa preview na ito.",
+    toast:
+      "Naglulunsad ang totoong KYC sa Build-Award. Hindi kami kumukuha ng ID data sa preview na ito.",
+    privacyNote:
+      "Naka-encrypt ang KYC documents mo sa Salapi servers. Hindi ito naka-store on-chain, kailanman.",
+  },
   lang: { choose: "Piliin ang iyong wika" },
   landing: {
     h1Line1: "Pera para sa lahat.",
@@ -885,6 +963,45 @@ const id: Dict = {
       "Salapi, aplikasi keuangan crypto-invisible untuk Filipina dan Indonesia, dibangun di blockchain Stellar. Demo testnet.",
     version: "Versi",
     forSEA: "Untuk Asia Tenggara.",
+  },
+  kyc: {
+    title: "Tier KYC",
+    heroTitle: "Tier verifikasi kamu",
+    heroBody:
+      "Tier KYC membatasi operational allowance yang bisa kamu tetapkan saat mengorganisir Salapi Circle. Batas itu tertanam di smart contract saat circle dibuat, tidak bisa diubah begitu donasi pertama masuk.",
+    whyLink: "Mengapa ada allowance yang jujur",
+    currently: "Saat ini",
+    ceiling: "ceiling",
+    ladderLabel: "Tangga tier",
+    tier0Name: "Tanpa KYC",
+    tier1Name: "ID dasar",
+    tier2Name: "KYC lanjutan + 3 circle tutup",
+    tier0Required:
+      "Default untuk setiap akun Salapi baru. Tidak ada dokumen yang dikumpulkan.",
+    tier1Required:
+      "ID pemerintah berfoto. Selfie face-match. Konfirmasi kepemilikan akun penerima.",
+    tier2Required:
+      "Verifikasi Tier 1 plus tiga circle sebelumnya yang tutup dengan bukti penyaluran dan tanpa sengketa yang belum selesai.",
+    tier0Unlocks:
+      "Pakai Salapi seperti biasa: kirim via username, isi saldo, menabung, gabung Disaster Vault. Operational allowance di circle mana pun yang kamu organisir adalah 0 persen.",
+    tier1Unlocks:
+      "Organisir Salapi Circle dengan operational allowance sampai 5 persen dari donasi. Allowance ditahan di escrow sampai bukti penyaluran diunggah.",
+    tier2Unlocks:
+      "Operational allowance sampai 10 persen (batasnya). Reputasi terlihat oleh setiap donor berikutnya.",
+    requiredLabel: "Dibutuhkan",
+    unlocksLabel: "Membuka",
+    current: "Saat ini",
+    verifyCta: "Verifikasi identitas",
+    verifyNote: "Pratinjau, tidak ada dokumen diunggah hari ini.",
+    tier2Lock:
+      "Tier 2 butuh riwayat. Selesaikan dulu tiga circle dengan bukti penyaluran, lalu upgrade dari Tier 1.",
+    honestyStrong: "Build-Award tahap 2.",
+    honestyBody:
+      "Day-30 merilis Disaster Vault dengan allowance 0 persen dan daftar NGO terpilih. Sistem tier KYC di atas hadir di tahap 2 bersama Operational Allowance. Pratinjau ini tidak mengumpulkan data ID apa pun.",
+    toast:
+      "KYC sungguhan hadir di Build-Award. Kami tidak mengumpulkan data ID di pratinjau ini.",
+    privacyNote:
+      "Dokumen KYC kamu disimpan terenkripsi di server Salapi. Tidak pernah disimpan on-chain.",
   },
   lang: { choose: "Pilih bahasa kamu" },
   landing: {
@@ -1204,6 +1321,45 @@ const vi: Dict = {
       "Salapi, ứng dụng tài chính ẩn-crypto cho Philippines và Indonesia, xây trên blockchain Stellar. Demo testnet.",
     version: "Phiên bản",
     forSEA: "Cho Đông Nam Á.",
+  },
+  kyc: {
+    title: "Cấp KYC",
+    heroTitle: "Cấp xác minh của bạn",
+    heroBody:
+      "Cấp KYC giới hạn operational allowance bạn có thể đặt khi tổ chức một Salapi Circle. Mức trần được ghi vào smart contract khi tạo circle, không đổi được khi khoản quyên góp đầu tiên về.",
+    whyLink: "Vì sao cần một allowance minh bạch",
+    currently: "Hiện tại",
+    ceiling: "trần",
+    ladderLabel: "Bậc thang cấp",
+    tier0Name: "Không KYC",
+    tier1Name: "ID cơ bản",
+    tier2Name: "KYC nâng cao + 3 circle đã đóng",
+    tier0Required:
+      "Mặc định cho mọi tài khoản Salapi mới. Không thu thập giấy tờ.",
+    tier1Required:
+      "Giấy tờ tuỳ thân có ảnh. Selfie khớp khuôn mặt. Xác nhận quyền sở hữu tài khoản người nhận.",
+    tier2Required:
+      "Xác minh Tier 1 cộng ba circle trước đã đóng có xác minh giao nhận và không có tranh chấp tồn đọng.",
+    tier0Unlocks:
+      "Dùng Salapi bình thường: gửi bằng username, nạp tiền, tiết kiệm, tham gia Disaster Vault. Operational allowance cho mọi circle bạn tổ chức là 0 phần trăm.",
+    tier1Unlocks:
+      "Tổ chức một Salapi Circle với operational allowance tới 5 phần trăm khoản quyên góp. Allowance giữ trong ký quỹ tới khi tải lên bằng chứng giao nhận.",
+    tier2Unlocks:
+      "Operational allowance tới 10 phần trăm (mức trần). Uy tín hiển thị cho mọi donor tương lai.",
+    requiredLabel: "Yêu cầu",
+    unlocksLabel: "Mở khoá",
+    current: "Hiện tại",
+    verifyCta: "Xác minh danh tính",
+    verifyNote: "Bản xem trước, chưa tải tài liệu nào hôm nay.",
+    tier2Lock:
+      "Tier 2 cần lịch sử. Hoàn thành ba circle có xác minh giao nhận trước, rồi nâng cấp từ Tier 1.",
+    honestyStrong: "Build-Award giai đoạn 2.",
+    honestyBody:
+      "Day-30 phát hành Disaster Vault với allowance 0 phần trăm và danh sách NGO được duyệt. Hệ thống cấp KYC ở trên đến ở giai đoạn 2 cùng Operational Allowance. Bản xem trước này không thu thập bất kỳ dữ liệu ID nào.",
+    toast:
+      "KYC thật ra mắt ở Build-Award. Chúng tôi không thu thập dữ liệu ID trong bản xem trước này.",
+    privacyNote:
+      "Tài liệu KYC của bạn được mã hoá trên máy chủ Salapi. Không bao giờ lưu on-chain.",
   },
   lang: { choose: "Chọn ngôn ngữ của bạn" },
   landing: {

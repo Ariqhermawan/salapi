@@ -8,6 +8,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useT } from "@/components/I18nProvider";
 import {
   T,
   Ico,
@@ -28,40 +29,10 @@ import {
   type KycTier,
 } from "@/lib/circles/allowance";
 
-type TierRow = {
-  tier: KycTier;
-  name: string;
-  required: string;
-  unlocks: string;
-};
-
-const TIERS: TierRow[] = [
-  {
-    tier: 0,
-    name: "No KYC",
-    required: "Default for every new Salapi account. No documents collected.",
-    unlocks:
-      "Use Salapi normally - send by username, top up, save, join the Disaster Vault. Operational allowance on any circle you organize is 0 percent.",
-  },
-  {
-    tier: 1,
-    name: "Basic ID",
-    required:
-      "Government ID with photo. Face-match selfie. Recipient account ownership confirmation.",
-    unlocks:
-      "Organize a Salapi Circle with operational allowance up to 5 percent of donations. Allowance held in escrow until proof of delivery uploaded.",
-  },
-  {
-    tier: 2,
-    name: "Enhanced KYC + 3 closes",
-    required:
-      "Tier 1 verification PLUS three prior circles closed with verified delivery and zero unresolved disputes.",
-    unlocks:
-      "Operational allowance up to 10 percent (the cap). Reputation visible to every future donor.",
-  },
-];
+const TIERS: KycTier[] = [0, 1, 2];
 
 export default function KycTierScreen() {
+  const { t } = useT();
   const router = useRouter();
 
   // Preview state: the logged-in user is Tier 0 by default. There is no
@@ -73,8 +44,8 @@ export default function KycTierScreen() {
   const [toast, setToast] = useState<string | null>(null);
   useEffect(() => {
     if (!toast) return;
-    const t = setTimeout(() => setToast(null), 5000);
-    return () => clearTimeout(t);
+    const id = setTimeout(() => setToast(null), 5000);
+    return () => clearTimeout(id);
   }, [toast]);
 
   return (
@@ -92,7 +63,7 @@ export default function KycTierScreen() {
             {Ico.back({})}
           </IconButton>
         }
-        title="KYC tier"
+        title={t("kyc.title")}
         trailing={<Stage2Pill />}
       />
 
@@ -107,22 +78,13 @@ export default function KycTierScreen() {
             margin: 0,
           }}
         >
-          Your verification tier
+          {t("kyc.heroTitle")}
         </h1>
-        <p
-          style={{
-            marginTop: 6,
-            fontSize: 13,
-            color: T.slate,
-            lineHeight: 1.5,
-          }}
-        >
-          KYC tier caps the operational allowance you can set when organizing
-          a Salapi Circle. The cap is encoded into the smart contract at
-          circle creation, immutable once the first donation lands.
+        <p style={{ marginTop: 6, fontSize: 13, color: T.slate, lineHeight: 1.5 }}>
+          {t("kyc.heroBody")}
         </p>
         <div style={{ marginTop: 4 }}>
-          <WhyExistsLink label="Why an honest allowance exists" />
+          <WhyExistsLink label={t("kyc.whyLink")} />
         </div>
       </div>
 
@@ -130,17 +92,9 @@ export default function KycTierScreen() {
       <div style={{ padding: "12px 16px 0" }}>
         <Card
           p={14}
-          style={{
-            background: "linear-gradient(160deg, #fff 0%, #EFF4FE 110%)",
-          }}
+          style={{ background: "linear-gradient(160deg, #fff 0%, #EFF4FE 110%)" }}
         >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-            }}
-          >
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div
               style={{
                 width: 44,
@@ -168,10 +122,10 @@ export default function KycTierScreen() {
                   color: T.slate,
                 }}
               >
-                Currently
+                {t("kyc.currently")}
               </div>
               <div style={{ fontSize: 15, fontWeight: 600, marginTop: 2 }}>
-                {KYC_TIER_LABEL[currentTier]} · ceiling{" "}
+                {KYC_TIER_LABEL[currentTier]} · {t("kyc.ceiling")}{" "}
                 {KYC_TIER_CEILING[currentTier]}%
               </div>
             </div>
@@ -190,7 +144,7 @@ export default function KycTierScreen() {
           color: T.slate,
         }}
       >
-        Tier ladder
+        {t("kyc.ladderLabel")}
       </div>
       <div
         style={{
@@ -200,42 +154,32 @@ export default function KycTierScreen() {
           gap: 10,
         }}
       >
-        {TIERS.map((row) => {
-          const active = row.tier === currentTier;
-          const ceiling = KYC_TIER_CEILING[row.tier];
+        {TIERS.map((tier) => {
+          const active = tier === currentTier;
+          const ceiling = KYC_TIER_CEILING[tier];
           return (
             <Card
-              key={row.tier}
+              key={tier}
               style={{
                 boxShadow: active
                   ? "0 0 0 2px " + T.action + ", inset 0 0 0 1px " + T.hairline
                   : "inset 0 0 0 1px " + T.hairline,
               }}
             >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                }}
-              >
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <div
                   style={{
                     width: 40,
                     height: 40,
                     borderRadius: 12,
                     background:
-                      row.tier === 2
+                      tier === 2
                         ? T.moneyInTint
-                        : row.tier === 1
+                        : tier === 1
                           ? T.actionTint
                           : T.canvas,
                     color:
-                      row.tier === 2
-                        ? T.moneyIn
-                        : row.tier === 1
-                          ? T.action
-                          : T.slate,
+                      tier === 2 ? T.moneyIn : tier === 1 ? T.action : T.slate,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -244,7 +188,7 @@ export default function KycTierScreen() {
                     flex: "0 0 auto",
                   }}
                 >
-                  {row.tier}
+                  {tier}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div
@@ -256,34 +200,24 @@ export default function KycTierScreen() {
                     }}
                   >
                     <div style={{ fontSize: 15, fontWeight: 600 }}>
-                      {KYC_TIER_LABEL[row.tier]}
+                      {KYC_TIER_LABEL[tier]}
                     </div>
                     <Chip
                       kind={
-                        row.tier === 2
-                          ? "success"
-                          : row.tier === 1
-                            ? "action"
-                            : "neutral"
+                        tier === 2 ? "success" : tier === 1 ? "action" : "neutral"
                       }
                       size="sm"
                     >
-                      ceiling {ceiling}%
+                      {t("kyc.ceiling")} {ceiling}%
                     </Chip>
                     {active && (
                       <Chip kind="action" size="sm">
-                        Current
+                        {t("kyc.current")}
                       </Chip>
                     )}
                   </div>
-                  <div
-                    style={{
-                      fontSize: 12,
-                      color: T.slate,
-                      marginTop: 2,
-                    }}
-                  >
-                    {row.name}
+                  <div style={{ fontSize: 12, color: T.slate, marginTop: 2 }}>
+                    {t(`kyc.tier${tier}Name`)}
                   </div>
                 </div>
               </div>
@@ -298,7 +232,7 @@ export default function KycTierScreen() {
                     color: T.slate,
                   }}
                 >
-                  Required
+                  {t("kyc.requiredLabel")}
                 </div>
                 <p
                   style={{
@@ -308,7 +242,7 @@ export default function KycTierScreen() {
                     lineHeight: 1.55,
                   }}
                 >
-                  {row.required}
+                  {t(`kyc.tier${tier}Required`)}
                 </p>
               </div>
               <div style={{ marginTop: 12 }}>
@@ -321,7 +255,7 @@ export default function KycTierScreen() {
                     color: T.slate,
                   }}
                 >
-                  Unlocks
+                  {t("kyc.unlocksLabel")}
                 </div>
                 <p
                   style={{
@@ -331,22 +265,15 @@ export default function KycTierScreen() {
                     lineHeight: 1.55,
                   }}
                 >
-                  {row.unlocks}
+                  {t(`kyc.tier${tier}Unlocks`)}
                 </p>
               </div>
 
               {/* CTA per row */}
-              {row.tier === 1 && (
+              {tier === 1 && (
                 <div style={{ marginTop: 14 }}>
-                  <Btn
-                    kind="primary"
-                    onClick={() =>
-                      setToast(
-                        "Real KYC ships at Build-Award. We don't collect ID data in this preview."
-                      )
-                    }
-                  >
-                    Verify identity
+                  <Btn kind="primary" onClick={() => setToast(t("kyc.toast"))}>
+                    {t("kyc.verifyCta")}
                   </Btn>
                   <div
                     style={{
@@ -357,11 +284,11 @@ export default function KycTierScreen() {
                       lineHeight: 1.45,
                     }}
                   >
-                    Preview - no document uploaded today.
+                    {t("kyc.verifyNote")}
                   </div>
                 </div>
               )}
-              {row.tier === 2 && (
+              {tier === 2 && (
                 <div style={{ marginTop: 14 }}>
                   <div
                     style={{
@@ -379,10 +306,7 @@ export default function KycTierScreen() {
                     <div style={{ marginTop: 1 }}>
                       {Ico.lock({ size: 14, c: T.slate })}
                     </div>
-                    <div>
-                      Tier 2 requires history. Complete three circles with
-                      verified delivery first - then upgrade from Tier 1.
-                    </div>
+                    <div>{t("kyc.tier2Lock")}</div>
                   </div>
                 </div>
               )}
@@ -406,25 +330,28 @@ export default function KycTierScreen() {
             alignItems: "flex-start",
           }}
         >
-          <div style={{ marginTop: 1 }}>
-            {Ico.shield({ size: 16, c: T.warn })}
-          </div>
+          <div style={{ marginTop: 1 }}>{Ico.shield({ size: 16, c: T.warn })}</div>
           <div>
-            <strong>Build-Award stage 2.</strong> Day-30 ships a 0% allowance
-            Disaster Vault with a whitelisted NGO shortlist. The KYC tier
-            system above arrives at stage 2 alongside Operational Allowance.
-            This preview does not collect any actual ID data.
+            <strong>{t("kyc.honestyStrong")}</strong> {t("kyc.honestyBody")}
           </div>
         </div>
       </div>
 
-      <div
-        style={{
-          padding: "14px 16px 0",
-          display: "flex",
-          justifyContent: "center",
-        }}
-      >
+      {/* Privacy note (V7) */}
+      <div style={{ padding: "10px 16px 0" }}>
+        <Card p={12}>
+          <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+            <div style={{ marginTop: 1 }}>
+              {Ico.lock({ size: 14, c: T.action })}
+            </div>
+            <div style={{ fontSize: 12.5, color: T.ink, lineHeight: 1.5 }}>
+              {t("kyc.privacyNote")}
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      <div style={{ padding: "14px 16px 0", display: "flex", justifyContent: "center" }}>
         <PoweredByStellar />
       </div>
 
