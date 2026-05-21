@@ -8,6 +8,7 @@ import {
   paluwaganFriendsPay,
   paluwaganCollect,
 } from "@/app/actions";
+import { useT } from "@/components/I18nProvider";
 import {
   T,
   Ico,
@@ -16,7 +17,6 @@ import {
   Card,
   Btn,
   Chip,
-  Peso,
   Avatar,
   PoweredByStellar,
 } from "@/components/ui/kit";
@@ -57,6 +57,7 @@ function Confetti() {
 }
 
 export default function PaluwaganScreen() {
+  const { t } = useT();
   const router = useRouter();
   const [st, setSt] = useState<State | null>(null);
   const [msg, setMsg] = useState<{ tone: "ok" | "err"; text: string; link?: string } | null>(null);
@@ -85,7 +86,7 @@ export default function PaluwaganScreen() {
           setTimeout(() => setParty(false), 2400);
         }
       } else {
-        setMsg({ tone: "err", text: r.error || "Something went wrong" });
+        setMsg({ tone: "err", text: r.error || t("paluwagan.somethingWrong") });
       }
       await refresh();
     });
@@ -104,10 +105,10 @@ export default function PaluwaganScreen() {
       <div style={shell}>
         <AppBar
           leading={<IconButton onClick={() => router.push("/")}>{Ico.back({})}</IconButton>}
-          title="Paluwagan"
+          title={t("paluwagan.title")}
         />
         <div style={{ padding: "60px 24px", textAlign: "center", color: T.slate, fontSize: 14 }}>
-          Loading your circle…
+          {t("paluwagan.loading")}
         </div>
       </div>
     );
@@ -115,11 +116,16 @@ export default function PaluwaganScreen() {
 
   // ── EMPTY / INVITATION (contract not configured) ──
   if (!st.ready) {
+    const features = [
+      { ico: Ico.shield, t: t("paluwagan.feature1Title"), s: t("paluwagan.feature1Sub") },
+      { ico: Ico.check, t: t("paluwagan.feature2Title"), s: t("paluwagan.feature2Sub") },
+      { ico: Ico.refresh, t: t("paluwagan.feature3Title"), s: t("paluwagan.feature3Sub") },
+    ];
     return (
       <div style={shell}>
         <AppBar
           leading={<IconButton onClick={() => router.push("/")}>{Ico.back({})}</IconButton>}
-          title="Paluwagan"
+          title={t("paluwagan.title")}
         />
         <div style={{ padding: "10px 24px 0" }}>
           <div style={{ position: "relative", width: "100%", height: 200, marginBottom: 24 }}>
@@ -153,24 +159,18 @@ export default function PaluwaganScreen() {
             })}
           </div>
           <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: T.action, textAlign: "center" }}>
-            Salapi Circles
+            {t("paluwagan.kicker")}
           </div>
-          <div style={{ fontSize: 26, fontWeight: 600, letterSpacing: "-0.02em", textAlign: "center", marginTop: 6, lineHeight: 1.2 }}>
-            Want to do a paluwagan
-            <br />
-            with friends or family?
+          <div style={{ fontSize: 25, fontWeight: 600, letterSpacing: "-0.02em", textAlign: "center", marginTop: 6, lineHeight: 1.25 }}>
+            {t("paluwagan.inviteTitle")}
           </div>
           <div style={{ marginTop: 10, fontSize: 14, color: T.slate, textAlign: "center", lineHeight: 1.5, padding: "0 8px" }}>
-            A rotating savings circle, run by everyone, owned by no one. The contract holds the pot. No one can run away with it.
+            {t("paluwagan.inviteBody")}
           </div>
         </div>
         <div style={{ padding: "28px 16px 0" }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10 }}>
-            {[
-              { ico: Ico.shield, t: "Locked pot", s: "No one holds it" },
-              { ico: Ico.check, t: "Auto rotate", s: "Each round, on time" },
-              { ico: Ico.refresh, t: "Withdraw anytime", s: "Fee shown before you confirm" },
-            ].map((it) => (
+            {features.map((it) => (
               <div key={it.t} style={{ background: T.surface, borderRadius: 14, padding: "14px 12px", boxShadow: "inset 0 0 0 1px " + T.hairline, display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
                 <div style={{ width: 30, height: 30, borderRadius: 9, background: T.actionTint, color: T.action, display: "flex", alignItems: "center", justifyContent: "center" }}>
                   {it.ico({ size: 16, c: T.action })}
@@ -182,7 +182,7 @@ export default function PaluwaganScreen() {
           </div>
         </div>
         <div style={{ padding: "28px 16px 0", textAlign: "center", color: T.slate, fontSize: 13, lineHeight: 1.5 }}>
-          The demo circle isn&apos;t configured on this deployment yet.
+          {t("paluwagan.notConfigured")}
         </div>
         <div style={{ padding: "20px 16px 0", display: "flex", justifyContent: "center" }}>
           <PoweredByStellar />
@@ -203,22 +203,22 @@ export default function PaluwaganScreen() {
       {party && <Confetti />}
       <AppBar
         leading={<IconButton onClick={() => router.push("/")}>{Ico.back({})}</IconButton>}
-        title="Family Circle"
+        title={t("paluwagan.circleName")}
         trailing={<IconButton onClick={() => router.push("/activity")}>{Ico.activity({})}</IconButton>}
       />
 
       <div style={{ padding: "4px 16px 4px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", gap: 8 }}>
           <Chip kind="action">
-            Round {pad2(st.round + 1)} / {pad2(total)}
+            {t("paluwagan.roundChip", { n: pad2(st.round + 1), total: pad2(total) })}
           </Chip>
-          <Chip kind="neutral">Monthly</Chip>
+          <Chip kind="neutral">{t("paluwagan.monthly")}</Chip>
         </div>
         <Chip
           kind="success"
           leading={<span className="sl-pulse" style={{ width: 6, height: 6, borderRadius: 99, background: T.moneyIn, display: "inline-block" }} />}
         >
-          Live
+          {t("paluwagan.live")}
         </Chip>
       </div>
 
@@ -271,7 +271,7 @@ export default function PaluwaganScreen() {
                   )}
                   {turn && (
                     <div style={{ position: "absolute", top: -22, left: "50%", transform: "translateX(-50%)", fontSize: 9, fontWeight: 700, letterSpacing: "0.1em", color: T.action, whiteSpace: "nowrap" }}>
-                      ↓ NEXT
+                      ↓ {t("paluwagan.statusReceiving").toUpperCase()}
                     </div>
                   )}
                 </div>
@@ -280,13 +280,13 @@ export default function PaluwaganScreen() {
           })}
           <div style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)", width: 104, height: 104, borderRadius: 99, background: T.ink, color: "#fff", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2, boxShadow: "0 10px 28px -8px rgba(11,18,32,.4)" }}>
             <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.55)" }}>
-              Pot
+              {t("paluwagan.pot")}
             </div>
             <div className="sl-balance" style={{ fontSize: 19, fontWeight: 600, letterSpacing: "-0.02em" }}>
               {st.potPeso}
             </div>
             <div style={{ fontSize: 9, color: "rgba(255,255,255,0.5)", fontFamily: T.fontMono }}>
-              {paidCount}/{total} paid
+              {t("paluwagan.paidCount", { paid: paidCount, total })}
             </div>
           </div>
         </div>
@@ -298,7 +298,7 @@ export default function PaluwaganScreen() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
             <div>
               <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: T.slate }}>
-                This round goes to
+                {t("paluwagan.goesTo")}
               </div>
               <div style={{ marginTop: 4, display: "flex", alignItems: "center", gap: 8 }}>
                 <Avatar name={st.recipientLabel} size={26} />
@@ -307,7 +307,7 @@ export default function PaluwaganScreen() {
             </div>
             <div style={{ textAlign: "right" }}>
               <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: T.slate }}>
-                Share each
+                {t("paluwagan.shareEach")}
               </div>
               <div className="sl-balance" style={{ marginTop: 4, fontSize: 17, fontWeight: 600 }}>
                 {st.sharePeso}
@@ -318,10 +318,47 @@ export default function PaluwaganScreen() {
             {Ico.shield({ size: 14, c: iPaid ? T.moneyIn : T.slate })}
             <span>
               {iPaid
-                ? `You've paid your share for round ${pad2(st.round + 1)}. The contract holds the pot.`
-                : `You haven't paid your share for round ${pad2(st.round + 1)} yet.`}
+                ? t("paluwagan.youPaid", { n: pad2(st.round + 1) })
+                : t("paluwagan.youNotPaid", { n: pad2(st.round + 1) })}
             </span>
           </div>
+        </Card>
+      </div>
+
+      {/* Member wall */}
+      <div style={{ padding: "14px 16px 0" }}>
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: T.slate, padding: "0 4px 6px" }}>
+          {t("paluwagan.members")}
+        </div>
+        <Card p={0}>
+          {seats.map((m, i) => {
+            const status = m.isRecipient
+              ? { label: t("paluwagan.statusReceiving"), kind: "action" as const }
+              : m.paid
+                ? { label: t("paluwagan.statusPaid"), kind: "success" as const }
+                : { label: t("paluwagan.statusNotPaid"), kind: "neutral" as const };
+            return (
+              <div
+                key={m.addr}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "10px 14px",
+                  borderBottom: i < seats.length - 1 ? "1px solid " + T.hairline : "none",
+                  minHeight: 44,
+                }}
+              >
+                <Avatar name={m.label} size={30} />
+                <div style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600 }}>
+                  {m.label}
+                </div>
+                <Chip kind={status.kind} size="sm">
+                  {status.label}
+                </Chip>
+              </div>
+            );
+          })}
         </Card>
       </div>
 
@@ -351,7 +388,7 @@ export default function PaluwaganScreen() {
                 rel="noopener noreferrer"
                 style={{ color: T.action, fontFamily: T.fontMono, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 4 }}
               >
-                View on Stellar {Ico.link({ size: 13, c: T.action })}
+                {t("paluwagan.viewOnStellar")} {Ico.link({ size: 13, c: T.action })}
               </a>
             )}
           </div>
@@ -367,10 +404,12 @@ export default function PaluwaganScreen() {
             disabled={pending}
             leading={!pending && Ico.check({ c: "#fff" })}
             onClick={() =>
-              run(paluwaganCollect, `Pot released to ${st.recipientLabel}`, true)
+              run(paluwaganCollect, t("paluwagan.potReleased", { who: st.recipientLabel }), true)
             }
           >
-            {pending ? "Releasing…" : `Release pot ${st.potPeso} → ${st.recipientLabel}`}
+            {pending
+              ? t("paluwagan.releasing")
+              : t("paluwagan.releasePot", { pot: st.potPeso, who: st.recipientLabel })}
           </Btn>
         ) : (
           <Btn
@@ -378,17 +417,21 @@ export default function PaluwaganScreen() {
             loading={pending}
             disabled={pending || iPaid}
             leading={!pending && Ico.check({ c: "#fff" })}
-            onClick={() => run(paluwaganPayMine, `Paid your share ${st.sharePeso}`)}
+            onClick={() => run(paluwaganPayMine, t("paluwagan.sharePaidOk", { share: st.sharePeso }))}
           >
-            {iPaid ? "Your share is paid" : pending ? "Paying…" : `Pay my share ${st.sharePeso}`}
+            {iPaid
+              ? t("paluwagan.sharePaid")
+              : pending
+                ? t("paluwagan.paying")
+                : t("paluwagan.payShare", { share: st.sharePeso })}
           </Btn>
         )}
         <Btn
           kind="secondary"
           disabled={pending || st.allPaid}
-          onClick={() => run(paluwaganFriendsPay, "Friends paid their shares")}
+          onClick={() => run(paluwaganFriendsPay, t("paluwagan.friendsPaidOk"))}
         >
-          Simulate friends paying
+          {t("paluwagan.simFriends")}
         </Btn>
       </div>
 
