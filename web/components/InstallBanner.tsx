@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useInstallPrompt } from "@/hooks/useInstallPrompt";
+import { SalapiMark } from "@/components/ui/brand";
 
 const DISMISS_KEY = "salapi_install_dismissed";
 
@@ -17,8 +18,8 @@ export default function InstallBanner() {
 
   return (
     <div className="s-anim-up mx-5 mt-3 flex items-center gap-3 rounded-xl border border-[var(--color-hairline)] bg-white p-3 shadow-sm">
-      <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--color-action)] text-sm font-bold text-white">
-        S
+      <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--color-action)]">
+        <SalapiMark size={22} c="#fff" />
       </span>
       <div className="flex-1 text-xs">
         <div className="font-semibold text-[var(--color-ink)]">
