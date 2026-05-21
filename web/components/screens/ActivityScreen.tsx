@@ -11,11 +11,16 @@ import {
   Card,
   PoweredByStellar,
 } from "@/components/ui/kit";
+import { useT } from "@/components/I18nProvider";
 
 const EXPLORER = "https://stellar.expert/explorer/testnet";
 
 type IconFn = (p: { size?: number; c?: string }) => React.ReactNode;
 
+// The founding on-chain trail is a deliberate technical proof artifact: raw
+// Week-2 contract operations with real, verifiable testnet tx hashes. Step
+// labels stay as technical literals (like the hashes and explorer links they
+// point to), not localized consumer copy.
 const TRAIL: { step: string; hash: string; ico: IconFn; kind: "in" | "out" | "sys" }[] = [
   { step: "Deploy disaster vault", hash: "1bed6a16e6b6b2a8fddf3c8e247764f77f80bc18f58cd019bec225e60d891d12", ico: Ico.shield, kind: "sys" },
   { step: "Register @juandelacruz", hash: "00d0861463b124d7ec83b1cb5ef65f4b13579167127b8acede5c01362f8bf913", ico: Ico.user, kind: "sys" },
@@ -26,6 +31,7 @@ const TRAIL: { step: string; hash: string; ico: IconFn; kind: "in" | "out" | "sy
 ];
 
 export default function ActivityScreen() {
+  const { t } = useT();
   const router = useRouter();
   const [addr, setAddr] = useState("");
 
@@ -34,14 +40,16 @@ export default function ActivityScreen() {
   }, []);
 
   const account = addr ? `${EXPLORER}/account/${addr}` : undefined;
-  const shortAddr = addr ? `${addr.slice(0, 6)}…${addr.slice(-6)}` : "loading…";
+  const shortAddr = addr
+    ? `${addr.slice(0, 6)}…${addr.slice(-6)}`
+    : t("common.loading");
 
   return (
     <div style={{ fontFamily: T.fontSans, color: T.ink, minHeight: "100%", paddingBottom: 110 }}>
       <AppBar
         large
-        title="Activity"
-        sub="Real · verifiable on Stellar testnet"
+        title={t("activity.title")}
+        sub={t("activity.sub")}
         leading={<IconButton onClick={() => router.push("/")}>{Ico.back({})}</IconButton>}
       />
 
@@ -54,13 +62,13 @@ export default function ActivityScreen() {
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: T.slate }}>
-                Your wallet · managed demo
+                {t("activity.walletLabel")}
               </div>
               <div style={{ fontSize: 13, fontFamily: T.fontMono, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                 {shortAddr}
               </div>
               <div style={{ fontSize: 13, fontWeight: 600, color: T.action, marginTop: 4, display: "inline-flex", alignItems: "center", gap: 5 }}>
-                Open full history on explorer {Ico.link({ size: 13, c: T.action })}
+                {t("activity.openHistory")} {Ico.link({ size: 13, c: T.action })}
               </div>
             </div>
           </div>
@@ -70,29 +78,29 @@ export default function ActivityScreen() {
       {/* Founding on-chain trail · Week 2 (real, verifiable) */}
       <div style={{ padding: "14px 16px 0" }}>
         <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: T.slate, padding: "2px 4px 6px" }}>
-          Founding on-chain trail · Week 2
+          {t("activity.trailTitle")}
         </div>
         <Card p={0}>
-          {TRAIL.map((t, i) => {
-            const c = t.kind === "in" ? T.moneyIn : t.kind === "out" ? T.warn : T.slate;
-            const bg = t.kind === "in" ? T.moneyInTint : t.kind === "out" ? T.warnTint : T.canvas;
+          {TRAIL.map((row, i) => {
+            const c = row.kind === "in" ? T.moneyIn : row.kind === "out" ? T.warn : T.slate;
+            const bg = row.kind === "in" ? T.moneyInTint : row.kind === "out" ? T.warnTint : T.canvas;
             return (
               <a
-                key={t.hash}
-                href={`${EXPLORER}/tx/${t.hash}`}
+                key={row.hash}
+                href={`${EXPLORER}/tx/${row.hash}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderBottom: i < TRAIL.length - 1 ? "1px solid " + T.hairline : "none", color: T.ink, textDecoration: "none", minHeight: 44 }}
               >
                 <div style={{ width: 34, height: 34, borderRadius: 10, background: bg, color: c, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  {t.ico({ size: 18, c })}
+                  {row.ico({ size: 18, c })}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13.5, fontWeight: 600, lineHeight: 1.25, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {t.step}
+                    {row.step}
                   </div>
                   <div style={{ fontSize: 11, color: T.slate, marginTop: 1, fontFamily: T.fontMono }}>
-                    tx · {t.hash.slice(0, 16)}…
+                    tx · {row.hash.slice(0, 16)}…
                   </div>
                 </div>
                 {Ico.link({ size: 16, c: T.action })}
@@ -101,14 +109,15 @@ export default function ActivityScreen() {
           })}
         </Card>
         <div style={{ marginTop: 10, fontSize: 12, color: T.slate, lineHeight: 1.45, padding: "0 4px" }}>
-          Every send, top-up, paluwagan and donation you make in the app posts a
-          real transaction here. Independently checkable, no login.
+          {t("activity.note")}
         </div>
       </div>
 
       <div style={{ padding: "16px 16px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
         <PoweredByStellar />
-        <span style={{ fontSize: 11, color: T.slate, fontFamily: T.fontMono }}>Read-only · anyone can verify</span>
+        <span style={{ fontSize: 11, color: T.slate, fontFamily: T.fontMono }}>
+          {t("activity.footer")}
+        </span>
       </div>
     </div>
   );

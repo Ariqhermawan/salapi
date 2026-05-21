@@ -132,6 +132,15 @@ const en = {
     done: "Done",
     again: "Withdraw again",
   },
+  activity: {
+    title: "Activity",
+    sub: "Real · verifiable on Stellar testnet",
+    walletLabel: "Your wallet · managed demo",
+    openHistory: "Open full history on explorer",
+    trailTitle: "Founding on-chain trail · Week 2",
+    note: "Every send, top-up, paluwagan and donation you make in the app posts a real transaction here. Independently checkable, no login.",
+    footer: "Read-only · anyone can verify",
+  },
   vaults: {
     title: "Vaults",
     sub: "One primitive, different rules. All live on Stellar testnet.",
@@ -407,6 +416,15 @@ const tl: Dict = {
     done: "Tapos",
     again: "Mag-withdraw ulit",
   },
+  activity: {
+    title: "Aktibidad",
+    sub: "Tunay · masusubaybayan sa Stellar testnet",
+    walletLabel: "Iyong wallet · managed demo",
+    openHistory: "Buksan ang buong history sa explorer",
+    trailTitle: "Unang on-chain na bakas · Linggo 2",
+    note: "Bawat padala, top-up, paluwagan at donasyon na gagawin mo sa app ay nagpo-post ng tunay na transaksyon dito. Malayang masusuri, walang login.",
+    footer: "Read-only · kahit sino makakapag-verify",
+  },
   vaults: {
     title: "Mga Vault",
     sub: "Isang primitive, iba't ibang patakaran. Lahat live sa Stellar testnet.",
@@ -677,6 +695,15 @@ const id: Dict = {
     onChainBalance: "Saldo on-chain",
     done: "Selesai",
     again: "Tarik lagi",
+  },
+  activity: {
+    title: "Aktivitas",
+    sub: "Nyata · bisa diverifikasi di Stellar testnet",
+    walletLabel: "Wallet kamu · managed demo",
+    openHistory: "Buka riwayat lengkap di explorer",
+    trailTitle: "Jejak on-chain awal · Minggu 2",
+    note: "Setiap kiriman, isi saldo, arisan, dan donasi yang kamu lakukan di app mencatat transaksi nyata di sini. Bisa diperiksa siapa saja, tanpa login.",
+    footer: "Hanya-baca · siapa pun bisa memverifikasi",
   },
   vaults: {
     title: "Vault",
@@ -949,6 +976,15 @@ const vi: Dict = {
     onChainBalance: "Số dư on-chain",
     done: "Xong",
     again: "Rút lại",
+  },
+  activity: {
+    title: "Hoạt động",
+    sub: "Thật · xác minh được trên Stellar testnet",
+    walletLabel: "Ví của bạn · managed demo",
+    openHistory: "Mở lịch sử đầy đủ trên explorer",
+    trailTitle: "Dấu vết on-chain khởi đầu · Tuần 2",
+    note: "Mỗi lần gửi, nạp tiền, hụi và quyên góp bạn thực hiện trong ứng dụng đều ghi một giao dịch thật ở đây. Ai cũng kiểm tra được, không cần đăng nhập.",
+    footer: "Chỉ đọc · ai cũng xác minh được",
   },
   vaults: {
     title: "Két tiền",
