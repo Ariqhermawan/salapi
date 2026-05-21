@@ -1,11 +1,12 @@
-﻿"use client";
+"use client";
 
 import { useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createSupabaseBrowser } from "@/lib/supabase/client";
 import { supabaseConfigured } from "@/lib/supabase/env";
-import { T, Btn, Wordmark, TestnetPill, PoweredByStellar } from "@/components/ui/kit";
+import { T, Ico, Btn, Wordmark, TestnetPill, PoweredByStellar } from "@/components/ui/kit";
 import { SalapiMark } from "@/components/ui/brand";
+import { useT } from "@/components/I18nProvider";
 
 function GoogleMark() {
   return (
@@ -21,6 +22,7 @@ function GoogleMark() {
 
 export default function SignInScreen() {
   const router = useRouter();
+  const { t } = useT();
   const searchParams = useSearchParams();
   const [pending, start] = useTransition();
   const [busy, setBusy] = useState(false);
@@ -32,9 +34,7 @@ export default function SignInScreen() {
   // instead of being silently dropped. Derived during render, no setState
   // inside useEffect (React 19 react-hooks/set-state-in-effect).
   const urlError =
-    searchParams?.get("error") === "oauth"
-      ? "Google sign-in didn't complete. Please try again."
-      : null;
+    searchParams?.get("error") === "oauth" ? t("signin.oauthError") : null;
   const authError = submitError ?? urlError;
 
   const enter = () => start(() => void router.push("/"));
@@ -75,31 +75,55 @@ export default function SignInScreen() {
         <div style={{ width: 54, height: 54, borderRadius: 16, background: "linear-gradient(160deg,#2563EB,#0B1220)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14, boxShadow: "0 14px 30px -10px rgba(37,99,235,.5)" }}>
           <SalapiMark size={33} c="#fff" />
         </div>
-        <div style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em", textAlign: "center", lineHeight: 1.2 }}>Welcome to Salapi.</div>
-        <div style={{ marginTop: 4, fontSize: 13, color: T.slate, textAlign: "center" }}>Sign in to continue.</div>
+        <div style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em", textAlign: "center", lineHeight: 1.2 }}>{t("signin.welcome")}</div>
+        <div style={{ marginTop: 4, fontSize: 13, color: T.slate, textAlign: "center" }}>{t("signin.subtitle")}</div>
       </div>
 
-      <div style={{ padding: "20px 16px 0", display: "flex", flexDirection: "column", gap: 8 }}>
+      {/* Reassurance: addresses the top first-signup blocker, "do I have to
+          manage a crypto wallet?". Honest, the wallet is a managed custody
+          layer created on first login. */}
+      <div style={{ padding: "18px 16px 0" }}>
+        <div
+          style={{
+            display: "flex",
+            gap: 10,
+            alignItems: "flex-start",
+            padding: "12px 14px",
+            borderRadius: 12,
+            background: T.actionTint,
+          }}
+        >
+          <div style={{ marginTop: 1 }}>{Ico.shield({ size: 16, c: T.action })}</div>
+          <div>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: T.action }}>
+              {t("signin.whyGoogleTitle")}
+            </div>
+            <div style={{ marginTop: 3, fontSize: 12, color: T.slate, lineHeight: 1.5 }}>
+              {t("signin.whyGoogleBody")}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ padding: "16px 16px 0", display: "flex", flexDirection: "column", gap: 8 }}>
         {authError && (
           <div role="alert" style={{ background: "#FEF2F2", color: "#B91C1C", border: "1px solid #FECACA", borderRadius: 12, padding: "10px 12px", fontSize: 13, lineHeight: 1.4, textAlign: "center" }}>
             {authError}
           </div>
         )}
         <Btn kind="primary" disabled={working} loading={working} leading={!working && <GoogleMark />} onClick={google}>
-          {busy ? "Redirecting to Google…" : "Continue with Google"}
+          {busy ? t("signin.redirecting") : t("signin.google")}
         </Btn>
-        <Btn kind="secondary" disabled={working} onClick={enter}>Continue with phone number</Btn>
-        <Btn kind="ghost" disabled={working} onClick={enter}>Use email instead</Btn>
+        <Btn kind="secondary" disabled={working} onClick={enter}>{t("signin.phone")}</Btn>
+        <Btn kind="ghost" disabled={working} onClick={enter}>{t("signin.email")}</Btn>
       </div>
 
       <div style={{ marginTop: "auto", padding: "16px 20px 0", textAlign: "center" }}>
         <div style={{ fontSize: 11, color: T.slate, lineHeight: 1.5, marginBottom: 6 }}>
-          {configured
-            ? "Real Google sign-in via Supabase. Your own Stellar wallet is created on first login. Phone/email are sandbox seams."
-            : "Sandbox sign-in seam. No real account is created. Google OAuth activates once Supabase is configured."}
+          {configured ? t("signin.footerConfigured") : t("signin.footerSandbox")}
         </div>
         <div style={{ fontSize: 11, color: T.slate, lineHeight: 1.5, marginBottom: 10 }}>
-          By continuing, you agree to our Terms and Privacy Policy.
+          {t("signin.terms")}
         </div>
         <div style={{ display: "flex", justifyContent: "center" }}>
           <PoweredByStellar />
