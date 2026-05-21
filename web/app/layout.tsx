@@ -18,6 +18,19 @@ export const metadata: Metadata = {
   description:
     "GCash-funded Stellar wallet: disaster relief, paluwagan, smart savings, P2P. Crypto invisible.",
   appleWebApp: { capable: true, title: "Salapi", statusBarStyle: "default" },
+  openGraph: {
+    type: "website",
+    siteName: "Salapi",
+    title: "Salapi, crypto-invisible fintech for the Philippines and Indonesia",
+    description:
+      "GCash-funded Stellar wallet: disaster relief, paluwagan, smart savings, P2P. Crypto invisible.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Salapi, crypto-invisible fintech",
+    description:
+      "GCash-funded Stellar wallet: disaster relief, paluwagan, smart savings, P2P. Crypto invisible.",
+  },
 };
 
 export const viewport: Viewport = {

@@ -1,38 +1,40 @@
 ﻿// Salapi, V4 brand primitives. Faithful port of salapi/brand.jsx.
-// Real logomark (two parallel rails → S), the maker lockup, the Stellar
-// kinship mark, and the testnet trust signals. Server-safe pure SVG/markup.
+// The Sampan logomark (an S monogram on a community cradle), the maker lockup,
+// the Stellar kinship mark, and the testnet trust signals. Server-safe SVG/markup.
 // MakerLockup is Title Case "Salapi by Catatu" per the product owner.
 
 import { T } from "@/lib/ui/tokens";
 
 export const GRAD = "linear-gradient(160deg, #2563EB 0%, #1D4ED8 55%, #0B1220 100%)";
 
-// Primary symbol, "Invisible Rails": two parallel rounded strokes leaning
-// forward, curling into an S / peso-in-motion.
+// Primary symbol, "Sampan": an S monogram resting on a long curved cradle.
+// Community direction, concept 8. The community lifts the money and the
+// member together (sampan, bayanihan, mengangkat bersama).
 export function SalapiMark({
   size = 64,
   c = "#fff",
-  strokeRatio = 0.108,
 }: {
   size?: number;
   c?: string;
+  // strokeRatio kept in the type for backward compatibility with older
+  // callers; the Sampan mark uses fixed stroke weights, so it is unused.
   strokeRatio?: number;
 }) {
-  const s = size;
-  const w = s * strokeRatio;
   return (
     <svg
-      width={s}
-      height={s}
-      viewBox="0 0 40 40"
+      width={size}
+      height={size}
+      viewBox="0 0 64 64"
       fill="none"
       aria-label="Salapi"
       role="img"
       style={{ display: "block" }}
     >
-      <g stroke={c} strokeWidth={(w * 40) / s} strokeLinecap="round" strokeLinejoin="round" fill="none">
-        <path d="M30.5 8 C 22 6, 13.5 8, 13.5 13 C 13.5 17.5, 25 18.5, 25 23 C 25 28, 17 30, 9 28" />
-        <path d="M33 14.5 C 27.5 13, 21 14, 21 16.5 C 21 19, 29.5 20, 29.5 23" />
+      <g stroke={c} fill="none" strokeLinecap="round" strokeLinejoin="round">
+        {/* community cradle */}
+        <path d="M 6 46 Q 32 60 58 46" strokeWidth={5} />
+        {/* S monogram */}
+        <path d="M 41 18 A 10 10 0 1 0 32 27 A 10 10 0 1 1 23 36" strokeWidth={7} />
       </g>
     </svg>
   );
