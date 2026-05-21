@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { disasterState, disasterContribute } from "@/app/actions";
+import { useT } from "@/components/I18nProvider";
 import {
   T,
   Ico,
@@ -17,6 +18,8 @@ import {
 
 const EXPLORER = "https://stellar.expert/explorer/testnet";
 const DISASTER_CONTRACT = "CCKQ3UVBZ75KSZDO6IPA5U6PFARJG4PLRGN2SAIW5RAGQ6K4B7ZDWBUZ";
+// Founding on-chain trail: technical proof artifact with real testnet tx
+// hashes, step labels stay as technical literals (see ActivityScreen).
 const TRAIL: { step: string; hash: string }[] = [
   { step: "Deploy disaster vault", hash: "1bed6a16e6b6b2a8fddf3c8e247764f77f80bc18f58cd019bec225e60d891d12" },
   { step: "Register @juandelacruz", hash: "00d0861463b124d7ec83b1cb5ef65f4b13579167127b8acede5c01362f8bf913" },
@@ -30,6 +33,7 @@ const QUICK = ["50", "100", "200", "500", "1000"];
 type Pool = Awaited<ReturnType<typeof disasterState>>;
 
 export default function TransparencyScreen() {
+  const { t } = useT();
   const router = useRouter();
   const [pool, setPool] = useState<Pool | null>(null);
   const [phase, setPhase] = useState<"view" | "amount" | "processing" | "done">("view");
@@ -46,6 +50,7 @@ export default function TransparencyScreen() {
   }, []);
 
   const amt = Number(amount) || 0;
+  const amtLabel = "₱" + amt.toLocaleString("en-PH");
 
   function donate() {
     setPhase("processing");
@@ -74,19 +79,19 @@ export default function TransparencyScreen() {
   if (phase === "processing") {
     return (
       <div style={shell}>
-        <AppBar leading={<IconButton onClick={() => setPhase("amount")}>{Ico.x({})}</IconButton>} title="Processing" />
+        <AppBar leading={<IconButton onClick={() => setPhase("amount")}>{Ico.x({})}</IconButton>} title={t("common.processing")} />
         <div style={{ padding: "32px 28px 0", textAlign: "center" }}>
           <div style={{ width: 68, height: 68, borderRadius: 99, background: T.warnTint, color: T.warn, display: "inline-flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
             <span className="sl-spin" style={{ position: "absolute", inset: 0, borderRadius: 99, border: "3px solid " + T.warn, borderTopColor: "transparent" }} />
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={T.warn} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l8 4v6c0 5-4 7-8 8-4-1-8-3-8-8V7l8-4z" /></svg>
           </div>
-          <div style={{ marginTop: 14, fontSize: 19, fontWeight: 600 }}>Donating ₱{amt.toLocaleString("en-PH")}</div>
-          <div style={{ marginTop: 4, fontSize: 13, color: T.slate }}>Posting to the public relief pool on Stellar.</div>
+          <div style={{ marginTop: 14, fontSize: 19, fontWeight: 600 }}>{t("transparency.donating", { amount: amtLabel })}</div>
+          <div style={{ marginTop: 4, fontSize: 13, color: T.slate }}>{t("transparency.processingSub")}</div>
         </div>
         <div style={{ padding: "22px 16px 0" }}>
           <Card p={14}>
-            {["Debited from your wallet", "Posted to relief pool", "Published to public ledger"].map((s, i) => (
-              <div key={s} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 0", borderBottom: i < 2 ? "1px solid " + T.hairline : "none" }}>
+            {[t("transparency.pStep1"), t("transparency.pStep2"), t("transparency.pStep3")].map((s, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 0", borderBottom: i < 2 ? "1px solid " + T.hairline : "none" }}>
                 {i < 2 ? (
                   <div style={{ width: 22, height: 22, borderRadius: 99, background: T.moneyInTint, color: T.moneyIn, display: "flex", alignItems: "center", justifyContent: "center" }}>{Ico.check({ size: 14, c: T.moneyIn })}</div>
                 ) : (
@@ -110,10 +115,10 @@ export default function TransparencyScreen() {
           <div className="sl-tick" style={{ width: 72, height: 72, borderRadius: 99, background: "linear-gradient(160deg,#FBF1E0,#fff)", display: "inline-flex", alignItems: "center", justifyContent: "center", boxShadow: "inset 0 0 0 1px " + T.hairline }}>
             <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke={T.warn} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 21s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.6-7 10-7 10z" /></svg>
           </div>
-          <div style={{ marginTop: 14, fontSize: 12, color: T.slate, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase" }}>Salamat po</div>
+          <div style={{ marginTop: 14, fontSize: 12, color: T.slate, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase" }}>{t("transparency.thankYou")}</div>
           <div className="sl-rise" style={{ marginTop: 6 }}><Peso value={amt} size={38} /></div>
           <div style={{ marginTop: 6, fontSize: 13, color: T.slate, lineHeight: 1.5, maxWidth: 280, margin: "6px auto 0" }}>
-            Your donation is now in the public ledger. You can watch it disburse, peso by peso.
+            {t("transparency.doneNote")}
           </div>
         </div>
         <div style={{ padding: "16px 16px 0" }}>
@@ -121,8 +126,8 @@ export default function TransparencyScreen() {
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <div style={{ width: 32, height: 32, borderRadius: 99, background: T.warnTint, color: T.warn, display: "flex", alignItems: "center", justifyContent: "center" }}>{Ico.arrowUp({ c: T.warn, size: 14 })}</div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>Pool now at</div>
-                <div style={{ fontSize: 12, color: T.slate }}>Live · on-chain</div>
+                <div style={{ fontSize: 13, fontWeight: 600 }}>{t("transparency.poolNowAt")}</div>
+                <div style={{ fontSize: 12, color: T.slate }}>{t("transparency.liveOnChain")}</div>
               </div>
               {pool && pool.ok ? <span className="sl-balance" style={{ fontSize: 15, fontWeight: 600 }}>{pool.pesoLabel}</span> : null}
             </div>
@@ -131,14 +136,14 @@ export default function TransparencyScreen() {
             <div style={{ marginTop: 10, padding: "10px 12px", borderRadius: 10, background: T.actionTint, color: T.action, fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 10 }}>
               {Ico.check({ size: 16, c: T.action })}
               <a href={done.link} target="_blank" rel="noopener noreferrer" style={{ color: T.action, fontFamily: T.fontMono, display: "inline-flex", alignItems: "center", gap: 5 }}>
-                Receipt · verifiable on Stellar {Ico.link({ size: 13, c: T.action })}
+                {t("transparency.receiptVerifiable")} {Ico.link({ size: 13, c: T.action })}
               </a>
             </div>
           )}
         </div>
         <div style={{ padding: "14px 16px 0", display: "flex", flexDirection: "column", gap: 8 }}>
-          <Btn kind="primary" onClick={() => { setDone(null); setPhase("view"); }}>View public feed</Btn>
-          <Btn kind="ghost" onClick={() => router.push("/")}>Done</Btn>
+          <Btn kind="primary" onClick={() => { setDone(null); setPhase("view"); }}>{t("transparency.viewFeed")}</Btn>
+          <Btn kind="ghost" onClick={() => router.push("/")}>{t("transparency.done")}</Btn>
         </div>
       </div>
     );
@@ -148,18 +153,18 @@ export default function TransparencyScreen() {
   if (phase === "amount") {
     return (
       <div style={shell}>
-        <AppBar leading={<IconButton onClick={() => setPhase("view")}>{Ico.back({})}</IconButton>} title="Donate" />
+        <AppBar leading={<IconButton onClick={() => setPhase("view")}>{Ico.back({})}</IconButton>} title={t("wallet.donate")} />
         <div style={{ padding: "4px 16px 8px" }}>
           <Card p={14}>
-            <Chip kind="warn">Active relief</Chip>
-            <div style={{ marginTop: 6, fontSize: 17, fontWeight: 600, letterSpacing: "-0.01em" }}>Disaster Relief Pool</div>
+            <Chip kind="warn">{t("transparency.activeRelief")}</Chip>
+            <div style={{ marginTop: 6, fontSize: 17, fontWeight: 600, letterSpacing: "-0.01em" }}>{t("transparency.poolName")}</div>
             <div style={{ marginTop: 4, fontSize: 12, color: T.slate, lineHeight: 1.5 }}>
-              100% of donations are held by the contract and disbursed only while a disaster is active. Every peso published live.
+              {t("transparency.poolDesc")}
             </div>
           </Card>
         </div>
         <div style={{ padding: "4px 20px 0" }}>
-          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: T.slate }}>You&apos;re donating</div>
+          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: T.slate }}>{t("transparency.youreDonating")}</div>
         </div>
         <div style={{ padding: "6px 24px 0", textAlign: "center" }}>
           <div className="sl-balance" style={{ fontSize: 42, fontWeight: 600, letterSpacing: "-0.03em", display: "inline-flex", alignItems: "baseline", gap: 4 }}>
@@ -184,7 +189,7 @@ export default function TransparencyScreen() {
           <div style={{ padding: "10px 12px", borderRadius: 12, background: T.canvas, display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ width: 28, height: 28, borderRadius: 99, background: T.surface, display: "flex", alignItems: "center", justifyContent: "center" }}>{Ico.shield({ size: 16, c: T.action })}</div>
             <div style={{ flex: 1, fontSize: 12, color: T.slate, lineHeight: 1.4 }}>
-              Donations are <strong style={{ color: T.ink }}>final</strong>. Every disbursement is published on this page, verifiable on Stellar.
+              {t("transparency.finalNote")}
             </div>
           </div>
         </div>
@@ -193,7 +198,7 @@ export default function TransparencyScreen() {
         )}
         <div style={{ padding: "16px 16px 0" }}>
           <Btn kind="primary" disabled={pending || amt <= 0} loading={pending} leading={!pending && Ico.shield({ c: "#fff" })} onClick={donate}>
-            Donate ₱{amt.toLocaleString("en-PH")} publicly
+            {t("transparency.donatePublicly", { amount: amtLabel })}
           </Btn>
         </div>
       </div>
@@ -206,57 +211,57 @@ export default function TransparencyScreen() {
       <AppBar
         leading={<IconButton onClick={() => router.push("/")}>{Ico.back({})}</IconButton>}
         title=""
-        trailing={<span style={{ fontSize: 12, color: T.slate, fontFamily: T.fontMono }}>Public · no login</span>}
+        trailing={<span style={{ fontSize: 12, color: T.slate, fontFamily: T.fontMono }}>{t("transparency.publicNoLogin")}</span>}
       />
       <div style={{ padding: "4px 16px 6px" }}>
-        <Chip kind="warn">Live now</Chip>
-        <div style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em", marginTop: 6, lineHeight: 1.2 }}>Disaster Relief, public ledger</div>
+        <Chip kind="warn">{t("transparency.liveNow")}</Chip>
+        <div style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em", marginTop: 6, lineHeight: 1.2 }}>{t("transparency.title")}</div>
         <div style={{ fontSize: 12.5, color: T.slate, marginTop: 4, lineHeight: 1.5 }}>
-          Every peso in, every peso out, independently verifiable on Stellar. No login, no middleman.
+          {t("transparency.sub")}
         </div>
       </div>
 
       {/* Pool card */}
       <div style={{ padding: "10px 16px 0" }}>
         <div style={{ background: T.ink, color: "#fff", borderRadius: 16, padding: "14px 16px" }}>
-          <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.55)" }}>Pool total · live on-chain</div>
+          <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.55)" }}>{t("transparency.poolTotal")}</div>
           <div style={{ marginTop: 6 }}>
             {pool === null ? (
-              <div style={{ fontSize: 18, color: "rgba(255,255,255,0.6)" }}>Reading testnet…</div>
+              <div style={{ fontSize: 18, color: "rgba(255,255,255,0.6)" }}>{t("transparency.readingTestnet")}</div>
             ) : pool.ok ? (
               <Peso value={Number(pool.pesoLabel.replace(/[^0-9.]/g, "")) || 0} size={30} color="#fff" />
             ) : (
-              <div style={{ fontSize: 14, color: "rgba(255,255,255,0.7)" }}>RPC unavailable, verify on explorer below</div>
+              <div style={{ fontSize: 14, color: "rgba(255,255,255,0.7)" }}>{t("transparency.rpcUnavailable")}</div>
             )}
           </div>
           <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
             <div style={{ flex: 1, padding: "6px 10px", background: "rgba(255,255,255,0.06)", borderRadius: 8 }}>
-              <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.45)" }}>Status</div>
+              <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.45)" }}>{t("transparency.statusLabel")}</div>
               <div className="sl-mono" style={{ fontSize: 14, fontWeight: 600, marginTop: 2 }}>
-                {pool && pool.ok ? (pool.active ? "Active" : "Standby") : "-"}
+                {pool && pool.ok ? (pool.active ? t("transparency.active") : t("transparency.standby")) : "-"}
               </div>
             </div>
             <div style={{ flex: 1, padding: "6px 10px", background: "rgba(255,255,255,0.06)", borderRadius: 8 }}>
-              <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.45)" }}>Disburse gate</div>
-              <div className="sl-mono" style={{ fontSize: 14, fontWeight: 600, marginTop: 2 }}>Enforced</div>
+              <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.45)" }}>{t("transparency.disburseGate")}</div>
+              <div className="sl-mono" style={{ fontSize: 14, fontWeight: 600, marginTop: 2 }}>{t("transparency.enforced")}</div>
             </div>
           </div>
           <div style={{ marginTop: 8, fontSize: 11, color: "rgba(255,255,255,0.6)", display: "flex", alignItems: "center", gap: 8 }}>
             <span className="sl-pulse" style={{ width: 6, height: 6, borderRadius: 99, background: T.moneyIn }} />
-            <span>Payout only releases while a disaster is active</span>
+            <span>{t("transparency.gateNote")}</span>
           </div>
         </div>
       </div>
 
       <div style={{ padding: "12px 16px 0" }}>
         <Btn kind="primary" leading={Ico.shield({ c: "#fff" })} onClick={() => { setErr(""); setPhase("amount"); }}>
-          Donate to this pool
+          {t("transparency.donateCta")}
         </Btn>
       </div>
 
       {/* Verifiable trail */}
       <div style={{ padding: "16px 20px 4px", fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: T.slate }}>
-        Verifiable trail · Stellar testnet
+        {t("transparency.trailLabel")}
       </div>
       <div style={{ padding: "0 16px" }}>
         <Card p={0}>
@@ -281,13 +286,13 @@ export default function TransparencyScreen() {
           rel="noopener noreferrer"
           style={{ marginTop: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontSize: 12, color: T.action, fontFamily: T.fontMono, fontWeight: 600 }}
         >
-          Disaster contract {DISASTER_CONTRACT.slice(0, 12)}… {Ico.link({ size: 13, c: T.action })}
+          {t("transparency.disasterContract")} {DISASTER_CONTRACT.slice(0, 12)}… {Ico.link({ size: 13, c: T.action })}
         </a>
       </div>
 
       <div style={{ padding: "14px 16px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
         <PoweredByStellar />
-        <span style={{ fontSize: 11, color: T.slate, fontFamily: T.fontMono }}>Read-only · anyone can verify</span>
+        <span style={{ fontSize: 11, color: T.slate, fontFamily: T.fontMono }}>{t("transparency.readOnly")}</span>
       </div>
     </div>
   );

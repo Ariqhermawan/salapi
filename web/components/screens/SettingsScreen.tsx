@@ -11,6 +11,7 @@ import {
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { createSupabaseBrowser } from "@/lib/supabase/client";
 import { supabaseConfigured } from "@/lib/supabase/env";
+import { useT } from "@/components/I18nProvider";
 import {
   T,
   Ico,
@@ -58,6 +59,7 @@ function UsernamePanel({
   current: string | null;
   onChanged: () => void;
 }) {
+  const { t } = useT();
   const [editing, setEditing] = useState(false);
   const [val, setVal] = useState("");
   const [msg, setMsg] = useState<{ ok: boolean; text: string; link?: string } | null>(null);
@@ -67,19 +69,19 @@ function UsernamePanel({
   function save() {
     const clean = val.trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
     if (clean.length < 3) {
-      setMsg({ ok: false, text: "Min 3 chars (a-z, 0-9, _)" });
+      setMsg({ ok: false, text: t("settings.usernameMinChars") });
       return;
     }
     start(async () => {
       setMsg(null);
       const r = has ? await renameUsername(clean) : await registerUsername(clean);
       if (r.ok) {
-        setMsg({ ok: true, text: `Username is now @${r.name}`, link: r.link });
+        setMsg({ ok: true, text: t("settings.usernameSaved", { name: r.name }), link: r.link });
         setEditing(false);
         setVal("");
         onChanged();
       } else {
-        setMsg({ ok: false, text: r.error || "Couldn't save" });
+        setMsg({ ok: false, text: r.error || t("settings.usernameSaveFailed") });
       }
     });
   }
@@ -92,12 +94,12 @@ function UsernamePanel({
             {Ico.user({ c: T.action })}
           </div>
         }
-        title={has ? `@${current}` : "No username yet"}
-        sub={has ? "Your name on Salapi, for receiving" : "Claim a name so people can send to you"}
+        title={has ? `@${current}` : t("settings.noUsername")}
+        sub={has ? t("settings.usernameSub") : t("settings.claimPrompt")}
         trailing={
           !editing ? (
             <Btn kind="ghost" size="sm" full={false} onClick={() => { setEditing(true); setMsg(null); setVal(""); }}>
-              {has ? "Change" : "Claim"}
+              {has ? t("settings.change") : t("settings.claim")}
             </Btn>
           ) : null
         }
@@ -111,20 +113,20 @@ function UsernamePanel({
               autoFocus
               value={val}
               onChange={(e) => setVal(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
-              placeholder="newname"
+              placeholder={t("settings.newnamePlaceholder")}
               style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 16, color: T.ink, fontFamily: T.fontSans }}
             />
           </div>
           <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
             <Btn kind="primary" size="md" disabled={pending || val.length < 3} loading={pending} onClick={save}>
-              {has ? "Save new username" : "Claim username"}
+              {has ? t("settings.saveNew") : t("settings.claimUsername")}
             </Btn>
             <Btn kind="ghost" size="md" full={false} onClick={() => { setEditing(false); setMsg(null); }}>
-              Cancel
+              {t("settings.cancel")}
             </Btn>
           </div>
           <div style={{ marginTop: 8, fontSize: 12, color: T.slate, lineHeight: 1.4 }}>
-            Lowercase letters, numbers, _ · min 3. Your old name keeps working too.
+            {t("settings.usernameHint")}
           </div>
         </div>
       )}
@@ -134,7 +136,7 @@ function UsernamePanel({
             <span style={{ fontWeight: 600 }}>{msg.ok ? "✓ " : ""}{msg.text}</span>
             {msg.link && (
               <a href={msg.link} target="_blank" rel="noopener noreferrer" style={{ color: T.action, fontFamily: T.fontMono, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 4 }}>
-                View {Ico.link({ size: 13, c: T.action })}
+                {t("settings.view")} {Ico.link({ size: 13, c: T.action })}
               </a>
             )}
           </div>
@@ -145,6 +147,7 @@ function UsernamePanel({
 }
 
 export default function SettingsScreen() {
+  const { t } = useT();
   const router = useRouter();
   const [name, setName] = useState<string | null>(null);
   const [addr, setAddr] = useState<string>("");
@@ -170,7 +173,7 @@ export default function SettingsScreen() {
     window.location.href = "/signin";
   }
 
-  const display = name ? `@${name}` : "Salapi user";
+  const display = name ? `@${name}` : t("settings.salapiUser");
   const shortAddr = addr ? `${addr.slice(0, 4)}…${addr.slice(-4)}` : "-";
   const explorer = addr
     ? `https://stellar.expert/explorer/testnet/account/${addr}`
@@ -184,7 +187,7 @@ export default function SettingsScreen() {
 
   return (
     <div style={{ fontFamily: T.fontSans, color: T.ink, minHeight: "100%", paddingBottom: 110 }}>
-      <AppBar large title="You" sub="Your profile & preferences" />
+      <AppBar large title={t("settings.you")} sub={t("settings.youSub")} />
 
       {/* Profile header */}
       <div style={{ padding: "4px 16px 0" }}>
@@ -203,23 +206,23 @@ export default function SettingsScreen() {
       </div>
 
       {/* Username */}
-      <SectionLabel>Username</SectionLabel>
+      <SectionLabel>{t("settings.username")}</SectionLabel>
       <div style={{ padding: "0 16px" }}>
         <UsernamePanel current={name} onChanged={() => myUsername().then(setName)} />
       </div>
 
       {/* Accounts */}
-      <SectionLabel>Accounts</SectionLabel>
+      <SectionLabel>{t("settings.accounts")}</SectionLabel>
       <div style={{ padding: "0 16px" }}>
         <Card p={0}>
           {supaEmail && (
             <Row
               leading={iconBox(Ico.user({ c: T.moneyIn }), T.moneyInTint, T.moneyIn)}
-              title="Signed in with Google"
+              title={t("settings.googleSignedIn")}
               sub={supaEmail}
               trailing={
                 <Btn kind="ghost" size="sm" full={false} onClick={signOut}>
-                  Sign out
+                  {t("settings.signOut")}
                 </Btn>
               }
             />
@@ -227,16 +230,16 @@ export default function SettingsScreen() {
           <Row
             leading={iconBox(Ico.arrowDown({ c: T.action }), T.actionTint, T.action)}
             title="GCash"
-            sub="Top-up & cash-out · sandbox"
+            sub={t("settings.gcashSub")}
             trailing={
               <Chip kind="success" leading={Ico.check({ size: 11, c: T.moneyIn })}>
-                Connected
+                {t("settings.connected")}
               </Chip>
             }
           />
           <Row
             leading={iconBox(Ico.sparkle({ c: T.action }), T.actionTint, T.action)}
-            title="Stellar wallet"
+            title={t("settings.stellarWallet")}
             sub={shortAddr}
             trailing={
               explorer ? (
@@ -246,10 +249,10 @@ export default function SettingsScreen() {
                   rel="noopener noreferrer"
                   style={{ fontSize: 13, color: T.action, fontFamily: T.fontMono, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 5 }}
                 >
-                  View {Ico.link({ size: 13, c: T.action })}
+                  {t("settings.view")} {Ico.link({ size: 13, c: T.action })}
                 </a>
               ) : (
-                <span style={{ fontSize: 13, color: T.slate }}>Loading…</span>
+                <span style={{ fontSize: 13, color: T.slate }}>{t("common.loading")}</span>
               )
             }
             divider={false}
@@ -258,17 +261,17 @@ export default function SettingsScreen() {
       </div>
 
       {/* Verification & trust - Build-Award stage 2 preview entry */}
-      <SectionLabel>Verification &amp; trust</SectionLabel>
+      <SectionLabel>{t("settings.verification")}</SectionLabel>
       <div style={{ padding: "0 16px" }}>
         <Card p={0}>
           <Row
             leading={iconBox(Ico.verify({ c: T.action }), T.actionTint, T.action)}
-            title="KYC tier"
-            sub="Tier 0 - no verification yet"
+            title={t("settings.kycTier")}
+            sub={t("settings.kycTier0")}
             onClick={() => router.push("/you/kyc-tier")}
             trailing={
               <Chip kind="warn" size="sm">
-                Preview · Stage 2
+                {t("settings.previewStage2")}
               </Chip>
             }
             divider={false}
@@ -277,25 +280,25 @@ export default function SettingsScreen() {
       </div>
 
       {/* Security */}
-      <SectionLabel>Security</SectionLabel>
+      <SectionLabel>{t("settings.security")}</SectionLabel>
       <div style={{ padding: "0 16px" }}>
         <Card p={0}>
           <Row
             leading={iconBox(Ico.lock({ c: T.action }), T.actionTint, T.action)}
-            title="Face ID"
-            sub="Required on launch"
+            title={t("settings.faceId")}
+            sub={t("settings.faceIdSub")}
             trailing={<Switch on />}
           />
           <Row
             leading={iconBox(Ico.shield({ c: T.slate }), T.canvas, T.slate)}
-            title="6-digit PIN"
-            sub="Backup unlock"
+            title={t("settings.pin")}
+            sub={t("settings.pinSub")}
             trailing={<Switch on />}
           />
           <Row
             leading={iconBox(Ico.user({ c: T.slate }), T.canvas, T.slate)}
-            title="Hide balance"
-            sub="Tap balance to reveal"
+            title={t("settings.hideBalance")}
+            sub={t("settings.hideBalanceSub")}
             trailing={<Switch on={false} />}
             divider={false}
           />
@@ -303,19 +306,19 @@ export default function SettingsScreen() {
       </div>
 
       {/* Language */}
-      <SectionLabel>Choose your language</SectionLabel>
+      <SectionLabel>{t("lang.choose")}</SectionLabel>
       <div style={{ padding: "0 16px" }}>
         <LanguageSwitcher />
       </div>
 
       {/* About */}
-      <SectionLabel>About</SectionLabel>
+      <SectionLabel>{t("settings.about")}</SectionLabel>
       <div style={{ padding: "0 16px" }}>
         <Card p={0}>
-          <Row title="Version" trailing={<span style={{ fontSize: 13, color: T.slate, fontFamily: T.fontMono }}>1.0 · testnet</span>} />
+          <Row title={t("settings.version")} trailing={<span style={{ fontSize: 13, color: T.slate, fontFamily: T.fontMono }}>1.0 · testnet</span>} />
           <Row
             title="Salapi"
-            sub="A crypto-invisible money app for the Philippines & Indonesia, built on Stellar."
+            sub={t("settings.aboutText")}
             trailing={null}
             divider={false}
           />
@@ -325,7 +328,7 @@ export default function SettingsScreen() {
       <div style={{ padding: "14px 16px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
         <MakerLockup />
         <PoweredByStellar />
-        <span style={{ fontSize: 12, color: T.slate }}>For Southeast Asia.</span>
+        <span style={{ fontSize: 12, color: T.slate }}>{t("settings.forSEA")}</span>
       </div>
     </div>
   );

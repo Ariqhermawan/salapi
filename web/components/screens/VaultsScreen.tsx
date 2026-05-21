@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { paluwaganState, smartSavingsState, disasterState } from "@/app/actions";
+import { useT } from "@/components/I18nProvider";
 import {
   T,
   Ico,
@@ -11,7 +12,6 @@ import {
   Btn,
   Chip,
   Peso,
-  Avatar,
   Progress,
   PoweredByStellar,
 } from "@/components/ui/kit";
@@ -24,7 +24,79 @@ function pesoNum(label: string) {
   return Number(label.replace(/[^0-9.]/g, "")) || 0;
 }
 
+function VaultTile({
+  icon,
+  title,
+  stat,
+  amountLabel,
+  amount,
+  progressPct,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  stat: string;
+  amountLabel: string;
+  amount: string;
+  progressPct?: number;
+  onClick: () => void;
+}) {
+  return (
+    <Card p={14} style={{ cursor: "pointer" }} onClick={onClick}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <div
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 11,
+            background: T.actionTint,
+            color: T.action,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          {icon}
+        </div>
+        {Ico.chev({ size: 14, c: T.slate })}
+      </div>
+      <div style={{ marginTop: 10, fontSize: 14, fontWeight: 600 }}>{title}</div>
+      <div style={{ marginTop: 2, fontSize: 12, color: T.slate }}>{stat}</div>
+      <div
+        style={{
+          marginTop: 10,
+          fontSize: 10,
+          fontWeight: 600,
+          letterSpacing: "0.1em",
+          textTransform: "uppercase",
+          color: T.slate,
+        }}
+      >
+        {amountLabel}
+      </div>
+      <div
+        className="sl-balance"
+        style={{ marginTop: 1, fontSize: 17, fontWeight: 700, color: T.ink }}
+      >
+        {amount}
+      </div>
+      {typeof progressPct === "number" && (
+        <div style={{ marginTop: 8 }}>
+          <Progress pct={progressPct} color={T.moneyIn} />
+        </div>
+      )}
+    </Card>
+  );
+}
+
 export default function VaultsScreen() {
+  const { t } = useT();
   const router = useRouter();
   const [pal, setPal] = useState<Pal | null>(null);
   const [sav, setSav] = useState<Sav | null>(null);
@@ -43,114 +115,222 @@ export default function VaultsScreen() {
     paddingBottom: 110,
   };
 
-  const label = (s: string) => (s === "-" ? "?" : s);
+  const disActive = Boolean(dis && dis.ok && dis.active);
+  const savHasGoal = Boolean(sav && sav.ready && sav.hasGoal);
 
   return (
     <div style={shell}>
-      <AppBar large title="Vaults" sub="Where your money does more." />
+      <AppBar large title={t("vaults.title")} sub={t("vaults.sub")} />
 
-      <div style={{ padding: "4px 16px 0", display: "flex", flexDirection: "column", gap: 10 }}>
-        {/* Paluwagan */}
-        <Card p={0} style={{ overflow: "hidden", cursor: "pointer" }} onClick={() => router.push("/paluwagan")}>
-          <div style={{ padding: "14px 14px 4px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-            <div>
-              <Chip kind="action" leading={Ico.star({ size: 11, c: T.action })}>Most loved</Chip>
-              <div style={{ marginTop: 8, fontSize: 17, fontWeight: 600, letterSpacing: "-0.01em" }}>Paluwagan</div>
-              <div style={{ marginTop: 2, fontSize: 12, color: T.slate }}>Save together · trust by code</div>
-            </div>
-            <div style={{ display: "flex", marginLeft: -4 }}>
-              {(pal && pal.ready ? pal.seats.slice(0, 3) : [{ label: "?" }, { label: "?" }, { label: "?" }]).map((m, i) => (
-                <div key={i} style={{ marginLeft: i === 0 ? 0 : -10 }}>
-                  <Avatar name={label((m as { label: string }).label)} size={28} />
-                </div>
-              ))}
-              {pal && pal.ready && pal.seats.length > 3 && (
-                <div style={{ marginLeft: -10, width: 28, height: 28, borderRadius: 99, background: T.canvas, color: T.slate, fontSize: 11, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "inset 0 0 0 1px " + T.hairline }}>
-                  +{pal.seats.length - 3}
-                </div>
-              )}
-            </div>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", padding: "8px 14px 12px", borderTop: "1px solid " + T.hairline, marginTop: 8 }}>
-            <div>
-              <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: T.slate }}>
-                {pal && pal.ready ? `Pot · round ${String(pal.round + 1).padStart(2, "0")}` : "Pot"}
-              </div>
-              <div className="sl-balance" style={{ marginTop: 2, fontSize: 17, fontWeight: 600 }}>
-                {pal && pal.ready ? pal.potPeso : "-"}
-              </div>
-            </div>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: T.slate }}>This round to</div>
-              <div style={{ marginTop: 2, fontSize: 13, fontWeight: 600 }}>
-                {pal && pal.ready ? pal.recipientLabel : "-"}
-              </div>
-            </div>
-          </div>
-        </Card>
-
-        {/* Smart Savings */}
-        <Card p={0} style={{ overflow: "hidden", cursor: "pointer" }} onClick={() => router.push("/savings")}>
-          <div style={{ padding: "12px 14px", display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 40, height: 40, borderRadius: 12, background: T.moneyInTint, color: T.moneyIn, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              {Ico.shield({ c: T.moneyIn, size: 20 })}
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>Smart Savings</div>
-              <div style={{ fontSize: 12, color: T.slate }}>
-                {sav && sav.ready && sav.hasGoal
-                  ? `${sav.pct}% saved · locked until target`
-                  : sav && sav.ready
-                    ? "Start a goal · locked savings"
-                    : "Goal vault"}
-              </div>
-            </div>
-            {sav && sav.ready && sav.hasGoal ? (
-              <span className="sl-balance" style={{ fontSize: 15, fontWeight: 600 }}>{sav.savedPeso}</span>
-            ) : (
-              <span style={{ color: T.slate }}>{Ico.chev({ c: T.slate })}</span>
-            )}
-          </div>
-          {sav && sav.ready && sav.hasGoal && (
-            <div style={{ padding: "0 14px 12px" }}>
-              <Progress pct={sav.pct} color={T.moneyIn} />
-            </div>
-          )}
-        </Card>
-
-        {/* Disaster Relief */}
+      <div style={{ padding: "4px 16px 0" }}>
+        {/* Disaster Relief hero */}
         <Card
           p={0}
-          style={{ overflow: "hidden", background: "linear-gradient(160deg,#fff 0%, #FBF1E0 110%)", cursor: "pointer" }}
           onClick={() => router.push("/transparency")}
+          style={{
+            overflow: "hidden",
+            cursor: "pointer",
+            background: "linear-gradient(160deg,#fff 0%, #FBF1E0 120%)",
+          }}
         >
-          <div style={{ padding: "14px 14px 2px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-            <div>
-              <Chip kind="warn">{dis && dis.ok && dis.active ? "Live now · relief active" : "Standby"}</Chip>
-              <div style={{ marginTop: 8, fontSize: 17, fontWeight: 600, letterSpacing: "-0.01em" }}>Disaster Relief</div>
-              <div style={{ marginTop: 2, fontSize: 12, color: T.slate }}>Every peso, traceable end-to-end.</div>
+          <div style={{ padding: "16px 16px 4px" }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+              }}
+            >
+              <Chip kind="warn">
+                {disActive ? t("vaults.statusActive") : t("vaults.statusStandby")}
+              </Chip>
+              <div
+                style={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: 13,
+                  background: "#fff",
+                  color: T.warn,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  boxShadow: "inset 0 0 0 1px " + T.hairline,
+                }}
+              >
+                <svg
+                  width="22"
+                  height="22"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke={T.warn}
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M12 3l8 4v6c0 5-4 7-8 8-4-1-8-3-8-8V7l8-4z" />
+                  <path d="M12 8v4M12 16h.01" />
+                </svg>
+              </div>
             </div>
-            <div style={{ width: 40, height: 40, borderRadius: 12, background: "#fff", color: T.warn, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "inset 0 0 0 1px " + T.hairline }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={T.warn} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 3l8 4v6c0 5-4 7-8 8-4-1-8-3-8-8V7l8-4z" />
-                <path d="M12 8v4M12 16h.01" />
-              </svg>
+            <div
+              style={{
+                marginTop: 10,
+                fontSize: 20,
+                fontWeight: 600,
+                letterSpacing: "-0.02em",
+              }}
+            >
+              {t("vaults.disasterName")}
+            </div>
+            <div
+              style={{
+                marginTop: 4,
+                fontSize: 13,
+                color: T.slate,
+                lineHeight: 1.5,
+              }}
+            >
+              {t("vaults.disasterDesc")}
             </div>
           </div>
-          <div style={{ padding: "8px 14px 14px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-              <div>
-                <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: T.slate }}>Pool live</div>
-                {dis && dis.ok ? (
-                  <Peso value={pesoNum(dis.pesoLabel)} size={24} />
-                ) : (
-                  <div style={{ fontSize: 14, color: T.slate, marginTop: 4 }}>verify on explorer</div>
-                )}
-              </div>
-              <Btn kind="primary" full={false} size="md" onClick={() => router.push("/transparency")}>
-                Donate
+          <div style={{ padding: "12px 16px 16px" }}>
+            <div
+              style={{
+                fontSize: 10,
+                fontWeight: 600,
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                color: T.slate,
+              }}
+            >
+              {t("vaults.poolLive")}
+            </div>
+            <div
+              style={{
+                marginTop: 2,
+                display: "flex",
+                alignItems: "flex-end",
+                justifyContent: "space-between",
+                gap: 12,
+              }}
+            >
+              {dis && dis.ok ? (
+                <Peso value={pesoNum(dis.pesoLabel)} size={28} />
+              ) : (
+                <div style={{ fontSize: 14, color: T.slate, paddingBottom: 4 }}>
+                  {t("common.loading")}
+                </div>
+              )}
+              <Btn
+                kind="primary"
+                size="md"
+                full={false}
+                onClick={() => router.push("/transparency")}
+              >
+                {t("wallet.donate")}
               </Btn>
             </div>
+          </div>
+        </Card>
+
+        {/* Your money: Arisan + Savings */}
+        <div
+          style={{
+            padding: "16px 4px 8px",
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            color: T.slate,
+          }}
+        >
+          {t("vaults.yourMoney")}
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <VaultTile
+            icon={Ico.refresh({ size: 18, c: T.action })}
+            title={t("vaults.arisanName")}
+            stat={
+              pal && pal.ready
+                ? t("vaults.arisanRound", { n: pal.round + 1 })
+                : t("common.loading")
+            }
+            amountLabel={t("vaults.pot")}
+            amount={pal && pal.ready ? pal.potPeso : "-"}
+            onClick={() => router.push("/paluwagan")}
+          />
+          <VaultTile
+            icon={Ico.shield({ size: 18, c: T.action })}
+            title={t("vaults.savingsName")}
+            stat={
+              savHasGoal && sav && sav.ready && sav.hasGoal
+                ? t("vaults.savingsStatGoal", { pct: sav.pct })
+                : t("vaults.savingsStatStart")
+            }
+            amountLabel={t("vaults.saved")}
+            amount={
+              savHasGoal && sav && sav.ready && sav.hasGoal
+                ? sav.savedPeso
+                : "-"
+            }
+            progressPct={
+              savHasGoal && sav && sav.ready && sav.hasGoal ? sav.pct : undefined
+            }
+            onClick={() => router.push("/savings")}
+          />
+        </div>
+
+        {/* Coming: Salapi Circles (Build-Award preview) */}
+        <Card
+          p={14}
+          style={{ marginTop: 14, cursor: "pointer" }}
+          onClick={() => router.push("/circles")}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+            }}
+          >
+            <div
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 11,
+                background: T.warnTint,
+                color: T.warn,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {Ico.sparkle({ size: 18, c: T.warn })}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>
+                {t("vaults.circlesName")}
+              </div>
+              <div style={{ fontSize: 12, color: T.slate, marginTop: 1 }}>
+                {t("vaults.circlesCaption")}
+              </div>
+            </div>
+            <Chip kind="warn" size="sm">
+              {t("home.circlesBadge")}
+            </Chip>
+          </div>
+          <div
+            style={{
+              marginTop: 10,
+              fontSize: 13,
+              fontWeight: 600,
+              color: T.action,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+            }}
+          >
+            {t("vaults.circlesCta")} {Ico.chev({ size: 14, c: T.action })}
           </div>
         </Card>
       </div>
