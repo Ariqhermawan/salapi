@@ -8,6 +8,7 @@ import {
   smartSavingsDeposit,
   smartSavingsWithdraw,
 } from "@/app/actions";
+import { useT } from "@/components/I18nProvider";
 import {
   T,
   Ico,
@@ -51,10 +52,61 @@ function Ring({ pct }: { pct: number }) {
   );
 }
 
+function Milestones({ pct }: { pct: number }) {
+  const { t } = useT();
+  return (
+    <div style={{ padding: "14px 16px 0" }}>
+      <div
+        style={{
+          fontSize: 10,
+          fontWeight: 600,
+          letterSpacing: "0.1em",
+          textTransform: "uppercase",
+          color: T.slate,
+          marginBottom: 6,
+        }}
+      >
+        {t("savings.milestones")}
+      </div>
+      <div style={{ display: "flex", gap: 6 }}>
+        {[25, 50, 75, 100].map((m) => {
+          const reached = pct >= m;
+          return (
+            <div
+              key={m}
+              style={{
+                flex: 1,
+                padding: "7px 0",
+                borderRadius: 9,
+                textAlign: "center",
+                fontSize: 11,
+                fontWeight: 700,
+                background: reached ? T.moneyInTint : T.canvas,
+                color: reached ? T.moneyIn : T.slate,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 3,
+              }}
+            >
+              {reached && Ico.check({ size: 11, c: T.moneyIn })}
+              {m}%
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ marginTop: 8, fontSize: 12, color: T.moneyIn, fontWeight: 600 }}>
+        {t("savings.youreThere", { pct })}
+      </div>
+    </div>
+  );
+}
+
 const TARGETS = ["5000", "10000", "20000", "50000"];
 const ADDS = ["500", "1000", "2000", "5000"];
 
 export default function SavingsScreen() {
+  const { t } = useT();
   const router = useRouter();
   const [st, setSt] = useState<State | null>(null);
   const [target, setTarget] = useState("20000");
@@ -77,7 +129,7 @@ export default function SavingsScreen() {
       setMsg(null);
       const r = await fn();
       if (r.ok) setMsg({ tone: "ok", text: okText, link: r.link });
-      else setMsg({ tone: "err", text: r.error || "Something went wrong" });
+      else setMsg({ tone: "err", text: r.error || t("savings.somethingWrong") });
       await refresh();
     });
   }
@@ -96,7 +148,7 @@ export default function SavingsScreen() {
           <span style={{ fontWeight: 600 }}>{msg.tone === "ok" ? "✓ " : ""}{msg.text}</span>
           {msg.link && (
             <a href={msg.link} target="_blank" rel="noopener noreferrer" style={{ color: T.action, fontFamily: T.fontMono, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 4 }}>
-              View on Stellar {Ico.link({ size: 13, c: T.action })}
+              {t("savings.viewOnStellar")} {Ico.link({ size: 13, c: T.action })}
             </a>
           )}
         </div>
@@ -107,8 +159,10 @@ export default function SavingsScreen() {
   if (st === null) {
     return (
       <div style={shell}>
-        <AppBar leading={<IconButton onClick={() => router.push("/")}>{Ico.back({})}</IconButton>} title="Smart Savings" />
-        <div style={{ padding: "60px 24px", textAlign: "center", color: T.slate, fontSize: 14 }}>Loading your goal…</div>
+        <AppBar leading={<IconButton onClick={() => router.push("/")}>{Ico.back({})}</IconButton>} title={t("savings.title")} />
+        <div style={{ padding: "60px 24px", textAlign: "center", color: T.slate, fontSize: 14 }}>
+          {t("savings.loadingGoal")}
+        </div>
       </div>
     );
   }
@@ -117,14 +171,14 @@ export default function SavingsScreen() {
   if (!st.ready) {
     return (
       <div style={shell}>
-        <AppBar leading={<IconButton onClick={() => router.push("/")}>{Ico.back({})}</IconButton>} title="Smart Savings" />
+        <AppBar leading={<IconButton onClick={() => router.push("/")}>{Ico.back({})}</IconButton>} title={t("savings.title")} />
         <div style={{ padding: "60px 28px 0", textAlign: "center" }}>
           <div style={{ width: 72, height: 72, margin: "0 auto", borderRadius: 18, background: T.actionTint, color: T.action, display: "flex", alignItems: "center", justifyContent: "center" }}>
             {Ico.lock({ size: 32, c: T.action })}
           </div>
-          <div style={{ marginTop: 18, fontSize: 20, fontWeight: 600 }}>Smart Savings</div>
+          <div style={{ marginTop: 18, fontSize: 20, fontWeight: 600 }}>{t("savings.title")}</div>
           <div style={{ marginTop: 8, fontSize: 14, color: T.slate, lineHeight: 1.5 }}>
-            The savings vault isn&apos;t configured on this deployment yet.
+            {t("savings.notConfigured")}
           </div>
         </div>
         <div style={{ padding: "26px 16px 0", display: "flex", justifyContent: "center" }}>
@@ -139,13 +193,19 @@ export default function SavingsScreen() {
     const tnum = Number(target) || 0;
     return (
       <div style={shell}>
-        <AppBar leading={<IconButton onClick={() => router.push("/")}>{Ico.back({})}</IconButton>} title="New goal" />
+        <AppBar leading={<IconButton onClick={() => router.push("/")}>{Ico.back({})}</IconButton>} title={t("savings.newGoal")} />
         <div style={{ padding: "6px 20px 8px" }}>
-          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: T.slate }}>Smart savings</div>
-          <div style={{ fontSize: 20, fontWeight: 600, letterSpacing: "-0.02em", marginTop: 4 }}>What are you saving for?</div>
+          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: T.slate }}>
+            {t("savings.kicker")}
+          </div>
+          <div style={{ fontSize: 20, fontWeight: 600, letterSpacing: "-0.02em", marginTop: 4 }}>
+            {t("savings.whatFor")}
+          </div>
         </div>
         <div style={{ padding: "4px 24px 0", textAlign: "center" }}>
-          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: T.slate }}>Target amount</div>
+          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: T.slate }}>
+            {t("savings.targetAmount")}
+          </div>
           <div className="sl-balance" style={{ marginTop: 6, fontSize: 42, fontWeight: 600, letterSpacing: "-0.03em", display: "inline-flex", alignItems: "baseline", gap: 4 }}>
             <span style={{ fontSize: 24, color: T.slate, fontWeight: 500 }}>₱</span>
             <input
@@ -167,13 +227,13 @@ export default function SavingsScreen() {
         <div style={{ padding: "14px 16px 0" }}>
           <div style={{ padding: "10px 12px", borderRadius: 10, background: T.warnTint, color: T.warn, fontSize: 12, display: "flex", gap: 8, alignItems: "flex-start", lineHeight: 1.4 }}>
             {Ico.lock({ size: 16, c: T.warn })}
-            <div>Funds are <strong>locked</strong> by the contract until you hit the target, to protect you from yourself. Verifiable on Stellar.</div>
+            <div>{t("savings.lockWarn")}</div>
           </div>
         </div>
         <Toast />
         <div style={{ padding: "16px 16px 0" }}>
-          <Btn kind="primary" disabled={pending || tnum <= 0} loading={pending} onClick={() => run(() => smartSavingsOpen(tnum), `Goal opened · target ₱${tnum.toLocaleString("en-PH")}`)}>
-            Open this goal
+          <Btn kind="primary" disabled={pending || tnum <= 0} loading={pending} onClick={() => run(() => smartSavingsOpen(tnum), t("savings.goalOpenedOk", { amount: `₱${tnum.toLocaleString("en-PH")}` }))}>
+            {t("savings.openGoal")}
           </Btn>
         </div>
       </div>
@@ -192,19 +252,21 @@ export default function SavingsScreen() {
           <div style={{ display: "flex", justifyContent: "center", marginTop: 14 }}>
             <SalapiMascot size={52} c={T.moneyIn} pose="cheer" />
           </div>
-          <div style={{ marginTop: 22, fontSize: 11, fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase", color: T.moneyIn }}>Goal reached</div>
+          <div style={{ marginTop: 22, fontSize: 11, fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase", color: T.moneyIn }}>
+            {t("savings.goalReached")}
+          </div>
           <div className="sl-rise" style={{ marginTop: 12 }}><Money value={Number(st.savedPeso.replace(/[^0-9.]/g, "")) || 0} size={46} /></div>
-          <div style={{ marginTop: 8, fontSize: 13, color: T.slate }}>Locked, on-chain. The contract held it the whole way.</div>
+          <div style={{ marginTop: 8, fontSize: 13, color: T.slate }}>{t("savings.maturedNote")}</div>
         </div>
         <Toast />
         <div style={{ padding: "30px 16px 0" }}>
           <Card>
             <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "2px 0 12px" }}>
               <div style={{ width: 30, height: 30, borderRadius: 9, background: T.actionTint, color: T.action, display: "flex", alignItems: "center", justifyContent: "center" }}>{Ico.star({ size: 14, c: T.action })}</div>
-              <div style={{ fontSize: 13, fontWeight: 600 }}>It&apos;s yours. Release the funds</div>
+              <div style={{ fontSize: 13, fontWeight: 600 }}>{t("savings.releaseTitle")}</div>
             </div>
-            <Btn kind="primary" disabled={pending} loading={pending} leading={!pending && Ico.arrowUp({ c: "#fff" })} onClick={() => run(smartSavingsWithdraw, "Released to your balance")}>
-              Release to my balance
+            <Btn kind="primary" disabled={pending} loading={pending} leading={!pending && Ico.arrowUp({ c: "#fff" })} onClick={() => run(smartSavingsWithdraw, t("savings.releasedOk"))}>
+              {t("savings.releaseCta")}
             </Btn>
           </Card>
         </div>
@@ -218,27 +280,37 @@ export default function SavingsScreen() {
     <div style={shell}>
       <AppBar
         leading={<IconButton onClick={() => router.push("/")}>{Ico.back({})}</IconButton>}
-        title="Smart Savings"
+        title={t("savings.title")}
         trailing={<IconButton onClick={() => router.push("/")}>{Ico.shield({})}</IconButton>}
       />
       <div style={{ padding: "6px 16px 10px" }}>
-        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: T.slate }}>Smart savings · locked</div>
-        <div style={{ fontSize: 20, fontWeight: 600, letterSpacing: "-0.02em", marginTop: 2 }}>Your goal</div>
+        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: T.slate }}>
+          {t("savings.lockedKicker")}
+        </div>
+        <div style={{ fontSize: 20, fontWeight: 600, letterSpacing: "-0.02em", marginTop: 2 }}>
+          {t("savings.yourGoal")}
+        </div>
       </div>
       <div style={{ padding: "2px 20px 0", display: "flex", alignItems: "center", gap: 14 }}>
         <Ring pct={st.pct} />
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: T.slate }}>Saved so far</div>
+          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: T.slate }}>
+            {t("savings.savedSoFar")}
+          </div>
           <div className="sl-balance" style={{ marginTop: 2, fontSize: 24, fontWeight: 600 }}>{st.savedPeso}</div>
           <div style={{ marginTop: 4, fontSize: 12, color: T.slate }}>
-            of <span style={{ color: T.ink, fontWeight: 600 }}>{st.targetPeso}</span> · locked until reached
+            {t("savings.ofLocked", { target: st.targetPeso })}
           </div>
         </div>
       </div>
 
+      <Milestones pct={st.pct} />
+
       <div style={{ padding: "14px 16px 0" }}>
         <Card p={14}>
-          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: T.slate }}>Add to goal</div>
+          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: T.slate }}>
+            {t("savings.addToGoal")}
+          </div>
           <div style={{ marginTop: 6, display: "flex", alignItems: "baseline", gap: 4 }}>
             <span style={{ fontSize: 20, color: T.slate, fontWeight: 500 }}>₱</span>
             <input
@@ -268,9 +340,9 @@ export default function SavingsScreen() {
           disabled={pending || anum <= 0}
           loading={pending}
           leading={!pending && Ico.plus({ c: "#fff" })}
-          onClick={() => run(() => smartSavingsDeposit(anum), `Added ₱${anum.toLocaleString("en-PH")} to your goal`)}
+          onClick={() => run(() => smartSavingsDeposit(anum), t("savings.addedOk", { amount: `₱${anum.toLocaleString("en-PH")}` }))}
         >
-          Add ₱{anum.toLocaleString("en-PH")}
+          {t("savings.addCta", { amount: `₱${anum.toLocaleString("en-PH")}` })}
         </Btn>
         <div style={{ marginTop: 10, display: "flex", justifyContent: "center" }}>
           <PoweredByStellar />
