@@ -55,6 +55,12 @@ const en = {
     vaults: "Vaults",
     donate: "Donate",
   },
+  install: {
+    title: "Install Salapi",
+    body: "Add to your home screen. Works offline.",
+    cta: "Install",
+    dismiss: "Dismiss",
+  },
   send: {
     title: "Send money",
     sub: "By @username. No addresses, no seed phrases. Real transfer on Stellar testnet.",
@@ -552,6 +558,12 @@ const tl: Dict = {
     vaults: "Vault",
     donate: "Donate",
   },
+  install: {
+    title: "I-install ang Salapi",
+    body: "Idagdag sa home screen. Gumagana kahit offline.",
+    cta: "I-install",
+    dismiss: "Isara",
+  },
   send: {
     title: "Magpadala ng pera",
     sub: "Gamit ang @username. Walang address, walang seed phrase. Tunay na padala sa Stellar testnet.",
@@ -1046,6 +1058,12 @@ const id: Dict = {
     receive: "Terima",
     vaults: "Vault",
     donate: "Donasi",
+  },
+  install: {
+    title: "Pasang Salapi",
+    body: "Tambahkan ke layar utama. Bisa dipakai offline.",
+    cta: "Pasang",
+    dismiss: "Tutup",
   },
   send: {
     title: "Kirim uang",
@@ -1542,6 +1560,12 @@ const vi: Dict = {
     receive: "Nhận",
     vaults: "Két",
     donate: "Quyên góp",
+  },
+  install: {
+    title: "Cài đặt Salapi",
+    body: "Thêm vào màn hình chính. Dùng được offline.",
+    cta: "Cài đặt",
+    dismiss: "Đóng",
   },
   send: {
     title: "Gửi tiền",

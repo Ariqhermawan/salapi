@@ -3,11 +3,13 @@
 import { useEffect, useState } from "react";
 import { useInstallPrompt } from "@/hooks/useInstallPrompt";
 import { SalapiMark } from "@/components/ui/brand";
+import { useT } from "@/components/I18nProvider";
 
 const DISMISS_KEY = "salapi_install_dismissed";
 
 export default function InstallBanner() {
   const { canInstall, promptInstall } = useInstallPrompt();
+  const { t } = useT();
   const [dismissed, setDismissed] = useState(true);
 
   useEffect(() => {
@@ -23,20 +25,20 @@ export default function InstallBanner() {
       </span>
       <div className="flex-1 text-xs">
         <div className="font-semibold text-[var(--color-ink)]">
-          Install Salapi
+          {t("install.title")}
         </div>
         <div className="text-[var(--color-slate)]">
-          Add to your home screen. Works offline.
+          {t("install.body")}
         </div>
       </div>
       <button
         onClick={() => promptInstall()}
         className="rounded-lg bg-[var(--color-action-deep)] px-3 py-1.5 text-xs font-semibold text-white"
       >
-        Install
+        {t("install.cta")}
       </button>
       <button
-        aria-label="Dismiss"
+        aria-label={t("install.dismiss")}
         onClick={() => {
           localStorage.setItem(DISMISS_KEY, "1");
           setDismissed(true);
