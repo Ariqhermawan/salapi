@@ -183,6 +183,8 @@ export async function paluwaganState() {
       seats,
       sharePeso: fmtPeso(stroopsToPesos(amount)),
       potPeso: fmtPeso(stroopsToPesos(amount * BigInt(members.length))),
+      sharePesos: stroopsToPesos(amount),
+      potPesos: stroopsToPesos(amount * BigInt(members.length)),
       allPaid,
       recipientLabel:
         seats.find((s) => s.isRecipient)?.label ?? recipient.slice(0, 6),

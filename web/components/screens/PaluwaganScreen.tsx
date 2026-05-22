@@ -18,8 +18,10 @@ import {
   Btn,
   Chip,
   Avatar,
+  Peso,
   PoweredByStellar,
 } from "@/components/ui/kit";
+import { formatLocal } from "@/lib/ui/currency";
 
 type State = Awaited<ReturnType<typeof paluwaganState>>;
 
@@ -57,7 +59,7 @@ function Confetti() {
 }
 
 export default function PaluwaganScreen() {
-  const { t } = useT();
+  const { t, currency } = useT();
   const router = useRouter();
   const [st, setSt] = useState<State | null>(null);
   const [msg, setMsg] = useState<{ tone: "ok" | "err"; text: string; link?: string } | null>(null);
@@ -282,9 +284,7 @@ export default function PaluwaganScreen() {
             <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.55)" }}>
               {t("paluwagan.pot")}
             </div>
-            <div className="sl-balance" style={{ fontSize: 19, fontWeight: 600, letterSpacing: "-0.02em" }}>
-              {st.potPeso}
-            </div>
+            <Peso value={st.potPesos} size={19} weight={600} color="#fff" />
             <div style={{ fontSize: 9, color: "rgba(255,255,255,0.5)", fontFamily: T.fontMono }}>
               {t("paluwagan.paidCount", { paid: paidCount, total })}
             </div>
@@ -309,8 +309,8 @@ export default function PaluwaganScreen() {
               <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: T.slate }}>
                 {t("paluwagan.shareEach")}
               </div>
-              <div className="sl-balance" style={{ marginTop: 4, fontSize: 17, fontWeight: 600 }}>
-                {st.sharePeso}
+              <div style={{ marginTop: 4 }}>
+                <Peso value={st.sharePesos} size={17} weight={600} />
               </div>
             </div>
           </div>
@@ -460,7 +460,10 @@ export default function PaluwaganScreen() {
           >
             {pending
               ? t("paluwagan.releasing")
-              : t("paluwagan.releasePot", { pot: st.potPeso, who: st.recipientLabel })}
+              : t("paluwagan.releasePot", {
+                  pot: formatLocal(st.potPesos, currency),
+                  who: st.recipientLabel,
+                })}
           </Btn>
         ) : (
           <Btn
@@ -468,13 +471,22 @@ export default function PaluwaganScreen() {
             loading={pending}
             disabled={pending || iPaid}
             leading={!pending && Ico.check({ c: "#fff" })}
-            onClick={() => run(paluwaganPayMine, t("paluwagan.sharePaidOk", { share: st.sharePeso }))}
+            onClick={() =>
+            run(
+              paluwaganPayMine,
+              t("paluwagan.sharePaidOk", {
+                share: formatLocal(st.sharePesos, currency),
+              })
+            )
+          }
           >
             {iPaid
               ? t("paluwagan.sharePaid")
               : pending
                 ? t("paluwagan.paying")
-                : t("paluwagan.payShare", { share: st.sharePeso })}
+                : t("paluwagan.payShare", {
+                    share: formatLocal(st.sharePesos, currency),
+                  })}
           </Btn>
         )}
         <Btn
