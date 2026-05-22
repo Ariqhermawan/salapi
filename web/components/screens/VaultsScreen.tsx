@@ -179,100 +179,68 @@ export default function VaultsScreen() {
               "inset 0 0 0 1px #F0DCB6, 0 12px 26px -16px rgba(180,83,9,0.5)",
           }}
         >
-          {/* Motion layer - a slow vault dial, a soft "rupiah masuk"
-              ripple, and a counter-spinning gauge. Decorative only. */}
+          {/* Living vault dial - one emblem: a turning vault wheel in a
+              white badge, with a soft "rupiah masuk" ripple. Decorative. */}
           <div
             aria-hidden
             style={{
               position: "absolute",
-              top: 0,
-              right: 0,
-              width: 150,
-              height: 150,
+              top: 14,
+              right: 14,
+              width: 58,
+              height: 58,
               pointerEvents: "none",
             }}
           >
-            <svg
-              className="sl-dial"
-              viewBox="0 0 100 100"
-              width="150"
-              height="150"
-              fill="none"
-              stroke={T.warn}
-              strokeWidth="2"
-              style={{
-                position: "absolute",
-                top: -30,
-                right: -30,
-                opacity: 0.5,
-              }}
-            >
-              <circle cx="50" cy="50" r="40" />
-              <circle cx="50" cy="50" r="29" />
-              <circle cx="50" cy="50" r="9" />
-              <g strokeWidth="3" strokeLinecap="round">
-                <path d="M50 10V21" />
-                <path d="M50 79V90" />
-                <path d="M10 50H21" />
-                <path d="M79 50H90" />
-                <path d="M22 22l8 8" />
-                <path d="M70 70l8 8" />
-                <path d="M78 22l-8 8" />
-                <path d="M30 70l-8 8" />
-              </g>
-            </svg>
             <span
               className="sl-ripple"
               style={{
                 position: "absolute",
-                top: 13,
-                right: 13,
-                width: 44,
-                height: 44,
+                inset: 0,
                 borderRadius: 99,
-                border: "1.5px solid rgba(180,83,9,0.5)",
+                border: "1.5px solid rgba(180,83,9,0.4)",
               }}
             />
             <span
               className="sl-ripple"
               style={{
                 position: "absolute",
-                top: 13,
-                right: 13,
-                width: 44,
-                height: 44,
+                inset: 0,
                 borderRadius: 99,
-                border: "1.5px solid rgba(180,83,9,0.5)",
+                border: "1.5px solid rgba(180,83,9,0.4)",
                 animationDelay: "1.9s",
               }}
             />
             <div
               style={{
                 position: "absolute",
-                top: 13,
-                right: 13,
-                width: 44,
-                height: 44,
-                borderRadius: 13,
+                inset: 0,
+                borderRadius: 16,
                 background: "#fff",
-                boxShadow: "inset 0 0 0 1px " + T.hairline,
+                boxShadow:
+                  "0 3px 8px -3px rgba(180,83,9,0.3), inset 0 0 0 1px " +
+                  T.hairline,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
               }}
             >
               <svg
-                className="sl-dial-rev"
+                className="sl-dial"
                 viewBox="0 0 100 100"
-                width="24"
-                height="24"
+                width="38"
+                height="38"
                 fill="none"
                 stroke={T.warn}
-                strokeWidth="7"
-                strokeLinecap="round"
               >
-                <circle cx="50" cy="50" r="32" />
-                <path d="M50 24V50L68 61" />
+                <circle cx="50" cy="50" r="37" strokeWidth="6.5" />
+                <circle cx="50" cy="50" r="9" fill={T.warn} stroke="none" />
+                <g strokeWidth="7" strokeLinecap="round">
+                  <path d="M50 13V41" />
+                  <path d="M50 59V87" />
+                  <path d="M13 50H41" />
+                  <path d="M59 50H87" />
+                </g>
               </svg>
             </div>
           </div>
