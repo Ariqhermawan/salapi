@@ -286,6 +286,61 @@ export default function TransparencyScreen() {
         </div>
       </div>
 
+      {/* Multi-key release — Build-Award preview, honestly badged */}
+      <div style={{ padding: "10px 16px 0" }}>
+        <div
+          style={{
+            padding: "11px 13px",
+            borderRadius: 12,
+            background: T.surface,
+            boxShadow: "inset 0 0 0 1px " + T.hairline,
+            display: "flex",
+            gap: 10,
+            alignItems: "flex-start",
+          }}
+        >
+          <div
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: 99,
+              background: T.actionTint,
+              color: T.action,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flex: "0 0 auto",
+            }}
+          >
+            {Ico.shield({ size: 15, c: T.action })}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 12.5, fontWeight: 700, color: T.ink }}>
+                {t("transparency.multiKeyTitle")}
+              </span>
+              <span
+                style={{
+                  fontSize: 9,
+                  fontWeight: 700,
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                  color: T.action,
+                  background: T.actionTint,
+                  padding: "2px 6px",
+                  borderRadius: 999,
+                }}
+              >
+                {t("home.circlesBadge")}
+              </span>
+            </div>
+            <div style={{ marginTop: 3, fontSize: 11.5, color: T.slate, lineHeight: 1.45 }}>
+              {t("transparency.multiKeyBody")}
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div style={{ padding: "12px 16px 0" }}>
         <Btn kind="primary" leading={Ico.shield({ c: "#fff" })} onClick={() => { setErr(""); setPhase("amount"); }}>
           {t("transparency.donateCta")}

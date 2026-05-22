@@ -462,6 +462,9 @@ const en = {
     friendsPaidOk: "Friends paid their shares",
     somethingWrong: "Something went wrong",
     viewOnStellar: "View on Stellar",
+    reminderTitle: "Round reminder",
+    reminderBody:
+      "Salapi nudges everyone before the round closes — so no one has to chase a friend.",
   },
   transparency: {
     publicNoLogin: "Public · no login",
@@ -499,6 +502,9 @@ const en = {
     receiptVerifiable: "Receipt · verifiable on Stellar",
     viewFeed: "View public feed",
     done: "Done",
+    multiKeyTitle: "Multi-key release",
+    multiKeyBody:
+      "Today the relief gate is one transparent admin signature. At Build-Award, several independent signers co-sign every disbursement.",
   },
   signin: {
     welcome: "Welcome to Salapi.",
@@ -1308,6 +1314,9 @@ const tl: Dict = {
     friendsPaidOk: "Nagbayad ang mga kaibigan ng kanilang share",
     somethingWrong: "May nangyaring mali",
     viewOnStellar: "Tingnan sa Stellar",
+    reminderTitle: "Paalala sa round",
+    reminderBody:
+      "Pinapaalalahanan ng Salapi ang lahat bago magsara ang round — para walang humabol sa kaibigan.",
   },
   transparency: {
     publicNoLogin: "Publiko · walang login",
@@ -1345,6 +1354,9 @@ const tl: Dict = {
     receiptVerifiable: "Resibo · masusubaybayan sa Stellar",
     viewFeed: "Tingnan ang pampublikong feed",
     done: "Tapos",
+    multiKeyTitle: "Multi-key na paglabas",
+    multiKeyBody:
+      "Ngayon, ang relief gate ay isang transparent na admin signature. Sa Build-Award, ilang independent na signer ang sama-samang pipirma sa bawat disbursement.",
   },
   signin: {
     welcome: "Maligayang pagdating sa Salapi.",
@@ -2142,6 +2154,9 @@ const id: Dict = {
     friendsPaidOk: "Teman sudah membayar bagian mereka",
     somethingWrong: "Ada yang salah",
     viewOnStellar: "Lihat di Stellar",
+    reminderTitle: "Pengingat ronde",
+    reminderBody:
+      "Salapi mengingatkan semua orang sebelum ronde ditutup — jadi tak ada yang perlu mengejar teman.",
   },
   transparency: {
     publicNoLogin: "Publik · tanpa login",
@@ -2179,6 +2194,9 @@ const id: Dict = {
     receiptVerifiable: "Struk · bisa diverifikasi di Stellar",
     viewFeed: "Lihat feed publik",
     done: "Selesai",
+    multiKeyTitle: "Pencairan multi-kunci",
+    multiKeyBody:
+      "Saat ini gerbang bantuan adalah satu tanda tangan admin yang transparan. Di Build-Award, beberapa penanda tangan independen ikut menandatangani tiap pencairan.",
   },
   signin: {
     welcome: "Selamat datang di Salapi.",
@@ -2977,6 +2995,9 @@ const vi: Dict = {
     friendsPaidOk: "Bạn bè đã đóng phần của họ",
     somethingWrong: "Có lỗi xảy ra",
     viewOnStellar: "Xem trên Stellar",
+    reminderTitle: "Nhắc nhở lượt",
+    reminderBody:
+      "Salapi nhắc mọi người trước khi lượt đóng — không ai phải đi đòi bạn bè.",
   },
   transparency: {
     publicNoLogin: "Công khai · không đăng nhập",
@@ -3014,6 +3035,9 @@ const vi: Dict = {
     receiptVerifiable: "Biên nhận · xác minh được trên Stellar",
     viewFeed: "Xem feed công khai",
     done: "Xong",
+    multiKeyTitle: "Giải ngân đa khóa",
+    multiKeyBody:
+      "Hiện tại cổng cứu trợ là một chữ ký quản trị minh bạch. Ở Build-Award, nhiều người ký độc lập cùng ký mỗi lần giải ngân.",
   },
   signin: {
     welcome: "Chào mừng đến Salapi.",

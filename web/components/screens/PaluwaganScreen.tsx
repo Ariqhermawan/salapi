@@ -325,6 +325,57 @@ export default function PaluwaganScreen() {
         </Card>
       </div>
 
+      {/* Pre-round reminder — a nudge before the round closes */}
+      {!st.allPaid && (
+        <div style={{ padding: "12px 16px 0" }}>
+          <div
+            style={{
+              padding: "11px 13px",
+              borderRadius: 12,
+              background: T.actionTint,
+              display: "flex",
+              gap: 10,
+              alignItems: "flex-start",
+            }}
+          >
+            <div
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 99,
+                background: T.surface,
+                color: T.action,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flex: "0 0 auto",
+              }}
+            >
+              {Ico.bell({ size: 15, c: T.action })}
+            </div>
+            <div>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: T.action }}>
+                {t("paluwagan.reminderTitle")}
+              </div>
+              <div style={{ marginTop: 2, fontSize: 12, color: T.slate, lineHeight: 1.45 }}>
+                {t("paluwagan.reminderBody")}
+              </div>
+              <div
+                style={{
+                  marginTop: 4,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: T.slate,
+                  fontFamily: T.fontMono,
+                }}
+              >
+                {t("paluwagan.paidCount", { paid: paidCount, total })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Member wall */}
       <div style={{ padding: "14px 16px 0" }}>
         <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: T.slate, padding: "0 4px 6px" }}>
