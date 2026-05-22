@@ -71,7 +71,7 @@ export function AppBar({ title, leading, trailing, sub, large = false }: { title
 }
 
 type BtnKind = "primary" | "secondary" | "ghost" | "success" | "danger" | "quiet";
-export function Btn({ children, kind = "primary", size = "lg", full = true, leading, trailing, style = {}, onClick, disabled, loading }: { children: ReactNode; kind?: BtnKind; size?: "lg" | "md" | "sm"; full?: boolean; leading?: ReactNode; trailing?: ReactNode; style?: CSSProperties; onClick?: () => void; disabled?: boolean; loading?: boolean }) {
+export function Btn({ children, kind = "primary", size = "lg", full = true, leading, trailing, style = {}, onClick, disabled, loading, className }: { children: ReactNode; kind?: BtnKind; size?: "lg" | "md" | "sm"; full?: boolean; leading?: ReactNode; trailing?: ReactNode; style?: CSSProperties; onClick?: () => void; disabled?: boolean; loading?: boolean; className?: string }) {
   const h = size === "lg" ? 52 : size === "md" ? 44 : 36;
   const fs = size === "lg" ? 16 : size === "md" ? 15 : 14;
   const kinds: Record<BtnKind, CSSProperties> = {
@@ -83,7 +83,7 @@ export function Btn({ children, kind = "primary", size = "lg", full = true, lead
     quiet: { background: T.actionTint, color: T.action },
   };
   return (
-    <button onClick={onClick} disabled={disabled} style={{ height: h, padding: "0 18px", borderRadius: T.rCtrl, border: "none", fontFamily: T.fontSans, fontWeight: 600, fontSize: fs, letterSpacing: "-0.005em", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, width: full ? "100%" : "auto", cursor: "pointer", transition: "transform .12s, background .12s, box-shadow .12s", opacity: disabled ? 0.45 : 1, ...kinds[kind], ...style }}>
+    <button className={className} onClick={onClick} disabled={disabled} style={{ height: h, padding: "0 18px", borderRadius: T.rCtrl, border: "none", fontFamily: T.fontSans, fontWeight: 600, fontSize: fs, letterSpacing: "-0.005em", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, width: full ? "100%" : "auto", cursor: "pointer", transition: "transform .12s, background .12s, box-shadow .12s", opacity: disabled ? 0.45 : 1, ...kinds[kind], ...style }}>
       {loading && <span className="sl-spin" style={{ width: 14, height: 14, borderRadius: 99, border: "2px solid currentColor", borderTopColor: "transparent" }} />}
       {!loading && leading}
       <span>{children}</span>
@@ -92,9 +92,9 @@ export function Btn({ children, kind = "primary", size = "lg", full = true, lead
   );
 }
 
-export function Card({ children, p = 16, style = {}, onClick, hairline = true, elevation = false }: { children: ReactNode; p?: number; style?: CSSProperties; onClick?: () => void; hairline?: boolean; elevation?: boolean }) {
+export function Card({ children, p = 16, style = {}, onClick, hairline = true, elevation = false, className }: { children: ReactNode; p?: number; style?: CSSProperties; onClick?: () => void; hairline?: boolean; elevation?: boolean; className?: string }) {
   return (
-    <div onClick={onClick} style={{ background: T.surface, borderRadius: T.rCard, padding: p, boxShadow: elevation ? T.shadow + (hairline ? ", inset 0 0 0 1px " + T.hairline : "") : hairline ? "inset 0 0 0 1px " + T.hairline : "none", ...style }}>
+    <div className={className} onClick={onClick} style={{ background: T.surface, borderRadius: T.rCard, padding: p, boxShadow: elevation ? T.shadow + (hairline ? ", inset 0 0 0 1px " + T.hairline : "") : hairline ? "inset 0 0 0 1px " + T.hairline : "none", ...style }}>
       {children}
     </div>
   );

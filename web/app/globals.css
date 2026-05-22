@@ -208,3 +208,42 @@
   display: none;
 }
 
+/* ── Vault "Brankas Hidup" — living-vault motion ──────────────────
+   The Vault hero reads as a real safe: a slow-turning dial, a soft
+   "rupiah masuk" ripple, a breathing card, a glowing CTA, and cards
+   that lift to the touch. All motion is paused under reduced-motion. */
+@keyframes sl-dial { to { transform: rotate(360deg); } }
+@keyframes sl-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.013); }
+}
+@keyframes sl-ripple {
+  0% { transform: scale(0.5); opacity: 0.5; }
+  80% { opacity: 0; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+@keyframes sl-glow {
+  0%, 100% { box-shadow: 0 1px 2px rgba(11,18,32,0.06), 0 6px 16px -6px rgba(37,99,235,0.55); }
+  50% { box-shadow: 0 1px 2px rgba(11,18,32,0.06), 0 9px 26px -6px rgba(37,99,235,0.92); }
+}
+@keyframes sl-dotpulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(180,83,9,0.5); }
+  50% { box-shadow: 0 0 0 5px rgba(180,83,9,0); }
+}
+.sl-dial { animation: sl-dial 26s linear infinite; }
+.sl-dial-rev { animation: sl-dial 15s linear infinite reverse; }
+.sl-breathe { animation: sl-breathe 6.5s ease-in-out infinite; }
+.sl-ripple { animation: sl-ripple 3.8s ease-out infinite; }
+.sl-glow { animation: sl-glow 3s ease-in-out infinite; }
+.sl-dotpulse { animation: sl-dotpulse 2.4s ease-in-out infinite; }
+.sl-lift { transition: transform 0.16s cubic-bezier(0.2, 0.7, 0.3, 1); }
+.sl-lift:active { transform: scale(0.98); }
+@media (hover: hover) {
+  .sl-lift:hover { transform: translateY(-3px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sl-dial, .sl-dial-rev, .sl-breathe, .sl-ripple, .sl-glow,
+  .sl-dotpulse { animation: none; }
+  .sl-lift { transition: none; }
+}
+

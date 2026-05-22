@@ -24,6 +24,37 @@ function pesoNum(label: string) {
   return Number(label.replace(/[^0-9.]/g, "")) || 0;
 }
 
+// Counts a value up from 0 to `target` once `run` turns true. Honors
+// prefers-reduced-motion by snapping straight to the final figure.
+function useCountUp(target: number, run: boolean) {
+  const [val, setVal] = useState(0);
+  useEffect(() => {
+    if (!run) {
+      setVal(0);
+      return;
+    }
+    const reduce =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce || target <= 0) {
+      setVal(target);
+      return;
+    }
+    let raf = 0;
+    const t0 = performance.now();
+    const dur = 1100;
+    const step = (now: number) => {
+      const p = Math.min(1, (now - t0) / dur);
+      setVal(target * (1 - Math.pow(1 - p, 3)));
+      if (p < 1) raf = requestAnimationFrame(step);
+      else setVal(target);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [target, run]);
+  return val;
+}
+
 function VaultTile({
   icon,
   title,
@@ -42,7 +73,13 @@ function VaultTile({
   onClick: () => void;
 }) {
   return (
-    <Card p={14} style={{ cursor: "pointer" }} onClick={onClick}>
+    <Card
+      p={14}
+      elevation
+      className="sl-lift"
+      style={{ cursor: "pointer" }}
+      onClick={onClick}
+    >
       <div
         style={{
           display: "flex",
@@ -119,61 +156,145 @@ export default function VaultsScreen() {
 
   const disActive = Boolean(dis && dis.ok && dis.active);
   const savHasGoal = Boolean(sav && sav.ready && sav.hasGoal);
+  const disReady = Boolean(dis && dis.ok);
+  const disRaisedTarget = dis && dis.ok ? pesoNum(dis.pesoLabel) : 0;
+  const disRaisedShown = useCountUp(disRaisedTarget, disReady);
 
   return (
     <div style={shell}>
       <AppBar large title={t("vaults.title")} sub={t("vaults.sub")} />
 
       <div style={{ padding: "4px 16px 0" }}>
-        {/* Disaster Relief hero */}
+        {/* Disaster Relief hero - "Brankas Hidup": a living vault. */}
         <Card
           p={0}
           onClick={() => router.push("/transparency")}
+          className="sl-breathe"
           style={{
+            position: "relative",
             overflow: "hidden",
             cursor: "pointer",
             background: "linear-gradient(160deg,#fff 0%, #FBF1E0 120%)",
+            boxShadow:
+              "inset 0 0 0 1px #F0DCB6, 0 12px 26px -16px rgba(180,83,9,0.5)",
           }}
         >
-          <div style={{ padding: "14px 16px 4px" }}>
-            <div
+          {/* Motion layer - a slow vault dial, a soft "rupiah masuk"
+              ripple, and a counter-spinning gauge. Decorative only. */}
+          <div
+            aria-hidden
+            style={{
+              position: "absolute",
+              top: 0,
+              right: 0,
+              width: 150,
+              height: 150,
+              pointerEvents: "none",
+            }}
+          >
+            <svg
+              className="sl-dial"
+              viewBox="0 0 100 100"
+              width="150"
+              height="150"
+              fill="none"
+              stroke={T.warn}
+              strokeWidth="2"
               style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "flex-start",
+                position: "absolute",
+                top: -30,
+                right: -30,
+                opacity: 0.5,
               }}
             >
-              <Chip kind="warn">
-                {disActive ? t("vaults.statusActive") : t("vaults.statusStandby")}
-              </Chip>
-              <div
-                style={{
-                  width: 42,
-                  height: 42,
-                  borderRadius: 13,
-                  background: "#fff",
-                  color: T.warn,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  boxShadow: "inset 0 0 0 1px " + T.hairline,
-                }}
+              <circle cx="50" cy="50" r="40" />
+              <circle cx="50" cy="50" r="29" />
+              <circle cx="50" cy="50" r="9" />
+              <g strokeWidth="3" strokeLinecap="round">
+                <path d="M50 10V21" />
+                <path d="M50 79V90" />
+                <path d="M10 50H21" />
+                <path d="M79 50H90" />
+                <path d="M22 22l8 8" />
+                <path d="M70 70l8 8" />
+                <path d="M78 22l-8 8" />
+                <path d="M30 70l-8 8" />
+              </g>
+            </svg>
+            <span
+              className="sl-ripple"
+              style={{
+                position: "absolute",
+                top: 13,
+                right: 13,
+                width: 44,
+                height: 44,
+                borderRadius: 99,
+                border: "1.5px solid rgba(180,83,9,0.5)",
+              }}
+            />
+            <span
+              className="sl-ripple"
+              style={{
+                position: "absolute",
+                top: 13,
+                right: 13,
+                width: 44,
+                height: 44,
+                borderRadius: 99,
+                border: "1.5px solid rgba(180,83,9,0.5)",
+                animationDelay: "1.9s",
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                top: 13,
+                right: 13,
+                width: 44,
+                height: 44,
+                borderRadius: 13,
+                background: "#fff",
+                boxShadow: "inset 0 0 0 1px " + T.hairline,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <svg
+                className="sl-dial-rev"
+                viewBox="0 0 100 100"
+                width="24"
+                height="24"
+                fill="none"
+                stroke={T.warn}
+                strokeWidth="7"
+                strokeLinecap="round"
               >
-                <svg
-                  width="22"
-                  height="22"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke={T.warn}
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M12 3l8 4v6c0 5-4 7-8 8-4-1-8-3-8-8V7l8-4z" />
-                  <path d="M12 8v4M12 16h.01" />
-                </svg>
-              </div>
+                <circle cx="50" cy="50" r="32" />
+                <path d="M50 24V50L68 61" />
+              </svg>
             </div>
+          </div>
+
+          <div style={{ position: "relative", padding: "14px 16px 4px" }}>
+            <Chip
+              kind="warn"
+              leading={
+                <span
+                  className="sl-dotpulse"
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: 99,
+                    background: T.warn,
+                    display: "block",
+                  }}
+                />
+              }
+            >
+              {disActive ? t("vaults.statusActive") : t("vaults.statusStandby")}
+            </Chip>
             <div
               style={{
                 marginTop: 8,
@@ -190,12 +311,13 @@ export default function VaultsScreen() {
                 fontSize: 13,
                 color: T.slate,
                 lineHeight: 1.5,
+                maxWidth: 230,
               }}
             >
               {t("vaults.disasterDesc")}
             </div>
           </div>
-          <div style={{ padding: "10px 16px 14px" }}>
+          <div style={{ position: "relative", padding: "10px 16px 14px" }}>
             <div
               style={{
                 fontSize: 10,
@@ -217,7 +339,7 @@ export default function VaultsScreen() {
               }}
             >
               {dis && dis.ok ? (
-                <Peso value={pesoNum(dis.pesoLabel)} size={28} />
+                <Peso value={disRaisedShown} size={28} />
               ) : (
                 <div style={{ fontSize: 14, color: T.slate, paddingBottom: 4 }}>
                   {t("common.loading")}
@@ -227,6 +349,7 @@ export default function VaultsScreen() {
                 kind="primary"
                 size="md"
                 full={false}
+                className="sl-glow"
                 onClick={() => router.push("/transparency")}
               >
                 {t("wallet.donate")}
@@ -285,6 +408,8 @@ export default function VaultsScreen() {
         {/* Coming: Salapi Circles (Build-Award preview) */}
         <Card
           p={14}
+          elevation
+          className="sl-lift"
           style={{ marginTop: 10, cursor: "pointer" }}
           onClick={() => router.push("/circles")}
         >
