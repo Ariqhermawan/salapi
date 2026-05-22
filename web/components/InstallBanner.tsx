@@ -8,6 +8,11 @@ import { useT } from "@/components/I18nProvider";
 
 const DISMISS_KEY = "salapi_install_dismissed";
 
+// The primary bottom-nav tabs (Home, Vault, Activity) are deliberately
+// single-screen, no-scroll layouts, so the install promo would push their
+// content off-screen. The banner still appears on every other route.
+const HIDDEN_ROUTES = ["/", "/vaults", "/activity"];
+
 export default function InstallBanner() {
   const pathname = usePathname();
   const { canInstall, promptInstall } = useInstallPrompt();
@@ -18,10 +23,7 @@ export default function InstallBanner() {
     setDismissed(localStorage.getItem(DISMISS_KEY) === "1");
   }, []);
 
-  // Hidden on the home route: the home is intentionally a single-screen,
-  // no-scroll layout, so the install promo would push content off-screen.
-  // The banner still appears on every other route.
-  if (pathname === "/" || !canInstall || dismissed) return null;
+  if (HIDDEN_ROUTES.includes(pathname) || !canInstall || dismissed) return null;
 
   return (
     <div className="s-anim-up mx-5 mt-3 flex items-center gap-3 rounded-xl border border-[var(--color-hairline)] bg-white p-3 shadow-sm">

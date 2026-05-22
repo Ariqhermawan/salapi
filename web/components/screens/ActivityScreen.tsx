@@ -45,7 +45,7 @@ export default function ActivityScreen() {
     : t("common.loading");
 
   return (
-    <div style={{ fontFamily: T.fontSans, color: T.ink, minHeight: "100%", paddingBottom: 110 }}>
+    <div style={{ fontFamily: T.fontSans, color: T.ink, minHeight: "100%" }}>
       <AppBar
         large
         title={t("activity.title")}

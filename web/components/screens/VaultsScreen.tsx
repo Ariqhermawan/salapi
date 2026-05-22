@@ -108,11 +108,13 @@ export default function VaultsScreen() {
     disasterState().then(setDis);
   }, []);
 
+  // No explicit bottom padding: the layout's <main> already reserves
+  // pb-[92px] to clear the bottom nav. The screen is sized to sit on one
+  // screen without scroll.
   const shell: React.CSSProperties = {
     fontFamily: T.fontSans,
     color: T.ink,
     minHeight: "100%",
-    paddingBottom: 110,
   };
 
   const disActive = Boolean(dis && dis.ok && dis.active);
@@ -133,7 +135,7 @@ export default function VaultsScreen() {
             background: "linear-gradient(160deg,#fff 0%, #FBF1E0 120%)",
           }}
         >
-          <div style={{ padding: "16px 16px 4px" }}>
+          <div style={{ padding: "14px 16px 4px" }}>
             <div
               style={{
                 display: "flex",
@@ -174,7 +176,7 @@ export default function VaultsScreen() {
             </div>
             <div
               style={{
-                marginTop: 10,
+                marginTop: 8,
                 fontSize: 20,
                 fontWeight: 600,
                 letterSpacing: "-0.02em",
@@ -193,7 +195,7 @@ export default function VaultsScreen() {
               {t("vaults.disasterDesc")}
             </div>
           </div>
-          <div style={{ padding: "12px 16px 16px" }}>
+          <div style={{ padding: "10px 16px 14px" }}>
             <div
               style={{
                 fontSize: 10,
@@ -236,7 +238,7 @@ export default function VaultsScreen() {
         {/* Your money: Arisan + Savings */}
         <div
           style={{
-            padding: "16px 4px 8px",
+            padding: "12px 4px 6px",
             fontSize: 11,
             fontWeight: 600,
             letterSpacing: "0.1em",
@@ -283,7 +285,7 @@ export default function VaultsScreen() {
         {/* Coming: Salapi Circles (Build-Award preview) */}
         <Card
           p={14}
-          style={{ marginTop: 14, cursor: "pointer" }}
+          style={{ marginTop: 10, cursor: "pointer" }}
           onClick={() => router.push("/circles")}
         >
           <div
@@ -335,7 +337,7 @@ export default function VaultsScreen() {
         </Card>
       </div>
 
-      <div style={{ padding: "16px 16px 0", display: "flex", justifyContent: "center" }}>
+      <div style={{ padding: "12px 16px 0", display: "flex", justifyContent: "center" }}>
         <PoweredByStellar />
       </div>
     </div>
