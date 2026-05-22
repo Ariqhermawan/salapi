@@ -492,7 +492,7 @@ export default function Home() {
             background: "linear-gradient(160deg,#fff 0%, #FBF1E0 120%)",
           }}
         >
-          <div style={{ display: "flex", alignItems: "flex-start", gap: 11 }}>
+          <div style={{ display: "flex", alignItems: "stretch", gap: 11 }}>
             <div
               style={{
                 width: 38,
@@ -525,22 +525,45 @@ export default function Home() {
                 {t("home.circlesDesc")}
               </div>
             </div>
-            <span
+            {/* Right rail: the Preview badge pinned top, the "see all" link
+                pinned bottom. Pulling the link up here lets CirclesHomeStrip
+                drop its own footer link so the home fits one screen. */}
+            <div
               style={{
-                fontSize: 9,
-                fontWeight: 700,
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
-                padding: "3px 7px",
-                borderRadius: 99,
-                background: T.warnTint,
-                color: T.warn,
-                whiteSpace: "nowrap",
                 flex: "0 0 auto",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "flex-end",
+                justifyContent: "space-between",
+                gap: 6,
               }}
             >
-              {t("home.circlesBadge")}
-            </span>
+              <span
+                style={{
+                  fontSize: 9,
+                  fontWeight: 700,
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                  padding: "3px 7px",
+                  borderRadius: 99,
+                  background: T.warnTint,
+                  color: T.warn,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {t("home.circlesBadge")}
+              </span>
+              <span
+                style={{
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  color: T.action,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {t("home.circlesSeeAll")} ›
+              </span>
+            </div>
           </div>
         </Card>
 

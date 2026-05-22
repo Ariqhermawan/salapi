@@ -28,6 +28,7 @@ export default function CirclesHomeStrip() {
   return (
     <div style={{ marginTop: 6 }}>
       <div
+        className="sl-hscroll"
         style={{
           display: "flex",
           gap: 10,
@@ -133,19 +134,6 @@ export default function CirclesHomeStrip() {
             </div>
           );
         })}
-      </div>
-      <div
-        onClick={() => router.push("/circles")}
-        style={{
-          marginTop: 7,
-          textAlign: "center",
-          fontSize: 12.5,
-          fontWeight: 600,
-          color: T.action,
-          cursor: "pointer",
-        }}
-      >
-        {t("home.circlesSeeAll")} ›
       </div>
     </div>
   );

@@ -195,3 +195,16 @@
   }
 }
 
+/* ── Horizontal carousel — swipeable, no visible scrollbar.
+   A desktop classic scrollbar steals ~17px of height; hiding it keeps
+   side-scrolling card strips (e.g. the home Circles preview) the same
+   height on desktop and mobile so the home stays one screen. Touch,
+   trackpad and keyboard scrolling still work. */
+.sl-hscroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.sl-hscroll::-webkit-scrollbar {
+  display: none;
+}
+
