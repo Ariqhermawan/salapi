@@ -53,7 +53,12 @@ export default function Home() {
       setHandle(`${s.address.slice(0, 4)}…${s.address.slice(-4)}`);
     });
     myUsername().then((u) => u && setHandle("@" + u));
-    disasterState().then(setDis);
+    // If the disaster read comes back not-ok (it shares the RPC with the
+    // reads above), retry once so the pool figure recovers.
+    disasterState().then((d) => {
+      setDis(d);
+      if (!d.ok) setTimeout(() => disasterState().then(setDis), 700);
+    });
   }, []);
 
   const go = (p: string) => () => router.push(p);

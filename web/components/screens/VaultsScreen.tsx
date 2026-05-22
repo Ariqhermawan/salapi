@@ -148,7 +148,13 @@ export default function VaultsScreen() {
   useEffect(() => {
     paluwaganState().then(setPal);
     smartSavingsState().then(setSav);
-    disasterState().then(setDis);
+    // The disaster read shares the RPC with the two reads above; if it comes
+    // back not-ok, retry once after the concurrent burst has cleared so the
+    // hero recovers instead of sitting on its loading state.
+    disasterState().then((d) => {
+      setDis(d);
+      if (!d.ok) setTimeout(() => disasterState().then(setDis), 700);
+    });
   }, []);
 
   // No explicit bottom padding: the layout's <main> already reserves

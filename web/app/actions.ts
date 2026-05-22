@@ -332,13 +332,41 @@ export async function smartSavingsWithdraw() {
     : { ok: false as const, error: r.error };
 }
 
+// A contract read can come back with an empty retval under concurrent RPC
+// load (the Vaults screen fires several contract reads at once) — a degraded
+// simulation, not a real result. Retry a few times with a short backoff; a
+// final null tells the caller the read genuinely failed, so it can show a
+// loading state rather than a false zero. A real value (including 0n) is
+// returned as soon as it lands.
+async function readWithRetry(
+  contractId: string,
+  method: string
+): Promise<unknown> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const v = await readContract(contractId, method);
+      if (v != null) return v;
+    } catch {
+      /* transient RPC error — fall through and retry */
+    }
+    if (attempt < 2) await new Promise((r) => setTimeout(r, 250));
+  }
+  return null;
+}
+
 export async function disasterState() {
   try {
     const [total, active] = await Promise.all([
-      readContract(CONTRACTS.disaster, "total"),
-      readContract(CONTRACTS.disaster, "is_disaster_active"),
+      readWithRetry(CONTRACTS.disaster, "total"),
+      readWithRetry(CONTRACTS.disaster, "is_disaster_active"),
     ]);
-    const totalPesos = stroopsToPesos(BigInt((total as number) ?? 0));
+    if (total == null) {
+      // Every retry came back empty: a failed read, not a real zero. Report
+      // not-ok so callers (Vaults, Home, Transparency) show their loading
+      // state instead of a false "Rp 0".
+      return { ok: false as const, error: "disaster total unavailable" };
+    }
+    const totalPesos = stroopsToPesos(BigInt(total as number | bigint));
     return {
       ok: true as const,
       pesoLabel: fmtPeso(totalPesos),
