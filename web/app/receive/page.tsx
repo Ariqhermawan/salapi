@@ -18,10 +18,10 @@ export default function ReceivePage() {
   return (
     <div style={{ fontFamily: T.fontSans, color: T.ink, padding: "12px 16px" }}>
       <div style={{ fontSize: 20, fontWeight: 600, letterSpacing: "-0.02em" }}>
-        {t("nav.send") /* placeholder header */}
+        {t("receive.title")}
       </div>
       <p style={{ fontSize: 13, color: T.slate, margin: "4px 0 12px" }}>
-        Share your @username. Anyone on Salapi can send you pesos.
+        {t("receive.sub")}
       </p>
       <Card p={14} style={{ textAlign: "center" }}>
         <div
@@ -53,10 +53,10 @@ export default function ReceivePage() {
           {handle || "…"}
         </div>
         <p style={{ fontSize: 12, color: T.slate, marginTop: 4 }}>
-          Stellar testnet · crypto invisible
+          {t("receive.railNote")}
         </p>
         <div style={{ marginTop: 12 }}>
-          <Btn kind="secondary">Share</Btn>
+          <Btn kind="secondary">{t("receive.share")}</Btn>
         </div>
       </Card>
       <div style={{ marginTop: 14, textAlign: "center" }}>

@@ -110,9 +110,9 @@ export default function SendScreen() {
         </div>
         <div style={{ padding: "16px 16px 0" }}>
           <Card p={14}>
-            <Row title="Arrives" trailing={<span style={{ fontSize: 14, fontWeight: 600, color: T.moneyIn }}>Instantly · Free</span>} divider />
+            <Row title={t("send.arrives")} trailing={<span style={{ fontSize: 14, fontWeight: 600, color: T.moneyIn }}>{t("send.arrivesValue")}</span>} divider />
             <Row
-              title="Receipt"
+              title={t("send.receipt")}
               trailing={
                 <a
                   href={done.link}
@@ -128,8 +128,8 @@ export default function SendScreen() {
           </Card>
         </div>
         <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
-          <Btn kind="secondary" onClick={() => { setDone(null); setAmount(""); setTo(""); }}>Send again</Btn>
-          <Btn kind="ghost" onClick={() => router.push("/")}>Done</Btn>
+          <Btn kind="secondary" onClick={() => { setDone(null); setAmount(""); setTo(""); }}>{t("send.sendAgain")}</Btn>
+          <Btn kind="ghost" onClick={() => router.push("/")}>{t("send.done")}</Btn>
         </div>
         <div style={{ padding: "16px 16px 0", display: "flex", justifyContent: "center" }}>
           <PoweredByStellar />
@@ -151,13 +151,12 @@ export default function SendScreen() {
             @{notFound}
           </div>
           <div style={{ marginTop: 4, fontSize: 13, color: T.slate, lineHeight: 1.5, maxWidth: 260, margin: "4px auto 0" }}>
-            {t("send.title")}. No one has claimed this @username yet. Check the
-            spelling or invite them.
+            {t("send.notFoundBody")}
           </div>
         </div>
         <div style={{ padding: "18px 16px 0", display: "flex", flexDirection: "column", gap: 8 }}>
           <Btn kind="primary" onClick={() => setNotFound(null)}>
-            {t("send.send")}
+            {t("send.tryAgain")}
           </Btn>
         </div>
       </div>

@@ -82,6 +82,30 @@ const en = {
     sending: "Sending…",
     sentOk: "Sent ₱{amt} to @{to}",
     claimedOk: "Claimed @{name}",
+    arrives: "Arrives",
+    arrivesValue: "Instantly · Free",
+    receipt: "Receipt",
+    sendAgain: "Send again",
+    done: "Done",
+    notFoundBody:
+      "No one has claimed this @username yet. Check the spelling or invite them.",
+    tryAgain: "Try again",
+  },
+  receive: {
+    title: "Receive",
+    sub: "Share your @username. Anyone on Salapi can send you pesos.",
+    railNote: "Stellar testnet · crypto invisible",
+    share: "Share",
+  },
+  tx: {
+    title: "Transaction",
+    sub: "Independently verifiable on Stellar testnet.",
+    hashLabel: "Tx hash",
+    openExplorer: "Open on stellar.expert",
+  },
+  offline: {
+    title: "You're offline",
+    body: "Reconnect to use Salapi. Your money is safe on-chain.",
   },
   topup: {
     title: "Top up",
@@ -848,6 +872,30 @@ const tl: Dict = {
     sending: "Ipinapadala…",
     sentOk: "Naipadala ₱{amt} kay @{to}",
     claimedOk: "Nakuha @{name}",
+    arrives: "Pagdating",
+    arrivesValue: "Agad · Libre",
+    receipt: "Resibo",
+    sendAgain: "Magpadala ulit",
+    done: "Tapos na",
+    notFoundBody:
+      "Wala pang nag-claim ng @username na ito. I-check ang spelling o imbitahan sila.",
+    tryAgain: "Subukan ulit",
+  },
+  receive: {
+    title: "Tumanggap",
+    sub: "Ibahagi ang iyong @username. Sinuman sa Salapi ay puwedeng magpadala sa iyo.",
+    railNote: "Stellar testnet · crypto invisible",
+    share: "Ibahagi",
+  },
+  tx: {
+    title: "Transaksyon",
+    sub: "Malayang ma-verify sa Stellar testnet.",
+    hashLabel: "Tx hash",
+    openExplorer: "Buksan sa stellar.expert",
+  },
+  offline: {
+    title: "Offline ka",
+    body: "Kumonekta ulit para gamitin ang Salapi. Ligtas ang pera mo on-chain.",
   },
   topup: {
     title: "Mag-top up",
@@ -1604,6 +1652,30 @@ const id: Dict = {
     sending: "Mengirim…",
     sentOk: "Terkirim ₱{amt} ke @{to}",
     claimedOk: "Berhasil klaim @{name}",
+    arrives: "Tiba",
+    arrivesValue: "Instan · Gratis",
+    receipt: "Bukti",
+    sendAgain: "Kirim lagi",
+    done: "Selesai",
+    notFoundBody:
+      "Belum ada yang klaim @username ini. Cek ejaannya atau undang mereka.",
+    tryAgain: "Coba lagi",
+  },
+  receive: {
+    title: "Terima",
+    sub: "Bagikan @username kamu. Siapa pun di Salapi bisa mengirim ke kamu.",
+    railNote: "Stellar testnet · crypto invisible",
+    share: "Bagikan",
+  },
+  tx: {
+    title: "Transaksi",
+    sub: "Bisa diverifikasi sendiri di Stellar testnet.",
+    hashLabel: "Hash Tx",
+    openExplorer: "Buka di stellar.expert",
+  },
+  offline: {
+    title: "Kamu offline",
+    body: "Sambungkan lagi untuk pakai Salapi. Uang kamu aman di on-chain.",
   },
   topup: {
     title: "Isi saldo",
@@ -2361,6 +2433,30 @@ const vi: Dict = {
     sending: "Đang gửi…",
     sentOk: "Đã gửi ₱{amt} tới @{to}",
     claimedOk: "Đã nhận @{name}",
+    arrives: "Đến nơi",
+    arrivesValue: "Tức thì · Miễn phí",
+    receipt: "Biên nhận",
+    sendAgain: "Gửi lại",
+    done: "Xong",
+    notFoundBody:
+      "Chưa có ai nhận @username này. Kiểm tra chính tả hoặc mời họ.",
+    tryAgain: "Thử lại",
+  },
+  receive: {
+    title: "Nhận",
+    sub: "Chia sẻ @username của bạn. Bất kỳ ai trên Salapi đều có thể gửi cho bạn.",
+    railNote: "Stellar testnet · ẩn crypto",
+    share: "Chia sẻ",
+  },
+  tx: {
+    title: "Giao dịch",
+    sub: "Có thể tự kiểm chứng trên Stellar testnet.",
+    hashLabel: "Mã Tx",
+    openExplorer: "Mở trên stellar.expert",
+  },
+  offline: {
+    title: "Bạn đang ngoại tuyến",
+    body: "Kết nối lại để dùng Salapi. Tiền của bạn an toàn trên chuỗi.",
   },
   topup: {
     title: "Nạp tiền",
