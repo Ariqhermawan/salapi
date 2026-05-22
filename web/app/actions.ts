@@ -237,43 +237,65 @@ export async function paluwaganCollect() {
 }
 
 // ── Smart Savings (goal vault) ────────────────────────────────────
+// A vault's "mode" rides on the contract's unlock-ledger field. Flexible
+// opens with a tiny unlock ledger so the contract permits withdraw at any
+// time; Disciplined opens far in the future so the contract only releases
+// once the target is reached. MODE_SPLIT sits well above FLEX_UNLOCK and far
+// below any realistic testnet ledger, so the stored value classifies cleanly.
+const FLEX_UNLOCK = 1;
+const LOCKED_UNLOCK = 4_000_000_000;
+const MODE_SPLIT = 1_000_000_000;
+
 export async function smartSavingsState() {
   const id = smartSavingsId();
   if (!id) return { ready: false as const };
   try {
     const { publicKey } = await getSigner();
-    const g = (await readContract(id, "goal_of", [
-      sc.addr(publicKey),
-    ])) as { target: number | bigint; saved: number | bigint };
+    const g = (await readContract(id, "goal_of", [sc.addr(publicKey)])) as {
+      target: number | bigint;
+      unlock: number | bigint;
+      saved: number | bigint;
+    };
     const target = BigInt(g.target);
     const saved = BigInt(g.saved);
     const pct =
-      target > 0n
-        ? Math.min(100, Number((saved * 100n) / target))
-        : 0;
+      target > 0n ? Math.min(100, Number((saved * 100n) / target)) : 0;
+    const reached = saved >= target;
+    const mode: "flexible" | "disciplined" =
+      Number(g.unlock) < MODE_SPLIT ? "flexible" : "disciplined";
     return {
       ready: true as const,
       hasGoal: true as const,
       targetPeso: fmtPeso(stroopsToPesos(target)),
       savedPeso: fmtPeso(stroopsToPesos(saved)),
+      targetPesos: stroopsToPesos(target),
+      savedPesos: stroopsToPesos(saved),
       pct,
-      unlocked: saved >= target,
+      mode,
+      reached,
+      unlocked: reached,
+      withdrawable: mode === "flexible" || reached,
     };
   } catch {
     return { ready: true as const, hasGoal: false as const };
   }
 }
 
-export async function smartSavingsOpen(targetPesos: number) {
+export async function smartSavingsOpen(
+  targetPesos: number,
+  mode: "flexible" | "disciplined" = "disciplined"
+) {
   const id = smartSavingsId();
   if (!id) return { ok: false as const, error: "Vault not set up" };
   if (!(targetPesos > 0))
     return { ok: false as const, error: "Enter a target amount" };
   const s = await getSigner();
+  // Disciplined → far-future unlock (contract releases only at target).
+  // Flexible → unlock already passed (contract permits withdraw anytime).
   const r = await invokeAs(s.secret, id, "open_goal", [
     sc.addr(s.publicKey),
     sc.i128(pesosToStroops(targetPesos)),
-    sc.u32(4_000_000_000), // far-future ledger → target-driven unlock
+    sc.u32(mode === "flexible" ? FLEX_UNLOCK : LOCKED_UNLOCK),
   ]);
   return r.ok
     ? { ok: true as const, link: txLink(r.hash) }
