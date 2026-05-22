@@ -117,8 +117,8 @@ const en = {
     methodGcash: "GCash",
     methodGcashSub: "Usually clears in 4 to 6 seconds",
     sandboxTag: "Sandbox",
-    methodBank: "Bank transfer",
-    methodBankSub: "Coming with licensed anchors",
+    methodQris: "QRIS",
+    methodQrisSub: "Any Indonesian bank or e-wallet",
     anchorTitle: "ON-RAMP DISCLAIMER",
     anchorBody:
       "Indicative rate. Real money on-ramp goes through licensed anchors. Indonesia: anchor pending. Philippines: anchor pending.",
@@ -923,8 +923,8 @@ const tl: Dict = {
     methodGcash: "GCash",
     methodGcashSub: "Karaniwang 4 hanggang 6 segundo",
     sandboxTag: "Sandbox",
-    methodBank: "Bank transfer",
-    methodBankSub: "Kasama ng lisensyadong anchor",
+    methodQris: "QRIS",
+    methodQrisSub: "Anumang bangko o e-wallet sa Indonesia",
     anchorTitle: "PAUNAWA SA ON-RAMP",
     anchorBody:
       "Indicative rate. Ang totoong on-ramp ay dumadaan sa lisensyadong anchor. Indonesia: nakabinbin. Pilipinas: nakabinbin.",
@@ -1719,8 +1719,8 @@ const id: Dict = {
     methodGcash: "GCash",
     methodGcashSub: "Biasanya selesai 4 sampai 6 detik",
     sandboxTag: "Sandbox",
-    methodBank: "Transfer bank",
-    methodBankSub: "Hadir bersama anchor berlisensi",
+    methodQris: "QRIS",
+    methodQrisSub: "Bank atau e-wallet Indonesia mana pun",
     anchorTitle: "PERHATIAN ON-RAMP",
     anchorBody:
       "Kurs indikatif. On-ramp uang riil lewat anchor berlisensi. Indonesia: anchor menunggu. Filipina: anchor menunggu.",
@@ -2516,8 +2516,8 @@ const vi: Dict = {
     methodGcash: "GCash",
     methodGcashSub: "Thường xong trong 4 tới 6 giây",
     sandboxTag: "Sandbox",
-    methodBank: "Chuyển khoản ngân hàng",
-    methodBankSub: "Sắp có cùng anchor được cấp phép",
+    methodQris: "QRIS",
+    methodQrisSub: "Bất kỳ ngân hàng hay ví điện tử Indonesia nào",
     anchorTitle: "LƯU Ý NẠP TIỀN",
     anchorBody:
       "Tỷ giá tham khảo. Nạp tiền thật đi qua anchor được cấp phép. Indonesia: anchor đang chờ. Philippines: anchor đang chờ.",

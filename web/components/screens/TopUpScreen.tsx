@@ -91,11 +91,11 @@ function MethodCard({
 }
 
 export default function TopUpScreen() {
-  const { t } = useT();
+  const { t, locale } = useT();
   const router = useRouter();
   const [phase, setPhase] = useState<"amount" | "processing" | "done">("amount");
   const [amount, setAmount] = useState("1000");
-  const [method, setMethod] = useState<"gcash" | "bank">("gcash");
+  const [methodPick, setMethodPick] = useState<"gcash" | "qris" | null>(null);
   const [addr, setAddr] = useState("");
   const [result, setResult] = useState<{ note: string; pesoLabel: string } | null>(
     null
@@ -111,6 +111,9 @@ export default function TopUpScreen() {
     : undefined;
   const amt = Number(amount) || 0;
   const amtLabel = "₱" + amt.toLocaleString("en-PH");
+  // Locale-aware default: Indonesia leads with QRIS, elsewhere GCash.
+  const method: "gcash" | "qris" =
+    methodPick ?? (locale === "id" ? "qris" : "gcash");
 
   function go() {
     setPhase("processing");
@@ -306,7 +309,7 @@ export default function TopUpScreen() {
               title={t("topup.from")}
               trailing={
                 <span style={{ fontWeight: 500, fontSize: 14 }}>
-                  GCash · sandbox
+                  {method === "qris" ? "QRIS" : "GCash"} · sandbox
                 </span>
               }
               divider
@@ -495,52 +498,64 @@ export default function TopUpScreen() {
           {t("topup.methodLabel")}
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <MethodCard
-            selected={method === "gcash"}
-            onClick={() => setMethod("gcash")}
-            tile={
-              <div
-                style={{
-                  width: 34,
-                  height: 34,
-                  borderRadius: 10,
-                  background: "#0079FF",
-                  color: "#fff",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontWeight: 700,
-                  fontSize: 12,
-                }}
-              >
-                GC
-              </div>
-            }
-            label={t("topup.methodGcash")}
-            sub={t("topup.methodGcashSub")}
-            tag={t("topup.sandboxTag")}
-          />
-          <MethodCard
-            disabled
-            tile={
-              <div
-                style={{
-                  width: 34,
-                  height: 34,
-                  borderRadius: 10,
-                  background: T.canvas,
-                  color: T.slate,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                {Ico.vault({ size: 18, c: T.slate })}
-              </div>
-            }
-            label={t("topup.methodBank")}
-            sub={t("topup.methodBankSub")}
-          />
+          {(locale === "id"
+            ? (["qris", "gcash"] as const)
+            : (["gcash", "qris"] as const)
+          ).map((m) =>
+            m === "gcash" ? (
+              <MethodCard
+                key="gcash"
+                selected={method === "gcash"}
+                onClick={() => setMethodPick("gcash")}
+                tile={
+                  <div
+                    style={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: 10,
+                      background: "#0079FF",
+                      color: "#fff",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontWeight: 700,
+                      fontSize: 12,
+                    }}
+                  >
+                    GC
+                  </div>
+                }
+                label={t("topup.methodGcash")}
+                sub={t("topup.methodGcashSub")}
+                tag={t("topup.sandboxTag")}
+              />
+            ) : (
+              <MethodCard
+                key="qris"
+                selected={method === "qris"}
+                onClick={() => setMethodPick("qris")}
+                tile={
+                  <div
+                    style={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: 10,
+                      background: "#C8102E",
+                      color: "#fff",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    {Ico.qr({ size: 18, c: "#fff" })}
+                  </div>
+                }
+                label={t("topup.methodQris")}
+                sub={t("topup.methodQrisSub")}
+                tag={t("topup.sandboxTag")}
+              />
+            )
+          )}
         </div>
       </div>
 
@@ -628,7 +643,7 @@ export default function TopUpScreen() {
       <div style={{ padding: "16px 16px 0" }}>
         <Btn
           kind="primary"
-          disabled={pending || amt <= 0 || method === "bank"}
+          disabled={pending || amt <= 0}
           loading={pending}
           trailing={!pending && Ico.chev({ c: "#fff" })}
           onClick={go}
