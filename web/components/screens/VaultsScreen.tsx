@@ -68,7 +68,7 @@ function VaultTile({
   title: string;
   stat: string;
   amountLabel: string;
-  amount: string;
+  amount: number | null;
   progressPct?: number;
   onClick: () => void;
 }) {
@@ -117,11 +117,17 @@ function VaultTile({
       >
         {amountLabel}
       </div>
-      <div
-        className="sl-balance"
-        style={{ marginTop: 1, fontSize: 17, fontWeight: 700, color: T.ink }}
-      >
-        {amount}
+      <div style={{ marginTop: 1 }}>
+        {amount === null ? (
+          <span
+            className="sl-balance"
+            style={{ fontSize: 17, fontWeight: 700, color: T.slate }}
+          >
+            -
+          </span>
+        ) : (
+          <Peso value={amount} size={17} weight={700} />
+        )}
       </div>
       {typeof progressPct === "number" && (
         <div style={{ marginTop: 8 }}>
@@ -349,7 +355,7 @@ export default function VaultsScreen() {
                 : t("common.loading")
             }
             amountLabel={t("vaults.pot")}
-            amount={pal && pal.ready ? pal.potPeso : "-"}
+            amount={pal && pal.ready ? pal.potPesos : null}
             onClick={() => router.push("/paluwagan")}
           />
           <VaultTile
@@ -363,8 +369,8 @@ export default function VaultsScreen() {
             amountLabel={t("vaults.saved")}
             amount={
               savHasGoal && sav && sav.ready && sav.hasGoal
-                ? sav.savedPeso
-                : "-"
+                ? sav.savedPesos
+                : null
             }
             progressPct={
               savHasGoal && sav && sav.ready && sav.hasGoal ? sav.pct : undefined
