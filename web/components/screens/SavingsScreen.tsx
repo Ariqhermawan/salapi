@@ -573,8 +573,10 @@ export default function SavingsScreen() {
     );
   }
 
-  // ── MATURED (vault target reached → release) ──
-  if (st.reached) {
+  // ── MATURED — a single-goal vault hit its target → celebrate + release.
+  // A multi-goal vault stays on the in-progress screen (its plan total can
+  // exceed the on-chain contract target); withdraw is still offered there.
+  if (st.reached && goals.length < 2) {
     return (
       <div style={shell}>
         <AppBar
@@ -934,9 +936,10 @@ export default function SavingsScreen() {
         </Btn>
       </div>
 
-      {/* Withdraw — flexible vaults can release any time; disciplined cannot */}
+      {/* Withdraw — a flexible vault, or any vault past its target, can
+          release now; a disciplined vault still below target cannot. */}
       <div style={{ padding: "10px 16px 0" }}>
-        {st.mode === "flexible" ? (
+        {st.mode === "flexible" || st.reached ? (
           <Btn
             kind="secondary"
             disabled={pending}

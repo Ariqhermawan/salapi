@@ -72,8 +72,10 @@ export function share(goal: SavingsGoal, goals: SavingsGoal[]): number {
   return Math.max(0, goal.weight) / totalWeight(goals);
 }
 
-// Split `amount` across goals by weight. The last goal absorbs the rounding
-// remainder, so the parts always sum back to exactly `amount`.
+// Split `amount` across goals by weight. Non-last goals get a FLOORED share
+// (never more than their fair cut) and the last goal absorbs the remainder —
+// so the parts always sum back to exactly `amount` and no part can go
+// negative, even for a tiny deposit spread over many goals.
 export function allocate(
   amount: number,
   goals: SavingsGoal[]
@@ -83,7 +85,7 @@ export function allocate(
   let used = 0;
   return goals.map((g, i) => {
     if (i === goals.length - 1) return { id: g.id, amount: amount - used };
-    const part = Math.round((amount * Math.max(0, g.weight)) / tw);
+    const part = Math.floor((amount * Math.max(0, g.weight)) / tw);
     used += part;
     return { id: g.id, amount: part };
   });
