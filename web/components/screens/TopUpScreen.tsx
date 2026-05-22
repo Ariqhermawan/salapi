@@ -21,6 +21,7 @@ import {
   CURRENCY,
   formatLocal,
   formatLocalAmount,
+  localAmount,
   pesoFromLocal,
 } from "@/lib/ui/currency";
 import type { Locale } from "@/lib/i18n/config";
@@ -33,6 +34,11 @@ const QUICK: Record<Locale, string[]> = {
   id: ["100000", "200000", "500000", "1000000", "2000000"],
   vi: ["200000", "500000", "1000000", "2000000", "5000000"],
 };
+
+// Daily on-ramp limits in PHP app-units, shown converted to the display
+// currency so an IDR/USD/VND user does not see a peso figure.
+const MIN_TOPUP = 20;
+const MAX_TOPUP = 50000;
 
 function MethodCard({
   selected,
@@ -487,7 +493,10 @@ export default function TopUpScreen() {
           />
         </div>
         <div style={{ marginTop: 6, fontSize: 12, color: T.slate }}>
-          {t("topup.limits")}
+          {t("topup.limits", {
+            min: formatLocalAmount(localAmount(MIN_TOPUP, currency), currency),
+            max: formatLocalAmount(localAmount(MAX_TOPUP, currency), currency),
+          })}
         </div>
       </div>
 
