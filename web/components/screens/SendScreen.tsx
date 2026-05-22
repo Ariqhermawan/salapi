@@ -18,6 +18,20 @@ import {
   PoweredByStellar,
 } from "@/components/ui/kit";
 import { SalapiMascot } from "@/components/ui/mascot";
+import {
+  CURRENCY,
+  formatLocalAmount,
+  pesoFromLocal,
+} from "@/lib/ui/currency";
+import type { Locale } from "@/lib/i18n/config";
+
+// Quick-pick send amounts per display currency — round figures in each.
+const QUICK: Record<Locale, string[]> = {
+  en: ["2", "5", "10", "20"],
+  tl: ["100", "500", "1000", "2000"],
+  id: ["20000", "50000", "100000", "200000"],
+  vi: ["50000", "100000", "200000", "500000"],
+};
 
 const box: React.CSSProperties = {
   display: "flex",
@@ -30,7 +44,7 @@ const box: React.CSSProperties = {
 };
 
 export default function SendScreen() {
-  const { t } = useT();
+  const { t, currency } = useT();
   const router = useRouter();
   const [mine, setMine] = useState<string | null>(null);
   const [claim, setClaim] = useState("");
@@ -57,7 +71,7 @@ export default function SendScreen() {
     start(async () => {
       setErr("");
       setNotFound(null);
-      const r = await sendByUsername(to, Number(amount));
+      const r = await sendByUsername(to, pesoFromLocal(Number(amount), currency));
       if (r.ok) setDone({ link: r.link });
       else if (/not found/i.test(r.error))
         setNotFound(to.replace(/^@/, ""));
@@ -99,10 +113,13 @@ export default function SendScreen() {
               textTransform: "uppercase",
             }}
           >
-            {t("send.sentOk", { amt: amount, to: to.replace(/^@/, "") })}
+            {t("send.sentOk", {
+              amt: formatLocalAmount(Number(amount) || 0, currency),
+              to: to.replace(/^@/, ""),
+            })}
           </div>
           <div className="sl-rise" style={{ marginTop: 6 }}>
-            <Money value={Number(amount) || 0} size={36} />
+            <Money value={pesoFromLocal(Number(amount) || 0, currency)} size={36} />
           </div>
           <div style={{ marginTop: 6, fontSize: 13, color: T.slate }}>
             → <span style={{ color: T.ink, fontWeight: 600 }}>@{to.replace(/^@/, "")}</span>
@@ -222,7 +239,9 @@ export default function SendScreen() {
           {t("send.sendMoney")}
         </div>
         <div className="sl-balance" style={{ fontSize: 42, fontWeight: 600, letterSpacing: "-0.03em", display: "inline-flex", alignItems: "baseline", gap: 4 }}>
-          <span style={{ fontSize: 24, color: T.slate, fontWeight: 500 }}>₱</span>
+          <span style={{ fontSize: 24, color: T.slate, fontWeight: 500 }}>
+            {CURRENCY[currency].symbol}
+          </span>
           <input
             value={amount}
             onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
@@ -233,9 +252,11 @@ export default function SendScreen() {
         </div>
       </div>
       <div style={{ padding: "14px 16px 0", display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
-        {["100", "500", "1000", "2000"].map((q) => (
+        {QUICK[currency].map((q) => (
           <span key={q} onClick={() => setAmount(q)} style={{ cursor: "pointer" }}>
-            <Chip kind={amount === q ? "action" : "neutral"} size="md">₱{Number(q).toLocaleString("en-PH")}</Chip>
+            <Chip kind={amount === q ? "action" : "neutral"} size="md">
+              {formatLocalAmount(Number(q), currency)}
+            </Chip>
           </span>
         ))}
       </div>
