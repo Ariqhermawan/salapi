@@ -317,8 +317,12 @@ export default function SettingsScreen() {
             />
           )}
           <Row
-            leading={iconBox(Ico.arrowDown({ c: T.action }), T.actionTint, T.action)}
-            title="GCash"
+            leading={iconBox(
+              (locale === "id" ? Ico.qr : Ico.arrowDown)({ c: T.action }),
+              T.actionTint,
+              T.action
+            )}
+            title={locale === "id" ? "QRIS" : "GCash"}
             sub={t("settings.gcashSub")}
             trailing={
               <Chip kind="success" leading={Ico.check({ size: 11, c: T.moneyIn })}>
