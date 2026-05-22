@@ -54,7 +54,7 @@ const en = {
   },
   wallet: {
     balance: "Available balance",
-    topup: "Top up with GCash",
+    topup: "Top up",
     withdraw: "Withdraw",
     live: "Live",
     cryptoInvisible: "crypto invisible",
@@ -904,7 +904,7 @@ const tl: Dict = {
   },
   wallet: {
     balance: "Magagamit na balanse",
-    topup: "Mag-top up sa GCash",
+    topup: "Mag-top up",
     withdraw: "Mag-withdraw",
     live: "Live",
     cryptoInvisible: "crypto invisible",
@@ -1744,7 +1744,7 @@ const id: Dict = {
   },
   wallet: {
     balance: "Saldo tersedia",
-    topup: "Isi saldo via GCash",
+    topup: "Isi saldo",
     withdraw: "Tarik dana",
     live: "Aktif",
     cryptoInvisible: "crypto invisible",
@@ -2585,7 +2585,7 @@ const vi: Dict = {
   },
   wallet: {
     balance: "Số dư khả dụng",
-    topup: "Nạp qua GCash",
+    topup: "Nạp tiền",
     withdraw: "Rút",
     live: "Đang chạy",
     cryptoInvisible: "ẩn crypto",
