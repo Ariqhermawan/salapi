@@ -18,11 +18,80 @@ import {
 } from "@/components/ui/kit";
 import { SalapiMascot } from "@/components/ui/mascot";
 
+function DestCard({
+  selected,
+  onClick,
+  tile,
+  label,
+  sub,
+  tag,
+}: {
+  selected?: boolean;
+  onClick?: () => void;
+  tile: React.ReactNode;
+  label: string;
+  sub: string;
+  tag?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        width: "100%",
+        textAlign: "left",
+        border: "none",
+        cursor: "pointer",
+        padding: "11px 14px",
+        borderRadius: 12,
+        background: T.surface,
+        boxShadow:
+          "inset 0 0 0 " +
+          (selected ? "1.5px " + T.action : "1px " + T.hairline),
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        minHeight: 44,
+      }}
+    >
+      {tile}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: T.ink }}>
+            {label}
+          </span>
+          {tag && (
+            <span
+              style={{
+                fontSize: 9.5,
+                fontWeight: 700,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                color: T.warn,
+                background: T.warnTint,
+                padding: "2px 6px",
+                borderRadius: 999,
+              }}
+            >
+              {tag}
+            </span>
+          )}
+        </div>
+        <div style={{ fontSize: 11, color: T.slate, marginTop: 2 }}>{sub}</div>
+      </div>
+      {selected && Ico.check({ size: 16, c: T.action })}
+    </button>
+  );
+}
+
 export default function WithdrawScreen() {
-  const { t } = useT();
+  const { t, locale } = useT();
   const router = useRouter();
   const [phase, setPhase] = useState<"amount" | "processing" | "done">("amount");
   const [amount, setAmount] = useState("");
+  const [destPick, setDestPick] = useState<
+    "gcash" | "bifast" | "ewallet" | null
+  >(null);
   const [bal, setBal] = useState<{ pesos: number; pesoLabel: string } | null>(
     null
   );
@@ -38,6 +107,18 @@ export default function WithdrawScreen() {
   const amt = Number(amount) || 0;
   const amtLabel = "₱" + amt.toLocaleString("en-PH");
   const over = bal ? amt > bal.pesos : false;
+  // Locale-aware payout destinations: Indonesia gets BI-FAST + e-wallet,
+  // elsewhere GCash.
+  const destIds: ReadonlyArray<"gcash" | "bifast" | "ewallet"> =
+    locale === "id" ? ["bifast", "ewallet"] : ["gcash"];
+  const destination =
+    destPick && destIds.includes(destPick) ? destPick : destIds[0];
+  const destLabel =
+    destination === "bifast"
+      ? t("withdraw.toBank")
+      : destination === "ewallet"
+        ? t("withdraw.toEwallet")
+        : t("withdraw.toGcash");
 
   function pct(p: number) {
     if (!bal) return;
@@ -225,7 +306,7 @@ export default function WithdrawScreen() {
             <Money value={amt} size={38} />
           </div>
           <div style={{ marginTop: 6, fontSize: 13, color: T.slate }}>
-            {t("withdraw.toGcash")} ·{" "}
+            {destLabel} ·{" "}
             <span style={{ color: T.ink, fontWeight: 600 }}>sandbox</span>
           </div>
         </div>
@@ -418,55 +499,110 @@ export default function WithdrawScreen() {
       <div style={{ padding: "16px 16px 0" }}>
         <div
           style={{
-            padding: "11px 14px",
-            background: T.surface,
-            borderRadius: 12,
-            boxShadow: "inset 0 0 0 1px " + T.hairline,
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            color: T.slate,
+            marginBottom: 8,
           }}
         >
-          <div
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: 10,
-              background: "#0079FF",
-              color: "#fff",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontWeight: 700,
-              fontSize: 12,
-            }}
-          >
-            GC
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 13, fontWeight: 600 }}>
-                {t("withdraw.methodGcash")}
-              </span>
-              <span
-                style={{
-                  fontSize: 9.5,
-                  fontWeight: 700,
-                  letterSpacing: "0.06em",
-                  textTransform: "uppercase",
-                  color: T.warn,
-                  background: T.warnTint,
-                  padding: "2px 6px",
-                  borderRadius: 999,
-                }}
-              >
-                {t("withdraw.sandboxTag")}
-              </span>
-            </div>
-            <div style={{ fontSize: 11, color: T.slate, marginTop: 2 }}>
-              {t("withdraw.methodGcashSub")}
-            </div>
-          </div>
+          {t("withdraw.destinationLabel")}
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {destIds.map((d) =>
+            d === "gcash" ? (
+              <DestCard
+                key="gcash"
+                selected={destination === "gcash"}
+                onClick={() => setDestPick("gcash")}
+                tile={
+                  <div
+                    style={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: 10,
+                      background: "#0079FF",
+                      color: "#fff",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontWeight: 700,
+                      fontSize: 12,
+                    }}
+                  >
+                    GC
+                  </div>
+                }
+                label={t("withdraw.methodGcash")}
+                sub={t("withdraw.methodGcashSub")}
+                tag={t("withdraw.sandboxTag")}
+              />
+            ) : d === "bifast" ? (
+              <DestCard
+                key="bifast"
+                selected={destination === "bifast"}
+                onClick={() => setDestPick("bifast")}
+                tile={
+                  <div
+                    style={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: 10,
+                      background: "#0F766E",
+                      color: "#fff",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    {Ico.vault({ size: 18, c: "#fff" })}
+                  </div>
+                }
+                label={t("withdraw.methodBifast")}
+                sub={t("withdraw.methodBifastSub")}
+                tag={t("withdraw.sandboxTag")}
+              />
+            ) : (
+              <DestCard
+                key="ewallet"
+                selected={destination === "ewallet"}
+                onClick={() => setDestPick("ewallet")}
+                tile={
+                  <div
+                    style={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: 10,
+                      background: "#7C3AED",
+                      color: "#fff",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <svg
+                      width="18"
+                      height="18"
+                      viewBox="0 0 20 20"
+                      fill="none"
+                      stroke="#fff"
+                      strokeWidth={1.6}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M3 7a2 2 0 0 1 2-2h8.5A1.5 1.5 0 0 1 15 6.5V8" />
+                      <rect x="3" y="7" width="14" height="9" rx="2" />
+                      <circle cx="13" cy="11.5" r="1.3" fill="#fff" stroke="none" />
+                    </svg>
+                  </div>
+                }
+                label={t("withdraw.methodEwallet")}
+                sub={t("withdraw.methodEwalletSub")}
+                tag={t("withdraw.sandboxTag")}
+              />
+            )
+          )}
         </div>
       </div>
 

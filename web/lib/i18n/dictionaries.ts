@@ -149,6 +149,13 @@ const en = {
     max: "Max",
     methodGcash: "GCash",
     methodGcashSub: "Arrives in seconds · licensed anchor at Build Award",
+    destinationLabel: "To",
+    methodBifast: "Bank transfer",
+    methodBifastSub: "BI-FAST · any Indonesian bank",
+    methodEwallet: "E-wallet",
+    methodEwalletSub: "GoPay, DANA, or OVO",
+    toBank: "to your bank account",
+    toEwallet: "to your e-wallet",
     sandboxTag: "Sandbox",
     anchorTitle: "OFF-RAMP DISCLAIMER",
     anchorBody:
@@ -956,6 +963,13 @@ const tl: Dict = {
     methodGcash: "GCash",
     methodGcashSub:
       "Dumarating sa ilang segundo · lisensyadong anchor sa Build Award",
+    destinationLabel: "Papunta sa",
+    methodBifast: "Bank transfer",
+    methodBifastSub: "BI-FAST · anumang bangko sa Indonesia",
+    methodEwallet: "E-wallet",
+    methodEwalletSub: "GoPay, DANA, o OVO",
+    toBank: "papunta sa iyong bank account",
+    toEwallet: "papunta sa iyong e-wallet",
     sandboxTag: "Sandbox",
     anchorTitle: "PAUNAWA SA OFF-RAMP",
     anchorBody:
@@ -1752,6 +1766,13 @@ const id: Dict = {
     methodGcash: "GCash",
     methodGcashSub:
       "Sampai dalam hitungan detik · anchor berlisensi di Build Award",
+    destinationLabel: "Ke",
+    methodBifast: "Transfer bank",
+    methodBifastSub: "BI-FAST · bank Indonesia mana pun",
+    methodEwallet: "E-wallet",
+    methodEwalletSub: "GoPay, DANA, atau OVO",
+    toBank: "ke rekening bank kamu",
+    toEwallet: "ke e-wallet kamu",
     sandboxTag: "Sandbox",
     anchorTitle: "PERHATIAN OFF-RAMP",
     anchorBody:
@@ -2549,6 +2570,13 @@ const vi: Dict = {
     methodGcash: "GCash",
     methodGcashSub:
       "Đến trong vài giây · anchor được cấp phép ở Build Award",
+    destinationLabel: "Tới",
+    methodBifast: "Chuyển khoản ngân hàng",
+    methodBifastSub: "BI-FAST · bất kỳ ngân hàng Indonesia nào",
+    methodEwallet: "Ví điện tử",
+    methodEwalletSub: "GoPay, DANA, hoặc OVO",
+    toBank: "tới tài khoản ngân hàng của bạn",
+    toEwallet: "tới ví điện tử của bạn",
     sandboxTag: "Sandbox",
     anchorTitle: "LƯU Ý RÚT TIỀN",
     anchorBody:
