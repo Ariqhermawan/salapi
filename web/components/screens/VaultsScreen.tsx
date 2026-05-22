@@ -351,7 +351,7 @@ export default function VaultsScreen() {
             title={t("vaults.arisanName")}
             stat={
               pal && pal.ready
-                ? t("vaults.arisanRound", { n: pal.round + 1 })
+                ? t("vaults.arisanRound", { n: pal.cycleRound })
                 : t("common.loading")
             }
             amountLabel={t("vaults.pot")}

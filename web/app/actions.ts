@@ -185,6 +185,10 @@ export async function paluwaganState() {
       potPeso: fmtPeso(stroopsToPesos(amount * BigInt(members.length))),
       sharePesos: stroopsToPesos(amount),
       potPesos: stroopsToPesos(amount * BigInt(members.length)),
+      // Contract `round` is the absolute, ever-incrementing round; the
+      // recipient cycles via `round % len`. The UI shows the 1-based
+      // position within the current cycle so it never reads "04 / 03".
+      cycleRound: (round % members.length) + 1,
       allPaid,
       recipientLabel:
         seats.find((s) => s.isRecipient)?.label ?? recipient.slice(0, 6),

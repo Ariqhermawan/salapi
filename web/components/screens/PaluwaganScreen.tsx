@@ -212,7 +212,10 @@ export default function PaluwaganScreen() {
       <div style={{ padding: "4px 16px 4px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", gap: 8 }}>
           <Chip kind="action">
-            {t("paluwagan.roundChip", { n: pad2(st.round + 1), total: pad2(total) })}
+            {t("paluwagan.roundChip", {
+              n: pad2(st.cycleRound),
+              total: pad2(total),
+            })}
           </Chip>
           <Chip kind="neutral">{t("paluwagan.monthly")}</Chip>
         </div>
@@ -318,8 +321,8 @@ export default function PaluwaganScreen() {
             {Ico.shield({ size: 14, c: iPaid ? T.moneyIn : T.slate })}
             <span>
               {iPaid
-                ? t("paluwagan.youPaid", { n: pad2(st.round + 1) })
-                : t("paluwagan.youNotPaid", { n: pad2(st.round + 1) })}
+                ? t("paluwagan.youPaid", { n: pad2(st.cycleRound) })
+                : t("paluwagan.youNotPaid", { n: pad2(st.cycleRound) })}
             </span>
           </div>
         </Card>
