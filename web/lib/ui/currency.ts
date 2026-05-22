@@ -76,3 +76,34 @@ export function formatUsdc(php: number): string {
     })
   );
 }
+
+// Reverse of localAmount: a value in the display currency back into app PHP
+// units. Money screens take user input in the display currency, but every
+// server action takes PHP — input must round-trip through here first.
+export function pesoFromLocal(localValue: number, currency: Locale): number {
+  const usdc = (localValue || 0) / CURRENCY[currency].perUsdc;
+  return usdc * PHP_PER_USDC;
+}
+
+// Format a value already expressed in the display currency (symbol + grouping,
+// no forced decimals) — for quick-chip presets and the amount the user typed.
+export function formatLocalAmount(
+  localValue: number,
+  currency: Locale
+): string {
+  const m = CURRENCY[currency];
+  return (
+    m.symbol +
+    Math.abs(localValue || 0).toLocaleString(m.intl, {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: m.dp,
+    })
+  );
+}
+
+// Format an app PHP value as a display-currency string (with the currency's
+// decimal places) — for balances and result figures shown inline in text.
+export function formatLocal(php: number, currency: Locale): string {
+  const { symbol, int, dec, dp } = formatParts(php, currency);
+  return symbol + int + (dp > 0 ? "." + (dec || "".padEnd(dp, "0")) : "");
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { disasterState, disasterContribute } from "@/app/actions";
 import { useT } from "@/components/I18nProvider";
@@ -15,6 +15,12 @@ import {
   Peso,
   PoweredByStellar,
 } from "@/components/ui/kit";
+import {
+  CURRENCY,
+  formatLocalAmount,
+  pesoFromLocal,
+} from "@/lib/ui/currency";
+import type { Locale } from "@/lib/i18n/config";
 
 const EXPLORER = "https://stellar.expert/explorer/testnet";
 const DISASTER_CONTRACT = "CCKQ3UVBZ75KSZDO6IPA5U6PFARJG4PLRGN2SAIW5RAGQ6K4B7ZDWBUZ";
@@ -28,19 +34,26 @@ const TRAIL: { step: string; hash: string }[] = [
   { step: "set_disaster(true)", hash: "7ecdeaf152745257b1d0f619503f6f59971068ad1a3bf7dd8499a08295608d0a" },
   { step: "Disburse 2 XLM", hash: "1115f685287faf7b508e97d378df5f4ccb1ccc302d007b2190776ad0c986a837" },
 ];
-const QUICK = ["50", "100", "200", "500", "1000"];
+// Quick-pick donations per display currency — round figures in each.
+const QUICK: Record<Locale, string[]> = {
+  en: ["1", "2", "5", "10", "20"],
+  tl: ["50", "100", "200", "500", "1000"],
+  id: ["10000", "20000", "50000", "100000", "200000"],
+  vi: ["20000", "50000", "100000", "200000", "500000"],
+};
 
 type Pool = Awaited<ReturnType<typeof disasterState>>;
 
 export default function TransparencyScreen() {
-  const { t } = useT();
+  const { t, currency } = useT();
   const router = useRouter();
   const [pool, setPool] = useState<Pool | null>(null);
   const [phase, setPhase] = useState<"view" | "amount" | "processing" | "done">("view");
-  const [amount, setAmount] = useState("200");
+  const [amount, setAmount] = useState("");
   const [done, setDone] = useState<{ link?: string } | null>(null);
   const [err, setErr] = useState("");
   const [pending, start] = useTransition();
+  const amtTouched = useRef(false);
 
   async function refresh() {
     setPool(await disasterState());
@@ -49,14 +62,20 @@ export default function TransparencyScreen() {
     refresh();
   }, []);
 
+  // Prefill a sensible donation in the active display currency, until the
+  // user touches the field (currency resolves after hydration).
+  useEffect(() => {
+    if (!amtTouched.current) setAmount(QUICK[currency][2]);
+  }, [currency]);
+
   const amt = Number(amount) || 0;
-  const amtLabel = "₱" + amt.toLocaleString("en-PH");
+  const amtLabel = formatLocalAmount(amt, currency);
 
   function donate() {
     setPhase("processing");
     start(async () => {
       setErr("");
-      const r = await disasterContribute(amt);
+      const r = await disasterContribute(pesoFromLocal(amt, currency));
       if (r.ok) {
         setDone({ link: r.link });
         setPhase("done");
@@ -116,7 +135,7 @@ export default function TransparencyScreen() {
             <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke={T.warn} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 21s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.6-7 10-7 10z" /></svg>
           </div>
           <div style={{ marginTop: 14, fontSize: 12, color: T.slate, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase" }}>{t("transparency.thankYou")}</div>
-          <div className="sl-rise" style={{ marginTop: 6 }}><Peso value={amt} size={38} /></div>
+          <div className="sl-rise" style={{ marginTop: 6 }}><Peso value={pesoFromLocal(amt, currency)} size={38} /></div>
           <div style={{ marginTop: 6, fontSize: 13, color: T.slate, lineHeight: 1.5, maxWidth: 280, margin: "6px auto 0" }}>
             {t("transparency.doneNote")}
           </div>
@@ -129,7 +148,7 @@ export default function TransparencyScreen() {
                 <div style={{ fontSize: 13, fontWeight: 600 }}>{t("transparency.poolNowAt")}</div>
                 <div style={{ fontSize: 12, color: T.slate }}>{t("transparency.liveOnChain")}</div>
               </div>
-              {pool && pool.ok ? <span className="sl-balance" style={{ fontSize: 15, fontWeight: 600 }}>{pool.pesoLabel}</span> : null}
+              {pool && pool.ok ? <Peso value={pool.pesos} size={15} /> : null}
             </div>
           </Card>
           {done.link && (
@@ -168,10 +187,15 @@ export default function TransparencyScreen() {
         </div>
         <div style={{ padding: "6px 24px 0", textAlign: "center" }}>
           <div className="sl-balance" style={{ fontSize: 42, fontWeight: 600, letterSpacing: "-0.03em", display: "inline-flex", alignItems: "baseline", gap: 4 }}>
-            <span style={{ fontSize: 24, color: T.slate, fontWeight: 500 }}>₱</span>
+            <span style={{ fontSize: 24, color: T.slate, fontWeight: 500 }}>
+              {CURRENCY[currency].symbol}
+            </span>
             <input
               value={amount}
-              onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
+              onChange={(e) => {
+                amtTouched.current = true;
+                setAmount(e.target.value.replace(/[^0-9.]/g, ""));
+              }}
               inputMode="decimal"
               placeholder="0"
               style={{ width: Math.max(2, amount.length || 1) + "ch", border: "none", outline: "none", background: "transparent", font: "inherit", color: T.ink, textAlign: "center" }}
@@ -179,9 +203,18 @@ export default function TransparencyScreen() {
           </div>
         </div>
         <div style={{ padding: "12px 16px 0", display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
-          {QUICK.map((p) => (
-            <span key={p} onClick={() => setAmount(p)} style={{ cursor: "pointer" }}>
-              <Chip kind={p === amount ? "action" : "neutral"} size="md">₱{Number(p).toLocaleString("en-PH")}</Chip>
+          {QUICK[currency].map((p) => (
+            <span
+              key={p}
+              onClick={() => {
+                amtTouched.current = true;
+                setAmount(p);
+              }}
+              style={{ cursor: "pointer" }}
+            >
+              <Chip kind={p === amount ? "action" : "neutral"} size="md">
+                {formatLocalAmount(Number(p), currency)}
+              </Chip>
             </span>
           ))}
         </div>
@@ -229,7 +262,7 @@ export default function TransparencyScreen() {
             {pool === null ? (
               <div style={{ fontSize: 18, color: "rgba(255,255,255,0.6)" }}>{t("transparency.readingTestnet")}</div>
             ) : pool.ok ? (
-              <Peso value={Number(pool.pesoLabel.replace(/[^0-9.]/g, "")) || 0} size={30} color="#fff" />
+              <Peso value={pool.pesos} size={30} color="#fff" />
             ) : (
               <div style={{ fontSize: 14, color: "rgba(255,255,255,0.7)" }}>{t("transparency.rpcUnavailable")}</div>
             )}

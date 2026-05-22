@@ -48,12 +48,13 @@ export async function topUpSandbox() {
       ? "Sandbox top-up complete (Friendbot-funded)."
       : "Sandbox: in production, GCash → a licensed Stellar anchor credits your wallet. Your testnet balance stands in.",
     pesoLabel: fmtPeso(stroopsToPesos(bal)),
+    pesos: stroopsToPesos(bal),
   };
 }
 
 /** Simulated GCash withdrawal (labeled sandbox). Real off-ramp = a
  *  licensed Stellar anchor at Build Award. Balance stays real on-chain. */
-export async function withdrawSandbox(pesos: number) {
+export async function withdrawSandbox(requested: number) {
   const { publicKey } = await getSigner();
   const bal = await getNativeBalance(publicKey);
   return {
@@ -61,7 +62,8 @@ export async function withdrawSandbox(pesos: number) {
     note:
       "Sandbox: in production, Salapi cashes out to your GCash via a licensed Stellar anchor. On testnet the on-chain balance is unchanged.",
     pesoLabel: fmtPeso(stroopsToPesos(bal)),
-    requested: pesos,
+    pesos: stroopsToPesos(bal),
+    requested,
   };
 }
 
@@ -308,9 +310,11 @@ export async function disasterState() {
       readContract(CONTRACTS.disaster, "total"),
       readContract(CONTRACTS.disaster, "is_disaster_active"),
     ]);
+    const totalPesos = stroopsToPesos(BigInt((total as number) ?? 0));
     return {
       ok: true as const,
-      pesoLabel: fmtPeso(stroopsToPesos(BigInt((total as number) ?? 0))),
+      pesoLabel: fmtPeso(totalPesos),
+      pesos: totalPesos,
       active: Boolean(active),
     };
   } catch (e) {

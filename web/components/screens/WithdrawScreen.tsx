@@ -17,6 +17,13 @@ import {
   PoweredByStellar,
 } from "@/components/ui/kit";
 import { SalapiMascot } from "@/components/ui/mascot";
+import {
+  CURRENCY,
+  formatLocal,
+  formatLocalAmount,
+  localAmount,
+  pesoFromLocal,
+} from "@/lib/ui/currency";
 
 function DestCard({
   selected,
@@ -85,7 +92,7 @@ function DestCard({
 }
 
 export default function WithdrawScreen() {
-  const { t, locale } = useT();
+  const { t, locale, currency } = useT();
   const router = useRouter();
   const [phase, setPhase] = useState<"amount" | "processing" | "done">("amount");
   const [amount, setAmount] = useState("");
@@ -95,7 +102,7 @@ export default function WithdrawScreen() {
   const [bal, setBal] = useState<{ pesos: number; pesoLabel: string } | null>(
     null
   );
-  const [result, setResult] = useState<{ note: string; pesoLabel: string } | null>(
+  const [result, setResult] = useState<{ note: string; pesos: number } | null>(
     null
   );
   const [pending, start] = useTransition();
@@ -105,8 +112,10 @@ export default function WithdrawScreen() {
   }, []);
 
   const amt = Number(amount) || 0;
-  const amtLabel = "₱" + amt.toLocaleString("en-PH");
-  const over = bal ? amt > bal.pesos : false;
+  const amtLabel = formatLocalAmount(amt, currency);
+  // amt is in the display currency; bal.pesos is the app's internal PHP unit.
+  const amtPesos = pesoFromLocal(amt, currency);
+  const over = bal ? amtPesos > bal.pesos : false;
   // Locale-aware payout destinations: Indonesia gets BI-FAST + e-wallet,
   // elsewhere GCash.
   const destIds: ReadonlyArray<"gcash" | "bifast" | "ewallet"> =
@@ -122,14 +131,14 @@ export default function WithdrawScreen() {
 
   function pct(p: number) {
     if (!bal) return;
-    setAmount(String(Math.floor(bal.pesos * p)));
+    setAmount(String(Math.floor(localAmount(bal.pesos * p, currency))));
   }
 
   function go() {
     setPhase("processing");
     start(async () => {
-      const r = await withdrawSandbox(amt);
-      setResult({ note: r.note, pesoLabel: r.pesoLabel });
+      const r = await withdrawSandbox(amtPesos);
+      setResult({ note: r.note, pesos: r.pesos });
       setPhase("done");
     });
   }
@@ -303,7 +312,7 @@ export default function WithdrawScreen() {
             {t("withdraw.doneEyebrow")}
           </div>
           <div className="sl-rise" style={{ marginTop: 6 }}>
-            <Money value={amt} size={38} />
+            <Money value={amtPesos} size={38} />
           </div>
           <div style={{ marginTop: 6, fontSize: 13, color: T.slate }}>
             {destLabel} ·{" "}
@@ -330,7 +339,7 @@ export default function WithdrawScreen() {
                   className="sl-balance"
                   style={{ fontSize: 14, fontWeight: 600 }}
                 >
-                  {result.pesoLabel}
+                  {formatLocal(result.pesos, currency)}
                 </span>
               }
               divider={false}
@@ -423,17 +432,17 @@ export default function WithdrawScreen() {
           >
             {t("withdraw.available")}
           </div>
-          <div
-            className="sl-balance"
-            style={{
-              marginTop: 4,
-              fontSize: 26,
-              fontWeight: 700,
-              letterSpacing: "-0.02em",
-              color: T.ink,
-            }}
-          >
-            {bal ? bal.pesoLabel : "…"}
+          <div style={{ marginTop: 4 }}>
+            {bal ? (
+              <Money value={bal.pesos} size={26} usdc={false} />
+            ) : (
+              <span
+                className="sl-balance"
+                style={{ fontSize: 26, fontWeight: 700, color: T.slate }}
+              >
+                …
+              </span>
+            )}
           </div>
         </Card>
       </div>
@@ -451,7 +460,9 @@ export default function WithdrawScreen() {
             gap: 4,
           }}
         >
-          <span style={{ fontSize: 24, color: T.slate, fontWeight: 500 }}>₱</span>
+          <span style={{ fontSize: 24, color: T.slate, fontWeight: 500 }}>
+            {CURRENCY[currency].symbol}
+          </span>
           <input
             value={amount}
             onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}

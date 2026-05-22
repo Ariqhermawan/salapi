@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { walletState, topUpSandbox } from "@/app/actions";
 import { useT } from "@/components/I18nProvider";
@@ -17,8 +17,22 @@ import {
   PoweredByStellar,
 } from "@/components/ui/kit";
 import { SalapiMascot } from "@/components/ui/mascot";
+import {
+  CURRENCY,
+  formatLocal,
+  formatLocalAmount,
+  pesoFromLocal,
+} from "@/lib/ui/currency";
+import type { Locale } from "@/lib/i18n/config";
 
-const QUICK = ["500", "1000", "2000", "5000", "10000"];
+// Quick-pick amounts per display currency — round numbers in each currency,
+// not one peso set scaled (₱500 ≈ Rp 138k is not a clean Rupiah figure).
+const QUICK: Record<Locale, string[]> = {
+  en: ["10", "20", "50", "100", "200"],
+  tl: ["500", "1000", "2000", "5000", "10000"],
+  id: ["100000", "200000", "500000", "1000000", "2000000"],
+  vi: ["200000", "500000", "1000000", "2000000", "5000000"],
+};
 
 function MethodCard({
   selected,
@@ -91,26 +105,33 @@ function MethodCard({
 }
 
 export default function TopUpScreen() {
-  const { t, locale } = useT();
+  const { t, locale, currency } = useT();
   const router = useRouter();
   const [phase, setPhase] = useState<"amount" | "processing" | "done">("amount");
-  const [amount, setAmount] = useState("1000");
+  const [amount, setAmount] = useState("");
   const [methodPick, setMethodPick] = useState<"gcash" | "qris" | null>(null);
   const [addr, setAddr] = useState("");
-  const [result, setResult] = useState<{ note: string; pesoLabel: string } | null>(
+  const [result, setResult] = useState<{ note: string; pesos: number } | null>(
     null
   );
   const [pending, start] = useTransition();
+  const amtTouched = useRef(false);
 
   useEffect(() => {
     walletState().then((w) => setAddr(w.address));
   }, []);
 
+  // Prefill a sensible amount in the active display currency until the user
+  // touches the field (currency resolves after hydration, so this re-runs).
+  useEffect(() => {
+    if (!amtTouched.current) setAmount(QUICK[currency][1]);
+  }, [currency]);
+
   const explorer = addr
     ? `https://stellar.expert/explorer/testnet/account/${addr}`
     : undefined;
   const amt = Number(amount) || 0;
-  const amtLabel = "₱" + amt.toLocaleString("en-PH");
+  const amtLabel = formatLocalAmount(amt, currency);
   // Locale-aware default: Indonesia leads with QRIS, elsewhere GCash.
   const method: "gcash" | "qris" =
     methodPick ?? (locale === "id" ? "qris" : "gcash");
@@ -119,7 +140,7 @@ export default function TopUpScreen() {
     setPhase("processing");
     start(async () => {
       const r = await topUpSandbox();
-      setResult({ note: r.note, pesoLabel: r.pesoLabel });
+      setResult({ note: r.note, pesos: r.pesos });
       setPhase("done");
     });
   }
@@ -291,7 +312,12 @@ export default function TopUpScreen() {
             {t("topup.doneEyebrow")}
           </div>
           <div className="sl-rise" style={{ marginTop: 6 }}>
-            <Money value={amt} size={38} color={T.moneyIn} sign="+" />
+            <Money
+              value={pesoFromLocal(amt, currency)}
+              size={38}
+              color={T.moneyIn}
+              sign="+"
+            />
           </div>
           <div style={{ marginTop: 8, fontSize: 13, color: T.slate }}>
             {t("topup.newBalance")}{" "}
@@ -299,7 +325,7 @@ export default function TopUpScreen() {
               className="sl-balance"
               style={{ color: T.ink, fontWeight: 600 }}
             >
-              {result.pesoLabel}
+              {formatLocal(result.pesos, currency)}
             </span>
           </div>
         </div>
@@ -437,10 +463,15 @@ export default function TopUpScreen() {
             gap: 4,
           }}
         >
-          <span style={{ fontSize: 26, color: T.slate, fontWeight: 500 }}>₱</span>
+          <span style={{ fontSize: 26, color: T.slate, fontWeight: 500 }}>
+            {CURRENCY[currency].symbol}
+          </span>
           <input
             value={amount}
-            onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ""))}
+            onChange={(e) => {
+              amtTouched.current = true;
+              setAmount(e.target.value.replace(/[^0-9]/g, ""));
+            }}
             inputMode="numeric"
             placeholder="0"
             aria-label={t("topup.amountAria")}
@@ -470,14 +501,17 @@ export default function TopUpScreen() {
           justifyContent: "center",
         }}
       >
-        {QUICK.map((a) => (
+        {QUICK[currency].map((a) => (
           <span
             key={a}
-            onClick={() => setAmount(a)}
+            onClick={() => {
+              amtTouched.current = true;
+              setAmount(a);
+            }}
             style={{ cursor: "pointer" }}
           >
             <Chip kind={a === amount ? "action" : "neutral"} size="md">
-              ₱{Number(a).toLocaleString("en-PH")}
+              {formatLocalAmount(Number(a), currency)}
             </Chip>
           </span>
         ))}
