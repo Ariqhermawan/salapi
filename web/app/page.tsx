@@ -1,31 +1,19 @@
 "use client";
 
-// Salapi homepage. Mobile-first density: the full home (header + balance +
-// LIVE TODAY 2x2 tile grid + VISION compact tile + powered-by) is designed
-// to fit an iPhone 14 viewport (390x844) without scroll. Quick Actions row
-// was removed because every action it offered duplicated either the
-// BottomNav (Vaults, Activity), the FAB (Send), or the header QR icon
-// (Receive). The 2x2 tile grid + a single compact VISION tile compresses
-// what was ~370px of LIVE TODAY plus a separate ~96px Circles teaser into
-// a single tighter rhythm.
+// Salapi homepage, V2 "Amanah" (trust-forward). The SOW names Disaster Vault
+// the hero and "visible trust" the product thesis.
 //
-// V6: each LIVE TODAY tile carries a live status line pulled from real
-// on-chain state (Arisan round, Savings goal %, Disaster active flag) so the
-// "LIVE TODAY" framing is literally true on the tile, not just the header.
+// LIVE TODAY block: all four day-30 features in one compact two-column row,
+// the Disaster Vault hero card on the left and the other three features as a
+// stacked column on the right. Keeping that block short lets the Salapi
+// Circles VISION zone surface sooner.
 //
-// Tier honesty preserved: LIVE TODAY tiles route to day-30 features only
-// (no Preview badge). The VISION tile carries its "Preview, Build-Award"
-// badge unchanged.
+// Honesty: the hero shows only real data from disasterState(). LIVE TODAY
+// routes to day-30 features only; the Circles zone stays VISION / PREVIEW.
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  walletState,
-  myUsername,
-  paluwaganState,
-  smartSavingsState,
-  disasterState,
-} from "@/app/actions";
+import { walletState, myUsername, disasterState } from "@/app/actions";
 import { useT } from "@/components/I18nProvider";
 import {
   T,
@@ -37,10 +25,9 @@ import {
   TestnetPill,
   PoweredByStellar,
 } from "@/components/ui/kit";
+import CirclesHomeStrip from "@/components/CirclesHomeStrip";
 
 type IconFn = (p?: { size?: number; c?: string }) => React.ReactNode;
-type Pal = Awaited<ReturnType<typeof paluwaganState>>;
-type Sav = Awaited<ReturnType<typeof smartSavingsState>>;
 type Dis = Awaited<ReturnType<typeof disasterState>>;
 
 type LiveTile = {
@@ -49,6 +36,7 @@ type LiveTile = {
   bg: string;
   fg: string;
   titleKey: string;
+  subKey: string;
   to: string;
 };
 
@@ -57,8 +45,6 @@ export default function Home() {
   const router = useRouter();
   const [pesos, setPesos] = useState(0);
   const [handle, setHandle] = useState("");
-  const [pal, setPal] = useState<Pal | null>(null);
-  const [sav, setSav] = useState<Sav | null>(null);
   const [dis, setDis] = useState<Dis | null>(null);
 
   useEffect(() => {
@@ -67,15 +53,18 @@ export default function Home() {
       setHandle(`${s.address.slice(0, 4)}…${s.address.slice(-4)}`);
     });
     myUsername().then((u) => u && setHandle("@" + u));
-    paluwaganState().then(setPal);
-    smartSavingsState().then(setSav);
     disasterState().then(setDis);
   }, []);
 
   const go = (p: string) => () => router.push(p);
 
-  // LIVE TODAY 2x2 grid. Each tile = icon + short label + a live status line
-  // (when state has loaded). The full screens carry the longer descriptions.
+  const disReady = !!dis && dis.ok;
+  const disRaised =
+    dis && dis.ok ? Number(dis.pesoLabel.replace(/[^0-9.]/g, "")) || 0 : 0;
+  const disActive = dis && dis.ok ? dis.active : false;
+
+  // The three day-30 features besides Disaster Vault (which owns the hero
+  // card). Each carries a one-line "what it is" descriptor.
   const liveTiles: LiveTile[] = [
     {
       key: "pal",
@@ -83,6 +72,7 @@ export default function Home() {
       bg: T.actionTint,
       fg: T.action,
       titleKey: "home.tilePal",
+      subKey: "home.tilePalSub",
       to: "/paluwagan",
     },
     {
@@ -91,15 +81,8 @@ export default function Home() {
       bg: T.moneyInTint,
       fg: T.moneyIn,
       titleKey: "home.tileSav",
+      subKey: "home.tileSavSub",
       to: "/savings",
-    },
-    {
-      key: "dis",
-      ico: Ico.shield,
-      bg: T.warnTint,
-      fg: T.warn,
-      titleKey: "home.tileDis",
-      to: "/transparency",
     },
     {
       key: "send",
@@ -107,32 +90,17 @@ export default function Home() {
       bg: T.actionTint,
       fg: T.action,
       titleKey: "home.tileSend",
+      subKey: "home.tileSendSub",
       to: "/send",
     },
   ];
 
-  // Live status line per tile, drawn from real on-chain state. Returns null
-  // until state loads (the tile then shows just icon + label, no placeholder).
-  function tileStatus(key: string): { text: string; color: string } | null {
-    if (key === "pal" && pal && pal.ready)
-      return { text: t("vaults.arisanRound", { n: pal.round + 1 }), color: T.action };
-    if (key === "sav" && sav && sav.ready)
-      return sav.hasGoal
-        ? { text: t("vaults.savingsStatGoal", { pct: sav.pct }), color: T.moneyIn }
-        : { text: t("vaults.savingsStatStart"), color: T.slate };
-    if (key === "dis" && dis && dis.ok)
-      return dis.active
-        ? { text: t("vaults.statusActive"), color: T.warn }
-        : { text: t("vaults.statusStandby"), color: T.slate };
-    return null;
-  }
-
   return (
     <div style={{ fontFamily: T.fontSans, color: T.ink }}>
-      {/* Greeting - tighter padding for mobile density. */}
+      {/* Greeting */}
       <div
         style={{
-          padding: "12px 16px 4px",
+          padding: "10px 16px 2px",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
@@ -159,15 +127,14 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Balance card - compressed: smaller numeral (28 vs 38), tighter
-          padding, 40px buttons (was 44). Still tap-friendly and readable. */}
-      <div style={{ padding: "8px 16px 12px" }}>
+      {/* Balance card */}
+      <div style={{ padding: "6px 16px 0" }}>
         <div
           style={{
             borderRadius: 18,
             background: T.ink,
             color: "#fff",
-            padding: "14px 16px 14px",
+            padding: "12px 16px 12px",
             boxShadow: "0 14px 32px -16px rgba(11,18,32,0.4)",
             position: "relative",
             overflow: "hidden",
@@ -288,13 +255,10 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Quick Actions row removed. Send is the FAB in BottomNav. Vaults
-          and Activity also live in BottomNav. Receive (QR) is the rightmost
-          icon in the greeting header above. Keeping a Quick Actions row was
-          ~80px of vertical waste duplicating those entry points. */}
-
-      {/* Zone 1: LIVE TODAY - 2x2 compact tile grid of day-30 features. */}
-      <div style={{ padding: "0 16px" }}>
+      {/* LIVE TODAY - all four day-30 features in one compact two-column row.
+          Left: the Disaster Vault hero (real on-chain data). Right: the other
+          three features stacked. Whole hero card taps the public dashboard. */}
+      <div style={{ padding: "12px 16px 0" }}>
         <div
           style={{
             fontSize: 11,
@@ -307,78 +271,189 @@ export default function Home() {
         >
           {t("home.zoneLive")}
         </div>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: 8,
-          }}
-        >
-          {liveTiles.map((tile) => {
-            const status = tileStatus(tile.key);
-            return (
-              <Card
+        <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
+          {/* Disaster Vault hero, left column */}
+          <div
+            onClick={go("/transparency")}
+            style={{
+              flex: "1 1 0",
+              minWidth: 0,
+              cursor: "pointer",
+              borderRadius: 16,
+              padding: "12px 12px",
+              background: "linear-gradient(160deg,#FFFDF8,#FBEBD3)",
+              boxShadow: "inset 0 0 0 1px #F0DCB8",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
+              gap: 10,
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    fontFamily: T.fontMono,
+                    fontSize: 9,
+                    fontWeight: 700,
+                    letterSpacing: "0.09em",
+                    textTransform: "uppercase",
+                    color: T.warn,
+                  }}
+                >
+                  <span
+                    aria-hidden
+                    style={{
+                      width: 5,
+                      height: 5,
+                      borderRadius: 99,
+                      background: T.warn,
+                      boxShadow: "0 0 0 3px rgba(180,83,9,0.18)",
+                    }}
+                  />
+                  {disReady
+                    ? disActive
+                      ? t("vaults.statusActive")
+                      : t("vaults.statusStandby")
+                    : "…"}
+                </div>
+                <div aria-hidden>{Ico.shield({ size: 15, c: T.warn })}</div>
+              </div>
+              <div
+                style={{
+                  marginTop: 6,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  letterSpacing: "-0.01em",
+                  color: T.ink,
+                  lineHeight: 1.25,
+                }}
+              >
+                {t("transparency.poolName")}
+              </div>
+              <div
+                style={{
+                  marginTop: 5,
+                  display: "flex",
+                  alignItems: "baseline",
+                  gap: 5,
+                  flexWrap: "wrap",
+                }}
+              >
+                {disReady ? (
+                  <Money value={disRaised} size={19} usdc={false} />
+                ) : (
+                  <span
+                    style={{ fontSize: 19, fontWeight: 600, color: T.slate }}
+                  >
+                    …
+                  </span>
+                )}
+                <span style={{ fontSize: 11, color: T.slate }}>
+                  {t("home.disHeroRaised")}
+                </span>
+              </div>
+              <div
+                style={{
+                  marginTop: 7,
+                  fontSize: 10.5,
+                  color: T.slate,
+                  lineHeight: 1.4,
+                }}
+              >
+                {t("home.disHeroTrust")}
+              </div>
+            </div>
+            <div
+              style={{ fontSize: 11.5, fontWeight: 600, color: T.action }}
+            >
+              {t("home.disHeroCta")} ›
+            </div>
+          </div>
+
+          {/* The three other day-30 features, stacked, right column */}
+          <div
+            style={{
+              flex: "1 1 0",
+              minWidth: 0,
+              display: "flex",
+              flexDirection: "column",
+              gap: 8,
+            }}
+          >
+            {liveTiles.map((tile) => (
+              <div
                 key={tile.key}
-                p={12}
                 onClick={go(tile.to)}
                 style={{
+                  flex: "1 1 0",
                   cursor: "pointer",
-                  minHeight: 92,
+                  background: tile.bg,
+                  borderRadius: 12,
+                  padding: "9px 10px",
                   display: "flex",
-                  flexDirection: "column",
-                  gap: 8,
+                  alignItems: "center",
+                  gap: 9,
+                  minWidth: 0,
                 }}
               >
                 <div
                   style={{
                     width: 32,
                     height: 32,
-                    borderRadius: 10,
-                    background: tile.bg,
-                    color: tile.fg,
+                    borderRadius: 9,
+                    background: "#fff",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
+                    boxShadow: "0 2px 6px -2px rgba(11,18,32,0.12)",
+                    flex: "0 0 auto",
                   }}
                   aria-hidden
                 >
-                  {tile.ico({ size: 18, c: tile.fg })}
+                  {tile.ico({ size: 17, c: tile.fg })}
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <div style={{ minWidth: 0 }}>
                   <div
                     style={{
-                      fontSize: 13,
+                      fontSize: 12,
                       fontWeight: 600,
-                      lineHeight: 1.25,
+                      lineHeight: 1.2,
                       color: T.ink,
                     }}
                   >
                     {t(tile.titleKey)}
                   </div>
-                  {status && (
-                    <div
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 600,
-                        color: status.color,
-                      }}
-                    >
-                      {status.text}
-                    </div>
-                  )}
+                  <div
+                    style={{
+                      marginTop: 1,
+                      fontSize: 9.5,
+                      color: T.slate,
+                      lineHeight: 1.3,
+                    }}
+                  >
+                    {t(tile.subKey)}
+                  </div>
                 </div>
-              </Card>
-            );
-          })}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Zone 2: VISION, BUILD-AWARD - compact tile mirroring LIVE TODAY's
-          shape so the eye reads them as the same kind of object, just in a
-          different tier. The indigo accent dot on the header signals the
-          tier change without shouting. Every tile in this zone carries its
-          own "Preview, Build-Award" badge. */}
-      <div style={{ padding: "14px 16px 0" }}>
+      {/* Zone 2: VISION, BUILD-AWARD - Salapi Circles showcase card + a live
+          preview strip of the /circles feed. Honesty kept by the VISION
+          header and the Preview, Build-Award badge. */}
+      <div style={{ padding: "11px 16px 0" }}>
         <div
           style={{
             display: "flex",
@@ -409,69 +484,70 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Salapi Circles tile (full-width). Mirrors the LIVE TODAY tile
-            shape; carries its own "Preview, Build-Award" badge so the tier
-            is unmistakable. */}
         <Card
-          p={14}
+          p={13}
           onClick={go("/circles")}
           style={{
             cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            background: "linear-gradient(160deg,#fff 0%, #FBF1E0 110%)",
+            background: "linear-gradient(160deg,#fff 0%, #FBF1E0 120%)",
           }}
         >
-          <div
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 11,
-              background: "#fff",
-              color: T.warn,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: "inset 0 0 0 1px " + T.hairline,
-              flex: "0 0 auto",
-            }}
-            aria-hidden
-          >
-            {Ico.globe({ size: 18, c: T.warn })}
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 11 }}>
             <div
               style={{
-                fontSize: 14,
-                fontWeight: 600,
-                lineHeight: 1.25,
-                color: T.ink,
+                width: 38,
+                height: 38,
+                borderRadius: 11,
+                background: "#fff",
+                color: T.warn,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow: "inset 0 0 0 1px " + T.hairline,
+                flex: "0 0 auto",
+              }}
+              aria-hidden
+            >
+              {Ico.globe({ size: 19, c: T.warn })}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>
+                {t("home.tileCircles")}
+              </div>
+              <div
+                style={{
+                  marginTop: 2,
+                  fontSize: 11.5,
+                  color: T.slate,
+                  lineHeight: 1.4,
+                }}
+              >
+                {t("home.circlesDesc")}
+              </div>
+            </div>
+            <span
+              style={{
+                fontSize: 9,
+                fontWeight: 700,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                padding: "3px 7px",
+                borderRadius: 99,
+                background: T.warnTint,
+                color: T.warn,
+                whiteSpace: "nowrap",
+                flex: "0 0 auto",
               }}
             >
-              {t("home.tileCircles")}
-            </div>
+              {t("home.circlesBadge")}
+            </span>
           </div>
-          <span
-            style={{
-              fontSize: 9,
-              fontWeight: 700,
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
-              padding: "3px 7px",
-              borderRadius: 99,
-              background: T.warnTint,
-              color: T.warn,
-              whiteSpace: "nowrap",
-              flex: "0 0 auto",
-            }}
-          >
-            {t("home.circlesBadge")}
-          </span>
         </Card>
+
+        <CirclesHomeStrip />
       </div>
 
-      <div style={{ padding: "14px 16px 16px", textAlign: "center" }}>
+      <div style={{ padding: "10px 20px 10px", textAlign: "center" }}>
         <PoweredByStellar />
       </div>
     </div>
