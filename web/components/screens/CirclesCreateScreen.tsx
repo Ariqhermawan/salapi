@@ -33,26 +33,24 @@ import {
 } from "@/components/ui/OperationalAllowanceExplainer";
 import {
   KYC_TIER_CEILING,
-  KYC_TIER_LABEL,
   KYC_TIER_NAME,
   clampToTier,
   localePreviewSplit,
   type KycTier,
 } from "@/lib/circles/allowance";
-import {
-  CATEGORY_LABEL,
-  type CircleCategory,
-} from "@/lib/circles/types";
+import { type CircleCategory } from "@/lib/circles/types";
 
 type Step = 0 | 1 | 2 | 3 | 4 | 5 | 6;
-const STEPS = [
-  "Title",
-  "Story",
-  "Goal",
-  "Allowance",
-  "Cover",
-  "Verify",
-  "Share",
+
+// Step progress labels, by index. Resolved through t() at render.
+const STEP_KEYS = [
+  "circles.stepTitle",
+  "circles.stepStory",
+  "circles.stepGoal",
+  "circles.stepAllowance",
+  "circles.stepCover",
+  "circles.stepVerify",
+  "circles.stepShare",
 ] as const;
 
 const CATS: CircleCategory[] = [
@@ -63,12 +61,26 @@ const CATS: CircleCategory[] = [
   "family",
   "creator",
 ];
+const CATEGORY_KEY: Record<CircleCategory, string> = {
+  disaster: "circles.catDisaster",
+  medical: "circles.catMedical",
+  education: "circles.catEducation",
+  community: "circles.catCommunity",
+  family: "circles.catFamily",
+  creator: "circles.catCreator",
+};
+const TIER_KEY: Record<KycTier, string> = {
+  0: "circles.tier0",
+  1: "circles.tier1",
+  2: "circles.tier2",
+};
 
+// Duration options. `d` is the day count; the label is a circles.* key.
 const DURATIONS = [
-  { d: 14, label: "2 weeks" },
-  { d: 30, label: "1 month" },
-  { d: 60, label: "2 months" },
-  { d: 90, label: "3 months" },
+  { d: 14, key: "circles.dur2w" },
+  { d: 30, key: "circles.dur1m" },
+  { d: 60, key: "circles.dur2m" },
+  { d: 90, key: "circles.dur3m" },
 ];
 
 const GRADIENTS: [string, string][] = [
@@ -92,7 +104,7 @@ function slugify(s: string): string {
 
 export default function CirclesCreateScreen() {
   const router = useRouter();
-  const { locale } = useT();
+  const { locale, t } = useT();
 
   const [step, setStep] = useState<Step>(0);
   const [title, setTitle] = useState("");
@@ -125,21 +137,19 @@ export default function CirclesCreateScreen() {
   function next() {
     setErr("");
     if (step === 0 && title.trim().length < 6) {
-      setErr("Give your circle a clear title (at least 6 characters).");
+      setErr(t("circles.errTitle"));
       return;
     }
     if (step === 1 && story.trim().length < 40) {
-      setErr("A short story helps donors trust the cause. Add a bit more.");
+      setErr(t("circles.errStory"));
       return;
     }
     if (step === 2 && !(pesoTarget > 0)) {
-      setErr("Pick a goal amount above zero.");
+      setErr(t("circles.errGoal"));
       return;
     }
     if (step === 3 && allowancePct > 0 && !allowanceAck) {
-      setErr(
-        "Confirm you understand the allowance percentage locks in at the first donation."
-      );
+      setErr(t("circles.errAck"));
       return;
     }
     setStep((s) => Math.min(6, (s + 1) as Step) as Step);
@@ -153,7 +163,7 @@ export default function CirclesCreateScreen() {
     setErr("");
     const trimmed = email.trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
-      setErr("Enter a valid email so we can invite you at launch.");
+      setErr(t("circles.errEmailCreate"));
       return;
     }
     start(async () => {
@@ -166,7 +176,7 @@ export default function CirclesCreateScreen() {
         marketingOk: true,
       });
       if (r.ok) setWaitlisted(true);
-      else setErr(r.error || "Couldn't save your draft. Please try again.");
+      else setErr(r.error || t("circles.saveDraftFailed"));
     });
   }
 
@@ -178,7 +188,7 @@ export default function CirclesCreateScreen() {
   if (step === 0) {
     return (
       <div style={shell}>
-        <Header pill={<PreviewBadge />} step={step} onBack={back} onExit={onExit} />
+        <Header pill={<PreviewBadge />} step={step} onBack={back} onExit={onExit} t={t} />
         <div style={{ padding: "8px 20px 0" }}>
           <h1
             style={{
@@ -189,7 +199,7 @@ export default function CirclesCreateScreen() {
               margin: 0,
             }}
           >
-            What are you raising for?
+            {t("circles.createTitleH1")}
           </h1>
           <p
             style={{
@@ -199,8 +209,7 @@ export default function CirclesCreateScreen() {
               lineHeight: 1.55,
             }}
           >
-            One sentence donors will see first. Be specific - location, who it
-            helps, the timeframe.
+            {t("circles.createTitleHint")}
           </p>
         </div>
         <div style={{ padding: "18px 16px 0" }}>
@@ -208,7 +217,7 @@ export default function CirclesCreateScreen() {
             <textarea
               value={title}
               onChange={(e) => setTitle(e.target.value.slice(0, 90))}
-              placeholder="e.g. Help Lola Rosa replace her cataract lenses this month"
+              placeholder={t("circles.createTitlePh")}
               rows={3}
               style={{
                 width: "100%",
@@ -236,7 +245,7 @@ export default function CirclesCreateScreen() {
           </Card>
         </div>
         {err && <ErrorBanner err={err} />}
-        <BottomNext onNext={next} label="Next: tell the story" />
+        <BottomNext onNext={next} label={t("circles.nextStory")} />
       </div>
     );
   }
@@ -245,7 +254,7 @@ export default function CirclesCreateScreen() {
   if (step === 1) {
     return (
       <div style={shell}>
-        <Header pill={<PreviewBadge />} step={step} onBack={back} onExit={onExit} />
+        <Header pill={<PreviewBadge />} step={step} onBack={back} onExit={onExit} t={t} />
         <div style={{ padding: "8px 20px 0" }}>
           <h1
             style={{
@@ -256,7 +265,7 @@ export default function CirclesCreateScreen() {
               margin: 0,
             }}
           >
-            Tell the story
+            {t("circles.createStoryH1")}
           </h1>
           <p
             style={{
@@ -266,8 +275,7 @@ export default function CirclesCreateScreen() {
               lineHeight: 1.55,
             }}
           >
-            Who is affected, what happened, what the money buys. Donors give to
-            people, not numbers.
+            {t("circles.createStoryHint")}
           </p>
         </div>
         <div style={{ padding: "18px 16px 0" }}>
@@ -275,9 +283,7 @@ export default function CirclesCreateScreen() {
             <textarea
               value={story}
               onChange={(e) => setStory(e.target.value.slice(0, 1500))}
-              placeholder={
-                "Example: Last Tuesday a fire took the second floor of our barangay hall...\n\nWe need to rebuild the roof before the rains. The carpenter quoted ₱45,000 for materials..."
-              }
+              placeholder={t("circles.createStoryPh")}
               rows={12}
               style={{
                 width: "100%",
@@ -306,7 +312,7 @@ export default function CirclesCreateScreen() {
           </Card>
         </div>
         {err && <ErrorBanner err={err} />}
-        <BottomNext onNext={next} label="Next: set the goal" />
+        <BottomNext onNext={next} label={t("circles.nextGoal")} />
       </div>
     );
   }
@@ -316,7 +322,7 @@ export default function CirclesCreateScreen() {
     const amt = formatParts(pesoTarget, locale);
     return (
       <div style={shell}>
-        <Header pill={<PreviewBadge />} step={step} onBack={back} onExit={onExit} />
+        <Header pill={<PreviewBadge />} step={step} onBack={back} onExit={onExit} t={t} />
         <div style={{ padding: "8px 20px 0" }}>
           <h1
             style={{
@@ -327,7 +333,7 @@ export default function CirclesCreateScreen() {
               margin: 0,
             }}
           >
-            Set your goal
+            {t("circles.createGoalH1")}
           </h1>
           <p
             style={{
@@ -337,8 +343,7 @@ export default function CirclesCreateScreen() {
               lineHeight: 1.55,
             }}
           >
-            A clear, achievable number wins faster. You can keep raising past
-            the goal at Build-Award launch.
+            {t("circles.createGoalHint")}
           </p>
         </div>
 
@@ -404,7 +409,7 @@ export default function CirclesCreateScreen() {
               color: T.slate,
             }}
           >
-            Category
+            {t("circles.category")}
           </div>
         </div>
         <div
@@ -436,7 +441,7 @@ export default function CirclesCreateScreen() {
                     : "inset 0 0 0 1px " + T.hairline,
               }}
             >
-              {CATEGORY_LABEL[c]}
+              {t(CATEGORY_KEY[c])}
             </button>
           ))}
         </div>
@@ -451,7 +456,7 @@ export default function CirclesCreateScreen() {
               color: T.slate,
             }}
           >
-            Duration
+            {t("circles.duration")}
           </div>
         </div>
         <div
@@ -484,7 +489,7 @@ export default function CirclesCreateScreen() {
                     : "inset 0 0 0 1px " + T.hairline,
               }}
             >
-              {d.label}
+              {t(d.key)}
               <div
                 style={{
                   fontSize: 11,
@@ -493,14 +498,14 @@ export default function CirclesCreateScreen() {
                   fontWeight: 500,
                 }}
               >
-                {d.d} days
+                {t("circles.durDays", { n: d.d })}
               </div>
             </button>
           ))}
         </div>
 
         {err && <ErrorBanner err={err} />}
-        <BottomNext onNext={next} label="Next: operational allowance" />
+        <BottomNext onNext={next} label={t("circles.nextAllowance")} />
       </div>
     );
   }
@@ -513,7 +518,7 @@ export default function CirclesCreateScreen() {
     const preview = localePreviewSplit(locale, clamped);
     return (
       <div style={shell}>
-        <Header pill={<Stage2Pill />} step={step} onBack={back} onExit={onExit} />
+        <Header pill={<Stage2Pill />} step={step} onBack={back} onExit={onExit} t={t} />
 
         <div style={{ padding: "8px 20px 0" }}>
           <h1
@@ -525,7 +530,7 @@ export default function CirclesCreateScreen() {
               margin: 0,
             }}
           >
-            Operational allowance
+            {t("circles.allowanceH1")}
           </h1>
           <p
             style={{
@@ -535,13 +540,10 @@ export default function CirclesCreateScreen() {
               lineHeight: 1.55,
             }}
           >
-            Optional. A transparent reimbursement for real field costs
-            (transport, time, documentation, delivery). Capped by your KYC
-            tier. Encoded at circle creation, immutable after the first
-            donation lands.
+            {t("circles.allowanceHint")}
           </p>
           <div style={{ marginTop: 6 }}>
-            <WhyExistsLink label="Why this exists - read the case" />
+            <WhyExistsLink label={t("circles.whyReadCase")} />
           </div>
         </div>
 
@@ -556,7 +558,7 @@ export default function CirclesCreateScreen() {
               color: T.slate,
             }}
           >
-            Your KYC tier
+            {t("circles.yourKycTier")}
           </div>
         </div>
         <div
@@ -567,19 +569,19 @@ export default function CirclesCreateScreen() {
             gap: 8,
           }}
         >
-          {([0, 1, 2] as KycTier[]).map((t) => {
-            const active = t === previewTier;
+          {([0, 1, 2] as KycTier[]).map((tier) => {
+            const active = tier === previewTier;
             return (
               <button
-                key={t}
+                key={tier}
                 type="button"
                 onClick={() => {
-                  setPreviewTier(t);
+                  setPreviewTier(tier);
                   // Clamp the existing allowance to the new tier's ceiling
                   // and reset the immutable-after-donation ack: any new
                   // value must be re-acknowledged so users cannot bypass
                   // the checkbox by switching tiers around it.
-                  setAllowancePct((p) => clampToTier(p, t));
+                  setAllowancePct((p) => clampToTier(p, tier));
                   setAllowanceAck(false);
                 }}
                 style={{
@@ -611,9 +613,9 @@ export default function CirclesCreateScreen() {
                     textTransform: "uppercase",
                   }}
                 >
-                  {KYC_TIER_LABEL[t]}
+                  {t(TIER_KEY[tier])}
                 </span>
-                <span>up to {KYC_TIER_CEILING[t]}%</span>
+                <span>{t("circles.upTo", { pct: KYC_TIER_CEILING[tier] })}</span>
                 <span
                   style={{
                     fontSize: 11,
@@ -621,7 +623,7 @@ export default function CirclesCreateScreen() {
                     color: active ? "rgba(255,255,255,0.75)" : T.slate,
                   }}
                 >
-                  {KYC_TIER_NAME[t]}
+                  {KYC_TIER_NAME[tier]}
                 </span>
               </button>
             );
@@ -635,8 +637,7 @@ export default function CirclesCreateScreen() {
             lineHeight: 1.5,
           }}
         >
-          Preview: tap a tier to see its slider ceiling. Real verification
-          ships at Build-Award stage 2.
+          {t("circles.tierPreviewNote")}
         </div>
 
         {/* Slider */}
@@ -657,7 +658,7 @@ export default function CirclesCreateScreen() {
                 color: T.slate,
               }}
             >
-              Allowance
+              {t("circles.allowance")}
             </div>
             <div
               style={{
@@ -702,7 +703,12 @@ export default function CirclesCreateScreen() {
             }}
           >
             <span>0%</span>
-            <span>{ceiling}% (ceiling for {KYC_TIER_LABEL[previewTier]})</span>
+            <span>
+              {t("circles.ceilingFor", {
+                pct: ceiling,
+                tier: t(TIER_KEY[previewTier]),
+              })}
+            </span>
           </div>
         </div>
 
@@ -718,7 +724,7 @@ export default function CirclesCreateScreen() {
                 color: T.slate,
               }}
             >
-              Donor sees
+              {t("circles.donorSees")}
             </div>
             <p
               style={{
@@ -728,10 +734,11 @@ export default function CirclesCreateScreen() {
                 color: T.ink,
               }}
             >
-              Of every {preview.fmtSample} you donate,{" "}
-              <strong>{preview.fmtBeneficiary}</strong> goes to the
-              beneficiary, <strong>{preview.fmtAllowance}</strong> covers
-              operational cost.
+              {t("circles.splitCreateLine", {
+                sample: preview.fmtSample,
+                beneficiary: preview.fmtBeneficiary,
+                allowance: preview.fmtAllowance,
+              })}
             </p>
             {/* Stacked bar */}
             <div
@@ -779,7 +786,7 @@ export default function CirclesCreateScreen() {
                     verticalAlign: "middle",
                   }}
                 />
-                Beneficiary {100 - clamped}%
+                {t("circles.beneficiaryPct", { pct: 100 - clamped })}
               </span>
               <span>
                 <span
@@ -793,7 +800,7 @@ export default function CirclesCreateScreen() {
                     verticalAlign: "middle",
                   }}
                 />
-                Operational {clamped}%
+                {t("circles.operationalPct", { pct: clamped })}
               </span>
             </div>
           </Card>
@@ -844,10 +851,7 @@ export default function CirclesCreateScreen() {
                     color: T.ink,
                   }}
                 >
-                  I understand this percentage is locked into the on-chain
-                  contract at circle creation. It cannot change after the first
-                  donation. (Build-Award stage 2 contract behavior; not
-                  enforced in this preview.)
+                  {t("circles.ackText")}
                 </span>
               </button>
             </Card>
@@ -873,16 +877,16 @@ export default function CirclesCreateScreen() {
               {Ico.shield({ size: 16, c: T.warn })}
             </div>
             <div>
-              <strong style={{ color: T.ink }}>Build-Award stage 2.</strong>{" "}
-              Day-30 ships a 0% allowance Disaster Vault with a whitelisted
-              NGO shortlist. This slider, KYC tiering, escrow, and dispute
-              window arrive at stage 2 with Operational Allowance.
+              <strong style={{ color: T.ink }}>
+                {t("circles.stage2FooterStrong")}
+              </strong>{" "}
+              {t("circles.stage2FooterBody")}
             </div>
           </div>
         </div>
 
         {err && <ErrorBanner err={err} />}
-        <BottomNext onNext={next} label="Next: pick a cover" />
+        <BottomNext onNext={next} label={t("circles.nextCover")} />
       </div>
     );
   }
@@ -891,7 +895,7 @@ export default function CirclesCreateScreen() {
   if (step === 4) {
     return (
       <div style={shell}>
-        <Header pill={<PreviewBadge />} step={step} onBack={back} onExit={onExit} />
+        <Header pill={<PreviewBadge />} step={step} onBack={back} onExit={onExit} t={t} />
         <div style={{ padding: "8px 20px 0" }}>
           <h1
             style={{
@@ -902,7 +906,7 @@ export default function CirclesCreateScreen() {
               margin: 0,
             }}
           >
-            Pick a cover
+            {t("circles.coverH1")}
           </h1>
           <p
             style={{
@@ -912,8 +916,7 @@ export default function CirclesCreateScreen() {
               lineHeight: 1.55,
             }}
           >
-            Real image upload (with safety review) ships at Build-Award. For
-            this preview, pick a tone that fits the cause.
+            {t("circles.coverHint")}
           </p>
         </div>
 
@@ -953,7 +956,7 @@ export default function CirclesCreateScreen() {
                 position: "relative",
               }}
             >
-              {CATEGORY_LABEL[category]}
+              {t(CATEGORY_KEY[category])}
             </div>
             <div
               style={{
@@ -966,7 +969,7 @@ export default function CirclesCreateScreen() {
                 position: "relative",
               }}
             >
-              {title || "Your circle title"}
+              {title || t("circles.yourCircleTitle")}
             </div>
           </div>
         </div>
@@ -981,7 +984,7 @@ export default function CirclesCreateScreen() {
               color: T.slate,
             }}
           >
-            Tone
+            {t("circles.tone")}
           </div>
         </div>
         <div
@@ -997,7 +1000,7 @@ export default function CirclesCreateScreen() {
               key={i}
               type="button"
               onClick={() => setGradient(g)}
-              aria-label={`Cover tone ${i + 1}`}
+              aria-label={t("circles.coverToneAria", { n: i + 1 })}
               style={{
                 height: 56,
                 borderRadius: 12,
@@ -1013,7 +1016,7 @@ export default function CirclesCreateScreen() {
           ))}
         </div>
 
-        <BottomNext onNext={next} label="Next: organizer" />
+        <BottomNext onNext={next} label={t("circles.nextOrganizer")} />
       </div>
     );
   }
@@ -1022,7 +1025,7 @@ export default function CirclesCreateScreen() {
   if (step === 5) {
     return (
       <div style={shell}>
-        <Header pill={<PreviewBadge />} step={step} onBack={back} onExit={onExit} />
+        <Header pill={<PreviewBadge />} step={step} onBack={back} onExit={onExit} t={t} />
         <div style={{ padding: "8px 20px 0" }}>
           <h1
             style={{
@@ -1033,7 +1036,7 @@ export default function CirclesCreateScreen() {
               margin: 0,
             }}
           >
-            Verify yourself
+            {t("circles.verifyH1")}
           </h1>
           <p
             style={{
@@ -1043,9 +1046,7 @@ export default function CirclesCreateScreen() {
               lineHeight: 1.55,
             }}
           >
-            Real organizer verification (government ID, video selfie, recipient
-            account confirmation) ships at Build-Award. This preview only
-            mocks the screen so you can see the shape.
+            {t("circles.verifyHint")}
           </p>
         </div>
 
@@ -1054,23 +1055,23 @@ export default function CirclesCreateScreen() {
             {[
               {
                 ico: Ico.user,
-                label: "Government ID",
-                sub: "Photo + name match",
+                label: t("circles.verifyGovId"),
+                sub: t("circles.verifyGovIdSub"),
               },
               {
                 ico: Ico.verify,
-                label: "Selfie video",
-                sub: "Liveness + face match",
+                label: t("circles.verifySelfie"),
+                sub: t("circles.verifySelfieSub"),
               },
               {
                 ico: Ico.shield,
-                label: "Recipient account",
-                sub: "Confirm payout account ownership",
+                label: t("circles.verifyRecipient"),
+                sub: t("circles.verifyRecipientSub"),
               },
               {
                 ico: Ico.globe,
-                label: "Community vouch",
-                sub: "Two existing Salapi users vouch",
+                label: t("circles.verifyVouch"),
+                sub: t("circles.verifyVouchSub"),
               },
             ].map((row, i, arr) => (
               <div
@@ -1107,7 +1108,7 @@ export default function CirclesCreateScreen() {
                   </div>
                 </div>
                 <Chip kind="warn" size="sm">
-                  Build-Award
+                  {t("circles.buildAwardChip")}
                 </Chip>
               </div>
             ))}
@@ -1131,15 +1132,11 @@ export default function CirclesCreateScreen() {
             <div style={{ marginTop: 1 }}>
               {Ico.shield({ size: 16, c: T.warn })}
             </div>
-            <div>
-              For this preview we skip verification. Your draft will be invited
-              first at Build-Award launch and you&apos;ll go through the real
-              verification then.
-            </div>
+            <div>{t("circles.verifySkipNote")}</div>
           </div>
         </div>
 
-        <BottomNext onNext={next} label="Next: share preview" />
+        <BottomNext onNext={next} label={t("circles.nextShare")} />
       </div>
     );
   }
@@ -1147,7 +1144,7 @@ export default function CirclesCreateScreen() {
   // ── STEP 6 (was 5): Share + waitlist signup ──
   return (
     <div style={shell}>
-      <Header pill={<PreviewBadge />} step={step} onBack={back} onExit={onExit} />
+      <Header pill={<PreviewBadge />} step={step} onBack={back} onExit={onExit} t={t} />
       <div style={{ padding: "10px 28px 0", textAlign: "center" }}>
         <div
           style={{
@@ -1173,7 +1170,7 @@ export default function CirclesCreateScreen() {
             lineHeight: 1.25,
           }}
         >
-          Your circle preview is ready
+          {t("circles.shareReadyTitle")}
         </div>
         <div
           style={{
@@ -1183,8 +1180,7 @@ export default function CirclesCreateScreen() {
             lineHeight: 1.55,
           }}
         >
-          Drop your email and we&apos;ll invite you to launch your circle for
-          real the moment Salapi Circles goes live at Build-Award.
+          {t("circles.shareReadyBody")}
         </div>
       </div>
 
@@ -1199,7 +1195,7 @@ export default function CirclesCreateScreen() {
               color: T.slate,
             }}
           >
-            Share link (preview)
+            {t("circles.shareLinkLabel")}
           </div>
           <div
             style={{
@@ -1220,7 +1216,7 @@ export default function CirclesCreateScreen() {
               lineHeight: 1.45,
             }}
           >
-            Link is illustrative; real share URLs activate at Build-Award.
+            {t("circles.shareLinkNote")}
           </div>
           {allowancePct > 0 && (
             <div
@@ -1234,12 +1230,12 @@ export default function CirclesCreateScreen() {
                 lineHeight: 1.5,
               }}
             >
-              Allowance configured: <strong style={{ color: T.ink }}>
-                {allowancePct}%
-              </strong>{" "}
-              ({KYC_TIER_LABEL[previewTier]}, max{" "}
-              {KYC_TIER_CEILING[previewTier]}%). Locks at first donation at
-              Build-Award stage 2.
+              {t("circles.allowanceConfigured")}{" "}
+              <strong style={{ color: T.ink }}>{allowancePct}%</strong>{" "}
+              {t("circles.allowanceConfiguredTail", {
+                tier: t(TIER_KEY[previewTier]),
+                ceiling: KYC_TIER_CEILING[previewTier],
+              })}
             </div>
           )}
         </Card>
@@ -1259,7 +1255,7 @@ export default function CirclesCreateScreen() {
                 padding: "0 4px 6px",
               }}
             >
-              Invite me at launch
+              {t("circles.inviteAtLaunch")}
             </label>
             <Card p={0}>
               <div style={{ padding: "12px 16px" }}>
@@ -1294,7 +1290,7 @@ export default function CirclesCreateScreen() {
               loading={pending}
               onClick={submitWaitlist}
             >
-              Save my draft + invite me
+              {t("circles.saveDraftCta")}
             </Btn>
             <div
               style={{
@@ -1305,8 +1301,7 @@ export default function CirclesCreateScreen() {
                 lineHeight: 1.5,
               }}
             >
-              No money is charged. Your draft is saved as a launch waitlist
-              entry.
+              {t("circles.saveDraftNote")}
             </div>
           </div>
         </>
@@ -1338,20 +1333,23 @@ export default function CirclesCreateScreen() {
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 14, fontWeight: 600 }}>
-                  Draft saved. We&apos;ll email you at launch.
+                  {t("circles.draftSavedTitle")}
                 </div>
                 <div style={{ fontSize: 12, color: T.slate, marginTop: 2 }}>
-                  Title, story, goal of{" "}
-                  {formatParts(pesoTarget, locale).symbol}
-                  {formatParts(pesoTarget, locale).int}, duration {days} days,
-                  allowance {allowancePct}%.
+                  {t("circles.draftSavedDetail", {
+                    amount: `${formatParts(pesoTarget, locale).symbol}${
+                      formatParts(pesoTarget, locale).int
+                    }`,
+                    days,
+                    pct: allowancePct,
+                  })}
                 </div>
               </div>
             </div>
           </Card>
           <div style={{ paddingTop: 14 }}>
             <Btn kind="secondary" onClick={() => router.push("/circles")}>
-              Back to Circles
+              {t("circles.backToCircles")}
             </Btn>
           </div>
         </div>
@@ -1370,17 +1368,24 @@ export default function CirclesCreateScreen() {
   );
 }
 
+// Translation fn type, mirrors useT()'s `t`. Passed in because Header is a
+// module-level component (React 19 react-hooks/static-components rule) and
+// cannot call the useT() hook itself.
+type TFn = (key: string, vars?: Record<string, string | number>) => string;
+
 // Header lives at module level (React 19 react-hooks/static-components rule).
 function Header({
   pill,
   step,
   onBack,
   onExit,
+  t,
 }: {
   pill: ReactNode;
   step: number;
   onBack: () => void;
   onExit: () => void;
+  t: TFn;
 }) {
   return (
     <>
@@ -1390,7 +1395,7 @@ function Header({
             {step === 0 ? Ico.x({}) : Ico.back({})}
           </IconButton>
         }
-        title="Start a circle"
+        title={t("circles.startCircle")}
         trailing={pill}
       />
       <div
@@ -1401,7 +1406,7 @@ function Header({
           alignItems: "center",
         }}
       >
-        {STEPS.map((_, i) => (
+        {STEP_KEYS.map((_, i) => (
           <div
             key={i}
             style={{
@@ -1421,7 +1426,7 @@ function Header({
             fontFamily: T.fontMono,
           }}
         >
-          {step + 1}/{STEPS.length}
+          {step + 1}/{STEP_KEYS.length}
         </div>
       </div>
     </>
@@ -1436,7 +1441,7 @@ function ErrorBanner({ err }: { err: string }) {
         padding: "12px 14px",
         borderRadius: 12,
         background: "#FBEAE8",
-        color: "#B91C1C",
+        color: T.danger,
         fontSize: 13,
         lineHeight: 1.4,
       }}
@@ -1446,29 +1451,14 @@ function ErrorBanner({ err }: { err: string }) {
   );
 }
 
+// Uses the design-system Btn (primary kind) and T tokens, not re-hardcoded
+// hex colors / font stacks.
 function BottomNext({ onNext, label }: { onNext: () => void; label: string }) {
   return (
     <div style={{ padding: "24px 16px 0" }}>
-      <button
-        type="button"
-        onClick={onNext}
-        style={{
-          width: "100%",
-          height: 52,
-          borderRadius: 12,
-          border: "none",
-          background: "#2563EB",
-          color: "#fff",
-          fontFamily: "var(--font-geist-sans), system-ui, sans-serif",
-          fontWeight: 600,
-          fontSize: 16,
-          cursor: "pointer",
-          boxShadow:
-            "0 1px 2px rgba(11,18,32,.06), 0 6px 16px -6px rgba(37,99,235,.55)",
-        }}
-      >
+      <Btn kind="primary" onClick={onNext}>
         {label}
-      </button>
+      </Btn>
     </div>
   );
 }

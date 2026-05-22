@@ -44,13 +44,28 @@ import { formatParts } from "@/lib/ui/currency";
 import { useT } from "@/components/I18nProvider";
 import PreviewBadge from "@/components/circles/PreviewBadge";
 import {
-  CATEGORY_LABEL,
-  DISCOVER_FILTER_LABEL,
   progressPct,
+  type CircleCategory,
   type Circle,
   type DiscoverFilter,
 } from "@/lib/circles/types";
 import { SEED_CIRCLES } from "@/lib/circles/seed";
+
+// Maps a CircleCategory / DiscoverFilter to its localized circles.* key.
+const CATEGORY_KEY: Record<CircleCategory, string> = {
+  disaster: "circles.catDisaster",
+  medical: "circles.catMedical",
+  education: "circles.catEducation",
+  community: "circles.catCommunity",
+  family: "circles.catFamily",
+  creator: "circles.catCreator",
+};
+const FILTER_KEY: Record<DiscoverFilter, string> = {
+  all: "circles.filterAll",
+  trending: "circles.filterTrending",
+  closeToGoal: "circles.filterCloseToGoal",
+  justLaunched: "circles.filterJustLaunched",
+};
 
 function sortFor(filter: DiscoverFilter, circles: Circle[]): Circle[] {
   const arr = [...circles];
@@ -64,7 +79,7 @@ function sortFor(filter: DiscoverFilter, circles: Circle[]): Circle[] {
 
 function CircleCard({ circle }: { circle: Circle }) {
   const router = useRouter();
-  const { locale } = useT();
+  const { locale, t } = useT();
   const pct = progressPct(circle);
   const raised = formatParts(circle.pesoRaised, locale);
   const target = formatParts(circle.pesoTarget, locale);
@@ -109,7 +124,7 @@ function CircleCard({ circle }: { circle: Circle }) {
             backdropFilter: "blur(4px)",
           }}
         >
-          {CATEGORY_LABEL[circle.category]}
+          {t(CATEGORY_KEY[circle.category])}
         </div>
         <div
           style={{
@@ -136,8 +151,8 @@ function CircleCard({ circle }: { circle: Circle }) {
             }}
           />
           {circle.daysRemaining > 0
-            ? `${circle.daysRemaining} days left`
-            : "Closing"}
+            ? t("circles.daysLeft", { n: circle.daysRemaining })
+            : t("circles.closing")}
         </div>
       </div>
       <div style={{ padding: "12px 14px 14px" }}>
@@ -159,7 +174,7 @@ function CircleCard({ circle }: { circle: Circle }) {
             color: T.slate,
           }}
         >
-          by {circle.organizer} · {circle.organizerLocation}
+          {t("circles.by", { name: circle.organizer })} · {circle.organizerLocation}
         </div>
         <div style={{ marginTop: 8 }}>
           <Progress pct={pct} h={6} />
@@ -181,12 +196,13 @@ function CircleCard({ circle }: { circle: Circle }) {
                 </span>
               )}{" "}
               <span style={{ color: T.slate, fontWeight: 500 }}>
-                of {target.symbol}
-                {target.int}
+                {t("circles.raisedOf", {
+                  amount: `${target.symbol}${target.int}`,
+                })}
               </span>
             </div>
             <div style={{ fontSize: 11.5, color: T.slate, fontWeight: 500 }}>
-              {circle.donorCount} donors · {pct}%
+              {t("circles.donorsPct", { count: circle.donorCount, pct })}
             </div>
           </div>
         </div>
@@ -197,6 +213,7 @@ function CircleCard({ circle }: { circle: Circle }) {
 
 export default function CirclesDiscoverScreen() {
   const router = useRouter();
+  const { t } = useT();
   const [filter, setFilter] = useState<DiscoverFilter>("all");
   const visible = useMemo(() => sortFor(filter, SEED_CIRCLES), [filter]);
   const filters: DiscoverFilter[] = [
@@ -236,7 +253,7 @@ export default function CirclesDiscoverScreen() {
             color: T.warn,
           }}
         >
-          Build-Award vision
+          {t("circles.visionEyebrow")}
         </div>
         <div
           style={{
@@ -247,7 +264,7 @@ export default function CirclesDiscoverScreen() {
             lineHeight: 1.15,
           }}
         >
-          Salapi Circles
+          {t("circles.discoverTitle")}
         </div>
         <div
           style={{
@@ -258,9 +275,7 @@ export default function CirclesDiscoverScreen() {
             maxWidth: 420,
           }}
         >
-          Open community fund-raising on transparent rails. The Disaster Vault
-          primitive, opened to any cause from any trusted person. Borderless by
-          one Google login.
+          {t("circles.discoverSub")}
         </div>
       </div>
 
@@ -270,18 +285,18 @@ export default function CirclesDiscoverScreen() {
           {[
             {
               ico: Ico.shield,
-              title: "Trust in the contract, not the brand",
-              body: "Every peso held on Stellar. Receipts anyone can audit at Build-Award launch.",
+              title: t("circles.diff1Title"),
+              body: t("circles.diff1Body"),
             },
             {
               ico: Ico.globe,
-              title: "Borderless by one Google login",
-              body: "PH and ID diaspora send home $53B+ a year. One rail. No FX queue, no bank gate.",
+              title: t("circles.diff2Title"),
+              body: t("circles.diff2Body"),
             },
             {
               ico: Ico.verify,
-              title: "Never monetize generosity",
-              body: "Salapi charges a flat rail fee, not a percentage of the cause. Creators keep more.",
+              title: t("circles.diff3Title"),
+              body: t("circles.diff3Body"),
             },
           ].map((row, i, arr) => (
             <div
@@ -361,7 +376,7 @@ export default function CirclesDiscoverScreen() {
                   : "inset 0 0 0 1px " + T.hairline,
             }}
           >
-            {DISCOVER_FILTER_LABEL[f]}
+            {t(FILTER_KEY[f])}
           </button>
         ))}
       </div>
@@ -405,7 +420,7 @@ export default function CirclesDiscoverScreen() {
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 14, fontWeight: 600 }}>
-                Start your own circle
+                {t("circles.startOwnTitle")}
               </div>
               <div
                 style={{
@@ -415,7 +430,7 @@ export default function CirclesDiscoverScreen() {
                   lineHeight: 1.4,
                 }}
               >
-                Set a goal, share the link, get receipts at launch.
+                {t("circles.startOwnBody")}
               </div>
             </div>
             <Btn
@@ -425,7 +440,7 @@ export default function CirclesDiscoverScreen() {
               onClick={() => router.push("/circles/create")}
               trailing={Ico.chev({ c: "#fff" })}
             >
-              Begin
+              {t("circles.startOwnCta")}
             </Btn>
           </div>
         </Card>
@@ -441,8 +456,7 @@ export default function CirclesDiscoverScreen() {
           lineHeight: 1.5,
         }}
       >
-        Day-30 ships the Disaster Vault live on Stellar testnet. Salapi
-        Circles ships at Build-Award. See SOW v2 Spotlight Section 7.
+        {t("circles.honestyFooter")}
       </div>
       <div
         style={{
@@ -458,7 +472,7 @@ export default function CirclesDiscoverScreen() {
           size="sm"
           onClick={() => router.push("/transparency")}
         >
-          See the live primitive: Disaster Vault →
+          {t("circles.seePrimitive")} →
         </Btn>
       </div>
       <div
@@ -470,10 +484,19 @@ export default function CirclesDiscoverScreen() {
       >
         <PoweredByStellar />
       </div>
-      <div style={{ height: 12 }} />
-      <Chip kind="warn">
-        <span style={{ marginRight: 2 }}>●</span> Preview - not on-chain yet
-      </Chip>
+      {/* Honesty pill, in a centered padded container consistent with the
+          footer elements above (PoweredByStellar, the ghost button). */}
+      <div
+        style={{
+          padding: "12px 16px 0",
+          display: "flex",
+          justifyContent: "center",
+        }}
+      >
+        <Chip kind="warn">
+          <span style={{ marginRight: 2 }}>●</span> {t("circles.previewNotOnChain")}
+        </Chip>
+      </div>
     </div>
   );
 }

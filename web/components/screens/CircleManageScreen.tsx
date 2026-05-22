@@ -26,12 +26,16 @@ import {
   Stage2Pill,
   WhyExistsLink,
 } from "@/components/ui/OperationalAllowanceExplainer";
-import {
-  KYC_TIER_CEILING,
-  KYC_TIER_LABEL,
-  mockReputation,
-} from "@/lib/circles/allowance";
+import { KYC_TIER_CEILING, mockReputation } from "@/lib/circles/allowance";
+import type { KycTier } from "@/lib/circles/allowance";
 import { type Circle, progressPct } from "@/lib/circles/types";
+
+// Maps a KycTier to its localized circles.* key.
+const TIER_KEY: Record<KycTier, string> = {
+  0: "circles.tier0",
+  1: "circles.tier1",
+  2: "circles.tier2",
+};
 
 // preview seed data, Build-Award stage 2 - never persisted, never on-chain.
 // Two-decimal padding in ISO so a stable dispute-window countdown renders
@@ -42,20 +46,24 @@ function mockDisputeWindowEndsAt(): string {
   return now.toISOString();
 }
 
-function formatRemaining(iso: string): string {
+// Translation fn type, mirrors useT()'s `t`.
+type TFn = (key: string, vars?: Record<string, string | number>) => string;
+
+function formatRemaining(iso: string, t: TFn): string {
   const target = new Date(iso).getTime();
   const ms = target - Date.now();
-  if (ms <= 0) return "Window closed";
+  if (ms <= 0) return t("circles.windowClosed");
   const hours = Math.floor(ms / (1000 * 60 * 60));
   const days = Math.floor(hours / 24);
   const remainingHours = hours - days * 24;
-  if (days > 0) return `${days}d ${remainingHours}h remaining`;
-  return `${hours}h remaining`;
+  if (days > 0)
+    return t("circles.remainingDh", { days, hours: remainingHours });
+  return t("circles.remainingH", { hours });
 }
 
 export default function CircleManageScreen({ circle }: { circle: Circle }) {
   const router = useRouter();
-  const { locale } = useT();
+  const { locale, t } = useT();
 
   const allowance = circle.allowance;
   const allowancePct = allowance?.percentage ?? 0;
@@ -82,7 +90,7 @@ export default function CircleManageScreen({ circle }: { circle: Circle }) {
   useEffect(() => {
     if (!hasAllowance) return;
     const ends = mockDisputeWindowEndsAt();
-    const tick = () => setRemaining(formatRemaining(ends));
+    const tick = () => setRemaining(formatRemaining(ends, t));
     // setState lives in async callbacks (timer + interval) so React 19's
     // react-hooks/set-state-in-effect rule is satisfied; the first tick is
     // scheduled immediately rather than waiting a full minute.
@@ -92,7 +100,7 @@ export default function CircleManageScreen({ circle }: { circle: Circle }) {
       clearTimeout(initial);
       clearInterval(interval);
     };
-  }, [hasAllowance]);
+  }, [hasAllowance, t]);
 
   // Inline toast (Upload proof of delivery is non-functional preview).
   const [toast, setToast] = useState<string | null>(null);
@@ -121,7 +129,7 @@ export default function CircleManageScreen({ circle }: { circle: Circle }) {
             {Ico.back({})}
           </IconButton>
         }
-        title="Manage circle"
+        title={t("circles.manageTitle")}
         trailing={<Stage2Pill />}
       />
 
@@ -154,7 +162,7 @@ export default function CircleManageScreen({ circle }: { circle: Circle }) {
                 c: allowance.tier === 2 ? T.moneyIn : T.action,
               })}
             >
-              {KYC_TIER_LABEL[allowance.tier]}
+              {t(TIER_KEY[allowance.tier])}
             </Chip>
           )}
         </div>
@@ -180,7 +188,7 @@ export default function CircleManageScreen({ circle }: { circle: Circle }) {
                   color: T.slate,
                 }}
               >
-                Raised so far
+                {t("circles.raisedSoFar")}
               </div>
               <div style={{ marginTop: 4, fontSize: 20, fontWeight: 600 }}>
                 {raised.symbol}
@@ -197,7 +205,7 @@ export default function CircleManageScreen({ circle }: { circle: Circle }) {
                   color: T.slate,
                 }}
               >
-                Progress
+                {t("circles.progress")}
               </div>
               <div style={{ marginTop: 4, fontSize: 16, fontWeight: 600 }}>
                 {pct}%
@@ -211,7 +219,7 @@ export default function CircleManageScreen({ circle }: { circle: Circle }) {
       </div>
 
       {/* Allowance status */}
-      <SectionHead>Operational allowance</SectionHead>
+      <SectionHead>{t("circles.allowanceH1")}</SectionHead>
       <div style={{ padding: "0 16px" }}>
         <Card>
           {hasAllowance && allowance ? (
@@ -233,7 +241,7 @@ export default function CircleManageScreen({ circle }: { circle: Circle }) {
                       color: T.slate,
                     }}
                   >
-                    Accrued in escrow
+                    {t("circles.accruedEscrow")}
                   </div>
                   <div
                     style={{
@@ -248,7 +256,7 @@ export default function CircleManageScreen({ circle }: { circle: Circle }) {
                   </div>
                 </div>
                 <Chip kind="warn" leading={Ico.lock({ size: 11, c: T.warn })}>
-                  {allowancePct}% locked
+                  {t("circles.pctLocked", { pct: allowancePct })}
                 </Chip>
               </div>
               <div
@@ -269,9 +277,8 @@ export default function CircleManageScreen({ circle }: { circle: Circle }) {
                   {Ico.shield({ size: 14, c: T.warn })}
                 </div>
                 <div>
-                  <strong>Blocked pending proof of delivery.</strong> Funds
-                  release once you upload photo, signature, or receipt of the
-                  beneficiary receiving the disbursement.
+                  <strong>{t("circles.blockedStrong")}</strong>{" "}
+                  {t("circles.blockedBody")}
                 </div>
               </div>
             </>
@@ -285,7 +292,7 @@ export default function CircleManageScreen({ circle }: { circle: Circle }) {
                   lineHeight: 1.4,
                 }}
               >
-                No allowance configured for this circle.
+                {t("circles.noAllowanceTitle")}
               </div>
               <p
                 style={{
@@ -295,9 +302,7 @@ export default function CircleManageScreen({ circle }: { circle: Circle }) {
                   lineHeight: 1.5,
                 }}
               >
-                100% goes to the beneficiary - the day-30 Disaster Vault model.
-                Operational allowance (Build-Award stage 2) is opt-in at
-                circle creation; this one was created at 0%.
+                {t("circles.noAllowanceBody")}
               </p>
             </>
           )}
@@ -305,7 +310,7 @@ export default function CircleManageScreen({ circle }: { circle: Circle }) {
       </div>
 
       {/* Upload proof of delivery */}
-      <SectionHead>Proof of delivery</SectionHead>
+      <SectionHead>{t("circles.proofOfDelivery")}</SectionHead>
       <div style={{ padding: "0 16px" }}>
         <Card>
           <div
@@ -332,7 +337,7 @@ export default function CircleManageScreen({ circle }: { circle: Circle }) {
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 14, fontWeight: 600 }}>
-                Upload proof
+                {t("circles.uploadProof")}
               </div>
               <p
                 style={{
@@ -342,9 +347,7 @@ export default function CircleManageScreen({ circle }: { circle: Circle }) {
                   lineHeight: 1.5,
                 }}
               >
-                Photo, signature, or receipt of the beneficiary receiving the
-                disbursement. Hashed on-chain at Build-Award stage 2; not yet
-                live.
+                {t("circles.uploadProofBody")}
               </p>
             </div>
           </div>
@@ -352,20 +355,16 @@ export default function CircleManageScreen({ circle }: { circle: Circle }) {
             <Btn
               kind="primary"
               leading={Ico.arrowUp({ c: "#fff" })}
-              onClick={() =>
-                setToast(
-                  "This goes live at Build-Award. Currently a UI preview."
-                )
-              }
+              onClick={() => setToast(t("circles.uploadProofToast"))}
             >
-              Upload proof of delivery
+              {t("circles.uploadProofCta")}
             </Btn>
           </div>
         </Card>
       </div>
 
       {/* Reputation */}
-      <SectionHead>Reputation</SectionHead>
+      <SectionHead>{t("circles.reputation")}</SectionHead>
       <div style={{ padding: "0 16px" }}>
         <Card>
           <div
@@ -404,7 +403,7 @@ export default function CircleManageScreen({ circle }: { circle: Circle }) {
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 14, fontWeight: 600 }}>
-                Reputation score
+                {t("circles.reputationScore")}
               </div>
               <div
                 style={{
@@ -414,9 +413,7 @@ export default function CircleManageScreen({ circle }: { circle: Circle }) {
                   lineHeight: 1.5,
                 }}
               >
-                Each circle closed with verified delivery improves this score.
-                A successful close also unlocks Tier 2 eligibility after three
-                closes.
+                {t("circles.reputationBody")}
               </div>
             </div>
           </div>
@@ -428,9 +425,18 @@ export default function CircleManageScreen({ circle }: { circle: Circle }) {
               gap: 8,
             }}
           >
-            <Stat label="Closed" value={String(reputation.closedCircles)} />
-            <Stat label="Verified" value={String(reputation.verifiedDeliveries)} />
-            <Stat label="Open disputes" value={String(reputation.openDisputes)} />
+            <Stat
+              label={t("circles.statClosed")}
+              value={String(reputation.closedCircles)}
+            />
+            <Stat
+              label={t("circles.statVerified")}
+              value={String(reputation.verifiedDeliveries)}
+            />
+            <Stat
+              label={t("circles.statOpenDisputes")}
+              value={String(reputation.openDisputes)}
+            />
           </div>
           {!reputation.tier2Eligible && (
             <div
@@ -441,10 +447,11 @@ export default function CircleManageScreen({ circle }: { circle: Circle }) {
                 lineHeight: 1.5,
               }}
             >
-              Tier 2 needs 3+ closed circles with verified delivery (currently{" "}
-              {reputation.closedCircles}). Ceiling at Tier{" "}
-              {allowance?.tier ?? 0} is{" "}
-              {KYC_TIER_CEILING[allowance?.tier ?? 0]}%.
+              {t("circles.tier2Need", {
+                closes: reputation.closedCircles,
+                tier: t(TIER_KEY[allowance?.tier ?? 0]),
+                ceiling: KYC_TIER_CEILING[allowance?.tier ?? 0],
+              })}
             </div>
           )}
         </Card>
@@ -453,7 +460,7 @@ export default function CircleManageScreen({ circle }: { circle: Circle }) {
       {/* Dispute window */}
       {hasAllowance && (
         <>
-          <SectionHead>Dispute window</SectionHead>
+          <SectionHead>{t("circles.disputeWindow")}</SectionHead>
           <div style={{ padding: "0 16px" }}>
             <Card>
               <div
@@ -480,7 +487,7 @@ export default function CircleManageScreen({ circle }: { circle: Circle }) {
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 14, fontWeight: 600 }}>
-                    Seven-day donor dispute window
+                    {t("circles.disputeWindowTitle")}
                   </div>
                   <div
                     style={{
@@ -490,8 +497,7 @@ export default function CircleManageScreen({ circle }: { circle: Circle }) {
                       lineHeight: 1.5,
                     }}
                   >
-                    Donors can flag spending; a multi-donor signal triggers a
-                    freeze and community review. (Mocked countdown in preview.)
+                    {t("circles.disputeWindowBody")}
                   </div>
                 </div>
               </div>
@@ -518,7 +524,7 @@ export default function CircleManageScreen({ circle }: { circle: Circle }) {
                     fontWeight: 500,
                   }}
                 >
-                  mock window
+                  {t("circles.mockWindow")}
                 </span>
               </div>
             </Card>
@@ -533,7 +539,7 @@ export default function CircleManageScreen({ circle }: { circle: Circle }) {
           textAlign: "center",
         }}
       >
-        <WhyExistsLink label="How the five trust gates work" align="center" />
+        <WhyExistsLink label={t("circles.trustGatesLink")} align="center" />
       </div>
 
       <div

@@ -29,20 +29,33 @@ import {
   WhyExistsLink,
 } from "@/components/ui/OperationalAllowanceExplainer";
 import {
-  CATEGORY_LABEL,
   progressPct,
+  type CircleCategory,
   type Circle,
 } from "@/lib/circles/types";
-import {
-  KYC_TIER_LABEL,
-  localePreviewSplit,
-} from "@/lib/circles/allowance";
+import { localePreviewSplit } from "@/lib/circles/allowance";
+import type { KycTier } from "@/lib/circles/allowance";
+
+// Maps shared enums to their localized circles.* keys.
+const CATEGORY_KEY: Record<CircleCategory, string> = {
+  disaster: "circles.catDisaster",
+  medical: "circles.catMedical",
+  education: "circles.catEducation",
+  community: "circles.catCommunity",
+  family: "circles.catFamily",
+  creator: "circles.catCreator",
+};
+const TIER_KEY: Record<KycTier, string> = {
+  0: "circles.tier0",
+  1: "circles.tier1",
+  2: "circles.tier2",
+};
 
 type Tab = "story" | "recent" | "transparency";
 
 export default function CircleDetailScreen({ circle }: { circle: Circle }) {
   const router = useRouter();
-  const { locale } = useT();
+  const { locale, t } = useT();
   const [tab, setTab] = useState<Tab>("story");
 
   const pct = progressPct(circle);
@@ -109,7 +122,7 @@ export default function CircleDetailScreen({ circle }: { circle: Circle }) {
             textTransform: "uppercase",
           }}
         >
-          {CATEGORY_LABEL[circle.category]}
+          {t(CATEGORY_KEY[circle.category])}
         </div>
       </div>
 
@@ -138,7 +151,7 @@ export default function CircleDetailScreen({ circle }: { circle: Circle }) {
               {circle.organizer}
             </div>
             <div style={{ fontSize: 11.5, color: T.slate }}>
-              {circle.organizerLocation} · organizer
+              {circle.organizerLocation} · {t("circles.organizer")}
             </div>
           </div>
           <span style={{ marginLeft: "auto" }}>
@@ -146,7 +159,9 @@ export default function CircleDetailScreen({ circle }: { circle: Circle }) {
               <button
                 type="button"
                 onClick={() => router.push("/you/kyc-tier")}
-                aria-label={`Organizer KYC ${KYC_TIER_LABEL[allowance.tier]} - learn more`}
+                aria-label={t("circles.kycAria", {
+                  tier: t(TIER_KEY[allowance.tier]),
+                })}
                 style={{
                   border: "none",
                   background: "transparent",
@@ -161,12 +176,12 @@ export default function CircleDetailScreen({ circle }: { circle: Circle }) {
                     c: allowance.tier === 2 ? T.moneyIn : T.action,
                   })}
                 >
-                  {KYC_TIER_LABEL[allowance.tier]} · KYC
+                  {t("circles.kycChip", { tier: t(TIER_KEY[allowance.tier]) })}
                 </Chip>
               </button>
             ) : (
               <Chip kind="action" leading={Ico.verify({ size: 11, c: T.action })}>
-                Verified at launch
+                {t("circles.verifiedAtLaunch")}
               </Chip>
             )}
           </span>
@@ -194,7 +209,7 @@ export default function CircleDetailScreen({ circle }: { circle: Circle }) {
                   color: T.slate,
                 }}
               >
-                Raised so far
+                {t("circles.raisedSoFar")}
               </div>
               <div style={{ marginTop: 4, fontSize: 22, fontWeight: 600 }}>
                 {raised.symbol}
@@ -216,7 +231,7 @@ export default function CircleDetailScreen({ circle }: { circle: Circle }) {
                   color: T.slate,
                 }}
               >
-                Goal
+                {t("circles.goal")}
               </div>
               <div style={{ marginTop: 4, fontSize: 15, fontWeight: 600 }}>
                 {target.symbol}
@@ -236,11 +251,11 @@ export default function CircleDetailScreen({ circle }: { circle: Circle }) {
               color: T.slate,
             }}
           >
-            <span>{circle.donorCount} donors · {pct}%</span>
+            <span>{t("circles.donorsPct", { count: circle.donorCount, pct })}</span>
             <span>
               {circle.daysRemaining > 0
-                ? `${circle.daysRemaining} days left`
-                : "Closing soon"}
+                ? t("circles.daysLeft", { n: circle.daysRemaining })
+                : t("circles.closingSoon")}
             </span>
           </div>
         </Card>
@@ -258,7 +273,11 @@ export default function CircleDetailScreen({ circle }: { circle: Circle }) {
       >
         {(["story", "recent", "transparency"] as Tab[]).map((id) => {
           const label =
-            id === "story" ? "Story" : id === "recent" ? "Recent" : "Transparency";
+            id === "story"
+              ? t("circles.tabStory")
+              : id === "recent"
+                ? t("circles.tabRecent")
+                : t("circles.tabTransparency");
           const active = id === tab;
           return (
             <button
@@ -375,8 +394,7 @@ export default function CircleDetailScreen({ circle }: { circle: Circle }) {
               lineHeight: 1.5,
             }}
           >
-            Preview seed data. Real donor feed appears here at Build-Award
-            launch, each entry linked to its on-chain receipt.
+            {t("circles.recentSeedNote")}
           </div>
         </div>
       )}
@@ -407,7 +425,7 @@ export default function CircleDetailScreen({ circle }: { circle: Circle }) {
                 {Ico.shield({ size: 16, c: T.warn })}
               </div>
               <div style={{ fontSize: 14, fontWeight: 600 }}>
-                On-chain receipts arrive at Build-Award launch
+                {t("circles.receiptsTitle")}
               </div>
             </div>
             <p
@@ -418,10 +436,7 @@ export default function CircleDetailScreen({ circle }: { circle: Circle }) {
                 margin: "6px 0 0",
               }}
             >
-              On-chain receipts will appear here at Build-Award launch (the same
-              on-chain receipt mechanism that powers Disaster Vault today).
-              Every contribution and disbursement will be a public Stellar
-              transaction, independently verifiable on stellar.expert.
+              {t("circles.receiptsBody")}
             </p>
             <div
               style={{
@@ -434,9 +449,7 @@ export default function CircleDetailScreen({ circle }: { circle: Circle }) {
                 lineHeight: 1.5,
               }}
             >
-              The Disaster Vault is the live primitive Salapi Circles is built
-              on. It runs the same contribute / public-receipt mechanism today,
-              already on Stellar testnet.
+              {t("circles.receiptsVaultNote")}
             </div>
             <div style={{ marginTop: 12 }}>
               <Btn
@@ -445,7 +458,7 @@ export default function CircleDetailScreen({ circle }: { circle: Circle }) {
                 onClick={() => router.push("/transparency")}
                 trailing={Ico.chev({ c: T.ink })}
               >
-                Open the Disaster Vault (live on testnet)
+                {t("circles.openVaultCta")}
               </Btn>
             </div>
           </Card>
@@ -476,7 +489,7 @@ export default function CircleDetailScreen({ circle }: { circle: Circle }) {
                 color: T.slate,
               }}
             >
-              Donation breakdown
+              {t("circles.breakdownLabel")}
             </div>
             {hasAllowance && (
               <span
@@ -491,7 +504,7 @@ export default function CircleDetailScreen({ circle }: { circle: Circle }) {
                   color: "#fff",
                 }}
               >
-                Stage 2
+                {t("circles.stage2")}
               </span>
             )}
           </div>
@@ -506,14 +519,11 @@ export default function CircleDetailScreen({ circle }: { circle: Circle }) {
                   color: T.ink,
                 }}
               >
-                Of every {preview.fmtSample} you donate,{" "}
-                <strong>{preview.fmtBeneficiary}</strong> goes directly to the
-                beneficiary. <strong>{preview.fmtAllowance}</strong> covers
-                operational cost for{" "}
-                <strong>{allowance.organizerName}</strong>, who is verified{" "}
-                <strong>{KYC_TIER_LABEL[allowance.tier]}</strong>. The
-                operational allowance is held by the contract until the
-                organizer uploads proof of beneficiary receipt.
+                {t("circles.splitLine1", { sample: preview.fmtSample })}{" "}
+                <strong>{preview.fmtBeneficiary}</strong>{" "}
+                {t("circles.splitLine2", { allowance: preview.fmtAllowance })}{" "}
+                <strong>{allowance.organizerName}</strong>,{" "}
+                {t("circles.splitLine3", { tier: t(TIER_KEY[allowance.tier]) })}
               </p>
               {/* Stacked bar */}
               <div
@@ -560,7 +570,7 @@ export default function CircleDetailScreen({ circle }: { circle: Circle }) {
                       verticalAlign: "middle",
                     }}
                   />
-                  Beneficiary {100 - allowancePct}%
+                  {t("circles.beneficiaryPct", { pct: 100 - allowancePct })}
                 </span>
                 <span>
                   <span
@@ -574,7 +584,7 @@ export default function CircleDetailScreen({ circle }: { circle: Circle }) {
                       verticalAlign: "middle",
                     }}
                   />
-                  Operational {allowancePct}%
+                  {t("circles.operationalPct", { pct: allowancePct })}
                 </span>
               </div>
               <div
@@ -586,7 +596,7 @@ export default function CircleDetailScreen({ circle }: { circle: Circle }) {
                   gap: 8,
                 }}
               >
-                <WhyExistsLink label="Why this split exists" />
+                <WhyExistsLink label={t("circles.whySplit")} />
                 <span
                   style={{
                     fontSize: 11,
@@ -594,7 +604,7 @@ export default function CircleDetailScreen({ circle }: { circle: Circle }) {
                     fontFamily: T.fontMono,
                   }}
                 >
-                  preview - not on-chain today
+                  {t("circles.previewNotOnChainToday")}
                 </span>
               </div>
             </>
@@ -608,9 +618,8 @@ export default function CircleDetailScreen({ circle }: { circle: Circle }) {
                   color: T.ink,
                 }}
               >
-                <strong>100% to beneficiary.</strong> No operational allowance
-                set - this circle uses the day-30 Disaster Vault model: every
-                peso reaches the beneficiary, no organizer cut.
+                <strong>{t("circles.fullToBeneficiaryStrong")}</strong>{" "}
+                {t("circles.fullToBeneficiaryBody")}
               </p>
               <div
                 style={{
@@ -621,7 +630,7 @@ export default function CircleDetailScreen({ circle }: { circle: Circle }) {
                   gap: 8,
                 }}
               >
-                <WhyExistsLink label="About operational allowance" />
+                <WhyExistsLink label={t("circles.aboutAllowance")} />
                 <span
                   style={{
                     fontSize: 11,
@@ -629,7 +638,7 @@ export default function CircleDetailScreen({ circle }: { circle: Circle }) {
                     fontFamily: T.fontMono,
                   }}
                 >
-                  default 0%
+                  {t("circles.default0")}
                 </span>
               </div>
             </>
@@ -647,7 +656,7 @@ export default function CircleDetailScreen({ circle }: { circle: Circle }) {
           leading={Ico.shield({ c: "#fff" })}
           onClick={() => router.push(`/circles/${circle.id}/donate`)}
         >
-          Donate to this circle
+          {t("circles.donateToCircle")}
         </Btn>
         <div
           style={{
@@ -658,7 +667,7 @@ export default function CircleDetailScreen({ circle }: { circle: Circle }) {
             lineHeight: 1.45,
           }}
         >
-          Preview - your pledge joins the launch waitlist; no charge today.
+          {t("circles.donateCircleNote")}
         </div>
       </div>
 
@@ -684,7 +693,7 @@ export default function CircleDetailScreen({ circle }: { circle: Circle }) {
           full={false}
           onClick={() => router.push(`/circles/${circle.id}/manage`)}
         >
-          Organizer view (preview) →
+          {t("circles.organizerViewCta")} →
         </Btn>
       </div>
     </div>

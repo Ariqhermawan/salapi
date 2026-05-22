@@ -33,7 +33,7 @@ const QUICK = [100, 250, 500, 1000, 2500];
 
 export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
   const router = useRouter();
-  const { locale } = useT();
+  const { locale, t } = useT();
 
   const [phase, setPhase] = useState<Phase>("amount");
   const [amount, setAmount] = useState<number>(500);
@@ -56,18 +56,18 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
   const methods: { id: Method; title: string; sub: string }[] = [
     {
       id: "gcash",
-      title: "GCash",
-      sub: locale === "id" ? "PH rail · preview" : "PH e-wallet · preview",
+      title: t("circles.methodGcash"),
+      sub: t("circles.methodGcashSub"),
     },
     {
       id: "qris",
-      title: "QRIS",
-      sub: "Indonesia · any bank or e-wallet · preview",
+      title: t("circles.methodQris"),
+      sub: t("circles.methodQrisSub"),
     },
     {
       id: "balance",
-      title: "Salapi balance",
-      sub: "Top up first · preview",
+      title: t("circles.methodBalance"),
+      sub: t("circles.methodBalanceSub"),
     },
   ];
 
@@ -76,7 +76,7 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
     const trimmed = email.trim();
     // Lightweight email shape check; the server action validates again.
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
-      setErr("Please enter a valid email so we can notify you.");
+      setErr(t("circles.badEmail"));
       return;
     }
     start(async () => {
@@ -89,7 +89,7 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
         marketingOk,
       });
       if (r.ok) setPhase("done");
-      else setErr(r.error || "Couldn't save your pledge. Please try again.");
+      else setErr(r.error || t("circles.saveFailed"));
     });
   }
 
@@ -104,13 +104,13 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
               {Ico.back({})}
             </IconButton>
           }
-          title="Donate"
+          title={t("circles.donateTitle")}
           trailing={<PreviewBadge />}
         />
 
         <div style={{ padding: "4px 16px 12px" }}>
           <Card>
-            <Chip kind="action">Circle</Chip>
+            <Chip kind="action">{t("circles.circleChip")}</Chip>
             <div
               style={{
                 marginTop: 10,
@@ -128,7 +128,8 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
                 color: T.slate,
               }}
             >
-              by {circle.organizer} · {circle.organizerLocation}
+              {t("circles.by", { name: circle.organizer })} ·{" "}
+              {circle.organizerLocation}
             </div>
           </Card>
         </div>
@@ -144,7 +145,7 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
               color: T.slate,
             }}
           >
-            You&apos;re pledging
+            {t("circles.pledging")}
           </div>
         </div>
         <div
@@ -196,8 +197,8 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
             }}
           >
             {locale === "tl" || locale === "en"
-              ? "App stores PHP; we render in your locale."
-              : `Local: ${CURRENCY[locale].code}`}
+              ? t("circles.localeRenderNote")
+              : t("circles.localeCodeNote", { code: CURRENCY[locale].code })}
           </div>
         </div>
 
@@ -238,7 +239,7 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
               color: T.slate,
             }}
           >
-            Payment method
+            {t("circles.paymentMethod")}
           </div>
         </div>
         <div style={{ padding: "0 16px" }}>
@@ -301,15 +302,15 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
         <div style={{ padding: "16px 16px 0" }}>
           <Card p={0}>
             <Toggle
-              label="Donate anonymously"
-              sub="Hide your name from the recent donations feed."
+              label={t("circles.toggleAnon")}
+              sub={t("circles.toggleAnonSub")}
               value={anonymous}
               onChange={setAnonymous}
               divider
             />
             <Toggle
-              label="Email me Circles launch updates"
-              sub="No spam. We email you when Salapi Circles goes live."
+              label={t("circles.toggleUpdates")}
+              sub={t("circles.toggleUpdatesSub")}
               value={marketingOk}
               onChange={setMarketingOk}
             />
@@ -335,9 +336,8 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
               {Ico.shield({ size: 16, c: T.warn })}
             </div>
             <div>
-              <strong>Preview only.</strong> Salapi Circles donations will be
-              on-chain at Build-Award. Your pledge today joins the launch
-              waitlist; no charge is made.
+              <strong>{t("circles.previewBannerStrong")}</strong>{" "}
+              {t("circles.previewBannerBody")}
             </div>
           </div>
         </div>
@@ -349,7 +349,7 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
             disabled={amount <= 0}
             onClick={() => setPhase("waitlist")}
           >
-            Continue to waitlist
+            {t("circles.continueWaitlist")}
           </Btn>
         </div>
 
@@ -377,7 +377,7 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
               {Ico.back({})}
             </IconButton>
           }
-          title="Notify me at launch"
+          title={t("circles.notifyTitle")}
           trailing={<PreviewBadge />}
         />
 
@@ -406,8 +406,10 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
               lineHeight: 1.25,
             }}
           >
-            Preview only. Salapi Circles
-            <br /> donations will be on-chain at Build-Award.
+            {t("circles.waitlistHeadline1")}{" "}
+            <span style={{ display: "block" }}>
+              {t("circles.waitlistHeadline2")}
+            </span>
           </div>
           <div
             style={{
@@ -417,10 +419,13 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
               lineHeight: 1.55,
             }}
           >
-            Pledge {amt.symbol}
-            {amt.int}{amt.dp > 0 ? "." + amt.dec : ""} to{" "}
-            <strong style={{ color: T.ink }}>{circle.title}</strong>. We&apos;ll
-            email you the moment Circles launches so you can complete it then.
+            {t("circles.pledgeLine1", {
+              amount: `${amt.symbol}${amt.int}${
+                amt.dp > 0 ? "." + amt.dec : ""
+              }`,
+            })}{" "}
+            <strong style={{ color: T.ink }}>{circle.title}</strong>
+            {t("circles.pledgeLine2")}
           </div>
         </div>
 
@@ -436,7 +441,7 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
               padding: "0 4px 6px",
             }}
           >
-            Notify me when live
+            {t("circles.notifyWhenLive")}
           </label>
           <Card p={0}>
             <div style={{ padding: "12px 16px" }}>
@@ -485,7 +490,7 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
             loading={pending}
             onClick={submitWaitlist}
           >
-            Add me to the launch list
+            {t("circles.addToLaunchList")}
           </Btn>
           <div
             style={{
@@ -496,8 +501,7 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
               lineHeight: 1.5,
             }}
           >
-            By joining you accept our terms and privacy policy. No money is
-            charged today.
+            {t("circles.joinTerms")}
           </div>
         </div>
 
@@ -553,7 +557,7 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
             textTransform: "uppercase",
           }}
         >
-          Pledge saved
+          {t("circles.pledgeSaved")}
         </div>
         <div
           style={{
@@ -564,7 +568,7 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
             lineHeight: 1.25,
           }}
         >
-          We&apos;ll email you the moment Circles goes live.
+          {t("circles.pledgeSavedHeadline")}
         </div>
         <div
           style={{
@@ -576,19 +580,22 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
             margin: "10px auto 0",
           }}
         >
-          {amt.symbol}
-          {amt.int}{amt.dp > 0 ? "." + amt.dec : ""} pledged to{" "}
-          <strong style={{ color: T.ink }}>{circle.title}</strong>. No charge
-          today.
+          {t("circles.pledgeSavedLine1", {
+            amount: `${amt.symbol}${amt.int}${
+              amt.dp > 0 ? "." + amt.dec : ""
+            }`,
+          })}{" "}
+          <strong style={{ color: T.ink }}>{circle.title}</strong>
+          {t("circles.pledgeSavedLine2")}
         </div>
       </div>
 
       <div style={{ padding: "30px 16px 0", display: "flex", flexDirection: "column", gap: 10 }}>
         <Btn kind="primary" onClick={() => router.push("/circles")}>
-          Back to Circles
+          {t("circles.backToCircles")}
         </Btn>
         <Btn kind="secondary" onClick={() => router.push("/transparency")}>
-          See the live primitive: Disaster Vault
+          {t("circles.seePrimitiveShort")}
         </Btn>
       </div>
 
