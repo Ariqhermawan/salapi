@@ -27,6 +27,14 @@ export const CURRENCY: Record<Locale, CurrencyMeta> = {
   vi: { code: "VND", symbol: "₫", perUsdc: 25500, dp: 0, intl: "vi-VN" },
 };
 
+// "CODE · Name" label per display currency, for the settings UI.
+export const CURRENCY_LABEL: Record<Locale, string> = {
+  en: "USD · US Dollar",
+  tl: "PHP · Piso",
+  id: "IDR · Rupiah",
+  vi: "VND · Đồng",
+};
+
 export function pesoToUsdc(php: number): number {
   return (php || 0) / PHP_PER_USDC;
 }

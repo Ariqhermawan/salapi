@@ -63,7 +63,7 @@ function formatRemaining(iso: string, t: TFn): string {
 
 export default function CircleManageScreen({ circle }: { circle: Circle }) {
   const router = useRouter();
-  const { locale, t } = useT();
+  const { currency, t } = useT();
 
   const allowance = circle.allowance;
   const allowancePct = allowance?.percentage ?? 0;
@@ -111,8 +111,8 @@ export default function CircleManageScreen({ circle }: { circle: Circle }) {
   }, [toast]);
 
   const pct = progressPct(circle);
-  const raised = formatParts(circle.pesoRaised, locale);
-  const accrued = formatParts(allowance?.pesoAccrued ?? 0, locale);
+  const raised = formatParts(circle.pesoRaised, currency);
+  const accrued = formatParts(allowance?.pesoAccrued ?? 0, currency);
 
   return (
     <div

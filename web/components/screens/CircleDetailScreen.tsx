@@ -55,19 +55,19 @@ type Tab = "story" | "recent" | "transparency";
 
 export default function CircleDetailScreen({ circle }: { circle: Circle }) {
   const router = useRouter();
-  const { locale, t } = useT();
+  const { currency, t } = useT();
   const [tab, setTab] = useState<Tab>("story");
 
   const pct = progressPct(circle);
-  const raised = formatParts(circle.pesoRaised, locale);
-  const target = formatParts(circle.pesoTarget, locale);
+  const raised = formatParts(circle.pesoRaised, currency);
+  const target = formatParts(circle.pesoTarget, currency);
   const [from, to] = circle.coverGradient;
   const allowance = circle.allowance;
   const allowancePct = allowance?.percentage ?? 0;
   const hasAllowance = allowancePct > 0;
   // Locale-aware round sample ("Of every Rp 100,000..." vs awkward
   // "Of every Rp 27,586..." from PHP-to-IDR conversion).
-  const preview = localePreviewSplit(locale, allowancePct);
+  const preview = localePreviewSplit(currency, allowancePct);
 
   return (
     <div
@@ -326,7 +326,7 @@ export default function CircleDetailScreen({ circle }: { circle: Circle }) {
         <div style={{ padding: "16px 16px 0" }}>
           <Card p={0}>
             {circle.recentDonations.map((d, i, arr) => {
-              const amt = formatParts(d.pesoAmount, locale);
+              const amt = formatParts(d.pesoAmount, currency);
               return (
                 <div
                   key={d.id}

@@ -16,8 +16,8 @@ import {
 import { createSupabaseBrowser } from "@/lib/supabase/client";
 import { supabaseConfigured } from "@/lib/supabase/env";
 import { useT } from "@/components/I18nProvider";
-import { LOCALE_META, type Locale } from "@/lib/i18n/config";
-import { CURRENCY } from "@/lib/ui/currency";
+import { LOCALE_META } from "@/lib/i18n/config";
+import { CURRENCY, CURRENCY_LABEL } from "@/lib/ui/currency";
 import {
   T,
   Ico,
@@ -32,15 +32,6 @@ import {
 } from "@/components/ui/kit";
 
 const NOTIF_KEY = "salapi_notif";
-
-// Display-currency label per locale. The rail is USDC; the user only ever
-// sees their local currency, which follows the chosen language.
-const CURRENCY_LABEL: Record<Locale, string> = {
-  en: "USD · US Dollar",
-  tl: "PHP · Piso",
-  id: "IDR · Rupiah",
-  vi: "VND · Đồng",
-};
 
 function Switch({ on }: { on: boolean }) {
   return (
@@ -218,7 +209,7 @@ function UsernamePanel({
 }
 
 export default function SettingsScreen() {
-  const { t, locale } = useT();
+  const { t, locale, currency, currencyPref } = useT();
   const router = useRouter();
   const [name, setName] = useState<string | null>(null);
   const [addr, setAddr] = useState<string>("");
@@ -370,13 +361,18 @@ export default function SettingsScreen() {
           />
           <Row
             leading={iconBox(
-              <span>{CURRENCY[locale].symbol.trim()}</span>,
+              <span>{CURRENCY[currency].symbol.trim()}</span>,
               T.actionTint,
               T.action
             )}
             title={t("settings.currency")}
-            sub={t("settings.currencySub")}
-            trailing={value(CURRENCY_LABEL[locale])}
+            sub={
+              currencyPref
+                ? t("settings.currencyManual")
+                : t("settings.currencySub")
+            }
+            onClick={() => router.push("/settings/currency")}
+            trailing={value(CURRENCY_LABEL[currency])}
           />
           <Row
             leading={iconBox(Ico.bell({ c: T.action }), T.actionTint, T.action)}

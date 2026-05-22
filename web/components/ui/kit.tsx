@@ -152,12 +152,13 @@ export function Avatar({ name = "?", size = 36 }: { name?: string; size?: number
 }
 
 export function Peso({ value = 0, size = 44, color, weight = 600, sign }: { value?: number; size?: number; color?: string; weight?: number; sign?: "+" | "-" }) {
-  const n = Math.abs(value).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const { currency } = useT();
+  const { symbol, int, dec, dp } = formatParts(value, currency);
   return (
     <span className="sl-balance" style={{ fontSize: size, fontWeight: weight, color: color ?? T.ink, letterSpacing: "-0.025em", display: "inline-flex", alignItems: "baseline", lineHeight: 1 }}>
-      <span style={{ fontSize: size * 0.62, opacity: 0.7, marginRight: 2 }}>{sign === "+" ? "+" : sign === "-" ? "-" : ""}₱</span>
-      <span>{n.split(".")[0]}</span>
-      <span style={{ fontSize: size * 0.5, opacity: 0.55 }}>.{n.split(".")[1] || "00"}</span>
+      <span style={{ fontSize: size * 0.62, opacity: 0.7, marginRight: 2 }}>{sign === "+" ? "+" : sign === "-" ? "-" : ""}{symbol}</span>
+      <span>{int}</span>
+      {dp > 0 && <span style={{ fontSize: size * 0.5, opacity: 0.55 }}>.{dec || "".padEnd(dp, "0")}</span>}
     </span>
   );
 }
@@ -179,8 +180,8 @@ export function Money({
   sign?: "+" | "-";
   usdc?: boolean;
 }) {
-  const { locale } = useT();
-  const { symbol, int, dec, dp } = formatParts(value, locale);
+  const { currency } = useT();
+  const { symbol, int, dec, dp } = formatParts(value, currency);
   const light = typeof color === "string" && /#fff|255,\s*255,\s*255|white/i.test(color);
   const secondary = light ? "rgba(255,255,255,0.62)" : T.slate;
   return (

@@ -79,10 +79,10 @@ function sortFor(filter: DiscoverFilter, circles: Circle[]): Circle[] {
 
 function CircleCard({ circle }: { circle: Circle }) {
   const router = useRouter();
-  const { locale, t } = useT();
+  const { currency, t } = useT();
   const pct = progressPct(circle);
-  const raised = formatParts(circle.pesoRaised, locale);
-  const target = formatParts(circle.pesoTarget, locale);
+  const raised = formatParts(circle.pesoRaised, currency);
+  const target = formatParts(circle.pesoTarget, currency);
   const [from, to] = circle.coverGradient;
   return (
     <Card

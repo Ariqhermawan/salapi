@@ -16,10 +16,18 @@ import {
 } from "@/lib/i18n/config";
 import { DICTS } from "@/lib/i18n/dictionaries";
 
+// Display-currency preference, stored apart from the language. null means
+// "follow the language" — the default the app shipped with.
+const CURRENCY_PREF_KEY = "salapi_currency";
+
 type Ctx = {
   locale: Locale;
   setLocale: (l: Locale) => void;
   t: (key: string, vars?: Record<string, string | number>) => string;
+  // Resolved display currency (currencyPref ?? locale) and its controls.
+  currency: Locale;
+  currencyPref: Locale | null;
+  setCurrency: (c: Locale | null) => void;
 };
 
 const I18nContext = createContext<Ctx | null>(null);
@@ -38,6 +46,7 @@ function resolve(obj: unknown, path: string): string | undefined {
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>(DEFAULT_LOCALE);
+  const [currencyPref, setCurrencyPrefState] = useState<Locale | null>(null);
 
   useEffect(() => {
     const fromLs =
@@ -48,6 +57,11 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
       ?.split("=")[1];
     const initial = fromLs ?? fromCookie;
     if (isLocale(initial) && initial !== locale) setLocaleState(initial);
+    const cur =
+      typeof window !== "undefined"
+        ? localStorage.getItem(CURRENCY_PREF_KEY)
+        : null;
+    if (isLocale(cur)) setCurrencyPrefState(cur);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -57,6 +71,16 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem(LOCALE_COOKIE, l);
       document.cookie = `${LOCALE_COOKIE}=${l}; path=/; max-age=31536000`;
       document.documentElement.lang = l;
+    } catch {
+      /* storage may be unavailable */
+    }
+  }, []);
+
+  const setCurrency = useCallback((c: Locale | null) => {
+    setCurrencyPrefState(c);
+    try {
+      if (c) localStorage.setItem(CURRENCY_PREF_KEY, c);
+      else localStorage.removeItem(CURRENCY_PREF_KEY);
     } catch {
       /* storage may be unavailable */
     }
@@ -74,9 +98,12 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     [locale]
   );
 
+  // Display currency: an explicit pick, otherwise it follows the language.
+  const currency: Locale = currencyPref ?? locale;
+
   const value = useMemo(
-    () => ({ locale, setLocale, t }),
-    [locale, setLocale, t]
+    () => ({ locale, setLocale, t, currency, currencyPref, setCurrency }),
+    [locale, setLocale, t, currency, currencyPref, setCurrency]
   );
   return <I18nContext value={value}>{children}</I18nContext>;
 }

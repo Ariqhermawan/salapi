@@ -1,12 +1,12 @@
 "use client";
 
 // Language picker — opened from Kamu › Preferensi › Bahasa. One header
-// (the AppBar title); the old inline LanguageSwitcher duplicated it.
-// Region-code badges render identically across OSes (unlike flag emoji,
-// which Windows shows as bare letters).
+// (the AppBar title). Each row shows the country flag and the display
+// currency that language carries (the currency follows the language).
 
 import { useRouter } from "next/navigation";
 import { LOCALES, LOCALE_META, type Locale } from "@/lib/i18n/config";
+import { CURRENCY } from "@/lib/ui/currency";
 import { useT } from "@/components/I18nProvider";
 import {
   T,
@@ -15,12 +15,13 @@ import {
   IconButton,
   PoweredByStellar,
 } from "@/components/ui/kit";
+import { Flag, type FlagCode } from "@/components/ui/flags";
 
-const REGION: Record<Locale, string> = {
-  en: "GB",
-  tl: "PH",
-  id: "ID",
-  vi: "VN",
+const FLAG: Record<Locale, FlagCode> = {
+  en: "gb",
+  tl: "ph",
+  id: "id",
+  vi: "vn",
 };
 
 export default function LanguagePickerScreen() {
@@ -76,21 +77,14 @@ export default function LanguagePickerScreen() {
               <span
                 aria-hidden
                 style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 12,
                   flex: "0 0 auto",
-                  background: active ? T.actionTint : T.canvas,
-                  color: active ? T.action : T.slate,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 14,
-                  fontWeight: 700,
-                  letterSpacing: "0.03em",
+                  borderRadius: 5,
+                  overflow: "hidden",
+                  boxShadow: "0 0 0 1px rgba(11,18,32,0.12)",
+                  lineHeight: 0,
                 }}
               >
-                {REGION[l]}
+                <Flag code={FLAG[l]} w={34} />
               </span>
               <span style={{ flex: 1, minWidth: 0 }}>
                 <span
@@ -111,7 +105,7 @@ export default function LanguagePickerScreen() {
                     marginTop: 1,
                   }}
                 >
-                  {m.english}
+                  {m.english} · {CURRENCY[l].code}
                 </span>
               </span>
               {active && Ico.check({ size: 20, c: T.action })}

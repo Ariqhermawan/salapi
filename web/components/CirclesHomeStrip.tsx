@@ -22,7 +22,7 @@ const FEATURED = ["tino-relief", "ate-mei-dialysis", "barangay-library"];
 
 export default function CirclesHomeStrip() {
   const router = useRouter();
-  const { t, locale } = useT();
+  const { t, currency } = useT();
   const circles = SEED_CIRCLES.filter((c) => FEATURED.includes(c.id));
 
   return (
@@ -39,7 +39,7 @@ export default function CirclesHomeStrip() {
       >
         {circles.map((c) => {
           const pct = progressPct(c);
-          const raised = formatParts(c.pesoRaised, locale);
+          const raised = formatParts(c.pesoRaised, currency);
           const [from, to] = c.coverGradient;
           return (
             <div

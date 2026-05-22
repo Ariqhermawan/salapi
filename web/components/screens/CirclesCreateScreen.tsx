@@ -104,7 +104,7 @@ function slugify(s: string): string {
 
 export default function CirclesCreateScreen() {
   const router = useRouter();
-  const { locale, t } = useT();
+  const { locale, t, currency } = useT();
 
   const [step, setStep] = useState<Step>(0);
   const [title, setTitle] = useState("");
@@ -319,7 +319,7 @@ export default function CirclesCreateScreen() {
 
   // ── STEP 2: Goal + category + duration ──
   if (step === 2) {
-    const amt = formatParts(pesoTarget, locale);
+    const amt = formatParts(pesoTarget, currency);
     return (
       <div style={shell}>
         <Header pill={<PreviewBadge />} step={step} onBack={back} onExit={onExit} t={t} />
@@ -395,7 +395,7 @@ export default function CirclesCreateScreen() {
               fontFamily: T.fontMono,
             }}
           >
-            {CURRENCY[locale].code}
+            {CURRENCY[currency].code}
           </div>
         </div>
 
@@ -515,7 +515,7 @@ export default function CirclesCreateScreen() {
     const ceiling = KYC_TIER_CEILING[previewTier];
     const clamped = clampToTier(allowancePct, previewTier);
     // Locale-aware round sample - ₱100 / Rp 100,000 / $100 / ₫100,000.
-    const preview = localePreviewSplit(locale, clamped);
+    const preview = localePreviewSplit(currency, clamped);
     return (
       <div style={shell}>
         <Header pill={<Stage2Pill />} step={step} onBack={back} onExit={onExit} t={t} />
@@ -1337,8 +1337,8 @@ export default function CirclesCreateScreen() {
                 </div>
                 <div style={{ fontSize: 12, color: T.slate, marginTop: 2 }}>
                   {t("circles.draftSavedDetail", {
-                    amount: `${formatParts(pesoTarget, locale).symbol}${
-                      formatParts(pesoTarget, locale).int
+                    amount: `${formatParts(pesoTarget, currency).symbol}${
+                      formatParts(pesoTarget, currency).int
                     }`,
                     days,
                     pct: allowancePct,

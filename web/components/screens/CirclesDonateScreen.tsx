@@ -33,7 +33,7 @@ const QUICK = [100, 250, 500, 1000, 2500];
 
 export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
   const router = useRouter();
-  const { locale, t } = useT();
+  const { locale, t, currency } = useT();
 
   const [phase, setPhase] = useState<Phase>("amount");
   const [amount, setAmount] = useState<number>(500);
@@ -95,7 +95,7 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
 
   // ── PHASE: amount picker + method + toggles ──
   if (phase === "amount") {
-    const amt = formatParts(amount, locale);
+    const amt = formatParts(amount, currency);
     return (
       <div style={shell}>
         <AppBar
@@ -196,9 +196,9 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
               fontFamily: T.fontMono,
             }}
           >
-            {locale === "tl" || locale === "en"
+            {currency === "tl" || currency === "en"
               ? t("circles.localeRenderNote")
-              : t("circles.localeCodeNote", { code: CURRENCY[locale].code })}
+              : t("circles.localeCodeNote", { code: CURRENCY[currency].code })}
           </div>
         </div>
 
@@ -212,7 +212,7 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
           }}
         >
           {QUICK.map((p) => {
-            const parts = formatParts(p, locale);
+            const parts = formatParts(p, currency);
             return (
               <span
                 key={p}
@@ -368,7 +368,7 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
 
   // ── PHASE: waitlist email ──
   if (phase === "waitlist") {
-    const amt = formatParts(amount, locale);
+    const amt = formatParts(amount, currency);
     return (
       <div style={shell}>
         <AppBar
@@ -519,7 +519,7 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
   }
 
   // ── PHASE: done ──
-  const amt = formatParts(amount, locale);
+  const amt = formatParts(amount, currency);
   return (
     <div style={shell}>
       <AppBar

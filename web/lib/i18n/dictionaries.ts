@@ -311,6 +311,10 @@ const en = {
     privacy: "Privacy",
     privacySub: "How your data is handled",
     tierShort: "Tier 0 · not verified yet",
+    currencyAuto: "Automatic",
+    currencyManual: "Chosen by you",
+    currencyNote:
+      "Amounts convert at an illustrative testnet rate. The rail is USDC.",
   },
   kyc: {
     title: "KYC tier",
@@ -1115,6 +1119,10 @@ const tl: Dict = {
     privacy: "Privacy",
     privacySub: "Paano hinahawakan ang iyong data",
     tierShort: "Tier 0 · hindi pa na-verify",
+    currencyAuto: "Awtomatiko",
+    currencyManual: "Ikaw ang pumili",
+    currencyNote:
+      "Ang halaga ay kino-convert sa pang-ilustrasyong testnet rate. USDC ang rail.",
   },
   kyc: {
     title: "KYC tier",
@@ -1907,6 +1915,10 @@ const id: Dict = {
     privacy: "Privasi",
     privacySub: "Cara data kamu dikelola",
     tierShort: "Tier 0 · belum KYC",
+    currencyAuto: "Otomatis",
+    currencyManual: "Dipilih sendiri",
+    currencyNote:
+      "Jumlah dikonversi pakai kurs ilustratif testnet. Rel-nya USDC.",
   },
   kyc: {
     title: "Tier KYC",
@@ -2700,6 +2712,10 @@ const vi: Dict = {
     privacy: "Quyền riêng tư",
     privacySub: "Cách dữ liệu của bạn được xử lý",
     tierShort: "Tier 0 · chưa xác minh",
+    currencyAuto: "Tự động",
+    currencyManual: "Bạn tự chọn",
+    currencyNote:
+      "Số tiền quy đổi theo tỷ giá testnet minh họa. Đường dẫn là USDC.",
   },
   kyc: {
     title: "Cấp KYC",
