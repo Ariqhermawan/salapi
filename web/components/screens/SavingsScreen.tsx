@@ -179,16 +179,23 @@ export default function SavingsScreen() {
   const [aName, setAName] = useState("");
   const [aTarget, setATarget] = useState("");
 
+  // A goal's display name; an auto-reconstructed envelope has an empty name
+  // and shows the localized default (resolved at render, not at refresh time).
+  const goalLabel = (g: SavingsGoal) => g.name || t("savings.defaultGoalName");
+
   async function refresh() {
     const s = await smartSavingsState();
     setSt(s);
     if (s.ready && s.hasGoal) {
       let g = loadGoals();
       if (g.length === 0) {
+        // No stored envelopes (storage cleared, or a goal opened before
+        // multi-goal shipped) — reconstruct one default envelope from the
+        // on-chain vault. Empty name → goalLabel renders the localized default.
         g = [
           {
             id: newId(),
-            name: t("savings.defaultGoalName"),
+            name: "",
             target: s.targetPesos,
             weight: 100,
             saved: s.savedPesos,
@@ -690,7 +697,7 @@ export default function SavingsScreen() {
               <Card key={g.id} p={12}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <div style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600, color: T.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {g.name}
+                    {goalLabel(g)}
                   </div>
                   {multi && (
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -851,7 +858,7 @@ export default function SavingsScreen() {
                 {goals.map((g) => (
                   <span key={g.id} onClick={() => setDepGoal(g.id)} style={{ cursor: "pointer" }}>
                     <Chip kind={activeDepGoal.id === g.id ? "action" : "neutral"} size="md">
-                      {g.name}
+                      {goalLabel(g)}
                     </Chip>
                   </span>
                 ))}
@@ -894,7 +901,7 @@ export default function SavingsScreen() {
                     key={g.id}
                     style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "3px 0", color: T.slate }}
                   >
-                    <span>{g.name}</span>
+                    <span>{goalLabel(g)}</span>
                     <span style={{ color: T.ink, fontWeight: 600 }}>
                       {formatLocal(part ? part.amount : 0, currency)}
                     </span>

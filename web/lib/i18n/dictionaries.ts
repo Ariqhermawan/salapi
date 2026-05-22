@@ -109,7 +109,7 @@ const en = {
   },
   topup: {
     title: "Top up",
-    eyebrow: "From GCash to your wallet",
+    eyebrow: "Into your Salapi wallet",
     question: "How much do you want to top up?",
     limits: "Min ₱20 · Max ₱50,000 / day",
     amountAria: "Top up amount",
@@ -142,7 +142,7 @@ const en = {
   },
   withdraw: {
     title: "Withdraw",
-    eyebrow: "From Salapi to GCash",
+    eyebrow: "From your Salapi balance",
     question: "How much do you want to withdraw?",
     available: "Available to withdraw",
     amountAria: "Withdraw amount",
@@ -959,7 +959,7 @@ const tl: Dict = {
   },
   topup: {
     title: "Mag-top up",
-    eyebrow: "Mula GCash papunta sa wallet mo",
+    eyebrow: "Papunta sa wallet mo sa Salapi",
     question: "Magkano ang gusto mong i-top up?",
     limits: "Min ₱20 · Max ₱50,000 / araw",
     amountAria: "Halaga ng top up",
@@ -992,7 +992,7 @@ const tl: Dict = {
   },
   withdraw: {
     title: "Mag-withdraw",
-    eyebrow: "Mula Salapi papunta sa GCash",
+    eyebrow: "Mula sa balanse mo sa Salapi",
     question: "Magkano ang gusto mong i-withdraw?",
     available: "Pwedeng i-withdraw",
     amountAria: "Halaga ng withdraw",
@@ -1799,7 +1799,7 @@ const id: Dict = {
   },
   topup: {
     title: "Isi saldo",
-    eyebrow: "Dari GCash ke wallet kamu",
+    eyebrow: "Ke wallet Salapi kamu",
     question: "Berapa yang ingin kamu isi?",
     limits: "Min ₱20 · Maks ₱50.000 / hari",
     amountAria: "Jumlah isi saldo",
@@ -1832,7 +1832,7 @@ const id: Dict = {
   },
   withdraw: {
     title: "Tarik dana",
-    eyebrow: "Dari Salapi ke GCash",
+    eyebrow: "Dari saldo Salapi kamu",
     question: "Berapa yang ingin kamu tarik?",
     available: "Tersedia untuk ditarik",
     amountAria: "Jumlah penarikan",
@@ -2640,7 +2640,7 @@ const vi: Dict = {
   },
   topup: {
     title: "Nạp tiền",
-    eyebrow: "Từ GCash vào ví của bạn",
+    eyebrow: "Vào ví Salapi của bạn",
     question: "Bạn muốn nạp bao nhiêu?",
     limits: "Tối thiểu ₱20 · Tối đa ₱50.000 / ngày",
     amountAria: "Số tiền nạp",
@@ -2673,7 +2673,7 @@ const vi: Dict = {
   },
   withdraw: {
     title: "Rút tiền",
-    eyebrow: "Từ Salapi ra GCash",
+    eyebrow: "Từ số dư Salapi của bạn",
     question: "Bạn muốn rút bao nhiêu?",
     available: "Có thể rút",
     amountAria: "Số tiền rút",
