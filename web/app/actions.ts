@@ -332,24 +332,27 @@ export async function smartSavingsWithdraw() {
     : { ok: false as const, error: r.error };
 }
 
-// A contract read can come back with an empty retval under concurrent RPC
-// load (the Vaults screen fires several contract reads at once) — a degraded
-// simulation, not a real result. Retry a few times with a short backoff; a
-// final null tells the caller the read genuinely failed, so it can show a
-// loading state rather than a false zero. A real value (including 0n) is
-// returned as soon as it lands.
-async function readWithRetry(
+// A contract read can be degraded under concurrent RPC load — the Vaults
+// screen fires several reads at once, and the disaster total() simulation
+// then intermittently reads the contract's storage as absent (the contract
+// returns its defaulted 0) or comes back with an empty retval. Retry a few
+// times with a short backoff; `accept` decides whether a value is real — for
+// the relief pool, which is funded on-chain, a 0 is treated as a degraded
+// read, not a genuine zero. After all attempts a rejected value yields null,
+// so the caller can show a loading state rather than a false figure.
+async function readRetry(
   contractId: string,
-  method: string
+  method: string,
+  accept: (v: unknown) => boolean = (v) => v != null
 ): Promise<unknown> {
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < 4; attempt++) {
     try {
       const v = await readContract(contractId, method);
-      if (v != null) return v;
+      if (accept(v)) return v;
     } catch {
       /* transient RPC error — fall through and retry */
     }
-    if (attempt < 2) await new Promise((r) => setTimeout(r, 250));
+    if (attempt < 3) await new Promise((r) => setTimeout(r, 300));
   }
   return null;
 }
@@ -357,13 +360,17 @@ async function readWithRetry(
 export async function disasterState() {
   try {
     const [total, active] = await Promise.all([
-      readWithRetry(CONTRACTS.disaster, "total"),
-      readWithRetry(CONTRACTS.disaster, "is_disaster_active"),
+      readRetry(
+        CONTRACTS.disaster,
+        "total",
+        (v) => v != null && BigInt(v as number | bigint) > 0n
+      ),
+      readRetry(CONTRACTS.disaster, "is_disaster_active"),
     ]);
     if (total == null) {
-      // Every retry came back empty: a failed read, not a real zero. Report
-      // not-ok so callers (Vaults, Home, Transparency) show their loading
-      // state instead of a false "Rp 0".
+      // Every retry read 0/empty — a degraded read, not a confirmed zero.
+      // Report not-ok so callers (Vaults, Home, Transparency) show their
+      // loading state instead of a false "Rp 0".
       return { ok: false as const, error: "disaster total unavailable" };
     }
     const totalPesos = stroopsToPesos(BigInt(total as number | bigint));
