@@ -1,5 +1,10 @@
 "use client";
 
+// "Kamu" — profile & settings. Grouped-card layout: Profile → Akun →
+// Preferensi → Keamanan → Bantuan → Legal. Every function from the prior
+// version is preserved; the language picker now lives on its own screen
+// (/settings/language) reached from the Preferensi › Bahasa row.
+
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -8,10 +13,11 @@ import {
   registerUsername,
   renameUsername,
 } from "@/app/actions";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { createSupabaseBrowser } from "@/lib/supabase/client";
 import { supabaseConfigured } from "@/lib/supabase/env";
 import { useT } from "@/components/I18nProvider";
+import { LOCALE_META, type Locale } from "@/lib/i18n/config";
+import { CURRENCY } from "@/lib/ui/currency";
 import {
   T,
   Ico,
@@ -21,10 +27,20 @@ import {
   Avatar,
   Chip,
   Btn,
-  TestnetPill,
   PoweredByStellar,
   MakerLockup,
 } from "@/components/ui/kit";
+
+const NOTIF_KEY = "salapi_notif";
+
+// Display-currency label per locale. The rail is USDC; the user only ever
+// sees their local currency, which follows the chosen language.
+const CURRENCY_LABEL: Record<Locale, string> = {
+  en: "USD · US Dollar",
+  tl: "PHP · Piso",
+  id: "IDR · Rupiah",
+  vi: "VND · Đồng",
+};
 
 function Switch({ on }: { on: boolean }) {
   return (
@@ -37,21 +53,62 @@ function Switch({ on }: { on: boolean }) {
         padding: 2,
         display: "flex",
         justifyContent: on ? "flex-end" : "flex-start",
+        transition: "background .16s ease",
       }}
     >
-      <div style={{ width: 20, height: 20, borderRadius: 99, background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,.18)" }} />
+      <div
+        style={{
+          width: 20,
+          height: 20,
+          borderRadius: 99,
+          background: "#fff",
+          boxShadow: "0 1px 3px rgba(0,0,0,.18)",
+        }}
+      />
     </div>
   );
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ padding: "12px 20px 6px", fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: T.slate }}>
+    <div
+      style={{
+        padding: "16px 20px 7px",
+        fontSize: 11,
+        fontWeight: 600,
+        letterSpacing: "0.1em",
+        textTransform: "uppercase",
+        color: T.slate,
+      }}
+    >
       {children}
     </div>
   );
 }
 
+function iconBox(icon: React.ReactNode, bg: string, fg: string) {
+  return (
+    <div
+      style={{
+        width: 34,
+        height: 34,
+        borderRadius: 10,
+        background: bg,
+        color: fg,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: 13,
+        fontWeight: 700,
+      }}
+    >
+      {icon}
+    </div>
+  );
+}
+
+// Username row + inline claim/rename editor. Renders as a fragment so it
+// can sit as the first row of the Akun card.
 function UsernamePanel({
   current,
   onChanged,
@@ -87,27 +144,41 @@ function UsernamePanel({
   }
 
   return (
-    <Card p={0}>
+    <>
       <Row
-        leading={
-          <div style={{ width: 34, height: 34, borderRadius: 10, background: T.actionTint, color: T.action, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            {Ico.user({ c: T.action })}
-          </div>
-        }
+        leading={iconBox(Ico.user({ c: T.action }), T.actionTint, T.action)}
         title={has ? `@${current}` : t("settings.noUsername")}
         sub={has ? t("settings.usernameSub") : t("settings.claimPrompt")}
         trailing={
           !editing ? (
-            <Btn kind="ghost" size="sm" full={false} onClick={() => { setEditing(true); setMsg(null); setVal(""); }}>
+            <Btn
+              kind="ghost"
+              size="sm"
+              full={false}
+              onClick={() => {
+                setEditing(true);
+                setMsg(null);
+                setVal("");
+              }}
+            >
               {has ? t("settings.change") : t("settings.claim")}
             </Btn>
           ) : null
         }
-        divider={editing || Boolean(msg)}
       />
       {editing && (
         <div style={{ padding: "12px 16px 14px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, background: T.canvas, borderRadius: 12, padding: "10px 14px", boxShadow: "inset 0 0 0 1px " + T.hairline }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              background: T.canvas,
+              borderRadius: 12,
+              padding: "10px 14px",
+              boxShadow: "inset 0 0 0 1px " + T.hairline,
+            }}
+          >
             <span style={{ fontSize: 16, color: T.slate, fontWeight: 600 }}>@</span>
             <input
               autoFocus
@@ -142,16 +213,17 @@ function UsernamePanel({
           </div>
         </div>
       )}
-    </Card>
+    </>
   );
 }
 
 export default function SettingsScreen() {
-  const { t } = useT();
+  const { t, locale } = useT();
   const router = useRouter();
   const [name, setName] = useState<string | null>(null);
   const [addr, setAddr] = useState<string>("");
   const [supaEmail, setSupaEmail] = useState<string | null>(null);
+  const [notif, setNotif] = useState(true);
 
   useEffect(() => {
     myUsername().then(setName);
@@ -162,7 +234,20 @@ export default function SettingsScreen() {
         .then(({ data }) => setSupaEmail(data.user?.email ?? null))
         .catch(() => {});
     }
+    setNotif(localStorage.getItem(NOTIF_KEY) !== "0");
   }, []);
+
+  function toggleNotif() {
+    setNotif((v) => {
+      const next = !v;
+      try {
+        localStorage.setItem(NOTIF_KEY, next ? "1" : "0");
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  }
 
   async function signOut() {
     try {
@@ -178,43 +263,56 @@ export default function SettingsScreen() {
   const explorer = addr
     ? `https://stellar.expert/explorer/testnet/account/${addr}`
     : undefined;
-
-  const iconBox = (icon: React.ReactNode, bg: string, fg: string) => (
-    <div style={{ width: 34, height: 34, borderRadius: 10, background: bg, color: fg, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      {icon}
-    </div>
+  const value = (text: string) => (
+    <span style={{ fontSize: 13.5, fontWeight: 500, color: T.ink }}>{text}</span>
   );
 
   return (
-    <div style={{ fontFamily: T.fontSans, color: T.ink, minHeight: "100%", paddingBottom: 110 }}>
-      <AppBar large title={t("settings.you")} sub={t("settings.youSub")} />
+    <div style={{ fontFamily: T.fontSans, color: T.ink, minHeight: "100%" }}>
+      <AppBar large title={t("settings.you")} />
 
-      {/* Profile header */}
+      {/* Profile — tier status, taps through to the KYC tier screen */}
       <div style={{ padding: "4px 16px 0" }}>
-        <Card p={14}>
+        <Card
+          p={14}
+          className="sl-lift"
+          onClick={() => router.push("/you/kyc-tier")}
+          style={{ cursor: "pointer" }}
+        >
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <Avatar name={name || "Salapi"} size={48} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 17, fontWeight: 600, letterSpacing: "-0.01em" }}>{display}</div>
-              <div style={{ fontSize: 12, color: T.slate, fontFamily: T.fontMono, marginTop: 1 }}>
-                {shortAddr} · Stellar
+              <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                <span
+                  style={{
+                    fontSize: 17,
+                    fontWeight: 600,
+                    letterSpacing: "-0.01em",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {display}
+                </span>
+                {name && Ico.verify({ size: 15, c: T.moneyIn })}
+              </div>
+              <div style={{ fontSize: 12.5, color: T.slate, marginTop: 2 }}>
+                {t("settings.tierShort")}
               </div>
             </div>
-            <TestnetPill />
+            <Chip kind="warn" size="sm">
+              {t("settings.previewStage2")}
+            </Chip>
           </div>
         </Card>
       </div>
 
-      {/* Username */}
-      <SectionLabel>{t("settings.username")}</SectionLabel>
-      <div style={{ padding: "0 16px" }}>
-        <UsernamePanel current={name} onChanged={() => myUsername().then(setName)} />
-      </div>
-
-      {/* Accounts */}
+      {/* Akun */}
       <SectionLabel>{t("settings.accounts")}</SectionLabel>
       <div style={{ padding: "0 16px" }}>
         <Card p={0}>
+          <UsernamePanel current={name} onChanged={() => myUsername().then(setName)} />
           {supaEmail && (
             <Row
               leading={iconBox(Ico.user({ c: T.moneyIn }), T.moneyInTint, T.moneyIn)}
@@ -260,26 +358,38 @@ export default function SettingsScreen() {
         </Card>
       </div>
 
-      {/* Verification & trust - Build-Award stage 2 preview entry */}
-      <SectionLabel>{t("settings.verification")}</SectionLabel>
+      {/* Preferensi */}
+      <SectionLabel>{t("settings.preferences")}</SectionLabel>
       <div style={{ padding: "0 16px" }}>
         <Card p={0}>
           <Row
-            leading={iconBox(Ico.verify({ c: T.action }), T.actionTint, T.action)}
-            title={t("settings.kycTier")}
-            sub={t("settings.kycTier0")}
-            onClick={() => router.push("/you/kyc-tier")}
-            trailing={
-              <Chip kind="warn" size="sm">
-                {t("settings.previewStage2")}
-              </Chip>
-            }
+            leading={iconBox(Ico.globe({ c: T.action }), T.actionTint, T.action)}
+            title={t("settings.language")}
+            onClick={() => router.push("/settings/language")}
+            trailing={value(LOCALE_META[locale].native)}
+          />
+          <Row
+            leading={iconBox(
+              <span>{CURRENCY[locale].symbol.trim()}</span>,
+              T.actionTint,
+              T.action
+            )}
+            title={t("settings.currency")}
+            sub={t("settings.currencySub")}
+            trailing={value(CURRENCY_LABEL[locale])}
+          />
+          <Row
+            leading={iconBox(Ico.bell({ c: T.action }), T.actionTint, T.action)}
+            title={t("settings.notifications")}
+            sub={t("settings.notificationsSub")}
+            onClick={toggleNotif}
+            trailing={<Switch on={notif} />}
             divider={false}
           />
         </Card>
       </div>
 
-      {/* Security */}
+      {/* Keamanan */}
       <SectionLabel>{t("settings.security")}</SectionLabel>
       <div style={{ padding: "0 16px" }}>
         <Card p={0}>
@@ -305,30 +415,42 @@ export default function SettingsScreen() {
         </Card>
       </div>
 
-      {/* Language */}
-      <SectionLabel>{t("lang.choose")}</SectionLabel>
-      <div style={{ padding: "0 16px" }}>
-        <LanguageSwitcher />
-      </div>
-
-      {/* About */}
-      <SectionLabel>{t("settings.about")}</SectionLabel>
+      {/* Bantuan */}
+      <SectionLabel>{t("settings.help")}</SectionLabel>
       <div style={{ padding: "0 16px" }}>
         <Card p={0}>
-          <Row title={t("settings.version")} trailing={<span style={{ fontSize: 13, color: T.slate, fontFamily: T.fontMono }}>1.0 · testnet</span>} />
           <Row
-            title="Salapi"
-            sub={t("settings.aboutText")}
-            trailing={null}
+            leading={iconBox(Ico.bulb({ c: T.action }), T.actionTint, T.action)}
+            title={t("settings.helpCenter")}
+            sub={t("settings.helpCenterSub")}
+            onClick={() => router.push("/learn")}
+            trailing={Ico.chev({ size: 16, c: T.slate })}
             divider={false}
           />
         </Card>
       </div>
 
-      <div style={{ padding: "14px 16px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+      {/* Legal */}
+      <SectionLabel>{t("settings.legal")}</SectionLabel>
+      <div style={{ padding: "0 16px" }}>
+        <Card p={0}>
+          <Row
+            leading={iconBox(Ico.shield({ c: T.action }), T.actionTint, T.action)}
+            title={t("settings.privacy")}
+            sub={t("settings.privacySub")}
+            onClick={() => router.push("/learn")}
+            trailing={Ico.chev({ size: 16, c: T.slate })}
+            divider={false}
+          />
+        </Card>
+      </div>
+
+      <div style={{ padding: "20px 16px 6px", display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
         <MakerLockup />
         <PoweredByStellar />
-        <span style={{ fontSize: 12, color: T.slate }}>{t("settings.forSEA")}</span>
+        <span style={{ fontSize: 12, color: T.slate }}>
+          Salapi 1.0 · testnet · {t("settings.forSEA")}
+        </span>
       </div>
     </div>
   );
