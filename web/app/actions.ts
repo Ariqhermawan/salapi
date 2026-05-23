@@ -585,7 +585,15 @@ export async function arisanList() {
         /* gap or read failure — skip */
       }
     }
-    const mine = rooms.filter((r) => r.isMember);
+    // Hide dev-test rooms that were created by automated scripts during
+    // verification (verify-arisan.mts seed room, the postpone UI exercise).
+    // They live on-chain forever but shouldn't clutter a real user's
+    // /arisan list — persona testing flagged them as the loudest "is this
+    // demo or real?" signal on first visit.
+    const DEV_ROOM_NAMES = new Set(["Postpone test", "Verify · Arisan Rooms"]);
+    const mine = rooms
+      .filter((r) => !DEV_ROOM_NAMES.has(r.name))
+      .filter((r) => r.isMember);
     return { ready: true as const, total: count, mine };
   } catch (e) {
     return {
