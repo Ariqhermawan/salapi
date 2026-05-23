@@ -60,7 +60,7 @@ export default function RootLayout({
             <MarketingAside />
 
             <div
-              className="relative mx-auto flex min-h-dvh w-full max-w-[460px] flex-col lg:mx-0 lg:h-[860px] lg:max-h-[94vh] lg:min-h-0 lg:flex-none lg:overflow-hidden lg:rounded-[40px] lg:shadow-[0_60px_120px_-30px_rgba(11,18,32,0.55)] lg:ring-1 lg:ring-black/10"
+              className="relative mx-auto flex h-dvh w-full max-w-[460px] flex-col overflow-hidden lg:mx-0 lg:h-[860px] lg:max-h-[94vh] lg:min-h-0 lg:flex-none lg:rounded-[40px] lg:shadow-[0_60px_120px_-30px_rgba(11,18,32,0.55)] lg:ring-1 lg:ring-black/10"
               style={{ background: "#F4F6FB" }}
             >
               <InstallBanner />
