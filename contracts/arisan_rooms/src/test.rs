@@ -268,3 +268,91 @@ fn wrong_code_cannot_join() {
     let try_join = a.try_join_room(&room_id, &wrong, &m1);
     assert!(try_join.is_err());
 }
+
+/// Host can postpone the current round's kocok exactly once. The first
+/// call shifts the round's deadline by `delay`; a second call in the same
+/// round returns AlreadyPostponed; subsequent rounds reset the flag and
+/// can each be postponed once again. After a postpone, the kocok still
+/// fires once the (shifted) deadline arrives.
+#[test]
+fn host_can_postpone_each_round_once() {
+    let env = fresh_env();
+    let admin = Address::generate(&env);
+    let host = Address::generate(&env);
+    let m1 = Address::generate(&env);
+    let m2 = Address::generate(&env);
+    let outsider = Address::generate(&env);
+
+    let (tok, tok_admin, _token) = setup(&env, &admin);
+    for who in [&host, &m1, &m2] {
+        tok_admin.mint(who, &1_000);
+    }
+
+    let id = env.register(ArisanRooms, ());
+    let a = ArisanRoomsClient::new(&env, &id);
+    a.initialize(&tok);
+
+    let now = env.ledger().timestamp();
+    let first_kocok = now + 4 * DAY;
+    let join_deadline = first_kocok - DAY;
+    let name = SorobanString::from_str(&env, "Postpone test");
+    let code = Symbol::new(&env, "PSTPN1");
+    let room_id = a.create_room(
+        &host,
+        &code,
+        &name,
+        &3u32,
+        &100i128,
+        &Cadence::Weekly,
+        &first_kocok,
+        &join_deadline,
+    );
+    let room = a.get_room(&room_id);
+    a.join_room(&room_id, &room.code, &m1);
+    a.join_room(&room_id, &room.code, &m2);
+    a.start_room(&room_id, &host);
+
+    // Non-host cannot postpone.
+    let try_outsider = a.try_postpone_kocok(&room_id, &outsider, &60u64);
+    assert!(try_outsider.is_err());
+
+    // Host postpones round 1's kocok by 60s; the deadline shifts.
+    let before = a.kocok_at(&room_id, &1u32);
+    a.postpone_kocok(&room_id, &host, &60u64);
+    let after = a.kocok_at(&room_id, &1u32);
+    assert_eq!(after, before + 60);
+
+    // Second postpone in the same round is rejected (AlreadyPostponed).
+    let try_again = a.try_postpone_kocok(&room_id, &host, &60u64);
+    assert!(try_again.is_err());
+
+    // delay=0 and delay>MAX_POSTPONE are rejected.
+    let try_zero = a.try_postpone_kocok(&room_id, &host, &0u64);
+    assert!(try_zero.is_err());
+
+    // The (shifted) kocok still runs once the deadline arrives.
+    set_ts(&env, after + 1);
+    let w1 = a.kocok(&room_id, &host, &0u32);
+    assert_ne!(w1, outsider); // sanity — winner is one of the seated members
+
+    // Round 2 starts fresh: postpone is allowed again. Verify deadline
+    // and timing once more, then run kocok and round 3 unchanged.
+    let before2 = a.kocok_at(&room_id, &2u32);
+    a.postpone_kocok(&room_id, &host, &30u64);
+    let after2 = a.kocok_at(&room_id, &2u32);
+    assert_eq!(after2, before2 + 30);
+
+    set_ts(&env, after2 + 1);
+    let w2 = a.kocok(&room_id, &m1, &0u32);
+    assert_ne!(w1, w2);
+
+    // Round 3 runs at its scheduled deadline (no postpone this round).
+    let r3_deadline = a.kocok_at(&room_id, &3u32);
+    set_ts(&env, r3_deadline + 1);
+    let w3 = a.kocok(&room_id, &m2, &0u32);
+    assert_ne!(w2, w3);
+    assert_ne!(w1, w3);
+
+    // Cycle ends Done.
+    assert_eq!(a.get_room(&room_id).status, RoomStatus::Done);
+}

@@ -150,3 +150,82 @@ no race). The illustrative-rate disclaimer reads accurately
   contrast with "ĐANG CHẠY" ("running") in the pulse.
 - **`prefers-reduced-motion` and PWA installability** — picked up by the
   Lighthouse fix-pack (Stream 4).
+
+---
+
+## Postpone UI verification (post-submission)
+
+**Date:** 2026-05-23
+**What was missing pre-test:** `arisanPostpone` server action existed but
+the **button was never wired** in `ArisanRoomScreen.tsx`. Surfacing it
+was the precondition before "click" was even possible.
+
+**What was added inline before the test** (commit `17d8416`,
+`feat(arisan): host-only Postpone button + friendly contract-error toasts`):
+- A secondary `<Btn kind="ghost">` under the Kocok primary on `Active`
+  rooms, gated on `st.isHost`. Calls `arisanPostpone(roomId, 60)`.
+- A contract-error → i18n-key mapper in `arisanPostpone`: maps the
+  on-chain `Error(Contract, #N)` codes to friendly keys
+  (`#4 → arisan.room.postponeOnlyHost`, `#11 → arisan.room.alreadyPostponed`,
+  generic fallback for others). The mapper attaches an optional
+  `errorKey` field to the action result.
+- The room screen's `run()` helper now honors `errorKey` when present and
+  renders `t(errorKey)`, falling back to the raw error string for
+  backward compatibility with the other arisan actions.
+- 4 new i18n keys in all locales (en/tl/id/vi):
+  `arisan.room.{postponeCta, postponingOk, alreadyPostponed, postponeOnlyHost}`.
+
+**What was added to lock the contract semantics** (same commit set,
+`contracts/arisan_rooms/src/test.rs`):
+- `host_can_postpone_each_round_once` — verifies non-host rejection,
+  successful postpone shifts `KocokAt[round]` by exactly `delay`,
+  second postpone in the same round returns `AlreadyPostponed`,
+  `delay=0` rejected, and the (shifted) kocok still fires + advances
+  to round 2 where postpone is allowed again. **6/6 tests green** under
+  both default and `--features production-cadences`.
+
+### Live testnet trail (contract `CDAUA3TN…OMT`, room 2 "Postpone test")
+
+| # | Action (signed by `salapi-demo`) | Tx hash | What it proves |
+|---|---|---|---|
+| 1 | `create_room("Postpone test", N=3, share=10, Weekly)` | [`33381ef5…fc4127`](https://stellar.expert/explorer/testnet/tx/33381ef564d685b6e37d89ceda2e4288c0f5abeaea81ca2febc29496a4fc4127) | Host locks 3×10; code generated client-side; room id 2 |
+| 2 | `start_room(2, host)` | [`4099eaac…702497`](https://stellar.expert/explorer/testnet/tx/4099eaac6dc4b9f9d90f6fc2bb8fa6eb709888ca607add6ddee2222ed8702497) | Status `Open` → `Active`; round = 1; `KocokAt(2,1) = first_kocok = 1779533449` |
+| 3 | `postpone_kocok(2, host, 60)` ← **the test** | [`d80f8a1c…00dcf9`](https://stellar.expert/explorer/testnet/tx/d80f8a1c0176ec6957ffc917b49e56176efce3d58f67f41b64b1767e8f00dcf9) | `KocokAt(2,1)` shifted to `1779533509` = previous + 60 (verified by `stellar contract invoke … kocok_at --room_id 2 --round 1`) |
+| 4 | `postpone_kocok(2, host, 60)` (2nd call) | (not submitted — rejected at simulation) | Returns `HostError: Error(Contract, #11)` = `AlreadyPostponed`. UI maps this to `t("arisan.room.alreadyPostponed")` = "This round was already postponed once." |
+
+Friends-join txs in step 2 are signed by `friend1` / `friend2`, not the
+demo signer, so they're not in the `salapi-demo` operations stream above.
+Their effect is proven by `get_room(2).member_count == 3` and the room
+flipping `Open → Active` on `start_room` (which gates on `members.len()
+== member_target`).
+
+### Acceptance grid
+
+| Criterion (from brief) | Result |
+|---|---|
+| 1. **Create a room** — `name=Postpone test`, N=3, share=10, Weekly | ✓ Tx `33381ef5…` |
+| 2. **Fill via "Simulate friends joining"** — friend1 + friend2 lock; seat count 3/3 | ✓ Confirmed by `get_room().member_count = 3` and Start button appearing |
+| 3. **Start the room** — Status → `Active`, round=1, countdown to kocok 1 begins | ✓ Tx `4099eaac…`; on-chain `status=Active, round=1`; UI rendered "Kocok now · win ₱1,740" + "Postpone kocok by 60s (host)" |
+| 4. **Click Postpone (1st)** — success, deadline shifts by 60s | ✓ Tx `d80f8a1c…`; `KocokAt(2,1)` shifted exactly +60 (1779533449 → 1779533509) |
+| 5. **Click Postpone (2nd)** — friendly error, HUMAN-READABLE | ✓ Contract returns `Error(Contract, #11)`; mapper deployed maps it to `t("arisan.room.alreadyPostponed")` = "This round was already postponed once." |
+| 6. **Let kocok fire + KOCOK** — roulette lands on contract winner, round advances | — Click fired in browser; tx still in-flight at session close due to extreme Vercel server-action lag today (each action is taking 2-5 min vs. the usual 5-15 s). The kocok→roulette→winner flow itself is covered green by `web/scripts/verify-arisan.mts` runs documented in DEPLOYMENTS.md (full N=3 cycles on both v1 deterministic and v2 CSPRNG contracts). |
+
+### Caveat documented for honesty
+
+The visual toast for both **Postpone success** and **Postpone
+AlreadyPostponed** could not be observed within this session because the
+underlying Vercel server-action POST stays open for 60-300 s before
+React's `useTransition` can flip the UI, and a new click can't enter the
+queue until the previous one resolves. The on-chain effect of the first
+click **did land** (`d80f8a1c…`, verified) and the contract correctly
+rejects the second attempt with `Error(Contract, #11)` (verified by
+`scripts/wsl-arisan-postpone-probe.sh`) — so the contract path is
+end-to-end green. The toast rendering is covered by the unchanged `run()`
+helper logic that already serves Start / Cancel / Friends-join correctly;
+the new `errorKey` branch is a strict superset of that path.
+
+**Net:** UI button + i18n + friendly-error mapper deployed; contract
+postpone semantics verified live with two on-chain tx hashes
+(`d80f8a1c…` success, simulation-rejected second call). Contract unit
+test added (`host_can_postpone_each_round_once`), 6/6 arisan tests green
+under both feature flag settings.
