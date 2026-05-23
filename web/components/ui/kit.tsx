@@ -119,7 +119,7 @@ export function Row({ leading, title, sub, trailing, onClick, divider = true, st
 export type Tab = { id: string; label: string; icon: (p?: { size?: number; c?: string }) => ReactNode; fab?: boolean };
 export function TabBar({ active = "home", items, onNav }: { active?: string; items: Tab[]; onNav?: (id: string) => void }) {
   return (
-    <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)", paddingTop: 8, background: T.surface, borderTop: "1px solid " + T.hairline, display: "grid", gridTemplateColumns: `repeat(${items.length},1fr)` }}>
+    <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)", paddingTop: 8, background: T.surface, borderTop: "1px solid " + T.hairline, display: "grid", gridTemplateColumns: `repeat(${items.length},1fr)` }}>
       {items.map((it) => {
         const isActive = it.id === active;
         const col = isActive ? T.action : T.slate;

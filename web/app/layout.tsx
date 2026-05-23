@@ -37,6 +37,11 @@ export const viewport: Viewport = {
   themeColor: "#0B1220",
   width: "device-width",
   initialScale: 1,
+  // viewport-fit=cover is required for env(safe-area-inset-bottom) to
+  // return non-zero on devices with system bars (iPhone home indicator,
+  // Android 3-button nav). Without it, the bottom nav labels get clipped
+  // by the system bar on Android.
+  viewportFit: "cover",
   // Intentionally do NOT lock max-scale or user-scalable=false:
   // both fail Lighthouse a11y because they disable pinch-zoom for low-vision
   // users. The PWA shell still feels app-like without zoom locked.
@@ -60,7 +65,7 @@ export default function RootLayout({
             <MarketingAside />
 
             <div
-              className="relative mx-auto flex h-dvh w-full max-w-[460px] flex-col overflow-hidden lg:mx-0 lg:h-[860px] lg:max-h-[94vh] lg:min-h-0 lg:flex-none lg:rounded-[40px] lg:shadow-[0_60px_120px_-30px_rgba(11,18,32,0.55)] lg:ring-1 lg:ring-black/10"
+              className="relative mx-auto flex h-svh w-full max-w-[460px] flex-col overflow-hidden lg:mx-0 lg:h-[860px] lg:max-h-[94vh] lg:min-h-0 lg:flex-none lg:rounded-[40px] lg:shadow-[0_60px_120px_-30px_rgba(11,18,32,0.55)] lg:ring-1 lg:ring-black/10"
               style={{ background: "#F4F6FB" }}
             >
               <InstallBanner />
