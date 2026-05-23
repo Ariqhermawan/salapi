@@ -14,8 +14,9 @@ TOKEN="CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC"
 AMOUNT="769230769" # ~ ₱500 / round at the app's display rate
 
 if grep -q '^PALUWAGAN_CONTRACT=' "$ENVF" 2>/dev/null; then
-  echo "already provisioned: $(grep '^PALUWAGAN_CONTRACT=' "$ENVF")"
-  exit 0
+  echo "re-provisioning: stripping previous Paluwagan block from $ENVF"
+  cp "$ENVF" "$ENVF.bak"
+  sed -i '/^# Paluwagan demo circle/,/^FRIEND2_SECRET=/d' "$ENVF"
 fi
 
 echo "=== TEST (workspace incl. new paluwagan getters) ==="
@@ -42,6 +43,9 @@ echo "=== INIT circle [demo, friend1, friend2] @ $AMOUNT ==="
 MEMBERS="[\"$DEMO\",\"$F1\",\"$F2\"]"
 stellar contract invoke --id "$PAL" --source salapi-demo --network "$NET" -- \
   initialize --token "$TOKEN" --members "$MEMBERS" --amount "$AMOUNT"
+# Real deploy + initialize tx hashes are recovered from chain via
+# scripts/wsl-txtrail.sh (Horizon) — the authoritative, explorer-verifiable
+# source for DEPLOYMENTS.md. (CLI stderr mixes in the wasm-upload hash.)
 
 {
   echo ""

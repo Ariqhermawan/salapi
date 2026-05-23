@@ -12,8 +12,9 @@ NET="testnet"
 TOKEN="CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC"
 
 if grep -q '^SMARTSAVINGS_CONTRACT=' "$ENVF" 2>/dev/null; then
-  echo "already provisioned: $(grep '^SMARTSAVINGS_CONTRACT=' "$ENVF")"
-  exit 0
+  echo "re-provisioning: stripping previous Smart-Savings block from $ENVF"
+  cp "$ENVF" "$ENVF.bak"
+  sed -i '/^# Smart-Savings vault/,/^SMARTSAVINGS_CONTRACT=/d' "$ENVF"
 fi
 
 rustup target add wasm32v1-none >/dev/null 2>&1 || true
@@ -28,6 +29,9 @@ echo "SMARTSAVINGS_CONTRACT=$SS"
 echo "=== INIT (token = native XLM SAC) ==="
 stellar contract invoke --id "$SS" --source salapi-demo --network "$NET" -- \
   initialize --token "$TOKEN"
+# Real deploy + initialize tx hashes are recovered from chain via
+# scripts/wsl-txtrail.sh (Horizon) — the authoritative, explorer-verifiable
+# source for DEPLOYMENTS.md. (CLI stderr mixes in the wasm-upload hash.)
 
 {
   echo ""
