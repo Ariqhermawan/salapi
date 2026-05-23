@@ -15,7 +15,19 @@ import { T } from "@/components/ui/kit";
 import { useT } from "@/components/I18nProvider";
 import { formatParts } from "@/lib/ui/currency";
 import { SEED_CIRCLES } from "@/lib/circles/seed";
-import { CATEGORY_LABEL, progressPct } from "@/lib/circles/types";
+import { progressPct } from "@/lib/circles/types";
+
+// Category-label i18n keys matching the rest of the circles screens
+// (CircleDetailScreen, CirclesCreateScreen, CirclesDiscoverScreen). The
+// labels themselves live in dictionaries.ts under `circles.cat*` per locale.
+const CATEGORY_LABEL_KEY: Record<string, string> = {
+  disaster: "circles.catDisaster",
+  medical: "circles.catMedical",
+  education: "circles.catEducation",
+  family: "circles.catFamily",
+  creator: "circles.catCreator",
+  community: "circles.catCommunity",
+};
 
 // A varied trio for the home teaser: one disaster, one medical, one education.
 const FEATURED = ["tino-relief", "ate-mei-dialysis", "barangay-library"];
@@ -85,7 +97,7 @@ export default function CirclesHomeStrip() {
                     color: "#fff",
                   }}
                 >
-                  {CATEGORY_LABEL[c.category]}
+                  {t(CATEGORY_LABEL_KEY[c.category] ?? "circles.catCommunity")}
                 </span>
               </div>
               <div style={{ padding: "9px 11px 10px" }}>
