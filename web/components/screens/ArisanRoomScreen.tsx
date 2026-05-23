@@ -9,6 +9,7 @@ import {
   arisanLeave,
   arisanKocok,
   arisanFriendsJoin,
+  arisanPostpone,
 } from "@/app/actions";
 import { useT } from "@/components/I18nProvider";
 import {
@@ -206,17 +207,22 @@ export default function ArisanRoomScreen({ roomId }: { roomId: number }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId]);
 
-  function run<T extends { ok: boolean; link?: string; error?: string }>(
-    fn: () => Promise<T>,
-    okText: string
-  ) {
+  function run<
+    T extends { ok: boolean; link?: string; error?: string; errorKey?: string },
+  >(fn: () => Promise<T>, okText: string) {
     start(async () => {
       setMsg(null);
       const r = await fn();
       if (r.ok) {
         setMsg({ tone: "ok", text: okText, link: r.link });
       } else {
-        setMsg({ tone: "err", text: r.error || t("arisan.somethingWrong") });
+        // Prefer the i18n key the action attached (e.g. arisanPostpone maps
+        // contract error codes to keys) so the toast is human-readable
+        // instead of a raw HostError / XDR dump.
+        const text = r.errorKey
+          ? t(r.errorKey)
+          : r.error || t("arisan.somethingWrong");
+        setMsg({ tone: "err", text });
       }
       await refresh();
     });
@@ -597,18 +603,34 @@ export default function ArisanRoomScreen({ roomId }: { roomId: number }) {
           </>
         )}
 
-        {/* ACTIVE: kocok button */}
+        {/* ACTIVE: kocok button + host-only postpone */}
         {st.status === "Active" && st.round <= st.memberTarget && (
-          <Btn
-            kind="primary"
-            onClick={doKocok}
-            disabled={!canKocokNow || pending || !!roulette}
-            loading={pending && !roulette}
-          >
-            {canKocokNow
-              ? t("arisan.kocok.cta", { pot: st.potPeso })
-              : t("arisan.kocok.waitCta", { time: fmtCountdown(countdown) })}
-          </Btn>
+          <>
+            <Btn
+              kind="primary"
+              onClick={doKocok}
+              disabled={!canKocokNow || pending || !!roulette}
+              loading={pending && !roulette}
+            >
+              {canKocokNow
+                ? t("arisan.kocok.cta", { pot: st.potPeso })
+                : t("arisan.kocok.waitCta", { time: fmtCountdown(countdown) })}
+            </Btn>
+            {st.isHost && (
+              <Btn
+                kind="ghost"
+                onClick={() =>
+                  run(
+                    () => arisanPostpone(st.id, 60),
+                    t("arisan.room.postponingOk")
+                  )
+                }
+                disabled={pending}
+              >
+                {t("arisan.room.postponeCta")}
+              </Btn>
+            )}
+          </>
         )}
 
         {/* DONE */}

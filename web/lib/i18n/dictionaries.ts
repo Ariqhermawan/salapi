@@ -930,6 +930,10 @@ const en = {
       leftOk: "You left the room",
       friendsJoinCta: "Simulate friends joining",
       friendsJoinedOk: "Friends joined the room",
+      postponeCta: "Postpone kocok by 60s (host)",
+      postponingOk: "Kocok postponed · countdown shifted",
+      alreadyPostponed: "This round was already postponed once.",
+      postponeOnlyHost: "Only the host can postpone.",
       doneTitle: "Cycle complete",
       doneBody:
         "Every member won exactly once. The contract balance is exactly zero. The receipts are on-chain.",
@@ -1877,6 +1881,10 @@ const tl: Dict = {
       leftOk: "Umalis ka na",
       friendsJoinCta: "I-simulate na sumali ang mga kaibigan",
       friendsJoinedOk: "Sumali ang mga kaibigan",
+      postponeCta: "Ipagpaliban ang kocok ng 60s (host)",
+      postponingOk: "Naipagpaliban ang kocok · gumalaw ang countdown",
+      alreadyPostponed: "Naipagpaliban na ang round na ito.",
+      postponeOnlyHost: "Tanging host lamang ang puwedeng magpaliban.",
       doneTitle: "Tapos na ang cycle",
       doneBody:
         "Eksaktong isang beses nanalo ang bawat miyembro. Eksaktong sero ang balanse ng kontrata. On-chain ang mga resibo.",
@@ -2820,6 +2828,10 @@ const id: Dict = {
       leftOk: "Kamu keluar",
       friendsJoinCta: "Simulasi teman bergabung",
       friendsJoinedOk: "Teman-teman bergabung",
+      postponeCta: "Tunda kocok 60 detik (host)",
+      postponingOk: "Kocok ditunda · countdown bergeser",
+      alreadyPostponed: "Putaran ini sudah pernah ditunda sekali.",
+      postponeOnlyHost: "Hanya host yang bisa menunda.",
       doneTitle: "Siklus selesai",
       doneBody:
         "Setiap anggota menang tepat sekali. Saldo kontrak tepat nol. Tanda terima ada di on-chain.",
@@ -3764,6 +3776,10 @@ const vi: Dict = {
       leftOk: "Bạn đã rời",
       friendsJoinCta: "Mô phỏng bạn bè tham gia",
       friendsJoinedOk: "Bạn bè đã tham gia",
+      postponeCta: "Hoãn lần quay 60 giây (chủ phòng)",
+      postponingOk: "Đã hoãn lần quay · bộ đếm đã dời",
+      alreadyPostponed: "Vòng này đã được hoãn một lần rồi.",
+      postponeOnlyHost: "Chỉ chủ phòng mới có thể hoãn.",
       doneTitle: "Chu kỳ hoàn tất",
       doneBody:
         "Mỗi thành viên trúng đúng một lần. Số dư hợp đồng đúng bằng không. Biên nhận có trên on-chain.",

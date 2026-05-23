@@ -788,6 +788,27 @@ export async function arisanKocok(roomId: number) {
   };
 }
 
+/** Map raw Soroban contract trap strings to compact i18n keys the UI can
+ *  render. The on-chain enum is `Error::{NotInitialized=1, …,
+ *  NotHost=4, WrongStatus=5, InvalidParams=6, NotMember=7, AlreadyJoined=8,
+ *  RoomFull=9, NotYet=10, AlreadyPostponed=11}` — when simulation fails the
+ *  SDK surfaces `Error(Contract, #N)` somewhere in the message. */
+function arisanFriendlyError(raw: string | undefined, fallbackKey: string) {
+  const s = (raw ?? "").toString();
+  const m = s.match(/Error\(Contract,\s*#(\d+)\)/);
+  if (!m) return fallbackKey;
+  const code = Number(m[1]);
+  // Keep this list aligned with contracts/arisan_rooms/src/lib.rs Error.
+  const map: Record<number, string> = {
+    4: "arisan.room.postponeOnlyHost",
+    5: "arisan.somethingWrong", // WrongStatus — generic
+    6: "arisan.somethingWrong", // InvalidParams — generic
+    7: "arisan.somethingWrong", // NotMember — generic
+    11: "arisan.room.alreadyPostponed",
+  };
+  return map[code] ?? fallbackKey;
+}
+
 export async function arisanPostpone(roomId: number, delaySeconds: number) {
   const id = arisanRoomsId();
   if (!id) return { ok: false as const, error: "Contract not configured" };
@@ -798,9 +819,15 @@ export async function arisanPostpone(roomId: number, delaySeconds: number) {
     sc.addr(s.publicKey),
     sc.u64(delay),
   ]);
-  return r.ok
-    ? { ok: true as const, link: txLink(r.hash) }
-    : { ok: false as const, error: r.error };
+  if (r.ok) return { ok: true as const, link: txLink(r.hash) };
+  // Surface a translation key the UI can render instead of the raw XDR /
+  // HostError dump. The UI's run() helper falls back to the raw error if
+  // errorKey is absent, so older callers stay compatible.
+  return {
+    ok: false as const,
+    error: r.error,
+    errorKey: arisanFriendlyError(r.error, "arisan.somethingWrong"),
+  };
 }
 
 /** Demo helper: have the configured friends auto-join a room by reading its
