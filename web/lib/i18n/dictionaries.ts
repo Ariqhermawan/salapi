@@ -1800,7 +1800,7 @@ const tl: Dict = {
     trustGatesLink: "Paano gumagana ang limang trust gate",
   },
   arisan: {
-    title: "Arisan Rooms",
+    title: "Paluwagan Rooms",
     previewBadge: "Build-Award preview",
     kicker: "Naka-room na prefund · invite lamang",
     heroTitle: "Paluwagan na patas, on-chain ang pagpili.",
@@ -2747,7 +2747,7 @@ const id: Dict = {
     trustGatesLink: "Cara kerja lima gerbang kepercayaan",
   },
   arisan: {
-    title: "Arisan Rooms",
+    title: "Ruang Arisan",
     previewBadge: "Pratinjau · Build-Award",
     kicker: "Prefund per ruang · undangan saja",
     heroTitle: "Arisan yang adil, pemenang dipilih on-chain.",
@@ -3695,7 +3695,7 @@ const vi: Dict = {
     trustGatesLink: "Năm cánh cổng tin cậy hoạt động thế nào",
   },
   arisan: {
-    title: "Arisan Rooms",
+    title: "Phòng Hụi",
     previewBadge: "Bản xem trước · Build-Award",
     kicker: "Hụi gửi trước · chỉ mời",
     heroTitle: "Hụi công bằng, người trúng chọn on-chain.",
