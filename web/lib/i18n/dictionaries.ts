@@ -2873,7 +2873,7 @@ const vi: Dict = {
     savTitle: "Tiết kiệm theo mục tiêu",
     savDesc: "Khóa tiền tới mục tiêu; mở khi đạt được.",
     savCta: "Tiết kiệm",
-    zoneLive: "ĐANG CHẠY",
+    zoneLive: "HÔM NAY",
     zoneVision: "TẦM NHÌN · BUILD-AWARD",
     circlesDesc:
       "Gây quỹ cộng đồng mở. Cùng một rail, mở cho mọi nguyên nhân.",
