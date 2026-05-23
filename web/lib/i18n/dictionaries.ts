@@ -37,7 +37,7 @@ const en = {
     zoneLive: "LIVE TODAY",
     zoneVision: "VISION · BUILD-AWARD",
     circlesDesc: "Open community fund-raising. Same rail, opened to any cause.",
-    circlesBadge: "Preview · Build-Award",
+    circlesBadge: "Preview",
     tilePal: "Savings circle",
     tileSav: "Smart savings",
     tileDis: "Disaster relief",
@@ -850,7 +850,7 @@ const en = {
   },
   arisan: {
     title: "Arisan Rooms",
-    previewBadge: "Build-Award preview",
+    previewBadge: "Preview",
     kicker: "Roomed prefund · invite-only",
     heroTitle: "An arisan that picks fairly, on-chain.",
     heroBody:
@@ -994,7 +994,7 @@ const tl: Dict = {
     zoneVision: "BISYON · BUILD-AWARD",
     circlesDesc:
       "Bukas na pangangalap ng pondo para sa komunidad. Iisang rail, bukas sa anumang dahilan.",
-    circlesBadge: "Preview · Build-Award",
+    circlesBadge: "Preview",
     tilePal: "Paluwagan",
     tileSav: "Ipon",
     tileDis: "Tulong sa sakuna",
@@ -1801,7 +1801,7 @@ const tl: Dict = {
   },
   arisan: {
     title: "Paluwagan Rooms",
-    previewBadge: "Build-Award preview",
+    previewBadge: "Preview",
     kicker: "Naka-room na prefund · invite lamang",
     heroTitle: "Paluwagan na patas, on-chain ang pagpili.",
     heroBody:
@@ -1941,7 +1941,7 @@ const id: Dict = {
     zoneVision: "VISI · BUILD-AWARD",
     circlesDesc:
       "Galang dana komunitas yang transparan. Rel yang sama, buat tujuan apa aja.",
-    circlesBadge: "Pratinjau · Build-Award",
+    circlesBadge: "Pratinjau",
     tilePal: "Arisan",
     tileSav: "Nabung",
     tileDis: "Bantu bencana",
@@ -2748,7 +2748,7 @@ const id: Dict = {
   },
   arisan: {
     title: "Ruang Arisan",
-    previewBadge: "Pratinjau · Build-Award",
+    previewBadge: "Pratinjau",
     kicker: "Prefund per ruang · undangan saja",
     heroTitle: "Arisan yang adil, pemenang dipilih on-chain.",
     heroBody:
@@ -2889,7 +2889,7 @@ const vi: Dict = {
     zoneVision: "TẦM NHÌN · BUILD-AWARD",
     circlesDesc:
       "Gây quỹ cộng đồng mở. Cùng một rail, mở cho mọi nguyên nhân.",
-    circlesBadge: "Bản xem trước · Build-Award",
+    circlesBadge: "Bản xem trước",
     tilePal: "Chơi hụi",
     tileSav: "Tiết kiệm",
     tileDis: "Cứu trợ",
@@ -3696,7 +3696,7 @@ const vi: Dict = {
   },
   arisan: {
     title: "Phòng Hụi",
-    previewBadge: "Bản xem trước · Build-Award",
+    previewBadge: "Bản xem trước",
     kicker: "Hụi gửi trước · chỉ mời",
     heroTitle: "Hụi công bằng, người trúng chọn on-chain.",
     heroBody:
