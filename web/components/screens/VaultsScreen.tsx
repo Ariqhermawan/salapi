@@ -341,7 +341,7 @@ export default function VaultsScreen() {
         {/* Your money: Arisan + Savings */}
         <div
           style={{
-            padding: "12px 4px 6px",
+            padding: "8px 4px 4px",
             fontSize: 11,
             fontWeight: 600,
             letterSpacing: "0.1em",
@@ -385,117 +385,119 @@ export default function VaultsScreen() {
           />
         </div>
 
-        {/* Coming: Salapi Circles (Build-Award preview) */}
-        <Card
-          p={14}
-          elevation
-          className="sl-lift"
-          style={{ marginTop: 10, cursor: "pointer" }}
-          onClick={() => router.push("/circles")}
+        {/* Preview tiles — Salapi Circles + Arisan Rooms compressed to a
+            single 2-col slim row so the whole /vaults screen fits 375×667
+            without the user scrolling to reach the bottom nav. (Per the
+            DENSITY DISCIPLINE constraint in DESIGN-REVAMP-BRIEF.md.) */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 10,
+            marginTop: 10,
+          }}
         >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-            }}
+          <Card
+            p={10}
+            elevation
+            className="sl-lift"
+            style={{ cursor: "pointer" }}
+            onClick={() => router.push("/circles")}
           >
-            <div
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 11,
-                background: T.warnTint,
-                color: T.warn,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              {Ico.sparkle({ size: 18, c: T.warn })}
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>
-                {t("vaults.circlesName")}
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 9,
+                  background: T.warnTint,
+                  color: T.warn,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flex: "0 0 auto",
+                }}
+              >
+                {Ico.sparkle({ size: 14, c: T.warn })}
               </div>
-              <div style={{ fontSize: 12, color: T.slate, marginTop: 1 }}>
-                {t("vaults.circlesCaption")}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {t("vaults.circlesName")}
+                </div>
+                <div
+                  style={{
+                    fontSize: 10,
+                    color: T.warn,
+                    fontWeight: 600,
+                    letterSpacing: "0.04em",
+                    marginTop: 1,
+                  }}
+                >
+                  {t("home.circlesBadge")}
+                </div>
               </div>
+              {Ico.chev({ size: 12, c: T.slate })}
             </div>
-            <Chip kind="warn" size="sm">
-              {t("home.circlesBadge")}
-            </Chip>
-          </div>
-          <div
-            style={{
-              marginTop: 10,
-              fontSize: 13,
-              fontWeight: 600,
-              color: T.action,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 5,
-            }}
+          </Card>
+          <Card
+            p={10}
+            elevation
+            className="sl-lift"
+            style={{ cursor: "pointer" }}
+            onClick={() => router.push("/arisan")}
           >
-            {t("vaults.circlesCta")} {Ico.chev({ size: 14, c: T.action })}
-          </div>
-        </Card>
-
-        {/* Arisan Rooms — roomed prefund (Build-Award preview) */}
-        <Card
-          p={14}
-          elevation
-          className="sl-lift"
-          style={{ marginTop: 10, cursor: "pointer" }}
-          onClick={() => router.push("/arisan")}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-            }}
-          >
-            <div
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 11,
-                background: T.actionTint,
-                color: T.action,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              {Ico.refresh({ size: 18, c: T.action })}
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>
-                {t("arisan.title")}
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 9,
+                  background: T.actionTint,
+                  color: T.action,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flex: "0 0 auto",
+                }}
+              >
+                {Ico.refresh({ size: 14, c: T.action })}
               </div>
-              <div style={{ fontSize: 12, color: T.slate, marginTop: 1 }}>
-                {t("arisan.kicker")}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {t("arisan.title")}
+                </div>
+                <div
+                  style={{
+                    fontSize: 10,
+                    color: T.warn,
+                    fontWeight: 600,
+                    letterSpacing: "0.04em",
+                    marginTop: 1,
+                  }}
+                >
+                  {t("home.circlesBadge")}
+                </div>
               </div>
+              {Ico.chev({ size: 12, c: T.slate })}
             </div>
-            <Chip kind="warn" size="sm">
-              {t("home.circlesBadge")}
-            </Chip>
-          </div>
-          <div
-            style={{
-              marginTop: 10,
-              fontSize: 13,
-              fontWeight: 600,
-              color: T.action,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 5,
-            }}
-          >
-            {t("arisan.createCta")} {Ico.chev({ size: 14, c: T.action })}
-          </div>
-        </Card>
+          </Card>
+        </div>
       </div>
 
       <div style={{ padding: "12px 16px 0", display: "flex", justifyContent: "center" }}>
