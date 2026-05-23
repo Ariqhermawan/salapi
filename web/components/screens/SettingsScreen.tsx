@@ -64,7 +64,10 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <div
       style={{
-        padding: "16px 20px 7px",
+        // Compressed from "16px 20px 7px" to fit /settings one viewport per
+        // DENSITY DISCIPLINE constraint (DESIGN-REVAMP-BRIEF.md). 5 sections
+        // × 9px saved ≈ 45px of vertical reclaim.
+        padding: "10px 16px 4px",
         fontSize: 11,
         fontWeight: 600,
         letterSpacing: "0.1em",
@@ -445,10 +448,10 @@ export default function SettingsScreen() {
         </Card>
       </div>
 
-      <div style={{ padding: "20px 16px 6px", display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+      <div style={{ padding: "12px 16px 4px", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
         <MakerLockup />
         <PoweredByStellar />
-        <span style={{ fontSize: 12, color: T.slate }}>
+        <span style={{ fontSize: 11, color: T.slate }}>
           Salapi 1.0 · testnet · {t("settings.forSEA")}
         </span>
       </div>
