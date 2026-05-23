@@ -24,6 +24,18 @@ import type { Locale } from "@/lib/i18n/config";
 
 const EXPLORER = "https://stellar.expert/explorer/testnet";
 const DISASTER_CONTRACT = "CCKQ3UVBZ75KSZDO6IPA5U6PFARJG4PLRGN2SAIW5RAGQ6K4B7ZDWBUZ";
+// Every Soroban contract Salapi runs on Testnet. Click any line in the UI to
+// inspect it on Stellar Expert — the entry point for reviewers verifying the
+// "we said we built it, here it is on-chain" claim. Names stay as technical
+// artifacts (no localisation).
+const CONTRACTS: { name: string; id: string }[] = [
+  { name: "base-vault",       id: "CBC6BTKW5VA6Y2XH6WP4IEPWDZ7TBPYSIIOZQMTEH62N62NFT4F4VYDD" },
+  { name: "username-registry",id: "CDDINUQXTF6SHZN2ZJ36IT7P4YOJ3OZN3H6LTYHVCQ35YYO7YTAWM4G3" },
+  { name: "disaster",         id: DISASTER_CONTRACT },
+  { name: "paluwagan",        id: "CCXNSK6IGPSB4QGUSNB2EFZWYV53NKVX5AV3XSJANCDDD7TULGQSY37X" },
+  { name: "smart-savings",    id: "CBQBUAOP3T235Q2U63XNC2NQVNAOXQL2KHWALO6FTIOJS46NTKIZJ5WI" },
+  { name: "arisan-rooms",     id: "CDAUA3TN4PRJFVHWBITT2DZMCY24DEZRA4NQLZLEX5CKL6AOA6RLII4S" },
+];
 // Founding on-chain trail: technical proof artifact with real testnet tx
 // hashes, step labels stay as technical literals (see ActivityScreen).
 const TRAIL: { step: string; hash: string }[] = [
@@ -376,6 +388,35 @@ export default function TransparencyScreen() {
         >
           {t("transparency.disasterContract")} {DISASTER_CONTRACT.slice(0, 12)}… {Ico.link({ size: 13, c: T.action })}
         </a>
+      </div>
+
+      {/* Every deployed Soroban contract behind Salapi — click to verify on Stellar Expert. */}
+      <div style={{ padding: "22px 20px 4px", fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: T.slate }}>
+        {t("transparency.contractsLabel")}
+      </div>
+      <div style={{ padding: "0 16px" }}>
+        <Card p={0}>
+          {CONTRACTS.map((c, i) => (
+            <a
+              key={c.id}
+              href={`${EXPLORER}/contract/${c.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderBottom: i < CONTRACTS.length - 1 ? "1px solid " + T.hairline : "none", color: T.ink, textDecoration: "none", minHeight: 44 }}
+            >
+              <div style={{ width: 28, height: 28, borderRadius: 99, background: T.actionTint, color: T.action, display: "flex", alignItems: "center", justifyContent: "center", flex: "0 0 auto" }}>
+                {Ico.link({ size: 14, c: T.action })}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 600, fontFamily: T.fontMono }}>{c.name}</div>
+                <div style={{ fontSize: 11, color: T.slate, fontFamily: T.fontMono, marginTop: 1 }}>{c.id.slice(0, 14)}…</div>
+              </div>
+            </a>
+          ))}
+        </Card>
+        <div style={{ marginTop: 8, fontSize: 11, color: T.slate, lineHeight: 1.5, textAlign: "center", padding: "0 8px" }}>
+          {t("transparency.contractsBody")}
+        </div>
       </div>
 
       <div style={{ padding: "14px 16px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
