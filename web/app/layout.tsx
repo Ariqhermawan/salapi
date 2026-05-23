@@ -64,7 +64,7 @@ export default function RootLayout({
               style={{ background: "#F4F6FB" }}
             >
               <InstallBanner />
-              <main className="flex-1 overflow-y-auto pb-[92px]">
+              <main className="flex-1 overflow-y-auto pb-[calc(env(safe-area-inset-bottom,0px)+80px)]">
                 {children}
               </main>
               <BottomNav />
