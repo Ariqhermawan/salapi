@@ -155,9 +155,30 @@ export async function paluwaganState() {
   const id = paluwaganId();
   if (!id) return { ready: false as const };
   try {
-    const members = (await readContract(id, "members")) as string[];
+    // readRetry on the critical numeric reads — a transient zero here makes
+    // Vaults flash "Rp 0" / "₱0" for the share & pot before settling on the
+    // real figure (the same defaulted-read failure mode disasterState already
+    // guards). Members must be non-empty and amount must be > 0; both are
+    // contract invariants once the circle is initialised.
+    const membersRaw = await readRetry(
+      id,
+      "members",
+      (v) => Array.isArray(v) && v.length > 0,
+    );
+    if (membersRaw == null) {
+      return { ready: false as const, error: "paluwagan members degraded" };
+    }
+    const members = membersRaw as string[];
     const round = Number(await readContract(id, "round")) || 0;
-    const amount = BigInt((await readContract(id, "amount")) as number);
+    const amountRaw = await readRetry(
+      id,
+      "amount",
+      (v) => v != null && BigInt(v as number | bigint) > 0n,
+    );
+    if (amountRaw == null) {
+      return { ready: false as const, error: "paluwagan amount degraded" };
+    }
+    const amount = BigInt(amountRaw as number | bigint);
     const recipient = (await readContract(id, "recipient_of", [
       sc.u32(round),
     ])) as string;
@@ -523,7 +544,20 @@ export async function arisanList() {
     const rooms: Row[] = [];
     for (let i = limit; i >= 1; i--) {
       try {
-        const r = await readArisanRoom(id, i);
+        // Same Rp 0 cold-load guard the disaster/paluwagan reads already have:
+        // a transient zero shareStroops would make this room's tile flash
+        // "Rp 0" on Vaults. The share is set in create_room and never goes to
+        // zero, so a 0 here is a degraded RPC read — retry a few times.
+        let r: Awaited<ReturnType<typeof readArisanRoom>> | null = null;
+        for (let attempt = 0; attempt < 4; attempt++) {
+          const candidate = await readArisanRoom(id, i);
+          if (candidate.shareStroops > 0n) {
+            r = candidate;
+            break;
+          }
+          if (attempt < 3) await new Promise((res) => setTimeout(res, 300));
+        }
+        if (r == null) continue;
         const members =
           ((await readContract(id, "get_members", [sc.u32(i)])) as string[]) ||
           [];
