@@ -440,6 +440,62 @@ export default function VaultsScreen() {
             {t("vaults.circlesCta")} {Ico.chev({ size: 14, c: T.action })}
           </div>
         </Card>
+
+        {/* Arisan Rooms — roomed prefund (Build-Award preview) */}
+        <Card
+          p={14}
+          elevation
+          className="sl-lift"
+          style={{ marginTop: 10, cursor: "pointer" }}
+          onClick={() => router.push("/arisan")}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+            }}
+          >
+            <div
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 11,
+                background: T.actionTint,
+                color: T.action,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {Ico.refresh({ size: 18, c: T.action })}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>
+                {t("arisan.title")}
+              </div>
+              <div style={{ fontSize: 12, color: T.slate, marginTop: 1 }}>
+                {t("arisan.kicker")}
+              </div>
+            </div>
+            <Chip kind="warn" size="sm">
+              {t("home.circlesBadge")}
+            </Chip>
+          </div>
+          <div
+            style={{
+              marginTop: 10,
+              fontSize: 13,
+              fontWeight: 600,
+              color: T.action,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+            }}
+          >
+            {t("arisan.createCta")} {Ico.chev({ size: 14, c: T.action })}
+          </div>
+        </Card>
       </div>
 
       <div style={{ padding: "12px 16px 0", display: "flex", justifyContent: "center" }}>

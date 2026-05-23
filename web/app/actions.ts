@@ -13,6 +13,7 @@ import {
   FRIENDBOT,
   paluwaganId,
   smartSavingsId,
+  arisanRoomsId,
   FRIENDS,
 } from "@/lib/server/stellar";
 import { getSigner } from "@/lib/server/userWallet";
@@ -382,6 +383,528 @@ export async function disasterState() {
     };
   } catch (e) {
     return { ok: false as const, error: e instanceof Error ? e.message : "x" };
+  }
+}
+
+// ── Arisan Rooms (roomed prefund circles) ────────────────────────────────
+// Mirrors the paluwagan demo flow but built on the multi-room arisan_rooms
+// contract: every member locks N × share up front; each round kocok() picks a
+// random unwon member on-chain via Soroban PRNG and pays them the pot. After
+// N rounds, every member has won exactly once and the contract balance is 0.
+// Late payment / default / abscond are structurally impossible — there is no
+// payment owed after join.
+
+export type ArisanCadence = "Weekly" | "Biweekly" | "Monthly";
+export type ArisanStatus = "Open" | "Active" | "Done" | "Dissolved";
+
+// Build-Award preview: cadences run in SECONDS (60/120/300) so a full N=3
+// cycle can be observed in a hackathon demo. Production: 7/14/30 days.
+const ARISAN_CADENCE_SECS: Record<ArisanCadence, number> = {
+  Weekly: 60,
+  Biweekly: 120,
+  Monthly: 300,
+};
+
+function arisanFriendsList() {
+  return FRIENDS.filter((f) => f.pub());
+}
+
+// 32-char invite-code alphabet: digits 2–9 + uppercase A–Z minus the
+// visually-ambiguous O/I/0/1. The same set the contract documents.
+const ARISAN_CODE_ALPHA = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+
+/** Cryptographically secure 6-char invite code drawn from a CSPRNG.
+ *  Node's `crypto.getRandomValues` is the WebCrypto polyfill — same source
+ *  as the browser's. We use rejection sampling so each character is uniform
+ *  over the 32-char alphabet (no modulo bias). 32^6 ≈ 1B possibilities; the
+ *  contract additionally enforces uniqueness on room creation. */
+function genArisanCode(): string {
+  const out: string[] = [];
+  // Draw 4-byte windows; accept iff < 256, the largest 32-aligned upper bound
+  // that still uses 8 bits (256 % 32 == 0 → no bias).
+  const bytes = new Uint8Array(48);
+  crypto.getRandomValues(bytes);
+  let i = 0;
+  while (out.length < 6) {
+    if (i >= bytes.length) {
+      crypto.getRandomValues(bytes);
+      i = 0;
+    }
+    const b = bytes[i++];
+    if (b < 256) out.push(ARISAN_CODE_ALPHA[b & 31]);
+  }
+  return out.join("");
+}
+
+function arisanShortAddr(a: string) {
+  return a.slice(0, 4) + "…" + a.slice(-4);
+}
+
+/** Friendly label for an address (You / Teman A / Teman B / short). */
+function arisanLabelOf(addr: string, me: string): string {
+  if (addr === me) return "You";
+  const fi = FRIENDS.findIndex((f) => f.pub() === addr);
+  if (fi >= 0) return FRIENDS[fi].label;
+  return arisanShortAddr(addr);
+}
+
+/** Soroban contracttype unit-variant enums can deserialize as a tagged object,
+ *  a one-element array, or a bare string depending on the SDK build. Coerce. */
+function arisanNormalizeStatus(raw: unknown): ArisanStatus {
+  if (Array.isArray(raw) && typeof raw[0] === "string")
+    return raw[0] as ArisanStatus;
+  if (raw && typeof raw === "object" && "tag" in raw)
+    return (raw as { tag: ArisanStatus }).tag;
+  if (typeof raw === "string") return raw as ArisanStatus;
+  return "Open";
+}
+function arisanNormalizeCadence(raw: unknown): ArisanCadence {
+  if (Array.isArray(raw) && typeof raw[0] === "string")
+    return raw[0] as ArisanCadence;
+  if (raw && typeof raw === "object" && "tag" in raw)
+    return (raw as { tag: ArisanCadence }).tag;
+  if (typeof raw === "string") return raw as ArisanCadence;
+  return "Weekly";
+}
+
+async function readArisanRoom(id: string, roomId: number) {
+  const r = (await readContract(id, "get_room", [sc.u32(roomId)])) as {
+    host: string;
+    name: string;
+    code: string;
+    member_target: number | bigint;
+    share: number | bigint;
+    cadence: unknown;
+    first_kocok: number | bigint;
+    join_deadline: number | bigint;
+    status: unknown;
+    member_count: number | bigint;
+    round: number | bigint;
+  };
+  return {
+    host: r.host,
+    name: r.name,
+    code: r.code,
+    memberTarget: Number(r.member_target),
+    shareStroops: BigInt(r.share),
+    cadence: arisanNormalizeCadence(r.cadence),
+    firstKocok: Number(r.first_kocok),
+    joinDeadline: Number(r.join_deadline),
+    status: arisanNormalizeStatus(r.status),
+    memberCount: Number(r.member_count),
+    round: Number(r.round),
+  };
+}
+
+export async function arisanList() {
+  const id = arisanRoomsId();
+  if (!id) return { ready: false as const };
+  try {
+    const me = (await getSigner()).publicKey;
+    const count = Number(await readContract(id, "room_count")) || 0;
+    const limit = Math.min(count, 50); // demo safety cap
+    type Row = {
+      id: number;
+      name: string;
+      status: ArisanStatus;
+      memberCount: number;
+      memberTarget: number;
+      sharePeso: string;
+      potPeso: string;
+      sharePesos: number;
+      potPesos: number;
+      cadence: ArisanCadence;
+      firstKocok: number;
+      round: number;
+      isMember: boolean;
+      isHost: boolean;
+      code: string | null;
+    };
+    const rooms: Row[] = [];
+    for (let i = limit; i >= 1; i--) {
+      try {
+        const r = await readArisanRoom(id, i);
+        const members =
+          ((await readContract(id, "get_members", [sc.u32(i)])) as string[]) ||
+          [];
+        const isMember = members.includes(me);
+        const isHost = r.host === me;
+        const pot = r.shareStroops * BigInt(r.memberTarget);
+        rooms.push({
+          id: i,
+          name: r.name,
+          status: r.status,
+          memberCount: r.memberCount,
+          memberTarget: r.memberTarget,
+          sharePesos: stroopsToPesos(r.shareStroops),
+          potPesos: stroopsToPesos(pot),
+          sharePeso: fmtPeso(stroopsToPesos(r.shareStroops)),
+          potPeso: fmtPeso(stroopsToPesos(pot)),
+          cadence: r.cadence,
+          firstKocok: r.firstKocok,
+          round: r.round,
+          isMember,
+          isHost,
+          code: isMember ? r.code : null,
+        });
+      } catch {
+        /* gap or read failure — skip */
+      }
+    }
+    const mine = rooms.filter((r) => r.isMember);
+    return { ready: true as const, total: count, mine };
+  } catch (e) {
+    return {
+      ready: false as const,
+      error: e instanceof Error ? e.message : String(e),
+    };
+  }
+}
+
+export async function arisanCreate(input: {
+  name: string;
+  memberTarget: number;
+  sharePesos: number;
+  cadence: ArisanCadence;
+}) {
+  const id = arisanRoomsId();
+  if (!id) return { ok: false as const, error: "Contract not configured" };
+  if (!input || typeof input !== "object")
+    return { ok: false as const, error: "Invalid request" };
+  const name = (input.name ?? "").toString().trim().slice(0, 40) || "Arisan";
+  const memberTarget = Math.floor(Number(input.memberTarget));
+  const sharePesos = Number(input.sharePesos);
+  const cadence: ArisanCadence =
+    input.cadence === "Biweekly"
+      ? "Biweekly"
+      : input.cadence === "Monthly"
+        ? "Monthly"
+        : "Weekly";
+  if (!(memberTarget >= 3 && memberTarget <= 20))
+    return { ok: false as const, error: "Members must be 3–20" };
+  if (!(sharePesos > 0))
+    return { ok: false as const, error: "Enter a share amount" };
+
+  // Contract requires first_kocok ≥ now + JOIN_WINDOW and
+  // join_deadline < first_kocok. In the testnet preview JOIN_WINDOW is 60s,
+  // so we schedule first_kocok ~90s out and join_deadline ~30s before that.
+  // (Production: JOIN_WINDOW = 3 days, with first_kocok days out.)
+  const now = Math.floor(Date.now() / 1000);
+  const firstKocok = now + 90;
+  const joinDeadline = now + 60;
+
+  // Client-supplied invite code (CSPRNG-derived). The contract checks
+  // uniqueness on insert; we pre-flight a few candidates so a 1-in-10^9
+  // collision still picks up cleanly on the next try without round-tripping
+  // through the contract's InvalidParams error.
+  let code = genArisanCode();
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      const existing = await readContract(id, "room_by_code", [sc.sym(code)]);
+      if (existing == null) break; // free
+    } catch {
+      // room_by_code returns NotFound on miss — that's the case we want.
+      break;
+    }
+    code = genArisanCode();
+  }
+
+  const s = await getSigner();
+  const r = await invokeAs(s.secret, id, "create_room", [
+    sc.addr(s.publicKey),
+    sc.sym(code),
+    sc.str(name),
+    sc.u32(memberTarget),
+    sc.i128(pesosToStroops(sharePesos)),
+    sc.unitVariant(cadence),
+    sc.u64(firstKocok),
+    sc.u64(joinDeadline),
+  ]);
+  if (!r.ok) return { ok: false as const, error: r.error };
+  return {
+    ok: true as const,
+    id: Number(r.value),
+    code,
+    link: txLink(r.hash),
+  };
+}
+
+export async function arisanResolveCode(rawCode: string) {
+  const id = arisanRoomsId();
+  if (!id) return { ok: false as const, error: "Contract not configured" };
+  const code = (rawCode ?? "")
+    .toString()
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z2-9]/g, "");
+  if (code.length !== 6)
+    return { ok: false as const, error: "Code must be 6 characters" };
+  try {
+    const roomId = await readContract(id, "room_by_code", [sc.sym(code)]);
+    return { ok: true as const, id: Number(roomId), code };
+  } catch {
+    return { ok: false as const, error: "Code not found" };
+  }
+}
+
+export async function arisanJoin(rawCode: string) {
+  const id = arisanRoomsId();
+  if (!id) return { ok: false as const, error: "Contract not configured" };
+  const res = await arisanResolveCode(rawCode);
+  if (!res.ok) return res;
+  const s = await getSigner();
+  const r = await invokeAs(s.secret, id, "join_room", [
+    sc.u32(res.id),
+    sc.sym(res.code),
+    sc.addr(s.publicKey),
+  ]);
+  return r.ok
+    ? { ok: true as const, id: res.id, link: txLink(r.hash) }
+    : { ok: false as const, error: r.error };
+}
+
+export async function arisanLeave(roomId: number) {
+  const id = arisanRoomsId();
+  if (!id) return { ok: false as const, error: "Contract not configured" };
+  const s = await getSigner();
+  const r = await invokeAs(s.secret, id, "leave_room", [
+    sc.u32(Number(roomId)),
+    sc.addr(s.publicKey),
+  ]);
+  return r.ok
+    ? { ok: true as const, link: txLink(r.hash) }
+    : { ok: false as const, error: r.error };
+}
+
+export async function arisanStart(roomId: number) {
+  const id = arisanRoomsId();
+  if (!id) return { ok: false as const, error: "Contract not configured" };
+  const s = await getSigner();
+  const r = await invokeAs(s.secret, id, "start_room", [
+    sc.u32(Number(roomId)),
+    sc.addr(s.publicKey),
+  ]);
+  return r.ok
+    ? { ok: true as const, link: txLink(r.hash) }
+    : { ok: false as const, error: r.error };
+}
+
+export async function arisanCancel(roomId: number) {
+  const id = arisanRoomsId();
+  if (!id) return { ok: false as const, error: "Contract not configured" };
+  const s = await getSigner();
+  const r = await invokeAs(s.secret, id, "cancel_room", [
+    sc.u32(Number(roomId)),
+    sc.addr(s.publicKey),
+  ]);
+  return r.ok
+    ? { ok: true as const, link: txLink(r.hash) }
+    : { ok: false as const, error: r.error };
+}
+
+export async function arisanKocok(roomId: number) {
+  const id = arisanRoomsId();
+  if (!id) return { ok: false as const, error: "Contract not configured" };
+  const s = await getSigner();
+  const rid = Number(roomId);
+
+  // Read the live unwon-pool size so we know the index range. The contract
+  // re-validates the bound; this read is purely to scope the CSPRNG draw.
+  const members =
+    ((await readContract(id, "get_members", [sc.u32(rid)])) as string[]) || [];
+  if (members.length === 0)
+    return { ok: false as const, error: "Room has no members" };
+  const wonFlags = await Promise.all(
+    members.map(
+      async (m) =>
+        Boolean(
+          await readContract(id, "has_won", [sc.u32(rid), sc.addr(m)])
+        ),
+    ),
+  );
+  const poolSize = wonFlags.filter((w) => !w).length;
+  if (poolSize === 0)
+    return { ok: false as const, error: "No eligible members in pool" };
+
+  // CSPRNG-drawn winner_idx, uniform over [0, poolSize). Rejection-sample
+  // a 32-bit window to avoid modulo bias when poolSize doesn't divide 2^32.
+  const u32buf = new Uint32Array(1);
+  const limit = Math.floor(0x1_0000_0000 / poolSize) * poolSize;
+  let winnerIdx = 0;
+  for (let i = 0; i < 64; i++) {
+    crypto.getRandomValues(u32buf);
+    if (u32buf[0] < limit) {
+      winnerIdx = u32buf[0] % poolSize;
+      break;
+    }
+  }
+
+  const r = await invokeAs(s.secret, id, "kocok", [
+    sc.u32(rid),
+    sc.addr(s.publicKey),
+    sc.u32(winnerIdx),
+  ]);
+  if (!r.ok) return { ok: false as const, error: r.error };
+  const winner = typeof r.value === "string" ? r.value : "";
+  return {
+    ok: true as const,
+    winner,
+    winnerLabel: arisanLabelOf(winner, s.publicKey),
+    link: txLink(r.hash),
+  };
+}
+
+export async function arisanPostpone(roomId: number, delaySeconds: number) {
+  const id = arisanRoomsId();
+  if (!id) return { ok: false as const, error: "Contract not configured" };
+  const delay = Math.max(0, Math.floor(Number(delaySeconds)));
+  const s = await getSigner();
+  const r = await invokeAs(s.secret, id, "postpone_kocok", [
+    sc.u32(Number(roomId)),
+    sc.addr(s.publicKey),
+    sc.u64(delay),
+  ]);
+  return r.ok
+    ? { ok: true as const, link: txLink(r.hash) }
+    : { ok: false as const, error: r.error };
+}
+
+/** Demo helper: have the configured friends auto-join a room by reading its
+ *  code from chain. Skips friends already seated. */
+export async function arisanFriendsJoin(roomId: number) {
+  const id = arisanRoomsId();
+  if (!id) return { ok: false as const, error: "Contract not configured" };
+  let code: string;
+  try {
+    const r = await readArisanRoom(id, Number(roomId));
+    code = r.code;
+  } catch (e) {
+    return {
+      ok: false as const,
+      error: e instanceof Error ? e.message : "Room not found",
+    };
+  }
+  let joined = 0;
+  for (const f of arisanFriendsList()) {
+    const lockedRaw = (await readContract(id, "locked_of", [
+      sc.u32(Number(roomId)),
+      sc.addr(f.pub()),
+    ])) as number | bigint | null;
+    const locked = lockedRaw == null ? 0n : BigInt(lockedRaw);
+    if (locked > 0n) continue;
+    const r = await invokeAs(f.secret(), id, "join_room", [
+      sc.u32(Number(roomId)),
+      sc.sym(code),
+      sc.addr(f.pub()),
+    ]);
+    if (!r.ok) return { ok: false as const, error: `${f.label}: ${r.error}` };
+    joined++;
+  }
+  return { ok: true as const, joined };
+}
+
+export async function arisanRoomState(roomId: number) {
+  const id = arisanRoomsId();
+  if (!id) return { ready: false as const };
+  try {
+    const me = (await getSigner()).publicKey;
+    const rid = Number(roomId);
+    const room = await readArisanRoom(id, rid);
+    const members =
+      ((await readContract(id, "get_members", [sc.u32(rid)])) as string[]) ||
+      [];
+
+    const seats = await Promise.all(
+      members.map(async (addr) => {
+        const won = Boolean(
+          await readContract(id, "has_won", [sc.u32(rid), sc.addr(addr)])
+        );
+        return {
+          addr,
+          label: arisanLabelOf(addr, me),
+          won,
+          isYou: addr === me,
+        };
+      })
+    );
+
+    // Rounds are 1-indexed: start_room sets room.round=1 and KocokAt(1)=
+    // first_kocok. Each kocok increments room.round, so finished winners live
+    // at Winner(1)..Winner(room.round-1). Status flips to Done after the
+    // member_count-th kocok, when room.round overshoots by one.
+    const winners: Array<{
+      round: number;
+      addr: string;
+      label: string;
+      ts: number;
+    }> = [];
+    for (let r = 1; r < room.round; r++) {
+      try {
+        const addr = (await readContract(id, "winner_of", [
+          sc.u32(rid),
+          sc.u32(r),
+        ])) as string;
+        const ts = Number(
+          (await readContract(id, "kocok_at", [sc.u32(rid), sc.u32(r)])) ?? 0
+        );
+        winners.push({
+          round: r,
+          addr,
+          label: arisanLabelOf(addr, me),
+          ts,
+        });
+      } catch {
+        /* ignore — round write may be eventually consistent */
+      }
+    }
+
+    // Cadence is in seconds for the testnet preview (60/120/300); use it
+    // directly here. nextKocok lives at round (1-indexed); Open rooms (round=0
+    // pre-start) fall back to firstKocok so the countdown line stays sensible.
+    const cadenceSecs = ARISAN_CADENCE_SECS[room.cadence];
+    const effectiveRound = Math.max(1, room.round);
+    const nextKocok =
+      room.firstKocok + (effectiveRound - 1) * cadenceSecs;
+    const pot = room.shareStroops * BigInt(room.memberTarget);
+    const isMember = members.includes(me);
+    const isHost = room.host === me;
+    const seatsFull = seats.length >= room.memberTarget;
+
+    return {
+      ready: true as const,
+      id: rid,
+      name: room.name,
+      code: isMember ? room.code : null,
+      host: room.host,
+      hostLabel: arisanLabelOf(room.host, me),
+      cadence: room.cadence,
+      cadenceSecs,
+      memberTarget: room.memberTarget,
+      memberCount: room.memberCount,
+      sharePesos: stroopsToPesos(room.shareStroops),
+      sharePeso: fmtPeso(stroopsToPesos(room.shareStroops)),
+      potPesos: stroopsToPesos(pot),
+      potPeso: fmtPeso(stroopsToPesos(pot)),
+      status: room.status,
+      round: room.round,
+      firstKocok: room.firstKocok,
+      joinDeadline: room.joinDeadline,
+      nextKocok,
+      seats,
+      winners,
+      isMember,
+      isHost,
+      readyToStart: isHost && room.status === "Open" && seatsFull,
+      canKocokNow:
+        room.status === "Active" &&
+        Date.now() / 1000 >= nextKocok &&
+        room.round <= room.memberTarget,
+    };
+  } catch (e) {
+    return {
+      ready: false as const,
+      error: e instanceof Error ? e.message : String(e),
+    };
   }
 }
 

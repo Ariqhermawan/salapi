@@ -59,8 +59,14 @@ export const sc = {
   addr: (a: string) => new Address(a).toScVal(),
   i128: (v: bigint) => nativeToScVal(v, { type: "i128" }),
   u32: (v: number) => nativeToScVal(v, { type: "u32" }),
+  u64: (v: bigint | number) => nativeToScVal(BigInt(v), { type: "u64" }),
   str: (v: string) => nativeToScVal(v, { type: "string" }),
+  sym: (s: string) => nativeToScVal(s, { type: "symbol" }),
   bool: (v: boolean) => nativeToScVal(v),
+  // Unit variant of a Soroban contract enum (e.g. Cadence::Weekly).
+  // Encoded as a vec containing a single symbol = variant name.
+  unitVariant: (variant: string) =>
+    xdr.ScVal.scvVec([xdr.ScVal.scvSymbol(variant)]),
 };
 
 /** Native XLM balance of an account, via Horizon (simple + reliable). */
@@ -162,6 +168,9 @@ export function paluwaganId(): string | null {
 export function smartSavingsId(): string | null {
   return process.env.SMARTSAVINGS_CONTRACT ?? null;
 }
+export function arisanRoomsId(): string | null {
+  return process.env.ARISAN_ROOMS_CONTRACT ?? null;
+}
 export const FRIENDS = [
   {
     label: "Teman A",
@@ -209,7 +218,18 @@ export async function invokeAs(
         hash: sent.hash,
         value: gt.returnValue != null ? scValToNative(gt.returnValue) : null,
       };
-    return { ok: false, error: `tx ${gt.status}` };
+    // tx executed and failed — surface enough for the caller to diagnose.
+    type FailMeta = {
+      resultXdr?: { toXDR?: (fmt: string) => string };
+      resultMetaXdr?: { toXDR?: (fmt: string) => string };
+    };
+    const meta = gt as unknown as FailMeta;
+    const xdr1 = meta.resultXdr?.toXDR?.("base64") ?? "";
+    const xdr2 = meta.resultMetaXdr?.toXDR?.("base64") ?? "";
+    return {
+      ok: false,
+      error: `tx ${gt.status} hash=${sent.hash} resultXdr=${xdr1.slice(0, 200)}`,
+    };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
