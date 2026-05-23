@@ -126,9 +126,9 @@ export default function Home() {
           </div>
         </div>
         <div style={{ display: "flex", gap: 6 }}>
-          <IconButton onClick={go("/learn")}>{Ico.bulb({})}</IconButton>
-          <IconButton onClick={go("/activity")}>{Ico.bell({})}</IconButton>
-          <IconButton onClick={go("/receive")}>{Ico.qr({})}</IconButton>
+          <IconButton ariaLabel="Learn" onClick={go("/learn")}>{Ico.bulb({})}</IconButton>
+          <IconButton ariaLabel="Activity" onClick={go("/activity")}>{Ico.bell({})}</IconButton>
+          <IconButton ariaLabel="Receive" onClick={go("/receive")}>{Ico.qr({})}</IconButton>
         </div>
       </div>
 

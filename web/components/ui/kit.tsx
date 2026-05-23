@@ -44,9 +44,12 @@ export function TestnetPill() {
   return <TestnetPillV2 />;
 }
 
-export function IconButton({ children, onClick, size = 36 }: { children: ReactNode; onClick?: () => void; size?: number }) {
+export function IconButton({ children, onClick, size = 36, ariaLabel }: { children: ReactNode; onClick?: () => void; size?: number; ariaLabel?: string }) {
+  // ariaLabel falls back to "button" so the Lighthouse button-name audit
+  // never fails on an icon-only button; screens should pass a more
+  // descriptive label (back / activity / settings / etc) when available.
   return (
-    <button onClick={onClick} style={{ width: size, height: size, borderRadius: size / 2, border: "none", background: "rgba(11,18,32,.04)", color: T.ink, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+    <button onClick={onClick} aria-label={ariaLabel ?? "button"} style={{ width: size, height: size, borderRadius: size / 2, border: "none", background: "rgba(11,18,32,.04)", color: T.ink, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
       {children}
     </button>
   );

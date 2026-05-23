@@ -147,7 +147,11 @@ export function PoweredByStellarV2({ c = T.slate, size = 11 }: { c?: string; siz
   const h = size + 5;
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 7, color: c, fontSize: size, fontFamily: T.fontSans, letterSpacing: 0.02 }}>
-      <span style={{ fontWeight: 400, opacity: 0.75 }}>Powered by</span>
+      {/* opacity:0.75 used to tint this to ~#818994 on canvas, failing
+          contrast at 3.27:1. Full T.slate (#5B6472) is ~6.7:1, well over
+          the 4.5 bar, and visually still reads as secondary next to the
+          Stellar wordmark. */}
+      <span style={{ fontWeight: 400 }}>Powered by</span>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={onDark ? "/stellar-white.png" : "/stellar.png"}

@@ -37,8 +37,9 @@ export const viewport: Viewport = {
   themeColor: "#0B1220",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  // Intentionally do NOT lock max-scale or user-scalable=false:
+  // both fail Lighthouse a11y because they disable pinch-zoom for low-vision
+  // users. The PWA shell still feels app-like without zoom locked.
 };
 
 export default function RootLayout({

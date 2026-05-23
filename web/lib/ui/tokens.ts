@@ -45,7 +45,9 @@ export const T = {
   actionTint: "#EFF4FE",
   moneyIn: "#059669",
   moneyInTint: "#E6F6EF",
-  warn: "#B45309",
+  // warn was #B45309 — 4.48:1 on warnTint, below the 4.5 a11y bar for
+  // small text. #92400E is amber-800, ~6.5:1 on the same tint, well over.
+  warn: "#92400E",
   warnTint: "#FBF1E0",
   danger: "#B91C1C",
   d_ink: "#F4F6FB",
