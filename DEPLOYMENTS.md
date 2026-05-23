@@ -275,3 +275,71 @@ Run via `cd web && npx tsx scripts/verify-arisan.mts`; ordering of winners
   itself* the source of unpredictability, removing trust in the caller's
   CSPRNG. That sits beyond the 30-day SOW; this deploy is the honest
   in-scope answer.
+
+---
+
+## Week 3 (production-cadences variant) — mainnet candidate
+
+**Date:** 2026-05-23 (UTC; same day as the v2 CSPRNG deploy).
+**Why a separate variant:** the live demo contract above runs in SECONDS
+(`JOIN_WINDOW=60s`, `Weekly=60s`, `Biweekly=120s`, `Monthly=300s`) so a full
+N=3 cycle fits inside a hackathon demo. That's *wrong for mainnet* — a real
+"weekly" arisan firing every 60 seconds is unusable. The fix is a cargo
+feature flag, not a fork: same source, one flag, two binaries.
+
+Build the demo variant (default — what's live on
+`salapi-blond.vercel.app/arisan`):
+
+```
+stellar contract build --package arisan-rooms
+```
+
+Build the mainnet candidate (days-based timings):
+
+```
+stellar contract build --package arisan-rooms --features production-cadences
+```
+
+Cargo manifest:
+
+```toml
+[features]
+default = []
+production-cadences = []
+```
+
+`#[cfg(feature = "production-cadences")]` gates flip `JOIN_WINDOW` 60s →
+3 days, `MAX_POSTPONE_SECONDS` 300s → 3 days, `GRACE_PERIOD` 180s → 14
+days, and the `cadence_seconds` match so `Weekly`/`Biweekly`/`Monthly`
+resolve to 7/14/30 days.
+
+`cargo test -p arisan-rooms` passes 5/5 under **both** flag settings. The
+existing tests use a 4-day `first_kocok` offset and 7-/14-day advance ticks
+between rounds — safe margin for the production-cadences run, no test
+parameterization needed.
+
+### Deployed contract (testnet)
+
+| Contract | Contract ID | Explorer |
+|---|---|---|
+| arisan-rooms (production-cadences) | `CC2F3Y7TP72AZNGXAQWGXEDE2NLXCCW3ONGTAHW2SJG7BVLMSPIJEVYK` | [contract](https://stellar.expert/explorer/testnet/contract/CC2F3Y7TP72AZNGXAQWGXEDE2NLXCCW3ONGTAHW2SJG7BVLMSPIJEVYK) |
+
+Deploy + init tx hashes:
+[`e37c7850…6d464`](https://stellar.expert/explorer/testnet/tx/e37c7850501a5af03cc25c19b674f4824e26d6f5fd4501e56509ccec6786d464),
+[`962281c7…88a1d`](https://stellar.expert/explorer/testnet/tx/962281c7f6f7e9980219b11f142c1f11e625545d519c947cc017ccf6ce388a1d)
+(both confirmed `SUCCESS` on Soroban RPC).
+
+Recorded in `web/.env.local` as **`ARISAN_ROOMS_PROD_CONTRACT`** (separate
+from `ARISAN_ROOMS_CONTRACT` so the live web app keeps targeting the demo
+variant). Build + deploy script: `scripts/wsl-arisan-rooms-prod-setup.sh`.
+
+### What this proves
+
+- **The mainnet candidate compiles, deploys, and initializes cleanly on
+  testnet** under exactly the cargo flag the mainnet runbook will use.
+- **There are no two divergent forks of the contract** — same source, one
+  flag. Anyone reviewing can verify both variants from a single review.
+- **The hackathon-required "Mainnet" deploy step** (see
+  `MAINNET-DEPLOY.md`) now lists 6 contracts; the `arisan_rooms` build
+  step uses `--features production-cadences`. Live web stays on the demo
+  variant so the public N=3 cycle remains observable in ~3 minutes.

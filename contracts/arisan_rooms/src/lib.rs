@@ -23,18 +23,32 @@ use soroban_sdk::{
     String, Symbol, Vec,
 };
 
-// ── BUILD-AWARD PREVIEW TIMINGS ────────────────────────────────────────────
-// In production these are days (JOIN_WINDOW=3d, MAX_POSTPONE=3d, GRACE=14d,
-// cadence: weekly/biweekly/monthly). For the testnet preview demo we run them
-// in SECONDS so a full N=3 cycle finishes inside a single hackathon demo.
-// The Pratinjau · Build-Award chip in the UI honestly flags this.
+// ── TIMINGS ───────────────────────────────────────────────────────────────
+// The default build runs in SECONDS so a full N=3 cycle is observable in a
+// hackathon demo (~3 minutes total). The "Pratinjau · Build-Award" chip in
+// the UI flags this honestly.
+//
+// Build with `--features production-cadences` for the mainnet candidate:
+// the same source compiled with real days-based timings. This avoids two
+// divergent forks of the contract — same code, one cargo flag.
 // ─────────────────────────────────────────────────────────────────────────
 // First kocok must be at least this far in the future at room creation.
-const JOIN_WINDOW: u64 = 60; // preview: 60s (prod: 3 days)
+#[cfg(not(feature = "production-cadences"))]
+const JOIN_WINDOW: u64 = 60; // demo: 60s
+#[cfg(feature = "production-cadences")]
+const JOIN_WINDOW: u64 = 3 * 24 * 60 * 60; // production: 3 days
+
 // Host can postpone one kocok per round by at most this much.
-const MAX_POSTPONE_SECONDS: u64 = 300; // preview: 5 min (prod: 3 days)
+#[cfg(not(feature = "production-cadences"))]
+const MAX_POSTPONE_SECONDS: u64 = 300; // demo: 5 min
+#[cfg(feature = "production-cadences")]
+const MAX_POSTPONE_SECONDS: u64 = 3 * 24 * 60 * 60; // production: 3 days
+
 // Grace before any member can emergency-dissolve a stuck active room.
-const GRACE_PERIOD: u64 = 180; // preview: 3 min (prod: 14 days)
+#[cfg(not(feature = "production-cadences"))]
+const GRACE_PERIOD: u64 = 180; // demo: 3 min
+#[cfg(feature = "production-cadences")]
+const GRACE_PERIOD: u64 = 14 * 24 * 60 * 60; // production: 14 days
 
 // Contract-level bounds. The UI enforces stricter display-currency bounds.
 const MIN_MEMBERS: u32 = 3;
@@ -655,12 +669,24 @@ impl ArisanRooms {
 }
 
 fn cadence_seconds(c: Cadence) -> u64 {
-    // BUILD-AWARD PREVIEW: cadences run in seconds so the full N=3 cycle is
-    // observable in a demo. Production values would be 7 / 14 / 28 days.
-    match c {
-        Cadence::Weekly => 60,
-        Cadence::Biweekly => 120,
-        Cadence::Monthly => 300,
+    // Default build: cadences run in seconds so the full N=3 cycle is
+    // observable in a demo. Build with `--features production-cadences` for
+    // the days-based mainnet candidate.
+    #[cfg(not(feature = "production-cadences"))]
+    {
+        match c {
+            Cadence::Weekly => 60,
+            Cadence::Biweekly => 120,
+            Cadence::Monthly => 300,
+        }
+    }
+    #[cfg(feature = "production-cadences")]
+    {
+        match c {
+            Cadence::Weekly => 7 * 24 * 60 * 60,
+            Cadence::Biweekly => 14 * 24 * 60 * 60,
+            Cadence::Monthly => 30 * 24 * 60 * 60,
+        }
     }
 }
 
