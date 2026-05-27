@@ -1,6 +1,27 @@
 // AES-256-GCM encryption for per-user Stellar secret keys at rest.
-// Key = WALLET_ENC_KEY env (32 random bytes, base64). SERVER ONLY.
-// Stored blob format: ivB64:tagB64:cipherB64
+// SERVER ONLY. Stored blob format: ivB64:tagB64:cipherB64.
+//
+// Key = WALLET_ENC_KEY env, base64-encoded, exactly 32 bytes (256 bits)
+// after decoding. Generate once per environment with:
+//   openssl rand -base64 32
+// Paste the result into Vercel Project Settings → Environment Variables
+// (encrypted) under WALLET_ENC_KEY. Mirror to web/.env.local for local
+// dev. NEVER commit this value to git, Slack, or any chat.
+//
+// Rotation: if the key is ever suspected compromised, all rows in the
+// `wallets` Supabase table become unreadable to the new key. There is
+// NO automated re-encryption migration today — the operationally safe
+// path is:
+//   1. Pause new sign-ups (or accept that users will get a new wallet
+//      after rotation).
+//   2. Set WALLET_ENC_KEY_NEW = the new key in env, keep WALLET_ENC_KEY
+//      = the old key.
+//   3. Write a one-time admin migration that reads each `secret_cipher`
+//      with the old key, re-encrypts with the new key, writes back.
+//      (Not implemented yet — add when the first rotation is needed.)
+//   4. Swap WALLET_ENC_KEY to the new value, remove WALLET_ENC_KEY_NEW.
+// Before mainnet: document the runbook for the on-call holder; treat
+// this key like a database master password.
 
 import crypto from "node:crypto";
 
