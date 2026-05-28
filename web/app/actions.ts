@@ -20,6 +20,14 @@ import { getSigner } from "@/lib/server/userWallet";
 import { supabaseAdminConfigured } from "@/lib/supabase/env";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 
+// Reject NaN, Infinity, zero, negatives, and absurd magnitudes before they
+// reach the stroop conversion / contract i128 args. The upper bound is an
+// anti-abuse / anti-overflow guard, not a product limit.
+const MAX_AMOUNT = 1_000_000_000;
+function badAmount(n: number): boolean {
+  return !Number.isFinite(n) || n <= 0 || n > MAX_AMOUNT;
+}
+
 export async function walletState() {
   const { publicKey: address } = await getSigner();
   const bal = await getNativeBalance(address);
@@ -69,7 +77,8 @@ export async function withdrawSandbox(requested: number) {
 }
 
 export async function disasterContribute(pesos: number) {
-  if (!(pesos > 0)) return { ok: false as const, error: "Enter an amount" };
+  if (badAmount(pesos))
+    return { ok: false as const, error: "Enter a valid amount" };
   const s = await getSigner();
   const r = await invokeAs(s.secret, CONTRACTS.disaster, "contribute", [
     sc.addr(s.publicKey),
@@ -84,6 +93,8 @@ export async function registerUsername(name: string) {
   const clean = name.trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
   if (clean.length < 3)
     return { ok: false as const, error: "Min 3 chars (a-z, 0-9, _)" };
+  if (clean.length > 32)
+    return { ok: false as const, error: "Max 32 chars" };
   const s = await getSigner();
   const r = await invokeAs(s.secret, CONTRACTS.usernameRegistry, "register", [
     sc.addr(s.publicKey),
@@ -98,6 +109,8 @@ export async function renameUsername(name: string) {
   const clean = name.trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
   if (clean.length < 3)
     return { ok: false as const, error: "Min 3 chars (a-z, 0-9, _)" };
+  if (clean.length > 32)
+    return { ok: false as const, error: "Max 32 chars" };
   const s = await getSigner();
   const r = await invokeAs(s.secret, CONTRACTS.usernameRegistry, "rename", [
     sc.addr(s.publicKey),
@@ -126,7 +139,8 @@ export async function myUsername() {
 
 export async function sendByUsername(name: string, pesos: number) {
   const clean = name.trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
-  if (!(pesos > 0)) return { ok: false as const, error: "Enter an amount" };
+  if (badAmount(pesos))
+    return { ok: false as const, error: "Enter a valid amount" };
   let to: string;
   try {
     const resolved = await readContract(
@@ -140,6 +154,8 @@ export async function sendByUsername(name: string, pesos: number) {
     return { ok: false as const, error: `@${clean} not found` };
   }
   const s = await getSigner();
+  if (to === s.publicKey)
+    return { ok: false as const, error: "Can't send to yourself" };
   const r = await invokeAs(s.secret, CONTRACTS.tokenXlmSac, "transfer", [
     sc.addr(s.publicKey),
     sc.addr(to),
@@ -333,7 +349,8 @@ export async function smartSavingsOpen(
 export async function smartSavingsDeposit(pesos: number) {
   const id = smartSavingsId();
   if (!id) return { ok: false as const, error: "Vault not set up" };
-  if (!(pesos > 0)) return { ok: false as const, error: "Enter an amount" };
+  if (badAmount(pesos))
+    return { ok: false as const, error: "Enter a valid amount" };
   const s = await getSigner();
   const r = await invokeAs(s.secret, id, "deposit", [
     sc.addr(s.publicKey),
@@ -441,8 +458,9 @@ const ARISAN_CODE_ALPHA = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
  *  contract additionally enforces uniqueness on room creation. */
 function genArisanCode(): string {
   const out: string[] = [];
-  // Draw 4-byte windows; accept iff < 256, the largest 32-aligned upper bound
-  // that still uses 8 bits (256 % 32 == 0 → no bias).
+  // Map each random byte onto the 32-char alphabet via `& 31` (= % 32). Byte
+  // values are 0–255 and 256 is a multiple of 32, so every value maps
+  // uniformly onto [0,31] — no modulo bias, no rejection step needed.
   const bytes = new Uint8Array(48);
   crypto.getRandomValues(bytes);
   let i = 0;
@@ -451,8 +469,7 @@ function genArisanCode(): string {
       crypto.getRandomValues(bytes);
       i = 0;
     }
-    const b = bytes[i++];
-    if (b < 256) out.push(ARISAN_CODE_ALPHA[b & 31]);
+    out.push(ARISAN_CODE_ALPHA[bytes[i++] & 31]);
   }
   return out.join("");
 }
@@ -624,8 +641,8 @@ export async function arisanCreate(input: {
         : "Weekly";
   if (!(memberTarget >= 3 && memberTarget <= 20))
     return { ok: false as const, error: "Members must be 3–20" };
-  if (!(sharePesos > 0))
-    return { ok: false as const, error: "Enter a share amount" };
+  if (badAmount(sharePesos))
+    return { ok: false as const, error: "Enter a valid share amount" };
 
   // Contract requires first_kocok ≥ now + JOIN_WINDOW and
   // join_deadline < first_kocok. In the testnet preview JOIN_WINDOW is 60s,
@@ -772,7 +789,7 @@ export async function arisanKocok(roomId: number) {
   // a 32-bit window to avoid modulo bias when poolSize doesn't divide 2^32.
   const u32buf = new Uint32Array(1);
   const limit = Math.floor(0x1_0000_0000 / poolSize) * poolSize;
-  let winnerIdx = 0;
+  let winnerIdx = -1;
   for (let i = 0; i < 64; i++) {
     crypto.getRandomValues(u32buf);
     if (u32buf[0] < limit) {
@@ -780,6 +797,11 @@ export async function arisanKocok(roomId: number) {
       break;
     }
   }
+  // Astronomically unlikely (poolSize ≤ 20 ⇒ rejection p < 5e-9 per draw), but
+  // never silently fall back to index 0 — that would bias the draw. Fail and
+  // let the host retry instead.
+  if (winnerIdx < 0)
+    return { ok: false as const, error: "Could not draw a fair winner, please retry" };
 
   const r = await invokeAs(s.secret, id, "kocok", [
     sc.u32(rid),

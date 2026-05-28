@@ -47,15 +47,24 @@ export function encryptSecret(plain: string): string {
 }
 
 export function decryptSecret(blob: string): string {
-  const [ivB, tagB, encB] = blob.split(":");
-  const decipher = crypto.createDecipheriv(
-    "aes-256-gcm",
-    key(),
-    Buffer.from(ivB, "base64")
-  );
-  decipher.setAuthTag(Buffer.from(tagB, "base64"));
-  return Buffer.concat([
-    decipher.update(Buffer.from(encB, "base64")),
-    decipher.final(),
-  ]).toString("utf8");
+  const parts = blob.split(":");
+  if (parts.length !== 3)
+    throw new Error("walletCrypto: malformed cipher blob");
+  const [ivB, tagB, encB] = parts;
+  try {
+    const decipher = crypto.createDecipheriv(
+      "aes-256-gcm",
+      key(),
+      Buffer.from(ivB, "base64")
+    );
+    decipher.setAuthTag(Buffer.from(tagB, "base64"));
+    return Buffer.concat([
+      decipher.update(Buffer.from(encB, "base64")),
+      decipher.final(),
+    ]).toString("utf8");
+  } catch {
+    // Auth-tag mismatch or malformed input — possible WALLET_ENC_KEY rotation
+    // without re-encryption, or data tampering. Never echo the blob/secret.
+    throw new Error("walletCrypto: decryption failed");
+  }
 }
