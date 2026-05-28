@@ -6,7 +6,11 @@ import { supabaseConfigured } from "@/lib/supabase/env";
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/";
+  // Open-redirect guard: only accept a same-origin relative path. Reject
+  // protocol-relative ("//evil.com") and backslash ("/\evil.com") forms that
+  // browsers resolve to an external host once concatenated onto `origin`.
+  const rawNext = searchParams.get("next") ?? "/";
+  const next = /^\/(?![/\\])/.test(rawNext) ? rawNext : "/";
 
   if (code && supabaseConfigured()) {
     const supabase = await createSupabaseServer();
