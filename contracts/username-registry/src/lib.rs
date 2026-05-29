@@ -19,6 +19,7 @@ pub enum Error {
     UsernameTaken = 1,
     AlreadyRegistered = 2,
     NotFound = 3,
+    InvalidUsername = 4,
 }
 
 #[contract]
@@ -29,6 +30,9 @@ impl UsernameRegistry {
     /// Claim `username` for the caller. One username per account; names are unique.
     pub fn register(env: Env, user: Address, username: String) -> Result<(), Error> {
         user.require_auth();
+        if !valid_username(&username) {
+            return Err(Error::InvalidUsername);
+        }
         if env
             .storage()
             .persistent()
@@ -59,6 +63,9 @@ impl UsernameRegistry {
     /// name — that is the one shown in the app.
     pub fn rename(env: Env, user: Address, new_username: String) -> Result<(), Error> {
         user.require_auth();
+        if !valid_username(&new_username) {
+            return Err(Error::InvalidUsername);
+        }
         let current: String = env
             .storage()
             .persistent()
@@ -100,6 +107,29 @@ impl UsernameRegistry {
             .get(&DataKey::Owner(user))
             .ok_or(Error::NotFound)
     }
+}
+
+/// On-chain username policy: 3–32 chars, lowercase `a-z`, digits, or `_`.
+/// Mirrors the app-side sanitiser so a direct contract call cannot register
+/// an out-of-charset or homoglyph name the UI would never produce (which
+/// could otherwise intercept username-addressed funds).
+fn valid_username(s: &String) -> bool {
+    let len = s.len();
+    if len < 3 || len > 32 {
+        return false;
+    }
+    let mut buf = [0u8; 32];
+    s.copy_into_slice(&mut buf[..len as usize]);
+    let mut i = 0usize;
+    while i < len as usize {
+        let c = buf[i];
+        let ok = (c >= b'a' && c <= b'z') || (c >= b'0' && c <= b'9') || c == b'_';
+        if !ok {
+            return false;
+        }
+        i += 1;
+    }
+    true
 }
 
 mod test;

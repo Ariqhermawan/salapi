@@ -79,3 +79,20 @@ fn non_member_cannot_contribute() {
 
     p.contribute(&outsider); // panics: NotMember
 }
+
+#[test]
+fn duplicate_members_rejected() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let a = Address::generate(&env);
+    let (tok, _sac, _tc) = setup(&env, &admin);
+
+    let id = env.register(Paluwagan, ());
+    let p = PaluwaganClient::new(&env, &id);
+
+    // Same address twice → would deadlock the circle. Must be rejected.
+    let members = vec![&env, a.clone(), a.clone()];
+    assert!(p.try_initialize(&tok, &members, &100).is_err());
+}

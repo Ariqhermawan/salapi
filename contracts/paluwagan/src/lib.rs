@@ -30,6 +30,7 @@ pub enum Error {
     NotMember = 4,
     AlreadyPaid = 5,
     RoundNotComplete = 6,
+    DuplicateMember = 7,
 }
 
 #[contract]
@@ -48,6 +49,22 @@ impl Paluwagan {
         }
         if amount <= 0 || members.len() == 0 {
             return Err(Error::InvalidAmount);
+        }
+        // Reject duplicate members. A repeated address can only fill one
+        // Paid(round, addr) slot, so PaidCount could never reach members.len()
+        // and the circle would deadlock with contributions trapped.
+        let n = members.len();
+        let mut i = 0u32;
+        while i < n {
+            let mi = members.get(i).unwrap();
+            let mut j = i + 1;
+            while j < n {
+                if members.get(j).unwrap() == mi {
+                    return Err(Error::DuplicateMember);
+                }
+                j += 1;
+            }
+            i += 1;
         }
         env.storage().instance().set(&DataKey::Token, &token);
         env.storage().instance().set(&DataKey::Amount, &amount);

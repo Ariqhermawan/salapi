@@ -69,3 +69,36 @@ fn username_must_be_unique() {
     reg.register(&a, &name);
     reg.register(&b, &name);
 }
+
+#[test]
+fn rejects_out_of_charset_or_length() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let user = Address::generate(&env);
+    let id = env.register(UsernameRegistry, ());
+    let reg = UsernameRegistryClient::new(&env, &id);
+
+    // uppercase + punctuation
+    assert!(reg
+        .try_register(&user, &String::from_str(&env, "Alice!"))
+        .is_err());
+    // too short (< 3)
+    assert!(reg
+        .try_register(&user, &String::from_str(&env, "ab"))
+        .is_err());
+}
+
+#[test]
+fn accepts_valid_handle_with_digits_underscore() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let user = Address::generate(&env);
+    let id = env.register(UsernameRegistry, ());
+    let reg = UsernameRegistryClient::new(&env, &id);
+
+    let name = String::from_str(&env, "ariq_99");
+    reg.register(&user, &name);
+    assert_eq!(reg.resolve(&name), user);
+}
