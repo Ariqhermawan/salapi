@@ -33,6 +33,17 @@ pub enum Error {
     DuplicateMember = 7,
 }
 
+// TTL maintenance — a ROSCA can run for months. On every state-mutating call,
+// top up storage TTLs so the circle outlives the default archival window.
+// Sane defaults; tune to the cadence + network max_entry_ttl at the mainnet
+// redeploy.
+const TTL_THRESHOLD: u32 = 518_400; // ~30 days of ledgers (5s close)
+const TTL_EXTEND: u32 = 1_555_200; // ~90 days, under network max_entry_ttl
+
+fn bump(env: &Env) {
+    env.storage().instance().extend_ttl(TTL_THRESHOLD, TTL_EXTEND);
+}
+
 #[contract]
 pub struct Paluwagan;
 
@@ -70,12 +81,14 @@ impl Paluwagan {
         env.storage().instance().set(&DataKey::Amount, &amount);
         env.storage().instance().set(&DataKey::Members, &members);
         env.storage().instance().set(&DataKey::Round, &0u32);
+        bump(&env);
         Ok(())
     }
 
     /// A member pays their fixed contribution for the current round.
     pub fn contribute(env: Env, member: Address) -> Result<(), Error> {
         member.require_auth();
+        bump(&env);
         let members: Vec<Address> = env
             .storage()
             .instance()
@@ -106,9 +119,15 @@ impl Paluwagan {
             &amount,
         );
         env.storage().persistent().set(&paid_key, &true);
+        env.storage()
+            .persistent()
+            .extend_ttl(&paid_key, TTL_THRESHOLD, TTL_EXTEND);
         let ck = DataKey::PaidCount(round);
         let cnt: u32 = env.storage().persistent().get(&ck).unwrap_or(0);
         env.storage().persistent().set(&ck, &(cnt + 1));
+        env.storage()
+            .persistent()
+            .extend_ttl(&ck, TTL_THRESHOLD, TTL_EXTEND);
         env.events()
             .publish((symbol_short!("contrib"), member), amount);
         Ok(())
@@ -120,6 +139,7 @@ impl Paluwagan {
     /// outside party from advancing rounds at unexpected times).
     pub fn payout(env: Env, caller: Address) -> Result<Address, Error> {
         caller.require_auth();
+        bump(&env);
         let members: Vec<Address> = env
             .storage()
             .instance()
