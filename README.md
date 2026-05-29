@@ -4,7 +4,7 @@
 
 A crypto-invisible financial app for non-crypto Filipinos: GCash-funded Stellar
 wallet + programmable vaults (disaster relief, paluwagan, smart savings) + P2P
-transfer. Users see only pesos — USDC on Stellar is invisible plumbing.
+transfer. Users see only pesos — Stellar is the invisible plumbing.
 
 > Submitted to the **Stellar Philippines Ambassador Chapter** — Instaward.
 > Scope, budget, and 30-day plan are provided to the Chapter Lead separately.
@@ -16,7 +16,7 @@ This README doubles as the **reviewer evidence index**.
 
 ## Architecture — one shared primitive
 
-Every vault is the same Soroban contract primitive holding USDC under rules; the
+Every vault is the same Soroban contract primitive holding the pooled token under rules; the
 features are different rule-sets on that base, plus P2P transfer on one wallet.
 This is what keeps a broad scope coherent and verifiable — one platform, not six
 projects.
@@ -75,7 +75,7 @@ All 6 contracts deployed to Stellar Testnet. Verify each on Stellar Expert:
 | smart-savings | `CBQBUAOP3T235Q2U63XNC2NQVNAOXQL2KHWALO6FTIOJS46NTKIZJ5WI` |
 | arisan-rooms | `CDAUA3TN4PRJFVHWBITT2DZMCY24DEZRA4NQLZLEX5CKL6AOA6RLII4S` |
 
-Token: native XLM Stellar Asset Contract (`CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC`).
+Token: native XLM Stellar Asset Contract (`CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC`). The contracts are token-agnostic (each takes a token address at init); mainnet will target USDC or a peso-pegged anchor token.
 
 Full audit trail — deploy tx hashes, init tx hashes, end-to-end flow tx
 hashes for every feature — in [`DEPLOYMENTS.md`](DEPLOYMENTS.md).
@@ -100,7 +100,7 @@ Verify on Stellar Expert (Mainnet): `https://stellar.expert/explorer/public/cont
 
 | Fn | Purpose |
 |---|---|
-| `initialize(admin, token)` | one-time: disbursement authority + USDC token held |
+| `initialize(admin, token)` | one-time: disbursement authority + the token held |
 | `deposit(from, amount)` | anyone contributes into the pool (auth required) |
 | `disburse(to, amount)` | gated payout (admin-auth; rule-sets specialise this) |
 | `total()` / `contribution_of(who)` / `admin()` | public reads (back the transparency dashboard) |
