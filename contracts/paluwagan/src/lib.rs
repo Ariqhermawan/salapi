@@ -115,13 +115,19 @@ impl Paluwagan {
     }
 
     /// Once every member has paid this round, the pot rotates to the next
-    /// member in turn. Permissionless to trigger — the rule is on-chain.
-    pub fn payout(env: Env) -> Result<Address, Error> {
+    /// member in turn. Any *member* may trigger it (the recipient is fixed by
+    /// the round, so this can't redirect funds — the auth gate just stops an
+    /// outside party from advancing rounds at unexpected times).
+    pub fn payout(env: Env, caller: Address) -> Result<Address, Error> {
+        caller.require_auth();
         let members: Vec<Address> = env
             .storage()
             .instance()
             .get(&DataKey::Members)
             .ok_or(Error::NotInitialized)?;
+        if !members.iter().any(|m| m == caller) {
+            return Err(Error::NotMember);
+        }
         let round: u32 = env.storage().instance().get(&DataKey::Round).unwrap_or(0);
         let cnt: u32 = env
             .storage()
