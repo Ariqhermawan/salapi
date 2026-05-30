@@ -51,14 +51,14 @@ cargo build --workspace --target wasm32-unknown-unknown --release
 |---|---|---|
 | **1 · Foundation** | Lock core, tests, something breakable | ✅ workspace, base-vault + username-registry, **5 unit tests pass**, WASM builds (via WSL), architecture README |
 | **2 · Scaffold** | Deploy on testnet, verifiable tx trails | ✅ 5 contracts build + **11 tests pass**; 5 live on testnet w/ verifiable tx trail ([DEPLOYMENTS.md](DEPLOYMENTS.md)); disaster + paluwagan + smart-savings rule-sets added |
-| **3 · Connect** | Wire front-end, indexer, real user | ✅ Next.js 16 PWA live on Vercel (`salapi-blond.vercel.app`); GCash + QRIS sandbox top-up; transparency dashboard with on-chain receipts; 6th contract `arisan_rooms` with browser-CSPRNG-at-edge randomness; 4 locales (en/tl/id/vi); display-currency picker (USD/PHP/IDR/VND) |
-| **4 · Prove** | Demo + docs for non-technical reviewer | ⏳ tagged release + walkthrough video; live URL public ([salapi-blond.vercel.app](https://salapi-blond.vercel.app)) |
+| **3 · Connect** | Wire front-end, indexer, real user | ✅ Next.js 16 PWA live on Vercel (`salapi.app`); GCash + QRIS sandbox top-up; transparency dashboard with on-chain receipts; 6th contract `arisan_rooms` with browser-CSPRNG-at-edge randomness; 4 locales (en/tl/id/vi); display-currency picker (USD/PHP/IDR/VND) |
+| **4 · Prove** | Demo + docs for non-technical reviewer | ⏳ tagged release + walkthrough video; live URL public ([salapi.app](https://salapi.app)) |
 
 ## Deployment
 
 ### Live URL
 
-**Web app:** [salapi-blond.vercel.app](https://salapi-blond.vercel.app)
+**Web app:** [salapi.app](https://salapi.app)
 **Network:** Stellar **Testnet** (`Test SDF Network ; September 2015`)
 
 ### Testnet contracts (live, verifiable)

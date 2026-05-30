@@ -36,7 +36,7 @@ default to anyone.**
 
 ## What is LIVE on day 30 (verifiable now)
 
-- **Live PWA:** https://salapi-blond.vercel.app  (installable, multi-locale
+- **Live PWA:** https://salapi.app  (installable, multi-locale
   en/tl/id/vi, multi-currency USD/PHP/IDR/VND)
 - **Five feature contracts on Stellar testnet**, on a shared `base-vault`
   primitive — every call is a real on-chain transaction (not a unit test),
@@ -122,8 +122,8 @@ across two pilot cities.
 
 ## Links
 
-- Live app: https://salapi-blond.vercel.app
-- Transparency / live contracts: https://salapi-blond.vercel.app/transparency
+- Live app: https://salapi.app
+- Transparency / live contracts: https://salapi.app/transparency
 - Pitch deck: (Google Drive — final 10-page version)
 - On-chain evidence: `DEPLOYMENTS.md` (every flow, every tx link)
 
