@@ -119,22 +119,22 @@ export function Row({ leading, title, sub, trailing, onClick, divider = true, st
 export type Tab = { id: string; label: string; icon: (p?: { size?: number; c?: string }) => ReactNode; fab?: boolean };
 export function TabBar({ active = "home", items, onNav }: { active?: string; items: Tab[]; onNav?: (id: string) => void }) {
   return (
-    <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)", paddingTop: 8, background: T.surface, borderTop: "1px solid " + T.hairline, display: "grid", gridTemplateColumns: `repeat(${items.length},1fr)` }}>
+    <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 8px)", paddingTop: 6, background: T.surface, borderTop: "1px solid " + T.hairline, display: "grid", gridTemplateColumns: `repeat(${items.length},1fr)`, alignItems: "end" }}>
       {items.map((it) => {
         const isActive = it.id === active;
         const col = isActive ? T.action : T.slate;
         if (it.fab) {
           return (
-            <div key={it.id} onClick={() => onNav?.(it.id)} style={{ display: "flex", justifyContent: "center", alignItems: "center", position: "relative", height: 48, cursor: "pointer" }}>
-              <div style={{ width: 56, height: 56, borderRadius: 18, position: "absolute", top: -14, background: T.action, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 8px 24px -6px rgba(37,99,235,.6), 0 2px 6px rgba(11,18,32,.06)" }}>
-                {it.icon({ size: 26, c: "#fff" })}
+            <div key={it.id} onClick={() => onNav?.(it.id)} style={{ display: "flex", justifyContent: "center", alignItems: "center", position: "relative", height: 44, cursor: "pointer" }}>
+              <div style={{ width: 50, height: 50, borderRadius: 16, position: "absolute", top: -13, background: T.action, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 10px 22px -6px rgba(37,99,235,.55), 0 2px 6px rgba(11,18,32,.06)" }}>
+                {it.icon({ size: 23, c: "#fff" })}
               </div>
             </div>
           );
         }
         return (
-          <div key={it.id} onClick={() => onNav?.(it.id)} style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3, height: 48, color: col, cursor: "pointer" }}>
-            {it.icon({ size: 22, c: col })}
+          <div key={it.id} onClick={() => onNav?.(it.id)} style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3, height: 44, color: col, cursor: "pointer" }}>
+            {it.icon({ size: 21, c: col })}
             <div style={{ fontSize: 10, fontWeight: isActive ? 600 : 500, letterSpacing: "0.02em" }}>{it.label}</div>
           </div>
         );
