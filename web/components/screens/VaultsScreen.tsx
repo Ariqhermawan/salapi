@@ -10,7 +10,6 @@ import {
   AppBar,
   Card,
   Btn,
-  Chip,
   Peso,
   Progress,
   PoweredByStellar,
@@ -73,20 +72,8 @@ function VaultTile({
   onClick: () => void;
 }) {
   return (
-    <Card
-      p={14}
-      elevation
-      className="sl-lift"
-      style={{ cursor: "pointer" }}
-      onClick={onClick}
-    >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
+    <Card p={14} elevation className="sl-lift" style={{ cursor: "pointer" }} onClick={onClick}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div
           style={{
             width: 36,
@@ -119,10 +106,7 @@ function VaultTile({
       </div>
       <div style={{ marginTop: 1 }}>
         {amount === null ? (
-          <span
-            className="sl-balance"
-            style={{ fontSize: 17, fontWeight: 700, color: T.slate }}
-          >
+          <span className="sl-balance" style={{ fontSize: 17, fontWeight: 700, color: T.slate }}>
             -
           </span>
         ) : (
@@ -148,18 +132,12 @@ export default function VaultsScreen() {
   useEffect(() => {
     paluwaganState().then(setPal);
     smartSavingsState().then(setSav);
-    // The disaster read shares the RPC with the two reads above; if it comes
-    // back not-ok, retry once after the concurrent burst has cleared so the
-    // hero recovers instead of sitting on its loading state.
     disasterState().then((d) => {
       setDis(d);
       if (!d.ok) setTimeout(() => disasterState().then(setDis), 700);
     });
   }, []);
 
-  // No explicit bottom padding: the layout's <main> already reserves
-  // pb-[92px] to clear the bottom nav. The screen is sized to sit on one
-  // screen without scroll.
   const shell: React.CSSProperties = {
     fontFamily: T.fontSans,
     color: T.ink,
@@ -177,171 +155,93 @@ export default function VaultsScreen() {
       <AppBar large title={t("vaults.title")} sub={t("vaults.sub")} />
 
       <div style={{ padding: "4px 16px 0" }}>
-        {/* Disaster Relief hero - "Brankas Hidup": a living vault. */}
-        <Card
-          p={0}
+        {/* Disaster Relief hero — photo-forward, live on-chain pool overlaid.
+            Real data only (disasterState); taps through to /transparency. */}
+        <div
           onClick={() => router.push("/transparency")}
-          className="sl-breathe"
+          className="sl-lift"
           style={{
             position: "relative",
+            borderRadius: 18,
             overflow: "hidden",
             cursor: "pointer",
-            background: "linear-gradient(160deg,#fff 0%, #FBF1E0 120%)",
-            boxShadow:
-              "inset 0 0 0 1px #F0DCB6, 0 12px 26px -16px rgba(180,83,9,0.5)",
+            minHeight: 196,
+            boxShadow: "0 16px 34px -18px rgba(11,18,32,.55), inset 0 0 0 1px " + T.hairline,
           }}
         >
-          {/* Living vault dial - one emblem: a turning vault wheel in a
-              white badge, with a soft "rupiah masuk" ripple. Decorative. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/circles/disaster.jpg"
+            alt=""
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+          />
           <div
             aria-hidden
             style={{
               position: "absolute",
-              top: 14,
-              right: 14,
-              width: 58,
-              height: 58,
-              pointerEvents: "none",
+              inset: 0,
+              background:
+                "linear-gradient(to top, rgba(7,12,22,.92) 4%, rgba(7,12,22,.48) 44%, rgba(7,12,22,.12) 100%)",
+            }}
+          />
+          {/* status pill (glass) */}
+          <span
+            style={{
+              position: "absolute",
+              top: 12,
+              left: 12,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "5px 10px",
+              borderRadius: 99,
+              background: "rgba(11,18,32,.5)",
+              backdropFilter: "blur(4px)",
+              color: "#fff",
+              fontSize: 10.5,
+              fontWeight: 700,
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
             }}
           >
             <span
-              className="sl-ripple"
-              style={{
-                position: "absolute",
-                inset: 0,
-                borderRadius: 99,
-                border: "1.5px solid rgba(180,83,9,0.4)",
-              }}
+              className="sl-dotpulse"
+              style={{ width: 6, height: 6, borderRadius: 99, background: disActive ? "#34d399" : "#F0B26B", display: "block" }}
             />
-            <span
-              className="sl-ripple"
-              style={{
-                position: "absolute",
-                inset: 0,
-                borderRadius: 99,
-                border: "1.5px solid rgba(180,83,9,0.4)",
-                animationDelay: "1.9s",
-              }}
-            />
-            <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                borderRadius: 16,
-                background: "#fff",
-                boxShadow:
-                  "0 3px 8px -3px rgba(180,83,9,0.3), inset 0 0 0 1px " +
-                  T.hairline,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <svg
-                className="sl-dial"
-                viewBox="0 0 100 100"
-                width="38"
-                height="38"
-                fill="none"
-                stroke={T.warn}
-              >
-                <circle cx="50" cy="50" r="37" strokeWidth="6.5" />
-                <circle cx="50" cy="50" r="9" fill={T.warn} stroke="none" />
-                <g strokeWidth="7" strokeLinecap="round">
-                  <path d="M50 13V41" />
-                  <path d="M50 59V87" />
-                  <path d="M13 50H41" />
-                  <path d="M59 50H87" />
-                </g>
-              </svg>
-            </div>
-          </div>
-
-          <div style={{ position: "relative", padding: "14px 16px 4px" }}>
-            <Chip
-              kind="warn"
-              leading={
-                <span
-                  className="sl-dotpulse"
-                  style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: 99,
-                    background: T.warn,
-                    display: "block",
-                  }}
-                />
-              }
-            >
-              {disActive ? t("vaults.statusActive") : t("vaults.statusStandby")}
-            </Chip>
-            <div
-              style={{
-                marginTop: 8,
-                fontSize: 20,
-                fontWeight: 600,
-                letterSpacing: "-0.02em",
-              }}
-            >
+            {disActive ? t("vaults.statusActive") : t("vaults.statusStandby")}
+          </span>
+          {/* name + desc + pool + donate */}
+          <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: "0 16px 14px", color: "#fff" }}>
+            <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: "-0.02em", textShadow: "0 2px 12px rgba(0,0,0,.5)" }}>
               {t("vaults.disasterName")}
             </div>
-            <div
-              style={{
-                marginTop: 4,
-                fontSize: 13,
-                color: T.slate,
-                lineHeight: 1.5,
-                maxWidth: 230,
-              }}
-            >
+            <div style={{ marginTop: 3, fontSize: 12.5, color: "rgba(255,255,255,.82)", lineHeight: 1.45, maxWidth: 250 }}>
               {t("vaults.disasterDesc")}
             </div>
-          </div>
-          <div style={{ position: "relative", padding: "10px 16px 14px" }}>
-            <div
-              style={{
-                fontSize: 10,
-                fontWeight: 600,
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-                color: T.slate,
-              }}
-            >
-              {t("vaults.poolLive")}
-            </div>
-            <div
-              style={{
-                marginTop: 2,
-                display: "flex",
-                alignItems: "flex-end",
-                justifyContent: "space-between",
-                gap: 12,
-              }}
-            >
-              {dis && dis.ok ? (
-                <Peso value={disRaisedShown} size={28} />
-              ) : (
-                <div style={{ fontSize: 14, color: T.slate, paddingBottom: 4 }}>
-                  {t("common.loading")}
+            <div style={{ marginTop: 12, display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12 }}>
+              <div>
+                <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,.7)" }}>
+                  {t("vaults.poolLive")}
                 </div>
-              )}
-              <Btn
-                kind="primary"
-                size="md"
-                full={false}
-                className="sl-glow"
-                onClick={() => router.push("/transparency")}
-              >
+                <div style={{ marginTop: 2 }}>
+                  {dis && dis.ok ? (
+                    <Peso value={disRaisedShown} size={27} color="#fff" />
+                  ) : (
+                    <span style={{ fontSize: 14, color: "rgba(255,255,255,.7)" }}>{t("common.loading")}</span>
+                  )}
+                </div>
+              </div>
+              <Btn kind="primary" size="md" full={false} className="sl-glow" onClick={() => router.push("/transparency")}>
                 {t("wallet.donate")}
               </Btn>
             </div>
           </div>
-        </Card>
+        </div>
 
         {/* Your money: Arisan + Savings */}
         <div
           style={{
-            padding: "8px 4px 4px",
+            padding: "10px 4px 4px",
             fontSize: 11,
             fontWeight: 600,
             letterSpacing: "0.1em",
@@ -355,11 +255,7 @@ export default function VaultsScreen() {
           <VaultTile
             icon={Ico.refresh({ size: 18, c: T.action })}
             title={t("vaults.arisanName")}
-            stat={
-              pal && pal.ready
-                ? t("vaults.arisanRound", { n: pal.cycleRound })
-                : t("common.loading")
-            }
+            stat={pal && pal.ready ? t("vaults.arisanRound", { n: pal.cycleRound }) : t("common.loading")}
             amountLabel={t("vaults.pot")}
             amount={pal && pal.ready ? pal.potPesos : null}
             onClick={() => router.push("/paluwagan")}
@@ -373,37 +269,15 @@ export default function VaultsScreen() {
                 : t("vaults.savingsStatStart")
             }
             amountLabel={t("vaults.saved")}
-            amount={
-              savHasGoal && sav && sav.ready && sav.hasGoal
-                ? sav.savedPesos
-                : null
-            }
-            progressPct={
-              savHasGoal && sav && sav.ready && sav.hasGoal ? sav.pct : undefined
-            }
+            amount={savHasGoal && sav && sav.ready && sav.hasGoal ? sav.savedPesos : null}
+            progressPct={savHasGoal && sav && sav.ready && sav.hasGoal ? sav.pct : undefined}
             onClick={() => router.push("/savings")}
           />
         </div>
 
-        {/* Preview tiles — Salapi Circles + Arisan Rooms compressed to a
-            single 2-col slim row so the whole /vaults screen fits 375×667
-            without the user scrolling to reach the bottom nav. (Per the
-            DENSITY DISCIPLINE constraint in DESIGN-REVAMP-BRIEF.md.) */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: 10,
-            marginTop: 10,
-          }}
-        >
-          <Card
-            p={10}
-            elevation
-            className="sl-lift"
-            style={{ cursor: "pointer" }}
-            onClick={() => router.push("/circles")}
-          >
+        {/* Preview tiles — Salapi Circles + Arisan Rooms (slim 2-col row). */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 10 }}>
+          <Card p={10} elevation className="sl-lift" style={{ cursor: "pointer" }} onClick={() => router.push("/circles")}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <div
                 style={{
@@ -421,39 +295,17 @@ export default function VaultsScreen() {
                 {Ico.sparkle({ size: 14, c: T.warn })}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 600,
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                  }}
-                >
+                <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                   {t("vaults.circlesName")}
                 </div>
-                <div
-                  style={{
-                    fontSize: 10,
-                    color: T.warn,
-                    fontWeight: 600,
-                    letterSpacing: "0.04em",
-                    marginTop: 1,
-                  }}
-                >
+                <div style={{ fontSize: 10, color: T.warn, fontWeight: 600, letterSpacing: "0.04em", marginTop: 1 }}>
                   {t("home.circlesBadge")}
                 </div>
               </div>
               {Ico.chev({ size: 12, c: T.slate })}
             </div>
           </Card>
-          <Card
-            p={10}
-            elevation
-            className="sl-lift"
-            style={{ cursor: "pointer" }}
-            onClick={() => router.push("/arisan")}
-          >
+          <Card p={10} elevation className="sl-lift" style={{ cursor: "pointer" }} onClick={() => router.push("/arisan")}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <div
                 style={{
@@ -471,26 +323,10 @@ export default function VaultsScreen() {
                 {Ico.refresh({ size: 14, c: T.action })}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 600,
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                  }}
-                >
+                <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                   {t("arisan.title")}
                 </div>
-                <div
-                  style={{
-                    fontSize: 10,
-                    color: T.warn,
-                    fontWeight: 600,
-                    letterSpacing: "0.04em",
-                    marginTop: 1,
-                  }}
-                >
+                <div style={{ fontSize: 10, color: T.warn, fontWeight: 600, letterSpacing: "0.04em", marginTop: 1 }}>
                   {t("home.circlesBadge")}
                 </div>
               </div>
@@ -500,7 +336,7 @@ export default function VaultsScreen() {
         </div>
       </div>
 
-      <div style={{ padding: "12px 16px 0", display: "flex", justifyContent: "center" }}>
+      <div style={{ padding: "14px 16px 0", display: "flex", justifyContent: "center" }}>
         <PoweredByStellar />
       </div>
     </div>
