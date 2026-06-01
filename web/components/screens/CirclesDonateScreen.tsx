@@ -6,6 +6,12 @@
 // the Supabase `circles_waitlist` table via the joinCirclesWaitlist server
 // action; if Supabase is not configured the action gracefully degrades to a
 // server-side console log and the UI still confirms the pledge.
+//
+// V10 revamp: matches the photo-forward Circle Detail it routes from — a photo
+// cause-context card, a big centered amount display (like Send / Top up), pill
+// quick-picks, green money, and a STICKY bottom CTA bar that floats above the
+// BottomNav (PoweredByStellar scrolls above it). Every PREVIEW / waitlist /
+// "no charge today" honesty element is preserved verbatim.
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -23,13 +29,46 @@ import {
 import { formatParts, CURRENCY } from "@/lib/ui/currency";
 import { useT } from "@/components/I18nProvider";
 import PreviewBadge from "@/components/circles/PreviewBadge";
-import type { Circle } from "@/lib/circles/types";
+import type { Circle, CircleCategory } from "@/lib/circles/types";
 
 type Phase = "amount" | "waitlist" | "done";
 type Method = "balance" | "gcash" | "qris";
 
 // Quick chips in PHP app-units. Display layer converts to user's locale.
 const QUICK = [100, 250, 500, 1000, 2500];
+
+// Owned cause photography by category — same assets as the Circle Detail hero,
+// so the donate flow keeps the same documentary cover the donor just saw.
+const CATEGORY_PHOTO: Partial<Record<CircleCategory, string>> = {
+  disaster: "/circles/disaster.jpg",
+  medical: "/circles/medical.jpg",
+  education: "/circles/education.jpg",
+};
+
+// Sticky bottom CTA bar — mirrors CircleDetailScreen exactly so the two screens
+// share one signature. main has overflow-y-auto + pb so bottom:0 pins it just
+// above the BottomNav rather than the viewport edge; PoweredByStellar scrolls
+// above it.
+function StickyBar({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        position: "sticky",
+        bottom: 0,
+        marginTop: 8,
+        padding: "12px 16px",
+        background: "rgba(244,246,251,0.94)",
+        backdropFilter: "blur(8px)",
+        WebkitBackdropFilter: "blur(8px)",
+        borderTop: "1px solid " + T.hairline,
+        boxShadow: "0 -12px 28px -16px rgba(11,18,32,.28)",
+        zIndex: 5,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
 
 export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
   const router = useRouter();
@@ -49,8 +88,12 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
     fontFamily: T.fontSans,
     color: T.ink,
     minHeight: "100%",
-    paddingBottom: 110,
+    // The sticky bar lives in normal flow above the nav, so no large bottom
+    // pad is needed; a small breathing pad keeps the footer off the bar.
+    paddingBottom: 0,
   };
+
+  const heroPhoto = CATEGORY_PHOTO[circle.category];
 
   // Methods. All clearly tagged "Preview" — no money moves today.
   const methods: { id: Method; title: string; sub: string }[] = [
@@ -100,7 +143,10 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
       <div style={shell}>
         <AppBar
           leading={
-            <IconButton onClick={() => router.push(`/circles/${circle.id}`)}>
+            <IconButton
+              ariaLabel="Back"
+              onClick={() => router.push(`/circles/${circle.id}`)}
+            >
               {Ico.back({})}
             </IconButton>
           }
@@ -108,38 +154,92 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
           trailing={<PreviewBadge />}
         />
 
+        {/* Cause context — photo accent + title, echoing the detail hero */}
         <div style={{ padding: "4px 16px 12px" }}>
-          <Card>
-            <Chip kind="action">{t("circles.circleChip")}</Chip>
-            <div
-              style={{
-                marginTop: 10,
-                fontSize: 16,
-                fontWeight: 600,
-                lineHeight: 1.3,
-              }}
-            >
-              {circle.title}
-            </div>
-            <div
-              style={{
-                marginTop: 4,
-                fontSize: 12,
-                color: T.slate,
-              }}
-            >
-              {t("circles.by", { name: circle.organizer })} ·{" "}
-              {circle.organizerLocation}
+          <Card p={0} elevation style={{ overflow: "hidden" }}>
+            <div style={{ display: "flex", alignItems: "stretch", gap: 0 }}>
+              {heroPhoto ? (
+                <div
+                  style={{
+                    position: "relative",
+                    width: 84,
+                    flex: "0 0 auto",
+                    overflow: "hidden",
+                  }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={heroPhoto}
+                    alt=""
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                    }}
+                  />
+                  <div
+                    aria-hidden
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      background:
+                        "linear-gradient(90deg, rgba(7,12,22,0) 60%, rgba(255,255,255,.12) 100%)",
+                    }}
+                  />
+                </div>
+              ) : (
+                <div
+                  aria-hidden
+                  style={{
+                    width: 84,
+                    flex: "0 0 auto",
+                    background: `linear-gradient(150deg, ${circle.coverGradient[0]} 0%, ${circle.coverGradient[1]} 100%)`,
+                  }}
+                />
+              )}
+              <div style={{ flex: 1, minWidth: 0, padding: "12px 14px" }}>
+                <Chip kind="action">{t("circles.circleChip")}</Chip>
+                <div
+                  style={{
+                    marginTop: 8,
+                    fontSize: 15,
+                    fontWeight: 700,
+                    letterSpacing: "-0.01em",
+                    lineHeight: 1.25,
+                    overflow: "hidden",
+                    display: "-webkit-box",
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: "vertical",
+                  }}
+                >
+                  {circle.title}
+                </div>
+                <div
+                  style={{
+                    marginTop: 4,
+                    fontSize: 12,
+                    color: T.slate,
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {t("circles.by", { name: circle.organizer })} ·{" "}
+                  {circle.organizerLocation}
+                </div>
+              </div>
             </div>
           </Card>
         </div>
 
-        {/* Amount picker */}
-        <div style={{ padding: "4px 24px 0" }}>
+        {/* Amount entry — big centered display, like Send / Top up */}
+        <div style={{ padding: "8px 24px 0", textAlign: "center" }}>
           <div
             style={{
               fontSize: 11,
-              fontWeight: 600,
+              fontWeight: 700,
               letterSpacing: "0.12em",
               textTransform: "uppercase",
               color: T.slate,
@@ -147,25 +247,20 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
           >
             {t("circles.pledging")}
           </div>
-        </div>
-        <div
-          style={{
-            padding: "10px 24px 0",
-            textAlign: "center",
-          }}
-        >
           <div
             className="sl-balance"
             style={{
-              fontSize: 50,
-              fontWeight: 600,
-              letterSpacing: "-0.03em",
+              marginTop: 12,
+              fontSize: 52,
+              fontWeight: 700,
+              letterSpacing: "-0.035em",
               display: "inline-flex",
               alignItems: "baseline",
               gap: 4,
+              lineHeight: 1,
             }}
           >
-            <span style={{ fontSize: 26, color: T.slate, fontWeight: 500 }}>
+            <span style={{ fontSize: 27, color: T.slate, fontWeight: 600 }}>
               {amt.symbol.trim()}
             </span>
             <input
@@ -177,6 +272,7 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
               }}
               inputMode="numeric"
               placeholder="0"
+              aria-label={t("circles.pledging")}
               style={{
                 width: Math.max(2, String(amount).length || 1) + "ch",
                 border: "none",
@@ -185,12 +281,13 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
                 font: "inherit",
                 color: T.ink,
                 textAlign: "center",
+                padding: 0,
               }}
             />
           </div>
           <div
             style={{
-              marginTop: 6,
+              marginTop: 8,
               fontSize: 11.5,
               color: T.slate,
               fontFamily: T.fontMono,
@@ -202,6 +299,7 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
           </div>
         </div>
 
+        {/* Quick-pick chips */}
         <div
           style={{
             padding: "16px 16px 0",
@@ -214,36 +312,44 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
           {QUICK.map((p) => {
             const parts = formatParts(p, currency);
             return (
-              <span
+              <button
                 key={p}
+                type="button"
                 onClick={() => setAmount(p)}
-                style={{ cursor: "pointer" }}
+                aria-pressed={p === amount}
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  padding: 0,
+                  cursor: "pointer",
+                }}
               >
                 <Chip kind={p === amount ? "action" : "neutral"} size="md">
                   {parts.symbol}
                   {parts.int}
                 </Chip>
-              </span>
+              </button>
             );
           })}
         </div>
 
         {/* Payment method */}
-        <div style={{ padding: "22px 24px 6px" }}>
+        <div style={{ padding: "22px 16px 8px" }}>
           <div
             style={{
               fontSize: 11,
-              fontWeight: 600,
-              letterSpacing: "0.12em",
+              fontWeight: 700,
+              letterSpacing: "0.1em",
               textTransform: "uppercase",
               color: T.slate,
+              padding: "0 4px",
             }}
           >
             {t("circles.paymentMethod")}
           </div>
         </div>
         <div style={{ padding: "0 16px" }}>
-          <Card p={0}>
+          <Card p={0} elevation>
             {methods.map((m, i, arr) => {
               const active = m.id === method;
               return (
@@ -251,6 +357,7 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
                   key={m.id}
                   type="button"
                   onClick={() => setMethod(m.id)}
+                  aria-pressed={active}
                   style={{
                     width: "100%",
                     display: "flex",
@@ -260,10 +367,11 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
                     border: "none",
                     borderBottom:
                       i < arr.length - 1 ? "1px solid " + T.hairline : "none",
-                    background: "transparent",
+                    background: active ? T.actionTint : "transparent",
                     color: T.ink,
                     cursor: "pointer",
                     textAlign: "left",
+                    transition: "background .14s",
                   }}
                 >
                   <div
@@ -271,10 +379,12 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
                       width: 22,
                       height: 22,
                       borderRadius: 99,
+                      flex: "0 0 auto",
                       border: "2px solid " + (active ? T.action : T.hairline),
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
+                      transition: "border-color .14s",
                     }}
                   >
                     {active && (
@@ -290,7 +400,9 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 14, fontWeight: 600 }}>{m.title}</div>
-                    <div style={{ fontSize: 12, color: T.slate }}>{m.sub}</div>
+                    <div style={{ fontSize: 12, color: T.slate, marginTop: 1 }}>
+                      {m.sub}
+                    </div>
                   </div>
                 </button>
               );
@@ -300,7 +412,7 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
 
         {/* Toggles */}
         <div style={{ padding: "16px 16px 0" }}>
-          <Card p={0}>
+          <Card p={0} elevation>
             <Toggle
               label={t("circles.toggleAnon")}
               sub={t("circles.toggleAnonSub")}
@@ -317,7 +429,7 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
           </Card>
         </div>
 
-        {/* Preview banner */}
+        {/* Preview banner — honesty: no money moves today */}
         <div style={{ padding: "16px 16px 0" }}>
           <div
             style={{
@@ -330,9 +442,10 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
               display: "flex",
               gap: 10,
               alignItems: "flex-start",
+              boxShadow: "inset 0 0 0 1px rgba(146,64,14,.12)",
             }}
           >
-            <div style={{ marginTop: 1 }}>
+            <div style={{ marginTop: 1, flex: "0 0 auto" }}>
               {Ico.shield({ size: 16, c: T.warn })}
             </div>
             <div>
@@ -342,7 +455,19 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
           </div>
         </div>
 
-        <div style={{ padding: "20px 16px 0" }}>
+        {/* Footer — scrolls above the sticky bar */}
+        <div
+          style={{
+            padding: "22px 24px 4px",
+            display: "flex",
+            justifyContent: "center",
+          }}
+        >
+          <PoweredByStellar />
+        </div>
+
+        {/* Sticky CTA bar — floats above the BottomNav */}
+        <StickyBar>
           <Btn
             kind="primary"
             leading={Ico.shield({ c: "#fff" })}
@@ -351,17 +476,7 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
           >
             {t("circles.continueWaitlist")}
           </Btn>
-        </div>
-
-        <div
-          style={{
-            padding: "22px 24px 0",
-            display: "flex",
-            justifyContent: "center",
-          }}
-        >
-          <PoweredByStellar />
-        </div>
+        </StickyBar>
       </div>
     );
   }
@@ -373,7 +488,7 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
       <div style={shell}>
         <AppBar
           leading={
-            <IconButton onClick={() => setPhase("amount")}>
+            <IconButton ariaLabel="Back" onClick={() => setPhase("amount")}>
               {Ico.back({})}
             </IconButton>
           }
@@ -401,8 +516,8 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
             style={{
               marginTop: 18,
               fontSize: 21,
-              fontWeight: 600,
-              letterSpacing: "-0.01em",
+              fontWeight: 700,
+              letterSpacing: "-0.015em",
               lineHeight: 1.25,
             }}
           >
@@ -434,8 +549,8 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
             style={{
               display: "block",
               fontSize: 11,
-              fontWeight: 600,
-              letterSpacing: "0.12em",
+              fontWeight: 700,
+              letterSpacing: "0.1em",
               textTransform: "uppercase",
               color: T.slate,
               padding: "0 4px 6px",
@@ -443,8 +558,18 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
           >
             {t("circles.notifyWhenLive")}
           </label>
-          <Card p={0}>
-            <div style={{ padding: "12px 16px" }}>
+          <Card p={0} elevation>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "12px 16px",
+              }}
+            >
+              <div style={{ flex: "0 0 auto", color: T.slate }}>
+                {Ico.bell({ size: 17, c: T.slate })}
+              </div>
               <input
                 type="email"
                 value={email}
@@ -477,13 +602,26 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
               color: T.danger,
               fontSize: 13,
               lineHeight: 1.4,
+              boxShadow: "inset 0 0 0 1px rgba(185,28,28,.14)",
             }}
           >
             {err}
           </div>
         )}
 
-        <div style={{ padding: "20px 16px 0" }}>
+        {/* Footer — scrolls above the sticky bar */}
+        <div
+          style={{
+            padding: "24px 24px 4px",
+            display: "flex",
+            justifyContent: "center",
+          }}
+        >
+          <PoweredByStellar />
+        </div>
+
+        {/* Sticky CTA bar — submit floats above the BottomNav */}
+        <StickyBar>
           <Btn
             kind="primary"
             disabled={pending}
@@ -494,26 +632,16 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
           </Btn>
           <div
             style={{
-              marginTop: 10,
-              fontSize: 11.5,
+              marginTop: 7,
+              fontSize: 11,
               color: T.slate,
               textAlign: "center",
-              lineHeight: 1.5,
+              lineHeight: 1.4,
             }}
           >
             {t("circles.joinTerms")}
           </div>
-        </div>
-
-        <div
-          style={{
-            padding: "22px 24px 0",
-            display: "flex",
-            justifyContent: "center",
-          }}
-        >
-          <PoweredByStellar />
-        </div>
+        </StickyBar>
       </div>
     );
   }
@@ -524,7 +652,7 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
     <div style={shell}>
       <AppBar
         leading={
-          <IconButton onClick={() => router.push("/circles")}>
+          <IconButton ariaLabel="Close" onClick={() => router.push("/circles")}>
             {Ico.x({})}
           </IconButton>
         }
@@ -542,7 +670,8 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
-            boxShadow: "inset 0 0 0 1px " + T.hairline,
+            boxShadow:
+              "inset 0 0 0 1px " + T.hairline + ", 0 14px 30px -18px rgba(5,150,105,.5)",
           }}
         >
           {Ico.check({ size: 36, c: T.moneyIn })}
@@ -551,8 +680,8 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
           style={{
             marginTop: 22,
             fontSize: 13,
-            color: T.slate,
-            fontWeight: 600,
+            color: T.moneyIn,
+            fontWeight: 700,
             letterSpacing: "0.12em",
             textTransform: "uppercase",
           }}
@@ -563,8 +692,8 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
           style={{
             marginTop: 6,
             fontSize: 23,
-            fontWeight: 600,
-            letterSpacing: "-0.01em",
+            fontWeight: 700,
+            letterSpacing: "-0.015em",
             lineHeight: 1.25,
           }}
         >
@@ -590,7 +719,14 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
         </div>
       </div>
 
-      <div style={{ padding: "30px 16px 0", display: "flex", flexDirection: "column", gap: 10 }}>
+      <div
+        style={{
+          padding: "30px 16px 0",
+          display: "flex",
+          flexDirection: "column",
+          gap: 10,
+        }}
+      >
         <Btn kind="primary" onClick={() => router.push("/circles")}>
           {t("circles.backToCircles")}
         </Btn>
@@ -629,6 +765,7 @@ function Toggle({
     <button
       type="button"
       onClick={() => onChange(!value)}
+      aria-pressed={value}
       style={{
         width: "100%",
         display: "flex",

@@ -37,14 +37,18 @@ function Switch({ on }: { on: boolean }) {
   return (
     <div
       style={{
-        width: 42,
-        height: 24,
+        width: 44,
+        height: 26,
         borderRadius: 99,
         background: on ? T.action : T.hairline,
-        padding: 2,
+        padding: 3,
         display: "flex",
         justifyContent: on ? "flex-end" : "flex-start",
-        transition: "background .16s ease",
+        transition: "background .18s cubic-bezier(.2,.7,.3,1)",
+        boxShadow: on
+          ? "inset 0 0 0 1px rgba(37,99,235,.35)"
+          : "inset 0 0 0 1px rgba(11,18,32,.06)",
+        flex: "0 0 auto",
       }}
     >
       <div
@@ -53,7 +57,7 @@ function Switch({ on }: { on: boolean }) {
           height: 20,
           borderRadius: 99,
           background: "#fff",
-          boxShadow: "0 1px 3px rgba(0,0,0,.18)",
+          boxShadow: "0 1px 3px rgba(11,18,32,.22), 0 0 0 0.5px rgba(11,18,32,.04)",
         }}
       />
     </div>
@@ -67,9 +71,9 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
         // Compressed from "16px 20px 7px" to fit /settings one viewport per
         // DENSITY DISCIPLINE constraint (DESIGN-REVAMP-BRIEF.md). 5 sections
         // × 9px saved ≈ 45px of vertical reclaim.
-        padding: "10px 16px 4px",
-        fontSize: 11,
-        fontWeight: 600,
+        padding: "16px 20px 7px",
+        fontSize: 10.5,
+        fontWeight: 700,
         letterSpacing: "0.1em",
         textTransform: "uppercase",
         color: T.slate,
@@ -84,16 +88,18 @@ function iconBox(icon: React.ReactNode, bg: string, fg: string) {
   return (
     <div
       style={{
-        width: 34,
-        height: 34,
-        borderRadius: 10,
+        width: 36,
+        height: 36,
+        borderRadius: 11,
         background: bg,
         color: fg,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        fontSize: 13,
+        fontSize: 14,
         fontWeight: 700,
+        flex: "0 0 auto",
+        boxShadow: "inset 0 0 0 1px rgba(11,18,32,.04)",
       }}
     >
       {icon}
@@ -258,7 +264,10 @@ export default function SettingsScreen() {
     ? `https://stellar.expert/explorer/testnet/account/${addr}`
     : undefined;
   const value = (text: string) => (
-    <span style={{ fontSize: 13.5, fontWeight: 500, color: T.ink }}>{text}</span>
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+      <span style={{ fontSize: 13.5, fontWeight: 600, color: T.ink }}>{text}</span>
+      {Ico.chev({ size: 15, c: T.slate })}
+    </span>
   );
 
   return (
@@ -268,20 +277,21 @@ export default function SettingsScreen() {
       {/* Profile — tier status, taps through to the KYC tier screen */}
       <div style={{ padding: "4px 16px 0" }}>
         <Card
-          p={14}
+          p={16}
+          elevation
           className="sl-lift"
           onClick={() => router.push("/you/kyc-tier")}
-          style={{ cursor: "pointer" }}
+          style={{ cursor: "pointer", borderRadius: 18 }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <Avatar name={name || "Salapi"} size={48} />
+          <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
+            <Avatar name={name || "Salapi"} size={52} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                 <span
                   style={{
-                    fontSize: 17,
-                    fontWeight: 600,
-                    letterSpacing: "-0.01em",
+                    fontSize: 18,
+                    fontWeight: 700,
+                    letterSpacing: "-0.02em",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
@@ -289,15 +299,18 @@ export default function SettingsScreen() {
                 >
                   {display}
                 </span>
-                {name && Ico.verify({ size: 15, c: T.moneyIn })}
+                {name && Ico.verify({ size: 16, c: T.moneyIn })}
               </div>
-              <div style={{ fontSize: 12.5, color: T.slate, marginTop: 2 }}>
+              <div style={{ fontSize: 12.5, color: T.slate, marginTop: 3, lineHeight: 1.3 }}>
                 {t("settings.tierShort")}
               </div>
             </div>
-            <Chip kind="warn" size="sm">
-              {t("settings.previewStage2")}
-            </Chip>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flex: "0 0 auto" }}>
+              <Chip kind="warn" size="sm">
+                {t("settings.previewStage2")}
+              </Chip>
+              {Ico.chev({ size: 16, c: T.slate })}
+            </div>
           </div>
         </Card>
       </div>
@@ -305,7 +318,7 @@ export default function SettingsScreen() {
       {/* Akun */}
       <SectionLabel>{t("settings.accounts")}</SectionLabel>
       <div style={{ padding: "0 16px" }}>
-        <Card p={0}>
+        <Card p={0} elevation>
           <UsernamePanel current={name} onChanged={() => myUsername().then(setName)} />
           {supaEmail && (
             <Row
@@ -359,7 +372,7 @@ export default function SettingsScreen() {
       {/* Preferensi */}
       <SectionLabel>{t("settings.preferences")}</SectionLabel>
       <div style={{ padding: "0 16px" }}>
-        <Card p={0}>
+        <Card p={0} elevation>
           <Row
             leading={iconBox(Ico.globe({ c: T.action }), T.actionTint, T.action)}
             title={t("settings.language")}
@@ -395,7 +408,7 @@ export default function SettingsScreen() {
       {/* Keamanan */}
       <SectionLabel>{t("settings.security")}</SectionLabel>
       <div style={{ padding: "0 16px" }}>
-        <Card p={0}>
+        <Card p={0} elevation>
           <Row
             leading={iconBox(Ico.lock({ c: T.action }), T.actionTint, T.action)}
             title={t("settings.faceId")}
@@ -421,7 +434,7 @@ export default function SettingsScreen() {
       {/* Bantuan */}
       <SectionLabel>{t("settings.help")}</SectionLabel>
       <div style={{ padding: "0 16px" }}>
-        <Card p={0}>
+        <Card p={0} elevation>
           <Row
             leading={iconBox(Ico.bulb({ c: T.action }), T.actionTint, T.action)}
             title={t("settings.helpCenter")}
@@ -436,7 +449,7 @@ export default function SettingsScreen() {
       {/* Legal */}
       <SectionLabel>{t("settings.legal")}</SectionLabel>
       <div style={{ padding: "0 16px" }}>
-        <Card p={0}>
+        <Card p={0} elevation>
           <Row
             leading={iconBox(Ico.shield({ c: T.action }), T.actionTint, T.action)}
             title={t("settings.privacy")}
@@ -448,10 +461,10 @@ export default function SettingsScreen() {
         </Card>
       </div>
 
-      <div style={{ padding: "12px 16px 4px", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+      <div style={{ padding: "22px 16px 8px", display: "flex", flexDirection: "column", alignItems: "center", gap: 7 }}>
         <MakerLockup />
         <PoweredByStellar />
-        <span style={{ fontSize: 11, color: T.slate }}>
+        <span style={{ fontSize: 11, color: T.slate, fontFamily: T.fontMono, letterSpacing: "0.01em" }}>
           Salapi 1.0 · testnet · {t("settings.forSEA")}
         </span>
       </div>

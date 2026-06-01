@@ -45,75 +45,159 @@ export default function ActivityScreen() {
     : t("common.loading");
 
   return (
-    <div style={{ fontFamily: T.fontSans, color: T.ink, minHeight: "100%" }}>
+    <div style={{ fontFamily: T.fontSans, color: T.ink, minHeight: "100%", paddingBottom: 4 }}>
       <AppBar
         large
         title={t("activity.title")}
         sub={t("activity.sub")}
-        leading={<IconButton onClick={() => router.push("/")}>{Ico.back({})}</IconButton>}
+        leading={<IconButton ariaLabel="Back" onClick={() => router.push("/")}>{Ico.back({})}</IconButton>}
       />
 
-      {/* Your wallet → full real history */}
+      {/* Your wallet → full real history. Premium dark navy accent card
+          (same hero language as home) with mono address + explorer link. */}
       <div style={{ padding: "4px 16px 0" }}>
-        <Card p={14} onClick={() => account && window.open(account, "_blank", "noopener,noreferrer")} style={{ cursor: account ? "pointer" : "default" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 40, height: 40, borderRadius: 12, background: T.actionTint, color: T.action, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              {Ico.sparkle({ c: T.action, size: 20 })}
+        <div
+          onClick={() => account && window.open(account, "_blank", "noopener,noreferrer")}
+          className="sl-lift"
+          style={{
+            position: "relative",
+            overflow: "hidden",
+            borderRadius: 18,
+            padding: 15,
+            color: "#fff",
+            cursor: account ? "pointer" : "default",
+            background:
+              "radial-gradient(120% 120% at 88% -10%, rgba(37,99,235,.55), transparent 52%), linear-gradient(165deg,#101a31 0%,#0b1220 60%,#0a0f1c 100%)",
+            boxShadow:
+              "0 16px 34px -22px rgba(11,18,32,.7), inset 0 0 0 1px rgba(255,255,255,.06)",
+          }}
+        >
+          <div
+            aria-hidden
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: "radial-gradient(60% 50% at 14% 120%, rgba(5,150,105,.28), transparent 60%)",
+            }}
+          />
+          <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 13 }}>
+            <div
+              style={{
+                width: 42,
+                height: 42,
+                borderRadius: 13,
+                background: "rgba(255,255,255,.10)",
+                color: "#fff",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flex: "0 0 auto",
+                boxShadow: "inset 0 0 0 1px rgba(255,255,255,.16)",
+              }}
+            >
+              {Ico.sparkle({ c: "#fff", size: 20 })}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: T.slate }}>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,.6)" }}>
                 {t("activity.walletLabel")}
               </div>
-              <div style={{ fontSize: 13, fontFamily: T.fontMono, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              <div className="sl-mono" style={{ fontSize: 14, fontFamily: T.fontMono, fontWeight: 600, marginTop: 3, color: "rgba(255,255,255,.92)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                 {shortAddr}
               </div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: T.action, marginTop: 4, display: "inline-flex", alignItems: "center", gap: 5 }}>
-                {t("activity.openHistory")} {Ico.link({ size: 13, c: T.action })}
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", marginTop: 6, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <span aria-hidden style={{ width: 6, height: 6, borderRadius: 99, background: "#34d399", flex: "0 0 auto" }} />
+                {t("activity.openHistory")}
               </div>
             </div>
+            <div
+              aria-hidden
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: 99,
+                background: "rgba(255,255,255,.10)",
+                display: "grid",
+                placeItems: "center",
+                flex: "0 0 auto",
+                boxShadow: "inset 0 0 0 1px rgba(255,255,255,.16)",
+              }}
+            >
+              {Ico.link({ size: 15, c: "#fff" })}
+            </div>
           </div>
-        </Card>
+        </div>
       </div>
 
       {/* Founding on-chain trail · Week 2 (real, verifiable) */}
-      <div style={{ padding: "14px 16px 0" }}>
-        <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: T.slate, padding: "2px 4px 6px" }}>
-          {t("activity.trailTitle")}
+      <div style={{ padding: "16px 16px 0" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 4px 7px" }}>
+          <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.11em", textTransform: "uppercase", color: T.slate }}>
+            {t("activity.trailTitle")}
+          </span>
+          <span
+            aria-hidden
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              marginLeft: "auto",
+              color: T.moneyIn,
+              background: T.moneyInTint,
+              padding: "4px",
+              borderRadius: 99,
+            }}
+          >
+            {Ico.verify({ size: 13, c: T.moneyIn })}
+          </span>
         </div>
-        <Card p={0}>
+        <Card p={0} elevation>
           {TRAIL.map((row, i) => {
-            const c = row.kind === "in" ? T.moneyIn : row.kind === "out" ? T.warn : T.slate;
-            const bg = row.kind === "in" ? T.moneyInTint : row.kind === "out" ? T.warnTint : T.canvas;
+            const c = row.kind === "in" ? T.moneyIn : row.kind === "out" ? T.warn : T.action;
+            const bg = row.kind === "in" ? T.moneyInTint : row.kind === "out" ? T.warnTint : T.actionTint;
             return (
               <a
                 key={row.hash}
                 href={`${EXPLORER}/tx/${row.hash}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderBottom: i < TRAIL.length - 1 ? "1px solid " + T.hairline : "none", color: T.ink, textDecoration: "none", minHeight: 44 }}
+                className="sl-lift"
+                style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderBottom: i < TRAIL.length - 1 ? "1px solid " + T.hairline : "none", color: T.ink, textDecoration: "none", minHeight: 44 }}
               >
-                <div style={{ width: 34, height: 34, borderRadius: 10, background: bg, color: c, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <div style={{ width: 36, height: 36, borderRadius: 11, background: bg, color: c, display: "flex", alignItems: "center", justifyContent: "center", flex: "0 0 auto" }}>
                   {row.ico({ size: 18, c })}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13.5, fontWeight: 600, lineHeight: 1.25, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.25, letterSpacing: "-0.01em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                     {row.step}
                   </div>
-                  <div style={{ fontSize: 11, color: T.slate, marginTop: 1, fontFamily: T.fontMono }}>
+                  <div style={{ fontSize: 11, color: T.slate, marginTop: 2, fontFamily: T.fontMono }}>
                     tx · {row.hash.slice(0, 16)}…
                   </div>
                 </div>
-                {Ico.link({ size: 16, c: T.action })}
+                <div
+                  aria-hidden
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: 9,
+                    background: T.canvas,
+                    display: "grid",
+                    placeItems: "center",
+                    flex: "0 0 auto",
+                    boxShadow: "inset 0 0 0 1px " + T.hairline,
+                  }}
+                >
+                  {Ico.link({ size: 15, c: T.action })}
+                </div>
               </a>
             );
           })}
         </Card>
-        <div style={{ marginTop: 10, fontSize: 12, color: T.slate, lineHeight: 1.45, padding: "0 4px" }}>
+        <div style={{ marginTop: 11, fontSize: 12, color: T.slate, lineHeight: 1.5, padding: "0 4px" }}>
           {t("activity.note")}
         </div>
       </div>
 
-      <div style={{ padding: "16px 16px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+      <div style={{ padding: "18px 16px 4px", display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
         <PoweredByStellar />
         <span style={{ fontSize: 11, color: T.slate, fontFamily: T.fontMono }}>
           {t("activity.footer")}

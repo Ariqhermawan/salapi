@@ -62,28 +62,30 @@ function MethodCard({
       type="button"
       onClick={onClick}
       disabled={disabled}
+      className={disabled ? undefined : "sl-lift"}
       style={{
         width: "100%",
         textAlign: "left",
         border: "none",
         cursor: disabled ? "default" : "pointer",
-        padding: "11px 14px",
-        borderRadius: 12,
-        background: T.surface,
-        boxShadow:
-          "inset 0 0 0 " +
-          (selected ? "1.5px " + T.action : "1px " + T.hairline),
+        padding: "12px 14px",
+        borderRadius: 14,
+        background: selected ? T.actionTint : T.surface,
+        boxShadow: selected
+          ? "inset 0 0 0 1.5px " + T.action + ", 0 6px 16px -10px rgba(37,99,235,.45)"
+          : "0 2px 8px -4px rgba(11,18,32,.10), inset 0 0 0 1px " + T.hairline,
         display: "flex",
         alignItems: "center",
         gap: 12,
-        minHeight: 44,
+        minHeight: 56,
         opacity: disabled ? 0.6 : 1,
+        transition: "background .14s, box-shadow .14s",
       }}
     >
       {tile}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: T.ink }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: T.ink }}>
             {label}
           </span>
           {tag && (
@@ -103,9 +105,24 @@ function MethodCard({
             </span>
           )}
         </div>
-        <div style={{ fontSize: 11, color: T.slate, marginTop: 2 }}>{sub}</div>
+        <div style={{ fontSize: 11.5, color: T.slate, marginTop: 2, lineHeight: 1.35 }}>{sub}</div>
       </div>
-      {selected && Ico.check({ size: 16, c: T.action })}
+      <div
+        aria-hidden
+        style={{
+          flex: "0 0 auto",
+          width: 22,
+          height: 22,
+          borderRadius: 99,
+          display: "grid",
+          placeItems: "center",
+          background: selected ? T.action : "transparent",
+          boxShadow: selected ? "none" : "inset 0 0 0 1.5px " + T.hairline,
+          transition: "background .14s, box-shadow .14s",
+        }}
+      >
+        {selected && Ico.check({ size: 13, c: "#fff" })}
+      </div>
     </button>
   );
 }
@@ -156,6 +173,16 @@ export default function TopUpScreen() {
     color: T.ink,
     minHeight: "100%",
     paddingBottom: 110,
+  };
+
+  // Eyebrow label — the premium uppercase section header used across the
+  // revamped screens (10px / 700 / 0.1em, slate).
+  const eyebrow: React.CSSProperties = {
+    fontSize: 10,
+    fontWeight: 700,
+    letterSpacing: "0.1em",
+    textTransform: "uppercase",
+    color: T.slate,
   };
 
   // ── PROCESSING ──
@@ -211,7 +238,7 @@ export default function TopUpScreen() {
           </div>
         </div>
         <div style={{ padding: "22px 16px 0" }}>
-          <Card p={14}>
+          <Card p={14} elevation>
             {[t("topup.step1"), t("topup.step2"), t("topup.step3")].map(
               (s, i) => (
                 <div
@@ -336,7 +363,7 @@ export default function TopUpScreen() {
           </div>
         </div>
         <div style={{ padding: "16px 16px 0" }}>
-          <Card p={14}>
+          <Card p={14} elevation>
             <Row
               title={t("topup.from")}
               trailing={
@@ -424,8 +451,11 @@ export default function TopUpScreen() {
   }
 
   // ── AMOUNT ──
+  // The CTA is a sticky bar that provides its own floor above the BottomNav
+  // (like CircleDetail), so this phase drops the large bottom padding the
+  // in-flow processing/done phases still need.
   return (
-    <div style={shell}>
+    <div style={{ ...shell, paddingBottom: 0 }}>
       <AppBar
         leading={
           <IconButton onClick={() => router.push("/")}>{Ico.back({})}</IconButton>
@@ -433,111 +463,102 @@ export default function TopUpScreen() {
         title={t("topup.title")}
       />
       <div style={{ padding: "8px 20px 4px" }}>
+        <div style={eyebrow}>{t("topup.eyebrow")}</div>
         <div
           style={{
-            fontSize: 11,
-            fontWeight: 600,
-            letterSpacing: "0.12em",
-            textTransform: "uppercase",
-            color: T.slate,
-          }}
-        >
-          {t("topup.eyebrow")}
-        </div>
-        <div
-          style={{
-            fontSize: 20,
-            fontWeight: 600,
+            fontSize: 22,
+            fontWeight: 800,
             letterSpacing: "-0.02em",
-            marginTop: 4,
+            marginTop: 5,
+            lineHeight: 1.15,
           }}
         >
           {t("topup.question")}
         </div>
       </div>
 
-      {/* Amount */}
-      <div style={{ padding: "12px 24px 0", textAlign: "center" }}>
-        <div
-          className="sl-balance"
-          style={{
-            fontSize: 44,
-            fontWeight: 600,
-            letterSpacing: "-0.03em",
-            display: "inline-flex",
-            alignItems: "baseline",
-            gap: 4,
-          }}
-        >
-          <span style={{ fontSize: 26, color: T.slate, fontWeight: 500 }}>
-            {CURRENCY[currency].symbol}
-          </span>
-          <input
-            value={amount}
-            onChange={(e) => {
-              amtTouched.current = true;
-              setAmount(e.target.value.replace(/[^0-9]/g, ""));
-            }}
-            inputMode="numeric"
-            placeholder="0"
-            aria-label={t("topup.amountAria")}
-            style={{
-              width: Math.max(2, amount.length || 1) + "ch",
-              border: "none",
-              outline: "none",
-              background: "transparent",
-              font: "inherit",
-              color: T.ink,
-              textAlign: "center",
-            }}
-          />
-        </div>
-        <div style={{ marginTop: 6, fontSize: 12, color: T.slate }}>
-          {t("topup.limits", {
-            min: formatLocalAmount(localAmount(MIN_TOPUP, currency), currency),
-            max: formatLocalAmount(localAmount(MAX_TOPUP, currency), currency),
-          })}
-        </div>
-      </div>
+      {/* Amount hero — the big number on its own elevated surface, with the
+          quick-pick chips tucked inside the same card. */}
+      <div style={{ padding: "12px 16px 0" }}>
+        <Card p={18} elevation style={{ borderRadius: 20 }}>
+          <div style={{ textAlign: "center" }}>
+            <div
+              className="sl-balance"
+              style={{
+                fontSize: 46,
+                fontWeight: 700,
+                letterSpacing: "-0.03em",
+                display: "inline-flex",
+                alignItems: "baseline",
+                gap: 4,
+                lineHeight: 1,
+              }}
+            >
+              <span style={{ fontSize: 27, color: T.slate, fontWeight: 600 }}>
+                {CURRENCY[currency].symbol}
+              </span>
+              <input
+                value={amount}
+                onChange={(e) => {
+                  amtTouched.current = true;
+                  setAmount(e.target.value.replace(/[^0-9]/g, ""));
+                }}
+                inputMode="numeric"
+                placeholder="0"
+                aria-label={t("topup.amountAria")}
+                style={{
+                  width: Math.max(2, amount.length || 1) + "ch",
+                  border: "none",
+                  outline: "none",
+                  background: "transparent",
+                  font: "inherit",
+                  color: T.ink,
+                  textAlign: "center",
+                  caretColor: T.action,
+                }}
+              />
+            </div>
+            <div style={{ marginTop: 7, fontSize: 12, color: T.slate }}>
+              {t("topup.limits", {
+                min: formatLocalAmount(localAmount(MIN_TOPUP, currency), currency),
+                max: formatLocalAmount(localAmount(MAX_TOPUP, currency), currency),
+              })}
+            </div>
+          </div>
 
-      {/* Quick amounts */}
-      <div
-        style={{
-          padding: "14px 16px 0",
-          display: "flex",
-          gap: 8,
-          flexWrap: "wrap",
-          justifyContent: "center",
-        }}
-      >
-        {QUICK[currency].map((a) => (
-          <span
-            key={a}
-            onClick={() => {
-              amtTouched.current = true;
-              setAmount(a);
+          {/* Quick amounts */}
+          <div
+            style={{
+              marginTop: 14,
+              paddingTop: 14,
+              borderTop: "1px solid " + T.hairline,
+              display: "flex",
+              gap: 8,
+              flexWrap: "wrap",
+              justifyContent: "center",
             }}
-            style={{ cursor: "pointer" }}
           >
-            <Chip kind={a === amount ? "action" : "neutral"} size="md">
-              {formatLocalAmount(Number(a), currency)}
-            </Chip>
-          </span>
-        ))}
+            {QUICK[currency].map((a) => (
+              <span
+                key={a}
+                onClick={() => {
+                  amtTouched.current = true;
+                  setAmount(a);
+                }}
+                style={{ cursor: "pointer" }}
+              >
+                <Chip kind={a === amount ? "action" : "neutral"} size="md">
+                  {formatLocalAmount(Number(a), currency)}
+                </Chip>
+              </span>
+            ))}
+          </div>
+        </Card>
       </div>
 
       {/* Method */}
       <div style={{ padding: "18px 16px 0" }}>
-        <div
-          style={{
-            fontSize: 11,
-            fontWeight: 600,
-            letterSpacing: "0.1em",
-            textTransform: "uppercase",
-            color: T.slate,
-            marginBottom: 8,
-          }}
-        >
+        <div style={{ ...eyebrow, marginBottom: 9 }}>
           {t("topup.methodLabel")}
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -553,16 +574,18 @@ export default function TopUpScreen() {
                 tile={
                   <div
                     style={{
-                      width: 34,
-                      height: 34,
-                      borderRadius: 10,
+                      width: 38,
+                      height: 38,
+                      borderRadius: 11,
                       background: "#0079FF",
                       color: "#fff",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      fontWeight: 700,
-                      fontSize: 12,
+                      fontWeight: 800,
+                      fontSize: 13,
+                      flex: "0 0 auto",
+                      boxShadow: "0 4px 10px -4px rgba(0,121,255,.5)",
                     }}
                   >
                     GC
@@ -580,17 +603,19 @@ export default function TopUpScreen() {
                 tile={
                   <div
                     style={{
-                      width: 34,
-                      height: 34,
-                      borderRadius: 10,
+                      width: 38,
+                      height: 38,
+                      borderRadius: 11,
                       background: "#C8102E",
                       color: "#fff",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
+                      flex: "0 0 auto",
+                      boxShadow: "0 4px 10px -4px rgba(200,16,46,.5)",
                     }}
                   >
-                    {Ico.qr({ size: 18, c: "#fff" })}
+                    {Ico.qr({ size: 19, c: "#fff" })}
                   </div>
                 }
                 label={t("topup.methodQris")}
@@ -602,26 +627,41 @@ export default function TopUpScreen() {
         </div>
       </div>
 
-      {/* Anchor disclaimer */}
-      <div style={{ padding: "12px 16px 0" }}>
+      {/* Anchor disclaimer — honesty: sandbox on-ramp, real anchor at launch. */}
+      <div style={{ padding: "14px 16px 0" }}>
         <div
           style={{
             padding: "12px 14px",
-            borderRadius: 12,
+            borderRadius: 14,
             background: T.warnTint,
-            boxShadow: "inset 0 0 0 1px rgba(180,83,9,0.22)",
+            boxShadow: "inset 0 0 0 1px rgba(146,64,14,0.22)",
             display: "flex",
-            gap: 10,
+            gap: 11,
             alignItems: "flex-start",
           }}
         >
-          {Ico.verify({ size: 16, c: T.warn })}
+          <div
+            aria-hidden
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: 9,
+              background: "rgba(146,64,14,0.12)",
+              color: T.warn,
+              display: "grid",
+              placeItems: "center",
+              flex: "0 0 auto",
+            }}
+          >
+            {Ico.verify({ size: 16, c: T.warn })}
+          </div>
           <div>
             <div
               style={{
                 fontSize: 11,
-                fontWeight: 700,
+                fontWeight: 800,
                 letterSpacing: "0.08em",
+                textTransform: "uppercase",
                 color: T.warn,
               }}
             >
@@ -641,49 +681,79 @@ export default function TopUpScreen() {
         </div>
       </div>
 
-      {/* Total */}
-      <div style={{ padding: "10px 16px 0" }}>
-        <Card p={14}>
+      {/* Total — what lands in the wallet, with the no-fee promise. */}
+      <div style={{ padding: "12px 16px 0" }}>
+        <Card p={14} elevation>
           <div
             style={{
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
+              gap: 10,
             }}
           >
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                color: T.slate,
-              }}
-            >
-              {t("topup.youGet")}
-            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: 11, minWidth: 0 }}>
+              <div
+                aria-hidden
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 11,
+                  background: T.moneyInTint,
+                  color: T.moneyIn,
+                  display: "grid",
+                  placeItems: "center",
+                  flex: "0 0 auto",
+                }}
+              >
+                {Ico.arrowDown({ size: 18, c: T.moneyIn })}
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={eyebrow}>{t("topup.youGet")}</div>
+                <div
+                  style={{
+                    marginTop: 3,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: T.moneyIn,
+                  }}
+                >
+                  {t("topup.noFee")}
+                </div>
+              </div>
+            </div>
             <span
               className="sl-balance"
-              style={{ fontSize: 18, fontWeight: 700, color: T.ink }}
+              style={{ fontSize: 20, fontWeight: 800, color: T.ink, letterSpacing: "-0.01em", whiteSpace: "nowrap" }}
             >
               {amtLabel}
             </span>
           </div>
-          <div
-            style={{
-              marginTop: 6,
-              fontSize: 12,
-              fontWeight: 600,
-              color: T.moneyIn,
-            }}
-          >
-            {t("topup.noFee")}
-          </div>
         </Card>
       </div>
 
-      {/* CTA */}
-      <div style={{ padding: "16px 16px 0" }}>
+      {/* Footer — scrolls above the sticky CTA bar. */}
+      <div style={{ padding: "20px 16px 0", display: "flex", justifyContent: "center" }}>
+        <PoweredByStellar />
+      </div>
+
+      {/* Sticky CTA bar — floats above the BottomNav and stays visible while
+          scrolling. main has overflow-y-auto + pb so bottom:0 pins it just
+          above the nav rather than the viewport edge. */}
+      <div
+        style={{
+          position: "sticky",
+          bottom: 0,
+          marginTop: 14,
+          padding: "12px 16px",
+          background: "rgba(244,246,251,0.94)",
+          backdropFilter: "blur(8px)",
+          WebkitBackdropFilter: "blur(8px)",
+          borderTop: "1px solid " + T.hairline,
+          boxShadow: "0 -12px 28px -16px rgba(11,18,32,.28)",
+          zIndex: 5,
+        }}
+      >
         <Btn
           kind="primary"
           disabled={pending || amt <= 0}
@@ -693,9 +763,6 @@ export default function TopUpScreen() {
         >
           {t("topup.cta", { amount: amtLabel })}
         </Btn>
-      </div>
-      <div style={{ padding: "18px 16px 0", display: "flex", justifyContent: "center" }}>
-        <PoweredByStellar />
       </div>
     </div>
   );
