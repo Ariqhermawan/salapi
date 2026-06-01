@@ -17,6 +17,7 @@ import {
   PoweredByStellar,
 } from "@/components/ui/kit";
 import { SalapiMascot } from "@/components/ui/mascot";
+import { useGoBack } from "@/lib/ui/useGoBack";
 import {
   CURRENCY,
   formatLocal,
@@ -111,6 +112,7 @@ function DestCard({
 export default function WithdrawScreen() {
   const { t, locale, currency } = useT();
   const router = useRouter();
+  const goBack = useGoBack("/");
   const [phase, setPhase] = useState<"amount" | "processing" | "done">("amount");
   const [amount, setAmount] = useState("");
   const [destPick, setDestPick] = useState<
@@ -405,7 +407,7 @@ export default function WithdrawScreen() {
     <div style={{ ...shell, paddingBottom: 0 }}>
       <AppBar
         leading={
-          <IconButton ariaLabel="Back" onClick={() => router.push("/")}>{Ico.back({})}</IconButton>
+          <IconButton ariaLabel="Back" onClick={goBack}>{Ico.back({})}</IconButton>
         }
         title={t("withdraw.title")}
       />

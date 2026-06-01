@@ -12,6 +12,7 @@ import {
   PoweredByStellar,
 } from "@/components/ui/kit";
 import { useT } from "@/components/I18nProvider";
+import { useGoBack } from "@/lib/ui/useGoBack";
 
 const EXPLORER = "https://stellar.expert/explorer/testnet";
 
@@ -33,6 +34,7 @@ const TRAIL: { step: string; hash: string; ico: IconFn; kind: "in" | "out" | "sy
 export default function ActivityScreen() {
   const { t } = useT();
   const router = useRouter();
+  const goBack = useGoBack("/");
   const [addr, setAddr] = useState("");
 
   useEffect(() => {
@@ -50,7 +52,7 @@ export default function ActivityScreen() {
         large
         title={t("activity.title")}
         sub={t("activity.sub")}
-        leading={<IconButton ariaLabel="Back" onClick={() => router.push("/")}>{Ico.back({})}</IconButton>}
+        leading={<IconButton ariaLabel="Back" onClick={goBack}>{Ico.back({})}</IconButton>}
       />
 
       {/* Your wallet → full real history. Premium dark navy accent card

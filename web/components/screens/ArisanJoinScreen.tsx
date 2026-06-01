@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { arisanJoin } from "@/app/actions";
 import { useT } from "@/components/I18nProvider";
 import { T, Ico, AppBar, IconButton, Card, Btn } from "@/components/ui/kit";
+import { useGoBack } from "@/lib/ui/useGoBack";
 
 // Invite codes are 6 chars from {digits 2–9, A–Z minus O/I}.
 const ALPHA = /^[A-Z2-9]+$/;
@@ -12,6 +13,7 @@ const ALPHA = /^[A-Z2-9]+$/;
 export default function ArisanJoinScreen() {
   const { t } = useT();
   const router = useRouter();
+  const goBack = useGoBack("/arisan");
   const [code, setCode] = useState("");
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +44,7 @@ export default function ArisanJoinScreen() {
     <div style={{ fontFamily: T.fontSans, color: T.ink, minHeight: "100%", paddingBottom: 130 }}>
       <AppBar
         leading={
-          <IconButton onClick={() => router.back()}>{Ico.back({})}</IconButton>
+          <IconButton onClick={goBack}>{Ico.back({})}</IconButton>
         }
         title={t("arisan.join.title")}
       />

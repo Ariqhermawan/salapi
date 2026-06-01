@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useGoBack } from "@/lib/ui/useGoBack";
 import {
   smartSavingsState,
   smartSavingsOpen,
@@ -156,6 +157,7 @@ function ModeCard({
 export default function SavingsScreen() {
   const { t, currency } = useT();
   const router = useRouter();
+  const goBack = useGoBack("/vaults");
   const [st, setSt] = useState<State | null>(null);
   const [goals, setGoals] = useState<SavingsGoal[]>([]);
   const [pending, start] = useTransition();
@@ -399,7 +401,7 @@ export default function SavingsScreen() {
     return (
       <div style={shell}>
         <AppBar
-          leading={<IconButton onClick={() => router.push("/")}>{Ico.back({})}</IconButton>}
+          leading={<IconButton onClick={goBack}>{Ico.back({})}</IconButton>}
           title={t("savings.title")}
         />
         <div style={{ padding: "60px 24px", textAlign: "center", color: T.slate, fontSize: 14 }}>
@@ -414,7 +416,7 @@ export default function SavingsScreen() {
     return (
       <div style={shell}>
         <AppBar
-          leading={<IconButton onClick={() => router.push("/")}>{Ico.back({})}</IconButton>}
+          leading={<IconButton onClick={goBack}>{Ico.back({})}</IconButton>}
           title={t("savings.title")}
         />
         <div style={{ padding: "60px 28px 0", textAlign: "center" }}>
@@ -439,7 +441,7 @@ export default function SavingsScreen() {
     return (
       <div style={shell}>
         <AppBar
-          leading={<IconButton onClick={() => router.push("/")}>{Ico.back({})}</IconButton>}
+          leading={<IconButton onClick={goBack}>{Ico.back({})}</IconButton>}
           title={t("savings.newGoal")}
         />
         <div style={{ padding: "6px 20px 8px" }}>
@@ -580,7 +582,7 @@ export default function SavingsScreen() {
     return (
       <div style={shell}>
         <AppBar
-          leading={<IconButton onClick={() => router.push("/")}>{Ico.back({})}</IconButton>}
+          leading={<IconButton onClick={goBack}>{Ico.back({})}</IconButton>}
           title=""
         />
         <div style={{ padding: "32px 28px 0", textAlign: "center" }}>
@@ -636,7 +638,7 @@ export default function SavingsScreen() {
   return (
     <div style={shell}>
       <AppBar
-        leading={<IconButton onClick={() => router.push("/")}>{Ico.back({})}</IconButton>}
+        leading={<IconButton onClick={goBack}>{Ico.back({})}</IconButton>}
         title={t("savings.title")}
       />
 

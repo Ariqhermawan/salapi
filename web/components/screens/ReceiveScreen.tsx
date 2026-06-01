@@ -19,6 +19,7 @@ import {
   Btn,
   PoweredByStellar,
 } from "@/components/ui/kit";
+import { useGoBack } from "@/lib/ui/useGoBack";
 
 const SITE = "https://salapi.app";
 
@@ -46,6 +47,7 @@ function ShareGlyph({ c = "#fff", size = 18 }: { c?: string; size?: number }) {
 export default function ReceiveScreen() {
   const { t } = useT();
   const router = useRouter();
+  const goBack = useGoBack("/send");
   const [username, setUsername] = useState<string | null>(null);
   const [address, setAddress] = useState("");
   const [copied, setCopied] = useState(false);
@@ -95,7 +97,7 @@ export default function ReceiveScreen() {
     >
       <AppBar
         leading={
-          <IconButton ariaLabel="Back" onClick={() => router.back()}>
+          <IconButton ariaLabel="Back" onClick={goBack}>
             {Ico.back({})}
           </IconButton>
         }

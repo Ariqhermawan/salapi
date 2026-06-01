@@ -17,6 +17,7 @@ import {
   PoweredByStellar,
 } from "@/components/ui/kit";
 import { SalapiMascot } from "@/components/ui/mascot";
+import { useGoBack } from "@/lib/ui/useGoBack";
 import {
   CURRENCY,
   formatLocal,
@@ -130,6 +131,7 @@ function MethodCard({
 export default function TopUpScreen() {
   const { t, locale, currency } = useT();
   const router = useRouter();
+  const goBack = useGoBack("/");
   const [phase, setPhase] = useState<"amount" | "processing" | "done">("amount");
   const [amount, setAmount] = useState("");
   const [methodPick, setMethodPick] = useState<"gcash" | "qris" | null>(null);
@@ -458,7 +460,7 @@ export default function TopUpScreen() {
     <div style={{ ...shell, paddingBottom: 0 }}>
       <AppBar
         leading={
-          <IconButton onClick={() => router.push("/")}>{Ico.back({})}</IconButton>
+          <IconButton onClick={goBack}>{Ico.back({})}</IconButton>
         }
         title={t("topup.title")}
       />

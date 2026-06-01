@@ -17,10 +17,13 @@ export default function BottomNav() {
     { id: "/settings", label: t("common.you"), icon: Ico.user },
   ];
 
+  // Highlight the tab whose section the current path is under. If the path
+  // belongs to no tab (e.g. /topup, /withdraw, /receive, /transparency,
+  // /paluwagan, /savings), highlight NOTHING rather than falsely lighting Home.
   const active =
     path === "/"
       ? "/"
-      : items.find((i) => i.id !== "/" && path.startsWith(i.id))?.id ?? "/";
+      : items.find((i) => i.id !== "/" && path.startsWith(i.id))?.id ?? "";
 
   return (
     <TabBar

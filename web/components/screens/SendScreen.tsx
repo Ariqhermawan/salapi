@@ -18,6 +18,7 @@ import {
   PoweredByStellar,
 } from "@/components/ui/kit";
 import { SalapiMascot } from "@/components/ui/mascot";
+import { useGoBack } from "@/lib/ui/useGoBack";
 import {
   CURRENCY,
   formatLocalAmount,
@@ -46,6 +47,7 @@ const box: React.CSSProperties = {
 export default function SendScreen({ initialTo }: { initialTo?: string }) {
   const { t, currency } = useT();
   const router = useRouter();
+  const goBack = useGoBack("/");
   const [mine, setMine] = useState<string | null>(null);
   const [claim, setClaim] = useState("");
   // Pre-fill from a scanned Receive QR (?to=). Sanitize to the username charset
@@ -192,7 +194,7 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
   return (
     <div style={{ fontFamily: T.fontSans, color: T.ink, minHeight: "100%", display: "flex", flexDirection: "column" }}>
       <AppBar
-        leading={<IconButton ariaLabel="Back" onClick={() => router.push("/")}>{Ico.back({})}</IconButton>}
+        leading={<IconButton ariaLabel="Back" onClick={goBack}>{Ico.back({})}</IconButton>}
         title={t("send.title")}
         trailing={<IconButton ariaLabel="Receive" onClick={() => router.push("/receive")}>{Ico.qr({})}</IconButton>}
       />

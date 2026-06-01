@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useGoBack } from "@/lib/ui/useGoBack";
 import { disasterState, disasterContribute } from "@/app/actions";
 import { useT } from "@/components/I18nProvider";
 import {
@@ -59,6 +60,7 @@ type Pool = Awaited<ReturnType<typeof disasterState>>;
 export default function TransparencyScreen() {
   const { t, currency } = useT();
   const router = useRouter();
+  const goBack = useGoBack("/");
   const [pool, setPool] = useState<Pool | null>(null);
   const [phase, setPhase] = useState<"view" | "amount" | "processing" | "done">("view");
   const [amount, setAmount] = useState("");
@@ -254,7 +256,7 @@ export default function TransparencyScreen() {
   return (
     <div style={shell}>
       <AppBar
-        leading={<IconButton onClick={() => router.push("/")}>{Ico.back({})}</IconButton>}
+        leading={<IconButton onClick={goBack}>{Ico.back({})}</IconButton>}
         title=""
         trailing={<span style={{ fontSize: 12, color: T.slate, fontFamily: T.fontMono }}>{t("transparency.publicNoLogin")}</span>}
       />

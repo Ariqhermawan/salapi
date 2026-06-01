@@ -18,6 +18,7 @@ import {
   formatLocalAmount,
   pesoFromLocal,
 } from "@/lib/ui/currency";
+import { useGoBack } from "@/lib/ui/useGoBack";
 
 const PRESETS_LOCAL: Record<string, number[]> = {
   // Display-currency presets per locale (illustrative).
@@ -32,6 +33,7 @@ const CADENCES: ArisanCadence[] = ["Weekly", "Biweekly", "Monthly"];
 export default function ArisanCreateScreen() {
   const { t, currency } = useT();
   const router = useRouter();
+  const goBack = useGoBack("/arisan");
   const [pending, start] = useTransition();
   const [name, setName] = useState("");
   const [members, setMembers] = useState(3);
@@ -80,7 +82,7 @@ export default function ArisanCreateScreen() {
     <div style={shell}>
       <AppBar
         leading={
-          <IconButton onClick={() => router.back()}>{Ico.back({})}</IconButton>
+          <IconButton onClick={goBack}>{Ico.back({})}</IconButton>
         }
         title={t("arisan.create.title")}
       />

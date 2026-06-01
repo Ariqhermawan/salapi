@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useGoBack } from "@/lib/ui/useGoBack";
 import { arisanList } from "@/app/actions";
 import { useT } from "@/components/I18nProvider";
 import {
@@ -28,6 +29,7 @@ const STATUS_TONE = {
 export default function ArisanListScreen() {
   const { t, currency } = useT();
   const router = useRouter();
+  const goBack = useGoBack("/vaults");
   const [st, setSt] = useState<State | null>(null);
   const [, startLoad] = useTransition();
 
@@ -50,7 +52,7 @@ export default function ArisanListScreen() {
     <div style={shell}>
       <AppBar
         leading={
-          <IconButton onClick={() => router.push("/")}>
+          <IconButton onClick={goBack}>
             {Ico.back({})}
           </IconButton>
         }

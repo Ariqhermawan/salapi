@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useGoBack } from "@/lib/ui/useGoBack";
 import {
   paluwaganState,
   paluwaganPayMine,
@@ -61,6 +62,7 @@ function Confetti() {
 export default function PaluwaganScreen() {
   const { t, currency } = useT();
   const router = useRouter();
+  const goBack = useGoBack("/vaults");
   const [st, setSt] = useState<State | null>(null);
   const [msg, setMsg] = useState<{ tone: "ok" | "err"; text: string; link?: string } | null>(null);
   const [party, setParty] = useState(false);
@@ -106,7 +108,7 @@ export default function PaluwaganScreen() {
     return (
       <div style={shell}>
         <AppBar
-          leading={<IconButton onClick={() => router.push("/")}>{Ico.back({})}</IconButton>}
+          leading={<IconButton onClick={goBack}>{Ico.back({})}</IconButton>}
           title={t("paluwagan.title")}
         />
         <div style={{ padding: "60px 24px", textAlign: "center", color: T.slate, fontSize: 14 }}>
@@ -126,7 +128,7 @@ export default function PaluwaganScreen() {
     return (
       <div style={shell}>
         <AppBar
-          leading={<IconButton onClick={() => router.push("/")}>{Ico.back({})}</IconButton>}
+          leading={<IconButton onClick={goBack}>{Ico.back({})}</IconButton>}
           title={t("paluwagan.title")}
         />
         <div style={{ padding: "10px 24px 0" }}>
@@ -204,7 +206,7 @@ export default function PaluwaganScreen() {
     <div style={shell}>
       {party && <Confetti />}
       <AppBar
-        leading={<IconButton onClick={() => router.push("/")}>{Ico.back({})}</IconButton>}
+        leading={<IconButton onClick={goBack}>{Ico.back({})}</IconButton>}
         title={t("paluwagan.circleName")}
         trailing={<IconButton onClick={() => router.push("/activity")}>{Ico.activity({})}</IconButton>}
       />

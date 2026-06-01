@@ -9,6 +9,7 @@ import { SalapiMascot } from "@/components/ui/mascot";
 import { HeroFund, HeroCircle, HeroGrow } from "@/components/ui/doodles";
 import { useT } from "@/components/I18nProvider";
 import { LEARN, type LearnTopicId } from "@/lib/learn-content";
+import { useGoBack } from "@/lib/ui/useGoBack";
 
 const CREAM = "#FAF6EE";
 
@@ -20,6 +21,7 @@ function HeroThumb({ id, width = 78 }: { id: LearnTopicId; width?: number }) {
 
 export default function LearnScreen() {
   const router = useRouter();
+  const goBack = useGoBack("/");
   const { locale } = useT();
   const L = LEARN[locale] ?? LEARN.en;
   const fontStack = locale === "vi" ? T.fontUni : T.fontSans;
@@ -27,7 +29,7 @@ export default function LearnScreen() {
   return (
     <div style={{ fontFamily: fontStack, color: T.ink, minHeight: "100%", paddingBottom: 110 }}>
       <AppBar
-        leading={<IconButton onClick={() => router.push("/")}>{Ico.back({})}</IconButton>}
+        leading={<IconButton onClick={goBack}>{Ico.back({})}</IconButton>}
         title={L.indexEyebrow}
         trailing={<TestnetPill />}
       />
