@@ -43,12 +43,16 @@ const box: React.CSSProperties = {
   boxShadow: "inset 0 0 0 1px " + T.hairline,
 };
 
-export default function SendScreen() {
+export default function SendScreen({ initialTo }: { initialTo?: string }) {
   const { t, currency } = useT();
   const router = useRouter();
   const [mine, setMine] = useState<string | null>(null);
   const [claim, setClaim] = useState("");
-  const [to, setTo] = useState("");
+  // Pre-fill from a scanned Receive QR (?to=). Sanitize to the username charset
+  // so the query param can never inject anything unexpected into the field.
+  const [to, setTo] = useState(() =>
+    (initialTo ?? "").replace(/[^a-zA-Z0-9_]/g, "").slice(0, 32)
+  );
   const [amount, setAmount] = useState("");
   const [pending, start] = useTransition();
   const [done, setDone] = useState<null | { link: string }>(null);

@@ -95,7 +95,9 @@ const en = {
     title: "Receive",
     sub: "Share your @username. Anyone on Salapi can send you pesos.",
     railNote: "Stellar testnet · crypto invisible",
+    scan: "Scan to send",
     share: "Share",
+    copied: "Copied",
   },
   tx: {
     title: "Transaction",
@@ -1053,7 +1055,9 @@ const tl: Dict = {
     title: "Tumanggap",
     sub: "Ibahagi ang iyong @username. Sinuman sa Salapi ay puwedeng magpadala sa iyo.",
     railNote: "Stellar testnet · crypto invisible",
+    scan: "I-scan para magpadala",
     share: "Ibahagi",
+    copied: "Kinopya",
   },
   tx: {
     title: "Transaksyon",
@@ -2001,7 +2005,9 @@ const id: Dict = {
     title: "Terima",
     sub: "Bagikan @username kamu. Siapa pun di Salapi bisa mengirim ke kamu.",
     railNote: "Stellar testnet · crypto invisible",
+    scan: "Pindai untuk mengirim",
     share: "Bagikan",
+    copied: "Tersalin",
   },
   tx: {
     title: "Transaksi",
@@ -2950,7 +2956,9 @@ const vi: Dict = {
     title: "Nhận",
     sub: "Chia sẻ @username của bạn. Bất kỳ ai trên Salapi đều có thể gửi cho bạn.",
     railNote: "Stellar testnet · ẩn crypto",
+    scan: "Quét để gửi",
     share: "Chia sẻ",
+    copied: "Đã chép",
   },
   tx: {
     title: "Giao dịch",
