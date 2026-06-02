@@ -31,3 +31,26 @@ jobs:
           name: contract-wasm
           path: target/wasm32-unknown-unknown/release/*.wasm
           if-no-files-found: error
+
+  web:
+    name: web type-check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install deps
+        run: npm ci
+
+      # Type-check only — needs no runtime env, so it never goes spuriously red.
+      # Vercel already runs the full `next build` on every push to main.
+      - name: Type-check
+        run: npx tsc --noEmit
