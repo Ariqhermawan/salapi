@@ -1,0 +1,47 @@
+name: E2E
+
+# Run the Playwright suite against the DEPLOYED app:
+#   - deployment_status: fires after Vercel finishes a deploy → tests that exact
+#     deployment URL (race-free; no waiting/guessing).
+#   - workflow_dispatch: run on demand from the Actions tab (tests salapi.app).
+on:
+  deployment_status:
+  workflow_dispatch:
+
+# Read-only: the job only checks out the repo and tests a public URL.
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    name: Playwright E2E (deployed URL)
+    # deployment_status fires for every state (pending/success/error); only run
+    # once the deploy actually succeeded. Manual dispatch always runs.
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.deployment_status.state == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E against the deployment
+        # Vercel sets environment_url to the just-deployed URL; fall back to the
+        # production alias for manual runs or if it is absent. Passed as an env
+        # var (not interpolated into the shell) so the value can't inject.
+        env:
+          E2E_BASE_URL: ${{ github.event.deployment_status.environment_url || 'https://salapi.app' }}
+        run: npm run test:e2e
