@@ -1,9 +1,14 @@
 name: E2E
 
-# Run the Playwright suite against the DEPLOYED app:
-#   - deployment_status: fires after Vercel finishes a deploy → tests that exact
-#     deployment URL (race-free; no waiting/guessing).
-#   - workflow_dispatch: run on demand from the Actions tab (tests salapi.app).
+# Run the Playwright suite against the live production app (salapi.app):
+#   - deployment_status: fires after Vercel finishes a deploy → re-tests prod
+#     once the new build is live behind the alias.
+#   - workflow_dispatch: run on demand from the Actions tab.
+# NOTE: we test the PUBLIC alias salapi.app, NOT deployment_status.environment_url.
+# Vercel's per-deployment URLs sit behind Deployment Protection (an SSO wall), so
+# a CI browser gets redirected to a Vercel login page instead of the app. The
+# production alias is public and already points at the new build when a
+# production deployment_status reports success.
 on:
   deployment_status:
   workflow_dispatch:
@@ -38,10 +43,7 @@ jobs:
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
 
-      - name: Run E2E against the deployment
-        # Vercel sets environment_url to the just-deployed URL; fall back to the
-        # production alias for manual runs or if it is absent. Passed as an env
-        # var (not interpolated into the shell) so the value can't inject.
+      - name: Run E2E against production
         env:
-          E2E_BASE_URL: ${{ github.event.deployment_status.environment_url || 'https://salapi.app' }}
+          E2E_BASE_URL: https://salapi.app
         run: npm run test:e2e
