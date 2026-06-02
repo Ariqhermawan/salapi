@@ -44,7 +44,7 @@ export function TestnetPill() {
   return <TestnetPillV2 />;
 }
 
-export function IconButton({ children, onClick, size = 36, ariaLabel }: { children: ReactNode; onClick?: () => void; size?: number; ariaLabel?: string }) {
+export function IconButton({ children, onClick, size = 44, ariaLabel }: { children: ReactNode; onClick?: () => void; size?: number; ariaLabel?: string }) {
   // ariaLabel falls back to "button" so the Lighthouse button-name audit
   // never fails on an icon-only button; screens should pass a more
   // descriptive label (back / activity / settings / etc) when available.
@@ -217,7 +217,7 @@ export function Progress({ pct = 0, h = 6, color = T.action }: { pct?: number; h
 type ChipKind = "neutral" | "success" | "action" | "warn";
 export function Chip({ children, kind = "neutral", size = "md", leading }: { children: ReactNode; kind?: ChipKind; size?: "sm" | "md"; leading?: ReactNode }) {
   const map: Record<ChipKind, { bg: string; fg: string }> = {
-    neutral: { bg: T.hairline, fg: T.slate },
+    neutral: { bg: T.hairline, fg: T.ink },
     success: { bg: T.moneyInTint, fg: T.moneyIn },
     action: { bg: T.actionTint, fg: T.action },
     warn: { bg: T.warnTint, fg: T.warn },
