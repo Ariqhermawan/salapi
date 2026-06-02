@@ -20,6 +20,7 @@ import {
   Progress,
   PoweredByStellar,
 } from "@/components/ui/kit";
+import { useGoBack } from "@/lib/ui/useGoBack";
 import { formatParts } from "@/lib/ui/currency";
 import { useT } from "@/components/I18nProvider";
 import PreviewBadge from "@/components/circles/PreviewBadge";
@@ -90,6 +91,7 @@ const isAnon = (label: string) => /anon/i.test(label);
 
 export default function CircleDetailScreen({ circle }: { circle: Circle }) {
   const router = useRouter();
+  const goBack = useGoBack("/circles");
   const { currency, t } = useT();
   const [tab, setTab] = useState<Tab>("story");
 
@@ -142,7 +144,7 @@ export default function CircleDetailScreen({ circle }: { circle: Circle }) {
         >
           <button
             type="button"
-            onClick={() => router.push("/circles")}
+            onClick={goBack}
             aria-label="Back"
             style={{
               width: 38,

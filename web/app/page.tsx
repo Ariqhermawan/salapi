@@ -261,7 +261,7 @@ export default function Home() {
 
           {/* CTAs */}
           <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-            <Btn kind="primary" size="md" full={false} style={{ flex: 1, height: 40 }} onClick={go(FEATURED.to + "/donate")} leading={<HeartIcon />}>Donate</Btn>
+            <Btn kind="primary" size="md" full={false} style={{ flex: 1, height: 40 }} onClick={go(FEATURED.to)} leading={<HeartIcon />}>Donate</Btn>
             <Btn kind="quiet" size="md" full={false} style={{ height: 40 }} onClick={go("/circles/create")} leading={Ico.plus({ size: 16, c: T.action })}>Start a circle</Btn>
             <button onClick={go("/circles")} aria-label="Share" style={{ width: 42, height: 40, flex: "0 0 auto", borderRadius: T.rCtrl, background: "#fff", display: "grid", placeItems: "center", boxShadow: "inset 0 0 0 1px " + T.hairline, cursor: "pointer" }}>
               <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke={T.ink} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>

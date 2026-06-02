@@ -16,6 +16,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { joinCirclesWaitlist } from "@/app/actions";
+import { useGoBack } from "@/lib/ui/useGoBack";
 import {
   T,
   Ico,
@@ -72,6 +73,7 @@ function StickyBar({ children }: { children: React.ReactNode }) {
 
 export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
   const router = useRouter();
+  const goBack = useGoBack(`/circles/${circle.id}`);
   const { locale, t, currency } = useT();
 
   const [phase, setPhase] = useState<Phase>("amount");
@@ -145,7 +147,7 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
           leading={
             <IconButton
               ariaLabel="Back"
-              onClick={() => router.push(`/circles/${circle.id}`)}
+              onClick={goBack}
             >
               {Ico.back({})}
             </IconButton>
