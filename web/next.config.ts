@@ -1,23 +1,39 @@
 import type { NextConfig } from "next";
 
-// Baseline production hardening headers. These are the unambiguous, non-breaking
-// set — no Content-Security-Policy here on purpose: the app is built entirely
-// from inline style attributes + Next.js hydration scripts + Supabase/Stellar
-// XHR origins, so an enforcing CSP needs to be tuned and tested against the live
-// origins before it can be turned on without breaking the app. React already
-// escapes rendered values (no dangerouslySetInnerHTML in the codebase), so the
-// primary XSS vector is already mitigated; CSP is defense-in-depth to add next.
+// Content-Security-Policy tuned to Salapi's real origins. The app is built from
+// 100% inline style attributes + Next.js inline hydration scripts, so
+// 'unsafe-inline' is required for style-src and script-src — a nonce-based CSP
+// would need middleware + per-request nonce threading (a larger change, tracked
+// separately). Even so, the policy pins object/base/frame/form-action and
+// restricts connect/img/font/worker to known origins, closing the main
+// injection surface. React already escapes rendered values and the codebase has
+// no dangerouslySetInnerHTML, so the primary XSS vector is already mitigated.
+const csp = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "frame-ancestors 'none'",
+  "frame-src 'none'",
+  "form-action 'self'",
+  "script-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "font-src 'self'",
+  // Browser-side network: Supabase (auth / session / realtime) and the Stellar
+  // testnet endpoints + explorer (defensive — chain calls are server-side today).
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.stellar.org https://stellar.expert",
+  "worker-src 'self' blob:",
+  "manifest-src 'self'",
+].join("; ");
+
 const securityHeaders = [
-  // Clickjacking: the app is never meant to be framed.
+  { key: "Content-Security-Policy", value: csp },
+  // Clickjacking: the app is never meant to be framed (frame-ancestors 'none'
+  // above supersedes this on modern browsers; kept for legacy coverage).
   { key: "X-Frame-Options", value: "DENY" },
-  // Stop MIME sniffing.
   { key: "X-Content-Type-Options", value: "nosniff" },
-  // Don't leak full URLs (which can carry circle ids / handles) cross-origin.
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-  // The app uses none of these device APIs — lock them down.
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
-  // Force HTTPS for a year (Vercel serves HTTPS). No `preload` — that's a
-  // separate, hard-to-undo commitment to the browser preload list.
   { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
 ];
 
