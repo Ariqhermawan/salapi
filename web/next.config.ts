@@ -16,9 +16,11 @@ const csp = [
   "frame-src 'none'",
   "form-action 'self'",
   "script-src 'self' 'unsafe-inline'",
-  "style-src 'self' 'unsafe-inline'",
+  // fonts.googleapis.com + fonts.gstatic.com allow Geist via Google Fonts on the
+  // /landing marketing page (static). The app itself uses self-hosted next/font.
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "img-src 'self' data: blob:",
-  "font-src 'self'",
+  "font-src 'self' https://fonts.gstatic.com",
   // Browser-side network: Supabase (auth / session / realtime) and the Stellar
   // testnet endpoints + explorer (defensive — chain calls are server-side today).
   "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.stellar.org https://stellar.expert",
