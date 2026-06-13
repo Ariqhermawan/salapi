@@ -1041,8 +1041,8 @@ export async function joinCirclesWaitlist(input: {
   // .env.local, or an environment without the service-role key): log it and
   // return ok so the preview flow stays clickable end-to-end.
   if (!supabaseAdminConfigured()) {
+    // Note: deliberately omit `email` (PII) from this preview-fallback log.
     console.log("[circles/waitlist] (preview, no Supabase configured)", {
-      email,
       circleId,
       pesoPledge,
       anonymous,
