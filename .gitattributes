@@ -5,3 +5,4 @@
 *.md text eol=lf
 *.pdf binary
 *.wasm binary
+.githooks/** text eol=lf
