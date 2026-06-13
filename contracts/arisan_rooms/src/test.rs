@@ -554,9 +554,11 @@ fn emergency_dissolve_after_unsealed_round_refunds_all() {
     let w1 = draw(&a, &room_id, &host);
     assert_eq!(token.balance(&w1), 1_000);
 
-    // Round 2 is NEVER sealed. Well past its deadline + GRACE_PERIOD, a member
-    // dissolves the stuck room.
-    set_ts(&env, first_kocok + 10 * DAY);
+    // Round 2 is NEVER sealed. Well past its deadline + GRACE_PERIOD a member
+    // dissolves the stuck room. 30 days clears the grace window under BOTH the
+    // demo cadences (deadline+grace ~= 240s) and production cadences (round-2
+    // deadline 7d + GRACE 14d = 21d), so this test is flag-agnostic.
+    set_ts(&env, first_kocok + 30 * DAY);
     a.emergency_dissolve(&room_id, &m1);
 
     // Dissolved; the round-1 winner keeps their pot; the two unwon members are
