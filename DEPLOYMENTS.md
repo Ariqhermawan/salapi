@@ -322,12 +322,15 @@ parameterization needed.
 
 | Contract | Contract ID | Explorer |
 |---|---|---|
-| arisan-rooms (production-cadences) | `CC2F3Y7TP72AZNGXAQWGXEDE2NLXCCW3ONGTAHW2SJG7BVLMSPIJEVYK` | [contract](https://stellar.expert/explorer/testnet/contract/CC2F3Y7TP72AZNGXAQWGXEDE2NLXCCW3ONGTAHW2SJG7BVLMSPIJEVYK) |
+| arisan-rooms (production-cadences) | `CASG62WFLR7FTBVSCG7PZ56HMSXJYZC23YYGNBIQUM2UW4WU7P6H6L4V` | [contract](https://stellar.expert/explorer/testnet/contract/CASG62WFLR7FTBVSCG7PZ56HMSXJYZC23YYGNBIQUM2UW4WU7P6H6L4V) |
 
-Deploy + init tx hashes:
-[`e37c7850…6d464`](https://stellar.expert/explorer/testnet/tx/e37c7850501a5af03cc25c19b674f4824e26d6f5fd4501e56509ccec6786d464),
-[`962281c7…88a1d`](https://stellar.expert/explorer/testnet/tx/962281c7f6f7e9980219b11f142c1f11e625545d519c947cc017ccf6ce388a1d)
-(both confirmed `SUCCESS` on Soroban RPC).
+Re-deployed 2026-06-13 with the **sealed-PRNG draw** (`seal_kocok` + deterministic
+`kocok`, no caller-supplied winner_idx). The prior id
+`CC2F3Y7TP72AZNGXAQWGXEDE2NLXCCW3ONGTAHW2SJG7BVLMSPIJEVYK` is the superseded
+CSPRNG-at-edge variant. Deploy + init confirmed on-chain via
+`scripts/wsl-arisan-rooms-prod-setup.sh`; the deploy/init txs are visible on the
+contract explorer page linked above. (Demo variant also re-deployed with the
+sealed draw: `ARISAN_ROOMS_CONTRACT = CAI2KBQW6ZCM7TNJVT3UXC5IW6VLBN4DFDORNICWMQFJM7NVLBSKV3Y2`.)
 
 Recorded in `web/.env.local` as **`ARISAN_ROOMS_PROD_CONTRACT`** (separate
 from `ARISAN_ROOMS_CONTRACT` so the live web app keeps targeting the demo
@@ -343,3 +346,156 @@ variant). Build + deploy script: `scripts/wsl-arisan-rooms-prod-setup.sh`.
   `MAINNET-DEPLOY.md`) now lists 6 contracts; the `arisan_rooms` build
   step uses `--features production-cadences`. Live web stays on the demo
   variant so the public N=3 cycle remains observable in ~3 minutes.
+
+---
+
+## Visual evidence — live testnet app, captured 2026-05-30
+
+Reviewers don't have to take our word for the on-chain trail — they can also
+see the running UI. The screenshots below were captured directly against the
+live production deploy at `https://salapi-blond.vercel.app` using
+[vercel-labs/agent-browser](https://github.com/vercel-labs/agent-browser)
+(a native Rust CDP CLI). Each flow is captured at two viewports so
+mobile-first behavior and desktop layout are both visible.
+
+**Reproduce locally:**
+
+```bash
+npm install -g agent-browser   # one-time, native Rust binary
+agent-browser install          # auto-detects existing Chrome
+node scripts/capture-evidence.mjs   # writes evidence/*.png
+```
+
+The script visits 7 routes × 2 viewports = 14 PNGs in `evidence/`, no auth
+required for any of them (all flows render the unauthenticated state of
+each screen).
+
+<table>
+<thead>
+<tr><th>#</th><th>Flow</th><th>Route</th><th>Mobile · 375×812</th><th>Desktop · 1440×900</th></tr>
+</thead>
+<tbody>
+<tr><td>1</td><td>Home / V7 dashboard</td><td><code>/</code></td>
+<td><img src="evidence/01-home-mobile.png" width="180"></td>
+<td><img src="evidence/01-home-desktop.png" width="360"></td></tr>
+<tr><td>2</td><td>Disaster Vault — public ledger</td><td><code>/transparency</code></td>
+<td><img src="evidence/02-disaster-public-mobile.png" width="180"></td>
+<td><img src="evidence/02-disaster-public-desktop.png" width="360"></td></tr>
+<tr><td>3</td><td>Vaults overview</td><td><code>/vaults</code></td>
+<td><img src="evidence/03-vaults-mobile.png" width="180"></td>
+<td><img src="evidence/03-vaults-desktop.png" width="360"></td></tr>
+<tr><td>4</td><td>Paluwagan — rotating savings</td><td><code>/paluwagan</code></td>
+<td><img src="evidence/04-paluwagan-mobile.png" width="180"></td>
+<td><img src="evidence/04-paluwagan-desktop.png" width="360"></td></tr>
+<tr><td>5</td><td>Smart Savings vault</td><td><code>/savings</code></td>
+<td><img src="evidence/05-savings-mobile.png" width="180"></td>
+<td><img src="evidence/05-savings-desktop.png" width="360"></td></tr>
+<tr><td>6</td><td>Send by @username</td><td><code>/send</code></td>
+<td><img src="evidence/06-send-mobile.png" width="180"></td>
+<td><img src="evidence/06-send-desktop.png" width="360"></td></tr>
+<tr><td>7</td><td>Salapi Circles (Build-Award preview)</td><td><code>/circles</code></td>
+<td><img src="evidence/07-circles-mobile.png" width="180"></td>
+<td><img src="evidence/07-circles-desktop.png" width="360"></td></tr>
+</tbody>
+</table>
+
+### What the screenshots prove
+
+- **Day-30 SOW scope is shipped, not just compiled.** All 5 day-30 flows
+  (Disaster public ledger, Vaults overview, Paluwagan, Smart Savings, Send
+  by @username) render the real UI on the live production URL — not a
+  staging or local instance.
+- **Mobile-first is honest.** The mobile column is captured at iPhone X
+  dimensions (375×812). No screen relies on desktop hover or breakpoint
+  tricks to be usable.
+- **Brand consistency.** Every screen ships the same nav shell (Home /
+  Vaults / center action / Activity / You) and "Powered by Stellar"
+  attribution — the crypto-invisible thesis isn't just on the home page.
+- **Build-Award vision is in the codebase.** `/circles` exists and renders
+  (row 7), labelled as the Build-Award expansion of the Disaster Vault
+  primitive.
+
+### Post-deploy smoke test (operational)
+
+The same browser primitive backs a post-deploy smoke test that runs at the
+end of `scripts/sync-vercel-env.mjs`. After Vercel reports `READY`,
+`scripts/vercel-check.mjs` invokes `scripts/post-deploy-smoke.mjs` against
+the production alias, asserts the hero text renders, and exits non-zero on
+`Application error` / `500` / `404` / missing brand. This closes the
+silent failure mode where a build is green but the page is broken.
+
+---
+
+## Disaster Vault — pool scaled to ~$2M (live testnet figure), 2026-06-02
+
+**Date:** 2026-06-02 (UTC, per on-chain ledger close time)
+**Contract:** disaster (hero) `CCKQ3UVBZ75KSZDO6IPA5U6PFARJG4PLRGN2SAIW5RAGQ6K4B7ZDWBUZ`
+
+The public **"Disaster Vault · POOL TOTAL · LIVE"** figure — shown on
+`/transparency`, `/vaults`, home, and the landing prototype — reads `total()`
+straight off this contract (`disasterState()` → `stroopsToPesos()` →
+display). For the AIBC pitch the pool was filled with **real testnet XLM**
+until `total()` ≈ a $2,000,000-equivalent figure. **Nothing is hardcoded:**
+the number the app renders *equals* `total()`, and "Verify on stellar.expert"
+resolves to this contract so anyone can check it.
+
+> **This is testnet XLM (Friendbot faucet — no real-world value).** The honest
+> framing is *"this is the scale the rail can move and account for, on a public
+> network, verifiable by anyone"* — not a claim of real custody of $2M. All
+> TESTNET / PREVIEW / SANDBOX badges remain in place.
+
+### How (reproduce: `cd web && npx tsx scripts/fill-disaster-vault.mts --target-usd 2000000`)
+
+1. **Mint** — 1,800 fresh testnet accounts, each Friendbot-funded with 10,000 XLM.
+2. **Consolidate** — each account swept (classic native `payment`) into one hub
+   `GCSMQCQYSJNS42EUSLNQTWDBLSAITYZP3B2LIC2632VV4X4ENTMHVKTO`
+   (a throwaway consolidation account; **not** the app's demo signer, whose gas
+   balance is left untouched).
+3. **Contribute** — the hub invoked `contribute()` 60 times (one per batch).
+   Each call is a **real** native-XLM SAC `transfer` into the vault followed by
+   `Total += amount` (`total = Σ contributions − Σ disbursements`; no
+   disbursements were made this round).
+
+### Result (independently re-read from chain — `cd web && npx tsx scripts/verify-fill.mts`)
+
+| Quantity | Value |
+|---|---|
+| `total()` (stroops) | `180884964899773` |
+| `total()` (XLM) | 18,088,496.49 |
+| Display (PHP, ₱6.5/XLM) | ₱117,575,227.18 |
+| Display (USD anchor, ₱58/$) | **$2,027,159.09** |
+| Vault custody — native-XLM SAC `balance(contract)` | 18,088,496.49 XLM — **equals `total()`** |
+| `is_disaster_active()` | true |
+
+The SAC-balance check is the proof that matters: the vault **holds** the XLM,
+so `total()` is backed by real on-chain custody — not a free-floating counter.
+
+### Representative contribute tx hashes
+
+Each confirmed `successful=true` on Horizon testnet **and** HTTP 200 on the
+stellar.expert API; ledger range 2,878,245 → 2,878,582.
+
+| Batch | Tx hash (explorer) | Ledger |
+|---|---|---|
+| 1 | [`7ae2c1edd8…`](https://stellar.expert/explorer/testnet/tx/7ae2c1edd894c87acc0300dc98a48997947caba441f4dc52258424e8d3afa293) | 2,878,245 |
+| 2 | [`5e38ca7ad2…`](https://stellar.expert/explorer/testnet/tx/5e38ca7ad221eb3647bd91bee6a7baebbdadd118d77992370ece2f70787d7a5f) | 2,878,249 |
+| 3 | [`9f0c27ac66…`](https://stellar.expert/explorer/testnet/tx/9f0c27ac66b3a26d3436a5c81231d410632ab7555d331463534339d32bee30ca) | 2,878,253 |
+| 58 | [`67d0d2aeb3…`](https://stellar.expert/explorer/testnet/tx/67d0d2aeb3768d71f3d0d62303dd6959df167b9ff3291f10bfb0e040628e983e) | 2,878,574 |
+| 59 | [`1486ebfdd9…`](https://stellar.expert/explorer/testnet/tx/1486ebfdd91d3c313e77fe7e2e4dc607d49a70a9af438e70115b42a49438c799) | 2,878,578 |
+| 60 | [`c3c4af1b39…`](https://stellar.expert/explorer/testnet/tx/c3c4af1b39b98eb5870bd041c40a01117e3544d8678abc30ece4d55b123cd21b) | 2,878,582 |
+
+60 contribute transactions in all (1,798 of 1,800 funded accounts swept; 2
+sweeps failed and were skipped — those funds simply weren't contributed).
+Verify any hash with `bash scripts/wsl-verify-tx.sh <hash …>` or
+`cd web && npx tsx scripts/verify-fill.mts <hash …>`. Contract page:
+`https://stellar.expert/explorer/testnet/contract/CCKQ3UVBZ75KSZDO6IPA5U6PFARJG4PLRGN2SAIW5RAGQ6K4B7ZDWBUZ`
+
+### What this proves
+
+- **The live figure is real and on-chain** — `/transparency` and the landing
+  snapshot show `total()` ≈ $2.03M because the vault genuinely holds 18.09M
+  testnet XLM (verified via the contract's own SAC balance).
+- **Auditable end to end, no login** — open the contract on stellar.expert,
+  read `total()`, walk the contribute trail.
+- **No real money, no mainnet** — every XLM came from the testnet Friendbot
+  faucet; badges stay TESTNET / PREVIEW.
