@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { connection } from "next/server";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
@@ -47,9 +48,14 @@ export const viewport: Viewport = {
   // users. The PWA shell still feels app-like without zoom locked.
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  // Force every route to render dynamically so the per-request CSP nonce from
+  // proxy.ts is stamped into Next's inline <script> tags. A statically
+  // prerendered page would ship those scripts with no nonce, and the CSP would
+  // block them (blank screen). See proxy.ts.
+  await connection();
   return (
     <html
       lang="en"
