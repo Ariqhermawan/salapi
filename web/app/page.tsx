@@ -161,7 +161,7 @@ export default function Home() {
           <div>
             <div style={{ fontSize: 12, color: T.slate, fontWeight: 500, lineHeight: 1.1 }}>Hi 👋</div>
             <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: "-0.01em" }}>
-              Salapi <span style={{ color: T.slate, fontWeight: 500, fontFamily: T.fontMono, fontSize: 13 }}>· @moonjem</span>
+              Salapi <span style={{ color: T.slate, fontWeight: 500, fontFamily: T.fontMono, fontSize: 13 }}>· @salapi</span>
             </div>
           </div>
         </div>
