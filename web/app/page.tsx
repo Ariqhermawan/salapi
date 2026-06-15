@@ -10,6 +10,7 @@
 // preview values under those badges; the prior real-data home is preserved at
 // Backup/app-page-legacy-realdata.tsx (re-wire walletState/i18n when desired).
 
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -22,6 +23,7 @@ import {
   TestnetPill,
   PoweredByStellar,
 } from "@/components/ui/kit";
+import { myHandle } from "@/app/actions";
 
 const BALANCE_INT = "1,667";
 const BALANCE_CENTS = "93";
@@ -150,18 +152,46 @@ export default function Home() {
   const router = useRouter();
   const go = (p: string) => () => router.push(p);
 
+  // Show the signed-in user's own @handle from the on-chain username registry,
+  // falling back to the Salapi brand label when there is no registered name.
+  // Read-only (myHandle never provisions a wallet); `loaded` lets us fade the
+  // identity in so the fallback-to-real swap is not a jarring flash.
+  const [handle, setHandle] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => {
+    let active = true;
+    myHandle()
+      .then((u) => {
+        if (!active) return;
+        setHandle(u);
+        setLoaded(true);
+      })
+      .catch((e) => {
+        if (active) setLoaded(true);
+        console.error("[home] handle load failed:", e);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+  const displayHandle = handle ?? "salapi";
+  const displayName = handle
+    ? handle.charAt(0).toUpperCase() + handle.slice(1)
+    : "Salapi";
+  const avatarInitial = displayName.charAt(0).toUpperCase();
+
   return (
     <div style={{ fontFamily: T.fontSans, color: T.ink, paddingBottom: 2 }}>
       {/* Greeting */}
       <div style={{ padding: "6px 16px 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, opacity: loaded ? 1 : 0.6, transition: "opacity 200ms ease" }}>
           <div style={{ width: 40, height: 40, borderRadius: 99, background: "#fff", display: "grid", placeItems: "center", fontWeight: 800, color: T.action, fontSize: 16, boxShadow: "0 2px 8px -3px rgba(11,18,32,.18), inset 0 0 0 1px " + T.hairline }} aria-hidden>
-            S
+            {avatarInitial}
           </div>
           <div>
             <div style={{ fontSize: 12, color: T.slate, fontWeight: 500, lineHeight: 1.1 }}>Hi 👋</div>
             <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: "-0.01em" }}>
-              Salapi <span style={{ color: T.slate, fontWeight: 500, fontFamily: T.fontMono, fontSize: 13 }}>· @salapi</span>
+              {displayName} <span style={{ color: T.slate, fontWeight: 500, fontFamily: T.fontMono, fontSize: 13 }}>· @{displayHandle}</span>
             </div>
           </div>
         </div>

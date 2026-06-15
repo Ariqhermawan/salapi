@@ -16,7 +16,7 @@ import {
   arisanRoomsId,
   FRIENDS,
 } from "@/lib/server/stellar";
-import { getSigner } from "@/lib/server/userWallet";
+import { getSigner, currentWalletPublicKey } from "@/lib/server/userWallet";
 import { supabaseAdminConfigured } from "@/lib/supabase/env";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 
@@ -133,6 +133,25 @@ export async function myUsername() {
     ]);
     return typeof u === "string" ? u : null;
   } catch {
+    return null;
+  }
+}
+
+/**
+ * The signed-in user's own @handle for display, resolved READ-ONLY (never mints
+ * a wallet). Returns null for anonymous/demo visitors and for users with no
+ * wallet or no registered username, so the UI falls back to its brand label.
+ */
+export async function myHandle(): Promise<string | null> {
+  try {
+    const publicKey = await currentWalletPublicKey();
+    if (!publicKey) return null;
+    const u = await readContract(CONTRACTS.usernameRegistry, "username_of", [
+      sc.addr(publicKey),
+    ]);
+    return typeof u === "string" && u.length > 0 ? u : null;
+  } catch (e) {
+    console.error("[myHandle] username lookup failed:", e);
     return null;
   }
 }

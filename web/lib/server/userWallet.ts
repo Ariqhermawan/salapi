@@ -114,3 +114,27 @@ export async function currentUserId(): Promise<string | null> {
     return null;
   }
 }
+
+/**
+ * The current user's stored wallet public key, resolved READ-ONLY: it never
+ * mints, funds, or persists a wallet. Returns null for anonymous/demo visitors
+ * and for signed-in users who have no wallet row yet. Use this (not getSigner)
+ * for pure reads like showing the @handle, so a page load never provisions a
+ * wallet as a side effect.
+ */
+export async function currentWalletPublicKey(): Promise<string | null> {
+  if (!supabaseAdminConfigured()) return null;
+  const userId = await currentUserId();
+  if (!userId) return null;
+  try {
+    const admin = createSupabaseAdmin();
+    const { data } = await admin
+      .from("wallets")
+      .select("public_key")
+      .eq("user_id", userId)
+      .maybeSingle();
+    return (data?.public_key as string) ?? null;
+  } catch {
+    return null;
+  }
+}
