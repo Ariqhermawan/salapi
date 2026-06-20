@@ -7,6 +7,8 @@ import PwaRegister from "@/components/PwaRegister";
 import { I18nProvider } from "@/components/I18nProvider";
 import InstallBanner from "@/components/InstallBanner";
 import MarketingAside from "@/components/MarketingAside";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({
@@ -82,6 +84,12 @@ export default async function RootLayout({
             </div>
           </div>
         </I18nProvider>
+        {/* Vercel Web Analytics (traffic) + Speed Insights (Core Web Vitals).
+            Same-origin (/_vercel/insights/*), so the nonce CSP + strict-dynamic
+            in proxy.ts cover them with no policy change. Data appears once
+            Analytics/Speed Insights are enabled in the Vercel project. */}
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
