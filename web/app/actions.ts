@@ -954,8 +954,20 @@ export async function arisanRoomState(roomId: number) {
     // pre-start) fall back to firstKocok so the countdown line stays sensible.
     const cadenceSecs = ARISAN_CADENCE_SECS[room.cadence];
     const effectiveRound = Math.max(1, room.round);
-    const nextKocok =
-      room.firstKocok + (effectiveRound - 1) * cadenceSecs;
+    // Read the scheduled kocok time from chain (KocokAt) so a host postpone
+    // stays in sync with the "Kocok now" gate. Fall back to the computed
+    // cadence schedule only when chain has no value yet (e.g. Open pre-start).
+    let nextKocok = 0;
+    try {
+      nextKocok = Number(
+        (await readContract(id, "kocok_at", [sc.u32(rid), sc.u32(effectiveRound)])) ?? 0
+      );
+    } catch {
+      /* round not scheduled on-chain yet; fall back below */
+    }
+    if (!nextKocok) {
+      nextKocok = room.firstKocok + (effectiveRound - 1) * cadenceSecs;
+    }
     const pot = room.shareStroops * BigInt(room.memberTarget);
     const isMember = members.includes(me);
     const isHost = room.host === me;

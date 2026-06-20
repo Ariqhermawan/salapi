@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { registerUsername, myUsername, sendByUsername } from "@/app/actions";
+import { registerUsername, myHandle, sendByUsername } from "@/app/actions";
 import { useT } from "@/components/I18nProvider";
 import { Button, Card, Input, Label, Toast } from "@/components/ui";
 
@@ -15,7 +15,7 @@ export default function SendForm() {
   const [pending, start] = useTransition();
 
   useEffect(() => {
-    myUsername().then(setMine);
+    myHandle().then(setMine);
   }, []);
 
   const ok = (text: string, link: string) => (
