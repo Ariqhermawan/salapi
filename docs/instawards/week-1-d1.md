@@ -69,7 +69,8 @@ Public evidence:
 The [`web E2E (local)` workflow](../../.github/workflows/ci.yml) builds the
 production bundle, starts `next start` on a clean runner, and runs all 18
 Playwright tests against that local server with a disposable testnet signer.
-The latest run link is added here after the workflow completes:
+The latest public run is [CI run 33371227866](https://github.com/Ariqhermawan/salapi/actions/runs/33371227866)
+(`web E2E (local)` passed).
 
 - [Public app](https://salapi.app)
 - [Public transparency proof](https://salapi.app/transparency)
