@@ -16,7 +16,6 @@ import {
 import {
   CURRENCY,
   formatLocalAmount,
-  pesoFromLocal,
 } from "@/lib/ui/currency";
 import { useGoBack } from "@/lib/ui/useGoBack";
 
@@ -45,7 +44,6 @@ export default function ArisanCreateScreen() {
   const presets = PRESETS_LOCAL[meta.code] ?? PRESETS_LOCAL.USD;
 
   const shareLocalNum = Number(shareLocal.replace(/[^0-9.]/g, "")) || 0;
-  const sharePesos = pesoFromLocal(shareLocalNum, currency);
   const lockedLocal = shareLocalNum * members;
 
   const canSubmit = useMemo(() => {
@@ -60,7 +58,7 @@ export default function ArisanCreateScreen() {
       const r = await arisanCreate({
         name: name.trim() || t("arisan.defaultName"),
         memberTarget: members,
-        sharePesos,
+        share: { amount: shareLocal, currency },
         cadence,
       });
       if (r.ok) {

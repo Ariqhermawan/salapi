@@ -59,11 +59,11 @@ async function main() {
   await fundFriends();
 
   console.log("\n[1/6] creating room…");
-  // sharePesos 1000 ≈ Rp 16M in display, ≈ ₱1k. Locked total = 3 × 1000 PHP.
+  // PHP 1000 share ≈ Rp 16M in display. Locked total = 3 × 1000 PHP.
   const create = await A.arisanCreate({
     name: "Verify · Arisan Rooms",
     memberTarget: 3,
-    sharePesos: 1000,
+    share: { amount: "1000", currency: "tl" },
     cadence: "Weekly",
   });
   if (!create.ok) throw new Error("create failed: " + create.error);

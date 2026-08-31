@@ -6,7 +6,7 @@ import { useT } from "@/components/I18nProvider";
 import { Button, Card, Input, Label, Toast } from "@/components/ui";
 
 export default function SendForm() {
-  const { t } = useT();
+  const { t, currency } = useT();
   const [mine, setMine] = useState<string | null>(null);
   const [claim, setClaim] = useState("");
   const [to, setTo] = useState("");
@@ -39,7 +39,7 @@ export default function SendForm() {
   }
   function doSend() {
     start(async () => {
-      const r = await sendByUsername(to, Number(amount));
+      const r = await sendByUsername(to, { amount, currency });
       if (r.ok)
         setMsg(ok(t("send.sentOk", { amt: amount, to }), r.link));
       else setMsg(err(r.error));

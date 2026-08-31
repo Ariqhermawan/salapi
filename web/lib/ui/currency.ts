@@ -77,9 +77,9 @@ export function formatUsdc(php: number): string {
   );
 }
 
-// Reverse of localAmount: a value in the display currency back into app PHP
-// units. Money screens take user input in the display currency, but every
-// server action takes PHP — input must round-trip through here first.
+// Reverse of localAmount: a display-only helper for local UI envelopes and
+// previews. Contract-bound server actions receive the raw amount + currency
+// and use web/lib/money.ts for exact integer token conversion instead.
 export function pesoFromLocal(localValue: number, currency: Locale): number {
   const usdc = (localValue || 0) / CURRENCY[currency].perUsdc;
   return usdc * PHP_PER_USDC;

@@ -77,7 +77,7 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
     start(async () => {
       setErr("");
       setNotFound(null);
-      const r = await sendByUsername(to, pesoFromLocal(Number(amount), currency));
+      const r = await sendByUsername(to, { amount, currency });
       if (r.ok) setDone({ link: r.link });
       else if (/not found/i.test(r.error))
         setNotFound(to.replace(/^@/, ""));

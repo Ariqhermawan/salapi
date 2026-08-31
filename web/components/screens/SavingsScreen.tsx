@@ -235,7 +235,10 @@ export default function SavingsScreen() {
     }
     start(async () => {
       setMsg(null);
-      const r = await smartSavingsOpen(targetPhp, cMode);
+      const r = await smartSavingsOpen(
+        { amount: cTarget, currency },
+        cMode
+      );
       if (r.ok) {
         saveGoals([{ id: newId(), name, target: targetPhp, weight: 100, saved: 0 }]);
         setMsg({
@@ -263,7 +266,7 @@ export default function SavingsScreen() {
     const single = goals.find((g) => g.id === depGoal) ?? goals[0];
     start(async () => {
       setMsg(null);
-      const r = await smartSavingsDeposit(amtPhp);
+      const r = await smartSavingsDeposit({ amount: depAmt, currency });
       if (r.ok) {
         let g: SavingsGoal[];
         let text: string;

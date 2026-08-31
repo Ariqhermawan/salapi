@@ -15,6 +15,10 @@ import {
   Account,
   xdr,
 } from "@stellar/stellar-sdk";
+import {
+  nativeBalanceToStroops,
+  pesosToStroopsExact,
+} from "@/lib/money";
 
 export const RPC_URL =
   process.env.STELLAR_RPC_URL ?? "https://soroban-testnet.stellar.org";
@@ -30,10 +34,12 @@ export const CONTRACTS = {
 
 // Cosmetic peso framing, testnet XLM has no value (crypto invisible UX).
 export const PESO_PER_XLM = 6.5;
-const STROOPS = 10_000_000n;
 
-export function pesosToStroops(pesos: number): bigint {
-  return BigInt(Math.round((pesos / PESO_PER_XLM) * 1e7));
+/** Backwards-compatible PHP boundary; callers should pass a decimal string. */
+export function pesosToStroops(pesos: string): bigint {
+  const stroops = pesosToStroopsExact(pesos);
+  if (stroops == null) throw new Error("Invalid peso amount");
+  return stroops;
 }
 export function stroopsToPesos(stroops: bigint): number {
   return (Number(stroops) / 1e7) * PESO_PER_XLM;
@@ -81,7 +87,7 @@ export async function getNativeBalance(pub: string): Promise<bigint> {
       (b: { asset_type: string }) => b.asset_type === "native"
     );
     if (!native) return 0n;
-    return BigInt(Math.round(parseFloat(native.balance) * 1e7));
+    return nativeBalanceToStroops(native.balance) ?? 0n;
   } catch {
     return 0n;
   }
