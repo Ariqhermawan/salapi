@@ -21,6 +21,13 @@ features are different rule-sets on that base, plus P2P transfer on one wallet.
 This is what keeps a broad scope coherent and verifiable — one platform, not six
 projects.
 
+Week 1 Deliverable 1 adds one exact application money boundary at
+[`web/lib/money.ts`](web/lib/money.ts). Contract-facing actions accept a decimal
+string plus its display currency, convert it to integer stroops with
+deterministic half-up rounding, and pass only `i128` token units to Soroban.
+The inventory, baseline capability statement, and evidence commands live in
+[`docs/instawards/week-1-d1.md`](docs/instawards/week-1-d1.md).
+
 ```
 contracts/
   base-vault/          shared vault primitive (deposit / gated disburse / ledger) + tests
@@ -41,15 +48,16 @@ Windows-native builds are blocked by Smart App Control — see limitations below
 ```bash
 bash scripts/wsl-build.sh     # WSL Ubuntu: deps + rustup + cargo test + WASM build
 # …or in any Linux shell with Rust installed:
-cargo test --workspace
-cargo build --workspace --target wasm32-unknown-unknown --release
+cargo test --workspace --locked
+cargo build --workspace --target wasm32-unknown-unknown --release --locked
+cd web && npm run test:money
 ```
 
 ## Status — mapped to the SOW's four checkpoints
 
 | Week | Checkpoint | This repo |
 |---|---|---|
-| **1 · Foundation** | Lock core, tests, something breakable | ✅ workspace, base-vault + username-registry, **5 unit tests pass**, WASM builds (via WSL), architecture README |
+| **1 · Foundation** | Lock core, tests, something breakable | ✅ workspace, integer money boundary, **19 Rust tests + 5 exact money tests pass**, WASM builds, architecture/evidence README |
 | **2 · Scaffold** | Deploy on testnet, verifiable tx trails | ✅ 5 contracts build + **11 tests pass**; 5 live on testnet w/ verifiable tx trail ([DEPLOYMENTS.md](DEPLOYMENTS.md)); disaster + paluwagan + smart-savings rule-sets added |
 | **3 · Connect** | Wire front-end, indexer, real user | ✅ Next.js 16 PWA live on Vercel (`salapi.app`); GCash + QRIS sandbox top-up; transparency dashboard with on-chain receipts; 6th contract `arisan_rooms` with browser-CSPRNG-at-edge randomness; 4 locales (en/tl/id/vi); display-currency picker (USD/PHP/IDR/VND) |
 | **4 · Prove** | Demo + docs for non-technical reviewer | ⏳ tagged release + walkthrough video; live URL public ([salapi.app](https://salapi.app)) |
