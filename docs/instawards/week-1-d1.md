@@ -59,7 +59,11 @@ The named CI job is [`money-path-integrity`](../../.github/workflows/ci.yml).
 It proves the guard can fail on a seeded `Number()` conversion, scans the
 inventoried boundary, and runs the exact conversion/conservation tests.
 
-No contract was redeployed for D1: the inventory found no contract-side
-change was necessary. The next D1 evidence item is the public post-baseline CI
-run and its merged pull request.
+Public evidence:
 
+- [Pull request #3](https://github.com/Ariqhermawan/salapi/pull/3) — post-baseline D1 changes
+- [Green CI run 33364284156](https://github.com/Ariqhermawan/salapi/actions/runs/33364284156) — all three jobs passed
+
+No contract was redeployed for D1: the inventory found no contract-side
+change was necessary. The pull request remains open for review; Deliverable 2
+is not part of this PR.
