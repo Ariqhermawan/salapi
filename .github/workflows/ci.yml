@@ -54,3 +54,27 @@ jobs:
       # Vercel already runs the full `next build` on every push to main.
       - name: Type-check
         run: npx tsc --noEmit
+
+  money-path-integrity:
+    name: money-path-integrity
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # The guard must detect a deliberately seeded Number() conversion; this
+      # prevents a permanently-green checker that never exercises its failure.
+      - name: Seeded violation demonstration
+        run: node scripts/check-money-path.mjs --seeded-violation
+
+      - name: Scan inventoried money path
+        run: node scripts/check-money-path.mjs
+
+      - name: Exact conversion and conservation tests
+        run: npm run test:money

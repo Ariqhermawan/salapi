@@ -45,6 +45,11 @@ fn contribute_then_gated_disburse() {
     assert_eq!(v.total(), 300);
     assert_eq!(token.balance(&ngo), 500);
     assert_eq!(v.contribution_of(&donor), 800);
+
+    v.disburse(&ngo, &300);
+    assert_eq!(v.total(), 0);
+    assert_eq!(token.balance(&id), 0);
+    assert_eq!(token.balance(&donor) + token.balance(&ngo), 1_000);
 }
 
 #[test]
