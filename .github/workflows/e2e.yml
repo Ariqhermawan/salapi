@@ -1,8 +1,8 @@
 name: E2E
 
 # Run the Playwright suite against the live production app (salapi.app):
-#   - deployment_status: fires after Vercel finishes a deploy → re-tests prod
-#     once the new build is live behind the alias.
+#   - deployment_status: fires after Vercel finishes a production deploy →
+#     re-tests prod once the new build is live behind the alias.
 #   - workflow_dispatch: run on demand from the Actions tab.
 # NOTE: we test the PUBLIC alias salapi.app, NOT deployment_status.environment_url.
 # Vercel's per-deployment URLs sit behind Deployment Protection (an SSO wall), so
@@ -20,9 +20,10 @@ permissions:
 jobs:
   e2e:
     name: Playwright E2E (deployed URL)
-    # deployment_status fires for every state (pending/success/error); only run
-    # once the deploy actually succeeded. Manual dispatch always runs.
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.deployment_status.state == 'success' }}
+    # deployment_status fires for every environment and state. The test target
+    # is the production alias, so do not run it for successful Preview deploys.
+    # Manual dispatch always runs.
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.deployment_status.state == 'success' && github.event.deployment_status.environment == 'Production') }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
