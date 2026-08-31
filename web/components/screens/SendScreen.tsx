@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { registerUsername, myUsername, sendByUsername } from "@/app/actions";
+import { registerUsername, myHandle, sendByUsername } from "@/app/actions";
 import { useT } from "@/components/I18nProvider";
 import {
   T,
@@ -62,7 +62,7 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
   const [err, setErr] = useState("");
 
   useEffect(() => {
-    myUsername().then(setMine);
+    myHandle().then(setMine);
   }, []);
 
   function doClaim() {

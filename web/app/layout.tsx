@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { connection } from "next/server";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
@@ -6,6 +7,8 @@ import PwaRegister from "@/components/PwaRegister";
 import { I18nProvider } from "@/components/I18nProvider";
 import InstallBanner from "@/components/InstallBanner";
 import MarketingAside from "@/components/MarketingAside";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({
@@ -47,9 +50,14 @@ export const viewport: Viewport = {
   // users. The PWA shell still feels app-like without zoom locked.
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  // Force every route to render dynamically so the per-request CSP nonce from
+  // proxy.ts is stamped into Next's inline <script> tags. A statically
+  // prerendered page would ship those scripts with no nonce, and the CSP would
+  // block them (blank screen). See proxy.ts.
+  await connection();
   return (
     <html
       lang="en"
@@ -76,6 +84,12 @@ export default function RootLayout({
             </div>
           </div>
         </I18nProvider>
+        {/* Vercel Web Analytics (traffic) + Speed Insights (Core Web Vitals).
+            Same-origin (/_vercel/insights/*), so the nonce CSP + strict-dynamic
+            in proxy.ts cover them with no policy change. Data appears once
+            Analytics/Speed Insights are enabled in the Vercel project. */}
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );

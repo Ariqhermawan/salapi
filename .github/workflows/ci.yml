@@ -55,6 +55,11 @@ jobs:
       - name: Type-check
         run: npx tsc --noEmit
 
+      # Lint gate — same eslint flat config as local dev. Needs no runtime env.
+      # Fails on errors; React-Compiler-readiness rules are warn-only by design.
+      - name: Lint
+        run: npm run lint
+
   money-path-integrity:
     name: money-path-integrity
     runs-on: ubuntu-latest

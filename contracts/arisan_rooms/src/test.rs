@@ -33,6 +33,13 @@ fn fresh_env() -> Env {
     env
 }
 
+/// Run the two-phase draw the UI performs: seal the round's on-chain PRNG,
+/// then run the deterministic kocok.
+fn draw(a: &ArisanRoomsClient<'_>, room_id: &u32, caller: &Address) -> Address {
+    a.seal_kocok(room_id, caller);
+    a.kocok(room_id, caller)
+}
+
 /// Happy path: N=3 prefund cycle, every member wins exactly once, contract
 /// balance ends at zero.
 #[test]
@@ -86,21 +93,20 @@ fn prefund_full_cycle_zero_residual() {
     // Start.
     a.start_room(&room_id, &host);
 
-    // Round 1: pool=[host,m1,m2]; client picks idx 0 → host.
+    // Round 1: seal the on-chain PRNG, then draw. Winner is unwon[seed % 3].
     set_ts(&env, first_kocok + 1);
-    let w1 = a.kocok(&room_id, &host, &0u32);
+    let w1 = draw(&a, &room_id, &host);
 
-    // Round 2: pool=[m1,m2]; idx 0 → m1.
+    // Round 2: the unwon pool shrinks to the two members who haven't won.
     set_ts(&env, first_kocok + 7 * DAY + 1);
-    let w2 = a.kocok(&room_id, &m1, &0u32);
+    let w2 = draw(&a, &room_id, &m1);
 
-    // Round 3: pool=[m2]; idx 0 → m2.
+    // Round 3: one member left; they win.
     set_ts(&env, first_kocok + 14 * DAY + 1);
-    let w3 = a.kocok(&room_id, &m2, &0u32);
+    let w3 = draw(&a, &room_id, &m2);
 
-    // Three distinct winners. Distinctness is enforced by the unwon-pool
-    // construction; the caller-supplied idx only picks *which* unwon
-    // member wins, never violating the no-repeat invariant.
+    // Three distinct winners — the unwon-pool construction guarantees no
+    // repeat regardless of the sealed seed.
     assert_ne!(w1, w2);
     assert_ne!(w2, w3);
     assert_ne!(w1, w3);
@@ -332,7 +338,7 @@ fn host_can_postpone_each_round_once() {
 
     // The (shifted) kocok still runs once the deadline arrives.
     set_ts(&env, after + 1);
-    let w1 = a.kocok(&room_id, &host, &0u32);
+    let w1 = draw(&a, &room_id, &host);
     assert_ne!(w1, outsider); // sanity — winner is one of the seated members
 
     // Round 2 starts fresh: postpone is allowed again. Verify deadline
@@ -343,16 +349,223 @@ fn host_can_postpone_each_round_once() {
     assert_eq!(after2, before2 + 30);
 
     set_ts(&env, after2 + 1);
-    let w2 = a.kocok(&room_id, &m1, &0u32);
+    let w2 = draw(&a, &room_id, &m1);
     assert_ne!(w1, w2);
 
     // Round 3 runs at its scheduled deadline (no postpone this round).
     let r3_deadline = a.kocok_at(&room_id, &3u32);
     set_ts(&env, r3_deadline + 1);
-    let w3 = a.kocok(&room_id, &m2, &0u32);
+    let w3 = draw(&a, &room_id, &m2);
     assert_ne!(w2, w3);
     assert_ne!(w1, w3);
 
     // Cycle ends Done.
     assert_eq!(a.get_room(&room_id).status, RoomStatus::Done);
+}
+
+/// kocok before the round is sealed must fail (NotSealed); after sealing, the
+/// winner is exactly unwon[seed % unwon_len] — proving the draw is decided by
+/// the sealed on-chain seed, not by any caller-supplied value.
+#[test]
+fn kocok_requires_seal_and_is_seed_determined() {
+    let env = fresh_env();
+    let admin = Address::generate(&env);
+    let host = Address::generate(&env);
+    let m1 = Address::generate(&env);
+    let m2 = Address::generate(&env);
+
+    let (tok, tok_admin, _) = setup(&env, &admin);
+    for who in [&host, &m1, &m2] {
+        tok_admin.mint(who, &1_000);
+    }
+
+    let id = env.register(ArisanRooms, ());
+    let a = ArisanRoomsClient::new(&env, &id);
+    a.initialize(&tok);
+
+    let now = env.ledger().timestamp();
+    let first_kocok = now + 4 * DAY;
+    let join_deadline = first_kocok - DAY;
+    let name = SorobanString::from_str(&env, "Seal test");
+    let code = Symbol::new(&env, "SEAL01");
+    let room_id = a.create_room(
+        &host,
+        &code,
+        &name,
+        &3u32,
+        &100i128,
+        &Cadence::Weekly,
+        &first_kocok,
+        &join_deadline,
+    );
+    let room = a.get_room(&room_id);
+    a.join_room(&room_id, &room.code, &m1);
+    a.join_room(&room_id, &room.code, &m2);
+    a.start_room(&room_id, &host);
+
+    set_ts(&env, first_kocok + 1);
+    // Not sealed yet → kocok rejected.
+    assert!(a.try_kocok(&room_id, &host).is_err());
+
+    // Seal fixes the round's randomness; seal_of returns the same seed.
+    let seed = a.seal_kocok(&room_id, &host);
+    assert_eq!(a.seal_of(&room_id, &1u32), seed);
+
+    // Round 1: every member is unwon, in roster order, so the winner is
+    // exactly members[seed % 3].
+    let winner = a.kocok(&room_id, &host);
+    let members = a.get_members(&room_id);
+    let expected = members.get((seed % 3) as u32).unwrap();
+    assert_eq!(winner, expected);
+}
+
+/// A round can be sealed only once — a second seal is rejected (AlreadySealed),
+/// so no one can re-roll the randomness after seeing the first seed.
+#[test]
+fn cannot_seal_twice() {
+    let env = fresh_env();
+    let admin = Address::generate(&env);
+    let host = Address::generate(&env);
+    let m1 = Address::generate(&env);
+    let m2 = Address::generate(&env);
+
+    let (tok, tok_admin, _) = setup(&env, &admin);
+    for who in [&host, &m1, &m2] {
+        tok_admin.mint(who, &1_000);
+    }
+
+    let id = env.register(ArisanRooms, ());
+    let a = ArisanRoomsClient::new(&env, &id);
+    a.initialize(&tok);
+
+    let now = env.ledger().timestamp();
+    let first_kocok = now + 4 * DAY;
+    let join_deadline = first_kocok - DAY;
+    let name = SorobanString::from_str(&env, "Reseal test");
+    let code = Symbol::new(&env, "SEAL02");
+    let room_id = a.create_room(
+        &host,
+        &code,
+        &name,
+        &3u32,
+        &100i128,
+        &Cadence::Weekly,
+        &first_kocok,
+        &join_deadline,
+    );
+    let room = a.get_room(&room_id);
+    a.join_room(&room_id, &room.code, &m1);
+    a.join_room(&room_id, &room.code, &m2);
+    a.start_room(&room_id, &host);
+
+    set_ts(&env, first_kocok + 1);
+    a.seal_kocok(&room_id, &host);
+    // A different member trying to re-seal the same round is rejected.
+    assert!(a.try_seal_kocok(&room_id, &m1).is_err());
+}
+
+/// Once a round is sealed the host can no longer postpone it — the outcome is
+/// already decided, and clearing the seal would allow a re-roll.
+#[test]
+fn cannot_postpone_after_seal() {
+    let env = fresh_env();
+    let admin = Address::generate(&env);
+    let host = Address::generate(&env);
+    let m1 = Address::generate(&env);
+    let m2 = Address::generate(&env);
+
+    let (tok, tok_admin, _) = setup(&env, &admin);
+    for who in [&host, &m1, &m2] {
+        tok_admin.mint(who, &1_000);
+    }
+
+    let id = env.register(ArisanRooms, ());
+    let a = ArisanRoomsClient::new(&env, &id);
+    a.initialize(&tok);
+
+    let now = env.ledger().timestamp();
+    let first_kocok = now + 4 * DAY;
+    let join_deadline = first_kocok - DAY;
+    let name = SorobanString::from_str(&env, "Seal vs postpone");
+    let code = Symbol::new(&env, "SEAL03");
+    let room_id = a.create_room(
+        &host,
+        &code,
+        &name,
+        &3u32,
+        &100i128,
+        &Cadence::Weekly,
+        &first_kocok,
+        &join_deadline,
+    );
+    let room = a.get_room(&room_id);
+    a.join_room(&room_id, &room.code, &m1);
+    a.join_room(&room_id, &room.code, &m2);
+    a.start_room(&room_id, &host);
+
+    set_ts(&env, first_kocok + 1);
+    a.seal_kocok(&room_id, &host);
+    // Round is sealed → postpone rejected.
+    assert!(a.try_postpone_kocok(&room_id, &host, &60u64).is_err());
+}
+
+/// The new seal gate cannot strand funds: if a round is never sealed, any
+/// member can emergency_dissolve after the grace period and every unwon member
+/// is refunded in full — the cycle still conserves money to exactly zero.
+#[test]
+fn emergency_dissolve_after_unsealed_round_refunds_all() {
+    let env = fresh_env();
+    let admin = Address::generate(&env);
+    let host = Address::generate(&env);
+    let m1 = Address::generate(&env);
+    let m2 = Address::generate(&env);
+
+    let (tok, tok_admin, token) = setup(&env, &admin);
+    for who in [&host, &m1, &m2] {
+        tok_admin.mint(who, &1_000);
+    }
+
+    let id = env.register(ArisanRooms, ());
+    let a = ArisanRoomsClient::new(&env, &id);
+    a.initialize(&tok);
+
+    let now = env.ledger().timestamp();
+    let first_kocok = now + 4 * DAY;
+    let join_deadline = first_kocok - DAY;
+    let name = SorobanString::from_str(&env, "Dissolve test");
+    let code = Symbol::new(&env, "EMERG2");
+    let room_id = a.create_room(
+        &host,
+        &code,
+        &name,
+        &3u32,
+        &100i128,
+        &Cadence::Weekly,
+        &first_kocok,
+        &join_deadline,
+    );
+    let room = a.get_room(&room_id);
+    a.join_room(&room_id, &room.code, &m1);
+    a.join_room(&room_id, &room.code, &m2);
+    a.start_room(&room_id, &host);
+
+    // Round 1 completes normally (seal + draw); one member wins the pot back.
+    set_ts(&env, first_kocok + 1);
+    let w1 = draw(&a, &room_id, &host);
+    assert_eq!(token.balance(&w1), 1_000);
+
+    // Round 2 is NEVER sealed. Well past its deadline + GRACE_PERIOD a member
+    // dissolves the stuck room. 30 days clears the grace window under BOTH the
+    // demo cadences (deadline+grace ~= 240s) and production cadences (round-2
+    // deadline 7d + GRACE 14d = 21d), so this test is flag-agnostic.
+    set_ts(&env, first_kocok + 30 * DAY);
+    a.emergency_dissolve(&room_id, &m1);
+
+    // Dissolved; the round-1 winner keeps their pot; the two unwon members are
+    // each refunded share*N; the contract ends at exactly zero.
+    assert_eq!(a.get_room(&room_id).status, RoomStatus::Dissolved);
+    assert_eq!(token.balance(&host), 1_000);
+    assert_eq!(token.balance(&m1), 1_000);
+    assert_eq!(token.balance(&m2), 1_000);
+    assert_eq!(token.balance(&id), 0);
 }

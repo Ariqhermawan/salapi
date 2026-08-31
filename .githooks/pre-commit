@@ -1,0 +1,163 @@
+#!/bin/sh
+#
+# pre-commit — secret / dotenv safety net for the Hackathon (Salapi) repo.
+#
+# Runs under Git-for-Windows' bundled sh/bash (NOT WSL). Uses bash's `read -d`
+# plus GNU grep -E (which Git-bash ships). Blocks the commit (exit 1) if it
+# stages either a real dotenv file or an added line containing an obvious
+# secret. Belt-and-suspenders: .env* is already gitignored, but a stray
+# `git add .` could still stage web/.env.local / web/.env.local.bak, which
+# hold the AES wallet-encryption master key and the Supabase service-role key.
+#
+# Bypass (discouraged):  git commit --no-verify
+#
+# Exit 0 = clean, exit 1 = blocked.
+#
+# IMPORTANT (why we use a temp file, not a heredoc):
+#   `git ... -z` emits NUL-delimited paths. Feeding that through a command
+#   substitution `$(...)` or a heredoc STRIPS the NUL bytes ("warning: command
+#   substitution: ignored null byte in input"), which collapses every path into
+#   one blob and makes `read -r -d ''` see zero NUL terminators -> the loop body
+#   never runs -> the hook becomes a silent no-op. So we write the -z stream to
+#   a temp file and `read -d ''` directly from it: NULs preserved, no subshell,
+#   so the `blocked`/`findings` vars survive.
+
+# ANSI red (only when stderr is a terminal, so piped/CI output stays plain).
+if [ -t 2 ]; then
+	RED='\033[31m'
+	BOLD='\033[1m'
+	RST='\033[0m'
+else
+	RED=''
+	BOLD=''
+	RST=''
+fi
+
+# Accumulated findings ("path\treason" per line) and a block flag.
+findings=''
+blocked=0
+
+add_finding() {
+	# $1 = path, $2 = reason
+	findings="${findings}${1}	${2}
+"
+	blocked=1
+}
+
+# --- (a) dotenv filename rule -------------------------------------------------
+# BLOCK basenames: .env | .env.<anything> | env.<anything> | <name>.env
+# (covers web/.env.local, .env.local.bak, .env.production, prod.env, env.local).
+# ALLOW safe templates FIRST so they win over the block rule. The template
+# marker may appear anywhere in the basename (not only as the final suffix), so
+# a backed-up template like ".env.local.example.bak" is still allowed.
+#   *.example  *.sample  *.template  *.dist  (+ their *.marker.* backup forms)
+is_blocked_env_path() {
+	# $1 = full staged path. Decide on the basename only.
+	base=${1##*/}
+	case "$base" in
+		*.example | *.example.* \
+		| *.sample | *.sample.* \
+		| *.template | *.template.* \
+		| *.dist)
+			return 1 ;; # allowed template (including .marker.bak backups)
+	esac
+	case "$base" in
+		.env | .env.* | env.* | *.env)
+			return 0 ;; # real dotenv -> block
+	esac
+	return 1
+}
+
+# --- (b) secret content patterns (anchored tightly to avoid false positives) --
+# Stellar secret key: whole-word S + 55 chars of base32 (A-Z, 2-7) = 56 total.
+# Use explicit non-base32 boundaries instead of \b so the key is still caught
+# when quoted / inside KEY=... / at line ends, and a 56-char slice of a LONGER
+# alnum token is not spuriously reported.
+RE_STELLAR='(^|[^A-Za-z2-7])S[A-Z2-7]{55}([^A-Za-z2-7]|$)'
+# JWT / Supabase service-role: three base64url segments, header starts "eyJ".
+RE_JWT='eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}'
+# WALLET_ENC_KEY assigned to a ~32-byte base64 / base64url value (>=42 chars,
+# 0-2 '=' padding). Requires an actual = or : assignment (optionally with a
+# quote between the key name and the separator, e.g. JSON "WALLET_ENC_KEY": "..."),
+# so bare references in comments/code/docs (e.g. "see WALLET_ENC_KEY" or
+# "process.env.WALLET_ENC_KEY") are NOT matched.
+RE_WALLET='WALLET_ENC_KEY["'"'"'`[:space:]]*[:=][[:space:]]*["'"'"'`]?[A-Za-z0-9+/_-]{42,}={0,2}'
+
+scan_added_lines() {
+	# $1 = staged path. Echoes a human reason if a secret is found, else nothing.
+	# Only ADDED lines from this staged file; skip the +++ header line.
+	added=$(git diff --cached -U0 --no-color --diff-filter=AM -- "$1" \
+		| grep '^+' | grep -v '^+++')
+
+	if printf '%s\n' "$added" | grep -Eq "$RE_STELLAR"; then
+		echo 'added line contains a Stellar secret key (S... 56-char base32)'
+		return
+	fi
+	if printf '%s\n' "$added" | grep -Eq "$RE_JWT"; then
+		echo 'added line contains a JWT / Supabase service-role token (eyJ...)'
+		return
+	fi
+	if printf '%s\n' "$added" | grep -Eq "$RE_WALLET"; then
+		echo 'added line assigns a base64 key to WALLET_ENC_KEY'
+		return
+	fi
+}
+
+# --- gather staged, added/modified paths (NUL-delimited -> spaces are safe) ---
+# --diff-filter=AM ignores deletions/renames-away. On the very first commit there
+# is no HEAD, but --cached still diffs against the empty tree, so this is correct.
+# We write the NUL stream to a temp file and read from it (see header note).
+# No staged paths -> the file is empty -> the while loop body never runs -> exit 0.
+tmp_paths=$(mktemp 2>/dev/null) || tmp_paths="${TMPDIR:-/tmp}/precommit-paths.$$"
+git diff --cached --name-only --diff-filter=AM -z > "$tmp_paths"
+
+while IFS= read -r -d '' path; do
+	[ -n "$path" ] || continue
+
+	# (a) dotenv filename gate.
+	if is_blocked_env_path "$path"; then
+		add_finding "$path" 'dotenv file (likely holds real secret values)'
+		# A blocked env file is enough; no need to also scan its body.
+		continue
+	fi
+
+	# Skip binary files. git numstat prints "-\t-\t<path>" for binaries.
+	if git diff --cached --numstat --diff-filter=AM -- "$path" \
+		| grep -Eq '^-	-	'; then
+		continue
+	fi
+
+	# (b) secret-content gate on added lines.
+	reason=$(scan_added_lines "$path")
+	if [ -n "$reason" ]; then
+		add_finding "$path" "$reason"
+	fi
+done < "$tmp_paths"
+
+rm -f "$tmp_paths"
+
+# --- verdict ------------------------------------------------------------------
+if [ "$blocked" -eq 0 ]; then
+	# Clean: one quiet line.
+	echo 'pre-commit: no staged secrets or dotenv files detected.'
+	exit 0
+fi
+
+# Blocked: red, multi-line, names each offending file + reason.
+printf '%b\n' "${RED}${BOLD}COMMIT BLOCKED — staged secret or dotenv file detected${RST}" >&2
+printf '%b\n' "${RED}-----------------------------------------------------------${RST}" >&2
+# Print one line per finding (path<TAB>reason).
+printf '%s' "$findings" | while IFS='	' read -r f r; do
+	[ -n "$f" ] || continue
+	printf '%b\n' "${RED}  * ${BOLD}${f}${RST}${RED} — ${r}${RST}" >&2
+done
+printf '%b\n' "${RED}-----------------------------------------------------------${RST}" >&2
+printf '%b\n' "${RED}These files/lines must not enter git history.${RST}" >&2
+printf '%b\n' "${RED}Unstage each one with:${RST}" >&2
+printf '%s'  "$findings" | while IFS='	' read -r f r; do
+	[ -n "$f" ] || continue
+	printf '%b\n' "${RED}    git restore --staged ${BOLD}\"${f}\"${RST}" >&2
+done
+printf '%b\n' "${RED}Then remove the real values before committing.${RST}" >&2
+printf '%b\n' "${RED}Bypassing this check requires --no-verify (discouraged).${RST}" >&2
+exit 1

@@ -59,7 +59,11 @@ function CircleVisual() {
   );
 }
 
-const SLIDE_VISUALS = [<BalanceVisual />, <SendVisual />, <CircleVisual />];
+const SLIDE_VISUALS = [
+  <BalanceVisual key="balance" />,
+  <SendVisual key="send" />,
+  <CircleVisual key="circle" />,
+];
 
 export default function OnboardingScreen() {
   const router = useRouter();

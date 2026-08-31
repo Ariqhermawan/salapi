@@ -8,7 +8,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  myUsername,
+  myHandle,
   walletState,
   registerUsername,
   renameUsername,
@@ -226,7 +226,7 @@ export default function SettingsScreen() {
   const [notif, setNotif] = useState(true);
 
   useEffect(() => {
-    myUsername().then(setName);
+    myHandle().then(setName);
     walletState().then((w) => setAddr(w.address));
     if (supabaseConfigured()) {
       createSupabaseBrowser()
@@ -319,7 +319,7 @@ export default function SettingsScreen() {
       <SectionLabel>{t("settings.accounts")}</SectionLabel>
       <div style={{ padding: "0 16px" }}>
         <Card p={0} elevation>
-          <UsernamePanel current={name} onChanged={() => myUsername().then(setName)} />
+          <UsernamePanel current={name} onChanged={() => myHandle().then(setName)} />
           {supaEmail && (
             <Row
               leading={iconBox(Ico.user({ c: T.moneyIn }), T.moneyInTint, T.moneyIn)}

@@ -9,7 +9,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { QRCodeSVG } from "qrcode.react";
-import { myUsername, walletState } from "@/app/actions";
+import { myHandle, walletState } from "@/app/actions";
 import { useT } from "@/components/I18nProvider";
 import {
   T,
@@ -54,7 +54,7 @@ export default function ReceiveScreen() {
 
   useEffect(() => {
     walletState().then((s) => setAddress(s.address));
-    myUsername().then((u) => u && setUsername(u));
+    myHandle().then((u) => u && setUsername(u));
   }, []);
 
   const handle = username

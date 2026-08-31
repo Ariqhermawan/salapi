@@ -17,6 +17,10 @@ dist
 *.key
 secrets/
 
+# Disaster-vault fill: dedicated hub keypair (testnet secret, no real value)
+web/scripts/.vault-hub.json
+web/scripts/fill.log
+
 # OS / editor
 .DS_Store
 Thumbs.db
@@ -34,3 +38,62 @@ SOW.md
 SOW-PATCH.md
 SOW.pdf
 Salapi-SOW.pdf
+
+# Playwright + real-Chrome persistent profiles (contain login cookies/session,
+# sensitive) and ad-hoc test/agent screenshots from shot.js / attach.js
+.pw-profile/
+.chrome-profile/
+*_test.png
+out/*.png
+
+# Internal working scratchpad (root-anchored) — pitch, SOW, strategy, prompts,
+# reviews, audits, screen dumps, capture scripts. NOT for the public repo.
+# Code lives in web/ and contracts/; these are private working artifacts only.
+/*.pdf
+/Salapi-AIBC-Pitch*
+/Salapi-Pitch*
+/Salapi-CueCard*
+/Salapi-Deck*
+/Salapi-Circles-Preview.html
+/Salapi-Home-3-Variants.html
+/Salapi-Vault-Revamp-Variants.html
+/Salapi-Logo-Exporter.html
+/revamp-home.html
+/Salapi-SOW-v2*
+/SOW-*.txt
+/SOW-*.md
+/SOW-extract.txt
+/DECK-*.txt
+/build_sow.py
+/*-PROMPT.md
+/*-PROMPT-*.md
+/*-STRATEGY.md
+/*-REPORT.md
+/SALAPI-CODE-REVIEW.md
+/SALAPI-AUTOMATIONS.md
+/BUILD-AWARD-ROADMAP.md
+/DESIGN-REVAMP-BRIEF*.md
+/DESIGN-TOKENS.md
+/PITCH-*.md
+/personas-clusters.md
+/personas-*.jsonl
+/salapi-qr-*.png
+/Backup/
+/PWA_revampV1/
+/deck-assets/
+/evidence/
+/gan-harness/
+/salapi-screens*/
+/salapi_*_audit/
+/salapi_zip_design/
+/salapi_logo_extract/
+/Salapi-Logo-Kit/
+/Salapi-Logo-Kit.zip
+/Salapi-LinkedIn-Banner/
+/cap-*.js
+/shot.js
+/surf.js
+/attach.js
+/nav-test.js
+/circles-nav-test.js
+/extract-tokens.js

@@ -55,11 +55,11 @@ function ringPos(i: number, total: number, r: number, w: number) {
 
 // ─────────────────────────────────────────────────────────────
 // Kocok roulette overlay — lands on the winner the contract returned.
-// HONESTY: the winner index comes from the caller's browser CSPRNG
-// (crypto.getRandomValues), is submitted as a kocok argument, and is
-// validated on-chain (must be < pool.len for the unwon-members pool).
-// The contract returns the corresponding member Address; the overlay
-// spins to that exact address. No Math.random for the visual landing.
+// HONESTY: the winner is drawn ON-CHAIN, not in the browser. arisanKocok
+// seals a Soroban-PRNG seed for the round (seal_kocok), then the deterministic
+// kocok pays unwon[seed % pool.len] and returns that member's Address. The
+// overlay spins to the seat matching that Address — no browser CSPRNG, no
+// caller choice, and no Math.random for the visual landing.
 // ─────────────────────────────────────────────────────────────
 function Roulette({
   seats,

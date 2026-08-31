@@ -1,0 +1,1253 @@
+﻿<!doctype html>
+<html lang="en" data-design="onyx">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<meta name="theme-color" content="#07070a" />
+<meta name="description" content="Salapi â€” a crypto-invisible money app for the Philippines & Indonesia, built on Stellar. The money moves. The trust does not. Every peso and rupiah, a public receipt." />
+<title>Salapi â€” The money moves. The trust does not.</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,500&family=Schibsted+Grotesk:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+<style>
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+   SALAPI Â· landing â€” dark-luxury, near-black canvas, Salapi-blue
+   action. Cyan = live / verified / value-in. Violet = vision /
+   Build-Award. NO GREEN anywhere â€” blue, cyan, indigo, violet, white.
+   Geist (display) + Geist Mono (numbers, hashes, labels).
+   â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+:root{
+  --bg:#07070a;
+  --bg-2:#0b0b12;
+  --ink:#0b0b12;
+
+  --blue:#2563eb;
+  --blue-deep:#1d4ed8;
+  --blue-300:#93b4ff;     /* headline highlight on dark */
+  --blue-soft:rgba(37,99,235,0.16);
+  --blue-line:rgba(122,162,255,0.32);
+
+  --cyan:#38bdf8;
+  --indigo:#6366f1;
+  --violet:#7c5cff;
+
+  /* LIVE / verified / value-in  (was green) â†’ Salapi cyan */
+  --green:#0ea5e9;
+  --green-bright:#38bdf8;
+  --green-soft:rgba(56,189,248,0.12);
+  --green-line:rgba(56,189,248,0.34);
+
+  /* VISION / Build-Award  (was amber) â†’ cool violet */
+  --amber:#6366f1;
+  --amber-bright:#a394ff;
+  --amber-soft:rgba(124,92,255,0.13);
+  --amber-line:rgba(124,92,255,0.34);
+
+  --w:#ffffff;
+  --w80:rgba(255,255,255,0.80);
+  --w65:rgba(255,255,255,0.66);
+  --w50:rgba(255,255,255,0.50);
+  --w38:rgba(255,255,255,0.38);
+  --w12:rgba(255,255,255,0.12);
+  --w08:rgba(255,255,255,0.08);
+  --w05:rgba(255,255,255,0.05);
+
+  --card:rgba(255,255,255,0.026);
+  --card-2:rgba(255,255,255,0.045);
+  --line:rgba(255,255,255,0.09);
+  --line-2:rgba(255,255,255,0.14);
+
+  --r-pill:999px;
+  --r-lg:22px;
+  --r-md:16px;
+  --r-sm:12px;
+
+  --font:'Geist',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'Geist Mono',ui-monospace,'SF Mono',Menlo,monospace;
+  --display:'Geist',system-ui,sans-serif;
+  --display-wt:600;
+  --display-ls:-0.045em;
+
+  --grad-1:#ffffff;
+  --grad-2:#aeb8cc;
+  --accent-ink:#ffffff;
+  --accent-glow:0 12px 30px -10px rgba(37,99,235,0.85);
+  --accent-glow-h:0 16px 40px -12px rgba(37,99,235,0.95);
+  --mark-bg:linear-gradient(155deg,#3b7bff,#1d4ed8);
+  --mark-ink:#ffffff;
+  --mark-glow:0 8px 20px -8px rgba(37,99,235,0.9), inset 0 1px 0 rgba(255,255,255,0.4);
+
+  --wrap:1200px;
+  --ease:cubic-bezier(0.2,0.8,0.2,1);
+
+  /* iPhone 17 Pro frame finishes (tweakable) */
+  --phone-frame:linear-gradient(145deg,#454b57 0%,#8a92a3 12%,#2b313c 27%,#5b6473 47%,#21262f 68%,#727b8c 86%,#2b313c 100%);
+}
+
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--w);
+  font-family:var(--font);
+  font-size:18px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  text-rendering:optimizeLegibility;
+  overflow-x:hidden;
+}
+/* Ambient field: aurora glows + faint grid + grain */
+body::before{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(70% 55% at 8% -6%, rgba(37,99,235,0.26), transparent 60%),
+    radial-gradient(55% 50% at 100% 8%, rgba(124,92,255,0.14), transparent 58%),
+    radial-gradient(60% 50% at 50% 110%, rgba(56,189,248,0.10), transparent 60%);
+}
+body::after{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0.5;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+  background-size:64px 64px;
+  -webkit-mask-image:radial-gradient(120% 80% at 50% 0%, #000 0%, transparent 75%);
+          mask-image:radial-gradient(120% 80% at 50% 0%, #000 0%, transparent 75%);
+}
+.grain{
+  position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0.05;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+main,nav,footer{position:relative;z-index:2;}
+
+a{color:inherit;text-decoration:none;}
+button{font-family:inherit;cursor:pointer;background:none;border:0;color:inherit;padding:0;}
+img{display:block;max-width:100%;}
+:focus-visible{outline:2.5px solid var(--blue-300);outline-offset:3px;border-radius:4px;}
+
+/* â”€â”€ Helpers â”€â”€ */
+.wrap{max-width:var(--wrap);margin:0 auto;padding:0 32px;}
+.mono{font-family:var(--mono);font-feature-settings:'tnum';letter-spacing:-0.01em;}
+.num{font-variant-numeric:tabular-nums lining-nums;letter-spacing:-0.02em;}
+.eyebrow{
+  display:inline-flex;align-items:center;gap:12px;
+  font-family:var(--mono);font-size:12px;font-weight:500;
+  text-transform:uppercase;letter-spacing:0.18em;color:var(--w50);
+  margin:0 0 22px;
+}
+.eyebrow::before{content:'';width:26px;height:1px;background:var(--blue-300);opacity:0.8;}
+.eyebrow.green::before{background:var(--green-bright);}
+.eyebrow.amber::before{background:var(--amber-bright);}
+.eb-flags{display:inline-flex;align-items:center;gap:7px;vertical-align:middle;}
+.eb-flags .flag-sep{width:1px;height:12px;border-radius:1px;background:rgba(255,255,255,0.28);flex:0 0 auto;}
+.eb-flag{width:19px;height:13px;border-radius:2.5px;object-fit:cover;display:block;box-shadow:0 0 0 .5px rgba(255,255,255,0.22),0 1px 2px rgba(0,0,0,0.4);}
+
+h1,h2,h3{margin:0;font-family:var(--display);font-weight:600;letter-spacing:-0.035em;line-height:1.0;}
+.h-hero{font-size:clamp(46px,6.6vw,90px);font-weight:600;line-height:0.96;letter-spacing:-0.04em;}
+.h-sec{font-size:clamp(34px,4.6vw,60px);font-weight:600;line-height:1.0;letter-spacing:-0.035em;}
+.h-card{font-size:clamp(21px,2.4vw,27px);font-weight:600;letter-spacing:-0.02em;line-height:1.1;}
+[data-weight="bold"] .h-hero,[data-weight="bold"] .h-sec{font-weight:700;letter-spacing:-0.045em;}
+.grad-w{background:linear-gradient(180deg,var(--grad-1) 30%, var(--grad-2));-webkit-background-clip:text;background-clip:text;color:transparent;}
+.blue{color:var(--blue-300);}
+.green{color:var(--green-bright);}
+.lead{font-size:clamp(17px,1.5vw,21px);color:var(--w65);line-height:1.6;max-width:46ch;}
+.muted{color:var(--w50);}
+
+section{padding:clamp(80px,11vh,140px) 0;scroll-margin-top:88px;position:relative;}
+.divider{height:1px;position:relative;overflow:visible;background:linear-gradient(90deg,transparent,var(--line) 22%,var(--line) 78%,transparent);}
+.divider::before{content:'';position:absolute;top:-1.5px;left:-15%;width:170px;height:4px;border-radius:4px;background:radial-gradient(closest-side,var(--blue-300),transparent 75%);filter:blur(3px);opacity:0.8;}
+.divider::after{content:'';position:absolute;top:0;left:-15%;width:120px;height:1px;background:linear-gradient(90deg,transparent,rgba(207,224,255,0.9) 60%,#ffffff 82%,transparent);}
+@media (prefers-reduced-motion:no-preference){.divider::before,.divider::after{animation:comet 6.5s cubic-bezier(.5,0,.5,1) infinite;}}
+@media (prefers-reduced-motion:reduce){.divider::before,.divider::after{left:50%;transform:translateX(-50%);}}
+@keyframes comet{0%{left:-15%;}100%{left:115%;}}
+
+/* â”€â”€ Buttons â”€â”€ */
+.btn{
+  display:inline-flex;align-items:center;gap:10px;
+  font-size:16px;font-weight:600;letter-spacing:-0.01em;
+  padding:15px 24px;border-radius:var(--r-pill);
+  transition:transform .15s var(--ease), box-shadow .2s var(--ease), background .2s var(--ease);
+  white-space:nowrap;
+}
+.btn:active{transform:scale(0.97);}
+.btn-primary{background:var(--blue);color:var(--accent-ink);box-shadow:var(--accent-glow);}
+.btn-primary:hover{background:var(--blue-deep);box-shadow:var(--accent-glow-h);}
+.btn-ghost{background:var(--w05);color:var(--w);box-shadow:inset 0 0 0 1px var(--line-2);}
+.btn-ghost:hover{background:var(--w08);}
+.btn .arr{transition:transform .2s var(--ease);}
+.btn:hover .arr{transform:translateX(3px);}
+
+/* â”€â”€ Chips â”€â”€ */
+.chip{
+  display:inline-flex;align-items:center;gap:7px;
+  font-family:var(--mono);font-size:11.5px;font-weight:500;
+  letter-spacing:0.02em;padding:6px 12px;border-radius:var(--r-pill);
+  white-space:nowrap;
+}
+.dot{width:7px;height:7px;border-radius:999px;flex:0 0 auto;}
+.chip-live{color:var(--green-bright);background:var(--green-soft);box-shadow:inset 0 0 0 1px var(--green-line);}
+.chip-live .dot{background:var(--green-bright);box-shadow:0 0 0 3px rgba(56,189,248,0.18);}
+.chip-vision{color:var(--amber-bright);background:var(--amber-soft);box-shadow:inset 0 0 0 1px var(--amber-line);}
+.chip-vision .dot{background:var(--amber-bright);}
+.chip-blue{color:var(--blue-300);background:var(--blue-soft);box-shadow:inset 0 0 0 1px var(--blue-line);}
+.chip-blue .dot{background:var(--blue-300);}
+.chip-neutral{color:var(--w65);background:var(--w05);box-shadow:inset 0 0 0 1px var(--line);}
+
+/* â”€â”€ Cards â”€â”€ */
+.card{
+  background:var(--card);border-radius:var(--r-lg);
+  box-shadow:inset 0 0 0 1px var(--line), 0 30px 60px -40px rgba(0,0,0,0.8);
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+}
+.card-pad{padding:clamp(22px,3vw,34px);}
+
+/* â”€â”€ NAV â”€â”€ */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:50;
+  transition:background .3s var(--ease), box-shadow .3s var(--ease), backdrop-filter .3s;
+}
+nav .bar{display:flex;align-items:center;gap:24px;height:72px;}
+nav.scrolled{
+  background:rgba(10,15,28,0.72);
+  -webkit-backdrop-filter:blur(16px) saturate(140%);backdrop-filter:blur(16px) saturate(140%);
+  box-shadow:0 1px 0 var(--line);
+}
+.brand{display:flex;align-items:center;gap:11px;font-weight:700;font-size:19px;letter-spacing:-0.02em;}
+.mark{
+  width:36px;height:36px;border-radius:11px;flex:0 0 auto;
+  background:var(--mark-bg);
+  display:grid;place-items:center;color:var(--mark-ink);
+  box-shadow:var(--mark-glow);position:relative;overflow:hidden;
+}
+.mark::after{content:'';position:absolute;inset:0;border-radius:inherit;background:radial-gradient(120% 70% at 30% 0%,rgba(255,255,255,0.28),transparent 58%);pointer-events:none;}
+.mark svg{width:60%;height:60%;display:block;position:relative;z-index:1;}
+.nav-links{display:flex;gap:30px;margin-left:14px;}
+.nav-links a{font-size:15px;color:var(--w65);font-weight:500;transition:color .2s;}
+.nav-links a:hover{color:var(--w);}
+.nav-right{margin-left:auto;display:flex;align-items:center;gap:16px;}
+.poweredby{display:inline-flex;align-items:center;gap:9px;font-family:var(--mono);font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;color:var(--w38);}
+.search-pill{
+  display:inline-flex;align-items:center;gap:10px;height:40px;padding:0 8px 0 15px;border-radius:var(--r-pill);
+  background:var(--w05);box-shadow:inset 0 0 0 1px var(--line-2);color:var(--w50);font-size:14px;letter-spacing:-0.01em;
+  transition:background .2s var(--ease), color .2s var(--ease), box-shadow .2s var(--ease);
+}
+.search-pill:hover{background:var(--w08);color:var(--w80);box-shadow:inset 0 0 0 1px var(--blue-line);}
+.search-pill svg{opacity:0.85;flex:0 0 auto;}
+.search-pill kbd{font-family:var(--mono);font-size:11px;color:var(--w50);background:var(--w08);box-shadow:inset 0 0 0 1px var(--line);border-radius:6px;padding:2px 7px;line-height:1;}
+.btn-light{background:#fff;color:#0b0b12;box-shadow:0 10px 24px -12px rgba(147,180,255,0.55);}
+.btn-light:hover{background:#eaf0ff;box-shadow:0 14px 30px -12px rgba(147,180,255,0.7);}
+.nav-cta{height:40px;padding:0 18px;font-size:14px;}
+@media (max-width:1100px){.search-pill span{display:none;}.search-pill kbd{display:none;}.search-pill{padding:0 12px;gap:0;}}
+
+/* Stellar attribution mark (ecosystem lockup, not affiliation) */
+.stellar-lk{display:inline-flex;align-items:center;gap:8px;color:var(--w65);}
+.stellar-lk svg{display:block;}
+.stellar-lk .wm{font-weight:600;font-size:15px;letter-spacing:-0.01em;color:var(--w);}
+
+/* â”€â”€ HERO â”€â”€ */
+.hero{padding-top:clamp(120px,15vh,180px);padding-bottom:clamp(60px,8vh,110px);position:relative;overflow:hidden;}
+.hero-flow{position:absolute;inset:0;z-index:0;pointer-events:none;}
+.hero-flow canvas{position:absolute;inset:0;width:100%;height:100%;display:block;}
+.hero-flow .static-grad{
+  position:absolute;inset:0;
+  background:
+    radial-gradient(58% 50% at 62% 46%, rgba(56,189,248,0.20), transparent 62%),
+    radial-gradient(50% 60% at 30% 50%, rgba(37,99,235,0.18), transparent 64%),
+    linear-gradient(118deg, rgba(37,99,235,0.14), rgba(124,92,255,0.12) 70%, transparent);
+}
+@media (prefers-reduced-motion:reduce){
+  .hero-flow canvas{display:none;}
+}
+.hero-grid{display:grid;grid-template-columns:1.05fr 0.95fr;gap:40px;align-items:center;position:relative;z-index:2;}
+.hero h1{margin-bottom:26px;}
+.hero .supports{display:flex;flex-direction:column;align-items:flex-start;gap:11px;margin:0 0 30px;}
+.hero .supports span{display:inline-flex;align-items:center;gap:8px;font-size:14.5px;color:var(--w65);}
+.hero .supports span::before{content:'';width:5px;height:5px;border-radius:999px;background:var(--blue-300);opacity:.7;}
+.cta-row{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:34px;}
+.trust-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;padding-top:26px;border-top:1px solid var(--line);}
+.trust-item{display:inline-flex;align-items:center;gap:9px;font-family:var(--mono);font-size:12px;letter-spacing:0.06em;color:var(--w50);text-transform:uppercase;}
+
+/* Phone mock */
+.stage{position:relative;display:grid;place-items:center;min-height:560px;}
+.stage::before{
+  content:'';position:absolute;width:80%;height:80%;border-radius:50%;
+  background:radial-gradient(closest-side, rgba(37,99,235,0.55), rgba(56,189,248,0.20) 52%, transparent 72%);
+  filter:blur(40px);z-index:0;
+}
+.phone{
+  position:relative;z-index:2;width:clamp(252px,23vw,310px);
+  border-radius:52px;padding:9px;
+  background:var(--phone-frame);
+  box-shadow:
+    0 50px 90px -30px rgba(0,0,0,0.85),
+    0 0 0 1px rgba(0,0,0,0.55),
+    inset 0 0 0 1.5px rgba(255,255,255,0.22),
+    inset 0 1.5px 2px rgba(255,255,255,0.42),
+    inset 0 -2px 3px rgba(0,0,0,0.4);
+}
+/* titanium side buttons */
+.phone::before{content:'';position:absolute;left:-2.5px;top:30%;width:3px;height:62px;border-radius:3px;background:linear-gradient(180deg,#666e7e,#2a2f39);z-index:1;box-shadow:-1px 0 1px rgba(0,0,0,0.45);}
+.phone::after{content:'';position:absolute;right:-2.5px;top:35%;width:3px;height:48px;border-radius:3px;background:linear-gradient(180deg,#666e7e,#2a2f39);z-index:1;box-shadow:1px 0 1px rgba(0,0,0,0.45);}
+.phone img{position:relative;z-index:2;width:100%;border-radius:44px;display:block;background:#f4f6fb;box-shadow:0 0 0 2.5px #05060a;}
+/* Dynamic Island */
+.phone .island{
+  display:block;position:absolute;z-index:6;top:14px;left:50%;transform:translateX(-50%);
+  width:25%;max-width:80px;height:22px;border-radius:999px;background:#04050a;
+  box-shadow:0 0 0 1px rgba(0,0,0,0.6), 0 2px 6px rgba(0,0,0,0.55);
+}
+.phone .island::after{content:'';position:absolute;right:13%;top:50%;transform:translateY(-50%);width:7px;height:7px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#33507e,#06080d 72%);box-shadow:inset 0 0 0 1px rgba(90,130,200,0.3);}
+[data-phone="silver"]{--phone-frame:linear-gradient(145deg,#d9dde4 0%,#ffffff 12%,#b9bfca 28%,#eef1f5 48%,#aab1bd 70%,#f4f6f9 86%,#c3c9d3 100%);}
+[data-phone="blue"]{--phone-frame:linear-gradient(145deg,#1f3a63 0%,#3f6ea8 12%,#12243f 28%,#2b558c 48%,#0e1c33 70%,#3a6299 86%,#15273f 100%);}
+[data-phone="black"]{--phone-frame:linear-gradient(145deg,#2a2d33 0%,#54585f 12%,#15171b 28%,#3a3e45 48%,#101216 70%,#4a4e56 86%,#1a1c20 100%);}
+.float-chip{
+  position:absolute;z-index:4;display:inline-flex;align-items:center;gap:9px;
+  padding:11px 14px;border-radius:14px;font-family:var(--mono);font-size:12px;
+  background:rgba(11,16,28,0.94);box-shadow:0 22px 44px -16px rgba(0,0,0,0.95), inset 0 0 0 1px var(--line-2);
+}
+.float-tx{left:-7%;bottom:13%;color:var(--w65);}
+.float-tx b{color:var(--green-bright);font-weight:600;}
+.float-verify{right:-7%;top:9%;color:var(--green-bright);}
+.float-verify .ck{width:20px;height:20px;border-radius:7px;background:var(--green-soft);display:grid;place-items:center;box-shadow:inset 0 0 0 1px var(--green-line);}
+.float-verify .sub{color:var(--w50);}
+
+/* â”€â”€ Generic spotlight (feature) layout â”€â”€ */
+.spot{display:grid;grid-template-columns:1fr 1fr;gap:clamp(36px,5vw,72px);align-items:center;}
+.spot.rev .spot-media{order:2;}
+.spot h2{margin-bottom:22px;}
+.spot .lead{margin-bottom:26px;}
+.feat-list{display:flex;flex-direction:column;gap:2px;margin:0 0 28px;}
+.feat-row{display:flex;gap:14px;padding:15px 0;border-top:1px solid var(--line);}
+.feat-row .ic{width:34px;height:34px;border-radius:10px;flex:0 0 auto;display:grid;place-items:center;background:var(--w05);box-shadow:inset 0 0 0 1px var(--line);}
+.feat-row h4{margin:0 0 4px;font-size:16.5px;font-weight:600;letter-spacing:-0.01em;}
+.feat-row p{margin:0;font-size:14.5px;color:var(--w50);line-height:1.5;}
+.feat-row .ic{transition:transform .2s var(--ease);transform-origin:center;}
+@media (prefers-reduced-motion:no-preference){
+  .feat-row:nth-child(1) .ic{animation:icWiggle 4.5s ease-in-out infinite;}
+  .feat-row:nth-child(2) .ic{animation:icSpin 6s linear infinite;}
+  .feat-row:nth-child(3) .ic{animation:icPulse 3.2s ease-in-out infinite;}
+}
+@keyframes icWiggle{0%,84%,100%{transform:rotate(0);}88%{transform:rotate(-10deg);}92%{transform:rotate(9deg);}96%{transform:rotate(-4deg);}}
+@keyframes icSpin{to{transform:rotate(360deg);}}
+@keyframes icPulse{0%,100%{transform:scale(1);}50%{transform:scale(1.14);}}
+.chip-set{display:flex;flex-wrap:wrap;gap:9px;}
+
+/* media column compositions */
+.spot-media{position:relative;}
+.glow-card{position:relative;}
+.glow-card::before{
+  content:'';position:absolute;inset:-12% -6%;border-radius:50%;z-index:0;
+  background:radial-gradient(closest-side, rgba(37,99,235,0.35), transparent 70%);
+  filter:blur(30px);
+}
+
+/* terminal / verifiable trail */
+.term{position:relative;z-index:2;border-radius:var(--r-lg);overflow:hidden;background:rgba(8,12,22,0.85);box-shadow:inset 0 0 0 1px var(--line-2), 0 30px 60px -34px rgba(0,0,0,0.9);}
+.term-bar{display:flex;align-items:center;gap:8px;padding:14px 16px;border-bottom:1px solid var(--line);}
+.term-bar .dots{display:flex;gap:6px;}
+.term-bar .dots i{width:10px;height:10px;border-radius:999px;background:var(--w12);}
+.term-bar .name{font-family:var(--mono);font-size:12.5px;color:var(--w50);}
+.term-bar .net{margin-left:auto;}
+.tx{display:flex;align-items:center;gap:14px;padding:14px 18px;font-family:var(--mono);font-size:13.5px;border-bottom:1px solid var(--w05);}
+.tx .ix{color:var(--w38);font-size:12px;min-width:20px;}
+.tx .op{color:#fff;flex:1;min-width:0;}
+.tx .op .fn{color:var(--blue-300);}
+.tx .op .ar{color:var(--w50);}
+.tx .amt{color:var(--green-bright);font-weight:500;white-space:nowrap;}
+.tx .amt.out{color:var(--w65);}
+.tx .lnk{color:var(--w38);}
+.term-foot{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px 18px;flex-wrap:wrap;}
+.term-foot .meta{font-family:var(--mono);font-size:12px;color:var(--w38);}
+.verify-btn{display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--w);padding:11px 17px;border-radius:var(--r-pill);background:var(--w05);box-shadow:inset 0 0 0 1px var(--line-2);transition:background .2s;}
+.verify-btn:hover{background:var(--w08);}
+
+/* pool stat block */
+.pool{display:flex;flex-wrap:wrap;gap:26px 40px;align-items:flex-end;margin-top:26px;padding:24px 26px;border-radius:var(--r-md);background:var(--card);box-shadow:inset 0 0 0 1px var(--line);}
+.pool .big{font-size:clamp(38px,5vw,56px);font-weight:800;letter-spacing:-0.04em;line-height:0.9;}
+.pool .big .cents{color:var(--w38);font-size:0.5em;}
+.pool .lbl{font-family:var(--mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--w50);margin-top:10px;}
+
+/* meter */
+.meter{position:relative;height:8px;border-radius:999px;background:var(--w08);overflow:hidden;}
+.meter>i{position:absolute;inset:0 auto 0 0;border-radius:999px;background:linear-gradient(90deg,var(--green),var(--green-bright));}
+
+/* label split (LIVE vs Vision) */
+.label-split{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:8px;}
+.label-box{padding:16px 18px;border-radius:var(--r-md);background:var(--card);box-shadow:inset 0 0 0 1px var(--line);}
+.label-box .tag{font-family:var(--mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px;display:inline-flex;align-items:center;gap:7px;}
+.label-box .tag.live{color:var(--green-bright);}
+.label-box .tag.vis{color:var(--amber-bright);}
+.label-box p{margin:0;font-size:13.5px;color:var(--w65);line-height:1.45;}
+
+/* â”€â”€ PROBLEM â”€â”€ */
+.prob-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:8px;}
+.country{position:relative;overflow:hidden;}
+.country .flag{width:30px;height:20px;border-radius:4px;box-shadow:0 1px 4px rgba(0,0,0,.4);flex:0 0 auto;object-fit:cover;}
+.country .head{display:flex;align-items:center;gap:12px;margin-bottom:24px;}
+.country .ctry{font-family:var(--mono);font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:var(--w50);}
+.country .stat{display:flex;flex-direction:column;gap:10px;color:var(--w);}
+.country .stat .u{
+  display:block;font-size:clamp(44px,5.6vw,66px);font-weight:800;letter-spacing:-0.04em;line-height:0.86;
+  background:linear-gradient(100deg,#ff6a6a 0%,#c20000 34%,#ff5252 50%,#ffb0b0 62%,#c20000 80%,#ff6a6a 100%);
+  background-size:220% 100%;
+  -webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;color:transparent;
+  filter:drop-shadow(0 0 12px rgba(210,0,0,0.32));
+}
+@media (prefers-reduced-motion:no-preference){
+  .country .stat .u{animation:bleed 3.6s linear infinite, bleedGlow 2.8s ease-in-out infinite;}
+}
+@keyframes bleed{to{background-position:220% 0;}}
+@keyframes bleedGlow{0%,100%{filter:drop-shadow(0 0 7px rgba(200,0,0,0.22));}50%{filter:drop-shadow(0 0 20px rgba(255,42,42,0.55));}}
+.country .stat .cap{font-size:clamp(21px,2.3vw,27px);font-weight:600;letter-spacing:-0.02em;line-height:1.08;color:var(--w);}
+.country .desc{margin-top:18px;font-size:15.5px;color:var(--w65);line-height:1.5;}
+.country .src{margin-top:18px;padding-top:16px;border-top:1px solid var(--line);font-family:var(--mono);font-size:11.5px;font-weight:700;text-align:center;color:var(--w50);letter-spacing:0.04em;}
+.statstrip{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:22px;}
+.statstrip .s{padding:26px 24px;border-radius:var(--r-md);background:var(--card);box-shadow:inset 0 0 0 1px var(--line);}
+.statstrip .s .n{font-size:clamp(30px,3.6vw,42px);font-weight:800;letter-spacing:-0.03em;}
+.statstrip .s .n.zero{color:var(--green-bright);}
+.statstrip .s .t{margin-top:8px;font-size:14px;color:var(--w50);line-height:1.4;}
+
+/* loss cases */
+.cases{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:6px;}
+.case{display:flex;gap:14px;padding:18px 20px;border-radius:var(--r-md);background:var(--w05);box-shadow:inset 0 0 0 1px var(--line);}
+.case .ic{color:var(--w50);flex:0 0 auto;margin-top:2px;}
+.case .amt{font-weight:800;font-size:19px;letter-spacing:-0.02em;color:#ff6b6b;}
+.case .d{font-size:13.5px;color:var(--w65);margin-top:3px;line-height:1.45;}
+
+/* two-mode (savings) */
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:0 0 28px;}
+.mode{padding:20px;border-radius:var(--r-md);background:var(--card);box-shadow:inset 0 0 0 1px var(--line);}
+.mode .mh{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.mode .mt{font-weight:700;font-size:17px;letter-spacing:-0.02em;}
+.mode p{margin:0;font-size:13.5px;color:var(--w50);line-height:1.5;}
+
+/* steps (frictionless / how) */
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:10px;}
+.step{padding:24px 22px;border-radius:var(--r-md);background:var(--card);box-shadow:inset 0 0 0 1px var(--line);position:relative;}
+.step .n{font-family:var(--mono);font-size:12px;color:var(--blue-300);letter-spacing:0.1em;}
+.step .ic{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;background:var(--w05);box-shadow:inset 0 0 0 1px var(--line);margin:16px 0 16px;}
+.step h4{margin:0 0 7px;font-size:17px;font-weight:600;letter-spacing:-0.015em;}
+.step p{margin:0;font-size:14px;color:var(--w50);line-height:1.5;}
+
+/* allocation guardrails (creator economy) */
+.alloc{padding:24px 26px;border-radius:var(--r-md);background:var(--card);box-shadow:inset 0 0 0 1px var(--line);margin-top:8px;}
+.seg{display:flex;height:16px;border-radius:999px;overflow:hidden;gap:2px;margin:14px 0 12px;background:var(--w05);}
+.seg>span{display:block;height:100%;}
+.seg .to-cause{background:linear-gradient(90deg,var(--green),var(--green-bright));}
+.seg .ops{background:linear-gradient(90deg,var(--amber),var(--amber-bright));}
+.alloc .legend{display:flex;flex-wrap:wrap;gap:8px 20px;font-size:13px;color:var(--w65);}
+.alloc .legend i{width:10px;height:10px;border-radius:3px;display:inline-block;margin-right:8px;vertical-align:middle;}
+.guards{display:grid;grid-template-columns:repeat(2,1fr);gap:12px 22px;margin-top:22px;}
+.guard{display:flex;gap:12px;font-size:14.5px;color:var(--w65);line-height:1.45;}
+.guard .ck{color:var(--green-bright);flex:0 0 auto;margin-top:2px;}
+.guard b{color:var(--w);font-weight:600;}
+
+/* why big */
+.bignum{display:flex;align-items:baseline;gap:6px;}
+.bignum .v{font-size:clamp(72px,13vw,168px);font-weight:600;letter-spacing:-0.05em;line-height:0.82;background:linear-gradient(180deg,var(--grad-1),var(--grad-2));-webkit-background-clip:text;background-clip:text;color:transparent;}
+.bignum .u{font-size:clamp(20px,2.4vw,30px);font-weight:700;color:var(--w50);}
+.market-split{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px;}
+.market{padding:22px 24px;border-radius:var(--r-md);background:var(--card);box-shadow:inset 0 0 0 1px var(--line);display:flex;align-items:center;gap:16px;}
+.market .v{font-size:clamp(30px,3.6vw,42px);font-weight:800;letter-spacing:-0.03em;}
+.market .t{font-size:14px;color:var(--w50);}
+.diaspora{margin-top:16px;padding:26px 28px;border-radius:var(--r-md);display:flex;flex-wrap:wrap;align-items:center;gap:10px 26px;background:linear-gradient(120deg, rgba(37,99,235,0.16), rgba(124,92,255,0.10));box-shadow:inset 0 0 0 1px var(--line-2);}
+.diaspora .v{font-size:clamp(36px,4.6vw,56px);font-weight:800;letter-spacing:-0.04em;color:var(--blue-300);}
+.diaspora .t{font-size:15.5px;color:var(--w65);max-width:42ch;line-height:1.5;}
+
+/* business */
+.rev-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:10px;}
+.rev{padding:28px 26px;border-radius:var(--r-md);background:var(--card);box-shadow:inset 0 0 0 1px var(--line);}
+.rev .ic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:var(--blue-soft);box-shadow:inset 0 0 0 1px var(--blue-line);color:var(--blue-300);margin-bottom:18px;}
+.rev h4{margin:0 0 9px;font-size:18px;font-weight:700;letter-spacing:-0.02em;}
+.rev p{margin:0;font-size:14.5px;color:var(--w50);line-height:1.55;}
+.rev .badge{margin-top:14px;}
+
+/* ask */
+.ask-grid{display:grid;grid-template-columns:1.1fr 0.9fr;gap:clamp(32px,5vw,64px);align-items:start;}
+.ask-points{display:flex;flex-direction:column;gap:2px;margin-top:6px;}
+.ask-point{display:flex;gap:16px;padding:18px 0;border-top:1px solid var(--line);}
+.ask-point .k{font-family:var(--mono);font-size:12px;color:var(--blue-300);letter-spacing:0.08em;min-width:80px;flex:0 0 auto;padding-top:3px;text-transform:uppercase;}
+.ask-point .b{font-size:16.5px;color:var(--w80);line-height:1.5;}
+.ask-point .b b{color:var(--w);font-weight:600;}
+.metricbox{padding:28px 30px;border-radius:var(--r-lg);background:linear-gradient(160deg, rgba(37,99,235,0.18), rgba(255,255,255,0.02));box-shadow:inset 0 0 0 1px var(--line-2);}
+.metricbox .row{display:flex;align-items:baseline;justify-content:space-between;padding:16px 0;border-bottom:1px solid var(--line);}
+.metricbox .row:last-child{border-bottom:0;}
+.metricbox .row .v{font-size:clamp(26px,3vw,34px);font-weight:800;letter-spacing:-0.03em;}
+.metricbox .row .l{font-size:13.5px;color:var(--w50);text-align:right;max-width:18ch;}
+
+/* team */
+.team{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:30px;}
+.member{padding:22px 24px;border-radius:var(--r-md);background:var(--card);box-shadow:inset 0 0 0 1px var(--line);}
+.member .av{width:48px;height:48px;border-radius:999px;display:grid;place-items:center;font-weight:700;font-size:18px;color:#fff;background:linear-gradient(155deg,#3b7bff,#1d4ed8);margin-bottom:16px;box-shadow:inset 0 1px 0 rgba(255,255,255,0.3);}
+.member .nm{font-size:17px;font-weight:700;letter-spacing:-0.02em;}
+.member .rl{margin-top:5px;font-family:var(--mono);font-size:12px;color:var(--w50);letter-spacing:0.03em;}
+
+/* final cta */
+.final{position:relative;text-align:center;border-radius:28px;padding:clamp(56px,8vw,96px) 32px;overflow:hidden;background:linear-gradient(165deg, rgba(37,99,235,0.20), rgba(124,92,255,0.08) 70%, transparent);box-shadow:inset 0 0 0 1px var(--line-2);}
+.final::before{content:'';position:absolute;width:60%;height:140%;left:50%;top:-30%;transform:translateX(-50%);background:radial-gradient(closest-side, rgba(37,99,235,0.40), transparent 70%);filter:blur(50px);z-index:0;}
+.final>*{position:relative;z-index:2;}
+.final h2{margin-bottom:20px;}
+.final .lead{margin:0 auto 32px;text-align:center;max-width:54ch;}
+.final .cta-row{justify-content:center;}
+
+/* â”€â”€ FOOTER â”€â”€ */
+footer{border-top:1px solid var(--line);padding:64px 0 48px;}
+.foot-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:40px;}
+.foot-col h5{margin:0 0 18px;font-family:var(--mono);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--w38);}
+.foot-col a,.foot-col p{display:block;font-size:14.5px;color:var(--w65);margin-bottom:11px;transition:color .2s;}
+.foot-col a:hover{color:var(--w);}
+.foot-blurb{font-size:14.5px;color:var(--w50);line-height:1.6;max-width:38ch;margin:18px 0 20px;}
+.foot-bottom{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px;margin-top:48px;padding-top:28px;border-top:1px solid var(--line);}
+.foot-bottom .copy{font-size:13.5px;color:var(--w38);}
+.honesty{display:flex;flex-wrap:wrap;gap:10px;}
+.disclaimer{font-size:12.5px;color:var(--w38);line-height:1.6;margin-top:22px;max-width:80ch;}
+
+/* â”€â”€ entrance: content is ALWAYS visible by default (no blank states,
+   never gated behind JS/scroll). Motion lives in the ribbon + streaks +
+   hovers, so a throttled tab can never hide content. â”€â”€ */
+.reveal{opacity:1;}
+
+/* â”€â”€ Responsive â”€â”€ */
+@media (max-width:1000px){
+  .nav-links,.poweredby{display:none;}
+  .hero-grid{grid-template-columns:1fr;gap:54px;}
+  .stage{min-height:480px;order:-1;}
+  .spot{grid-template-columns:1fr;gap:40px;}
+  .spot.rev .spot-media{order:-1;}
+  .spot-media{order:-1;}
+  .steps{grid-template-columns:1fr 1fr;}
+  .rev-grid{grid-template-columns:1fr;}
+  .team{grid-template-columns:1fr;}
+  .ask-grid{grid-template-columns:1fr;gap:40px;}
+  .market-split{grid-template-columns:1fr;}
+}
+@media (max-width:640px){
+  body{font-size:16px;}
+  .wrap{padding:0 20px;}
+  nav .bar{height:62px;}
+  .nav-right{gap:12px;}
+  .prob-grid,.statstrip,.cases,.modes,.guards,.foot-grid,.label-split{grid-template-columns:1fr;}
+  .steps{grid-template-columns:1fr;}
+  .hero .supports{flex-direction:column;gap:9px;align-items:flex-start;}
+  .float-tx{left:-2%;}
+  .float-verify{right:-2%;}
+  .btn{width:100%;justify-content:center;}
+  .cta-row{width:100%;}
+  .foot-bottom{flex-direction:column;align-items:flex-start;}
+  .term-foot{justify-content:flex-start;}
+}
+/* â•â•â•â•â•â•â•â• ALWAYS-DARK ELEMENTS â€” terminal + float chips read as "the chain" on every theme â•â•â•â•â•â•â•â• */
+.term, .float-chip{
+  --w:#ffffff; --w80:rgba(255,255,255,0.8); --w65:rgba(255,255,255,0.66); --w50:rgba(255,255,255,0.5);
+  --w38:rgba(255,255,255,0.38); --w12:rgba(255,255,255,0.12); --w08:rgba(255,255,255,0.08); --w05:rgba(255,255,255,0.05);
+  --line:rgba(255,255,255,0.09); --line-2:rgba(255,255,255,0.14);
+  --blue-300:#93b4ff; --green-bright:#38bdf8; --green-soft:rgba(56,189,248,0.12); --green-line:rgba(56,189,248,0.34);
+}
+.term{background:rgba(7,8,13,0.94);}
+</style>
+</head>
+<body>
+<div class="grain"></div>
+
+<!-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ NAV â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+<nav id="nav">
+  <div class="wrap bar">
+    <a class="brand" href="#top" aria-label="Salapi home">
+      <span class="mark"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M 44 22 A 13 13 0 1 0 32 35 A 13 13 0 1 1 20 48" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/></svg></span> Salapi
+    </a>
+    <div class="nav-links">
+      <a href="#problem">Problem</a>
+      <a href="#disaster">Disaster Vault</a>
+      <a href="#features">What it does</a>
+      <a href="#ask">The ask</a>
+    </div>
+    <div class="nav-right">
+      <span class="poweredby">Powered by
+        <span class="stellar-lk">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 7.5C8 4 13.5 4.5 21 9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M3 12c5-2.2 11-1.8 18 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" opacity="0.7"/><path d="M3 16.5c6-1.4 12 0 18 2.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" opacity="0.45"/></svg>
+          <span class="wm">Stellar</span>
+        </span>
+      </span>
+      <button class="search-pill" type="button" aria-label="Search or ask AI">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8"/><path d="m20 20-3.2-3.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <span>Search or ask AI</span>
+        <kbd>/</kbd>
+      </button>
+      <a class="btn btn-light nav-cta" href="https://salapi.app" target="_blank" rel="noopener">Open the app <span class="arr">â†’</span></a>
+    </div>
+  </div>
+</nav>
+
+<main id="top">
+
+<!-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ 1 Â· HERO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+<section class="hero">
+  <div class="hero-flow" aria-hidden="true">
+    <div class="static-grad"></div>
+    <canvas id="flow"></canvas>
+  </div>
+  <div class="wrap hero-grid">
+    <div class="reveal">
+      <p class="eyebrow">Salapi by Catatu Â· <span class="eb-flags"><img class="eb-flag" src="salapi-v15/flags/ph.svg" alt="Philippines" /><span class="flag-sep"></span><img class="eb-flag" src="salapi-v15/flags/id.svg" alt="Indonesia" /></span></p>
+      <h1 class="h-hero">The money moves.<br><span class="grad-w">The trust does not.</span><br><span class="blue">Until now.</span></h1>
+      <div class="supports">
+        <span>Money for everyone. Technology, invisible.</span>
+        <span>Every peso and rupiah, a public receipt.</span>
+        <span>Trust the contract, not the brand.</span>
+      </div>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="https://salapi.app" target="_blank" rel="noopener">Open the app <span class="arr">â†’</span></a>
+        <a class="btn btn-ghost" href="#features">See how it works</a>
+      </div>
+      <div class="trust-row">
+        <span class="trust-item">
+          <span class="stellar-lk"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 7.5C8 4 13.5 4.5 21 9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M3 12c5-2.2 11-1.8 18 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" opacity="0.7"/><path d="M3 16.5c6-1.4 12 0 18 2.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" opacity="0.45"/></svg></span>
+          Powered by Stellar
+        </span>
+        <span class="trust-item">â˜… AIBC 2026 Finalist</span>
+        <span class="trust-item">Made in <span class="eb-flags"><img class="eb-flag" src="salapi-v15/flags/ph.svg" alt="Philippines" /><span class="flag-sep"></span><img class="eb-flag" src="salapi-v15/flags/id.svg" alt="Indonesia" /></span></span>
+        <span class="chip chip-vision"><span class="dot"></span>TESTNET</span>
+      </div>
+    </div>
+
+    <div class="stage reveal">
+      <div class="phone">
+        <div class="island"></div>
+        <img src="salapi-v15/img/home2.png" alt="Salapi app home â€” pesos balance with a live, crypto-invisible status" loading="lazy" />
+      </div>
+      <div class="float-chip float-verify">
+        <span class="ck">âœ“</span>
+        <span>Verified on Stellar <span class="sub">Â· no login</span></span>
+      </div>
+      <div class="float-chip float-tx">
+        <span>tx <b>c3c4af1bâ€¦23cd21b</b></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ 2 Â· PROBLEM â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+<section id="problem">
+  <div class="wrap">
+    <div class="reveal" style="max-width:760px;margin-bottom:54px;">
+      <p class="eyebrow">The problem</p>
+      <h2 class="h-sec">The rails work.<br><span class="grad-w">Trust doesn't.</span></h2>
+      <p class="lead" style="margin-top:24px;">Across the region, the money keeps flowing: into causes, into projects, into queues. What disappears is the proof. Two of the biggest markets on earth share the same wound.</p>
+    </div>
+
+    <div class="prob-grid">
+      <div class="card card-pad country reveal">
+        <div class="head">
+          <img class="flag" src="salapi-v15/flags/ph.svg" alt="Flag of the Philippines" />
+          <span class="ctry">Philippines Â· 2025</span>
+        </div>
+        <div class="stat"><span class="u">â‚±545B</span><span class="cap">flood-control scandal</span></div>
+        <p class="desc"><b style="color:var(--w);font-weight:600;">421 ghost projects.</b> Relief and infrastructure budgets booked against work that was never built. The funds left the treasury; the proof never did.</p>
+        <p class="src">SOURCE Â· PH flood-control audit, 2025</p>
+      </div>
+
+      <div class="card card-pad country reveal">
+        <div class="head">
+          <img class="flag" src="salapi-v15/flags/id.svg" alt="Flag of Indonesia" />
+          <span class="ctry">Indonesia Â· 2022</span>
+        </div>
+        <div class="stat"><span class="u">$113.9M</span><span class="cap">ACT diversion</span></div>
+        <p class="desc"><b style="color:var(--w);font-weight:600;">More than half</b> of the donations raised by a major charity were diverted from their stated cause. The license was revoked. The money was already gone.</p>
+        <p class="src">SOURCE Â· ACT (Aksi Cepat Tanggap) case, 2022</p>
+      </div>
+    </div>
+
+    <div class="statstrip reveal">
+      <div class="s">
+        <div class="n">94M</div>
+        <div class="t">GCash users in the Philippines. A market already living on digital money.</div>
+      </div>
+      <div class="s">
+        <div class="n">~98M</div>
+        <div class="t">Indonesians still unbanked, locked outside the formal financial system.</div>
+      </div>
+      <div class="s">
+        <div class="n zero">~0%</div>
+        <div class="t">of them hold crypto. The gap was never technology. It was always proof.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="wrap"><div class="divider"></div></div>
+
+<!-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ 3 Â· DISASTER VAULT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+<section id="disaster">
+  <div class="wrap spot">
+    <div class="reveal">
+      <p class="eyebrow green">Spotlight Â· Disaster Vault</p>
+      <h2 class="h-sec">Humans approve.<br><span class="green">The chain proves.</span></h2>
+      <p class="lead">Donations don't sit in someone's account â€” they sit in a smart contract. A public, no-login dashboard shows every contribution and every disbursement as an on-chain receipt. Anyone can audit it. No one can quietly move it.</p>
+
+      <div class="chip-set" style="margin-bottom:28px;">
+        <span class="chip chip-live"><span class="dot"></span>100% to beneficiary</span>
+        <span class="chip chip-blue"><span class="dot"></span>On-chain receipts</span>
+        <span class="chip chip-neutral">Audit without login</span>
+      </div>
+
+      <div class="pool">
+        <div>
+          <div class="big num">$237<span class="cents">.32</span></div>
+          <div class="lbl">Pool total Â· live on-chain (testnet)</div>
+        </div>
+        <div style="flex:1;min-width:160px;">
+          <div class="meter"><i style="width:74%"></i></div>
+          <div class="lbl" style="margin-top:12px;">Disburse gate Â· <span style="color:var(--green-bright)">Enforced</span> â€” releases only while a disaster is active</div>
+        </div>
+      </div>
+
+      <div class="label-split">
+        <div class="label-box">
+          <div class="tag live"><span class="dot" style="width:7px;height:7px;border-radius:999px;background:var(--green-bright);"></span>Live Â· Day-30</div>
+          <p>Into-vault contribution, rule-gated multi-key release, and the public proof dashboard.</p>
+        </div>
+        <div class="label-box">
+          <div class="tag vis"><span class="dot" style="width:7px;height:7px;border-radius:999px;background:var(--amber-bright);"></span>Vision Â· Build-Award</div>
+          <p>Donor DAO governance and the AI Tribunal for disputed disbursements.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="spot-media reveal">
+      <div class="glow-card">
+        <div class="term">
+          <div class="term-bar">
+            <span class="dots"><i></i><i></i><i></i></span>
+            <span class="name">verifiable_trail.stellar</span>
+            <span class="net"><span class="chip chip-live"><span class="dot"></span>TESTNET</span></span>
+          </div>
+          <div class="tx"><span class="ix">01</span><span class="op"><span class="fn">deploy</span> disaster_vault</span><span class="lnk">â†—</span></div>
+          <div class="tx"><span class="ix">02</span><span class="op"><span class="fn">register</span>(@juandelacruz)</span><span class="lnk">â†—</span></div>
+          <div class="tx"><span class="ix">03</span><span class="op"><span class="fn">register</span>(@budisantoso)</span><span class="lnk">â†—</span></div>
+          <div class="tx"><span class="ix">04</span><span class="op"><span class="fn">contribute</span>(<span class="ar">5 XLM</span>)</span><span class="amt">+ â‚±240.00</span><span class="lnk">â†—</span></div>
+          <div class="tx"><span class="ix">05</span><span class="op"><span class="fn">contribute</span>(<span class="ar">8 XLM</span>)</span><span class="amt">+ Rp 122,000</span><span class="lnk">â†—</span></div>
+          <div class="tx"><span class="ix">06</span><span class="op"><span class="fn">disburse</span>(<span class="ar">2 XLM</span>) Â· gated</span><span class="amt out">âˆ’ â‚±96.00</span><span class="lnk">â†—</span></div>
+          <div class="term-foot">
+            <span class="meta">tx c3c4af1bâ€¦23cd21b Â· ledger 2,878,582</span>
+            <a class="verify-btn" href="https://stellar.expert" target="_blank" rel="noopener">Verify on stellar.expert â†’</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ 4 Â· PALUWAGAN / ARISAN â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+<section id="paluwagan">
+  <div class="wrap spot rev">
+    <div class="reveal">
+      <p class="eyebrow green">Spotlight Â· Paluwagan / Arisan</p>
+      <h2 class="h-sec">The contract<br>is the organiser.</h2>
+      <p class="lead">The community savings circle is centuries old â€” and so is the risk that the organiser runs off with the pot. Salapi removes the organiser entirely. The contract holds every share, auto-pays on contribution day, and makes every cycle auditable.</p>
+
+      <div class="feat-list">
+        <div class="feat-row">
+          <span class="ic">ðŸ”’</span>
+          <div><h4>No organiser can abscond</h4><p>The pot lives in code, not in a person's pocket. There's nothing to run away with.</p></div>
+        </div>
+        <div class="feat-row">
+          <span class="ic">âŸ³</span>
+          <div><h4>Auto-pay on contribution day</h4><p>The contract draws a fair winner and releases the pot on schedule â€” no chasing, no excuses.</p></div>
+        </div>
+        <div class="feat-row">
+          <span class="ic">â—Ž</span>
+          <div><h4>Every cycle auditable</h4><p>Each round is an on-chain receipt. The whole circle can read the same ledger.</p></div>
+        </div>
+      </div>
+
+      <div class="chip-set">
+        <span class="chip chip-live"><span class="dot"></span>Live Â· Day-30</span>
+        <span class="chip chip-neutral">Paluwagan PH Â· Arisan ID</span>
+      </div>
+
+      <div class="cases" style="margin-top:28px;">
+        <div class="case">
+          <span class="ic">âš </span>
+          <div><div class="amt">â‚±2M lost</div><div class="d">"Repa" paluwagan collapse â€” organiser vanished with the pooled funds. (PH)</div></div>
+        </div>
+        <div class="case">
+          <span class="ic">âš </span>
+          <div><div class="amt">Rp 1.1B lost</div><div class="d">Arisan bodong fraud case handled by Polda Jatim. (ID)</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="spot-media reveal">
+      <div class="stage" style="min-height:auto;">
+        <div class="phone" style="width:clamp(250px,22vw,300px);">
+          <div class="island"></div>
+          <img src="salapi-v15/img/paluwagan2.png" alt="Salapi paluwagan circle â€” the pot held by a contract, rounds and shares shown" loading="lazy" />
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="wrap"><div class="divider"></div></div>
+
+<!-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ 5 Â· SMART SAVINGS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+<section id="savings">
+  <div class="wrap spot">
+    <div class="reveal">
+      <p class="eyebrow green">Spotlight Â· Smart Savings</p>
+      <h2 class="h-sec">A goal vault<br><span class="green">the contract guards.</span></h2>
+      <p class="lead">Lock money toward a target and let the contract hold it the whole way â€” no willpower required, no balance to second-guess. Goal vaults are on-chain, so the money is exactly where it says it is.</p>
+
+      <div class="modes">
+        <div class="mode">
+          <div class="mh"><span class="chip chip-blue"><span class="dot"></span>Flexible</span></div>
+          <div class="mt" style="margin-bottom:6px;">Withdraw anytime</div>
+          <p>Save toward a goal but keep the door open. Pull funds whenever life happens.</p>
+        </div>
+        <div class="mode">
+          <div class="mh"><span class="chip chip-live"><span class="dot"></span>Disciplined</span></div>
+          <div class="mt" style="margin-bottom:6px;">Locked to target</div>
+          <p>The contract won't release until you hit the goal. Commitment, enforced by code.</p>
+        </div>
+      </div>
+
+      <div class="chip-set">
+        <span class="chip chip-live"><span class="dot"></span>Live Â· Day-30</span>
+        <span class="chip chip-vision"><span class="dot"></span>Allocator v1 Â· rule-based engine</span>
+      </div>
+    </div>
+
+    <div class="spot-media reveal">
+      <div class="stage" style="min-height:auto;">
+        <div class="phone" style="width:clamp(250px,22vw,300px);">
+          <div class="island"></div>
+          <img src="salapi-v15/img/savings.png" alt="Salapi smart savings â€” goal reached, locked on-chain, release to balance" loading="lazy" />
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ 6 Â· FRICTIONLESS MONEY â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+<section id="features">
+  <div class="wrap">
+    <div class="reveal" style="max-width:780px;margin-bottom:50px;">
+      <p class="eyebrow">Spotlight Â· Frictionless money</p>
+      <h2 class="h-sec">Looks like GCash.<br><span class="grad-w">Moves like the internet.</span></h2>
+      <p class="lead" style="margin-top:24px;">One Google login creates a Stellar wallet in the background â€” you never see a token, a seed phrase, or a 56-character address. You see pesos and rupiah. The chain stays invisible; the proof stays public.</p>
+    </div>
+
+    <div class="steps reveal">
+      <div class="step">
+        <span class="n">01</span>
+        <div class="ic">ð—š</div>
+        <h4>Sign in with Google</h4>
+        <p>A Stellar wallet is created automatically. You get an account, never a key.</p>
+        <div class="chip-set" style="margin-top:16px;"><span class="chip chip-live"><span class="dot"></span>No seed phrase</span></div>
+      </div>
+      <div class="step">
+        <span class="n">02</span>
+        <div class="ic">â–¦</div>
+        <h4>Top up in your currency</h4>
+        <p>Cash in via GCash in PH or QRIS in ID. Local money in, local money out.</p>
+        <div class="chip-set" style="margin-top:16px;"><span class="chip chip-vision"><span class="dot"></span>GCash Â· QRIS sandbox</span></div>
+      </div>
+      <div class="step">
+        <span class="n">03</span>
+        <div class="ic">âž¤</div>
+        <h4>Send by @username</h4>
+        <p>Pay @maria or @budi like a message â€” no addresses, settles in seconds.</p>
+        <div class="chip-set" style="margin-top:16px;"><span class="chip chip-live"><span class="dot"></span>Live on testnet</span></div>
+      </div>
+      <div class="step">
+        <span class="n">04</span>
+        <div class="ic">â‡„</div>
+        <h4>Cross-border, instantly</h4>
+        <p>Manila â†” Jakarta in seconds. Each user sees only their own currency.</p>
+        <div class="chip-set" style="margin-top:16px;"><span class="chip chip-blue"><span class="dot"></span>One rail, two markets</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="wrap"><div class="divider"></div></div>
+
+<!-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ 7 Â· HONEST CREATOR ECONOMY â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+<section id="creator">
+  <div class="wrap spot rev">
+    <div class="reveal">
+      <p class="eyebrow amber">Spotlight Â· Honest Creator Economy <span style="color:var(--amber-bright);margin-left:6px;">Â· Vision</span></p>
+      <h2 class="h-sec">A system failure,<br>not a person.</h2>
+      <p class="lead">In 2017, the Cak Budi case became a cautionary tale â€” but the real failure was structural. The donation rail offered <b style="color:var(--w);font-weight:600;">no honest way to fund operations</b>: no disclosure, no cap, no escrow, no dispute path. When the only options are "take nothing" or "take quietly," the system is the problem.</p>
+      <p class="lead" style="margin-top:18px;">Salapi's answer is to make the honest path the default â€” and put the rules on-chain.</p>
+
+      <div class="chip-set" style="margin-top:24px;">
+        <span class="chip chip-vision"><span class="dot"></span>Build-Award Â· Vision</span>
+      </div>
+    </div>
+
+    <div class="spot-media reveal">
+      <div class="alloc">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;">
+          <span style="font-family:var(--mono);font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:var(--w50);">Allocation Â· default</span>
+          <span class="mono" style="font-size:13px;color:var(--green-bright);">100% to cause</span>
+        </div>
+        <div class="seg"><span class="to-cause" style="width:100%"></span></div>
+        <div class="legend">
+          <span><i style="background:var(--green-bright)"></i>To the cause â€” default <b style="color:var(--w);font-weight:600;">0% ops</b></span>
+          <span><i style="background:var(--amber-bright)"></i>Operational allowance â€” capped at 10%</span>
+        </div>
+
+        <div class="guards">
+          <div class="guard"><span class="ck">âœ“</span><div><b>Capped at 10%</b> â€” operational allowance can never exceed it.</div></div>
+          <div class="guard"><span class="ck">âœ“</span><div><b>Disclosed upfront</b> â€” shown before anyone gives.</div></div>
+          <div class="guard"><span class="ck">âœ“</span><div><b>Donor consent</b> â€” opt-in before the gift, not after.</div></div>
+          <div class="guard"><span class="ck">âœ“</span><div><b>Escrowed</b> â€” held until proof of delivery.</div></div>
+          <div class="guard"><span class="ck">âœ“</span><div><b>7-day dispute window</b> â€” built into the contract.</div></div>
+          <div class="guard"><span class="ck">âœ“</span><div><b>Defaults to 0%</b> â€” honesty is the starting point.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="wrap"><div class="divider"></div></div>
+
+<!-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ 8 Â· WHY BIG â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+<section id="market">
+  <div class="wrap">
+    <div class="reveal" style="margin-bottom:44px;">
+      <p class="eyebrow">Why this is big</p>
+      <div class="bignum"><span class="v num">370M</span><span class="u">people</span></div>
+      <p class="lead" style="margin-top:24px;">One rail, many markets. The same contracts that settle a peso in Manila settle a rupiah in Jakarta â€” and the diaspora that sends money home becomes a cross-border donor base, reachable with one Google login.</p>
+    </div>
+
+    <div class="market-split reveal">
+      <div class="market">
+        <img class="flag" src="salapi-v15/flags/ph.svg" alt="Flag of the Philippines" style="width:34px;height:23px;border-radius:5px;flex:0 0 auto;object-fit:cover;box-shadow:0 1px 4px rgba(0,0,0,.4);" />
+        <div><div class="v num">108M</div><div class="t">Philippines</div></div>
+      </div>
+      <div class="market">
+        <img class="flag" src="salapi-v15/flags/id.svg" alt="Flag of Indonesia" style="width:34px;height:23px;border-radius:5px;flex:0 0 auto;object-fit:cover;box-shadow:0 1px 4px rgba(0,0,0,.4);" />
+        <div><div class="v num">264M</div><div class="t">Indonesia</div></div>
+      </div>
+    </div>
+
+    <div class="diaspora reveal">
+      <span class="v num">~$53B</span>
+      <span class="t"><b style="color:var(--w);font-weight:600;">sent home every year</b> by the PH + ID diaspora. Salapi puts that flow on one borderless rail â€” with a public receipt on every peso and rupiah.</span>
+    </div>
+  </div>
+</section>
+
+<!-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ 9 Â· BUSINESS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+<section id="business">
+  <div class="wrap">
+    <div class="reveal" style="max-width:760px;margin-bottom:48px;">
+      <p class="eyebrow blue">The business</p>
+      <h2 class="h-sec">On the rail,<br><span class="grad-w">not on donations.</span></h2>
+      <p class="lead" style="margin-top:24px;">Salapi never skims a cause. We charge a transparent, posted fee on the rail â€” the way GoFundMe does, not the opaque way some platforms do. A company, not just an app.</p>
+    </div>
+
+    <div class="rev-grid reveal">
+      <div class="rev">
+        <div class="ic">%</div>
+        <h4>Transparent rail fee</h4>
+        <p>A flat, posted fee (~5%) on the rail â€” visible upfront, never a hidden cut of the cause.</p>
+        <div class="badge chip-set"><span class="chip chip-blue"><span class="dot"></span>Posted, not opaque</span></div>
+      </div>
+      <div class="rev">
+        <div class="ic">âŒ—</div>
+        <h4>Transparent-rails SaaS</h4>
+        <p>B2B infrastructure for NGOs, cooperatives, and LGUs that need auditable money movement.</p>
+        <div class="badge chip-set"><span class="chip chip-neutral">B2B</span></div>
+      </div>
+      <div class="rev">
+        <div class="ic">â‡„</div>
+        <h4>FX spread</h4>
+        <p>A modest spread on cross-border peso â†” rupiah flow, settled in seconds on Stellar.</p>
+        <div class="badge chip-set"><span class="chip chip-neutral">Cross-border</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="wrap"><div class="divider"></div></div>
+
+<!-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ 10 Â· THE ASK + TEAM â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+<section id="ask">
+  <div class="wrap">
+    <div class="ask-grid">
+      <div class="reveal">
+        <p class="eyebrow green">The ask</p>
+        <h2 class="h-sec">Day-30 is live.<br><span class="green">Verifiable, today.</span></h2>
+        <p class="lead" style="margin-top:22px;">Five contracts are deployed on Stellar testnet right now â€” Disaster Vault, Paluwagan/Arisan, Smart Savings, Send-by-@, and the public proof layer. You don't have to take our word for any of it.</p>
+
+        <div class="ask-points">
+          <div class="ask-point"><span class="k">Live now</span><span class="b"><b>5 contracts on Stellar testnet</b>, each verifiable on stellar.expert â€” no login required.</span></div>
+          <div class="ask-point"><span class="k">Raising</span><span class="b"><b>$200K on a SAFE</b> â†’ mainnet in 90 days.</span></div>
+          <div class="ask-point"><span class="k">Compliance</span><span class="b">Licensed <b>PH + ID anchors</b> for regulated cash-in / cash-out.</span></div>
+          <div class="ask-point"><span class="k">Traction</span><span class="b">First <b>10,000 users</b> across 2 pilot cities.</span></div>
+        </div>
+      </div>
+
+      <div class="reveal">
+        <div class="metricbox">
+          <div class="row"><span class="v num">$200K</span><span class="l">on a SAFE</span></div>
+          <div class="row"><span class="v num">90 days</span><span class="l">to mainnet</span></div>
+          <div class="row"><span class="v num">5</span><span class="l">contracts live on testnet</span></div>
+          <div class="row"><span class="v num">10,000</span><span class="l">users Â· 2 pilot cities</span></div>
+        </div>
+        <a class="verify-btn" href="https://stellar.expert" target="_blank" rel="noopener" style="margin-top:18px;">Read a contract on stellar.expert â†’</a>
+      </div>
+    </div>
+
+    <div class="reveal" style="margin-top:72px;">
+      <p class="eyebrow" style="margin-bottom:8px;">The team</p>
+      <div class="team">
+        <div class="member"><div class="av">MA</div><div class="nm">M. Ariq Hermawan</div><div class="rl">Founder &amp; CEO</div></div>
+        <div class="member"><div class="av">EF</div><div class="nm">Edwin Farrel Juniawan</div><div class="rl">Co-Founder &amp; CTO</div></div>
+        <div class="member"><div class="av">SJ</div><div class="nm">Steve Jimenez</div><div class="rl">Co-Founder &amp; CMO</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ FINAL CTA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+<section style="padding-top:0;">
+  <div class="wrap">
+    <div class="final reveal">
+      <p class="eyebrow" style="justify-content:center;display:inline-flex;">Open the app</p>
+      <h2 class="h-sec">Money for everyone.<br><span class="grad-w">Proof for everyone.</span></h2>
+      <p class="lead">Sign in with Google and send your first peso or rupiah with a receipt anyone can read.</p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="https://salapi.app" target="_blank" rel="noopener">Open salapi.app <span class="arr">â†’</span></a>
+        <a class="btn btn-ghost" href="#disaster">Read a public receipt</a>
+      </div>
+      <div style="margin-top:26px;display:flex;justify-content:center;">
+        <span class="chip chip-vision"><span class="dot"></span>TESTNET PREVIEW Â· sandbox payments Â· not live mainnet money</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ FOOTER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-col">
+        <a class="brand" href="#top" style="margin-bottom:0;"><span class="mark"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M 44 22 A 13 13 0 1 0 32 35 A 13 13 0 1 1 20 48" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/></svg></span> Salapi</a>
+        <p class="foot-blurb">Money for everyone. Technology, invisible. A crypto-invisible money app for the Philippines and Indonesia â€” built on Stellar.</p>
+        <span class="poweredby" style="display:inline-flex;">Powered by
+          <span class="stellar-lk"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 7.5C8 4 13.5 4.5 21 9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M3 12c5-2.2 11-1.8 18 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" opacity="0.7"/><path d="M3 16.5c6-1.4 12 0 18 2.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" opacity="0.45"/></svg><span class="wm">Stellar</span></span>
+        </span>
+      </div>
+      <div class="foot-col">
+        <h5>Product</h5>
+        <a href="#features">How it works</a>
+        <a href="#disaster">Disaster Vault</a>
+        <a href="#paluwagan">Paluwagan / Arisan</a>
+        <a href="#savings">Smart Savings</a>
+        <a href="https://salapi.app" target="_blank" rel="noopener">salapi.app</a>
+      </div>
+      <div class="foot-col">
+        <h5>Trust</h5>
+        <a href="https://stellar.expert" target="_blank" rel="noopener">Public receipts</a>
+        <a href="#disaster">Built on Stellar</a>
+        <a href="https://aibc.world/news/aibc-startup-pitch-2026-finalists-announced/" target="_blank" rel="noopener">AIBC 2026 Finalist â†—</a>
+        <a href="#problem">The problem</a>
+      </div>
+    </div>
+
+    <div class="foot-bottom">
+      <span class="copy">Â© 2026 Salapi by Catatu. Money for everyone.</span>
+      <div class="honesty">
+        <span class="chip chip-vision"><span class="dot"></span>TESTNET / PREVIEW</span>
+        <span class="chip chip-neutral">SANDBOX payments</span>
+        <span class="chip chip-neutral">Not live mainnet money</span>
+      </div>
+    </div>
+
+    <p class="disclaimer">"Powered by Stellar" denotes ecosystem alignment, not affiliation. Salapi is not affiliated with Stellar Aid Assist, UNHCR, IRC, or MoneyGram. This is a testnet / preview build; payments are sandboxed and do not represent live mainnet money movement. On-chain figures shown are real testnet values verifiable on stellar.expert; any other figures are illustrative.</p>
+  </div>
+</footer>
+
+<script>
+(function(){
+  // Sticky nav state
+  var nav = document.getElementById('nav');
+  var onScroll = function(){
+    if (window.scrollY > 18) nav.classList.add('scrolled');
+    else nav.classList.remove('scrolled');
+  };
+  onScroll();
+  window.addEventListener('scroll', onScroll, {passive:true});
+
+  // Reveal on scroll (only when motion is allowed; otherwise content is visible by default)
+  var allowMotion = window.matchMedia('(prefers-reduced-motion: no-preference)').matches;
+  var els = [].slice.call(document.querySelectorAll('.reveal'));
+  var reveal = function(el){ el.classList.add('in'); };
+
+  if (allowMotion && 'IntersectionObserver' in window){
+    // Anything already in (or near) the first viewport reveals immediately â€” no async wait.
+    var vh = window.innerHeight;
+    els.forEach(function(el){
+      if (el.getBoundingClientRect().top < vh * 0.92) reveal(el);
+    });
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if (e.isIntersecting){ reveal(e.target); io.unobserve(e.target); }
+      });
+    }, {threshold:0.12, rootMargin:'0px 0px -8% 0px'});
+    els.forEach(function(el){ if (!el.classList.contains('in')) io.observe(el); });
+    // Failsafe: never leave content hidden.
+    setTimeout(function(){ els.forEach(reveal); }, 2500);
+  } else {
+    els.forEach(reveal);
+  }
+})();
+</script>
+
+<script>
+/* â”€â”€ Signature: flowing-money ribbon. Layered additive sine filaments
+   in Salapi blueâ†’cyanâ†’indigoâ†’violet, weaving like a current of value.
+   GPU-light (no per-stroke shadow), pauses when hidden, and degrades to
+   a static blue gradient under prefers-reduced-motion. â”€â”€ */
+(function(){
+  var c = document.getElementById('flow');
+  if(!c || !c.getContext) return;
+  var reduce = !window.matchMedia('(prefers-reduced-motion: no-preference)').matches;
+  if(reduce) return; // CSS shows .static-grad instead
+  var ctx = c.getContext('2d');
+  var dpr = Math.min(window.devicePixelRatio || 1, 2);
+  var W = 0, H = 0;
+  var ctl = (window.__ribbonCtl = window.__ribbonCtl || { intensity:1, motion:true });
+
+  function resize(){
+    var r = c.getBoundingClientRect();
+    W = Math.max(1, r.width); H = Math.max(1, r.height);
+    c.width = Math.round(W*dpr); c.height = Math.round(H*dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  resize();
+  window.addEventListener('resize', resize, {passive:true});
+  window.addEventListener('load', function(){ resize(); draw(t); });
+  if('ResizeObserver' in window){ new ResizeObserver(function(){ resize(); }).observe(c); }
+
+  function ribbonGrad(){
+    var g = ctx.createLinearGradient(0,0,W,0);
+    g.addColorStop(0.00,'rgba(37,99,235,0)');
+    g.addColorStop(0.16,'rgba(37,99,235,0.85)');
+    g.addColorStop(0.44,'rgba(56,189,248,0.95)');
+    g.addColorStop(0.68,'rgba(99,102,241,0.90)');
+    g.addColorStop(0.88,'rgba(124,92,255,0.80)');
+    g.addColorStop(1.00,'rgba(124,92,255,0)');
+    return g;
+  }
+
+  // halo bands (soft bloom) + filaments (current detail)
+  var halos = [], fils = [], coins = [];
+  function build(){
+    halos = []; fils = []; coins = [];
+    for(var i=0;i<4;i++){
+      halos.push({off:(i-1.5), amp:34+Math.random()*22, len:0.0012+Math.random()*0.0007,
+                  ph:Math.random()*6.28, sp:0.16+Math.random()*0.08,
+                  lw:38+Math.random()*34, a:0.05+Math.random()*0.025});
+    }
+    for(var j=0;j<15;j++){
+      var d = Math.abs(j-7)/7;
+      fils.push({off:(j-7), amp:24+Math.random()*20, len:0.0014+Math.random()*0.0011,
+                 ph:Math.random()*6.28, sp:0.18+Math.random()*0.16,
+                 lw:0.9+Math.random()*1.1, a:0.07+(1-d)*0.13});
+    }
+    for(var k=0;k<26;k++){
+      coins.push({x:Math.random(), y:Math.random(), r:0.6+Math.random()*1.6,
+                  sp:0.012+Math.random()*0.03, a:0.10+Math.random()*0.28});
+    }
+  }
+  build();
+
+  function draw(t){
+    if(W < 10 || H < 10){ return; }
+    ctx.clearRect(0,0,W,H);
+    ctx.globalCompositeOperation = 'lighter';
+    var cy = H*0.50;
+    var bandGap = Math.min(H*0.020, 18);
+    var slope = H*0.10;            // gentle diagonal drift, upward to the right
+    var g = ribbonGrad();
+
+    function stroke(arr){
+      for(var i=0;i<arr.length;i++){
+        var L = arr[i];
+        ctx.beginPath();
+        for(var x=0;x<=W;x+=9){
+          var p = x/W;
+          var y = cy + (p-0.5)*slope + L.off*bandGap
+                + Math.sin(x*L.len + L.ph + t*L.sp)*L.amp
+                + Math.sin(x*L.len*0.5 + t*L.sp*0.55 + L.ph)*L.amp*0.38;
+          if(x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+        }
+        ctx.strokeStyle = g; ctx.globalAlpha = L.a * ctl.intensity; ctx.lineWidth = L.lw;
+        ctx.lineCap='round'; ctx.stroke();
+      }
+    }
+    stroke(halos);
+    stroke(fils);
+
+    // drifting "coins" â€” faint value in motion
+    for(var i=0;i<coins.length;i++){
+      var co = coins[i];
+      co.x += co.sp*0.0016*60/60;
+      if(co.x>1.06) co.x = -0.06;
+      var px = co.x*W;
+      var py = cy + (co.x-0.5)*slope + (co.y-0.5)*H*0.34
+             + Math.sin(px*0.0016 + t*0.4 + co.y*6)*16;
+      ctx.beginPath();
+      ctx.arc(px, py, co.r, 0, 6.283);
+      ctx.fillStyle = 'rgba(150,200,255,1)';
+      ctx.globalAlpha = co.a*0.6*ctl.intensity;
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  var t = 0, last = performance.now(), raf = null;
+  function loop(now){
+    var dt = Math.min((now-last)/1000, 0.05); last = now;
+    t += dt; draw(t);
+    raf = requestAnimationFrame(loop);
+  }
+  function start(){ if(!raf){ last = performance.now(); raf = requestAnimationFrame(loop); } }
+  function stop(){ if(raf){ cancelAnimationFrame(raf); raf = null; } }
+  // paint a static frame synchronously so the ribbon shows even before
+  // (or without) rAF ticking, then animate on top.
+  requestAnimationFrame(function(){ resize(); draw(0); });
+  draw(0);
+  if(ctl.motion) start();
+  // expose live controls for the Tweaks panel
+  ctl.setIntensity = function(v){ ctl.intensity = v; draw(t); };
+  ctl.setMotion = function(on){ ctl.motion = !!on; if(on) start(); else stop(); };
+  document.addEventListener('visibilitychange', function(){
+    if(document.hidden){ stop(); }
+    else if(ctl.motion){ start(); }
+  });
+})();
+</script>
+
+
+<template id="__bundler_thumbnail">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+    <rect width="100" height="100" fill="#07070a"/>
+    <rect x="33" y="30" width="34" height="34" rx="10" fill="#2563eb"/>
+    <text x="50" y="55" font-family="Geist, sans-serif" font-size="22" font-weight="800" fill="#fff" text-anchor="middle">S</text>
+  </svg>
+</template>
+
+</body>
+</html>

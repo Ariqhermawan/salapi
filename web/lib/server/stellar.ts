@@ -240,3 +240,97 @@ export async function invokeAs(
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
 }
+
+// ── Fee sponsorship (gasless via fee-bump, CAP-0015) ──────────────────────────
+// L6 advanced feature. A dedicated sponsor account pays the network fee so the
+// user's wallet pays nothing — gas disappears from the user account entirely,
+// deepening the crypto-invisible model. Opt-in: with no SALAPI_SPONSOR_SECRET
+// set, invokeSponsored() falls back to the normal user-paid invokeAs() (logged,
+// never silent), so current production behavior is unchanged until a sponsor is
+// provisioned + Friendbot-funded. See rise-in/L6-ADVANCED-FEATURE-DESIGN.md.
+
+function sponsorKeypair(): Keypair | null {
+  const s = process.env.SALAPI_SPONSOR_SECRET;
+  return s ? Keypair.fromSecret(s) : null;
+}
+
+/** Public key of the fee sponsor, or null when sponsorship is not configured. */
+export function sponsorPublic(): string | null {
+  const sk = sponsorKeypair();
+  if (sk) return sk.publicKey();
+  return process.env.SALAPI_SPONSOR_PUBLIC ?? null;
+}
+
+/** Sponsor gas-budget health: its native XLM balance, or null when unconfigured. */
+export async function sponsorBalance(): Promise<bigint | null> {
+  const pub = sponsorPublic();
+  return pub ? getNativeBalance(pub) : null;
+}
+
+/**
+ * Like invokeAs(), but the network fee is paid by the sponsor via a fee-bump:
+ * the USER stays the operation source (contract require_auth() still passes on
+ * the user, on-chain attribution unchanged) while the SPONSOR pays the fee. The
+ * user can hold zero XLM and still transact — the textbook gasless UX.
+ *
+ * Ordering matters: prepare + user-sign the inner tx FIRST (prepareTransaction
+ * mutates Soroban fees/footprint), THEN wrap it in the fee-bump, THEN
+ * sponsor-sign the outer envelope.
+ */
+export async function invokeSponsored(
+  userSecret: string,
+  contractId: string,
+  method: string,
+  args: xdr.ScVal[] = []
+): Promise<TxResult> {
+  const sk = sponsorKeypair();
+  if (!sk) {
+    console.warn(
+      "[invokeSponsored] SALAPI_SPONSOR_SECRET not set; using user-paid invokeAs()"
+    );
+    return invokeAs(userSecret, contractId, method, args);
+  }
+  try {
+    const srv = server();
+    const userKp = Keypair.fromSecret(userSecret);
+    const source = await srv.getAccount(userKp.publicKey());
+    const inner = new TransactionBuilder(source, {
+      fee: BASE_FEE,
+      networkPassphrase: Networks.TESTNET,
+    })
+      .addOperation(new Contract(contractId).call(method, ...args))
+      .setTimeout(60)
+      .build();
+    const prepared = await srv.prepareTransaction(inner); // Soroban prep on inner
+    prepared.sign(userKp); // user signs the inner envelope
+
+    // Wrap as a fee-bump: the sponsor pays. The outer fee must cover the inner
+    // (Soroban resource) fee; over-paying on testnet is harmless (sponsor pays).
+    const outerFee = (BigInt(prepared.fee) * 2n).toString();
+    const bump = TransactionBuilder.buildFeeBumpTransaction(
+      sk,
+      outerFee,
+      prepared,
+      Networks.TESTNET
+    );
+    bump.sign(sk); // sponsor signs the outer envelope
+
+    const sent = await srv.sendTransaction(bump);
+    if (sent.status === "ERROR")
+      return { ok: false, error: JSON.stringify(sent.errorResult ?? sent) };
+    let gt = await srv.getTransaction(sent.hash);
+    for (let i = 0; i < 30 && gt.status === "NOT_FOUND"; i++) {
+      await new Promise((r) => setTimeout(r, 1000));
+      gt = await srv.getTransaction(sent.hash);
+    }
+    if (gt.status === "SUCCESS")
+      return {
+        ok: true,
+        hash: sent.hash,
+        value: gt.returnValue != null ? scValToNative(gt.returnValue) : null,
+      };
+    return { ok: false, error: `tx ${gt.status} hash=${sent.hash}` };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}

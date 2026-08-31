@@ -20,7 +20,7 @@ import {
   pesosToStroopsExact,
   type MoneyInput,
 } from "@/lib/money";
-import { getSigner } from "@/lib/server/userWallet";
+import { getSigner, currentWalletPublicKey } from "@/lib/server/userWallet";
 import { supabaseAdminConfigured } from "@/lib/supabase/env";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 
@@ -146,6 +146,25 @@ export async function myUsername() {
     ]);
     return typeof u === "string" ? u : null;
   } catch {
+    return null;
+  }
+}
+
+/**
+ * The signed-in user's own @handle for display, resolved READ-ONLY (never mints
+ * a wallet). Returns null for anonymous/demo visitors and for users with no
+ * wallet or no registered username, so the UI falls back to its brand label.
+ */
+export async function myHandle(): Promise<string | null> {
+  try {
+    const publicKey = await currentWalletPublicKey();
+    if (!publicKey) return null;
+    const u = await readContract(CONTRACTS.usernameRegistry, "username_of", [
+      sc.addr(publicKey),
+    ]);
+    return typeof u === "string" && u.length > 0 ? u : null;
+  } catch (e) {
+    console.error("[myHandle] username lookup failed:", e);
     return null;
   }
 }
@@ -442,11 +461,12 @@ export async function disasterState() {
 
 // ── Arisan Rooms (roomed prefund circles) ────────────────────────────────
 // Mirrors the paluwagan demo flow but built on the multi-room arisan_rooms
-// contract: every member locks N × share up front; each round kocok() picks a
-// random unwon member on-chain via Soroban PRNG and pays them the pot. After
-// N rounds, every member has won exactly once and the contract balance is 0.
-// Late payment / default / abscond are structurally impossible — there is no
-// payment owed after join.
+// contract: every member locks N × share up front. Each round the draw is a
+// two-phase on-chain PRNG — seal_kocok stores a Soroban-PRNG seed for the
+// round, then kocok pays unwon[seed % pool.len] — so no caller can choose the
+// winner. After N rounds every member has won exactly once and the contract
+// balance is 0. Late payment / default / abscond are structurally impossible —
+// there is no payment owed after join.
 
 export type ArisanCadence = "Weekly" | "Biweekly" | "Monthly";
 export type ArisanStatus = "Open" | "Active" | "Done" | "Dissolved";
@@ -783,46 +803,24 @@ export async function arisanKocok(roomId: number) {
   const s = await getSigner();
   const rid = Number(roomId);
 
-  // Read the live unwon-pool size so we know the index range. The contract
-  // re-validates the bound; this read is purely to scope the CSPRNG draw.
-  const members =
-    ((await readContract(id, "get_members", [sc.u32(rid)])) as string[]) || [];
-  if (members.length === 0)
-    return { ok: false as const, error: "Room has no members" };
-  const wonFlags = await Promise.all(
-    members.map(
-      async (m) =>
-        Boolean(
-          await readContract(id, "has_won", [sc.u32(rid), sc.addr(m)])
-        ),
-    ),
-  );
-  const poolSize = wonFlags.filter((w) => !w).length;
-  if (poolSize === 0)
-    return { ok: false as const, error: "No eligible members in pool" };
-
-  // CSPRNG-drawn winner_idx, uniform over [0, poolSize). Rejection-sample
-  // a 32-bit window to avoid modulo bias when poolSize doesn't divide 2^32.
-  const u32buf = new Uint32Array(1);
-  const limit = Math.floor(0x1_0000_0000 / poolSize) * poolSize;
-  let winnerIdx = -1;
-  for (let i = 0; i < 64; i++) {
-    crypto.getRandomValues(u32buf);
-    if (u32buf[0] < limit) {
-      winnerIdx = u32buf[0] % poolSize;
-      break;
-    }
+  // Two-phase on-chain draw. The contract derives the winner from a sealed
+  // Soroban-PRNG seed, so NO caller (not even this server action) can choose
+  // who wins:
+  //   1. seal_kocok draws + stores the round's seed (one seal per round).
+  //   2. kocok reads that seed and pays unwon[seed % poolSize].
+  // We tolerate AlreadySealed (#13) so a retry — or another member having
+  // already sealed this round — still proceeds straight to the draw.
+  const sealed = await invokeAs(s.secret, id, "seal_kocok", [
+    sc.u32(rid),
+    sc.addr(s.publicKey),
+  ]);
+  if (!sealed.ok && !/Error\(Contract,\s*#13\)/.test(sealed.error ?? "")) {
+    return { ok: false as const, error: sealed.error };
   }
-  // Astronomically unlikely (poolSize ≤ 20 ⇒ rejection p < 5e-9 per draw), but
-  // never silently fall back to index 0 — that would bias the draw. Fail and
-  // let the host retry instead.
-  if (winnerIdx < 0)
-    return { ok: false as const, error: "Could not draw a fair winner, please retry" };
 
   const r = await invokeAs(s.secret, id, "kocok", [
     sc.u32(rid),
     sc.addr(s.publicKey),
-    sc.u32(winnerIdx),
   ]);
   if (!r.ok) return { ok: false as const, error: r.error };
   const winner = typeof r.value === "string" ? r.value : "";
@@ -835,10 +833,11 @@ export async function arisanKocok(roomId: number) {
 }
 
 /** Map raw Soroban contract trap strings to compact i18n keys the UI can
- *  render. The on-chain enum is `Error::{NotInitialized=1, …,
- *  NotHost=4, WrongStatus=5, InvalidParams=6, NotMember=7, AlreadyJoined=8,
- *  RoomFull=9, NotYet=10, AlreadyPostponed=11}` — when simulation fails the
- *  SDK surfaces `Error(Contract, #N)` somewhere in the message. */
+ *  render. The on-chain enum is `Error::{AlreadyInitialized=1, NotInitialized=2,
+ *  InvalidParams=3, NotFound=4, WrongStatus=5, NotHost=6, NotMember=7,
+ *  AlreadyJoined=8, RoomFull=9, NotYet=10, AlreadyPostponed=11, NotSealed=12,
+ *  AlreadySealed=13}` — when simulation fails the SDK surfaces
+ *  `Error(Contract, #N)` somewhere in the message. */
 function arisanFriendlyError(raw: string | undefined, fallbackKey: string) {
   const s = (raw ?? "").toString();
   const m = s.match(/Error\(Contract,\s*#(\d+)\)/);
@@ -846,11 +845,12 @@ function arisanFriendlyError(raw: string | undefined, fallbackKey: string) {
   const code = Number(m[1]);
   // Keep this list aligned with contracts/arisan_rooms/src/lib.rs Error.
   const map: Record<number, string> = {
-    4: "arisan.room.postponeOnlyHost",
     5: "arisan.somethingWrong", // WrongStatus — generic
-    6: "arisan.somethingWrong", // InvalidParams — generic
+    6: "arisan.room.postponeOnlyHost", // NotHost
     7: "arisan.somethingWrong", // NotMember — generic
     11: "arisan.room.alreadyPostponed",
+    12: "arisan.somethingWrong", // NotSealed — generic (UI seals before kocok)
+    13: "arisan.somethingWrong", // AlreadySealed — tolerated in arisanKocok
   };
   return map[code] ?? fallbackKey;
 }
@@ -970,8 +970,20 @@ export async function arisanRoomState(roomId: number) {
     // pre-start) fall back to firstKocok so the countdown line stays sensible.
     const cadenceSecs = ARISAN_CADENCE_SECS[room.cadence];
     const effectiveRound = Math.max(1, room.round);
-    const nextKocok =
-      room.firstKocok + (effectiveRound - 1) * cadenceSecs;
+    // Read the scheduled kocok time from chain (KocokAt) so a host postpone
+    // stays in sync with the "Kocok now" gate. Fall back to the computed
+    // cadence schedule only when chain has no value yet (e.g. Open pre-start).
+    let nextKocok = 0;
+    try {
+      nextKocok = Number(
+        (await readContract(id, "kocok_at", [sc.u32(rid), sc.u32(effectiveRound)])) ?? 0
+      );
+    } catch {
+      /* round not scheduled on-chain yet; fall back below */
+    }
+    if (!nextKocok) {
+      nextKocok = room.firstKocok + (effectiveRound - 1) * cadenceSecs;
+    }
     const pot = room.shareStroops * BigInt(room.memberTarget);
     const isMember = members.includes(me);
     const isHost = room.host === me;
@@ -1057,8 +1069,8 @@ export async function joinCirclesWaitlist(input: {
   // .env.local, or an environment without the service-role key): log it and
   // return ok so the preview flow stays clickable end-to-end.
   if (!supabaseAdminConfigured()) {
+    // Note: deliberately omit `email` (PII) from this preview-fallback log.
     console.log("[circles/waitlist] (preview, no Supabase configured)", {
-      email,
       circleId,
       pesoPledge,
       anonymous,
