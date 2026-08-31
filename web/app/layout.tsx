@@ -58,11 +58,13 @@ export default async function RootLayout({
   // prerendered page would ship those scripts with no nonce, and the CSP would
   // block them (blank screen). See proxy.ts.
   await connection();
-  // Vercel serves these same-origin endpoints for its analytics packages.
-  // Keeping the components out of local builds avoids requesting a missing
-  // `/_vercel/*` route that Next would answer with an HTML 404 document (and
-  // browsers correctly report as a MIME/CSP violation).
-  const isVercel = process.env.VERCEL === "1";
+  // Vercel serves these same-origin endpoints only after observability is
+  // enabled for the project. Keep them explicitly opt-in so local builds and
+  // deployments made before dashboard setup do not request a missing
+  // `/_vercel/*` route that Next/Vercel answers with an HTML 404 document.
+  const observabilityEnabled =
+    process.env.VERCEL === "1" &&
+    process.env.VERCEL_OBSERVABILITY_ENABLED === "1";
   return (
     <html
       lang="en"
@@ -93,8 +95,8 @@ export default async function RootLayout({
             Same-origin (/_vercel/insights/*), so the nonce CSP + strict-dynamic
             in proxy.ts cover them with no policy change. Data appears once
             Analytics/Speed Insights are enabled in the Vercel project. */}
-        {isVercel && <Analytics />}
-        {isVercel && <SpeedInsights />}
+        {observabilityEnabled && <Analytics />}
+        {observabilityEnabled && <SpeedInsights />}
       </body>
     </html>
   );

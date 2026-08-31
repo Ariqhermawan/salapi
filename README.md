@@ -223,7 +223,7 @@ Separated by status. Roadmap items are written as verifiable outputs, not vibes,
 
 **Shipped (testnet):** wallet + send-by-handle; disaster vault + transparency dashboard; prefund arisan with sealed on-chain draw; paluwagan; smart-savings; exact integer application money boundary; 4 locales; multi-currency display; nonce-CSP + security headers.
 
-**In progress:** draw hardening (VRF / commit-reveal); disaster-admin controls (multisig + cap + timelock); analytics enablement (Vercel Analytics and Speed Insights are wired, pending dashboard enable).
+**In progress:** draw hardening (VRF / commit-reveal); disaster-admin controls (multisig + cap + timelock); analytics enablement (Vercel Analytics and Speed Insights are wired, but opt-in until the Vercel dashboard endpoints are enabled).
 
 **Roadmap (not shipped):**
 
@@ -284,6 +284,7 @@ Before `npm run dev`, create `web/.env.local` with the values the server layer n
 - `PALUWAGAN_CONTRACT`, `SMARTSAVINGS_CONTRACT`, `ARISAN_ROOMS_CONTRACT` - the testnet contract IDs the app reads at runtime (the `disaster`, `username-registry`, and token SAC IDs are in `web/lib/server/stellar.ts`).
 - The wallet-encryption secret used for AES-256-GCM custody, and the Supabase secrets for sessions.
 - Optionally `SALAPI_SPONSOR_SECRET` to enable the opt-in gasless fee-bump path.
+- Set `VERCEL_OBSERVABILITY_ENABLED=1` only after Vercel Analytics and Speed Insights are enabled for the project; it is intentionally off by default so local/early deployments do not load unavailable `/_vercel/*` endpoints.
 
 See `SECURITY.md` for the security model and `DEPLOYMENTS.md` for the on-chain evidence trail.
 
