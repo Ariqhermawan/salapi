@@ -64,6 +64,16 @@ Public evidence:
 - [Pull request #3](https://github.com/Ariqhermawan/salapi/pull/3) — post-baseline D1 changes
 - [Green CI run 33364284156](https://github.com/Ariqhermawan/salapi/actions/runs/33364284156) — all three jobs passed
 
+## E2E public proof
+
+The [`web E2E (local)` workflow](../../.github/workflows/ci.yml) builds the
+production bundle, starts `next start` on a clean runner, and runs all 18
+Playwright tests against that local server with a disposable testnet signer.
+The latest run link is added here after the workflow completes:
+
+- [Public app](https://salapi.app)
+- [Public transparency proof](https://salapi.app/transparency)
+
 No contract was redeployed for D1: the inventory found no contract-side
 change was necessary. The pull request remains open for review; Deliverable 2
 is not part of this PR.

@@ -60,6 +60,67 @@ jobs:
       - name: Lint
         run: npm run lint
 
+  web-e2e-local:
+    name: web E2E (local)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install deps
+        run: npm ci
+
+      # Generate a disposable valid keypair so server-rendered balance reads
+      # exercise the same signer path without storing or exposing a secret.
+      - name: Configure ephemeral test signer
+        run: |
+          node - <<'NODE' >> "$GITHUB_ENV"
+          const { Keypair } = require("@stellar/stellar-sdk");
+          const kp = Keypair.random();
+          process.stdout.write(`SALAPI_DEMO_PUBLIC=${kp.publicKey()}\n`);
+          process.stdout.write(`SALAPI_DEMO_SECRET=${kp.secret()}\n`);
+          NODE
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Build production bundle
+        run: npm run build
+
+      - name: Start local production server
+        run: |
+          nohup npm run start -- -p 4747 >/tmp/salapi-e2e-server.log 2>&1 &
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent --show-error http://127.0.0.1:4747/ >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/salapi-e2e-server.log
+          exit 1
+
+      - name: Run Playwright E2E
+        env:
+          E2E_BASE_URL: http://127.0.0.1:4747
+        run: npm run test:e2e
+
+      - name: Upload E2E traces
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-local-traces
+          path: web/test-results
+          if-no-files-found: ignore
+
   money-path-integrity:
     name: money-path-integrity
     runs-on: ubuntu-latest
