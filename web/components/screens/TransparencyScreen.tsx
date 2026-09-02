@@ -89,7 +89,7 @@ export default function TransparencyScreen() {
     setPhase("processing");
     start(async () => {
       setErr("");
-      const r = await disasterContribute(pesoFromLocal(amt, currency));
+      const r = await disasterContribute({ amount, currency });
       if (r.ok) {
         setDone({ link: r.link });
         setPhase("done");

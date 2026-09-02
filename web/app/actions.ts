@@ -5,7 +5,6 @@ import {
   fmtPeso,
   getNativeBalance,
   invokeAs,
-  pesosToStroops,
   readContract,
   sc,
   stroopsToPesos,
@@ -16,16 +15,29 @@ import {
   arisanRoomsId,
   FRIENDS,
 } from "@/lib/server/stellar";
+import {
+  moneyInputToStroops,
+  pesosToStroopsExact,
+  type MoneyInput,
+} from "@/lib/money";
 import { getSigner, currentWalletPublicKey } from "@/lib/server/userWallet";
 import { supabaseAdminConfigured } from "@/lib/supabase/env";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 
-// Reject NaN, Infinity, zero, negatives, and absurd magnitudes before they
-// reach the stroop conversion / contract i128 args. The upper bound is an
-// anti-abuse / anti-overflow guard, not a product limit.
-const MAX_AMOUNT = 1_000_000_000;
-function badAmount(n: number): boolean {
-  return !Number.isFinite(n) || n <= 0 || n > MAX_AMOUNT;
+// Reject malformed, zero, negative, and absurd magnitudes before they reach
+// contract i128 args. The upper bound is an anti-abuse / anti-overflow guard,
+// not a product limit. Validation happens after localized input is converted
+// to integer stroops, so every action shares one exact boundary.
+const MAX_AMOUNT_STROOPS = pesosToStroopsExact("1000000000")!; // ₱1,000,000,000
+function amountStroops(input: unknown): bigint | null {
+  const stroops = moneyInputToStroops(input);
+  if (
+    stroops == null ||
+    stroops <= 0n ||
+    stroops > MAX_AMOUNT_STROOPS
+  )
+    return null;
+  return stroops;
 }
 
 export async function walletState() {
@@ -76,13 +88,14 @@ export async function withdrawSandbox(requested: number) {
   };
 }
 
-export async function disasterContribute(pesos: number) {
-  if (badAmount(pesos))
+export async function disasterContribute(input: MoneyInput) {
+  const amount = amountStroops(input);
+  if (amount == null)
     return { ok: false as const, error: "Enter a valid amount" };
   const s = await getSigner();
   const r = await invokeAs(s.secret, CONTRACTS.disaster, "contribute", [
     sc.addr(s.publicKey),
-    sc.i128(pesosToStroops(pesos)),
+    sc.i128(amount),
   ]);
   return r.ok
     ? { ok: true as const, hash: r.hash, link: txLink(r.hash) }
@@ -156,9 +169,10 @@ export async function myHandle(): Promise<string | null> {
   }
 }
 
-export async function sendByUsername(name: string, pesos: number) {
+export async function sendByUsername(name: string, input: MoneyInput) {
   const clean = name.trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
-  if (badAmount(pesos))
+  const amount = amountStroops(input);
+  if (amount == null)
     return { ok: false as const, error: "Enter a valid amount" };
   let to: string;
   try {
@@ -178,7 +192,7 @@ export async function sendByUsername(name: string, pesos: number) {
   const r = await invokeAs(s.secret, CONTRACTS.tokenXlmSac, "transfer", [
     sc.addr(s.publicKey),
     sc.addr(to),
-    sc.i128(pesosToStroops(pesos)),
+    sc.i128(amount),
   ]);
   return r.ok
     ? { ok: true as const, to, hash: r.hash, link: txLink(r.hash) }
@@ -345,19 +359,20 @@ export async function smartSavingsState() {
 }
 
 export async function smartSavingsOpen(
-  targetPesos: number,
+  input: MoneyInput,
   mode: "flexible" | "disciplined" = "disciplined"
 ) {
   const id = smartSavingsId();
   if (!id) return { ok: false as const, error: "Vault not set up" };
-  if (!(targetPesos > 0))
+  const target = amountStroops(input);
+  if (target == null)
     return { ok: false as const, error: "Enter a target amount" };
   const s = await getSigner();
   // Disciplined → far-future unlock (contract releases only at target).
   // Flexible → unlock already passed (contract permits withdraw anytime).
   const r = await invokeAs(s.secret, id, "open_goal", [
     sc.addr(s.publicKey),
-    sc.i128(pesosToStroops(targetPesos)),
+    sc.i128(target),
     sc.u32(mode === "flexible" ? FLEX_UNLOCK : LOCKED_UNLOCK),
   ]);
   return r.ok
@@ -365,15 +380,16 @@ export async function smartSavingsOpen(
     : { ok: false as const, error: r.error };
 }
 
-export async function smartSavingsDeposit(pesos: number) {
+export async function smartSavingsDeposit(input: MoneyInput) {
   const id = smartSavingsId();
   if (!id) return { ok: false as const, error: "Vault not set up" };
-  if (badAmount(pesos))
+  const amount = amountStroops(input);
+  if (amount == null)
     return { ok: false as const, error: "Enter a valid amount" };
   const s = await getSigner();
   const r = await invokeAs(s.secret, id, "deposit", [
     sc.addr(s.publicKey),
-    sc.i128(pesosToStroops(pesos)),
+    sc.i128(amount),
   ]);
   return r.ok
     ? { ok: true as const, link: txLink(r.hash) }
@@ -643,7 +659,7 @@ export async function arisanList() {
 export async function arisanCreate(input: {
   name: string;
   memberTarget: number;
-  sharePesos: number;
+  share: MoneyInput;
   cadence: ArisanCadence;
 }) {
   const id = arisanRoomsId();
@@ -652,7 +668,7 @@ export async function arisanCreate(input: {
     return { ok: false as const, error: "Invalid request" };
   const name = (input.name ?? "").toString().trim().slice(0, 40) || "Arisan";
   const memberTarget = Math.floor(Number(input.memberTarget));
-  const sharePesos = Number(input.sharePesos);
+  const shareStroops = amountStroops(input.share);
   const cadence: ArisanCadence =
     input.cadence === "Biweekly"
       ? "Biweekly"
@@ -661,7 +677,7 @@ export async function arisanCreate(input: {
         : "Weekly";
   if (!(memberTarget >= 3 && memberTarget <= 20))
     return { ok: false as const, error: "Members must be 3–20" };
-  if (badAmount(sharePesos))
+  if (shareStroops == null)
     return { ok: false as const, error: "Enter a valid share amount" };
 
   // Contract requires first_kocok ≥ now + JOIN_WINDOW and
@@ -694,7 +710,7 @@ export async function arisanCreate(input: {
     sc.sym(code),
     sc.str(name),
     sc.u32(memberTarget),
-    sc.i128(pesosToStroops(sharePesos)),
+    sc.i128(shareStroops),
     sc.unitVariant(cadence),
     sc.u64(firstKocok),
     sc.u64(joinDeadline),

@@ -44,6 +44,10 @@ fn deposit_then_disburse() {
     vault.disburse(&beneficiary, &250);
     assert_eq!(vault.total(), 350);
     assert_eq!(token.balance(&beneficiary), 250);
+    assert_eq!(
+        token.balance(&id) + token.balance(&beneficiary) + token.balance(&donor),
+        1_000
+    );
 }
 
 #[test]

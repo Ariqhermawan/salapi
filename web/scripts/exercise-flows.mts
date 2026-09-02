@@ -37,10 +37,10 @@ show("1c_myUsername_resolve", mine);
 if (typeof mine === "string") uname = mine;
 
 // 2. P2P send by @username (self-send is a real SAC transfer + event).
-show("2_sendByUsername", await A.sendByUsername(uname, 10));
+show("2_sendByUsername", await A.sendByUsername(uname, { amount: "10", currency: "tl" }));
 
 // 3. Disaster fund contribution.
-show("3_disasterContribute", await A.disasterContribute(25));
+show("3_disasterContribute", await A.disasterContribute({ amount: "25", currency: "tl" }));
 
 // 4. Paluwagan: pay my share, friends pay, then collect (round rotates).
 show("4a_paluwaganPayMine", await A.paluwaganPayMine());
@@ -48,8 +48,8 @@ show("4b_paluwaganFriendsPay", await A.paluwaganFriendsPay());
 show("4c_paluwaganCollect", await A.paluwaganCollect());
 
 // 5. Smart Savings: open a goal, then deposit into it.
-show("5a_smartSavingsOpen", await A.smartSavingsOpen(5000));
-show("5b_smartSavingsDeposit", await A.smartSavingsDeposit(100));
+show("5a_smartSavingsOpen", await A.smartSavingsOpen({ amount: "5000", currency: "tl" }));
+show("5b_smartSavingsDeposit", await A.smartSavingsDeposit({ amount: "100", currency: "tl" }));
 
 console.log("\n=== HASH SUMMARY ===");
 for (const [k, v] of Object.entries(out)) {

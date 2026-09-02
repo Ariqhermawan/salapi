@@ -56,6 +56,8 @@ fn full_round_rotates_payout() {
     assert_eq!(token.balance(&a), 1_000 - 100 + 300); // paid 100, received 300
     assert_eq!(token.balance(&b), 900);
     assert_eq!(token.balance(&c), 900);
+    assert_eq!(token.balance(&id), 0);
+    assert_eq!(token.balance(&a) + token.balance(&b) + token.balance(&c), 3_000);
 }
 
 #[test]

@@ -41,6 +41,7 @@ fn save_to_target_then_withdraw() {
     let got = c.withdraw(&user);
     assert_eq!(got, 500);
     assert_eq!(token.balance(&user), 1_000); // 500 out, 500 back
+    assert_eq!(token.balance(&id), 0);
 }
 
 #[test]

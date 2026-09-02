@@ -36,7 +36,7 @@ That is the thesis in one line: **crypto-invisible to the user, verifiable by de
 
 The Stellar Startup Track is milestone-based, so this is framed as milestones to define together with the Stellar Builder Team rather than a fixed grant ask. Each milestone moves Salapi from a verified testnet preview toward a real, compliant mainnet pilot, and each produces an output a reviewer can check:
 
-1. **Harden the core (about 1 to 2 months).** Replace floating-point money math with integer stroop math, ship VRF or commit-reveal for the arisan draw, and add multisig plus cap plus timelock controls on the disaster-vault admin. *Verifiable output:* updated contracts redeployed to testnet with the new transaction trail in `DEPLOYMENTS.md`, and a `/transparency` page reflecting the hardened contracts.
+1. **Harden the core (about 1 to 2 months).** Complete the remaining draw and disaster-vault hardening: ship VRF or commit-reveal for the arisan draw and add multisig plus cap plus timelock controls on the disaster-vault admin. The integer-only application money boundary is already shipped in Week 1 Deliverable 1. *Verifiable output:* updated contracts redeployed to testnet with the new transaction trail in `DEPLOYMENTS.md`, and a `/transparency` page reflecting the hardened contracts.
 2. **Anchor sandbox integration (about 2 to 3 months).** Integrate a SEP-24 anchor sandbox for PHP and IDR on and off ramps and run end-to-end top-up test transactions on testnet. *Verifiable output:* a fiat-to-on-chain test transaction trail, executed first on testnet.
 3. **Mainnet pilot (about 3 to 4 months).** Deploy to mainnet and run a first pilot with a small number of real savings circles. *Verifiable output:* mainnet contract IDs published on `/transparency` and a first set of real on-chain cycles.
 
@@ -83,6 +83,13 @@ Stellar is not a logo here. Each core feature depends on something Stellar gives
 ## Architecture
 
 A thin, four-layer model. The PWA never talks to a contract directly; all signing and contract invocation happen server-side.
+
+Week 1 Deliverable 1 adds one exact application money boundary at
+[`web/lib/money.ts`](web/lib/money.ts). Contract-facing actions accept a decimal
+string plus its display currency, convert it to integer stroops with
+deterministic half-up rounding, and pass only `i128` token units to Soroban.
+The inventory, baseline capability statement, and evidence commands live in
+[`docs/instawards/week-1-d1.md`](docs/instawards/week-1-d1.md).
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -186,7 +193,7 @@ A gasless path via fee-bump is implemented: `invokeSponsored()` falls back to us
 
 - Contracts are **immutable** - no admin rotation, no upgrade entry point.
 - The draw seed is ledger-seeded (`env.prng()`) and not validator-proof; VRF or commit-reveal is a tracked hardening item.
-- Money math is currently floating-point in the app layer; integer money-math is a tracked hardening item.
+- The application-to-contract money boundary now uses exact integer stroop conversion with deterministic rounding, conservation tests, and a CI regression guard (Week 1 Deliverable 1). Contract-side amounts were already integer-only at the baseline.
 - Open items: TTL extension, multisig + cap + timelock on disaster admin, demo-helper gating, and rate limiting.
 - No third-party security audit has been performed. None is claimed.
 
@@ -214,9 +221,9 @@ What is **not** yet done is founder-side discovery: structured organizer intervi
 
 Separated by status. Roadmap items are written as verifiable outputs, not vibes, and contain no invented numbers.
 
-**Shipped (testnet):** wallet + send-by-handle; disaster vault + transparency dashboard; prefund arisan with sealed on-chain draw; paluwagan; smart-savings; 4 locales; multi-currency display; nonce-CSP + security headers.
+**Shipped (testnet):** wallet + send-by-handle; disaster vault + transparency dashboard; prefund arisan with sealed on-chain draw; paluwagan; smart-savings; exact integer application money boundary; 4 locales; multi-currency display; nonce-CSP + security headers.
 
-**In progress:** integer money-math; draw hardening (VRF / commit-reveal); disaster-admin controls (multisig + cap + timelock); analytics enablement (Vercel Analytics and Speed Insights are wired, pending dashboard enable).
+**In progress:** draw hardening (VRF / commit-reveal); disaster-admin controls (multisig + cap + timelock); analytics enablement (Vercel Analytics and Speed Insights are wired, but opt-in until the Vercel dashboard endpoints are enabled).
 
 **Roadmap (not shipped):**
 
@@ -277,6 +284,7 @@ Before `npm run dev`, create `web/.env.local` with the values the server layer n
 - `PALUWAGAN_CONTRACT`, `SMARTSAVINGS_CONTRACT`, `ARISAN_ROOMS_CONTRACT` - the testnet contract IDs the app reads at runtime (the `disaster`, `username-registry`, and token SAC IDs are in `web/lib/server/stellar.ts`).
 - The wallet-encryption secret used for AES-256-GCM custody, and the Supabase secrets for sessions.
 - Optionally `SALAPI_SPONSOR_SECRET` to enable the opt-in gasless fee-bump path.
+- Set `VERCEL_OBSERVABILITY_ENABLED=1` only after Vercel Analytics and Speed Insights are enabled for the project; it is intentionally off by default so local/early deployments do not load unavailable `/_vercel/*` endpoints.
 
 See `SECURITY.md` for the security model and `DEPLOYMENTS.md` for the on-chain evidence trail.
 
