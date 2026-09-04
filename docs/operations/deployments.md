@@ -342,9 +342,9 @@ variant). Build + deploy script: `scripts/wsl-arisan-rooms-prod-setup.sh`.
   testnet** under exactly the cargo flag the mainnet runbook will use.
 - **There are no two divergent forks of the contract** — same source, one
   flag. Anyone reviewing can verify both variants from a single review.
-- **The hackathon-required "Mainnet" deploy step** (see
-  [`mainnet-deploy.md`](mainnet-deploy.md)) now lists 6 contracts; the `arisan_rooms` build
-  step uses `--features production-cadences`. Live web stays on the demo
+- **The hackathon-required "Mainnet" deploy step** is tracked separately from
+  this public Testnet evidence; the `arisan_rooms` build step uses
+  `--features production-cadences`. Live web stays on the demo
   variant so the public N=3 cycle remains observable in ~3 minutes.
 
 ---
