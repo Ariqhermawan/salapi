@@ -61,20 +61,21 @@ inventoried boundary, and runs the exact conversion/conservation tests.
 
 Public evidence:
 
-- [Pull request #3](https://github.com/Ariqhermawan/salapi/pull/3) — post-baseline D1 changes
-- [Green CI run 33364284156](https://github.com/Ariqhermawan/salapi/actions/runs/33364284156) — all three jobs passed
+- [Pull request #3](https://github.com/Ariqhermawan/salapi/pull/3) — merged D1 changes, including the sprint branch and commit history
+- [Merge commit `a3bfba5`](https://github.com/Ariqhermawan/salapi/commit/a3bfba592a154b237374e5b0b91c6d6ba59f7d5f) — current main-branch proof point
+- [Money-path integrity job](https://github.com/Ariqhermawan/salapi/actions/runs/33602429034/job/100158905969) — boundary inventory and regression guard
 
 ## E2E public proof
 
 The [`web E2E (local)` workflow](../../.github/workflows/ci.yml) builds the
 production bundle, starts `next start` on a clean runner, and runs all 18
 Playwright tests against that local server with a disposable testnet signer.
-The latest public run is [CI run 33371227866](https://github.com/Ariqhermawan/salapi/actions/runs/33371227866)
-(`web E2E (local)` passed).
+The latest public checks are [local E2E (18/18)](https://github.com/Ariqhermawan/salapi/actions/runs/33602429034/job/100158905899)
+and [deployed E2E](https://github.com/Ariqhermawan/salapi/actions/runs/33602499483/job/100159126016).
 
 - [Public app](https://salapi.app)
 - [Public transparency proof](https://salapi.app/transparency)
 
 No contract was redeployed for D1: the inventory found no contract-side
-change was necessary. The pull request remains open for review; Deliverable 2
-is not part of this PR.
+change was necessary. Deliverable 2 is scheduled for Week 2 and is not
+represented as completed in this report.
