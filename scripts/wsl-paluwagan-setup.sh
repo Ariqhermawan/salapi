@@ -45,7 +45,7 @@ stellar contract invoke --id "$PAL" --source salapi-demo --network "$NET" -- \
   initialize --token "$TOKEN" --members "$MEMBERS" --amount "$AMOUNT"
 # Real deploy + initialize tx hashes are recovered from chain via
 # scripts/wsl-txtrail.sh (Horizon) — the authoritative, explorer-verifiable
-# source for DEPLOYMENTS.md. (CLI stderr mixes in the wasm-upload hash.)
+# source for docs/operations/deployments.md. (CLI stderr mixes in the wasm-upload hash.)
 
 {
   echo ""

@@ -241,7 +241,7 @@ that advances the ledger and confirms entries survive.
    `USERNAME_REGISTRY_CONTRACT`, etc. to the new IDs. (Unchanged contracts keep
    their IDs.)
 5. Update any TS that changed signatures (e.g. P4 `payout(caller)`).
-6. Update `DEPLOYMENTS.md` + `/transparency` contract list with new IDs.
+6. Update [`../operations/deployments.md`](../operations/deployments.md) + `/transparency` contract list with new IDs.
 7. Re-run all 5 day-30 flows on testnet and re-capture stellar.expert evidence.
 8. Only then consider mainnet.
 

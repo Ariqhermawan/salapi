@@ -32,6 +32,11 @@ Thumbs.db
 *.wasm
 *.optimized.wasm
 
+# Local evidence and render output. These are generated during demos and
+# should never become part of the public repository.
+/output/
+/tmp/
+
 # Grant strategy / internal review docs — kept OUT of the public repo
 # (submitted to the Chapter Lead separately; not for public git history)
 SOW.md

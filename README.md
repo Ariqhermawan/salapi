@@ -6,6 +6,7 @@
 
 **Live app:** https://salapi.app
 **Public transparency dashboard:** https://salapi.app/transparency
+**Public documentation:** https://salapi.app/docs
 **Repo:** https://github.com/Ariqhermawan/salapi
 
 [![Live demo](https://img.shields.io/badge/demo-salapi.app-brightgreen)](https://salapi.app)
@@ -36,7 +37,7 @@ That is the thesis in one line: **crypto-invisible to the user, verifiable by de
 
 The Stellar Startup Track is milestone-based, so this is framed as milestones to define together with the Stellar Builder Team rather than a fixed grant ask. Each milestone moves Salapi from a verified testnet preview toward a real, compliant mainnet pilot, and each produces an output a reviewer can check:
 
-1. **Harden the core (about 1 to 2 months).** Complete the remaining draw and disaster-vault hardening: ship VRF or commit-reveal for the arisan draw and add multisig plus cap plus timelock controls on the disaster-vault admin. The integer-only application money boundary is already shipped in Week 1 Deliverable 1. *Verifiable output:* updated contracts redeployed to testnet with the new transaction trail in `DEPLOYMENTS.md`, and a `/transparency` page reflecting the hardened contracts.
+1. **Harden the core (about 1 to 2 months).** Complete the remaining draw and disaster-vault hardening: ship VRF or commit-reveal for the arisan draw and add multisig plus cap plus timelock controls on the disaster-vault admin. The integer-only application money boundary is already shipped in Week 1 Deliverable 1. *Verifiable output:* updated contracts redeployed to testnet with the new transaction trail in [`docs/operations/deployments.md`](docs/operations/deployments.md), and a `/transparency` page reflecting the hardened contracts.
 2. **Anchor sandbox integration (about 2 to 3 months).** Integrate a SEP-24 anchor sandbox for PHP and IDR on and off ramps and run end-to-end top-up test transactions on testnet. *Verifiable output:* a fiat-to-on-chain test transaction trail, executed first on testnet.
 3. **Mainnet pilot (about 3 to 4 months).** Deploy to mainnet and run a first pilot with a small number of real savings circles. *Verifiable output:* mainnet contract IDs published on `/transparency` and a first set of real on-chain cycles.
 
@@ -129,7 +130,7 @@ The rule-set contracts (`arisan-rooms`, `paluwagan`, `smart-savings`, `disaster`
 
 Built with **`soroban-sdk = "22"`** (workspace-pinned in the root `Cargo.toml`; every contract crate inherits it). Release profile is hardened: `overflow-checks = true`, `panic = "abort"`, `lto = true`, `opt-level = "z"`. The contracts are MIT-licensed and open-source in this repo.
 
-> **Live IDs.** The web app hardcodes only `disaster`, `username-registry`, and the token SAC; `paluwagan`, `smart-savings`, and `arisan-rooms` are read from environment at runtime. The `/transparency` page is canonical for the live `disaster` and `username-registry` balances; for the `arisan-rooms` redeploy trail, `DEPLOYMENTS.md` is the authoritative record. The IDs below are verified from source and `DEPLOYMENTS.md` at the time of writing.
+> **Live IDs.** The web app hardcodes only `disaster`, `username-registry`, and the token SAC; `paluwagan`, `smart-savings`, and `arisan-rooms` are read from environment at runtime. The `/transparency` page is canonical for the live `disaster` and `username-registry` balances; for the `arisan-rooms` redeploy trail, [`docs/operations/deployments.md`](docs/operations/deployments.md) is the authoritative record. The IDs below are verified from source and the deployment record at the time of writing.
 
 | Contract | Crate (`--package`) | Testnet contract ID | Source path |
 |---|---|---|---|
@@ -145,7 +146,7 @@ Built with **`soroban-sdk = "22"`** (workspace-pinned in the root `Cargo.toml`; 
 > **Notes.**
 > - The `arisan-rooms` directory is `contracts/arisan_rooms` (underscore) but the crate name is `arisan-rooms` (hyphen). Use the hyphen for any `cargo` or `stellar contract build --package arisan-rooms` command.
 > - There are two sealed-draw arisan deploys. The **demo variant** (`CAI2KBQW…`, `ARISAN_ROOMS_CONTRACT`) is what the live web app invokes; it runs a fast N=3 cycle for the public demo. The **production-cadence variant** (`CASG62WF…`, `ARISAN_ROOMS_PROD_CONTRACT`) compiles under `--features production-cadences` and is the mainnet candidate. Both use the sealed-PRNG draw described below.
-> - The arisan draw mechanism has evolved (deterministic, then CSPRNG-at-edge, now the sealed-PRNG design); `DEPLOYMENTS.md` records the full redeploy trail and the prior superseded IDs.
+> - The arisan draw mechanism has evolved (deterministic, then CSPRNG-at-edge, now the sealed-PRNG design); [`docs/operations/deployments.md`](docs/operations/deployments.md) records the full redeploy trail and the prior superseded IDs.
 
 Explorer link pattern: `https://stellar.expert/explorer/testnet/contract/<CONTRACT_ID>`.
 
@@ -171,7 +172,7 @@ A gasless path via fee-bump is implemented: `invokeSponsored()` falls back to us
 
 ## What the on-chain trail proves
 
-`DEPLOYMENTS.md` records deploy, init, and flow transaction hashes for every contract (base-vault, username-registry, disaster verified 2026-05-18; paluwagan and smart-savings verified 2026-05-19; arisan-rooms across iterations through 2026-06-13). Together they demonstrate four things a reviewer can check independently:
+[`docs/operations/deployments.md`](docs/operations/deployments.md) records deploy, init, and flow transaction hashes for every contract (base-vault, username-registry, disaster verified 2026-05-18; paluwagan and smart-savings verified 2026-05-19; arisan-rooms across iterations through 2026-06-13). Together they demonstrate four things a reviewer can check independently:
 
 1. **Real network.** The contracts are deployed and invoked on Stellar testnet, with explorer-linkable transactions.
 2. **Rules enforced on-chain.** The disaster gate rejects out-of-state contributions at the contract level (`NotInDisaster`), not in the UI.
@@ -230,7 +231,7 @@ Separated by status. Roadmap items are written as verifiable outputs, not vibes,
 - **SEP-24 anchor integration** for real PHP/IDR on and off ramps; execute on-ramp test transactions on testnet first.
 - **Fiat on-ramp** (GCash / QRIS via Xendit) auto-converting to an on-chain asset - the crypto-invisible top-up. Current build ships sandbox top-up affordances only.
 - **Production asset path:** XLM today, USDC next, then a peso-pegged or rupiah-backed stablecoin - enabled by the asset-agnostic vault.
-- **Mainnet launch** as the final milestone (a `MAINNET-DEPLOY.md` runbook exists; mainnet IDs are pending).
+- **Mainnet launch** as the final milestone (a [`docs/operations/mainnet-deploy.md`](docs/operations/mainnet-deploy.md) runbook exists; mainnet IDs are pending).
 - Metric targets will be expressed against verifiable on-chain measures, not growth multipliers, once there is anything real to measure.
 
 ## How this differs from existing solutions
@@ -269,7 +270,7 @@ stellar contract build --package arisan-rooms
 stellar contract build
 ```
 
-`stellar contract build` is the supported path and produces the optimized wasm used in the deploy trail. (`cargo build --release --target wasm32-unknown-unknown` also compiles the crates but emits raw, non-post-processed wasm; prefer the Stellar CLI.) Requires the Rust toolchain, the `wasm32-unknown-unknown` target, and the Stellar CLI. Deploy/init scripts and the full transaction trail are in `DEPLOYMENTS.md` and `scripts/`.
+`stellar contract build` is the supported path and produces the optimized wasm used in the deploy trail. (`cargo build --release --target wasm32-unknown-unknown` also compiles the crates but emits raw, non-post-processed wasm; prefer the Stellar CLI.) Requires the Rust toolchain, the `wasm32-unknown-unknown` target, and the Stellar CLI. Deploy/init scripts and the full transaction trail are in [`docs/operations/deployments.md`](docs/operations/deployments.md) and `scripts/`.
 
 **Web app**
 
@@ -286,7 +287,7 @@ Before `npm run dev`, create `web/.env.local` with the values the server layer n
 - Optionally `SALAPI_SPONSOR_SECRET` to enable the opt-in gasless fee-bump path.
 - Set `VERCEL_OBSERVABILITY_ENABLED=1` only after Vercel Analytics and Speed Insights are enabled for the project; it is intentionally off by default so local/early deployments do not load unavailable `/_vercel/*` endpoints.
 
-See `SECURITY.md` for the security model and `DEPLOYMENTS.md` for the on-chain evidence trail.
+See [`SECURITY.md`](SECURITY.md) for the security model and [`docs/operations/deployments.md`](docs/operations/deployments.md) for the on-chain evidence trail. The reviewer-friendly summary is also available at [salapi.app/docs](https://salapi.app/docs).
 
 ## License
 

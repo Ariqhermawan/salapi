@@ -30,6 +30,12 @@ export default function MarketingAside() {
           {t("landing.tagline")}
         </p>
       </div>
+      <a
+        href="/docs"
+        className="w-fit text-sm text-white/70 underline underline-offset-4 transition hover:text-white"
+      >
+        Public documentation →
+      </a>
       <PoweredByStellar c="rgba(255,255,255,0.5)" />
     </aside>
   );

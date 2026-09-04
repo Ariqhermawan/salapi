@@ -208,7 +208,7 @@ flipping `Open → Active` on `start_room` (which gates on `members.len()
 | 3. **Start the room** — Status → `Active`, round=1, countdown to kocok 1 begins | ✓ Tx `4099eaac…`; on-chain `status=Active, round=1`; UI rendered "Kocok now · win ₱1,740" + "Postpone kocok by 60s (host)" |
 | 4. **Click Postpone (1st)** — success, deadline shifts by 60s | ✓ Tx `d80f8a1c…`; `KocokAt(2,1)` shifted exactly +60 (1779533449 → 1779533509) |
 | 5. **Click Postpone (2nd)** — friendly error, HUMAN-READABLE | ✓ Contract returns `Error(Contract, #11)`; mapper deployed maps it to `t("arisan.room.alreadyPostponed")` = "This round was already postponed once." |
-| 6. **Let kocok fire + KOCOK** — roulette lands on contract winner, round advances | — Click fired in browser; tx still in-flight at session close due to extreme Vercel server-action lag today (each action is taking 2-5 min vs. the usual 5-15 s). The kocok→roulette→winner flow itself is covered green by `web/scripts/verify-arisan.mts` runs documented in DEPLOYMENTS.md (full N=3 cycles on both v1 deterministic and v2 CSPRNG contracts). |
+| 6. **Let kocok fire + KOCOK** — roulette lands on contract winner, round advances | — Click fired in browser; tx still in-flight at session close due to extreme Vercel server-action lag today (each action is taking 2-5 min vs. the usual 5-15 s). The kocok→roulette→winner flow itself is covered green by `web/scripts/verify-arisan.mts` runs documented in [`../operations/deployments.md`](../operations/deployments.md) (full N=3 cycles on both v1 deterministic and v2 CSPRNG contracts). |
 
 ### Caveat documented for honesty
 

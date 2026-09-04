@@ -12,7 +12,12 @@ export default function BottomNav() {
   // Pre-auth / standalone screens have no app nav — keeps the tab bar from
   // bleeding onto onboarding, sign-in, and the offline screen (and from
   // falsely lighting the Home tab there).
-  if (path === "/onboarding" || path === "/signin" || path === "/offline") {
+  if (
+    path === "/onboarding" ||
+    path === "/signin" ||
+    path === "/offline" ||
+    path.startsWith("/docs")
+  ) {
     return null;
   }
 

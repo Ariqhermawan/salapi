@@ -4,7 +4,7 @@
 
 **Why:** The Stellar PH Hackathon 2026 submission requires the MVP deployed to
 Stellar **Mainnet** (Stage 2), with Stellar Expert (Mainnet) screenshots.
-Salapi's 6 contracts are currently **Testnet only** (see `DEPLOYMENTS.md`).
+Salapi's 6 contracts are currently **Testnet only** (see [`deployments.md`](deployments.md)).
 This runbook deploys the same, already-tested contracts to Mainnet —
 `arisan_rooms` is rebuilt with the `production-cadences` feature flag so the
 mainnet wasm uses real day-based timings instead of the seconds-based demo.
