@@ -88,7 +88,7 @@ the credibility, not a flaw.
 
 ## Appendix — all 5 live flows (exact steps, for a longer cut or B-roll)
 
-Each is a real on-chain tx — cross-reference `DEPLOYMENTS.md` for the matching
+Each is a real on-chain tx — cross-reference [`../operations/deployments.md`](../operations/deployments.md) for the matching
 stellar.expert link if you want to show the receipt for that specific action.
 
 1. **Send by username** — `/send` → enter `@handle` + amount → confirm.

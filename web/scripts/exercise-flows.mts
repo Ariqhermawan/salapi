@@ -2,7 +2,7 @@
 // app server actions in web/app/actions.ts (no UI, no long-lived server).
 // Loads .env.local first so getSigner() resolves the demo signer and the
 // Paluwagan / Smart-Savings contract ids point at the freshly deployed ones.
-// Prints one real testnet tx hash per flow. Read DEPLOYMENTS.md for context.
+// Prints one real testnet tx hash per flow. Read docs/operations/deployments.md for context.
 import { readFileSync } from "node:fs";
 
 // --- load .env.local into process.env (before importing the actions) ---

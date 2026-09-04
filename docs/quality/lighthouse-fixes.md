@@ -2,8 +2,9 @@
 
 **Date:** 2026-05-23
 **Target:** `salapi-blond.vercel.app` · mobile · Lighthouse 12.x via
-`npx lighthouse --form-factor=mobile --headless`. Raw reports stored at
-`lighthouse-before.json` and `lighthouse-after.json` at the repo root.
+`npx lighthouse --form-factor=mobile --headless`. The raw reports were generated
+locally and are intentionally not committed; this page keeps the human-readable
+results and fixes.
 **Targets per the brief:** Mobile Performance ≥ 80, Accessibility ≥ 95,
 Best Practices ≥ 90, SEO ≥ 90, PWA installable.
 

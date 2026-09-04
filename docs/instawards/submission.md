@@ -57,7 +57,7 @@ default to anyone.**
 - **Five end-to-end flows demonstrated on-chain** (username send, disaster
   contribute→disburse, paluwagan full-round rotation, smart-savings goal +
   deposit, arisan multi-round draw) — each with a stellar.expert tx link in
-  `DEPLOYMENTS.md`.
+  [`../operations/deployments.md`](../operations/deployments.md).
 
 ---
 
@@ -85,7 +85,7 @@ default to anyone.**
   mainnet migration, DAO/AI-tribunal governance for disaster disbursement.
 - **Arisan draw trust model:** today's draw is operator-run CSPRNG, honestly
   framed as such; **commit-reveal or VRF is the planned v2 trust upgrade**
-  (documented in `DEPLOYMENTS.md` and `SECURITY-CONTRACT-HARDENING.md`).
+  (documented in [`../operations/deployments.md`](../operations/deployments.md) and [`../security/contract-hardening.md`](../security/contract-hardening.md)).
 - No fabricated balances, tx hashes, or pool figures anywhere.
 
 ---
@@ -125,7 +125,7 @@ across two pilot cities.
 - Live app: https://salapi.app
 - Transparency / live contracts: https://salapi.app/transparency
 - Pitch deck: (Google Drive — final 10-page version)
-- On-chain evidence: `DEPLOYMENTS.md` (every flow, every tx link)
+- On-chain evidence: [`../operations/deployments.md`](../operations/deployments.md) (every flow, every tx link)
 
 ---
 
@@ -139,4 +139,4 @@ across two pilot cities.
 - [ ] **Links** all resolve (live app, /transparency, deck, repo).
 - [ ] (Pre-mainnet, not blocking submission) merge PR #1 (contract hardening
       P2–P5) as part of the deliberate redeploy — see
-      `SECURITY-CONTRACT-HARDENING.md`.
+      [`../security/contract-hardening.md`](../security/contract-hardening.md).

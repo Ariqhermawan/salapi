@@ -25,7 +25,7 @@ export const RPC_URL =
 export const HORIZON = "https://horizon-testnet.stellar.org";
 export const FRIENDBOT = "https://friendbot.stellar.org";
 
-// Deployed on testnet, see DEPLOYMENTS.md.
+// Deployed on testnet, see docs/operations/deployments.md.
 export const CONTRACTS = {
   disaster: "CCKQ3UVBZ75KSZDO6IPA5U6PFARJG4PLRGN2SAIW5RAGQ6K4B7ZDWBUZ",
   usernameRegistry: "CDDINUQXTF6SHZN2ZJ36IT7P4YOJ3OZN3H6LTYHVCQ35YYO7YTAWM4G3",
