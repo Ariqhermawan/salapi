@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import type { ReactNode } from "react";
 
 export const metadata: Metadata = {
@@ -201,7 +202,7 @@ export default function PublicDocsPage() {
       <footer style={{ marginTop: 18, paddingBottom: 8, color: "#7a8494", fontSize: 11.5, lineHeight: 1.5 }}>
         <ExternalLink href="https://github.com/Ariqhermawan/salapi">Source code on GitHub</ExternalLink>
         <span aria-hidden> · </span>
-        <a href="/" style={{ color: "#7a8494" }}>Back to Salapi</a>
+        <Link href="/" style={{ color: "#7a8494" }}>Back to Salapi</Link>
       </footer>
     </div>
   );
