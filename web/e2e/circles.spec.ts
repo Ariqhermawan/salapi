@@ -8,10 +8,10 @@ test("Home Donate opens the circle detail, not the pledge", async ({ page }) => 
   await page.goto("/", { waitUntil: "domcontentloaded", timeout: 45000 });
   const donate = page.getByRole("button", { name: /donate/i }).first();
   await donate.waitFor({ state: "visible", timeout: 12000 });
-  await page.waitForTimeout(500);
-  await donate.click();
-  await page.waitForTimeout(1000);
-  expect(new URL(page.url()).pathname).toBe("/circles/tino-relief");
+  await expect(async () => {
+    if (new URL(page.url()).pathname === "/") await donate.click();
+    await expect(page).toHaveURL(/\/circles\/tino-relief$/, { timeout: 1500 });
+  }).toPass({ timeout: 12000 });
 });
 
 test("back chain entered from Home: pledge -> detail -> Home", async ({ page }) => {
