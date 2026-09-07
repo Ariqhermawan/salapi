@@ -30,8 +30,8 @@ SHA-256(
 )
 ```
 
-These five XDR values have fixed sizes for the accepted types: 40, 8, 8, 40,
-and 40 bytes respectively, making the commitment preimage exactly 136 bytes.
+These five XDR values have fixed sizes for the accepted types: 40, 8, 8, 44,
+and 40 bytes respectively, making the commitment preimage exactly 140 bytes.
 Binding the contract, room, round, and participant prevents a valid reveal
 from being replayed in another deployment, room, round, or wallet.
 

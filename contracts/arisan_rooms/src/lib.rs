@@ -866,9 +866,9 @@ fn commitment_hash(
     member: &Address,
     secret: &BytesN<32>,
 ) -> BytesN<32> {
-    // Canonical 136-byte preimage shared with web/lib/server/arisanCommitment:
+    // Canonical 140-byte preimage shared with web/lib/server/arisanCommitment:
     // ScVal(Address)=40, ScVal(U32)=8, ScVal(U32)=8,
-    // ScVal(Address)=40, ScVal(Bytes[32])=40.
+    // ScVal(Account Address)=44, ScVal(Bytes[32])=40.
     let mut preimage: Bytes = contract.clone().to_xdr(env);
     preimage.append(&room_id.to_xdr(env));
     preimage.append(&round.to_xdr(env));
