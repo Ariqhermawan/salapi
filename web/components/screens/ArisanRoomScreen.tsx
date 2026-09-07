@@ -7,7 +7,11 @@ import {
   arisanStart,
   arisanCancel,
   arisanLeave,
-  arisanKocok,
+  arisanCommit,
+  arisanReveal,
+  arisanFinalize,
+  arisanFriendsCommit,
+  arisanFriendsReveal,
   arisanFriendsJoin,
   arisanPostpone,
 } from "@/app/actions";
@@ -27,7 +31,7 @@ import {
 import { formatLocal } from "@/lib/ui/currency";
 
 type State = Awaited<ReturnType<typeof arisanRoomState>>;
-type KocokResult = Awaited<ReturnType<typeof arisanKocok>>;
+type FinalizeResult = Awaited<ReturnType<typeof arisanFinalize>>;
 
 const RING = ["#FDE6D9", "#DCEAF8", "#E8E3FA", "#DDF1E5", "#FBEAE0", "#E1ECF6"];
 
@@ -42,6 +46,7 @@ function fmtCountdown(secs: number): string {
   const m = Math.floor((secs % 3600) / 60);
   if (d > 0) return `${d}d ${h}h`;
   if (h > 0) return `${h}h ${m}m`;
+  if (m === 0) return `${Math.ceil(secs)}s`;
   return `${m}m`;
 }
 
@@ -55,11 +60,9 @@ function ringPos(i: number, total: number, r: number, w: number) {
 
 // ─────────────────────────────────────────────────────────────
 // Kocok roulette overlay — lands on the winner the contract returned.
-// HONESTY: the winner is drawn ON-CHAIN, not in the browser. arisanKocok
-// seals a Soroban-PRNG seed for the round (seal_kocok), then the deterministic
-// kocok pays unwon[seed % pool.len] and returns that member's Address. The
-// overlay spins to the seat matching that Address — no browser CSPRNG, no
-// caller choice, and no Math.random for the visual landing.
+// The animation is presentation only. finalize_draw combines the secrets
+// revealed on-chain, pays the selected eligible member, and returns that
+// address. The browser never supplies a winner or random index.
 // ─────────────────────────────────────────────────────────────
 function Roulette({
   seats,
@@ -212,37 +215,51 @@ export default function ArisanRoomScreen({ roomId }: { roomId: number }) {
   >(fn: () => Promise<T>, okText: string) {
     start(async () => {
       setMsg(null);
-      const r = await fn();
-      if (r.ok) {
-        setMsg({ tone: "ok", text: okText, link: r.link });
-      } else {
-        // Prefer the i18n key the action attached (e.g. arisanPostpone maps
-        // contract error codes to keys) so the toast is human-readable
-        // instead of a raw HostError / XDR dump.
-        const text = r.errorKey
-          ? t(r.errorKey)
-          : r.error || t("arisan.somethingWrong");
-        setMsg({ tone: "err", text });
+      try {
+        const r = await fn();
+        if (r.ok) {
+          setMsg({ tone: "ok", text: okText, link: r.link });
+        } else {
+          // Prefer the i18n key the action attached (e.g. arisanPostpone maps
+          // contract error codes to keys) so the toast is human-readable
+          // instead of a raw HostError / XDR dump.
+          const text = r.errorKey
+            ? t(r.errorKey)
+            : r.error || t("arisan.somethingWrong");
+          setMsg({ tone: "err", text });
+        }
+        await refresh();
+      } catch (error) {
+        setMsg({
+          tone: "err",
+          text: error instanceof Error ? error.message : t("arisan.somethingWrong"),
+        });
       }
-      await refresh();
     });
   }
 
-  function doKocok() {
+  function doFinalize() {
     start(async () => {
       setMsg(null);
-      const r: KocokResult = await arisanKocok(roomId);
-      if (!r.ok) {
-        setMsg({ tone: "err", text: r.error || t("arisan.somethingWrong") });
-        return;
+      try {
+        const r: FinalizeResult = await arisanFinalize(roomId);
+        if (!r.ok) {
+          setMsg({ tone: "err", text: r.error || t("arisan.somethingWrong") });
+          return;
+        }
+        // Find winner index by address — the contract is the source of truth.
+        const idx = st && st.ready ? st.seats.findIndex((s) => s.addr === r.winner) : -1;
+        setRoulette({
+          winnerIdx: Math.max(0, idx),
+          link: r.link,
+          winnerLabel: r.winnerLabel,
+        });
+      } catch (error) {
+        setMsg({
+          tone: "err",
+          text: error instanceof Error ? error.message : t("arisan.somethingWrong"),
+        });
       }
-      // Find winner index by address — the contract is the source of truth.
-      const idx = st && st.ready ? st.seats.findIndex((s) => s.addr === r.winner) : -1;
-      setRoulette({
-        winnerIdx: Math.max(0, idx),
-        link: r.link,
-        winnerLabel: r.winnerLabel,
-      });
     });
   }
 
@@ -294,9 +311,15 @@ export default function ArisanRoomScreen({ roomId }: { roomId: number }) {
   }
 
   const totalSeats = Math.max(st.seats.length, st.memberTarget);
-  const countdown = Math.max(0, st.nextKocok - now);
-  const canKocokNow =
-    st.status === "Active" && countdown === 0 && st.round <= st.memberTarget;
+  const countdown = Math.max(0, st.nextActionAt - now);
+  const countdownLabel =
+    st.status === "Open"
+      ? t("arisan.draw.firstCommitIn")
+      : st.drawPhase === "Commit"
+        ? t("arisan.draw.commitClosesIn")
+        : st.drawPhase === "Reveal"
+          ? t("arisan.draw.revealClosesIn")
+          : t("arisan.draw.readyToFinalize");
 
   return (
     <div style={shell}>
@@ -413,7 +436,7 @@ export default function ArisanRoomScreen({ roomId }: { roomId: number }) {
             </div>
             <div style={{ textAlign: "right" }}>
               <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: T.slate }}>
-                {st.status === "Open" ? t("arisan.firstKocokIn") : t("arisan.nextKocokIn")}
+                {countdownLabel}
               </div>
               <div style={{ marginTop: 4, fontSize: 15, fontWeight: 600 }}>
                 {st.status === "Done" || st.status === "Dissolved"
@@ -423,11 +446,21 @@ export default function ArisanRoomScreen({ roomId }: { roomId: number }) {
             </div>
           </div>
           {st.status === "Active" && (
-            <div style={{ marginTop: 10, padding: "8px 10px", borderRadius: 10, background: T.canvas, fontSize: 12, color: T.slate }}>
-              {t("arisan.room.roundLine", {
-                n: pad2(Math.min(st.round, st.memberTarget)),
-                total: pad2(st.memberTarget),
-              })}
+            <div style={{ marginTop: 10, padding: "8px 10px", borderRadius: 10, background: T.canvas, fontSize: 12, color: T.slate, display: "flex", justifyContent: "space-between", gap: 8 }}>
+              <span>
+                {t("arisan.room.roundLine", {
+                  n: pad2(Math.min(st.round, st.memberTarget)),
+                  total: pad2(st.memberTarget),
+                })}
+              </span>
+              <span style={{ fontWeight: 700, color: T.ink }}>
+                {st.drawPhase ? t("arisan.draw.phase." + st.drawPhase) : "—"}
+                {st.drawPhase === "Commit"
+                  ? ` · ${st.commitCount}/${st.eligibleCount}`
+                  : st.drawPhase === "Reveal"
+                    ? ` · ${st.revealCount}/${st.commitCount}`
+                    : ""}
+              </span>
             </div>
           )}
         </Card>
@@ -482,6 +515,14 @@ export default function ArisanRoomScreen({ roomId }: { roomId: number }) {
               {s.won ? (
                 <Chip kind="success" size="sm" leading={Ico.check({ size: 11, c: T.moneyIn })}>
                   {t("arisan.statusWon")}
+                </Chip>
+              ) : s.revealed ? (
+                <Chip kind="success" size="sm" leading={Ico.check({ size: 11, c: T.moneyIn })}>
+                  {t("arisan.draw.revealed")}
+                </Chip>
+              ) : s.committed ? (
+                <Chip kind="action" size="sm">
+                  {t("arisan.draw.committed")}
                 </Chip>
               ) : (
                 <Chip kind="neutral" size="sm">
@@ -603,20 +644,62 @@ export default function ArisanRoomScreen({ roomId }: { roomId: number }) {
           </>
         )}
 
-        {/* ACTIVE: kocok button + host-only postpone */}
+        {/* ACTIVE: explicit commit → reveal → finalize controls */}
         {st.status === "Active" && st.round <= st.memberTarget && (
           <>
-            <Btn
-              kind="primary"
-              onClick={doKocok}
-              disabled={!canKocokNow || pending || !!roulette}
-              loading={pending && !roulette}
-            >
-              {canKocokNow
-                ? t("arisan.kocok.cta", { pot: st.potPeso })
-                : t("arisan.kocok.waitCta", { time: fmtCountdown(countdown) })}
-            </Btn>
-            {st.isHost && (
+            {st.drawPhase === "Commit" && (
+              <>
+                <Btn
+                  kind="primary"
+                  onClick={() => run(() => arisanCommit(st.id), t("arisan.draw.committedOk"))}
+                  disabled={!st.canCommit || pending}
+                  loading={pending && !roulette}
+                >
+                  {st.canCommit
+                    ? t("arisan.draw.commitCta")
+                    : t("arisan.draw.commitWaiting", { time: fmtCountdown(countdown) })}
+                </Btn>
+                <Btn
+                  kind="secondary"
+                  onClick={() => run(() => arisanFriendsCommit(st.id), t("arisan.draw.friendsCommittedOk"))}
+                  disabled={pending || st.commitCount >= st.eligibleCount}
+                >
+                  {t("arisan.draw.friendsCommitCta")}
+                </Btn>
+              </>
+            )}
+            {st.drawPhase === "Reveal" && (
+              <>
+                <Btn
+                  kind="primary"
+                  onClick={() => run(() => arisanReveal(st.id), t("arisan.draw.revealedOk"))}
+                  disabled={!st.canReveal || pending}
+                  loading={pending && !roulette}
+                >
+                  {st.canReveal
+                    ? t("arisan.draw.revealCta")
+                    : t("arisan.draw.revealWaiting", { time: fmtCountdown(countdown) })}
+                </Btn>
+                <Btn
+                  kind="secondary"
+                  onClick={() => run(() => arisanFriendsReveal(st.id), t("arisan.draw.friendsRevealedOk"))}
+                  disabled={pending || st.revealCount >= st.commitCount}
+                >
+                  {t("arisan.draw.friendsRevealCta")}
+                </Btn>
+              </>
+            )}
+            {st.drawPhase === "Finalizable" && (
+              <Btn
+                kind="primary"
+                onClick={doFinalize}
+                disabled={!st.canFinalize || pending || !!roulette}
+                loading={pending && !roulette}
+              >
+                {t("arisan.draw.finalizeCta", { pot: st.potPeso })}
+              </Btn>
+            )}
+            {st.isHost && st.drawPhase === "Commit" && st.commitCount === 0 && (
               <Btn
                 kind="ghost"
                 onClick={() =>

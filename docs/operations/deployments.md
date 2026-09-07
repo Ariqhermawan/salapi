@@ -134,13 +134,37 @@ out of the 30-day scope (SOW §13).
 
 ---
 
-## Week 3 — Arisan Rooms (roomed prefund · invite-only ROSCA)
+## Current Arisan deployment — Instawards Week 2 D2
+
+**Date:** 2026-09-07 UTC · **Network:** Stellar Testnet · **Status:** active
+evidence deployment.
+
+| Variant | Contract | Upload · deploy · initialize |
+|---|---|---|
+| Demo, 30-second reveal | [`CDFIM3DPANUDSZJUMVFYOGCMMWUS545KDIZQIHBZWMWCA4THFKCPVB6N`](https://stellar.expert/explorer/testnet/contract/CDFIM3DPANUDSZJUMVFYOGCMMWUS545KDIZQIHBZWMWCA4THFKCPVB6N) | [`d6bbf81a…eb114`](https://stellar.expert/explorer/testnet/tx/d6bbf81a4ce05a7a83a47cd793b19e8b1bbde315a06529eb3408d3cc7b0eb114) · [`7dd3d2a1…539fc0`](https://stellar.expert/explorer/testnet/tx/7dd3d2a1ba72d6ff3a3a6526d935af590abf736bc9a7058e6b8d1f82a8539fc0) · [`ad12f9f3…a886`](https://stellar.expert/explorer/testnet/tx/ad12f9f3b41474739cc17973b150d323f50bb675a00e76252873f8bb6bc5a886) |
+| Long cadence, 24-hour reveal | [`CAYJ7G3CPT5LYKV2P5E4GL7TNVDQKMMW6SA4WA4QYQZKCNLK45GE4VUL`](https://stellar.expert/explorer/testnet/contract/CAYJ7G3CPT5LYKV2P5E4GL7TNVDQKMMW6SA4WA4QYQZKCNLK45GE4VUL) | [`920004c7…411ce`](https://stellar.expert/explorer/testnet/tx/920004c77f35484a821e61d0dfa4893236e61b770b45beab6e984bc60f9411ce) · [`bc4845dc…58e87`](https://stellar.expert/explorer/testnet/tx/bc4845dc99bceb87a16a547382a0ab2cd6ad9d1e22676b37488aa7748fa58e87) · [`0aa1d906…ae5dd`](https://stellar.expert/explorer/testnet/tx/0aa1d9063435e0fd3c087256b3711a30edd10afffb077aa4dc8b6bd4280ae5dd) |
+
+The current contract replaces the earlier deterministic, caller-CSPRNG, and
+sealed-PRNG experiments with participant-bound commit-reveal. The real N=3
+acceptance run proves a normal three-reveal round, a one-reveal timeout round,
+a zero-reveal fallback round, three distinct winners, and a final contract
+token balance of zero. See the concise
+[`week-2-d2.md`](../instawards/week-2-d2.md) report for every transaction and
+the exact threat model. Reproduce fresh deployments with
+`bash scripts/deploy-arisan-d2-testnet.sh`.
+
+The Arisan sections below are retained only as a historical record. Their
+contract IDs and scripts are superseded and must not be used as current D2
+evidence.
+
+---
+
+## Historical — superseded deterministic Arisan deployment
 
 **Date:** 2026-05-23 (UTC, per on-chain ledger close time)
 **Source / signer:** `GCUBT6T7SMQKJE5L2TJLUQQPSBBU5GVHALGLWWECEJUIV2YFFCSXGHY7` (managed demo signer; SOW §13).
-**Reproduce:** `bash scripts/wsl-arisan-rooms-setup.sh` (deploy + init), then
-`cd web && npx tsx scripts/verify-arisan.mts` (host + friend1 + friend2 run a
-full N=3 cycle end to end through `web/app/actions.ts`).
+**Reproduction status:** superseded; use the current D2 deployment script and
+verifier documented above.
 
 A *prefund* ROSCA: every member locks their full cycle commitment (N × share)
 into the contract before round 1. Each round, the contract picks a winner from
@@ -205,7 +229,7 @@ Token (native XLM SAC): `CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYS
 
 ---
 
-## Week 3 (updated) — Arisan Rooms: client-supplied randomness
+## Historical — superseded caller-CSPRNG Arisan deployment
 
 **Date:** 2026-05-23 (UTC; same day, follow-up deploy)
 **Why an update:** the first Week-3 deploy hit Soroban's storage-footprint
@@ -278,7 +302,7 @@ Run via `cd web && npx tsx scripts/verify-arisan.mts`; ordering of winners
 
 ---
 
-## Week 3 (production-cadences variant) — mainnet candidate
+## Historical — superseded sealed-PRNG long-cadence deployment
 
 **Date:** 2026-05-23 (UTC; same day as the v2 CSPRNG deploy).
 **Why a separate variant:** the live demo contract above runs in SECONDS
@@ -327,14 +351,15 @@ parameterization needed.
 Re-deployed 2026-06-13 with the **sealed-PRNG draw** (`seal_kocok` + deterministic
 `kocok`, no caller-supplied winner_idx). The prior id
 `CC2F3Y7TP72AZNGXAQWGXEDE2NLXCCW3ONGTAHW2SJG7BVLMSPIJEVYK` is the superseded
-CSPRNG-at-edge variant. Deploy + init confirmed on-chain via
-`scripts/wsl-arisan-rooms-prod-setup.sh`; the deploy/init txs are visible on the
-contract explorer page linked above. (Demo variant also re-deployed with the
+CSPRNG-at-edge variant. Deploy + init was confirmed on-chain; the transactions
+remain visible on the contract explorer page linked above. (The demo variant
+was also re-deployed with the
 sealed draw: `ARISAN_ROOMS_CONTRACT = CAI2KBQW6ZCM7TNJVT3UXC5IW6VLBN4DFDORNICWMQFJM7NVLBSKV3Y2`.)
 
 Recorded in `web/.env.local` as **`ARISAN_ROOMS_PROD_CONTRACT`** (separate
-from `ARISAN_ROOMS_CONTRACT` so the live web app keeps targeting the demo
-variant). Build + deploy script: `scripts/wsl-arisan-rooms-prod-setup.sh`.
+from `ARISAN_ROOMS_CONTRACT` so the live web app kept targeting the demo
+variant). This contract and its removed WSL-only script are superseded by the
+current D2 deployment above.
 
 ### What this proves
 

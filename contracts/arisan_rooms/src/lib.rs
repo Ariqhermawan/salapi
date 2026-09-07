@@ -9,26 +9,21 @@
 //! exactly zero. Late payment, default, and abscond are structurally
 //! impossible — there is no payment owed after join.
 //!
-//! The draw is a TWO-PHASE on-chain PRNG so no caller can choose the winner:
-//!   1. `seal_kocok` draws a u64 seed from Soroban's ledger-seeded PRNG and
-//!      stores it for the round. It writes ONLY the fixed `Seal(room_id, round)`
-//!      key, so the seed value cannot change the tx footprint — that is why
-//!      `env.prng()` is safe here but not when picking the winner directly (a
-//!      prng-derived winner address differs between simulation and execution →
-//!      "outside the footprint").
-//!   2. `kocok` derives the winner deterministically from that sealed seed
-//!      (`unwon[seed % unwon_len]`), so the result is fixed before the tx and
-//!      is identical in simulation and execution.
-//! Fair under "Soroban PRNG is unpredictable"; an external VRF is the next
-//! hardening step. Honestly badged as a preview in the UI.
+//! Every draw uses commit-reveal. Eligible members first submit a SHA-256
+//! commitment bound to this contract, room, round, and member. They reveal the
+//! underlying 32-byte secret in a later window. Finalization combines valid
+//! reveals in immutable roster order and excludes non-revealers for that round.
+//! If nobody reveals, immutable round context provides a deterministic liveness
+//! fallback so the prefunded pool cannot be stranded. See the Week 2 threat
+//! model for residual last-revealer influence and the predictable fallback.
 //!
 //! One contract holds many rooms keyed by `room_id`. Each room has a unique
 //! 6-char invite code — that is the only way to find or join a room. There
 //! is NO discovery mechanism by design.
 
 use soroban_sdk::{
-    contract, contracterror, contractimpl, contracttype, symbol_short, token, Address, Env,
-    String, Symbol, Vec,
+    contract, contracterror, contractimpl, contracttype, symbol_short, token, xdr::ToXdr, Address,
+    Bytes, BytesN, Env, String, Symbol, Vec,
 };
 
 // ── TIMINGS ───────────────────────────────────────────────────────────────
@@ -58,6 +53,12 @@ const GRACE_PERIOD: u64 = 180; // demo: 3 min
 #[cfg(feature = "production-cadences")]
 const GRACE_PERIOD: u64 = 14 * 24 * 60 * 60; // production: 14 days
 
+// Time reserved for members to reveal secrets after the commit deadline.
+#[cfg(not(feature = "production-cadences"))]
+const REVEAL_WINDOW: u64 = 30; // demo: 30s
+#[cfg(feature = "production-cadences")]
+const REVEAL_WINDOW: u64 = 24 * 60 * 60; // long cadence: 1 day
+
 // Contract-level bounds. The UI enforces stricter display-currency bounds.
 const MIN_MEMBERS: u32 = 3;
 const MAX_MEMBERS: u32 = 20;
@@ -69,6 +70,14 @@ pub enum RoomStatus {
     Active,
     Done,
     Dissolved,
+}
+
+#[contracttype]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DrawPhase {
+    Commit,
+    Reveal,
+    Finalizable,
 }
 
 #[contracttype]
@@ -107,9 +116,10 @@ pub enum DataKey {
     Winner(u32, u32),
     KocokAt(u32, u32),
     Postponed(u32, u32),
-    // Sealed PRNG seed for (room_id, round). Written by seal_kocok, consumed by
-    // kocok to derive the winner deterministically.
-    Seal(u32, u32),
+    Commitment(u32, u32, Address),
+    Reveal(u32, u32, Address),
+    CommitCount(u32, u32),
+    RevealCount(u32, u32),
 }
 
 #[contracterror]
@@ -127,8 +137,12 @@ pub enum Error {
     RoomFull = 9,
     NotYet = 10,
     AlreadyPostponed = 11,
-    NotSealed = 12,
-    AlreadySealed = 13,
+    AlreadyCommitted = 14,
+    AlreadyRevealed = 15,
+    NoCommitment = 16,
+    InvalidReveal = 17,
+    NotEligible = 18,
+    CommitStarted = 19,
 }
 
 #[contract]
@@ -197,11 +211,7 @@ impl ArisanRooms {
 
         // Lock host's full commitment.
         let total = share * (member_target as i128);
-        token::Client::new(&env, &token).transfer(
-            &host,
-            &env.current_contract_address(),
-            &total,
-        );
+        token::Client::new(&env, &token).transfer(&host, &env.current_contract_address(), &total);
 
         let room = Room {
             host: host.clone(),
@@ -239,12 +249,7 @@ impl ArisanRooms {
     }
 
     /// Join a room by its code, locking N × share.
-    pub fn join_room(
-        env: Env,
-        room_id: u32,
-        code: Symbol,
-        member: Address,
-    ) -> Result<(), Error> {
+    pub fn join_room(env: Env, room_id: u32, code: Symbol, member: Address) -> Result<(), Error> {
         member.require_auth();
         let mut room: Room = env
             .storage()
@@ -274,11 +279,7 @@ impl ArisanRooms {
             .get(&DataKey::Token)
             .ok_or(Error::NotInitialized)?;
         let total = room.share * (room.member_target as i128);
-        token::Client::new(&env, &token).transfer(
-            &member,
-            &env.current_contract_address(),
-            &total,
-        );
+        token::Client::new(&env, &token).transfer(&member, &env.current_contract_address(), &total);
         members.push_back(member.clone());
         env.storage()
             .persistent()
@@ -359,6 +360,12 @@ impl ArisanRooms {
         if room.status != RoomStatus::Open {
             return Err(Error::WrongStatus);
         }
+        // Starting after the first commit deadline would create an Active room
+        // with no opportunity for commitments. The still-Open room can be
+        // cancelled and fully refunded instead.
+        if env.ledger().timestamp() >= room.first_kocok {
+            return Err(Error::WrongStatus);
+        }
         let members: Vec<Address> = env
             .storage()
             .persistent()
@@ -417,73 +424,93 @@ impl ArisanRooms {
         Ok(())
     }
 
-    /// Phase 1 of the draw — seal this round's randomness on-chain. Any room
-    /// member may call once the scheduled kocok timestamp has passed. The
-    /// contract draws a u64 seed from Soroban's ledger-seeded PRNG and stores
-    /// it for the round; no winner is chosen here.
-    ///
-    /// Footprint safety: this tx writes ONLY the fixed `Seal(room_id, round)`
-    /// key, so even though the seed VALUE differs between simulation and
-    /// execution (different ledgers seed the PRNG), the set of touched keys is
-    /// identical → the tx executes cleanly and the EXECUTED seed is the one
-    /// that sticks. Sealing the seed (not the winner) is what makes on-chain
-    /// randomness compatible with Soroban's simulate-then-execute model.
-    ///
-    /// One seal per round: the first seal fixes the round's randomness; a
-    /// second call errors. `kocok` then derives the winner from this seed.
-    pub fn seal_kocok(env: Env, room_id: u32, caller: Address) -> Result<u64, Error> {
-        caller.require_auth();
+    /// Fix an eligible member's secret before the reveal window opens.
+    pub fn commit_draw(
+        env: Env,
+        room_id: u32,
+        member: Address,
+        commitment: BytesN<32>,
+    ) -> Result<(), Error> {
+        member.require_auth();
         let room: Room = env
             .storage()
             .persistent()
             .get(&DataKey::Room(room_id))
             .ok_or(Error::NotFound)?;
-        if room.status != RoomStatus::Active {
+        ensure_eligible(&env, room_id, &room, &member)?;
+        if draw_phase_for(&env, room_id, &room)? != DrawPhase::Commit {
             return Err(Error::WrongStatus);
         }
-        let members: Vec<Address> = env
-            .storage()
-            .persistent()
-            .get(&DataKey::Members(room_id))
-            .unwrap_or_else(|| Vec::new(&env));
-        if !members.iter().any(|m| m == caller) {
-            return Err(Error::NotMember);
+        let key = DataKey::Commitment(room_id, room.round, member.clone());
+        if env.storage().persistent().has(&key) {
+            return Err(Error::AlreadyCommitted);
         }
-        let now = env.ledger().timestamp();
-        let deadline: u64 = env
-            .storage()
-            .persistent()
-            .get(&DataKey::KocokAt(room_id, room.round))
-            .ok_or(Error::NotFound)?;
-        if now < deadline {
-            return Err(Error::NotYet);
-        }
-        if env
-            .storage()
-            .persistent()
-            .has(&DataKey::Seal(room_id, room.round))
-        {
-            return Err(Error::AlreadySealed);
-        }
-        let seed: u64 = env.prng().gen();
-        env.storage()
-            .persistent()
-            .set(&DataKey::Seal(room_id, room.round), &seed);
-        env.events()
-            .publish((symbol_short!("seal"), caller), (room_id, room.round));
-        Ok(seed)
+        env.storage().persistent().set(&key, &commitment);
+        let count_key = DataKey::CommitCount(room_id, room.round);
+        let count: u32 = env.storage().persistent().get(&count_key).unwrap_or(0);
+        env.storage().persistent().set(&count_key, &(count + 1));
+        env.events().publish(
+            (symbol_short!("commit"), room_id, room.round, member),
+            commitment,
+        );
+        Ok(())
     }
 
-    /// Phase 2 of the draw — run the round's kocok. Any room member can call
-    /// (anti-deadlock) once the round has been sealed (see `seal_kocok`) and
-    /// the scheduled kocok timestamp has passed. The winner is derived
-    /// DETERMINISTICALLY from the sealed seed — `winner = unwon[seed % unwon_len]`
-    /// — so the outcome is fixed before this tx (identical in simulation and
-    /// execution, footprint matches) and NO caller can pick the winner. The
-    /// contract transfers the pot (N × share) to the winner and advances the
-    /// round (or marks the cycle Done). The pool-of-unwon constraint still
-    /// guarantees distinct winners across the cycle.
-    pub fn kocok(env: Env, room_id: u32, caller: Address) -> Result<Address, Error> {
+    /// Open a prior commitment during the reveal window. The contract
+    /// recomputes the commitment with its own address and the current room
+    /// round, so copied values from another round or deployment cannot open.
+    pub fn reveal_draw(
+        env: Env,
+        room_id: u32,
+        member: Address,
+        secret: BytesN<32>,
+    ) -> Result<(), Error> {
+        member.require_auth();
+        let room: Room = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Room(room_id))
+            .ok_or(Error::NotFound)?;
+        ensure_eligible(&env, room_id, &room, &member)?;
+        if draw_phase_for(&env, room_id, &room)? != DrawPhase::Reveal {
+            return Err(Error::WrongStatus);
+        }
+        let reveal_key = DataKey::Reveal(room_id, room.round, member.clone());
+        if env.storage().persistent().has(&reveal_key) {
+            return Err(Error::AlreadyRevealed);
+        }
+        let committed: BytesN<32> = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Commitment(room_id, room.round, member.clone()))
+            .ok_or(Error::NoCommitment)?;
+        let expected = commitment_hash(
+            &env,
+            &env.current_contract_address(),
+            room_id,
+            room.round,
+            &member,
+            &secret,
+        );
+        if committed != expected {
+            return Err(Error::InvalidReveal);
+        }
+        env.storage().persistent().set(&reveal_key, &secret);
+        let count_key = DataKey::RevealCount(room_id, room.round);
+        let count: u32 = env.storage().persistent().get(&count_key).unwrap_or(0);
+        env.storage().persistent().set(&count_key, &(count + 1));
+        env.events().publish(
+            (symbol_short!("reveal"), room_id, room.round, member),
+            expected,
+        );
+        Ok(())
+    }
+
+    /// Complete a round after the reveal deadline. Revealed secrets are
+    /// combined in roster order and only revealers can win that round. If no
+    /// eligible member revealed, immutable round context selects from all
+    /// unwon members so the prefunded cycle still advances.
+    pub fn finalize_draw(env: Env, room_id: u32, caller: Address) -> Result<Address, Error> {
         caller.require_auth();
         let mut room: Room = env
             .storage()
@@ -501,23 +528,19 @@ impl ArisanRooms {
         if !members.iter().any(|m| m == caller) {
             return Err(Error::NotMember);
         }
-        let now = env.ledger().timestamp();
+        if draw_phase_for(&env, room_id, &room)? != DrawPhase::Finalizable {
+            return Err(Error::NotYet);
+        }
         let deadline: u64 = env
             .storage()
             .persistent()
             .get(&DataKey::KocokAt(room_id, room.round))
             .ok_or(Error::NotFound)?;
-        if now < deadline {
-            return Err(Error::NotYet);
-        }
-        // The round must be sealed first; the seed was fixed in an earlier tx,
-        // so the winner derived from it is deterministic here.
-        let seed: u64 = env
-            .storage()
-            .persistent()
-            .get(&DataKey::Seal(room_id, room.round))
-            .ok_or(Error::NotSealed)?;
-        // Build the eligible pool: members who haven't won yet.
+
+        let mut entropy: Bytes = env.current_contract_address().to_xdr(&env);
+        entropy.append(&room_id.to_xdr(&env));
+        entropy.append(&room.round.to_xdr(&env));
+        let mut unwon: Vec<Address> = Vec::new(&env);
         let mut pool: Vec<Address> = Vec::new(&env);
         for m in members.iter() {
             let won: bool = env
@@ -526,15 +549,30 @@ impl ArisanRooms {
                 .get(&DataKey::Won(room_id, m.clone()))
                 .unwrap_or(false);
             if !won {
-                pool.push_back(m);
+                unwon.push_back(m.clone());
+                if let Some(secret) = env
+                    .storage()
+                    .persistent()
+                    .get::<_, BytesN<32>>(&DataKey::Reveal(room_id, room.round, m.clone()))
+                {
+                    pool.push_back(m);
+                    entropy.append(&Bytes::from(secret));
+                }
             }
         }
-        if pool.is_empty() {
+        if unwon.is_empty() {
             return Err(Error::WrongStatus);
         }
-        // Derive the winner index from the sealed seed. Modulo bias is < 2^-59
-        // for n ≤ 20 members, i.e. unmeasurable.
-        let winner_idx: u32 = (seed % (pool.len() as u64)) as u32;
+        let fallback = pool.is_empty();
+        if fallback {
+            pool = unwon;
+        }
+        let digest = env.crypto().sha256(&entropy).to_bytes();
+        let mut ticket = 0u64;
+        for i in 0..8 {
+            ticket = (ticket << 8) | (digest.get_unchecked(i) as u64);
+        }
+        let winner_idx: u32 = (ticket % (pool.len() as u64)) as u32;
         let winner: Address = pool.get(winner_idx).unwrap();
         let pot = room.share * (room.member_count as i128);
         let token: Address = env
@@ -542,11 +580,7 @@ impl ArisanRooms {
             .instance()
             .get(&DataKey::Token)
             .ok_or(Error::NotInitialized)?;
-        token::Client::new(&env, &token).transfer(
-            &env.current_contract_address(),
-            &winner,
-            &pot,
-        );
+        token::Client::new(&env, &token).transfer(&env.current_contract_address(), &winner, &pot);
         env.storage()
             .persistent()
             .set(&DataKey::Won(room_id, winner.clone()), &true);
@@ -554,18 +588,29 @@ impl ArisanRooms {
             .persistent()
             .set(&DataKey::Winner(room_id, room.round), &winner);
 
-        env.events()
-            .publish((symbol_short!("kocok"), winner.clone()), pot);
+        let reveals: u32 = env
+            .storage()
+            .persistent()
+            .get(&DataKey::RevealCount(room_id, room.round))
+            .unwrap_or(0);
+        env.events().publish(
+            (
+                symbol_short!("finalize"),
+                room_id,
+                room.round,
+                winner.clone(),
+            ),
+            (pot, reveals, fallback),
+        );
 
         // Advance to the next round, or close the cycle.
         if room.round >= room.member_count {
             room.status = RoomStatus::Done;
         } else {
             let next_at = deadline + cadence_seconds(room.cadence);
-            env.storage().persistent().set(
-                &DataKey::KocokAt(room_id, room.round + 1),
-                &next_at,
-            );
+            env.storage()
+                .persistent()
+                .set(&DataKey::KocokAt(room_id, room.round + 1), &next_at);
         }
         room.round += 1;
         env.storage()
@@ -577,12 +622,7 @@ impl ArisanRooms {
     /// Host can push the current kocok later by up to MAX_POSTPONE_SECONDS,
     /// once per round. Subsequent kocoks compound the delay because the
     /// next deadline is derived from the current one.
-    pub fn postpone_kocok(
-        env: Env,
-        room_id: u32,
-        host: Address,
-        delay: u64,
-    ) -> Result<(), Error> {
+    pub fn postpone_kocok(env: Env, room_id: u32, host: Address, delay: u64) -> Result<(), Error> {
         host.require_auth();
         let room: Room = env
             .storage()
@@ -595,15 +635,19 @@ impl ArisanRooms {
         if room.status != RoomStatus::Active {
             return Err(Error::WrongStatus);
         }
-        // Once the round's randomness is sealed the winner is already decided;
-        // the round must proceed to the draw. Reject (rather than clear the
-        // seal, which would let the host re-roll an unfavorable result).
-        if env
+        // Changing the deadline after a commitment exists would change the
+        // agreed protocol window. Postpone is valid only before the first
+        // commitment and while the round is still in Commit.
+        if draw_phase_for(&env, room_id, &room)? != DrawPhase::Commit {
+            return Err(Error::WrongStatus);
+        }
+        let commit_count: u32 = env
             .storage()
             .persistent()
-            .has(&DataKey::Seal(room_id, room.round))
-        {
-            return Err(Error::AlreadySealed);
+            .get(&DataKey::CommitCount(room_id, room.round))
+            .unwrap_or(0);
+        if commit_count > 0 {
+            return Err(Error::CommitStarted);
         }
         if delay == 0 || delay > MAX_POSTPONE_SECONDS {
             return Err(Error::InvalidParams);
@@ -631,14 +675,10 @@ impl ArisanRooms {
     }
 
     /// Safety valve: any member may dissolve a stuck Active room after the
-    /// current kocok deadline has lapsed by GRACE_PERIOD. Each unwon member
+    /// current reveal deadline has lapsed by GRACE_PERIOD. Each unwon member
     /// is refunded N × share (their full unwon allocation). In normal use
-    /// the permissionless `kocok()` keeps this from ever firing.
-    pub fn emergency_dissolve(
-        env: Env,
-        room_id: u32,
-        caller: Address,
-    ) -> Result<(), Error> {
+    /// the permissionless `finalize_draw()` keeps this from ever firing.
+    pub fn emergency_dissolve(env: Env, room_id: u32, caller: Address) -> Result<(), Error> {
         caller.require_auth();
         let mut room: Room = env
             .storage()
@@ -662,7 +702,7 @@ impl ArisanRooms {
             .persistent()
             .get(&DataKey::KocokAt(room_id, room.round))
             .ok_or(Error::NotFound)?;
-        if now < deadline + GRACE_PERIOD {
+        if now < deadline + REVEAL_WINDOW + GRACE_PERIOD {
             return Err(Error::NotYet);
         }
         let token: Address = env
@@ -736,13 +776,43 @@ impl ArisanRooms {
             .get(&DataKey::KocokAt(room_id, round))
             .ok_or(Error::NotFound)
     }
-    /// The sealed PRNG seed for a round (after `seal_kocok`, before/after kocok).
-    /// Lets anyone verify the draw: winner == unwon[seed % unwon_len].
-    pub fn seal_of(env: Env, room_id: u32, round: u32) -> Result<u64, Error> {
+    pub fn reveal_at(env: Env, room_id: u32, round: u32) -> Result<u64, Error> {
+        let commit_at: u64 = env
+            .storage()
+            .persistent()
+            .get(&DataKey::KocokAt(room_id, round))
+            .ok_or(Error::NotFound)?;
+        Ok(commit_at + REVEAL_WINDOW)
+    }
+    pub fn draw_phase(env: Env, room_id: u32) -> Result<DrawPhase, Error> {
+        let room: Room = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Room(room_id))
+            .ok_or(Error::NotFound)?;
+        draw_phase_for(&env, room_id, &room)
+    }
+    pub fn has_committed(env: Env, room_id: u32, round: u32, member: Address) -> bool {
         env.storage()
             .persistent()
-            .get(&DataKey::Seal(room_id, round))
-            .ok_or(Error::NotSealed)
+            .has(&DataKey::Commitment(room_id, round, member))
+    }
+    pub fn has_revealed(env: Env, room_id: u32, round: u32, member: Address) -> bool {
+        env.storage()
+            .persistent()
+            .has(&DataKey::Reveal(room_id, round, member))
+    }
+    pub fn commit_count(env: Env, room_id: u32, round: u32) -> u32 {
+        env.storage()
+            .persistent()
+            .get(&DataKey::CommitCount(room_id, round))
+            .unwrap_or(0)
+    }
+    pub fn reveal_count(env: Env, room_id: u32, round: u32) -> u32 {
+        env.storage()
+            .persistent()
+            .get(&DataKey::RevealCount(room_id, round))
+            .unwrap_or(0)
     }
     pub fn room_count(env: Env) -> u32 {
         env.storage()
@@ -750,6 +820,67 @@ impl ArisanRooms {
             .get(&DataKey::RoomCount)
             .unwrap_or(0)
     }
+}
+
+fn draw_phase_for(env: &Env, room_id: u32, room: &Room) -> Result<DrawPhase, Error> {
+    if room.status != RoomStatus::Active {
+        return Err(Error::WrongStatus);
+    }
+    let commit_at: u64 = env
+        .storage()
+        .persistent()
+        .get(&DataKey::KocokAt(room_id, room.round))
+        .ok_or(Error::NotFound)?;
+    let now = env.ledger().timestamp();
+    if now < commit_at {
+        Ok(DrawPhase::Commit)
+    } else if now < commit_at + REVEAL_WINDOW {
+        Ok(DrawPhase::Reveal)
+    } else {
+        Ok(DrawPhase::Finalizable)
+    }
+}
+
+fn ensure_eligible(env: &Env, room_id: u32, room: &Room, member: &Address) -> Result<(), Error> {
+    if room.status != RoomStatus::Active {
+        return Err(Error::WrongStatus);
+    }
+    let members: Vec<Address> = env
+        .storage()
+        .persistent()
+        .get(&DataKey::Members(room_id))
+        .unwrap_or_else(|| Vec::new(env));
+    if !members.iter().any(|m| m == *member) {
+        return Err(Error::NotMember);
+    }
+    let won: bool = env
+        .storage()
+        .persistent()
+        .get(&DataKey::Won(room_id, member.clone()))
+        .unwrap_or(false);
+    if won {
+        return Err(Error::NotEligible);
+    }
+    Ok(())
+}
+
+fn commitment_hash(
+    env: &Env,
+    contract: &Address,
+    room_id: u32,
+    round: u32,
+    member: &Address,
+    secret: &BytesN<32>,
+) -> BytesN<32> {
+    // Canonical 140-byte preimage shared with web/lib/server/arisanCommitment:
+    // ScVal(Address)=40, ScVal(U32)=8, ScVal(U32)=8,
+    // ScVal(Account Address)=44, ScVal(Bytes[32])=40.
+    let mut preimage: Bytes = contract.clone().to_xdr(env);
+    preimage.append(&room_id.to_xdr(env));
+    preimage.append(&round.to_xdr(env));
+    preimage.append(&member.clone().to_xdr(env));
+    preimage.append(&secret.clone().to_xdr(env));
+    env.crypto().sha256(&preimage).to_bytes()
 }
 
 fn cadence_seconds(c: Cadence) -> u64 {
@@ -788,11 +919,7 @@ fn refund_member(env: &Env, room_id: u32, member: &Address) {
         .instance()
         .get(&DataKey::Token)
         .expect("initialized");
-    token::Client::new(env, &token).transfer(
-        &env.current_contract_address(),
-        member,
-        &locked,
-    );
+    token::Client::new(env, &token).transfer(&env.current_contract_address(), member, &locked);
     env.storage()
         .persistent()
         .remove(&DataKey::Locked(room_id, member.clone()));

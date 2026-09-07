@@ -60,6 +60,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Commit-reveal encoding tests
+        run: npm run test:arisan
+
   web-e2e-local:
     name: web E2E (local)
     runs-on: ubuntu-latest

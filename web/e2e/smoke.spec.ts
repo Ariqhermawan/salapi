@@ -15,6 +15,7 @@ const ROUTES = [
   "/receive",
   "/transparency",
   "/paluwagan",
+  "/arisan",
   "/savings",
   "/topup",
   "/withdraw",

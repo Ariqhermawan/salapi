@@ -68,6 +68,7 @@ export const sc = {
   u64: (v: bigint | number) => nativeToScVal(BigInt(v), { type: "u64" }),
   str: (v: string) => nativeToScVal(v, { type: "string" }),
   sym: (s: string) => nativeToScVal(s, { type: "symbol" }),
+  bytes: (v: Uint8Array) => xdr.ScVal.scvBytes(Buffer.from(v)),
   bool: (v: boolean) => nativeToScVal(v),
   // Unit variant of a Soroban contract enum (e.g. Cadence::Weekly).
   // Encoded as a vec containing a single symbol = variant name.

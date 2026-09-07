@@ -1,154 +1,200 @@
-// End-to-end Arisan Rooms cycle on real testnet. This is the honest receipt
-// for the prefund/PRNG-winner-pick claim: every step is a real on-chain tx
-// signed by salapi-demo + the two Friendbot-funded friends, and the final
-// assertion is the contract's own balance falling to zero.
+// Deliverable 2 end-to-end proof on Stellar Testnet.
 //
-//   1. Demo signer (host) creates a room with N=3, share=Rp 1,000 (display).
-//   2. friend1 + friend2 join via the room code (each locks N × share).
-//   3. After the join window expires, host starts the room.
-//   4. After firstKocok arrives, kocok() is called three times — once per
-//      round — at the cadence (60s in the testnet preview). Each call routes
-//      the pot (N × share) to a different winner picked by Soroban PRNG.
-//   5. We assert: final status === "Done", three distinct winners, contract
-//      balance returns to exactly zero.
+// One N=3 prefunded cycle proves all required paths:
+//   round 1 — every eligible member commits and reveals (normal path)
+//   round 2 — every eligible member commits, only one reveals (timeout path)
+//   round 3 — no eligible member reveals (deterministic liveness fallback)
+// The final assertions require three distinct winners, Done status, and an
+// actual zero balance read from the deployed contract.
 //
-// Run from web/ with: npx tsx scripts/verify-arisan.mts
-import { readFileSync } from "node:fs";
+// Run from web/: npx tsx scripts/verify-arisan.mts
 
-const envText = readFileSync(new URL("../.env.local", import.meta.url), "utf8");
+import { existsSync, readFileSync } from "node:fs";
+
+const envFile = new URL("../.env.local", import.meta.url);
+const envText = existsSync(envFile) ? readFileSync(envFile, "utf8") : "";
 for (const line of envText.split(/\r?\n/)) {
-  const t = line.trim();
-  if (!t || t.startsWith("#")) continue;
-  const i = t.indexOf("=");
-  if (i < 0) continue;
-  process.env[t.slice(0, i)] = t.slice(i + 1);
+  const value = line.trim();
+  if (!value || value.startsWith("#")) continue;
+  const separator = value.indexOf("=");
+  if (separator < 0) continue;
+  process.env[value.slice(0, separator)] = value.slice(separator + 1);
 }
 
 const A = await import("../app/actions");
 
-async function wait(ms: number, why: string) {
-  const s = Math.max(1, Math.floor(ms / 1000));
-  console.log(`waiting ${s}s — ${why}`);
-  await new Promise((r) => setTimeout(r, ms));
+async function waitUntil(timestamp: number, reason: string) {
+  const milliseconds = Math.max(
+    0,
+    (timestamp - Math.floor(Date.now() / 1000) + 2) * 1000
+  );
+  if (milliseconds === 0) return;
+  console.log(`   waiting ${Math.ceil(milliseconds / 1000)}s — ${reason}`);
+  await new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
-async function fundFriends() {
-  // Friendbot calls are idempotent; "already funded" is a no-op for us.
-  const FRIENDBOT = "https://friendbot.stellar.org";
-  for (const k of ["FRIEND1_PUBLIC", "FRIEND2_PUBLIC", "SALAPI_DEMO_PUBLIC"]) {
-    const pub = process.env[k];
-    if (!pub) continue;
+async function roomState(roomId: number) {
+  const state = await A.arisanRoomState(roomId);
+  if (!state.ready) throw new Error(`room read failed: ${state.error ?? "unknown"}`);
+  return state;
+}
+
+async function fundSigners() {
+  for (const key of ["SALAPI_DEMO_PUBLIC", "FRIEND1_PUBLIC", "FRIEND2_PUBLIC"]) {
+    const address = process.env[key];
+    if (!address) continue;
     try {
-      await fetch(`${FRIENDBOT}/?addr=${pub}`, { cache: "no-store" });
+      await fetch(`https://friendbot.stellar.org/?addr=${address}`, {
+        cache: "no-store",
+      });
     } catch {
-      /* already funded, expected */
+      // Already-funded Testnet accounts are expected.
     }
   }
 }
 
+async function commitAll(roomId: number) {
+  const before = await roomState(roomId);
+  const me = before.seats.find((seat) => seat.isYou);
+  if (me && !me.won && !me.committed) {
+    const result = await A.arisanCommit(roomId);
+    if (!result.ok) throw new Error(`host commit failed: ${result.error}`);
+    console.log(`   host commit: ${result.link}`);
+  }
+  const friends = await A.arisanFriendsCommit(roomId);
+  if (!friends.ok) throw new Error(`friend commit failed: ${friends.error}`);
+  for (const link of friends.links) console.log(`   friend commit: ${link}`);
+  const after = await roomState(roomId);
+  if (after.commitCount !== after.eligibleCount) {
+    throw new Error(
+      `expected ${after.eligibleCount} commitments, got ${after.commitCount}`
+    );
+  }
+  return after;
+}
+
+async function revealAll(roomId: number) {
+  const before = await roomState(roomId);
+  const me = before.seats.find((seat) => seat.isYou);
+  if (me && !me.won && me.committed && !me.revealed) {
+    const result = await A.arisanReveal(roomId);
+    if (!result.ok) throw new Error(`host reveal failed: ${result.error}`);
+    console.log(`   host reveal: ${result.link}`);
+  }
+  const friends = await A.arisanFriendsReveal(roomId);
+  if (!friends.ok) throw new Error(`friend reveal failed: ${friends.error}`);
+  for (const link of friends.links) console.log(`   friend reveal: ${link}`);
+  const after = await roomState(roomId);
+  if (after.revealCount !== after.commitCount) {
+    throw new Error(
+      `expected ${after.commitCount} reveals, got ${after.revealCount}`
+    );
+  }
+  return after;
+}
+
+async function revealExactlyOne(roomId: number) {
+  const before = await roomState(roomId);
+  const me = before.seats.find((seat) => seat.isYou);
+  if (me && !me.won && me.committed) {
+    const result = await A.arisanReveal(roomId);
+    if (!result.ok) throw new Error(`single reveal failed: ${result.error}`);
+    console.log(`   only reveal: ${result.link}`);
+  } else {
+    const result = await A.arisanFriendsReveal(roomId, 1);
+    if (!result.ok || result.submitted !== 1) {
+      throw new Error(`single friend reveal failed: ${result.error ?? "none"}`);
+    }
+    console.log(`   only reveal: ${result.links[0]}`);
+  }
+  const after = await roomState(roomId);
+  if (after.revealCount !== 1 || after.commitCount !== 2) {
+    throw new Error(
+      `timeout setup expected commits=2 reveals=1, got ${after.commitCount}/${after.revealCount}`
+    );
+  }
+  return after;
+}
+
+async function finalize(roomId: number, expectedRound: number) {
+  const before = await roomState(roomId);
+  await waitUntil(before.revealAt, `round ${expectedRound} reveal deadline`);
+  const result = await A.arisanFinalize(roomId);
+  if (!result.ok) throw new Error(`finalize r${expectedRound} failed: ${result.error}`);
+  console.log(`   round ${expectedRound} winner: ${result.winnerLabel}`);
+  console.log(`   finalize: ${result.link}`);
+  return result.winner;
+}
+
 async function main() {
-  console.log("== Arisan Rooms · full N=3 prefund cycle ==");
+  console.log("== Arisan commit-reveal · Deliverable 2 Testnet proof ==");
   console.log("contract:", process.env.ARISAN_ROOMS_CONTRACT);
   if (!process.env.ARISAN_ROOMS_CONTRACT) {
     throw new Error("ARISAN_ROOMS_CONTRACT not set");
   }
   if (!process.env.FRIEND1_PUBLIC || !process.env.FRIEND2_PUBLIC) {
-    throw new Error("FRIEND1/FRIEND2 keys not set in .env.local");
+    throw new Error("FRIEND1/FRIEND2 keys not set in the environment or .env.local");
   }
+  await fundSigners();
 
-  await fundFriends();
-
-  console.log("\n[1/6] creating room…");
-  // PHP 1000 share ≈ Rp 16M in display. Locked total = 3 × 1000 PHP.
-  const create = await A.arisanCreate({
+  console.log("\n[1/7] create and prefund a three-member room");
+  const created = await A.arisanCreate({
     name: "Verify · Arisan Rooms",
     memberTarget: 3,
-    share: { amount: "1000", currency: "tl" },
+    share: { amount: "6.50", currency: "tl" },
     cadence: "Weekly",
   });
-  if (!create.ok) throw new Error("create failed: " + create.error);
-  const roomId = create.id;
-  console.log(`   room id = ${roomId}, link = ${create.link}`);
-
-  // Pull the seeded code from the room state.
-  const initial = await A.arisanRoomState(roomId);
-  if (!initial.ready) throw new Error("room read failed");
-  console.log(`   code = ${initial.code}, members ${initial.memberCount}/${initial.memberTarget}`);
-  console.log(`   firstKocok = ${initial.firstKocok}, joinDeadline = ${initial.joinDeadline}`);
-
-  console.log("\n[2/6] friends joining (friend1 + friend2)…");
-  const fjoin = await A.arisanFriendsJoin(roomId);
-  if (!fjoin.ok) throw new Error("friends join failed: " + fjoin.error);
-  console.log(`   joined = ${fjoin.joined}`);
-
-  const seated = await A.arisanRoomState(roomId);
-  if (!seated.ready) throw new Error("room read failed after join");
-  console.log(`   members ${seated.memberCount}/${seated.memberTarget}, status=${seated.status}`);
-  if (seated.memberCount !== seated.memberTarget) {
-    throw new Error("room not full after friend joins");
+  if (!created.ok) throw new Error(`create failed: ${created.error}`);
+  const roomId = created.id;
+  console.log(`   room=${roomId} code=${created.code}`);
+  console.log(`   create: ${created.link}`);
+  const joined = await A.arisanFriendsJoin(roomId);
+  if (!joined.ok || joined.joined !== 2) {
+    throw new Error(`friend join failed: ${joined.error ?? joined.joined}`);
   }
+  const started = await A.arisanStart(roomId);
+  if (!started.ok) throw new Error(`start failed: ${started.error}`);
+  console.log(`   start: ${started.link}`);
 
-  // Wait until joinDeadline has passed so start_room cleanly enters Active.
-  // (start_room itself doesn't check join_deadline, but the contract's design
-  //  intends starting after the join window closes; we mirror that.)
-  const nowA = Math.floor(Date.now() / 1000);
-  const waitToStart = Math.max(2_000, (seated.joinDeadline - nowA + 2) * 1000);
-  await wait(waitToStart, "join window closing");
+  console.log("\n[2/7] round 1 normal path — 3 commits");
+  const round1Commit = await commitAll(roomId);
+  await waitUntil(round1Commit.commitAt, "round 1 reveal window");
 
-  console.log("\n[3/6] host starting the room…");
-  const startR = await A.arisanStart(roomId);
-  if (!startR.ok) throw new Error("start failed: " + startR.error);
-  console.log(`   started, link = ${startR.link}`);
+  console.log("\n[3/7] round 1 normal path — 3 reveals and finalize");
+  await revealAll(roomId);
+  const winners = [await finalize(roomId, 1)];
 
-  // Wait until firstKocok arrives.
-  const started = await A.arisanRoomState(roomId);
-  if (!started.ready) throw new Error("room read failed after start");
-  const nowB = Math.floor(Date.now() / 1000);
-  const waitFirst = Math.max(2_000, (started.firstKocok - nowB + 2) * 1000);
-  await wait(waitFirst, "first kocok deadline");
+  console.log("\n[4/7] round 2 timeout path — 2 commits, 1 reveal");
+  const round2Commit = await commitAll(roomId);
+  await waitUntil(round2Commit.commitAt, "round 2 reveal window");
+  await revealExactlyOne(roomId);
+  winners.push(await finalize(roomId, 2));
 
-  console.log("\n[4/6] kocok loop — three rounds, one cadence apart…");
-  const winners: string[] = [];
-  for (let r = 1; r <= 3; r++) {
-    // Each successive kocok is allowed at deadline + cadence; we poll until
-    // canKocokNow flips true, then fire.
-    while (true) {
-      const s = await A.arisanRoomState(roomId);
-      if (!s.ready) throw new Error("room read failed mid-loop");
-      if (s.canKocokNow) break;
-      const waitMs = Math.max(2_000, (s.nextKocok - Math.floor(Date.now() / 1000) + 2) * 1000);
-      await wait(waitMs, `round ${r} cadence`);
-    }
-    const k = await A.arisanKocok(roomId);
-    if (!k.ok) throw new Error(`kocok r${r} failed: ${k.error}`);
-    console.log(`   round ${r}: winner = ${k.winnerLabel} (${k.winner.slice(0, 6)}…), ${k.link}`);
-    winners.push(k.winner);
+  console.log("\n[5/7] round 3 liveness path — commit, no reveal");
+  const round3Commit = await commitAll(roomId);
+  await waitUntil(round3Commit.revealAt, "round 3 no-reveal timeout");
+  winners.push(await finalize(roomId, 3));
+
+  console.log("\n[6/7] verify final state and distinct winners");
+  const final = await roomState(roomId);
+  if (final.status !== "Done") throw new Error(`expected Done, got ${final.status}`);
+  if (new Set(winners).size !== 3) throw new Error("winner repeated");
+  if (final.seats.some((seat) => !seat.won)) throw new Error("a member never won");
+  console.log(
+    `   status=${final.status}, winners=${final.winners.map((winner) => winner.label).join(", ")}`
+  );
+
+  console.log("\n[7/7] verify deployed contract has zero residual balance");
+  const balance = await A.arisanContractBalance();
+  if (!balance.ready) throw new Error(`balance read failed: ${balance.error}`);
+  if (balance.stroops !== "0") {
+    throw new Error(`expected zero residual, got ${balance.stroops} stroops`);
   }
-
-  console.log("\n[5/6] verifying final state…");
-  const final = await A.arisanRoomState(roomId);
-  if (!final.ready) throw new Error("final read failed");
-  console.log(`   status = ${final.status}, round = ${final.round}/${final.memberTarget}`);
-  console.log(`   winners: ${final.winners.map((w) => w.label).join(", ")}`);
-
-  const unique = new Set(winners);
-  if (unique.size !== 3) {
-    throw new Error(`expected 3 distinct winners, got ${unique.size}`);
-  }
-  if (final.status !== "Done") {
-    throw new Error(`expected status Done, got ${final.status}`);
-  }
-  for (const seat of final.seats) {
-    if (!seat.won) throw new Error(`seat ${seat.label} never won`);
-  }
-
-  console.log("\n[6/6] PASS · prefund cycle completed cleanly");
-  console.log("   - 3 distinct winners, every seat won exactly once");
-  console.log("   - room.status flipped to Done");
-  console.log("   - all locked pesos disbursed; ZERO residual by construction");
+  console.log("   contract balance=0 stroops");
+  console.log("\nPASS · normal, non-reveal timeout, fallback, and zero residual verified");
 }
 
-main().catch((e) => {
-  console.error("FAIL:", e instanceof Error ? e.message : String(e));
+main().catch((error) => {
+  console.error("FAIL:", error instanceof Error ? error.message : String(error));
   process.exit(1);
 });

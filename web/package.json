@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test:e2e": "playwright test",
+    "test:arisan": "node --experimental-strip-types --test scripts/arisan-commitment.test.mts",
     "test:money": "node --experimental-strip-types --test scripts/money.test.mts"
   },
   "dependencies": {
