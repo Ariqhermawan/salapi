@@ -215,37 +215,51 @@ export default function ArisanRoomScreen({ roomId }: { roomId: number }) {
   >(fn: () => Promise<T>, okText: string) {
     start(async () => {
       setMsg(null);
-      const r = await fn();
-      if (r.ok) {
-        setMsg({ tone: "ok", text: okText, link: r.link });
-      } else {
-        // Prefer the i18n key the action attached (e.g. arisanPostpone maps
-        // contract error codes to keys) so the toast is human-readable
-        // instead of a raw HostError / XDR dump.
-        const text = r.errorKey
-          ? t(r.errorKey)
-          : r.error || t("arisan.somethingWrong");
-        setMsg({ tone: "err", text });
+      try {
+        const r = await fn();
+        if (r.ok) {
+          setMsg({ tone: "ok", text: okText, link: r.link });
+        } else {
+          // Prefer the i18n key the action attached (e.g. arisanPostpone maps
+          // contract error codes to keys) so the toast is human-readable
+          // instead of a raw HostError / XDR dump.
+          const text = r.errorKey
+            ? t(r.errorKey)
+            : r.error || t("arisan.somethingWrong");
+          setMsg({ tone: "err", text });
+        }
+        await refresh();
+      } catch (error) {
+        setMsg({
+          tone: "err",
+          text: error instanceof Error ? error.message : t("arisan.somethingWrong"),
+        });
       }
-      await refresh();
     });
   }
 
   function doFinalize() {
     start(async () => {
       setMsg(null);
-      const r: FinalizeResult = await arisanFinalize(roomId);
-      if (!r.ok) {
-        setMsg({ tone: "err", text: r.error || t("arisan.somethingWrong") });
-        return;
+      try {
+        const r: FinalizeResult = await arisanFinalize(roomId);
+        if (!r.ok) {
+          setMsg({ tone: "err", text: r.error || t("arisan.somethingWrong") });
+          return;
+        }
+        // Find winner index by address — the contract is the source of truth.
+        const idx = st && st.ready ? st.seats.findIndex((s) => s.addr === r.winner) : -1;
+        setRoulette({
+          winnerIdx: Math.max(0, idx),
+          link: r.link,
+          winnerLabel: r.winnerLabel,
+        });
+      } catch (error) {
+        setMsg({
+          tone: "err",
+          text: error instanceof Error ? error.message : t("arisan.somethingWrong"),
+        });
       }
-      // Find winner index by address — the contract is the source of truth.
-      const idx = st && st.ready ? st.seats.findIndex((s) => s.addr === r.winner) : -1;
-      setRoulette({
-        winnerIdx: Math.max(0, idx),
-        link: r.link,
-        winnerLabel: r.winnerLabel,
-      });
     });
   }
 
