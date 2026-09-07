@@ -23,6 +23,10 @@ import {
 import { getSigner, currentWalletPublicKey } from "@/lib/server/userWallet";
 import { supabaseAdminConfigured } from "@/lib/supabase/env";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
+import {
+  createArisanCommitment,
+  deriveArisanSecret,
+} from "@/lib/server/arisanCommitment";
 
 // Reject malformed, zero, negative, and absurd magnitudes before they reach
 // contract i128 args. The upper bound is an anti-abuse / anti-overflow guard,
@@ -461,15 +465,14 @@ export async function disasterState() {
 
 // ── Arisan Rooms (roomed prefund circles) ────────────────────────────────
 // Mirrors the paluwagan demo flow but built on the multi-room arisan_rooms
-// contract: every member locks N × share up front. Each round the draw is a
-// two-phase on-chain PRNG — seal_kocok stores a Soroban-PRNG seed for the
-// round, then kocok pays unwon[seed % pool.len] — so no caller can choose the
-// winner. After N rounds every member has won exactly once and the contract
-// balance is 0. Late payment / default / abscond are structurally impossible —
-// there is no payment owed after join.
+// contract: every member locks N × share up front. Each round uses participant
+// commit-reveal; after the reveal deadline the contract combines valid secrets
+// and pays one unwon participant. After N rounds every member has won exactly
+// once and the contract balance is 0.
 
 export type ArisanCadence = "Weekly" | "Biweekly" | "Monthly";
 export type ArisanStatus = "Open" | "Active" | "Done" | "Dissolved";
+export type ArisanDrawPhase = "Commit" | "Reveal" | "Finalizable";
 
 // Build-Award preview: cadences run in SECONDS (60/120/300) so a full N=3
 // cycle can be observed in a hackathon demo. Production: 7/14/30 days.
@@ -539,6 +542,15 @@ function arisanNormalizeCadence(raw: unknown): ArisanCadence {
     return (raw as { tag: ArisanCadence }).tag;
   if (typeof raw === "string") return raw as ArisanCadence;
   return "Weekly";
+}
+
+function arisanNormalizeDrawPhase(raw: unknown): ArisanDrawPhase {
+  if (Array.isArray(raw) && typeof raw[0] === "string")
+    return raw[0] as ArisanDrawPhase;
+  if (raw && typeof raw === "object" && "tag" in raw)
+    return (raw as { tag: ArisanDrawPhase }).tag;
+  if (typeof raw === "string") return raw as ArisanDrawPhase;
+  return "Commit";
 }
 
 async function readArisanRoom(id: string, roomId: number) {
@@ -797,28 +809,82 @@ export async function arisanCancel(roomId: number) {
     : { ok: false as const, error: r.error };
 }
 
-export async function arisanKocok(roomId: number) {
+function arisanDrawSecret(
+  signer: { publicKey: string; secret: string },
+  contractId: string,
+  roomId: number,
+  round: number
+) {
+  return deriveArisanSecret({
+    signingSecret: signer.secret,
+    contractId,
+    roomId,
+    round,
+    participant: signer.publicKey,
+  });
+}
+
+export async function arisanCommit(roomId: number) {
   const id = arisanRoomsId();
   if (!id) return { ok: false as const, error: "Contract not configured" };
   const s = await getSigner();
   const rid = Number(roomId);
-
-  // Two-phase on-chain draw. The contract derives the winner from a sealed
-  // Soroban-PRNG seed, so NO caller (not even this server action) can choose
-  // who wins:
-  //   1. seal_kocok draws + stores the round's seed (one seal per round).
-  //   2. kocok reads that seed and pays unwon[seed % poolSize].
-  // We tolerate AlreadySealed (#13) so a retry — or another member having
-  // already sealed this round — still proceeds straight to the draw.
-  const sealed = await invokeAs(s.secret, id, "seal_kocok", [
+  if (!Number.isSafeInteger(rid) || rid < 1)
+    return { ok: false as const, error: "Invalid room" };
+  const round = (await readArisanRoom(id, rid)).round;
+  const secret = arisanDrawSecret(s, id, rid, round);
+  const commitment = createArisanCommitment({
+    contractId: id,
+    roomId: rid,
+    round,
+    participant: s.publicKey,
+    secret,
+  });
+  const r = await invokeAs(s.secret, id, "commit_draw", [
     sc.u32(rid),
     sc.addr(s.publicKey),
+    sc.bytes(commitment),
   ]);
-  if (!sealed.ok && !/Error\(Contract,\s*#13\)/.test(sealed.error ?? "")) {
-    return { ok: false as const, error: sealed.error };
-  }
+  return r.ok
+    ? { ok: true as const, hash: r.hash, link: txLink(r.hash) }
+    : {
+        ok: false as const,
+        error: r.error,
+        errorKey: arisanFriendlyError(r.error, "arisan.somethingWrong"),
+      };
+}
 
-  const r = await invokeAs(s.secret, id, "kocok", [
+export async function arisanReveal(roomId: number) {
+  const id = arisanRoomsId();
+  if (!id) return { ok: false as const, error: "Contract not configured" };
+  const s = await getSigner();
+  const rid = Number(roomId);
+  if (!Number.isSafeInteger(rid) || rid < 1)
+    return { ok: false as const, error: "Invalid room" };
+  const round = (await readArisanRoom(id, rid)).round;
+  const secret = arisanDrawSecret(s, id, rid, round);
+  const r = await invokeAs(s.secret, id, "reveal_draw", [
+    sc.u32(rid),
+    sc.addr(s.publicKey),
+    sc.bytes(secret),
+  ]);
+  return r.ok
+    ? { ok: true as const, hash: r.hash, link: txLink(r.hash) }
+    : {
+        ok: false as const,
+        error: r.error,
+        errorKey: arisanFriendlyError(r.error, "arisan.somethingWrong"),
+      };
+}
+
+export async function arisanFinalize(roomId: number) {
+  const id = arisanRoomsId();
+  if (!id) return { ok: false as const, error: "Contract not configured" };
+  const s = await getSigner();
+  const rid = Number(roomId);
+  if (!Number.isSafeInteger(rid) || rid < 1)
+    return { ok: false as const, error: "Invalid room" };
+  const r = await invokeAs(s.secret, id, "finalize_draw", [
     sc.u32(rid),
     sc.addr(s.publicKey),
   ]);
@@ -832,11 +898,18 @@ export async function arisanKocok(roomId: number) {
   };
 }
 
+// Kept during the Week 2 migration so existing callers remain deployable until
+// they switch to the explicit commit/reveal/finalize actions.
+export async function arisanKocok(roomId: number) {
+  return arisanFinalize(roomId);
+}
+
 /** Map raw Soroban contract trap strings to compact i18n keys the UI can
  *  render. The on-chain enum is `Error::{AlreadyInitialized=1, NotInitialized=2,
  *  InvalidParams=3, NotFound=4, WrongStatus=5, NotHost=6, NotMember=7,
- *  AlreadyJoined=8, RoomFull=9, NotYet=10, AlreadyPostponed=11, NotSealed=12,
- *  AlreadySealed=13}` — when simulation fails the SDK surfaces
+ *  AlreadyJoined=8, RoomFull=9, NotYet=10, AlreadyPostponed=11,
+ *  AlreadyCommitted=14, AlreadyRevealed=15, NoCommitment=16,
+ *  InvalidReveal=17, NotEligible=18, CommitStarted=19}` — simulation surfaces
  *  `Error(Contract, #N)` somewhere in the message. */
 function arisanFriendlyError(raw: string | undefined, fallbackKey: string) {
   const s = (raw ?? "").toString();
@@ -849,8 +922,12 @@ function arisanFriendlyError(raw: string | undefined, fallbackKey: string) {
     6: "arisan.room.postponeOnlyHost", // NotHost
     7: "arisan.somethingWrong", // NotMember — generic
     11: "arisan.room.alreadyPostponed",
-    12: "arisan.somethingWrong", // NotSealed — generic (UI seals before kocok)
-    13: "arisan.somethingWrong", // AlreadySealed — tolerated in arisanKocok
+    14: "arisan.draw.alreadyCommitted",
+    15: "arisan.draw.alreadyRevealed",
+    16: "arisan.draw.commitFirst",
+    17: "arisan.draw.invalidReveal",
+    18: "arisan.draw.notEligible",
+    19: "arisan.draw.commitStarted",
   };
   return map[code] ?? fallbackKey;
 }
@@ -910,6 +987,88 @@ export async function arisanFriendsJoin(roomId: number) {
   return { ok: true as const, joined };
 }
 
+async function arisanFriendsDrawAction(
+  roomId: number,
+  action: "commit" | "reveal"
+) {
+  const id = arisanRoomsId();
+  if (!id) return { ok: false as const, error: "Contract not configured" };
+  const rid = Number(roomId);
+  if (!Number.isSafeInteger(rid) || rid < 1)
+    return { ok: false as const, error: "Invalid room" };
+  const room = await readArisanRoom(id, rid);
+  const members =
+    ((await readContract(id, "get_members", [sc.u32(rid)])) as string[]) || [];
+  const links: string[] = [];
+  let submitted = 0;
+
+  for (const friend of arisanFriendsList()) {
+    const publicKey = friend.pub();
+    if (!members.includes(publicKey)) continue;
+    const won = Boolean(
+      await readContract(id, "has_won", [sc.u32(rid), sc.addr(publicKey)])
+    );
+    if (won) continue;
+    const committed = Boolean(
+      await readContract(id, "has_committed", [
+        sc.u32(rid),
+        sc.u32(room.round),
+        sc.addr(publicKey),
+      ])
+    );
+    const revealed = Boolean(
+      await readContract(id, "has_revealed", [
+        sc.u32(rid),
+        sc.u32(room.round),
+        sc.addr(publicKey),
+      ])
+    );
+    if ((action === "commit" && committed) || (action === "reveal" && revealed))
+      continue;
+    if (action === "reveal" && !committed) continue;
+
+    const signer = { publicKey, secret: friend.secret() };
+    const secret = arisanDrawSecret(signer, id, rid, room.round);
+    const args = [sc.u32(rid), sc.addr(publicKey)];
+    const result =
+      action === "commit"
+        ? await invokeAs(signer.secret, id, "commit_draw", [
+            ...args,
+            sc.bytes(
+              createArisanCommitment({
+                contractId: id,
+                roomId: rid,
+                round: room.round,
+                participant: publicKey,
+                secret,
+              })
+            ),
+          ])
+        : await invokeAs(signer.secret, id, "reveal_draw", [
+            ...args,
+            sc.bytes(secret),
+          ]);
+    if (!result.ok)
+      return { ok: false as const, error: `${friend.label}: ${result.error}` };
+    submitted++;
+    links.push(txLink(result.hash));
+  }
+  return {
+    ok: true as const,
+    submitted,
+    links,
+    link: links.at(-1),
+  };
+}
+
+export async function arisanFriendsCommit(roomId: number) {
+  return arisanFriendsDrawAction(roomId, "commit");
+}
+
+export async function arisanFriendsReveal(roomId: number) {
+  return arisanFriendsDrawAction(roomId, "reveal");
+}
+
 export async function arisanRoomState(roomId: number) {
   const id = arisanRoomsId();
   if (!id) return { ready: false as const };
@@ -921,15 +1080,52 @@ export async function arisanRoomState(roomId: number) {
       ((await readContract(id, "get_members", [sc.u32(rid)])) as string[]) ||
       [];
 
+    let drawPhase: ArisanDrawPhase | null = null;
+    let commitAt = room.firstKocok;
+    let revealAt = room.firstKocok;
+    let commitCount = 0;
+    let revealCount = 0;
+    if (room.status === "Active") {
+      const [rawPhase, rawCommitAt, rawRevealAt, rawCommitCount, rawRevealCount] =
+        await Promise.all([
+          readContract(id, "draw_phase", [sc.u32(rid)]),
+          readContract(id, "kocok_at", [sc.u32(rid), sc.u32(room.round)]),
+          readContract(id, "reveal_at", [sc.u32(rid), sc.u32(room.round)]),
+          readContract(id, "commit_count", [sc.u32(rid), sc.u32(room.round)]),
+          readContract(id, "reveal_count", [sc.u32(rid), sc.u32(room.round)]),
+        ]);
+      drawPhase = arisanNormalizeDrawPhase(rawPhase);
+      commitAt = Number(rawCommitAt);
+      revealAt = Number(rawRevealAt);
+      commitCount = Number(rawCommitCount);
+      revealCount = Number(rawRevealCount);
+    }
+
     const seats = await Promise.all(
       members.map(async (addr) => {
-        const won = Boolean(
-          await readContract(id, "has_won", [sc.u32(rid), sc.addr(addr)])
-        );
+        const [won, committed, revealed] = await Promise.all([
+          readContract(id, "has_won", [sc.u32(rid), sc.addr(addr)]).then(Boolean),
+          room.status === "Active"
+            ? readContract(id, "has_committed", [
+                sc.u32(rid),
+                sc.u32(room.round),
+                sc.addr(addr),
+              ]).then(Boolean)
+            : false,
+          room.status === "Active"
+            ? readContract(id, "has_revealed", [
+                sc.u32(rid),
+                sc.u32(room.round),
+                sc.addr(addr),
+              ]).then(Boolean)
+            : false,
+        ]);
         return {
           addr,
           label: arisanLabelOf(addr, me),
           won,
+          committed,
+          revealed,
           isYou: addr === me,
         };
       })
@@ -965,29 +1161,14 @@ export async function arisanRoomState(roomId: number) {
       }
     }
 
-    // Cadence is in seconds for the testnet preview (60/120/300); use it
-    // directly here. nextKocok lives at round (1-indexed); Open rooms (round=0
-    // pre-start) fall back to firstKocok so the countdown line stays sensible.
     const cadenceSecs = ARISAN_CADENCE_SECS[room.cadence];
-    const effectiveRound = Math.max(1, room.round);
-    // Read the scheduled kocok time from chain (KocokAt) so a host postpone
-    // stays in sync with the "Kocok now" gate. Fall back to the computed
-    // cadence schedule only when chain has no value yet (e.g. Open pre-start).
-    let nextKocok = 0;
-    try {
-      nextKocok = Number(
-        (await readContract(id, "kocok_at", [sc.u32(rid), sc.u32(effectiveRound)])) ?? 0
-      );
-    } catch {
-      /* round not scheduled on-chain yet; fall back below */
-    }
-    if (!nextKocok) {
-      nextKocok = room.firstKocok + (effectiveRound - 1) * cadenceSecs;
-    }
     const pot = room.shareStroops * BigInt(room.memberTarget);
     const isMember = members.includes(me);
     const isHost = room.host === me;
     const seatsFull = seats.length >= room.memberTarget;
+    const mySeat = seats.find((seat) => seat.isYou);
+    const nextActionAt =
+      drawPhase === "Commit" ? commitAt : drawPhase === "Reveal" ? revealAt : revealAt;
 
     return {
       ready: true as const,
@@ -1006,18 +1187,27 @@ export async function arisanRoomState(roomId: number) {
       potPeso: fmtPeso(stroopsToPesos(pot)),
       status: room.status,
       round: room.round,
+      drawPhase,
       firstKocok: room.firstKocok,
       joinDeadline: room.joinDeadline,
-      nextKocok,
+      commitAt,
+      revealAt,
+      nextActionAt,
+      nextKocok: nextActionAt,
+      commitCount,
+      revealCount,
+      eligibleCount: seats.filter((seat) => !seat.won).length,
       seats,
       winners,
       isMember,
       isHost,
       readyToStart: isHost && room.status === "Open" && seatsFull,
-      canKocokNow:
-        room.status === "Active" &&
-        Date.now() / 1000 >= nextKocok &&
-        room.round <= room.memberTarget,
+      canCommit:
+        drawPhase === "Commit" && !!mySeat && !mySeat.won && !mySeat.committed,
+      canReveal:
+        drawPhase === "Reveal" && !!mySeat?.committed && !mySeat.revealed,
+      canFinalize: drawPhase === "Finalizable",
+      canKocokNow: drawPhase === "Finalizable",
     };
   } catch (e) {
     return {
