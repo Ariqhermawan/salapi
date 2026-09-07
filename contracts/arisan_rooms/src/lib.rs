@@ -473,6 +473,56 @@ impl ArisanRooms {
         Ok(())
     }
 
+    /// Open a prior commitment during the reveal window. The contract
+    /// recomputes the commitment with its own address and the current room
+    /// round, so copied values from another round or deployment cannot open.
+    pub fn reveal_draw(
+        env: Env,
+        room_id: u32,
+        member: Address,
+        secret: BytesN<32>,
+    ) -> Result<(), Error> {
+        member.require_auth();
+        let room: Room = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Room(room_id))
+            .ok_or(Error::NotFound)?;
+        ensure_eligible(&env, room_id, &room, &member)?;
+        if draw_phase_for(&env, room_id, &room)? != DrawPhase::Reveal {
+            return Err(Error::WrongStatus);
+        }
+        let reveal_key = DataKey::Reveal(room_id, room.round, member.clone());
+        if env.storage().persistent().has(&reveal_key) {
+            return Err(Error::AlreadyRevealed);
+        }
+        let committed: BytesN<32> = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Commitment(room_id, room.round, member.clone()))
+            .ok_or(Error::NoCommitment)?;
+        let expected = commitment_hash(
+            &env,
+            &env.current_contract_address(),
+            room_id,
+            room.round,
+            &member,
+            &secret,
+        );
+        if committed != expected {
+            return Err(Error::InvalidReveal);
+        }
+        env.storage().persistent().set(&reveal_key, &secret);
+        let count_key = DataKey::RevealCount(room_id, room.round);
+        let count: u32 = env.storage().persistent().get(&count_key).unwrap_or(0);
+        env.storage().persistent().set(&count_key, &(count + 1));
+        env.events().publish(
+            (symbol_short!("reveal"), room_id, room.round, member),
+            expected,
+        );
+        Ok(())
+    }
+
     /// Phase 1 of the draw — seal this round's randomness on-chain. Any room
     /// member may call once the scheduled kocok timestamp has passed. The
     /// contract draws a u64 seed from Soroban's ledger-seeded PRNG and stores
@@ -891,6 +941,25 @@ fn ensure_eligible(
         return Err(Error::NotEligible);
     }
     Ok(())
+}
+
+fn commitment_hash(
+    env: &Env,
+    contract: &Address,
+    room_id: u32,
+    round: u32,
+    member: &Address,
+    secret: &BytesN<32>,
+) -> BytesN<32> {
+    // Canonical 136-byte preimage shared with web/lib/server/arisanCommitment:
+    // ScVal(Address)=40, ScVal(U32)=8, ScVal(U32)=8,
+    // ScVal(Address)=40, ScVal(Bytes[32])=40.
+    let mut preimage: Bytes = contract.clone().to_xdr(env);
+    preimage.append(&room_id.to_xdr(env));
+    preimage.append(&round.to_xdr(env));
+    preimage.append(&member.clone().to_xdr(env));
+    preimage.append(&secret.clone().to_xdr(env));
+    env.crypto().sha256(&preimage).to_bytes()
 }
 
 fn cadence_seconds(c: Cadence) -> u64 {
