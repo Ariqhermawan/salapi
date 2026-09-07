@@ -16,9 +16,24 @@ Salapi is a **testnet preview / grant-stage prototype**. It runs on the Stellar 
 
 ## Randomness (arisan / lottery draw)
 
-- The draw is a **two-phase sealed on-chain PRNG**: `seal_kocok` draws a seed via Soroban's `env.prng()` and stores it under a fixed `Seal(room_id, round)` key (so the seed cannot change the transaction footprint), then `kocok` derives `winner = unwon[seed % unwon_len]` deterministically. The result is fixed before the paying transaction and is identical in simulation and execution, so **no ordinary caller, not even the server, can pick the winner**, and the unwon-pool construction guarantees distinct winners and exact fund conservation.
-- **Caveat:** `env.prng()` is seeded deterministically from ledger / transaction-set data, so the draw is **not unbiasable by a validator** who can influence the seed source or transaction ordering, combined with whoever lands the seal transaction first. This is a fairness/ordering bias, not a fund-loss risk.
-- **Mainnet plan:** replace `env.prng()` with a commit-reveal scheme across members or an external VRF.
+- The draw uses a participant **commit-reveal** protocol. Each eligible member
+  first submits `SHA-256(contract || room || round || participant || secret)`;
+  after the commit window closes, they reveal the 32-byte secret. The contract
+  verifies every reveal, combines valid secrets in immutable roster order, and
+  selects only from members who revealed. The caller never supplies a winner
+  or random index.
+- Commitments are bound to the contract, room, round, and participant, so a
+  reveal cannot be replayed across deployments, rooms, rounds, or accounts.
+  Duplicate and out-of-phase actions are rejected on-chain.
+- A committer who withholds their reveal cannot win that round. However, a
+  last revealer can still observe earlier reveals and choose to forfeit the
+  round, so this is manipulation-resistant rather than formally unbiasable.
+- If nobody reveals, a deterministic hash of immutable round context selects
+  from all unwon members. This fallback is predictable by design: it preserves
+  liveness and releases the prefunded pot, but it must not be presented as
+  unpredictable randomness.
+- A third-party VRF or threshold-randomness source remains an optional mainnet
+  enhancement if formally unbiasable output is required.
 
 ## Disaster-relief vault
 
@@ -39,7 +54,9 @@ Salapi is a **testnet preview / grant-stage prototype**. It runs on the Stellar 
 ## Before mainnet / real value (hardening checklist)
 
 1. Call `extend_ttl` on the persistent entries each round depends on, across all contracts, sized past the real cadence, and add a long-horizon TTL test.
-2. Replace `env.prng()` with commit-reveal or an external VRF for the draw.
+2. Independently audit the commit-reveal draw; add a VRF or threshold-randomness
+   source if the production threat model requires stronger last-revealer
+   resistance.
 3. Move the disaster admin to multisig + per-disbursement cap + timelock.
 4. Gate or remove the demo "friends" helpers.
 5. Add on-chain min/max length and charset validation to username register/rename.
