@@ -22,8 +22,8 @@
 //! is NO discovery mechanism by design.
 
 use soroban_sdk::{
-    contract, contracterror, contractimpl, contracttype, symbol_short, token,
-    xdr::ToXdr, Address, Bytes, BytesN, Env, String, Symbol, Vec,
+    contract, contracterror, contractimpl, contracttype, symbol_short, token, xdr::ToXdr, Address,
+    Bytes, BytesN, Env, String, Symbol, Vec,
 };
 
 // ── TIMINGS ───────────────────────────────────────────────────────────────
@@ -211,11 +211,7 @@ impl ArisanRooms {
 
         // Lock host's full commitment.
         let total = share * (member_target as i128);
-        token::Client::new(&env, &token).transfer(
-            &host,
-            &env.current_contract_address(),
-            &total,
-        );
+        token::Client::new(&env, &token).transfer(&host, &env.current_contract_address(), &total);
 
         let room = Room {
             host: host.clone(),
@@ -253,12 +249,7 @@ impl ArisanRooms {
     }
 
     /// Join a room by its code, locking N × share.
-    pub fn join_room(
-        env: Env,
-        room_id: u32,
-        code: Symbol,
-        member: Address,
-    ) -> Result<(), Error> {
+    pub fn join_room(env: Env, room_id: u32, code: Symbol, member: Address) -> Result<(), Error> {
         member.require_auth();
         let mut room: Room = env
             .storage()
@@ -288,11 +279,7 @@ impl ArisanRooms {
             .get(&DataKey::Token)
             .ok_or(Error::NotInitialized)?;
         let total = room.share * (room.member_target as i128);
-        token::Client::new(&env, &token).transfer(
-            &member,
-            &env.current_contract_address(),
-            &total,
-        );
+        token::Client::new(&env, &token).transfer(&member, &env.current_contract_address(), &total);
         members.push_back(member.clone());
         env.storage()
             .persistent()
@@ -587,11 +574,7 @@ impl ArisanRooms {
             .instance()
             .get(&DataKey::Token)
             .ok_or(Error::NotInitialized)?;
-        token::Client::new(&env, &token).transfer(
-            &env.current_contract_address(),
-            &winner,
-            &pot,
-        );
+        token::Client::new(&env, &token).transfer(&env.current_contract_address(), &winner, &pot);
         env.storage()
             .persistent()
             .set(&DataKey::Won(room_id, winner.clone()), &true);
@@ -605,7 +588,12 @@ impl ArisanRooms {
             .get(&DataKey::RevealCount(room_id, room.round))
             .unwrap_or(0);
         env.events().publish(
-            (symbol_short!("finalize"), room_id, room.round, winner.clone()),
+            (
+                symbol_short!("finalize"),
+                room_id,
+                room.round,
+                winner.clone(),
+            ),
             (pot, reveals, fallback),
         );
 
@@ -614,10 +602,9 @@ impl ArisanRooms {
             room.status = RoomStatus::Done;
         } else {
             let next_at = deadline + cadence_seconds(room.cadence);
-            env.storage().persistent().set(
-                &DataKey::KocokAt(room_id, room.round + 1),
-                &next_at,
-            );
+            env.storage()
+                .persistent()
+                .set(&DataKey::KocokAt(room_id, room.round + 1), &next_at);
         }
         room.round += 1;
         env.storage()
@@ -629,12 +616,7 @@ impl ArisanRooms {
     /// Host can push the current kocok later by up to MAX_POSTPONE_SECONDS,
     /// once per round. Subsequent kocoks compound the delay because the
     /// next deadline is derived from the current one.
-    pub fn postpone_kocok(
-        env: Env,
-        room_id: u32,
-        host: Address,
-        delay: u64,
-    ) -> Result<(), Error> {
+    pub fn postpone_kocok(env: Env, room_id: u32, host: Address, delay: u64) -> Result<(), Error> {
         host.require_auth();
         let room: Room = env
             .storage()
@@ -690,11 +672,7 @@ impl ArisanRooms {
     /// current reveal deadline has lapsed by GRACE_PERIOD. Each unwon member
     /// is refunded N × share (their full unwon allocation). In normal use
     /// the permissionless `finalize_draw()` keeps this from ever firing.
-    pub fn emergency_dissolve(
-        env: Env,
-        room_id: u32,
-        caller: Address,
-    ) -> Result<(), Error> {
+    pub fn emergency_dissolve(env: Env, room_id: u32, caller: Address) -> Result<(), Error> {
         caller.require_auth();
         let mut room: Room = env
             .storage()
@@ -857,12 +835,7 @@ fn draw_phase_for(env: &Env, room_id: u32, room: &Room) -> Result<DrawPhase, Err
     }
 }
 
-fn ensure_eligible(
-    env: &Env,
-    room_id: u32,
-    room: &Room,
-    member: &Address,
-) -> Result<(), Error> {
+fn ensure_eligible(env: &Env, room_id: u32, room: &Room, member: &Address) -> Result<(), Error> {
     if room.status != RoomStatus::Active {
         return Err(Error::WrongStatus);
     }
@@ -940,11 +913,7 @@ fn refund_member(env: &Env, room_id: u32, member: &Address) {
         .instance()
         .get(&DataKey::Token)
         .expect("initialized");
-    token::Client::new(env, &token).transfer(
-        &env.current_contract_address(),
-        member,
-        &locked,
-    );
+    token::Client::new(env, &token).transfer(&env.current_contract_address(), member, &locked);
     env.storage()
         .persistent()
         .remove(&DataKey::Locked(room_id, member.clone()));
