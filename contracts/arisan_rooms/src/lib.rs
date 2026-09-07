@@ -441,6 +441,38 @@ impl ArisanRooms {
         Ok(())
     }
 
+    /// Fix an eligible member's secret before the reveal window opens.
+    pub fn commit_draw(
+        env: Env,
+        room_id: u32,
+        member: Address,
+        commitment: BytesN<32>,
+    ) -> Result<(), Error> {
+        member.require_auth();
+        let room: Room = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Room(room_id))
+            .ok_or(Error::NotFound)?;
+        ensure_eligible(&env, room_id, &room, &member)?;
+        if draw_phase_for(&env, room_id, &room)? != DrawPhase::Commit {
+            return Err(Error::WrongStatus);
+        }
+        let key = DataKey::Commitment(room_id, room.round, member.clone());
+        if env.storage().persistent().has(&key) {
+            return Err(Error::AlreadyCommitted);
+        }
+        env.storage().persistent().set(&key, &commitment);
+        let count_key = DataKey::CommitCount(room_id, room.round);
+        let count: u32 = env.storage().persistent().get(&count_key).unwrap_or(0);
+        env.storage().persistent().set(&count_key, &(count + 1));
+        env.events().publish(
+            (symbol_short!("commit"), room_id, room.round, member),
+            commitment,
+        );
+        Ok(())
+    }
+
     /// Phase 1 of the draw — seal this round's randomness on-chain. Any room
     /// member may call once the scheduled kocok timestamp has passed. The
     /// contract draws a u64 seed from Soroban's ledger-seeded PRNG and stores
@@ -760,6 +792,44 @@ impl ArisanRooms {
             .get(&DataKey::KocokAt(room_id, round))
             .ok_or(Error::NotFound)
     }
+    pub fn reveal_at(env: Env, room_id: u32, round: u32) -> Result<u64, Error> {
+        let commit_at: u64 = env
+            .storage()
+            .persistent()
+            .get(&DataKey::KocokAt(room_id, round))
+            .ok_or(Error::NotFound)?;
+        Ok(commit_at + REVEAL_WINDOW)
+    }
+    pub fn draw_phase(env: Env, room_id: u32) -> Result<DrawPhase, Error> {
+        let room: Room = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Room(room_id))
+            .ok_or(Error::NotFound)?;
+        draw_phase_for(&env, room_id, &room)
+    }
+    pub fn has_committed(env: Env, room_id: u32, round: u32, member: Address) -> bool {
+        env.storage()
+            .persistent()
+            .has(&DataKey::Commitment(room_id, round, member))
+    }
+    pub fn has_revealed(env: Env, room_id: u32, round: u32, member: Address) -> bool {
+        env.storage()
+            .persistent()
+            .has(&DataKey::Reveal(room_id, round, member))
+    }
+    pub fn commit_count(env: Env, room_id: u32, round: u32) -> u32 {
+        env.storage()
+            .persistent()
+            .get(&DataKey::CommitCount(room_id, round))
+            .unwrap_or(0)
+    }
+    pub fn reveal_count(env: Env, room_id: u32, round: u32) -> u32 {
+        env.storage()
+            .persistent()
+            .get(&DataKey::RevealCount(room_id, round))
+            .unwrap_or(0)
+    }
     /// The sealed PRNG seed for a round (after `seal_kocok`, before/after kocok).
     /// Lets anyone verify the draw: winner == unwon[seed % unwon_len].
     pub fn seal_of(env: Env, room_id: u32, round: u32) -> Result<u64, Error> {
@@ -774,6 +844,53 @@ impl ArisanRooms {
             .get(&DataKey::RoomCount)
             .unwrap_or(0)
     }
+}
+
+fn draw_phase_for(env: &Env, room_id: u32, room: &Room) -> Result<DrawPhase, Error> {
+    if room.status != RoomStatus::Active {
+        return Err(Error::WrongStatus);
+    }
+    let commit_at: u64 = env
+        .storage()
+        .persistent()
+        .get(&DataKey::KocokAt(room_id, room.round))
+        .ok_or(Error::NotFound)?;
+    let now = env.ledger().timestamp();
+    if now < commit_at {
+        Ok(DrawPhase::Commit)
+    } else if now < commit_at + REVEAL_WINDOW {
+        Ok(DrawPhase::Reveal)
+    } else {
+        Ok(DrawPhase::Finalizable)
+    }
+}
+
+fn ensure_eligible(
+    env: &Env,
+    room_id: u32,
+    room: &Room,
+    member: &Address,
+) -> Result<(), Error> {
+    if room.status != RoomStatus::Active {
+        return Err(Error::WrongStatus);
+    }
+    let members: Vec<Address> = env
+        .storage()
+        .persistent()
+        .get(&DataKey::Members(room_id))
+        .unwrap_or_else(|| Vec::new(env));
+    if !members.iter().any(|m| m == *member) {
+        return Err(Error::NotMember);
+    }
+    let won: bool = env
+        .storage()
+        .persistent()
+        .get(&DataKey::Won(room_id, member.clone()))
+        .unwrap_or(false);
+    if won {
+        return Err(Error::NotEligible);
+    }
+    Ok(())
 }
 
 fn cadence_seconds(c: Cadence) -> u64 {
