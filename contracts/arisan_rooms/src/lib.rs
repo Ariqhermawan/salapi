@@ -27,8 +27,8 @@
 //! is NO discovery mechanism by design.
 
 use soroban_sdk::{
-    contract, contracterror, contractimpl, contracttype, symbol_short, token, Address, Env,
-    String, Symbol, Vec,
+    contract, contracterror, contractimpl, contracttype, symbol_short, token,
+    xdr::ToXdr, Address, Bytes, BytesN, Env, String, Symbol, Vec,
 };
 
 // ── TIMINGS ───────────────────────────────────────────────────────────────
@@ -58,6 +58,12 @@ const GRACE_PERIOD: u64 = 180; // demo: 3 min
 #[cfg(feature = "production-cadences")]
 const GRACE_PERIOD: u64 = 14 * 24 * 60 * 60; // production: 14 days
 
+// Time reserved for members to reveal secrets after the commit deadline.
+#[cfg(not(feature = "production-cadences"))]
+const REVEAL_WINDOW: u64 = 30; // demo: 30s
+#[cfg(feature = "production-cadences")]
+const REVEAL_WINDOW: u64 = 24 * 60 * 60; // long cadence: 1 day
+
 // Contract-level bounds. The UI enforces stricter display-currency bounds.
 const MIN_MEMBERS: u32 = 3;
 const MAX_MEMBERS: u32 = 20;
@@ -69,6 +75,14 @@ pub enum RoomStatus {
     Active,
     Done,
     Dissolved,
+}
+
+#[contracttype]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DrawPhase {
+    Commit,
+    Reveal,
+    Finalizable,
 }
 
 #[contracttype]
@@ -110,6 +124,10 @@ pub enum DataKey {
     // Sealed PRNG seed for (room_id, round). Written by seal_kocok, consumed by
     // kocok to derive the winner deterministically.
     Seal(u32, u32),
+    Commitment(u32, u32, Address),
+    Reveal(u32, u32, Address),
+    CommitCount(u32, u32),
+    RevealCount(u32, u32),
 }
 
 #[contracterror]
@@ -129,6 +147,12 @@ pub enum Error {
     AlreadyPostponed = 11,
     NotSealed = 12,
     AlreadySealed = 13,
+    AlreadyCommitted = 14,
+    AlreadyRevealed = 15,
+    NoCommitment = 16,
+    InvalidReveal = 17,
+    NotEligible = 18,
+    CommitStarted = 19,
 }
 
 #[contract]
