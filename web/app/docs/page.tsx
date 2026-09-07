@@ -36,7 +36,12 @@ const contracts = [
   },
   {
     name: "arisan-rooms",
-    id: "CAI2KBQW6ZCM7TNJVT3UXC5IW6VLBN4DFDORNICWMQFJM7NVLBSKV3Y2",
+    id: "CDFIM3DPANUDSZJUMVFYOGCMMWUS545KDIZQIHBZWMWCA4THFKCPVB6N",
+    source: "contracts/arisan_rooms",
+  },
+  {
+    name: "arisan-rooms (long cadence)",
+    id: "CAYJ7G3CPT5LYKV2P5E4GL7TNVDQKMMW6SA4WA4QYQZKCNLK45GE4VUL",
     source: "contracts/arisan_rooms",
   },
 ];
@@ -142,8 +147,8 @@ export default function PublicDocsPage() {
           <h2 style={{ margin: 0, fontSize: 18 }}>Testnet contracts</h2>
           <p style={{ margin: "8px 0 12px", color: "#5b6472", fontSize: 13.5, lineHeight: 1.55 }}>
             These six contract packages are deployed and verified on Testnet.
-            The arisan package also has a separate production-cadence deployment
-            recorded in the deployment log.
+            Arisan has separate demo- and long-cadence deployments compiled
+            from the same source.
           </p>
           <div style={{ display: "grid", gap: 9 }}>
             {contracts.map((contract) => (
@@ -180,6 +185,10 @@ export default function PublicDocsPage() {
             <li><ExternalLink href="https://github.com/Ariqhermawan/salapi/pull/3">Week 1 Deliverable 1 pull request</ExternalLink></li>
             <li><ExternalLink href="https://github.com/Ariqhermawan/salapi/blob/main/docs/instawards/week-1-d1.md">Week 1 D1 report</ExternalLink></li>
             <li><ExternalLink href="https://stellar.expert/explorer/testnet/tx/a670f325bce65a8ec093499cad43699269efddcd5d939a9403ca52eafcff7579">Example 6.50 PHP Testnet contribution</ExternalLink></li>
+            <li><ExternalLink href="https://github.com/Ariqhermawan/salapi/blob/main/docs/instawards/week-2-d2.md">Week 2 D2 commit-reveal report</ExternalLink></li>
+            <li><ExternalLink href="https://stellar.expert/explorer/testnet/tx/f83d24369795458db27a033e921ce84c261840ca29019baaa151dcb1518e50cb">D2 normal round: three reveals</ExternalLink></li>
+            <li><ExternalLink href="https://stellar.expert/explorer/testnet/tx/1fc95b8cbd2c5a3f54e5b44f0dad88aac55df5af30e5e1c7a0e9fb6ab5a7d0bc">D2 timeout round: one non-revealer</ExternalLink></li>
+            <li><ExternalLink href="https://stellar.expert/explorer/testnet/tx/89734260b9a5c1bb099ed65f26a0f815059aea5d6b6fb8aa27f3c7c5c9a256b0">D2 no-reveal liveness fallback</ExternalLink></li>
           </ul>
         </section>
 
@@ -188,8 +197,8 @@ export default function PublicDocsPage() {
           <ul style={{ margin: "10px 0 0", paddingLeft: 18, color: "#5b6472", fontSize: 13.5, lineHeight: 1.7 }}>
             <li>Live environment: Stellar Testnet only; no real funds and no mainnet deployment.</li>
             <li>Week 1 D1 (exact integer money boundary) is shipped and merged to <code>main</code>.</li>
-            <li>Draw hardening, disaster-admin controls, and fiat anchor integration remain roadmap work.</li>
-            <li>Deliverable 2 is scheduled for Week 2 and is not represented as completed here.</li>
+            <li>Week 2 D2 (participant commit-reveal draw) is implemented and verified on Testnet.</li>
+            <li>Disaster-admin controls, independent audit, and fiat anchor integration remain roadmap work.</li>
           </ul>
           <p style={{ margin: "12px 0 0", color: "#5b6472", fontSize: 12.5, lineHeight: 1.5 }}>
             Security assumptions, custody trade-offs, and the mainnet checklist

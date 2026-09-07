@@ -33,7 +33,7 @@ or draw produces a public Stellar receipt that anyone can verify.
 |---|---|
 | Send by `@handle` | Shipped on Testnet |
 | Disaster-relief vault + public transparency page | Shipped on Testnet |
-| Prefunded arisan / paluwagan circle with sealed draw | Shipped on Testnet |
+| Prefunded arisan / paluwagan circle with commit-reveal draw | Shipped on Testnet |
 | Goal-based smart savings | Shipped on Testnet |
 | Four locales and USD/PHP/IDR/VND display | Shipped |
 | Exact integer money boundary | Shipped in Week 1 D1 |
@@ -42,9 +42,9 @@ or draw produces a public Stellar receipt that anyone can verify.
 
 In the prefunded circle model, each member locks the full cycle obligation up
 front. The contract can therefore enforce that late payment, default, and an
-organizer absconding cannot drain an otherwise funded room. The current draw
-uses a sealed Soroban PRNG value; validator-level bias is still a documented
-mainnet hardening item.
+organizer absconding cannot drain an otherwise funded room. The draw uses
+participant commitments followed by verified reveals; the transaction caller
+cannot provide the winner or a random index.
 
 ## Why Stellar
 
@@ -84,15 +84,15 @@ summarized for reviewers at [salapi.app/docs](https://salapi.app/docs).
   entry point.
 - Disaster administration still needs multisig, caps, and timelocks before any
   value-bearing deployment.
-- The arisan draw needs commit-reveal or VRF hardening before mainnet.
+- The commit-reveal draw still has documented last-revealer and predictable
+  no-reveal fallback trade-offs; see `SECURITY.md` before any mainnet use.
 - No third-party security audit, fiat anchor, or mainnet pilot is claimed.
 
 The detailed security model is in [`SECURITY.md`](SECURITY.md).
 
 ## Roadmap
 
-1. Complete draw and disaster-admin hardening and redeploy with a fresh public
-   Testnet trail.
+1. Complete disaster-admin hardening and independent security review.
 2. Integrate a SEP-24 anchor sandbox and verify PHP/IDR test transactions.
 3. Run a deliberately small mainnet pilot after security, custody, and
    compliance review.
@@ -127,6 +127,7 @@ cargo test --workspace --locked
 ## Public evidence
 
 - Week 1 D1 report: [`docs/instawards/week-1-d1.md`](docs/instawards/week-1-d1.md)
+- Week 2 D2 report: [`docs/instawards/week-2-d2.md`](docs/instawards/week-2-d2.md)
 - Deployment and transaction trail: [`docs/operations/deployments.md`](docs/operations/deployments.md)
 - Security model: [`SECURITY.md`](SECURITY.md)
 - Reviewer guide: https://salapi.app/docs
