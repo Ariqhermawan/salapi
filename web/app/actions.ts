@@ -898,12 +898,6 @@ export async function arisanFinalize(roomId: number) {
   };
 }
 
-// Kept during the Week 2 migration so existing callers remain deployable until
-// they switch to the explicit commit/reveal/finalize actions.
-export async function arisanKocok(roomId: number) {
-  return arisanFinalize(roomId);
-}
-
 /** Map raw Soroban contract trap strings to compact i18n keys the UI can
  *  render. The on-chain enum is `Error::{AlreadyInitialized=1, NotInitialized=2,
  *  InvalidParams=3, NotFound=4, WrongStatus=5, NotHost=6, NotMember=7,
@@ -989,7 +983,8 @@ export async function arisanFriendsJoin(roomId: number) {
 
 async function arisanFriendsDrawAction(
   roomId: number,
-  action: "commit" | "reveal"
+  action: "commit" | "reveal",
+  limit = Number.POSITIVE_INFINITY
 ) {
   const id = arisanRoomsId();
   if (!id) return { ok: false as const, error: "Contract not configured" };
@@ -1003,6 +998,7 @@ async function arisanFriendsDrawAction(
   let submitted = 0;
 
   for (const friend of arisanFriendsList()) {
+    if (submitted >= limit) break;
     const publicKey = friend.pub();
     if (!members.includes(publicKey)) continue;
     const won = Boolean(
@@ -1065,8 +1061,23 @@ export async function arisanFriendsCommit(roomId: number) {
   return arisanFriendsDrawAction(roomId, "commit");
 }
 
-export async function arisanFriendsReveal(roomId: number) {
-  return arisanFriendsDrawAction(roomId, "reveal");
+export async function arisanFriendsReveal(roomId: number, limit = 2) {
+  const safeLimit = Math.max(1, Math.min(2, Math.floor(Number(limit)) || 2));
+  return arisanFriendsDrawAction(roomId, "reveal", safeLimit);
+}
+
+export async function arisanContractBalance() {
+  const id = arisanRoomsId();
+  if (!id) return { ready: false as const, error: "Contract not configured" };
+  try {
+    const raw = await readContract(CONTRACTS.tokenXlmSac, "balance", [sc.addr(id)]);
+    return { ready: true as const, stroops: BigInt(raw as number | bigint).toString() };
+  } catch (error) {
+    return {
+      ready: false as const,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
 }
 
 export async function arisanRoomState(roomId: number) {
@@ -1167,8 +1178,7 @@ export async function arisanRoomState(roomId: number) {
     const isHost = room.host === me;
     const seatsFull = seats.length >= room.memberTarget;
     const mySeat = seats.find((seat) => seat.isYou);
-    const nextActionAt =
-      drawPhase === "Commit" ? commitAt : drawPhase === "Reveal" ? revealAt : revealAt;
+    const nextActionAt = drawPhase === "Commit" ? commitAt : revealAt;
 
     return {
       ready: true as const,
@@ -1193,7 +1203,6 @@ export async function arisanRoomState(roomId: number) {
       commitAt,
       revealAt,
       nextActionAt,
-      nextKocok: nextActionAt,
       commitCount,
       revealCount,
       eligibleCount: seats.filter((seat) => !seat.won).length,
@@ -1207,7 +1216,6 @@ export async function arisanRoomState(roomId: number) {
       canReveal:
         drawPhase === "Reveal" && !!mySeat?.committed && !mySeat.revealed,
       canFinalize: drawPhase === "Finalizable",
-      canKocokNow: drawPhase === "Finalizable",
     };
   } catch (e) {
     return {
