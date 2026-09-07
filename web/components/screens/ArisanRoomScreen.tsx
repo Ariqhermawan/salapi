@@ -206,7 +206,11 @@ export default function ArisanRoomScreen({ roomId }: { roomId: number }) {
   useEffect(() => {
     refresh();
     const tick = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 1000);
-    return () => clearInterval(tick);
+    const poll = setInterval(() => void refresh(), 5000);
+    return () => {
+      clearInterval(tick);
+      clearInterval(poll);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId]);
 
