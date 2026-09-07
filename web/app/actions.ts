@@ -693,12 +693,12 @@ export async function arisanCreate(input: {
     return { ok: false as const, error: "Enter a valid share amount" };
 
   // Contract requires first_kocok ≥ now + JOIN_WINDOW and
-  // join_deadline < first_kocok. In the testnet preview JOIN_WINDOW is 60s,
-  // so we schedule first_kocok ~90s out and join_deadline ~30s before that.
+  // join_deadline < first_kocok. Demo friend joins are two sequential
+  // testnet transactions, so leave enough margin for ledger confirmation.
   // (Production: JOIN_WINDOW = 3 days, with first_kocok days out.)
   const now = Math.floor(Date.now() / 1000);
-  const firstKocok = now + 90;
-  const joinDeadline = now + 60;
+  const firstKocok = now + 180;
+  const joinDeadline = now + 120;
 
   // Client-supplied invite code (CSPRNG-derived). The contract checks
   // uniqueness on insert; we pre-flight a few candidates so a 1-in-10^9
@@ -1177,6 +1177,7 @@ export async function arisanRoomState(roomId: number) {
     const isMember = members.includes(me);
     const isHost = room.host === me;
     const seatsFull = seats.length >= room.memberTarget;
+    const startWindowOpen = Math.floor(Date.now() / 1000) < room.firstKocok;
     const mySeat = seats.find((seat) => seat.isYou);
     const nextActionAt = drawPhase === "Commit" ? commitAt : revealAt;
 
@@ -1210,7 +1211,8 @@ export async function arisanRoomState(roomId: number) {
       winners,
       isMember,
       isHost,
-      readyToStart: isHost && room.status === "Open" && seatsFull,
+      readyToStart:
+        isHost && room.status === "Open" && seatsFull && startWindowOpen,
       canCommit:
         drawPhase === "Commit" && !!mySeat && !mySeat.won && !mySeat.committed,
       canReveal:
