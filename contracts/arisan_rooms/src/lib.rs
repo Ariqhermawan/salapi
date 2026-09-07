@@ -360,6 +360,12 @@ impl ArisanRooms {
         if room.status != RoomStatus::Open {
             return Err(Error::WrongStatus);
         }
+        // Starting after the first commit deadline would create an Active room
+        // with no opportunity for commitments. The still-Open room can be
+        // cancelled and fully refunded instead.
+        if env.ledger().timestamp() >= room.first_kocok {
+            return Err(Error::WrongStatus);
+        }
         let members: Vec<Address> = env
             .storage()
             .persistent()

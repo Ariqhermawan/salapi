@@ -221,6 +221,38 @@ fn cannot_start_before_room_is_full() {
 }
 
 #[test]
+fn cannot_start_after_commit_deadline() {
+    let env = fresh_env();
+    let admin = Address::generate(&env);
+    let host = Address::generate(&env);
+    let m1 = Address::generate(&env);
+    let m2 = Address::generate(&env);
+    let (token_id, token_admin, _) = setup(&env, &admin);
+    for member in [&host, &m1, &m2] {
+        token_admin.mint(member, &1_000);
+    }
+    let contract_id = env.register(ArisanRooms, ());
+    let client = ArisanRoomsClient::new(&env, &contract_id);
+    client.initialize(&token_id);
+    let first_commit_at = env.ledger().timestamp() + 4 * DAY;
+    let room_id = client.create_room(
+        &host,
+        &Symbol::new(&env, "LATE01"),
+        &SorobanString::from_str(&env, "Late start"),
+        &3,
+        &100,
+        &Cadence::Weekly,
+        &first_commit_at,
+        &(first_commit_at - DAY),
+    );
+    let code = client.get_room(&room_id).code;
+    client.join_room(&room_id, &code, &m1);
+    client.join_room(&room_id, &code, &m2);
+    set_ts(&env, first_commit_at);
+    assert!(client.try_start_room(&room_id, &host).is_err());
+}
+
+#[test]
 fn anyone_can_cancel_after_join_deadline() {
     let env = fresh_env();
     let admin = Address::generate(&env);
