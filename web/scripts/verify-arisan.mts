@@ -9,9 +9,10 @@
 //
 // Run from web/: npx tsx scripts/verify-arisan.mts
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
-const envText = readFileSync(new URL("../.env.local", import.meta.url), "utf8");
+const envFile = new URL("../.env.local", import.meta.url);
+const envText = existsSync(envFile) ? readFileSync(envFile, "utf8") : "";
 for (const line of envText.split(/\r?\n/)) {
   const value = line.trim();
   if (!value || value.startsWith("#")) continue;
@@ -132,7 +133,7 @@ async function main() {
     throw new Error("ARISAN_ROOMS_CONTRACT not set");
   }
   if (!process.env.FRIEND1_PUBLIC || !process.env.FRIEND2_PUBLIC) {
-    throw new Error("FRIEND1/FRIEND2 keys not set in .env.local");
+    throw new Error("FRIEND1/FRIEND2 keys not set in the environment or .env.local");
   }
   await fundSigners();
 
