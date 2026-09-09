@@ -1,6 +1,6 @@
 // Minimal, conservative service worker — enables PWA install + an offline
 // fallback without interfering with Next.js RSC/navigation.
-const CACHE = "salapi-v1";
+const CACHE = "salapi-v2";
 const ASSETS = ["/icon.svg", "/icon-maskable.svg", "/manifest.webmanifest"];
 
 self.addEventListener("install", (e) => {
@@ -25,6 +25,12 @@ self.addEventListener("fetch", (event) => {
 
   // Only handle top-level navigations: network-first, offline fallback.
   if (request.mode === "navigate") {
+    const { pathname } = new URL(request.url);
+
+    // OAuth must reach the server so callback errors are not hidden behind
+    // the generic offline page.
+    if (pathname.startsWith("/auth/") || pathname === "/signin") return;
+
     event.respondWith(
       fetch(request).catch(
         () =>

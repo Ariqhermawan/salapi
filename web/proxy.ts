@@ -112,8 +112,12 @@ export async function proxy(request: NextRequest) {
     },
   });
 
-  // Touch the session so Supabase rotates tokens via the cookies above.
-  await supabase.auth.getUser();
+  // The callback exchanges the OAuth code itself. Avoid an extra session
+  // lookup before that exchange, which can race the redirect or mask a
+  // transient Supabase network failure.
+  if (!request.nextUrl.pathname.startsWith("/auth/")) {
+    await supabase.auth.getUser();
+  }
   return response;
 }
 
