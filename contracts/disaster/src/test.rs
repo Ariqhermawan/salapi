@@ -70,3 +70,47 @@ fn disburse_without_disaster_panics() {
     v.contribute(&donor, &100);
     v.disburse(&donor, &50); // panics: NotInDisaster
 }
+
+#[test]
+fn disburse_cap_enforced() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let donor = Address::generate(&env);
+    let ngo = Address::generate(&env);
+
+    let (tok, tok_admin, token) = setup(&env, &admin);
+    tok_admin.mint(&donor, &1_000);
+
+    let id = env.register(DisasterVault, ());
+    let v = DisasterVaultClient::new(&env, &id);
+    v.initialize(&admin, &tok);
+    v.contribute(&donor, &800);
+    v.set_disaster(&true);
+    v.set_disburse_cap(&100);
+
+    // Over the cap is rejected; within the cap goes through.
+    assert!(v.try_disburse(&ngo, &500).is_err());
+    v.disburse(&ngo, &50);
+    assert_eq!(token.balance(&ngo), 50);
+}
+
+#[test]
+fn admin_two_step_transfer() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let new_admin = Address::generate(&env);
+
+    let (tok, _ta, _t) = setup(&env, &admin);
+
+    let id = env.register(DisasterVault, ());
+    let v = DisasterVaultClient::new(&env, &id);
+    v.initialize(&admin, &tok);
+
+    v.propose_admin(&new_admin);
+    v.accept_admin();
+    assert_eq!(v.admin(), new_admin);
+}

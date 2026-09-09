@@ -145,6 +145,23 @@ pub enum Error {
     CommitStarted = 19,
 }
 
+// TTL maintenance — an arisan cycle can run for months. Top up the contract
+// instance and the per-room records on the recurring paths (create + each
+// kocok) so they outlive the default archival window. Sane defaults; tune to
+// cadence + network max_entry_ttl at the mainnet redeploy.
+const TTL_THRESHOLD: u32 = 518_400; // ~30 days of ledgers (5s close)
+const TTL_EXTEND: u32 = 1_555_200; // ~90 days, under network max_entry_ttl
+
+fn bump(env: &Env) {
+    env.storage().instance().extend_ttl(TTL_THRESHOLD, TTL_EXTEND);
+}
+
+fn bump_room(env: &Env, room_id: u32) {
+    let p = env.storage().persistent();
+    p.extend_ttl(&DataKey::Room(room_id), TTL_THRESHOLD, TTL_EXTEND);
+    p.extend_ttl(&DataKey::Members(room_id), TTL_THRESHOLD, TTL_EXTEND);
+}
+
 #[contract]
 pub struct ArisanRooms;
 
@@ -242,6 +259,8 @@ impl ArisanRooms {
             .persistent()
             .set(&DataKey::Locked(room_id, host.clone()), &total);
         env.storage().instance().set(&DataKey::RoomCount, &room_id);
+        bump(&env);
+        bump_room(&env, room_id);
 
         env.events()
             .publish((symbol_short!("create"), host), room_id);
@@ -517,6 +536,8 @@ impl ArisanRooms {
             .persistent()
             .get(&DataKey::Room(room_id))
             .ok_or(Error::NotFound)?;
+        bump(&env);
+        bump_room(&env, room_id);
         if room.status != RoomStatus::Active {
             return Err(Error::WrongStatus);
         }

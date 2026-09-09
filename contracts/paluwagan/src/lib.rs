@@ -30,6 +30,18 @@ pub enum Error {
     NotMember = 4,
     AlreadyPaid = 5,
     RoundNotComplete = 6,
+    DuplicateMember = 7,
+}
+
+// TTL maintenance — a ROSCA can run for months. On every state-mutating call,
+// top up storage TTLs so the circle outlives the default archival window.
+// Sane defaults; tune to the cadence + network max_entry_ttl at the mainnet
+// redeploy.
+const TTL_THRESHOLD: u32 = 518_400; // ~30 days of ledgers (5s close)
+const TTL_EXTEND: u32 = 1_555_200; // ~90 days, under network max_entry_ttl
+
+fn bump(env: &Env) {
+    env.storage().instance().extend_ttl(TTL_THRESHOLD, TTL_EXTEND);
 }
 
 #[contract]
@@ -49,16 +61,34 @@ impl Paluwagan {
         if amount <= 0 || members.len() == 0 {
             return Err(Error::InvalidAmount);
         }
+        // Reject duplicate members. A repeated address can only fill one
+        // Paid(round, addr) slot, so PaidCount could never reach members.len()
+        // and the circle would deadlock with contributions trapped.
+        let n = members.len();
+        let mut i = 0u32;
+        while i < n {
+            let mi = members.get(i).unwrap();
+            let mut j = i + 1;
+            while j < n {
+                if members.get(j).unwrap() == mi {
+                    return Err(Error::DuplicateMember);
+                }
+                j += 1;
+            }
+            i += 1;
+        }
         env.storage().instance().set(&DataKey::Token, &token);
         env.storage().instance().set(&DataKey::Amount, &amount);
         env.storage().instance().set(&DataKey::Members, &members);
         env.storage().instance().set(&DataKey::Round, &0u32);
+        bump(&env);
         Ok(())
     }
 
     /// A member pays their fixed contribution for the current round.
     pub fn contribute(env: Env, member: Address) -> Result<(), Error> {
         member.require_auth();
+        bump(&env);
         let members: Vec<Address> = env
             .storage()
             .instance()
@@ -89,22 +119,35 @@ impl Paluwagan {
             &amount,
         );
         env.storage().persistent().set(&paid_key, &true);
+        env.storage()
+            .persistent()
+            .extend_ttl(&paid_key, TTL_THRESHOLD, TTL_EXTEND);
         let ck = DataKey::PaidCount(round);
         let cnt: u32 = env.storage().persistent().get(&ck).unwrap_or(0);
         env.storage().persistent().set(&ck, &(cnt + 1));
+        env.storage()
+            .persistent()
+            .extend_ttl(&ck, TTL_THRESHOLD, TTL_EXTEND);
         env.events()
             .publish((symbol_short!("contrib"), member), amount);
         Ok(())
     }
 
     /// Once every member has paid this round, the pot rotates to the next
-    /// member in turn. Permissionless to trigger — the rule is on-chain.
-    pub fn payout(env: Env) -> Result<Address, Error> {
+    /// member in turn. Any *member* may trigger it (the recipient is fixed by
+    /// the round, so this can't redirect funds — the auth gate just stops an
+    /// outside party from advancing rounds at unexpected times).
+    pub fn payout(env: Env, caller: Address) -> Result<Address, Error> {
+        caller.require_auth();
+        bump(&env);
         let members: Vec<Address> = env
             .storage()
             .instance()
             .get(&DataKey::Members)
             .ok_or(Error::NotInitialized)?;
+        if !members.iter().any(|m| m == caller) {
+            return Err(Error::NotMember);
+        }
         let round: u32 = env.storage().instance().get(&DataKey::Round).unwrap_or(0);
         let cnt: u32 = env
             .storage()
