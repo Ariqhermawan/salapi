@@ -166,6 +166,19 @@ export default function Home() {
   const [supaEmail, setSupaEmail] = useState<string | null>(null);
   const [authChecked, setAuthChecked] = useState(!configured);
   useEffect(() => {
+    if (!configured) return;
+    createSupabaseBrowser()
+      .auth.getUser()
+      .then(({ data }) => setSupaEmail(data.user?.email ?? null))
+      .catch(() => {})
+      .finally(() => setAuthChecked(true));
+  }, [configured]);
+  useEffect(() => {
+    // The server action needs the refreshed Supabase auth cookie. Waiting for
+    // the browser auth check avoids a one-shot lookup racing the OAuth
+    // callback, which otherwise leaves the home header stuck on @salapi until
+    // a later navigation.
+    if (!authChecked) return;
     let active = true;
     myHandle()
       .then((u) => {
@@ -180,15 +193,7 @@ export default function Home() {
     return () => {
       active = false;
     };
-  }, []);
-  useEffect(() => {
-    if (!configured) return;
-    createSupabaseBrowser()
-      .auth.getUser()
-      .then(({ data }) => setSupaEmail(data.user?.email ?? null))
-      .catch(() => {})
-      .finally(() => setAuthChecked(true));
-  }, [configured]);
+  }, [authChecked, supaEmail]);
   const displayHandle = handle ?? "salapi";
   const displayName = handle
     ? handle.charAt(0).toUpperCase() + handle.slice(1)
