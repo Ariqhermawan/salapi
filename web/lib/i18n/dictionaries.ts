@@ -513,6 +513,7 @@ const en = {
   signin: {
     welcome: "Welcome to Salapi.",
     subtitle: "Sign in to continue.",
+    signIn: "Sign in",
     google: "Continue with Google",
     redirecting: "Redirecting to Google…",
     phone: "Continue with phone number",
@@ -1505,6 +1506,7 @@ const tl: Dict = {
   signin: {
     welcome: "Maligayang pagdating sa Salapi.",
     subtitle: "Mag-sign in para magpatuloy.",
+    signIn: "Mag-sign in",
     google: "Magpatuloy gamit ang Google",
     redirecting: "Inire-redirect sa Google…",
     phone: "Magpatuloy gamit ang phone number",
@@ -2485,6 +2487,7 @@ const id: Dict = {
   signin: {
     welcome: "Selamat datang di Salapi.",
     subtitle: "Masuk untuk melanjutkan.",
+    signIn: "Masuk",
     google: "Lanjutkan dengan Google",
     redirecting: "Mengalihkan ke Google…",
     phone: "Lanjutkan dengan nomor telepon",
@@ -3466,6 +3469,7 @@ const vi: Dict = {
   signin: {
     welcome: "Chào mừng đến Salapi.",
     subtitle: "Đăng nhập để tiếp tục.",
+    signIn: "Đăng nhập",
     google: "Tiếp tục với Google",
     redirecting: "Đang chuyển tới Google…",
     phone: "Tiếp tục với số điện thoại",

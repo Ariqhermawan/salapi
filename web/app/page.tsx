@@ -24,6 +24,9 @@ import {
   PoweredByStellar,
 } from "@/components/ui/kit";
 import { myHandle } from "@/app/actions";
+import { createSupabaseBrowser } from "@/lib/supabase/client";
+import { supabaseConfigured } from "@/lib/supabase/env";
+import { useT } from "@/components/I18nProvider";
 
 const BALANCE_INT = "1,667";
 const BALANCE_CENTS = "93";
@@ -150,6 +153,8 @@ function HeaderIconBtn({ children, onClick, label, dot = false }: { children: Re
 
 export default function Home() {
   const router = useRouter();
+  const { t } = useT();
+  const configured = supabaseConfigured();
   const go = (p: string) => () => router.push(p);
 
   // Show the signed-in user's own @handle from the on-chain username registry,
@@ -158,6 +163,8 @@ export default function Home() {
   // identity in so the fallback-to-real swap is not a jarring flash.
   const [handle, setHandle] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [supaEmail, setSupaEmail] = useState<string | null>(null);
+  const [authChecked, setAuthChecked] = useState(!configured);
   useEffect(() => {
     let active = true;
     myHandle()
@@ -174,6 +181,14 @@ export default function Home() {
       active = false;
     };
   }, []);
+  useEffect(() => {
+    if (!configured) return;
+    createSupabaseBrowser()
+      .auth.getUser()
+      .then(({ data }) => setSupaEmail(data.user?.email ?? null))
+      .catch(() => {})
+      .finally(() => setAuthChecked(true));
+  }, [configured]);
   const displayHandle = handle ?? "salapi";
   const displayName = handle
     ? handle.charAt(0).toUpperCase() + handle.slice(1)
@@ -196,6 +211,15 @@ export default function Home() {
           </div>
         </div>
         <div style={{ display: "flex", gap: 7 }}>
+          {authChecked && !supaEmail && (
+            <button
+              onClick={go("/signin")}
+              aria-label={t("signin.signIn")}
+              style={{ height: 37, padding: "0 12px", borderRadius: 99, border: "none", background: T.action, color: "#fff", fontFamily: T.fontSans, fontSize: 12, fontWeight: 700, cursor: "pointer", boxShadow: "0 6px 14px -7px rgba(37,99,235,.65)" }}
+            >
+              {t("signin.signIn")}
+            </button>
+          )}
           <HeaderIconBtn label="Learn" onClick={go("/learn")}>{Ico.bulb({ size: 16, c: T.slate })}</HeaderIconBtn>
           <HeaderIconBtn label="Activity" onClick={go("/activity")} dot>{Ico.bell({ size: 16, c: T.slate })}</HeaderIconBtn>
           <HeaderIconBtn label="Receive" onClick={go("/receive")}>{Ico.qr({ size: 16, c: T.slate })}</HeaderIconBtn>

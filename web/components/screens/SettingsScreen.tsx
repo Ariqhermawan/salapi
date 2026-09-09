@@ -220,22 +220,25 @@ function UsernamePanel({
 export default function SettingsScreen() {
   const { t, locale, currency, currencyPref } = useT();
   const router = useRouter();
+  const configured = supabaseConfigured();
   const [name, setName] = useState<string | null>(null);
   const [addr, setAddr] = useState<string>("");
   const [supaEmail, setSupaEmail] = useState<string | null>(null);
+  const [authChecked, setAuthChecked] = useState(!configured);
   const [notif, setNotif] = useState(true);
 
   useEffect(() => {
     myHandle().then(setName);
     walletState().then((w) => setAddr(w.address));
-    if (supabaseConfigured()) {
+    if (configured) {
       createSupabaseBrowser()
         .auth.getUser()
         .then(({ data }) => setSupaEmail(data.user?.email ?? null))
-        .catch(() => {});
+        .catch(() => {})
+        .finally(() => setAuthChecked(true));
     }
     setNotif(localStorage.getItem(NOTIF_KEY) !== "0");
-  }, []);
+  }, [configured]);
 
   function toggleNotif() {
     setNotif((v) => {
@@ -330,6 +333,15 @@ export default function SettingsScreen() {
                   {t("settings.signOut")}
                 </Btn>
               }
+            />
+          )}
+          {authChecked && !supaEmail && (
+            <Row
+              leading={iconBox(Ico.user({ c: T.action }), T.actionTint, T.action)}
+              title={t("signin.signIn")}
+              sub={t("signin.subtitle")}
+              onClick={() => router.push("/signin")}
+              trailing={Ico.chev({ size: 15, c: T.slate })}
             />
           )}
           <Row
