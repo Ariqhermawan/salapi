@@ -17,7 +17,9 @@ struct Setup {
 
 impl Setup {
     fn new() -> Self {
-        let env = Env::default();
+        let env = Env::new_with_config(soroban_sdk::testutils::EnvTestConfig {
+            capture_snapshot_at_drop: false,
+        });
         env.mock_all_auths();
         env.ledger().with_mut(|l| {
             l.sequence_number = 100;
