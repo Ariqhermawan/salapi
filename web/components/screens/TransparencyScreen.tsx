@@ -283,6 +283,7 @@ export default function TransparencyScreen() {
               <div style={{ fontSize: 14, color: "rgba(255,255,255,0.7)" }}>{pool.error}</div>
             )}
           </div>
+          {pool?.ok && <p style={{ margin: "6px 0 0", fontSize: 11, color: "rgba(255,255,255,0.6)" }}>Illustrative display value only. The vault holds valueless Testnet XLM.</p>}
           <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
             <div style={{ flex: 1, padding: "6px 10px", background: "rgba(255,255,255,0.06)", borderRadius: 8 }}>
               <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.45)" }}>{t("transparency.statusLabel")}</div>

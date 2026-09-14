@@ -80,6 +80,7 @@ export default function DisasterControls({ pool, onRefresh }: { pool: Pool | nul
         <h2 style={{ margin: 0, fontSize: 17 }}>Disaster Vault · 2-of-3 controls</h2>
         <p style={small}>Three fixed signers. Two separate approvals for payouts, pause, and unpause. Testnet only.</p>
         <dl style={{ fontSize: 13, display: "grid", gridTemplateColumns: "1fr auto", gap: 8 }}>
+          <dt>Vault balance</dt><dd style={{ margin: 0 }}>{formatStroops(state.balance)} XLM</dd>
           <dt>Payout status</dt><dd style={{ margin: 0 }}>{state.paused ? "Paused" : "Active"}</dd>
           <dt>Executed in last 24h</dt><dd style={{ margin: 0 }}>{formatStroops(state.spent_24h)} XLM</dd>
           <dt>20% of current balance</dt><dd style={{ margin: 0 }}>{formatStroops(state.cap)} XLM</dd>
