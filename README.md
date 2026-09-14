@@ -37,6 +37,7 @@ or draw produces a public Stellar receipt that anyone can verify.
 | Goal-based smart savings | Shipped on Testnet |
 | Four locales and USD/PHP/IDR/VND display | Shipped |
 | Exact integer money boundary | Shipped in Week 1 D1 |
+| Disaster 2-of-3 approvals, rolling cap, timelock, pause/unpause | D3 implementation; live cutover tracked in the D3 report |
 | Fiat on-ramp (GCash / QRIS / Xendit) | Roadmap |
 | Mainnet deployment | Roadmap |
 
@@ -82,8 +83,10 @@ summarized for reviewers at [salapi.app/docs](https://salapi.app/docs).
   at rest. A shared demo wallet is used only when no session is present.
 - Contracts are currently immutable and have no admin rotation or upgrade
   entry point.
-- Disaster administration still needs multisig, caps, and timelocks before any
-  value-bearing deployment.
+- D3 adds contract-level 2-of-3 approval, a rolling cap and timelock. Its
+  operational signer set and live-app cutover must be verified separately;
+  the historical single-admin contract is not D3 evidence. Independent key
+  custody and an external audit remain prerequisites for real-value use.
 - The commit-reveal draw still has documented last-revealer and predictable
   no-reveal fallback trade-offs; see `SECURITY.md` before any mainnet use.
 - No third-party security audit, fiat anchor, or mainnet pilot is claimed.
@@ -92,7 +95,7 @@ The detailed security model is in [`SECURITY.md`](SECURITY.md).
 
 ## Roadmap
 
-1. Complete disaster-admin hardening and independent security review.
+1. Complete D3 operational cutover/evidence and independent security review.
 2. Integrate a SEP-24 anchor sandbox and verify PHP/IDR test transactions.
 3. Run a deliberately small mainnet pilot after security, custody, and
    compliance review.
@@ -111,7 +114,7 @@ npm run dev       # http://localhost:3000
 ```
 
 Create `web/.env.local` with the Testnet contract IDs (`PALUWAGAN_CONTRACT`,
-`SMARTSAVINGS_CONTRACT`, `ARISAN_ROOMS_CONTRACT`) and server secrets
+`SMARTSAVINGS_CONTRACT`, `ARISAN_ROOMS_CONTRACT`, `DISASTER_CONTRACT`) and server secrets
 (`SALAPI_DEMO_SECRET`, `WALLET_ENC_KEY`, and the Supabase values). Set
 `NEXT_PUBLIC_SITE_URL` when deploying under a different origin. Never commit a
 secret file.
@@ -128,6 +131,7 @@ cargo test --workspace --locked
 
 - Week 1 D1 report: [`docs/instawards/week-1-d1.md`](docs/instawards/week-1-d1.md)
 - Week 2 D2 report: [`docs/instawards/week-2-d2.md`](docs/instawards/week-2-d2.md)
+- D3 controls, tests, and deployment status: [`docs/instawards/week-3-d3.md`](docs/instawards/week-3-d3.md)
 - Deployment and transaction trail: [`docs/operations/deployments.md`](docs/operations/deployments.md)
 - Security model: [`SECURITY.md`](SECURITY.md)
 - Reviewer guide: https://salapi.app/docs

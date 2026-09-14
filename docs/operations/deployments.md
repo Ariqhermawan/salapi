@@ -1,4 +1,15 @@
-# Salapi — Stellar Testnet Deployment Evidence (SOW Week 2)
+# Salapi — Stellar Testnet Deployment Evidence
+
+## D3 deployment status
+
+The new Disaster Vault implementation uses fixed three-signer authorization,
+a rolling cap, a ledger timelock, and quorum pause/unpause. See the
+[D3 implementation and acceptance report](../instawards/week-3-d3.md) for
+deployment status and evidence. `DISASTER_CONTRACT` controls application cutover.
+The single-admin deployment and receipts below are historical, not D3 proof.
+Operational cutover awaits the team's confirmed three signer wallets.
+
+## Historical baseline — 2026-05-18
 
 **Network:** Stellar **Testnet** (`Test SDF Network ; September 2015`)
 **Date:** 2026-05-18 · **Deployer:** `GC2P5KXDI74CGDIB3GR7IULRLHZCC4U4JCCYASXVCMVWUMUBWZNBTBNP`
