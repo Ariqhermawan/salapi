@@ -92,19 +92,7 @@ export async function withdrawSandbox(requested: number) {
   };
 }
 
-export async function disasterContribute(input: MoneyInput) {
-  const amount = amountStroops(input);
-  if (amount == null)
-    return { ok: false as const, error: "Enter a valid amount" };
-  const s = await getSigner();
-  const r = await invokeAs(s.secret, CONTRACTS.disaster, "contribute", [
-    sc.addr(s.publicKey),
-    sc.i128(amount),
-  ]);
-  return r.ok
-    ? { ok: true as const, hash: r.hash, link: txLink(r.hash) }
-    : { ok: false as const, error: r.error };
-}
+export { disasterContribute, disasterState } from "./disaster-actions";
 
 export async function registerUsername(name: string) {
   const clean = name.trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
@@ -433,34 +421,6 @@ async function readRetry(
     if (attempt < 3) await new Promise((r) => setTimeout(r, 300));
   }
   return null;
-}
-
-export async function disasterState() {
-  try {
-    const [total, active] = await Promise.all([
-      readRetry(
-        CONTRACTS.disaster,
-        "total",
-        (v) => v != null && BigInt(v as number | bigint) > 0n
-      ),
-      readRetry(CONTRACTS.disaster, "is_disaster_active"),
-    ]);
-    if (total == null) {
-      // Every retry read 0/empty — a degraded read, not a confirmed zero.
-      // Report not-ok so callers (Vaults, Home, Transparency) show their
-      // loading state instead of a false "Rp 0".
-      return { ok: false as const, error: "disaster total unavailable" };
-    }
-    const totalPesos = stroopsToPesos(BigInt(total as number | bigint));
-    return {
-      ok: true as const,
-      pesoLabel: fmtPeso(totalPesos),
-      pesos: totalPesos,
-      active: Boolean(active),
-    };
-  } catch (e) {
-    return { ok: false as const, error: e instanceof Error ? e.message : "x" };
-  }
 }
 
 // ── Arisan Rooms (roomed prefund circles) ────────────────────────────────

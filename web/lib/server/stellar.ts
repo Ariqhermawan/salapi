@@ -14,6 +14,7 @@ import {
   Address,
   Account,
   xdr,
+  StrKey,
 } from "@stellar/stellar-sdk";
 import {
   nativeBalanceToStroops,
@@ -27,7 +28,6 @@ export const FRIENDBOT = "https://friendbot.stellar.org";
 
 // Deployed on testnet, see docs/operations/deployments.md.
 export const CONTRACTS = {
-  disaster: "CCKQ3UVBZ75KSZDO6IPA5U6PFARJG4PLRGN2SAIW5RAGQ6K4B7ZDWBUZ",
   usernameRegistry: "CDDINUQXTF6SHZN2ZJ36IT7P4YOJ3OZN3H6LTYHVCQ35YYO7YTAWM4G3",
   tokenXlmSac: "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC",
 } as const;
@@ -177,6 +177,13 @@ export function smartSavingsId(): string | null {
 }
 export function arisanRoomsId(): string | null {
   return process.env.ARISAN_ROOMS_CONTRACT ?? null;
+}
+
+// One server-side source for actions, public state, and the documentation page.
+// No legacy fallback: an unset/incorrect D3 deployment must fail closed.
+export function disasterId(): string | null {
+  const id = process.env.DISASTER_CONTRACT?.trim();
+  return id && StrKey.isValidContract(id) ? id : null;
 }
 export const FRIENDS = [
   {
