@@ -21,6 +21,7 @@ import {
   type MoneyInput,
 } from "@/lib/money";
 import { getSigner, currentWalletPublicKey } from "@/lib/server/userWallet";
+import { disasterContribute as contributeToDisaster, disasterState as readDisasterState } from "./disaster-actions";
 import { supabaseAdminConfigured } from "@/lib/supabase/env";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import {
@@ -92,7 +93,10 @@ export async function withdrawSandbox(requested: number) {
   };
 }
 
-export { disasterContribute, disasterState } from "./disaster-actions";
+// Keep existing callers compatible; Next's server-action compiler requires
+// explicitly async function exports rather than a re-export declaration.
+export async function disasterContribute(input: MoneyInput) { return contributeToDisaster(input); }
+export async function disasterState() { return readDisasterState(); }
 
 export async function registerUsername(name: string) {
   const clean = name.trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
