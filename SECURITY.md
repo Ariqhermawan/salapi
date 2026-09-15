@@ -37,8 +37,20 @@ Salapi is a **testnet preview / grant-stage prototype**. It runs on the Stellar 
 
 ## Disaster-relief vault
 
-- The public disaster-relief pool is intentionally scaled large on testnet (~$2M of testnet value) to demonstrate the transparency dashboard. It is guarded by a **single admin key** that can toggle the disaster flag and disburse from the pool, with no per-transaction cap, timelock, or multisig yet. This is a deliberate day-30 simplification; the DAO / multi-signer "AI Tribunal" governance is the Build-Award roadmap.
-- **Mainnet plan:** move the admin to a Stellar multisig or multi-admin scheme, add a per-disbursement cap and/or a short timelock between activating a disaster and the first disbursement, and emit a distinct high-value event.
+- Historical deployments used one admin. D3 replaces that implementation with
+  exactly three immutable signers, two explicit authenticated approvals,
+  a 20-ledger payout timelock starting at quorum, and a 20% rolling-24-hour
+  cap evaluated against the actual balance at execution. Pause and unpause
+  each need quorum; an epoch prevents replay of stale control proposals.
+- Initial state is paused. Donations remain possible; payout execution is
+  blocked. Missing history fails closed. No direct admin payout, signer
+  rotation, public initialization, or upgrade entrypoint exists.
+- The current managed-wallet service can decrypt user keys. Contract-level
+  2-of-3 does not imply three independently custodied keys. Losing two keys
+  freezes the vault, while two colluding signers can approve permitted payouts.
+- Deployment, tests, custody limits, and the live-cutover checklist are in
+  [the D3 report](docs/instawards/week-3-d3.md). Do not treat historical vault
+  receipts or a disposable acceptance-test deployment as operational D3 cutover.
 
 ## Contract upgradeability
 
@@ -57,7 +69,7 @@ Salapi is a **testnet preview / grant-stage prototype**. It runs on the Stellar 
 2. Independently audit the commit-reveal draw; add a VRF or threshold-randomness
    source if the production threat model requires stronger last-revealer
    resistance.
-3. Move the disaster admin to multisig + per-disbursement cap + timelock.
+3. Independently audit D3 and adopt an appropriate independent signer-custody/recovery design.
 4. Gate or remove the demo "friends" helpers.
 5. Add on-chain min/max length and charset validation to username register/rename.
 6. Do peso to stroop money-math in integer/bigint space (avoid floating point).

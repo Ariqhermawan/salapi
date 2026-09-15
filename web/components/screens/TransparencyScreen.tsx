@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useGoBack } from "@/lib/ui/useGoBack";
 import { disasterState, disasterContribute } from "@/app/actions";
@@ -21,10 +21,11 @@ import {
   formatLocalAmount,
   pesoFromLocal,
 } from "@/lib/ui/currency";
+import DisasterControls from "@/components/DisasterControls";
 import type { Locale } from "@/lib/i18n/config";
 
 const EXPLORER = "https://stellar.expert/explorer/testnet";
-const DISASTER_CONTRACT = "CCKQ3UVBZ75KSZDO6IPA5U6PFARJG4PLRGN2SAIW5RAGQ6K4B7ZDWBUZ";
+const LEGACY_DISASTER_CONTRACT = "CCKQ3UVBZ75KSZDO6IPA5U6PFARJG4PLRGN2SAIW5RAGQ6K4B7ZDWBUZ";
 // Every Soroban contract Salapi runs on Testnet. Click any line in the UI to
 // inspect it on Stellar Expert — the entry point for reviewers verifying the
 // "we said we built it, here it is on-chain" claim. Names stay as technical
@@ -32,7 +33,7 @@ const DISASTER_CONTRACT = "CCKQ3UVBZ75KSZDO6IPA5U6PFARJG4PLRGN2SAIW5RAGQ6K4B7ZDW
 const CONTRACTS: { name: string; id: string }[] = [
   { name: "base-vault",       id: "CBC6BTKW5VA6Y2XH6WP4IEPWDZ7TBPYSIIOZQMTEH62N62NFT4F4VYDD" },
   { name: "username-registry",id: "CDDINUQXTF6SHZN2ZJ36IT7P4YOJ3OZN3H6LTYHVCQ35YYO7YTAWM4G3" },
-  { name: "disaster",         id: DISASTER_CONTRACT },
+  { name: "disaster (historical, single-admin)",         id: LEGACY_DISASTER_CONTRACT },
   { name: "paluwagan",        id: "CCXNSK6IGPSB4QGUSNB2EFZWYV53NKVX5AV3XSJANCDDD7TULGQSY37X" },
   { name: "smart-savings",    id: "CBQBUAOP3T235Q2U63XNC2NQVNAOXQL2KHWALO6FTIOJS46NTKIZJ5WI" },
   { name: "arisan-rooms",     id: "CDAUA3TN4PRJFVHWBITT2DZMCY24DEZRA4NQLZLEX5CKL6AOA6RLII4S" },
@@ -69,12 +70,13 @@ export default function TransparencyScreen() {
   const [pending, start] = useTransition();
   const amtTouched = useRef(false);
 
-  async function refresh() {
-    setPool(await disasterState());
-  }
-  useEffect(() => {
-    refresh();
+  const refresh = useCallback(async () => {
+    try { setPool(await disasterState()); }
+    catch { setPool({ ok: false, error: "Connection lost. Please refresh." }); }
   }, []);
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
 
   // Prefill a sensible donation in the active display currency, until the
   // user touches the field (currency resolves after hydration).
@@ -189,7 +191,7 @@ export default function TransparencyScreen() {
         <AppBar leading={<IconButton onClick={() => setPhase("view")}>{Ico.back({})}</IconButton>} title={t("wallet.donate")} />
         <div style={{ padding: "4px 16px 8px" }}>
           <Card p={14}>
-            <Chip kind="warn">{t("transparency.activeRelief")}</Chip>
+            <Chip kind="warn">Donations open · Testnet</Chip>
             <div style={{ marginTop: 6, fontSize: 17, fontWeight: 600, letterSpacing: "-0.01em" }}>{t("transparency.poolName")}</div>
             <div style={{ marginTop: 4, fontSize: 12, color: T.slate, lineHeight: 1.5 }}>
               {t("transparency.poolDesc")}
@@ -261,7 +263,7 @@ export default function TransparencyScreen() {
         trailing={<span style={{ fontSize: 12, color: T.slate, fontFamily: T.fontMono }}>{t("transparency.publicNoLogin")}</span>}
       />
       <div style={{ padding: "4px 16px 6px" }}>
-        <Chip kind="warn">{t("transparency.liveNow")}</Chip>
+        <Chip kind="warn">Stellar Testnet</Chip>
         <div style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em", marginTop: 6, lineHeight: 1.2 }}>{t("transparency.title")}</div>
         <div style={{ fontSize: 12.5, color: T.slate, marginTop: 4, lineHeight: 1.5 }}>
           {t("transparency.sub")}
@@ -278,92 +280,40 @@ export default function TransparencyScreen() {
             ) : pool.ok ? (
               <Peso value={pool.pesos} size={30} color="#fff" />
             ) : (
-              <div style={{ fontSize: 14, color: "rgba(255,255,255,0.7)" }}>{t("transparency.rpcUnavailable")}</div>
+              <div style={{ fontSize: 14, color: "rgba(255,255,255,0.7)" }}>{pool.error}</div>
             )}
           </div>
+          {pool?.ok && <p style={{ margin: "6px 0 0", fontSize: 11, color: "rgba(255,255,255,0.6)" }}>Illustrative display value only. The vault holds valueless Testnet XLM.</p>}
           <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
             <div style={{ flex: 1, padding: "6px 10px", background: "rgba(255,255,255,0.06)", borderRadius: 8 }}>
               <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.45)" }}>{t("transparency.statusLabel")}</div>
               <div className="sl-mono" style={{ fontSize: 14, fontWeight: 600, marginTop: 2 }}>
-                {pool && pool.ok ? (pool.active ? t("transparency.active") : t("transparency.standby")) : "-"}
+                {pool && pool.ok ? (pool.active ? "Active" : "Paused") : "-"}
               </div>
             </div>
             <div style={{ flex: 1, padding: "6px 10px", background: "rgba(255,255,255,0.06)", borderRadius: 8 }}>
               <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.45)" }}>{t("transparency.disburseGate")}</div>
-              <div className="sl-mono" style={{ fontSize: 14, fontWeight: 600, marginTop: 2 }}>{t("transparency.enforced")}</div>
+              <div className="sl-mono" style={{ fontSize: 14, fontWeight: 600, marginTop: 2 }}>{pool?.ok ? "2-of-3" : "Unavailable"}</div>
             </div>
           </div>
           <div style={{ marginTop: 8, fontSize: 11, color: "rgba(255,255,255,0.6)", display: "flex", alignItems: "center", gap: 8 }}>
             <span className="sl-pulse" style={{ width: 6, height: 6, borderRadius: 99, background: T.moneyIn }} />
-            <span>{t("transparency.gateNote")}</span>
+            <span>{pool?.ok ? "Two approvals · 20-ledger wait · rolling 24h cap" : "D3 contract not verified"}</span>
           </div>
         </div>
       </div>
 
-      {/* Multi-key release — Build-Award preview, honestly badged */}
-      <div style={{ padding: "10px 16px 0" }}>
-        <div
-          style={{
-            padding: "11px 13px",
-            borderRadius: 12,
-            background: T.surface,
-            boxShadow: "inset 0 0 0 1px " + T.hairline,
-            display: "flex",
-            gap: 10,
-            alignItems: "flex-start",
-          }}
-        >
-          <div
-            style={{
-              width: 28,
-              height: 28,
-              borderRadius: 99,
-              background: T.actionTint,
-              color: T.action,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flex: "0 0 auto",
-            }}
-          >
-            {Ico.shield({ size: 15, c: T.action })}
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-              <span style={{ fontSize: 12.5, fontWeight: 700, color: T.ink }}>
-                {t("transparency.multiKeyTitle")}
-              </span>
-              <span
-                style={{
-                  fontSize: 9,
-                  fontWeight: 700,
-                  letterSpacing: "0.06em",
-                  textTransform: "uppercase",
-                  color: T.action,
-                  background: T.actionTint,
-                  padding: "2px 6px",
-                  borderRadius: 999,
-                }}
-              >
-                {t("home.circlesBadge")}
-              </span>
-            </div>
-            <div style={{ marginTop: 3, fontSize: 11.5, color: T.slate, lineHeight: 1.45 }}>
-              {t("transparency.multiKeyBody")}
-            </div>
-          </div>
-        </div>
-      </div>
+      <DisasterControls pool={pool} onRefresh={refresh} />
 
       <div style={{ padding: "12px 16px 0" }}>
-        <Btn kind="primary" leading={Ico.shield({ c: "#fff" })} onClick={() => { setErr(""); setPhase("amount"); }}>
+        <Btn kind="primary" disabled={!pool?.ok} leading={Ico.shield({ c: "#fff" })} onClick={() => { setErr(""); setPhase("amount"); }}>
           {t("transparency.donateCta")}
         </Btn>
       </div>
 
       {/* Verifiable trail */}
       <div style={{ padding: "16px 20px 4px", fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: T.slate }}>
-        {t("transparency.trailLabel")}
+        Historical deployment trail (pre-D3)
       </div>
       <div style={{ padding: "0 16px" }}>
         <Card p={0}>
@@ -383,12 +333,12 @@ export default function TransparencyScreen() {
           ))}
         </Card>
         <a
-          href={`${EXPLORER}/contract/${DISASTER_CONTRACT}`}
+          href={`${EXPLORER}/contract/${LEGACY_DISASTER_CONTRACT}`}
           target="_blank"
           rel="noopener noreferrer"
           style={{ marginTop: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontSize: 12, color: T.action, fontFamily: T.fontMono, fontWeight: 600 }}
         >
-          {t("transparency.disasterContract")} {DISASTER_CONTRACT.slice(0, 12)}… {Ico.link({ size: 13, c: T.action })}
+          Historical Disaster contract: {LEGACY_DISASTER_CONTRACT.slice(0, 12)}… {Ico.link({ size: 13, c: T.action })}
         </a>
       </div>
 

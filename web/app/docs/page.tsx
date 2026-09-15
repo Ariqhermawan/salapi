@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { disasterId } from "@/lib/server/stellar";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Public documentation · Salapi",
@@ -20,7 +23,7 @@ const contracts = [
     source: "contracts/username-registry",
   },
   {
-    name: "disaster",
+    name: "disaster (historical, single-admin)",
     id: "CCKQ3UVBZ75KSZDO6IPA5U6PFARJG4PLRGN2SAIW5RAGQ6K4B7ZDWBUZ",
     source: "contracts/disaster",
   },
@@ -69,6 +72,9 @@ function ExternalLink({ href, children }: { href: string; children: ReactNode })
 }
 
 export default function PublicDocsPage() {
+  const d3 = disasterId();
+  const displayedContracts = d3 ? [...contracts, { name: "disaster (D3 configured deployment)", id: d3, source: "contracts/disaster" }] : contracts;
+  const sourceRef = process.env.VERCEL_GIT_COMMIT_SHA ?? "codex/week3-deliverable3";
   return (
     <div
       style={{
@@ -146,12 +152,13 @@ export default function PublicDocsPage() {
         <section id="contracts" style={cardStyle}>
           <h2 style={{ margin: 0, fontSize: 18 }}>Testnet contracts</h2>
           <p style={{ margin: "8px 0 12px", color: "#5b6472", fontSize: 13.5, lineHeight: 1.55 }}>
-            These six contract packages are deployed and verified on Testnet.
+            These are Salapi&apos;s Testnet contract deployments. Historical
+            single-admin Disaster evidence is separate from the D3 deployment.
             Arisan has separate demo- and long-cadence deployments compiled
             from the same source.
           </p>
           <div style={{ display: "grid", gap: 9 }}>
-            {contracts.map((contract) => (
+            {displayedContracts.map((contract) => (
               <div key={contract.name} style={{ borderTop: "1px solid #eef0f4", paddingTop: 9 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "baseline" }}>
                   <strong style={{ fontSize: 13.5 }}>{contract.name}</strong>
@@ -165,6 +172,10 @@ export default function PublicDocsPage() {
               </div>
             ))}
           </div>
+          <p style={{ color: "#5b6472", fontSize: 12.5, lineHeight: 1.5 }}>
+            {d3 ? "The D3 address above is read from the same DISASTER_CONTRACT setting as application transactions. The transparency page verifies its on-chain configuration before enabling actions."
+              : "D3 application cutover is pending: DISASTER_CONTRACT is not configured. No legacy fallback is used for D3 actions."}
+          </p>
           <p style={{ margin: "12px 0 0", color: "#5b6472", fontSize: 12.5, lineHeight: 1.5 }}>
             Full deploy, initialization, and flow transaction hashes are in the
             <ExternalLink href="https://github.com/Ariqhermawan/salapi/blob/main/docs/operations/deployments.md">
@@ -186,6 +197,7 @@ export default function PublicDocsPage() {
             <li><ExternalLink href="https://github.com/Ariqhermawan/salapi/blob/main/docs/instawards/week-1-d1.md">Week 1 D1 report</ExternalLink></li>
             <li><ExternalLink href="https://stellar.expert/explorer/testnet/tx/a670f325bce65a8ec093499cad43699269efddcd5d939a9403ca52eafcff7579">Example 6.50 PHP Testnet contribution</ExternalLink></li>
             <li><ExternalLink href="https://github.com/Ariqhermawan/salapi/blob/main/docs/instawards/week-2-d2.md">Week 2 D2 commit-reveal report</ExternalLink></li>
+            <li><ExternalLink href={`https://github.com/Ariqhermawan/salapi/blob/${sourceRef}/docs/instawards/week-3-d3.md`}>D3 controls, acceptance tests, and deployment status</ExternalLink></li>
             <li><ExternalLink href="https://stellar.expert/explorer/testnet/tx/f83d24369795458db27a033e921ce84c261840ca29019baaa151dcb1518e50cb">D2 normal round: three reveals</ExternalLink></li>
             <li><ExternalLink href="https://stellar.expert/explorer/testnet/tx/1fc95b8cbd2c5a3f54e5b44f0dad88aac55df5af30e5e1c7a0e9fb6ab5a7d0bc">D2 timeout round: one non-revealer</ExternalLink></li>
             <li><ExternalLink href="https://stellar.expert/explorer/testnet/tx/89734260b9a5c1bb099ed65f26a0f815059aea5d6b6fb8aa27f3c7c5c9a256b0">D2 no-reveal liveness fallback</ExternalLink></li>
@@ -198,7 +210,8 @@ export default function PublicDocsPage() {
             <li>Live environment: Stellar Testnet only; no real funds and no mainnet deployment.</li>
             <li>Week 1 D1 (exact integer money boundary) is shipped and merged to <code>main</code>.</li>
             <li>Week 2 D2 (participant commit-reveal draw) is implemented and verified on Testnet.</li>
-            <li>Disaster-admin controls, independent audit, and fiat anchor integration remain roadmap work.</li>
+            <li>D3 implements fixed 2-of-3 approvals, a 20-ledger payout timelock, a rolling 24-hour cap, and quorum-controlled pause/unpause. Live cutover and evidence status are tracked in the D3 report.</li>
+            <li>Independent audit, independent signer custody, and fiat anchor integration remain outside this Testnet implementation.</li>
           </ul>
           <p style={{ margin: "12px 0 0", color: "#5b6472", fontSize: 12.5, lineHeight: 1.5 }}>
             Security assumptions, custody trade-offs, and the mainnet checklist

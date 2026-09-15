@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createSupabaseBrowser } from "@/lib/supabase/client";
 import { supabaseConfigured } from "@/lib/supabase/env";
 import { T, Ico, Btn, Wordmark, TestnetPill, PoweredByStellar } from "@/components/ui/kit";
 import { SalapiMark } from "@/components/ui/brand";
 import { useT } from "@/components/I18nProvider";
+import { authRedirectPath } from "@/lib/authRedirect";
 
 function GoogleMark() {
   return (
@@ -26,8 +27,11 @@ export default function SignInScreen() {
   const searchParams = useSearchParams();
   const [pending, start] = useTransition();
   const [busy, setBusy] = useState(false);
+  const [emailMode, setEmailMode] = useState(false);
+  const submitting = useRef(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const configured = supabaseConfigured();
+  const next = authRedirectPath(searchParams?.get("next") ?? null);
 
   // If auth/callback bounced us here with ?error=oauth (exchangeCodeForSession
   // failed) surface that, so the user knows why they're back on this screen
@@ -40,25 +44,62 @@ export default function SignInScreen() {
   const enter = () => start(() => void router.push("/"));
 
   async function google() {
+    if (submitting.current) return;
     if (!configured) return enter();
+    submitting.current = true;
     setBusy(true);
     setSubmitError(null);
     try {
+      // Keep the requested in-app destination in a short-lived first-party
+      // cookie. The callback URL stays exact (and therefore remains on the
+      // Supabase allow-list) while the path survives the external OAuth hop.
+      document.cookie = `salapi_auth_next=${encodeURIComponent(next)}; Path=/; Max-Age=600; SameSite=Lax`;
       const supabase = createSupabaseBrowser();
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: { redirectTo: `${window.location.origin}/auth/callback` },
       });
       if (error) {
+        submitting.current = false;
         setBusy(false);
         setSubmitError(error.message || "Couldn't start Google sign-in.");
       }
       // success → browser is redirecting to Google
     } catch (e) {
+      submitting.current = false;
       setBusy(false);
       setSubmitError(
         e instanceof Error ? e.message : "Couldn't start Google sign-in."
       );
+    }
+  }
+
+  async function emailSignIn(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!configured || submitting.current) return;
+    submitting.current = true;
+    setBusy(true);
+    setSubmitError(null);
+    const form = event.currentTarget;
+    const fields = new FormData(form);
+    try {
+      const { data, error } = await createSupabaseBrowser().auth.signInWithPassword({
+        email: String(fields.get("email") ?? "").trim(),
+        password: String(fields.get("password") ?? ""),
+      });
+      if (error || !data.session) {
+        setSubmitError(t("signin.passwordError"));
+        return;
+      }
+      form.reset();
+      // A full navigation makes server-rendered wallet/role data use the new
+      // session cookies, rather than reusing an anonymous router cache entry.
+      window.location.assign(next);
+    } catch {
+      setSubmitError(t("signin.passwordError"));
+    } finally {
+      submitting.current = false;
+      setBusy(false);
     }
   }
 
@@ -112,10 +153,26 @@ export default function SignInScreen() {
           </div>
         )}
         <Btn kind="primary" disabled={working} loading={working} leading={!working && <GoogleMark />} onClick={google}>
-          {busy ? t("signin.redirecting") : t("signin.google")}
+          {busy && !emailMode ? t("signin.redirecting") : t("signin.google")}
         </Btn>
         <Btn kind="secondary" disabled={working} onClick={enter}>{t("signin.phone")}</Btn>
-        <Btn kind="ghost" disabled={working} onClick={enter}>{t("signin.email")}</Btn>
+        <Btn kind="ghost" disabled={working || !configured} onClick={() => setEmailMode(!emailMode)}>{t("signin.email")}</Btn>
+        {emailMode && configured && (
+          <form onSubmit={emailSignIn} style={{ display: "grid", gap: 10, marginTop: 4 }}>
+            <div style={{ fontSize: 12, color: T.slate }}>{t("signin.emailHelp")}</div>
+            <label style={{ display: "grid", gap: 5, fontSize: 13 }}>
+              {t("signin.emailLabel")}
+              <input name="email" type="email" autoComplete="username" required disabled={working} style={{ padding: 12, border: `1px solid ${T.hairline}`, borderRadius: 10, fontSize: 16, width: "100%", boxSizing: "border-box" }} />
+            </label>
+            <label style={{ display: "grid", gap: 5, fontSize: 13 }}>
+              {t("signin.passwordLabel")}
+              <input name="password" type="password" autoComplete="current-password" required disabled={working} style={{ padding: 12, border: `1px solid ${T.hairline}`, borderRadius: 10, fontSize: 16, width: "100%", boxSizing: "border-box" }} />
+            </label>
+            <button type="submit" disabled={working} style={{ padding: 13, border: 0, borderRadius: 12, background: T.action, color: "white", fontSize: 14, fontWeight: 700, cursor: working ? "wait" : "pointer" }}>
+              {t("signin.signIn")}
+            </button>
+          </form>
+        )}
       </div>
 
       <div style={{ marginTop: "auto", padding: "16px 20px 0", textAlign: "center" }}>

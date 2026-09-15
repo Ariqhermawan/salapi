@@ -115,6 +115,21 @@ export async function currentUserId(): Promise<string | null> {
   }
 }
 
+/** Privileged D3 actions never provision a wallet or fall back to demo keys. */
+export async function getAuthenticatedSigner(): Promise<Signer> {
+  const userId = await currentUserId();
+  if (!userId) throw new Error("Sign in to use signer controls");
+  if (!supabaseAdminConfigured()) throw new Error("Wallet service is unavailable");
+  const { data, error } = await createSupabaseAdmin().from("wallets")
+    .select("public_key, secret_cipher").eq("user_id", userId).maybeSingle();
+  if (error || !data?.public_key || !data.secret_cipher)
+    throw new Error("Your saved wallet is unavailable. Signer actions are blocked.");
+  const secret = decryptSecret(data.secret_cipher);
+  if (Keypair.fromSecret(secret).publicKey() !== data.public_key)
+    throw new Error("Saved wallet identity mismatch. Signer actions are blocked.");
+  return { publicKey: data.public_key, secret, demo: false };
+}
+
 /**
  * The current user's stored wallet public key, resolved READ-ONLY: it never
  * mints, funds, or persists a wallet. Returns null for anonymous/demo visitors
