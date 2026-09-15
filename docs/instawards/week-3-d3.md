@@ -1,10 +1,10 @@
 # Deliverable 3 — Disaster Vault authorization controls
 
-Status: implementation, local regression checks, and isolated Testnet acceptance
-verified on 14 September 2026 on `codex/week3-deliverable3`. A retained-key
-Testnet contract was deployed on 15 September with the user's approved three
-generated wallets. Account linking and `salapi.app` cutover are pending;
-D3 is not yet fully complete.
+Status: implementation, local regression checks, isolated Testnet acceptance,
+and signer-account linking verified on 15 September 2026 on
+`codex/week3-deliverable3`. A retained-key Testnet contract was deployed with
+the user's approved three generated wallets. The production `salapi.app`
+cutover and authenticated multi-user live E2E remain pending.
 
 ## Scope and behavior
 
@@ -192,11 +192,18 @@ The three private identities are retained outside Git in an owner-only local
 directory. This is one-computer custody, not three independent operators.
 No existing Salapi user's wallet was replaced. Sign-in supports Google OAuth
 and password login for explicitly provisioned accounts; phone remains a
-sandbox seam. Three D3-only test accounts have been created, but mapping their
-wallets still requires the existing production `WALLET_ENC_KEY` so the six
-existing wallet rows remain readable.
-Do not replace the shared wallet encryption key or existing users' wallet rows
-to complete this mapping.
+sandbox seam. Three D3-only test accounts have been created and their wallet
+rows are linked to the retained signer addresses. The operation used the
+existing production `WALLET_ENC_KEY`, verified decryption/read-back, and is
+idempotent; a repeat run confirmed all three mappings without overwriting any
+row. Do not replace the shared wallet encryption key or existing users' wallet
+rows.
+
+The auditable linking helper is
+[`web/scripts/link-d3-signers.mts`](../../web/scripts/link-d3-signers.mts).
+It reads signer secrets only from the owner-only Stellar CLI identity store,
+never prints secrets/ciphertext, refuses mismatched existing rows, and should
+be run only with the runtime environment variables documented in its header.
 
 For a future fresh deployment, confirm the signer identities before running:
 
@@ -206,17 +213,16 @@ export DISASTER_SIGNERS='["G...first...","G...second...","G...third..."]'
 bash scripts/deploy-disaster-d3-testnet.sh
 ```
 
-After account linking is verified, set the retained-key contract ID as
-`DISASTER_CONTRACT` in Vercel Production/Preview and
-redeploy. Verify that `/transparency` and `/docs` show the same ID and that
-the signer accounts can complete the flow. The old vault's balances and
-transactions do not move automatically; retain its deployment as historical.
-No old-vault transfer or production alias change is performed by the script.
+Set the retained-key contract ID as `DISASTER_CONTRACT` in the correct Vercel
+Production/Preview project and redeploy. Then verify that `/transparency` and
+`/docs` show the same ID and that all three signer accounts can complete the
+flow. The old vault's balances and transactions do not move automatically;
+retain its deployment as historical. No old-vault transfer or production alias
+change is performed by the linking helper.
 
-Pending completion evidence: signer account linking, live-app
-cutover, authenticated multi-user browser E2E, and final
-reviewer screenshots. Do not mark the entire SOW deliverable complete until
-these have been verified.
+Pending completion evidence: live-app cutover, authenticated multi-user
+browser E2E, and final reviewer screenshots. Do not mark the entire SOW
+deliverable complete until these have been verified.
 
 Implementation review: [PR #10](https://github.com/Ariqhermawan/salapi/pull/10).
 The implementation commit `4667339` passed [all four CI jobs](https://github.com/Ariqhermawan/salapi/actions/runs/34827072703).

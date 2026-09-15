@@ -10,10 +10,11 @@ The single-admin deployment and receipts below are historical, not D3 proof.
 A retained-key Testnet deployment was created on 15 September 2026:
 [`CCN2O4Z6CSUVF74DWZBJJ526IMEXVRCYKY74PM5BDKA22WWTOW5WHZDY`](https://stellar.expert/explorer/testnet/contract/CCN2O4Z6CSUVF74DWZBJJ526IMEXVRCYKY74PM5BDKA22WWTOW5WHZDY),
 [deployment transaction](https://stellar.expert/explorer/testnet/tx/e8f5a82a48eae268a344700744db169678136bbf89b1dacf3ead52f388cc397f).
-Its three generated wallets are fixed, but not yet linked to Salapi login
-accounts. Password login for explicitly provisioned D3 test accounts is now
-available; linking still requires the existing wallet encryption key. The vault
-is paused and empty; application cutover remains pending.
+Its three generated wallets are fixed and linked to the explicitly provisioned
+Salapi login accounts. Password login for those D3 test accounts is now
+available. The three signer rows are read-back/decryption
+verified with the existing wallet encryption key; no existing wallet row was
+replaced. The vault is paused and empty; application cutover remains pending.
 
 ## Historical baseline — 2026-05-18
 

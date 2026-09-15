@@ -1,6 +1,6 @@
 {
   "recordedAt": "2026-09-15",
-  "purpose": "Retained-key D3 Testnet deployment; account linking and application cutover pending",
+  "purpose": "Retained-key D3 Testnet deployment; signer accounts linked, application cutover pending",
   "wasmSha256": "5be00ffbdba59020da99724538691e0e4104203e8e9a5f3f68697851212b1a8f",
   "network": "Testnet",
   "contractId": "CCN2O4Z6CSUVF74DWZBJJ526IMEXVRCYKY74PM5BDKA22WWTOW5WHZDY",
