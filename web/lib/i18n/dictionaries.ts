@@ -524,6 +524,10 @@ const en = {
     footerSandbox: "Sandbox sign-in seam. No real account is created. Google OAuth activates once Supabase is configured.",
     terms: "By continuing, you agree to our Terms and Privacy Policy.",
     oauthError: "Google sign-in did not complete. Please try again.",
+    emailHelp: "Use an account provisioned by the Salapi team.",
+    emailLabel: "Email",
+    passwordLabel: "Password",
+    passwordError: "Email or password is incorrect. Please try again.",
   },
   lang: { choose: "Choose your language" },
   landing: {
@@ -1517,6 +1521,10 @@ const tl: Dict = {
     footerSandbox: "Sandbox sign-in seam. Walang tunay na account na ginagawa. Aktibo ang Google OAuth kapag na-configure na ang Supabase.",
     terms: "Sa pagpapatuloy, sumasang-ayon ka sa aming Terms at Privacy Policy.",
     oauthError: "Hindi natapos ang Google sign-in. Pakisubukan muli.",
+    emailHelp: "Gumamit ng account na ginawa ng Salapi team.",
+    emailLabel: "Email",
+    passwordLabel: "Password",
+    passwordError: "Mali ang email o password. Pakisubukan muli.",
   },
   lang: { choose: "Piliin ang iyong wika" },
   landing: {
@@ -2498,6 +2506,10 @@ const id: Dict = {
     footerSandbox: "Seam sign-in sandbox. Tidak ada akun nyata yang dibuat. Google OAuth aktif setelah Supabase dikonfigurasi.",
     terms: "Dengan melanjutkan, kamu menyetujui Ketentuan dan Kebijakan Privasi kami.",
     oauthError: "Google sign-in tidak selesai. Silakan coba lagi.",
+    emailHelp: "Gunakan akun yang dibuat oleh tim Salapi.",
+    emailLabel: "Email",
+    passwordLabel: "Password",
+    passwordError: "Email atau password salah. Coba lagi.",
   },
   lang: { choose: "Pilih bahasa kamu" },
   landing: {
@@ -3480,6 +3492,10 @@ const vi: Dict = {
     footerSandbox: "Seam đăng nhập sandbox. Không tài khoản thật nào được tạo. Google OAuth kích hoạt khi Supabase được cấu hình.",
     terms: "Khi tiếp tục, bạn đồng ý với Điều khoản và Chính sách bảo mật của chúng tôi.",
     oauthError: "Đăng nhập Google chưa hoàn tất. Vui lòng thử lại.",
+    emailHelp: "Dùng tài khoản do đội ngũ Salapi tạo.",
+    emailLabel: "Email",
+    passwordLabel: "Mật khẩu",
+    passwordError: "Email hoặc mật khẩu không đúng. Vui lòng thử lại.",
   },
   lang: { choose: "Chọn ngôn ngữ của bạn" },
   landing: {

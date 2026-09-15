@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseConfigured } from "@/lib/supabase/env";
+import { authRedirectPath } from "@/lib/authRedirect";
 
 // OAuth redirect target: exchange the ?code for a session, then go to the app.
 export async function GET(request: Request) {
@@ -9,8 +10,23 @@ export async function GET(request: Request) {
   // Open-redirect guard: only accept a same-origin relative path. Reject
   // protocol-relative ("//evil.com") and backslash ("/\evil.com") forms that
   // browsers resolve to an external host once concatenated onto `origin`.
-  const rawNext = searchParams.get("next") ?? "/";
-  const next = /^\/(?![/\\])/.test(rawNext) ? rawNext : "/";
+  const cookieNext = request.headers.get("cookie")
+    ?.match(/(?:^|;\s*)salapi_auth_next=([^;]*)/)?.[1];
+  let storedNext: string | null = null;
+  if (cookieNext) {
+    try {
+      storedNext = decodeURIComponent(cookieNext);
+    } catch {
+      storedNext = null;
+    }
+  }
+  const next = authRedirectPath(storedNext ?? searchParams.get("next"));
+
+  function redirect(path: string) {
+    const response = NextResponse.redirect(`${origin}${path}`);
+    response.cookies.delete("salapi_auth_next");
+    return response;
+  }
 
   if (code && supabaseConfigured()) {
     const supabase = await createSupabaseServer();
@@ -20,9 +36,9 @@ export async function GET(request: Request) {
         "[auth/callback] exchangeCodeForSession failed:",
         error.message
       );
-      return NextResponse.redirect(`${origin}/signin?error=oauth`);
+      return redirect(`/signin?error=oauth&next=${encodeURIComponent(next)}`);
     }
   }
 
-  return NextResponse.redirect(`${origin}${next}`);
+  return redirect(next);
 }
