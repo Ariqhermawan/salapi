@@ -1,8 +1,10 @@
 # Deliverable 3 — Disaster Vault authorization controls
 
 Status: implementation, local regression checks, and isolated Testnet acceptance
-verified on 14 September 2026 on `codex/week3-deliverable3`. Operational signer
-selection and `salapi.app` cutover are pending; D3 is not yet fully complete.
+verified on 14 September 2026 on `codex/week3-deliverable3`. A retained-key
+Testnet contract was deployed on 15 September with the user's approved three
+generated wallets. Account linking and `salapi.app` cutover are pending;
+D3 is not yet fully complete.
 
 ## Scope and behavior
 
@@ -167,9 +169,34 @@ current cap: **16.4 XLM**; remaining allowance: **0 XLM**. The 24-hour expiry
 boundary was verified in deterministic Rust tests, not by waiting a full day
 during this Testnet run.
 
-The team must confirm three operational Testnet signer public addresses before
-the live deployment. The addresses must match those users' existing Salapi
-wallets if they will approve through the current managed-wallet UI.
+### Retained-key deployment — 15 September 2026
+
+Following user approval, a separate D3 contract was deployed using the three
+newly generated, locally retained Testnet wallets. This is not the disposable
+acceptance contract above, and it has not been activated in the live app.
+
+- Contract: [`CCN2O4Z6CSUVF74DWZBJJ526IMEXVRCYKY74PM5BDKA22WWTOW5WHZDY`](https://stellar.expert/explorer/testnet/contract/CCN2O4Z6CSUVF74DWZBJJ526IMEXVRCYKY74PM5BDKA22WWTOW5WHZDY)
+- [Deployment transaction](https://stellar.expert/explorer/testnet/tx/e8f5a82a48eae268a344700744db169678136bbf89b1dacf3ead52f388cc397f), ledger `4684699`.
+- [Public deployment XDR and configuration snapshot](evidence/week-3-d3-deployment.json).
+- Same tested WASM checksum as the isolated acceptance contract.
+- Verified state at ledger `4684707`: version 3, paused, 0 XLM, no proposals,
+  2000 bps cap, 20-ledger payout timelock.
+
+| Fixed signer | Public address |
+| --- | --- |
+| 1 | `GAKZLTZFGSSM372XUKW2ZIJ5GSHVVIW5BYZIKIXRW2BW4MM6TUI5536Y` |
+| 2 | `GAVWJIZ45MHV2KWBHNBBB7YHU5CPTIDD3YONC4ZNP7IGE6Z3C777OV4H` |
+| 3 | `GAXPCCZD3AKYIRCI5CCX2TRIMVGQ45XEUEZPF5RBUZHYFRRZGN64ZNO3` |
+
+The three private identities are retained outside Git in an owner-only local
+directory. This is one-computer custody, not three independent operators.
+No existing Salapi user's wallet was replaced. The current working sign-in
+method is Google OAuth; email/phone buttons do not yet authenticate. Mapping
+these wallets to login accounts therefore remains a separate prerequisite.
+Do not replace the shared wallet encryption key or existing users' wallet rows
+to complete this mapping.
+
+For a future fresh deployment, confirm the signer identities before running:
 
 ```bash
 export STELLAR_SOURCE=your-funded-testnet-cli-identity
@@ -177,16 +204,20 @@ export DISASTER_SIGNERS='["G...first...","G...second...","G...third..."]'
 bash scripts/deploy-disaster-d3-testnet.sh
 ```
 
-Then set the new ID as `DISASTER_CONTRACT` in Vercel Production/Preview and
+After account linking is verified, set the retained-key contract ID as
+`DISASTER_CONTRACT` in Vercel Production/Preview and
 redeploy. Verify that `/transparency` and `/docs` show the same ID and that
 the signer accounts can complete the flow. The old vault's balances and
 transactions do not move automatically; retain its deployment as historical.
 No old-vault transfer or production alias change is performed by the script.
 
-Pending completion evidence: confirmed operational signer set, live-app
-cutover, authenticated multi-user browser E2E, public CI/PR links, and final
+Pending completion evidence: signer account linking, live-app
+cutover, authenticated multi-user browser E2E, and final
 reviewer screenshots. Do not mark the entire SOW deliverable complete until
 these have been verified.
+
+Implementation review: [PR #10](https://github.com/Ariqhermawan/salapi/pull/10).
+The implementation commit `4667339` passed [all four CI jobs](https://github.com/Ariqhermawan/salapi/actions/runs/34827072703).
 
 ## Security boundaries and self-review
 
