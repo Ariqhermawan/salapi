@@ -1,10 +1,10 @@
 # Deliverable 3 — Disaster Vault authorization controls
 
 Status: implementation, local regression checks, isolated Testnet acceptance,
-and signer-account linking verified on 15 September 2026 on
-`codex/week3-deliverable3`. A retained-key Testnet contract was deployed with
-the user's approved three generated wallets. The production `salapi.app`
-cutover and authenticated multi-user live E2E remain pending.
+signer-account linking, production cutover, and authenticated multi-user live
+E2E verified on 15 September 2026. A retained-key Testnet contract was
+deployed with the user's approved three generated wallets and is the D3
+contract configured by `salapi.app`.
 
 ## Scope and behavior
 
@@ -175,7 +175,8 @@ during this Testnet run.
 
 Following user approval, a separate D3 contract was deployed using the three
 newly generated, locally retained Testnet wallets. This is not the disposable
-acceptance contract above, and it has not been activated in the live app.
+acceptance contract above; it is the retained-key D3 contract configured in
+the live app.
 
 - Contract: [`CCN2O4Z6CSUVF74DWZBJJ526IMEXVRCYKY74PM5BDKA22WWTOW5WHZDY`](https://stellar.expert/explorer/testnet/contract/CCN2O4Z6CSUVF74DWZBJJ526IMEXVRCYKY74PM5BDKA22WWTOW5WHZDY)
 - [Deployment transaction](https://stellar.expert/explorer/testnet/tx/e8f5a82a48eae268a344700744db169678136bbf89b1dacf3ead52f388cc397f), ledger `4684699`.
@@ -215,16 +216,36 @@ export DISASTER_SIGNERS='["G...first...","G...second...","G...third..."]'
 bash scripts/deploy-disaster-d3-testnet.sh
 ```
 
-Set the retained-key contract ID as `DISASTER_CONTRACT` in the correct Vercel
-Production/Preview project and redeploy. Then verify that `/transparency` and
-`/docs` show the same ID and that all three signer accounts can complete the
-flow. The old vault's balances and transactions do not move automatically;
-retain its deployment as historical. No old-vault transfer or production alias
-change is performed by the linking helper.
+The retained-key contract ID is configured as `DISASTER_CONTRACT` in the
+Vercel Production and Preview environments. Both `/transparency` and `/docs`
+show the same ID, and the three provisioned signer accounts completed the
+authenticated live flow. The old vault's balances and transactions do not
+move automatically; its deployment remains historical. No old-vault transfer
+or production alias change is performed by the linking helper.
 
-Pending completion evidence: live-app cutover, authenticated multi-user
-browser E2E, and final reviewer screenshots. Do not mark the entire SOW
-deliverable complete until these have been verified.
+### Authenticated live E2E — 15 September 2026
+
+The following run was completed through `https://salapi.app/transparency` on
+the retained-key contract. Every submitted transaction returned
+`successful: true` from Horizon Testnet.
+
+| Scenario | Transaction |
+| --- | --- |
+| Contribute 8.9230769 XLM | [Donation](https://stellar.expert/explorer/testnet/tx/aa80ca676490a912df036a4092da855499404c0cb76a48cadae65cf6f5add770) |
+| Propose unpause | [Proposal](https://stellar.expert/explorer/testnet/tx/393ad3564a0c2181bc502836864512b6a1805ef6770c839529fe312ab804d5fb) |
+| Unpause approval — signer 2 | [Approval](https://stellar.expert/explorer/testnet/tx/e3418e5342aebfce5a4a48e299c2585ae721ddb4a668c3903a08d476b89b7946) |
+| Unpause approval — signer 1 | [Approval](https://stellar.expert/explorer/testnet/tx/cd4aa20fc57573840236b3bf695203ba5384e010535cef550b0ca60877ee0728) |
+| Execute unpause | [Execution](https://stellar.expert/explorer/testnet/tx/63b0dd551e1f70a749e7b771c4590b405da6bb63ec0cecc9f58175c42ed8c926) |
+| Propose 0.8923077 XLM payout to signer 3 | [Proposal](https://stellar.expert/explorer/testnet/tx/46e7fe18867d37b093c235e81b5b3a6c3f7fc90e7d9a9bdde25d9f485323da06) |
+| Payout approval — signer 2 | [Approval](https://stellar.expert/explorer/testnet/tx/bb92683feb917f3249d38e040065e8778474a922ea7298070ff73f9bca843513) |
+| Payout approval — signer 1 | [Approval](https://stellar.expert/explorer/testnet/tx/a7697960d021f2229ce574cb679c3547fbf830971c78859c6d2f87a0de396281) |
+| Execute payout after 20-ledger wait | [Execution](https://stellar.expert/explorer/testnet/tx/4559f41883fdc0a0e4fefa7e5bb16c19c26683768cbffaaf10edf9019d7eb0ac) |
+
+The live UI finished in `Active` state with a vault balance of **8.0307692
+XLM**, **0.8923077 XLM** executed in the preceding 24 hours, and **0.7138461
+XLM** remaining allowance. The recipient signer account was observed at
+`10000.8923077 XLM` on Horizon Testnet. This is Testnet evidence only and is
+not an independent security audit.
 
 Implementation review: [PR #10](https://github.com/Ariqhermawan/salapi/pull/10).
 The implementation commit `4667339` passed [all four CI jobs](https://github.com/Ariqhermawan/salapi/actions/runs/34827072703).
