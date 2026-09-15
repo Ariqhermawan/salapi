@@ -190,9 +190,11 @@ acceptance contract above, and it has not been activated in the live app.
 
 The three private identities are retained outside Git in an owner-only local
 directory. This is one-computer custody, not three independent operators.
-No existing Salapi user's wallet was replaced. The current working sign-in
-method is Google OAuth; email/phone buttons do not yet authenticate. Mapping
-these wallets to login accounts therefore remains a separate prerequisite.
+No existing Salapi user's wallet was replaced. Sign-in supports Google OAuth
+and password login for explicitly provisioned accounts; phone remains a
+sandbox seam. Three D3-only test accounts have been created, but mapping their
+wallets still requires the existing production `WALLET_ENC_KEY` so the six
+existing wallet rows remain readable.
 Do not replace the shared wallet encryption key or existing users' wallet rows
 to complete this mapping.
 
