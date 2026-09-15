@@ -1,6 +1,6 @@
 {
   "recordedAt": "2026-09-15",
-  "purpose": "Retained-key D3 Testnet deployment; signer accounts linked, application cutover pending",
+  "purpose": "Retained-key D3 Testnet deployment; signer accounts linked, production cutover and authenticated live E2E completed",
   "wasmSha256": "5be00ffbdba59020da99724538691e0e4104203e8e9a5f3f68697851212b1a8f",
   "network": "Testnet",
   "contractId": "CCN2O4Z6CSUVF74DWZBJJ526IMEXVRCYKY74PM5BDKA22WWTOW5WHZDY",
@@ -24,6 +24,29 @@
     "next_id": "1",
     "paused": true,
     "spent_24h": "0"
+  },
+  "liveE2e": {
+    "completedAt": "2026-09-15",
+    "application": "https://salapi.app/transparency",
+    "payoutRecipient": "GAXPCCZD3AKYIRCI5CCX2TRIMVGQ45XEUEZPF5RBUZHYFRRZGN64ZNO3",
+    "transactions": {
+      "contribute": "aa80ca676490a912df036a4092da855499404c0cb76a48cadae65cf6f5add770",
+      "unpauseProposal": "393ad3564a0c2181bc502836864512b6a1805ef6770c839529fe312ab804d5fb",
+      "unpauseApprovalSigner2": "e3418e5342aebfce5a4a48e299c2585ae721ddb4a668c3903a08d476b89b7946",
+      "unpauseApprovalSigner1": "cd4aa20fc57573840236b3bf695203ba5384e010535cef550b0ca60877ee0728",
+      "unpauseExecute": "63b0dd551e1f70a749e7b771c4590b405da6bb63ec0cecc9f58175c42ed8c926",
+      "payoutProposal": "46e7fe18867d37b093c235e81b5b3a6c3f7fc90e7d9a9bdde25d9f485323da06",
+      "payoutApprovalSigner2": "bb92683feb917f3249d38e040065e8778474a922ea7298070ff73f9bca843513",
+      "payoutApprovalSigner1": "a7697960d021f2229ce574cb679c3547fbf830971c78859c6d2f87a0de396281",
+      "payoutExecute": "4559f41883fdc0a0e4fefa7e5bb16c19c26683768cbffaaf10edf9019d7eb0ac"
+    },
+    "finalState": {
+      "paused": false,
+      "balance": "8.0307692",
+      "spent24h": "0.8923077",
+      "remainingAllowance": "0.7138461",
+      "executeLedger": 4687247
+    }
   },
   "deployment": {
     "hash": "e8f5a82a48eae268a344700744db169678136bbf89b1dacf3ead52f388cc397f",
