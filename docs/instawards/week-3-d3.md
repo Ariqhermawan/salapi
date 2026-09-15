@@ -93,15 +93,17 @@ The full workspace and existing D1/D2 regression suites also run.
 | D3 exact input/signer helpers | 5/5 passed |
 | D1 money conversion | 5/5 passed; seeded guard rejection verified |
 | D2 commitment encoding | 3/3 passed |
-| Web E2E | 28/28 passed, including the opt-in live Testnet read |
+| Web E2E | 29/29 passed; the opt-in live Testnet read is skipped without `D3_E2E_CONTRACT` |
 | Type-check / lint | Passed; lint has 0 errors and 27 warnings |
 | Production build | `npx next build --webpack` passed |
 | WASM | Stellar CLI build passed, 14,336 bytes |
 
 The E2E suite includes four **mocked-response UI tests**, three **real HTTP
-unauthenticated-action rejection tests**, one **real Testnet public-read test**,
-and 20 existing regression tests. Mocked signer UI results are not evidence of
-authenticated multi-user on-chain execution. That live-app check remains pending.
+unauthenticated-action rejection tests**, one optional **real Testnet
+public-read test** (skipped in the routine run without `D3_E2E_CONTRACT`),
+two **sign-in safety tests**, and 20 other regression tests. Mocked signer UI
+results are not evidence of authenticated multi-user on-chain execution. The
+local managed-account login was additionally verified manually after linking.
 Visual inspection also confirmed the local public page shows the real balance,
 allowance, proposal states, and the evidence-only contract address.
 
