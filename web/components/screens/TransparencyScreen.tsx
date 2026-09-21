@@ -22,6 +22,7 @@ import {
   pesoFromLocal,
 } from "@/lib/ui/currency";
 import DisasterControls from "@/components/DisasterControls";
+import { CampaignEvidence } from "@/components/screens/CampaignScreen";
 import type { Locale } from "@/lib/i18n/config";
 
 const EXPLORER = "https://stellar.expert/explorer/testnet";
@@ -304,6 +305,7 @@ export default function TransparencyScreen() {
       </div>
 
       <DisasterControls pool={pool} onRefresh={refresh} />
+      <CampaignEvidence />
 
       <div style={{ padding: "12px 16px 0" }}>
         <Btn kind="primary" disabled={!pool?.ok} leading={Ico.shield({ c: "#fff" })} onClick={() => { setErr(""); setPhase("amount"); }}>

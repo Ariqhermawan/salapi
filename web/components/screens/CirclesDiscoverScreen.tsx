@@ -29,6 +29,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   T,
   Ico,
@@ -242,6 +243,7 @@ export default function CirclesDiscoverScreen() {
         trailing={<PreviewBadge />}
       />
 
+      <div style={{ padding: 16 }}><Card><Link href="/campaigns" style={{ fontWeight: 700 }}>Open live Testnet donation campaigns</Link><p style={{ fontSize: 12 }}>D4 escrow, proof approvals, and refunds. The inspiration cards below remain preview examples.</p></Card></div>
       {/* Hero: Spotlight Section 7 framing */}
       <div style={{ padding: "2px 16px 10px" }}>
         <div
