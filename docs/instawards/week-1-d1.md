@@ -43,6 +43,24 @@ does not move pooled value on-chain.
 | `web/lib/circles/*` and Circles screens | OUT | Preview/waitlist data; no live contribution or contract transfer in this scope. |
 | `web/components/screens/TopUpScreen.tsx`, `WithdrawScreen.tsx` | OUT | Testnet Friendbot/anchor simulations; no amount is transferred to a contract. |
 
+### Week 4 reopening — D4 additions
+
+The original Circles inspiration/waitlist screens remain OUT. Live D4 actions
+are on `/campaigns`, with a separate contract and the following boundaries:
+
+| Module / path | Decision | Reason |
+|---|---|---|
+| `contracts/donation-campaign/src/lib.rs` | IN | Campaign escrow, donor accounting, floor split and pull refunds use checked integer `i128`; each campaign has separate storage keys. |
+| `web/lib/campaign-money.ts` | IN | Exact decimal parsing, BigInt basis points and split; included in the no-float CI gate. |
+| `web/app/campaign-actions.ts` | IN | Caller comes from authenticated wallet; donations cross `campaignAmount` then `sc.i128`. The bounded `0..1000` cut is converted to SDK u32 only after integer validation. |
+| `web/components/screens/CampaignScreen.tsx` | IN | Submits raw amount/share strings; preview split uses BigInt. Dates and percent labels are presentation, never token amounts. |
+| `web/lib/campaign.ts` | IN | Validates immutable configuration and delegates creator-share parsing to the exact boundary. |
+| `web/scripts/campaign-testnet.mts` | IN | Testnet acceptance script uses integer units and verifies conservation. |
+
+Run `cargo test --workspace --locked`, `npm run test:campaign`, all existing
+web tests, the money-path guard, and E2E after D4 changes. This entry does not
+retroactively label the original D1 run as D4 evidence.
+
 ## D1 checks
 
 Run from the repository root unless noted:

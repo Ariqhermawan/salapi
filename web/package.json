@@ -10,7 +10,8 @@
     "test:e2e": "playwright test",
     "test:arisan": "node --experimental-strip-types --test scripts/arisan-commitment.test.mts",
     "test:money": "node --experimental-strip-types --test scripts/money.test.mts",
-    "test:disaster": "node --experimental-strip-types --test scripts/disaster.test.mts"
+    "test:disaster": "node --experimental-strip-types --test scripts/disaster.test.mts",
+    "test:campaign": "node --experimental-strip-types --test scripts/campaign.test.mts"
   },
   "dependencies": {
     "@stellar/stellar-sdk": "^15.1.0",

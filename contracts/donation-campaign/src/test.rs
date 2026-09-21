@@ -1,8 +1,8 @@
 #![cfg(test)]
 use super::*;
 use soroban_sdk::{
-    testutils::{Address as _, Ledger},
-    vec,
+    testutils::{Address as _, Ledger, MockAuth, MockAuthInvoke},
+    vec, IntoVal, Symbol,
 };
 
 struct Setup {
@@ -44,7 +44,7 @@ impl Setup {
         let token = token::StellarAssetClient::new(&env, &asset);
         token.mint(&donor, &100_000);
         token.mint(&other, &100_000);
-        let id = env.register(DonationCampaign, ());
+        let id = env.register(DonationCampaign, (asset,));
         Self {
             env,
             id,
@@ -346,4 +346,101 @@ fn transfer_failure_rolls_back_accounting() {
     assert!(s.v().try_donate(&id, &s.donor, &100_001).is_err());
     assert_eq!(s.v().campaign(&id).escrow, 0);
     assert_eq!(s.v().contribution(&id, &s.donor).amount, 0);
+}
+
+#[test]
+fn creator_donor_refund_and_approver_require_real_authorization() {
+    let s = Setup::new();
+    assert!(s
+        .v()
+        .mock_auths(&[])
+        .try_create(&s.cfg, &String::from_str(&s.env, "x"))
+        .is_err());
+    s.env.mock_all_auths();
+    let id = s.create();
+    let other_id = s.create();
+    assert!(s
+        .v()
+        .mock_auths(&[])
+        .try_donate(&id, &s.donor, &100)
+        .is_err());
+    s.env.mock_all_auths();
+    s.v().donate(&id, &s.donor, &100);
+    s.time(1100);
+    assert!(s
+        .v()
+        .mock_auths(&[])
+        .try_submit_proof(&id, &s.proof())
+        .is_err());
+    s.env.mock_all_auths();
+    s.v().submit_proof(&id, &s.proof());
+    s.v().submit_proof(&other_id, &s.proof());
+    let who = s.cfg.approvers.get(0).unwrap();
+    let hash = s.proof().hash;
+    let auth = [MockAuth {
+        address: &who,
+        invoke: &MockAuthInvoke {
+            contract: &s.id,
+            fn_name: "approve",
+            args: (id, &who, &hash).into_val(&s.env),
+            sub_invokes: &[],
+        },
+    }];
+    assert!(s.v().mock_auths(&[]).try_approve(&id, &who, &hash).is_err());
+    assert!(s
+        .v()
+        .mock_auths(&auth)
+        .try_approve(&other_id, &who, &hash)
+        .is_err());
+    s.v().mock_auths(&auth).approve(&id, &who, &hash);
+    s.time(1200);
+    assert!(s.v().mock_auths(&[]).try_refund(&id, &s.donor).is_err());
+    s.env.mock_all_auths();
+    s.v().refund(&id, &s.donor);
+}
+
+#[test]
+fn approver_replacement_deadline_extension_and_upgrade_unavailable() {
+    let s = Setup::new();
+    let id = s.create();
+    for name in ["set_approvers", "set_deadline", "upgrade"] {
+        assert!(s
+            .env
+            .try_invoke_contract::<(), Error>(&s.id, &Symbol::new(&s.env, name), vec![&s.env])
+            .is_err());
+    }
+    assert_eq!(s.v().campaign(&id).config, s.cfg);
+}
+
+#[test]
+fn unsolicited_transfers_do_not_inflate_campaign_payouts() {
+    let s = Setup::new();
+    let id = s.create();
+    s.v().donate(&id, &s.donor, &100);
+    token::Client::new(&s.env, &s.cfg.token).transfer(&s.other, &s.id, &777);
+    s.ready(id);
+    s.v().release(&id);
+    assert_eq!(
+        s.balance(&s.cfg.creator) + s.balance(&s.cfg.beneficiary),
+        100
+    );
+    assert_eq!(s.v().campaign(&id).escrow, 0);
+    assert_eq!(s.balance(&s.id), 777); // Unattributed direct transfers are not donations.
+}
+
+#[test]
+fn maximum_i128_split_does_not_overflow() {
+    let s = Setup::new();
+    let id = s.create();
+    let token = token::StellarAssetClient::new(&s.env, &s.cfg.token);
+    token.mint(&s.donor, &(i128::MAX - 100_000));
+    s.v().donate(&id, &s.donor, &i128::MAX);
+    s.ready(id);
+    s.v().release(&id);
+    assert_eq!(s.balance(&s.cfg.creator), i128::MAX / 20);
+    assert_eq!(
+        s.balance(&s.cfg.creator) + s.balance(&s.cfg.beneficiary),
+        i128::MAX
+    );
+    assert_eq!(s.balance(&s.id), 0);
 }

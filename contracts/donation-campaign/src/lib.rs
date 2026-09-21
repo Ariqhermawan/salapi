@@ -13,6 +13,7 @@ const TTL_EXTEND: u32 = 500_000;
 #[derive(Clone)]
 #[contracttype]
 pub enum DataKey {
+    Token,
     NextId,
     Campaign(u64),
     Contribution(u64, Address),
@@ -140,12 +141,20 @@ pub struct DonationCampaign;
 
 #[contractimpl]
 impl DonationCampaign {
-    pub fn __constructor(env: Env) {
+    pub fn __constructor(env: Env, token: Address) {
+        env.storage().instance().set(&DataKey::Token, &token);
         env.storage().instance().set(&DataKey::NextId, &1u64);
         touch(&env);
     }
     pub fn version() -> u32 {
         4
+    }
+    pub fn token(env: Env) -> Result<Address, Error> {
+        touch(&env);
+        env.storage()
+            .instance()
+            .get(&DataKey::Token)
+            .ok_or(Error::Missing)
     }
     pub fn clock(env: Env) -> u64 {
         env.ledger().timestamp()
@@ -166,6 +175,7 @@ impl DonationCampaign {
             return Err(Error::InvalidDeadline);
         }
         if config.creator_cut_bps > 1000
+            || config.token != Self::token(env.clone())?
             || title.is_empty()
             || title.len() > 120
             || config.creator == env.current_contract_address()
