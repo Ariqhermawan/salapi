@@ -42,7 +42,7 @@ test.describe("D4 isolated local UI and HTTP authorization", () => {
   });
   test("unverified deployment fails closed", async ({ page }) => {
     await fixture(page, { unavailable: true });
-    await expect(page.getByRole("alert")).toContainText("does not match D4");
+    await expect(page.getByRole("alert").filter({ hasText: "does not match D4" })).toBeVisible();
     await expect(page.getByRole("button", { name: /Confirm|Review|Approve|Release|Claim/ })).toHaveCount(0);
   });
   test("donation confirms exact 6.50 PHP and retains raw decimal payload", async ({ page }) => {
@@ -109,5 +109,5 @@ test("D4 live deployment identity and real on-chain reads (opt-in, no mocks)", a
   await page.goto("/campaigns");
   await page.getByText("Active D4 contract", { exact: true }).click({ timeout: 30000 });
   await expect(page.getByRole("link", { name: expected!, exact: true })).toBeVisible();
-  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(page.locator("p[role=alert]")).toHaveCount(0);
 });

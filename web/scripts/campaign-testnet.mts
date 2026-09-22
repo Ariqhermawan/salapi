@@ -7,6 +7,7 @@ import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
 import { Account, Address, BASE_FEE, Contract, Keypair, Networks, Operation, TransactionBuilder, nativeToScVal, rpc, scValToNative, xdr } from "@stellar/stellar-sdk";
+import { campaignStruct } from "../lib/campaign.ts";
 
 const server = new rpc.Server("https://soroban-testnet.stellar.org");
 assert.equal((await server.getNetwork()).passphrase, Networks.TESTNET);
@@ -17,7 +18,8 @@ const tokenId = "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC";
 const out = resolve(process.env.D4_EVIDENCE_DIR || "../output/d4-testnet");
 mkdirSync(out, { recursive: true });
 const wasm = readFileSync(resolve("../target/wasm32v1-none/release/donation_campaign.wasm"));
-const entries: Record<string, unknown>[] = [];
+const entries: Record<string, unknown>[] = process.env.D4_CONTRACT_ID
+  ? JSON.parse(readFileSync(resolve(out, "evidence.json"), "utf8")).entries : [];
 let contractId = process.env.D4_CONTRACT_ID || "";
 const stringify = (v: unknown) => JSON.stringify(v, (_, x) => typeof x === "bigint" ? x.toString() : x, 2);
 function save() { writeFileSync(resolve(out, "evidence.json"), stringify({ network: "Testnet", contractId,
@@ -73,7 +75,7 @@ console.log(`D4_CONTRACT_ID=${contractId}`);
 assert.equal(await read("version"), 4); assert.equal(await read("token"), tokenId);
 const now = await read("clock") as bigint;
 const funding = now + 140n, review = now + 260n;
-const config = (overrides: Record<string, xdr.ScVal | xdr.ScVal[]> = {}) => nativeToScVal({ creator: addr(a.publicKey()), beneficiary: addr(b.publicKey()),
+const config = (overrides: Record<string, xdr.ScVal | xdr.ScVal[]> = {}) => campaignStruct({ creator: addr(a.publicKey()), beneficiary: addr(b.publicKey()),
   token: addr(tokenId), creator_cut_bps: nativeToScVal(500, { type: "u32" }), funding_deadline: u64(funding), review_deadline: u64(review),
   approvers: wallets.map(w => addr(w.publicKey())), ...overrides });
 const title = (s: string) => nativeToScVal(s, { type: "string" });
@@ -82,7 +84,7 @@ const release = BigInt((await call("create_release_campaign", a, "create", [conf
 const refund = BigInt((await call("create_refund_campaign", a, "create", [config(), title("D4 refund acceptance")]))!.value as bigint);
 const proofBytes = readFileSync(resolve("public/evidence/d4-demo-proof.txt"));
 const hash = createHash("sha256").update(proofBytes).digest();
-const proof = nativeToScVal({ hash: xdr.ScVal.scvBytes(hash), url: title("https://salapi.app/evidence/d4-demo-proof.txt") });
+const proof = campaignStruct({ hash: xdr.ScVal.scvBytes(hash), url: title("https://salapi.app/evidence/d4-demo-proof.txt") });
 await call("donate_release_100_0000001_xlm", c, "donate", [u64(release), addr(c.publicKey()), i128(1_000_000_001n)]);
 await call("donate_refund_a_30_xlm", a, "donate", [u64(refund), addr(a.publicKey()), i128(300_000_000n)]);
 await call("donate_refund_b_20_xlm", b, "donate", [u64(refund), addr(b.publicKey()), i128(200_000_000n)]);

@@ -1,10 +1,10 @@
 "use server";
 
-import { nativeToScVal, rpc, scValToNative, StrKey, type xdr } from "@stellar/stellar-sdk";
+import { rpc, scValToNative, StrKey, type xdr } from "@stellar/stellar-sdk";
 import { CONTRACTS, RPC_URL, readContract, invokeAs, sc, txLink } from "@/lib/server/stellar";
 import { currentWalletPublicKey, getAuthenticatedSigner } from "@/lib/server/userWallet";
 import { campaignAmount } from "@/lib/campaign-money";
-import { campaignId, campaignError, parseCampaignConfig, proofHash, publicProofUrl, type Campaign } from "@/lib/campaign";
+import { campaignId, campaignError, campaignStruct, parseCampaignConfig, proofHash, publicProofUrl, type Campaign } from "@/lib/campaign";
 
 type RawCampaign = Omit<Campaign, "id" | "config" | "total" | "escrow" | "state" | "proofHash" | "proofUrl" | "contribution"> & {
   id: bigint; config: Omit<Campaign["config"], "funding_deadline" | "review_deadline"> & { funding_deadline: bigint; review_deadline: bigint };
@@ -66,7 +66,7 @@ async function write(make: (who: string, id: string) => Promise<{ method: string
 export async function campaignCreate(input: unknown) {
   return write(async (who, id) => {
     const v = parseCampaignConfig(input, await readContract(id, "clock") as bigint);
-    return { method: "create", args: [nativeToScVal({ creator: sc.addr(who), beneficiary: sc.addr(v.beneficiary), token: sc.addr(CONTRACTS.tokenXlmSac),
+    return { method: "create", args: [campaignStruct({ creator: sc.addr(who), beneficiary: sc.addr(v.beneficiary), token: sc.addr(CONTRACTS.tokenXlmSac),
       creator_cut_bps: sc.u32(Number(v.cutBps)), funding_deadline: sc.u64(v.funding), review_deadline: sc.u64(v.review),
       approvers: v.approvers.map(sc.addr) }), sc.str(v.title)] };
   });
@@ -78,7 +78,7 @@ export async function campaignSubmitProof(id: string, hash: string, url: string)
   return write(async (who, contract) => {
     const c = await readContract(contract, "campaign", [sc.u64(campaignId(id))]) as RawCampaign;
     if (c.config.creator !== who) throw new Error("Only the campaign creator can submit proof");
-    return { method: "submit_proof", args: [sc.u64(campaignId(id)), nativeToScVal({ hash: sc.bytes(Buffer.from(proofHash(hash), "hex")), url: sc.str(publicProofUrl(url)) })] };
+    return { method: "submit_proof", args: [sc.u64(campaignId(id)), campaignStruct({ hash: sc.bytes(Buffer.from(proofHash(hash), "hex")), url: sc.str(publicProofUrl(url)) })] };
   });
 }
 export async function campaignApprove(id: string, hash: string) {

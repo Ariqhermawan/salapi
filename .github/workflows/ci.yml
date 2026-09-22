@@ -98,11 +98,12 @@ jobs:
       # exercise the same signer path without storing or exposing a secret.
       - name: Configure ephemeral test signer
         run: |
-          node - <<'NODE' >> "$GITHUB_ENV"
+          node - <<'NODE'
           const { Keypair } = require("@stellar/stellar-sdk");
+          const { appendFileSync } = require("node:fs");
           const kp = Keypair.random();
-          process.stdout.write(`SALAPI_DEMO_PUBLIC=${kp.publicKey()}\n`);
-          process.stdout.write(`SALAPI_DEMO_SECRET=${kp.secret()}\n`);
+          console.log(`::add-mask::${kp.secret()}`);
+          appendFileSync(process.env.GITHUB_ENV, `SALAPI_DEMO_PUBLIC=${kp.publicKey()}\nSALAPI_DEMO_SECRET=${kp.secret()}\n`);
           NODE
 
       - name: Install Playwright browser
@@ -125,7 +126,7 @@ jobs:
 
       - name: Run Playwright E2E
         env:
-          E2E_BASE_URL: http://127.0.0.1:4747
+          E2E_BASE_URL: http://localhost:4747
         run: npm run test:e2e
 
       - name: Upload E2E traces

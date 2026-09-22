@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { Keypair, nativeToScVal, scValToNative, Address } from "@stellar/stellar-sdk";
 import { campaignAmount, campaignSplit, creatorCutBps } from "../lib/campaign-money.ts";
-import { campaignId, parseCampaignConfig, proofHash, publicProofUrl } from "../lib/campaign.ts";
+import { campaignId, campaignStruct, parseCampaignConfig, proofHash, publicProofUrl } from "../lib/campaign.ts";
 
 test("D4 exact XLM/PHP boundary rejects rounding and malformed values", () => {
   assert.equal(campaignAmount({ amount: "6.50", currency: "tl" }), 10_000_000n);
@@ -37,6 +37,7 @@ test("D4 configuration and proof validation fail closed", () => {
 });
 test("D4 SDK map encoding retains typed addresses and integer amounts", () => {
   const account = Keypair.random().publicKey();
-  const map = nativeToScVal({ creator: new Address(account).toScVal(), amount: nativeToScVal(10000001n, { type: "i128" }) });
+  const map = campaignStruct({ creator: new Address(account).toScVal(), amount: nativeToScVal(10000001n, { type: "i128" }) });
+  for (const entry of map.map()!) assert.equal(entry.key().switch().name, "scvSymbol");
   assert.deepEqual(scValToNative(map), { amount: 10000001n, creator: account });
 });

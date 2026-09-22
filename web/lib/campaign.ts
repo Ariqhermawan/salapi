@@ -1,4 +1,4 @@
-import { StrKey } from "@stellar/stellar-sdk";
+import { StrKey, nativeToScVal, type xdr } from "@stellar/stellar-sdk";
 import { creatorCutBps } from "./campaign-money.ts";
 
 export type Campaign = {
@@ -9,6 +9,11 @@ export type Campaign = {
   contribution: { amount: string; refunded: boolean };
 };
 export type CampaignEvent = { id: string; hash: string; link: string; campaignId: string; action: string; time: string };
+
+// Rust contract structs use Symbol keys, not the SDK's default String keys.
+export function campaignStruct(fields: Record<string, xdr.ScVal | xdr.ScVal[]>): xdr.ScVal {
+  return nativeToScVal(fields, { type: Object.fromEntries(Object.keys(fields).map(key => [key, ["symbol", null]])) });
+}
 
 export function campaignId(input: unknown, zero = false): bigint {
   if (typeof input !== "string" || !/^\d{1,20}$/.test(input)) throw new Error("Invalid campaign ID");
