@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { Keypair, nativeToScVal, scValToNative, Address } from "@stellar/stellar-sdk";
+import { Keypair, nativeToScVal, scValToNative, Address, Networks, TransactionBuilder, xdr } from "@stellar/stellar-sdk";
+import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { campaignEvidence } from "../lib/campaign-evidence.ts";
 import { campaignAmount, campaignSplit, creatorCutBps } from "../lib/campaign-money.ts";
 import { campaignId, campaignStruct, parseCampaignConfig, proofHash, publicProofUrl } from "../lib/campaign.ts";
 
@@ -40,4 +43,27 @@ test("D4 SDK map encoding retains typed addresses and integer amounts", () => {
   const map = campaignStruct({ creator: new Address(account).toScVal(), amount: nativeToScVal(10000001n, { type: "i128" }) });
   for (const entry of map.map()!) assert.equal(entry.key().switch().name, "scvSymbol");
   assert.deepEqual(scValToNative(map), { amount: 10000001n, creator: account });
+});
+test("D4 public acceptance archive verifies signatures, hashes and exact outcomes", () => {
+  const evidence = JSON.parse(readFileSync(new URL("../../docs/instawards/evidence/week-4-d4-testnet.json", import.meta.url), "utf8"));
+  assert.equal(evidence.network, "Testnet");
+  assert.equal(evidence.contractId, campaignEvidence.contractId);
+  const transactions = evidence.entries.filter((e: { kind: string }) => e.kind === "transaction");
+  for (const entry of transactions) {
+    const tx = TransactionBuilder.fromXDR(entry.envelopeXdr, Networks.TESTNET);
+    assert.equal(tx.hash().toString("hex"), entry.hash);
+    assert(tx.signatures.some(sig => Keypair.fromPublicKey(entry.signer).verify(tx.hash(), sig.signature())));
+    assert.equal(xdr.TransactionResult.fromXDR(entry.resultXdr, "base64").result().switch().name, "txSuccess");
+    assert.equal(entry.rawRpc.result.status, "SUCCESS");
+    assert.equal(entry.rawRpc.result.txHash, entry.hash);
+  }
+  for (const row of campaignEvidence.transactions) assert(transactions.some((e: { hash: string }) => e.hash === row.hash));
+  const final = evidence.entries.find((e: { label: string }) => e.label === "final_state");
+  assert.equal(BigInt(final.creatorPayout) + BigInt(final.beneficiaryPayout), BigInt(final.finalRelease.total));
+  assert.equal(final.finalRelease.state[0], "Released");
+  assert.equal(final.finalRefund.state[0], "Closed");
+  assert.equal(final.finalRelease.escrow, "0"); assert.equal(final.finalRefund.escrow, "0");
+  assert.equal(final.refunds.reduce((sum: bigint, amount: string) => sum + BigInt(amount), 0n), BigInt(final.finalRefund.total));
+  const hash = createHash("sha256").update(readFileSync(new URL("../public/evidence/d4-demo-proof.txt", import.meta.url))).digest();
+  assert.deepEqual([...hash], final.finalRelease.proof_hash.data);
 });

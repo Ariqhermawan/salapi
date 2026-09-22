@@ -8,6 +8,7 @@ import { campaignApprove, campaignCloseEmpty, campaignCreate, campaignDonate, ca
 import { campaignAmount, campaignSplit, creatorCutBps } from "@/lib/campaign-money";
 import { formatStroops } from "@/lib/disaster";
 import { publicProofUrl, type Campaign } from "@/lib/campaign";
+import { campaignEvidence } from "@/lib/campaign-evidence";
 
 const field: CSSProperties = { width: "100%", border: `1px solid ${T.hairline}`, borderRadius: 10, padding: 10, fontSize: 14, background: "white", boxSizing: "border-box" };
 const group: CSSProperties = { display: "grid", gap: 10 };
@@ -132,6 +133,13 @@ export function CampaignEvidence() {
     {events?.ok && events.events.map(e => <div key={e.id} style={{ padding: "8px 0", borderBottom: `1px solid ${T.hairline}` }}>
       <a href={e.link} target="_blank" rel="noreferrer">Campaign #{e.campaignId} · {e.action}</a><div style={wordBreak}>{e.hash}</div>
     </div>)}
+    <h3 style={{ marginTop: 20 }}>Archived D4 acceptance</h3>
+    <p style={{ fontSize: 12 }}>Real Testnet transactions submitted by the SDK acceptance runner. These are separate from the live feed and are not browser-test claims.</p>
+    <p style={wordBreak}>Recorded contract: {campaignEvidence.contractId}</p>
+    {campaignEvidence.transactions.map(e => <div key={e.hash} style={{ padding: "8px 0", borderBottom: `1px solid ${T.hairline}` }}>
+      <a href={`https://stellar.expert/explorer/testnet/tx/${e.hash}`} target="_blank" rel="noreferrer">{e.label}</a><div style={wordBreak}>{e.hash}</div>
+    </div>)}
+    <p><a href={campaignEvidence.report} target="_blank" rel="noreferrer">Full report, raw RPC and transaction archive</a></p>
   </Card></section>;
 }
 
