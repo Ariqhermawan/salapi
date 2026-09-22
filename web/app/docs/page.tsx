@@ -74,7 +74,8 @@ function ExternalLink({ href, children }: { href: string; children: ReactNode })
 export default function PublicDocsPage() {
   const d3 = disasterId();
   const d4 = donationCampaignId();
-  const displayedContracts = d3 ? [...contracts, { name: "disaster (D3 configured deployment)", id: d3, source: "contracts/disaster" }] : contracts;
+  const displayedContracts = [...contracts];
+  if (d3) displayedContracts.push({ name: "disaster (D3 configured deployment)", id: d3, source: "contracts/disaster" });
   if (d4) displayedContracts.push({ name: "donation-campaign (D4)", id: d4, source: "contracts/donation-campaign" });
   const sourceRef = process.env.VERCEL_GIT_COMMIT_SHA ?? "main";
   return (
