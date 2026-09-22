@@ -28,6 +28,7 @@ export const FRIENDBOT = "https://friendbot.stellar.org";
 
 // Deployed on testnet, see docs/operations/deployments.md.
 export const CONTRACTS = {
+  donationCampaign: "CC6D7P35SVCNZLOKTHKDNH4S2ZELYHBP5UO3IWADFORKEF7BCSBY37FU",
   usernameRegistry: "CDDINUQXTF6SHZN2ZJ36IT7P4YOJ3OZN3H6LTYHVCQ35YYO7YTAWM4G3",
   tokenXlmSac: "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC",
 } as const;
@@ -184,6 +185,13 @@ export function arisanRoomsId(): string | null {
 export function disasterId(): string | null {
   const id = process.env.DISASTER_CONTRACT?.trim();
   return id && StrKey.isValidContract(id) ? id : null;
+}
+
+// Public, versioned D4 Testnet deployment. An explicit environment override is
+// supported, but never falls back when malformed. Every action verifies v4 + SAC.
+export function donationCampaignId(): string | null {
+  const id = (process.env.DONATION_CAMPAIGN_CONTRACT ?? CONTRACTS.donationCampaign).trim();
+  return StrKey.isValidContract(id) ? id : null;
 }
 export const FRIENDS = [
   {

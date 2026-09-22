@@ -1,7 +1,7 @@
 "use server";
 
-import { rpc, scValToNative, StrKey, type xdr } from "@stellar/stellar-sdk";
-import { CONTRACTS, RPC_URL, readContract, invokeAs, sc, txLink } from "@/lib/server/stellar";
+import { rpc, scValToNative, type xdr } from "@stellar/stellar-sdk";
+import { CONTRACTS, RPC_URL, readContract, invokeAs, sc, txLink, donationCampaignId } from "@/lib/server/stellar";
 import { currentWalletPublicKey, getAuthenticatedSigner } from "@/lib/server/userWallet";
 import { campaignAmount } from "@/lib/campaign-money";
 import { campaignId, campaignError, campaignStruct, parseCampaignConfig, proofHash, publicProofUrl, type Campaign } from "@/lib/campaign";
@@ -11,8 +11,8 @@ type RawCampaign = Omit<Campaign, "id" | "config" | "total" | "escrow" | "state"
   total: bigint; escrow: bigint; state: [Campaign["state"]]; proof_hash: Buffer | null; proof_url: string;
 };
 async function deployment() {
-  const id = process.env.DONATION_CAMPAIGN_CONTRACT?.trim();
-  if (!id || !StrKey.isValidContract(id)) throw new Error("D4 campaign deployment is not configured yet");
+  const id = donationCampaignId();
+  if (!id) throw new Error("D4 campaign deployment configuration is invalid");
   const [version, token] = await Promise.all([readContract(id, "version"), readContract(id, "token")]);
   if (version !== 4 || token !== CONTRACTS.tokenXlmSac) throw new Error("Configured contract does not match D4 Testnet XLM controls");
   return id;
