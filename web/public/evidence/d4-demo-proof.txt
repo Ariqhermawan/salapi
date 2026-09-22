@@ -1,0 +1,7 @@
+Salapi D4 Testnet proof fixture
+
+This document is a technical test fixture, not a claim of real-world aid delivery.
+It authorizes the configured Testnet campaign split after two configured reviewers
+approve its exact SHA-256 hash. Testnet XLM has no monetary value.
+Reviewers should verify the campaign's immutable beneficiary, creator share,
+deadlines, and escrow before approving. No private information is included.

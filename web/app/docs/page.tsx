@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { disasterId } from "@/lib/server/stellar";
+import { disasterId, donationCampaignId } from "@/lib/server/stellar";
 
 export const dynamic = "force-dynamic";
 
@@ -73,8 +73,11 @@ function ExternalLink({ href, children }: { href: string; children: ReactNode })
 
 export default function PublicDocsPage() {
   const d3 = disasterId();
-  const displayedContracts = d3 ? [...contracts, { name: "disaster (D3 configured deployment)", id: d3, source: "contracts/disaster" }] : contracts;
-  const sourceRef = process.env.VERCEL_GIT_COMMIT_SHA ?? "codex/week3-deliverable3";
+  const d4 = donationCampaignId();
+  const displayedContracts = [...contracts];
+  if (d3) displayedContracts.push({ name: "disaster (D3 configured deployment)", id: d3, source: "contracts/disaster" });
+  if (d4) displayedContracts.push({ name: "donation-campaign (D4)", id: d4, source: "contracts/donation-campaign" });
+  const sourceRef = process.env.VERCEL_GIT_COMMIT_SHA ?? "main";
   return (
     <div
       style={{
@@ -101,7 +104,7 @@ export default function PublicDocsPage() {
             STELLAR TESTNET
           </span>
           <span style={{ borderRadius: 999, background: "#ecfdf5", color: "#047857", padding: "5px 9px", fontSize: 11, fontWeight: 700 }}>
-            6 CONTRACT PACKAGES
+            7 CONTRACT PACKAGES
           </span>
         </div>
       </header>
@@ -198,6 +201,8 @@ export default function PublicDocsPage() {
             <li><ExternalLink href="https://stellar.expert/explorer/testnet/tx/a670f325bce65a8ec093499cad43699269efddcd5d939a9403ca52eafcff7579">Example 6.50 PHP Testnet contribution</ExternalLink></li>
             <li><ExternalLink href="https://github.com/Ariqhermawan/salapi/blob/main/docs/instawards/week-2-d2.md">Week 2 D2 commit-reveal report</ExternalLink></li>
             <li><ExternalLink href={`https://github.com/Ariqhermawan/salapi/blob/${sourceRef}/docs/instawards/week-3-d3.md`}>D3 controls, acceptance tests, and deployment status</ExternalLink></li>
+            <li><Link href="/campaigns" style={externalLinkStyle}>D4 donation campaigns</Link></li>
+            <li><ExternalLink href={`https://github.com/Ariqhermawan/salapi/blob/${sourceRef}/docs/instawards/week-4-d4.md`}>D4 release/refund evidence and security self-review</ExternalLink></li>
             <li><ExternalLink href="https://stellar.expert/explorer/testnet/tx/f83d24369795458db27a033e921ce84c261840ca29019baaa151dcb1518e50cb">D2 normal round: three reveals</ExternalLink></li>
             <li><ExternalLink href="https://stellar.expert/explorer/testnet/tx/1fc95b8cbd2c5a3f54e5b44f0dad88aac55df5af30e5e1c7a0e9fb6ab5a7d0bc">D2 timeout round: one non-revealer</ExternalLink></li>
             <li><ExternalLink href="https://stellar.expert/explorer/testnet/tx/89734260b9a5c1bb099ed65f26a0f815059aea5d6b6fb8aa27f3c7c5c9a256b0">D2 no-reveal liveness fallback</ExternalLink></li>
@@ -211,6 +216,7 @@ export default function PublicDocsPage() {
             <li>Week 1 D1 (exact integer money boundary) is shipped and merged to <code>main</code>.</li>
             <li>Week 2 D2 (participant commit-reveal draw) is implemented and verified on Testnet.</li>
             <li>D3 implements fixed 2-of-3 approvals, a 20-ledger payout timelock, a rolling 24-hour cap, and quorum-controlled pause/unpause. Live cutover and evidence status are tracked in the D3 report.</li>
+            <li>D4 escrows each campaign separately, fixes its three approvers and creator share at creation, requires two approvals of the same proof, and supports full donor-claimed refunds if review expires incomplete. The Testnet asset is fixed at deployment. D4 has no D3 spending cap or 20-ledger wait.</li>
             <li>Independent audit, independent signer custody, and fiat anchor integration remain outside this Testnet implementation.</li>
           </ul>
           <p style={{ margin: "12px 0 0", color: "#5b6472", fontSize: 12.5, lineHeight: 1.5 }}>

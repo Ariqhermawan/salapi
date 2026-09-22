@@ -4,7 +4,7 @@
 wallet for peso/rupiah transfers, arisan and paluwagan savings circles, goal
 savings, and transparent disaster relief across Southeast Asia.
 
-> **Status: live Testnet preview.** The PWA and six Soroban contract packages
+> **Status: live Testnet preview.** The PWA and seven Soroban contract packages
 > run on Stellar Testnet. There is no mainnet deployment, no real money, and no
 > live user or revenue metric to report.
 
@@ -38,6 +38,7 @@ or draw produces a public Stellar receipt that anyone can verify.
 | Four locales and USD/PHP/IDR/VND display | Shipped |
 | Exact integer money boundary | Shipped in Week 1 D1 |
 | Disaster 2-of-3 approvals, rolling cap, timelock, pause/unpause | D3 implementation; live cutover tracked in the D3 report |
+| Proof-gated donation campaigns with exact release/full refunds | D4 implemented and Testnet-verified; live acceptance tracked in the D4 report |
 | Fiat on-ramp (GCash / QRIS / Xendit) | Roadmap |
 | Mainnet deployment | Roadmap |
 
@@ -68,9 +69,9 @@ and converts it once to integer stroops. Contract calls receive only integer
 `i128` token units; display formatting never becomes a contract argument.
 
 The web layer uses `@stellar/stellar-sdk` 15.1.0. The Rust workspace uses
-Soroban SDK 22. The six contract packages are `base-vault`,
+Soroban SDK 22. The seven contract packages are `base-vault`,
 `username-registry`, `disaster`, `paluwagan`, `smart-savings`, and
-`arisan-rooms`.
+`arisan-rooms`, and `donation-campaign`.
 
 Contract IDs, explorer links, deploy hashes, and the full transaction trail are
 kept in [`docs/operations/deployments.md`](docs/operations/deployments.md) and
@@ -83,6 +84,9 @@ summarized for reviewers at [salapi.app/docs](https://salapi.app/docs).
   at rest. A shared demo wallet is used only when no session is present.
 - Contracts are currently immutable and have no admin rotation or upgrade
   entry point.
+- D4 records separate campaign escrows, proof-bound 2-of-3 approvals and
+  full donor-claimed refunds. Its immutable creator share is not a platform fee.
+  D3/D4 authenticated controls never use the shared anonymous demo wallet.
 - D3 adds contract-level 2-of-3 approval, a rolling cap and timelock. Its
   operational signer set and live-app cutover must be verified separately;
   the historical single-admin contract is not D3 evidence. Independent key
@@ -119,6 +123,11 @@ Create `web/.env.local` with the Testnet contract IDs (`PALUWAGAN_CONTRACT`,
 `NEXT_PUBLIC_SITE_URL` when deploying under a different origin. Never commit a
 secret file.
 
+D4 defaults to the verified public Testnet deployment recorded in the D4 report.
+Set `DONATION_CAMPAIGN_CONTRACT` only to deliberately override it with another
+compatible deployment. This public ID does not require a new wallet encryption
+key or changes to existing users' wallets.
+
 For contract work, install Rust, the `wasm32-unknown-unknown` target, and the
 Stellar CLI, then run:
 
@@ -132,6 +141,7 @@ cargo test --workspace --locked
 - Week 1 D1 report: [`docs/instawards/week-1-d1.md`](docs/instawards/week-1-d1.md)
 - Week 2 D2 report: [`docs/instawards/week-2-d2.md`](docs/instawards/week-2-d2.md)
 - D3 controls, tests, and deployment status: [`docs/instawards/week-3-d3.md`](docs/instawards/week-3-d3.md)
+- D4 release/refund controls, raw receipts and self-review: [`docs/instawards/week-4-d4.md`](docs/instawards/week-4-d4.md)
 - Deployment and transaction trail: [`docs/operations/deployments.md`](docs/operations/deployments.md)
 - Security model: [`SECURITY.md`](SECURITY.md)
 - Reviewer guide: https://salapi.app/docs

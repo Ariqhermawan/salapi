@@ -1,5 +1,19 @@
 # Salapi — Stellar Testnet Deployment Evidence
 
+## D4 donation campaigns
+
+Verified deployment: `CC6D7P35SVCNZLOKTHKDNH4S2ZELYHBP5UO3IWADFORKEF7BCSBY37FU`.
+[Deploy transaction](https://stellar.expert/explorer/testnet/tx/af53ce4437af222f5c9f41bd79b65e67a7ae5f85497576148b2606f4e2ca715f).
+The constructor fixes the native Testnet XLM SAC. Each campaign fixes its own
+three approvers, recipients, creator share and deadlines. The public ID is
+pinned as the application's D4 default; an optional
+`DONATION_CAMPAIGN_CONTRACT` override is validated before use.
+
+Real SDK acceptance completed both a zero-dust release and full donor refunds.
+The [D4 report](../instawards/week-4-d4.md) separates these receipts from live
+browser acceptance and links the public signed XDR/raw RPC archive. No D3
+vault, signer configuration, existing wallet, or wallet encryption key changed.
+
 ## D3 deployment status
 
 The new Disaster Vault implementation uses fixed three-signer authorization,

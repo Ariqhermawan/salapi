@@ -25,6 +25,9 @@ jobs:
       - name: D3 threshold, cap, timelock and pause controls
         run: cargo test -p disaster --locked --verbose
 
+      - name: D4 campaign release, refund, authorization and race guards
+        run: cargo test -p donation-campaign --locked --verbose
+
       - name: Build contract WASM
         run: cargo build --workspace --target wasm32-unknown-unknown --release --locked
 
@@ -69,6 +72,9 @@ jobs:
       - name: D3 exact amounts and signer guards
         run: npm run test:disaster
 
+      - name: D4 exact split, configuration and proof validation
+        run: npm run test:campaign
+
   web-e2e-local:
     name: web E2E (local)
     runs-on: ubuntu-latest
@@ -92,11 +98,12 @@ jobs:
       # exercise the same signer path without storing or exposing a secret.
       - name: Configure ephemeral test signer
         run: |
-          node - <<'NODE' >> "$GITHUB_ENV"
+          node - <<'NODE'
           const { Keypair } = require("@stellar/stellar-sdk");
+          const { appendFileSync } = require("node:fs");
           const kp = Keypair.random();
-          process.stdout.write(`SALAPI_DEMO_PUBLIC=${kp.publicKey()}\n`);
-          process.stdout.write(`SALAPI_DEMO_SECRET=${kp.secret()}\n`);
+          console.log(`::add-mask::${kp.secret()}`);
+          appendFileSync(process.env.GITHUB_ENV, `SALAPI_DEMO_PUBLIC=${kp.publicKey()}\nSALAPI_DEMO_SECRET=${kp.secret()}\n`);
           NODE
 
       - name: Install Playwright browser
@@ -119,7 +126,7 @@ jobs:
 
       - name: Run Playwright E2E
         env:
-          E2E_BASE_URL: http://127.0.0.1:4747
+          E2E_BASE_URL: http://localhost:4747
         run: npm run test:e2e
 
       - name: Upload E2E traces
