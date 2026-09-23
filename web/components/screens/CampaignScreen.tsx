@@ -139,6 +139,11 @@ export function CampaignEvidence() {
     {campaignEvidence.transactions.map(e => <div key={e.hash} style={{ padding: "8px 0", borderBottom: `1px solid ${T.hairline}` }}>
       <a href={`https://stellar.expert/explorer/testnet/tx/${e.hash}`} target="_blank" rel="noreferrer">{e.label}</a><div style={wordBreak}>{e.hash}</div>
     </div>)}
+    <h3 style={{ marginTop: 20 }}>Production browser acceptance</h3>
+    <p style={{ fontSize: 12 }}>Campaign #5 was created, funded, proof-submitted, approved by two different signed-in wallets, and released through salapi.app. Campaigns #3/#4 are archived refund tests.</p>
+    {campaignEvidence.browserTransactions.map(e => <div key={e.hash} style={{ padding: "8px 0", borderBottom: `1px solid ${T.hairline}` }}>
+      <a href={`https://stellar.expert/explorer/testnet/tx/${e.hash}`} target="_blank" rel="noreferrer">{e.label}</a><div style={wordBreak}>{e.hash}</div>
+    </div>)}
     <p><a href={campaignEvidence.report} target="_blank" rel="noreferrer">Full report, raw RPC and transaction archive</a></p>
   </Card></section>;
 }

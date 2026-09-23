@@ -1,10 +1,12 @@
 # Deliverable 4 — Donation campaigns with proof-gated release or full refunds
 
 Status (23 September 2026): implemented and deployed at `salapi.app` via
-[PR #11](https://github.com/Ariqhermawan/salapi/pull/11). Real Testnet SDK release
-and refund acceptance passed. Signed-in production browser creation, donation
-and full refund passed for campaigns #3 and #4. A two-account browser release
-and final public demo remain pending; SDK receipts do not imply browser coverage.
+[PR #11](https://github.com/Ariqhermawan/salapi/pull/11), with the navigation
+fix in [PR #12](https://github.com/Ariqhermawan/salapi/pull/12). Real Testnet
+SDK release/refund acceptance and a two-account signed-in production browser
+release passed. Signed-in browser refund acceptance also passed for campaigns
+#3 and #4. The final public demo package remains to be attached; SDK receipts
+are kept separate from browser receipts.
 
 ## Scope and locked rules
 
@@ -125,22 +127,25 @@ reset existing state. It must never target Mainnet.
 
 These transactions were submitted through the signed-in UI at
 `https://salapi.app/campaigns`, not localhost or the SDK acceptance runner.
-The existing managed test wallet A created and funded both campaigns on
-22 September, then claimed both refunds on 23 September. The page and RPC
-reads independently showed `Closed`, zero escrow, and refunded contributions.
-Reloading the page retained the result and did not offer a second refund.
+Wallet B created and funded campaign #5, submitted the proof, and approved it;
+wallet A then approved the same hash and executed the release. The page and
+read-only RPC checks showed the two approvals, the exact split, and zero escrow.
+The earlier managed-wallet tests also exercised full refunds for campaigns #3
+and #4. Reloading each terminal campaign retained its result and did not offer
+a second refund.
 
 | Campaign | Donation | Outcome | Receipt |
 | --- | --- | --- | --- |
 | #3, titled “D4 live UI · release” | 10.0000001 XLM | Full refund, no creator cut, zero escrow | [Refund #3](https://stellar.expert/explorer/testnet/tx/58bdcea2733db9b79565ceb2b59e38d2b1979f1cb2bdcfd15c303aa57fc3020a) |
 | #4, titled “D4 live UI · refund” | 6.50 PHP illustrative display = 1 Testnet XLM | Full 1 XLM refund, no creator cut, zero escrow | [Refund #4](https://stellar.expert/explorer/testnet/tx/6177ad2f8a1cefc56cc5b4c4a83191929f0866267e2b9ff7697fbf30fd95969c) |
+| #5, titled “D4 live browser release” | 1 Testnet XLM | 2 approvals; 0.05 XLM creator + 0.95 XLM beneficiary; zero escrow; Released | [Release #5](https://stellar.expert/explorer/testnet/tx/443a9e58e88d2758c7f74a017505c53a759c80e84692a4503037ed0011497a87) |
 
 Campaign #3 was originally intended for the release test, but its deadlines
 expired during a pause without proof or quorum. Its title is not evidence of
-release: it exercised the refund path instead. Access to the second test
-account is still needed to complete the two-account browser release scenario.
+release: it exercised the refund path instead. Campaign #5 is the separate
+completed two-account browser release scenario.
 
-[Six signed browser transaction receipts, raw RPC responses and final state](evidence/week-4-d4-live.json)
+[Twelve signed browser transaction receipts, raw RPC responses and final state](evidence/week-4-d4-live.json)
 are separate from the SDK archive. The read-only collector
 `web/scripts/campaign-live-evidence.mts` verifies hashes, signatures and success
 before archiving; it never signs or submits transactions. It requires no
@@ -180,7 +185,7 @@ locally). This does not change the deployed contract or wallet configuration.
 
 ## Remaining acceptance evidence
 
-Complete a fresh release scenario through the production UI with two signed-in
-approver accounts, record the receipts/final split, verify the navigation fix
-after deployment, and attach the final public demo. Do not reuse expired
-campaigns #3/#4 or represent their refunds as successful releases.
+Attach the final public demo/evidence index and preserve the exact browser
+receipts above. The contract, browser release/refund paths, zero-escrow terminal
+states, and post-deployment navigation fix are verified on Testnet. Do not reuse
+expired campaigns #3/#4 or represent their refunds as successful releases.

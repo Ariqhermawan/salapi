@@ -73,7 +73,7 @@ test("D4 live-browser archive verifies both full refunds without claiming releas
   assert.equal(evidence.network, "Testnet");
   assert.equal(evidence.origin, "https://salapi.app");
   assert.equal(evidence.contractId, campaignEvidence.contractId);
-  assert.equal(evidence.transactions.length, 6);
+  assert.equal(evidence.transactions.length, 12);
   for (const entry of evidence.transactions) {
     const result = entry.rawRpc.result;
     const tx = TransactionBuilder.fromXDR(result.envelopeXdr, Networks.TESTNET);
@@ -90,4 +90,10 @@ test("D4 live-browser archive verifies both full refunds without claiming releas
     assert.equal(contribution.amount, total);
     assert.equal(contribution.refunded, true);
   }
+  const release = evidence.finalStates[2];
+  assert.deepEqual(release.campaign.state, ["Released"]);
+  assert.equal(release.campaign.total, "10000000");
+  assert.equal(release.campaign.escrow, "0");
+  assert.equal(release.contribution.amount, "10000000");
+  assert.equal(release.contribution.refunded, false);
 });
