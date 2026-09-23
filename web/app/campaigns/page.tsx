@@ -4,5 +4,7 @@ export const metadata = { title: "Donation campaigns · Salapi", description: "T
 
 export default async function CampaignsPage({ searchParams }: { searchParams: Promise<{ id?: string }> }) {
   const { id } = await searchParams;
-  return <CampaignScreen id={typeof id === "string" ? id : ""} />;
+  const campaignId = typeof id === "string" ? id : "";
+  // A different campaign must not inherit the previous page's draft or async reads.
+  return <CampaignScreen key={campaignId} id={campaignId} />;
 }
