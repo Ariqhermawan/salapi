@@ -1,9 +1,10 @@
 # Deliverable 4 — Donation campaigns with proof-gated release or full refunds
 
-Status (22 September 2026): contract, authenticated application integration,
-automated checks, and real Testnet SDK acceptance implemented. Production
-browser acceptance and the final public demo are pending; they are not implied
-by the SDK receipts below.
+Status (23 September 2026): implemented and deployed at `salapi.app` via
+[PR #11](https://github.com/Ariqhermawan/salapi/pull/11). Real Testnet SDK release
+and refund acceptance passed. Signed-in production browser creation, donation
+and full refund passed for campaigns #3 and #4. A two-account browser release
+and final public demo remain pending; SDK receipts do not imply browser coverage.
 
 ## Scope and locked rules
 
@@ -80,9 +81,8 @@ closure, unsolicited tokens, rounding, and the maximum `i128` split.
 The TypeScript checks cover amount/configuration parsing, exact split,
 Soroban Symbol-key struct encoding, and cryptographic verification of the
 published acceptance archive. CI exposes named D4 steps and runs the full
-existing D1–D3 regression suite. [Successful implementation CI](https://github.com/Ariqhermawan/salapi/actions/runs/35677663740)
-corresponds to commit `facfe14`; later documentation/evidence commits require
-their own CI result.
+existing D1–D3 regression suite. [Successful PR #11 CI](https://github.com/Ariqhermawan/salapi/actions/runs/35678395850)
+covers the implementation and its published SDK evidence.
 
 Browser checks distinguish local mocked UI transitions, real unauthenticated
 HTTP rejection tests, and an opt-in real Testnet public-state read using
@@ -121,6 +121,37 @@ existing owner-only Stellar identity store and writes public results under
 `output/d4-testnet/`. Reruns create additional Testnet campaigns; they do not
 reset existing state. It must never target Mainnet.
 
+## Production browser acceptance — 22–23 September 2026
+
+These transactions were submitted through the signed-in UI at
+`https://salapi.app/campaigns`, not localhost or the SDK acceptance runner.
+The existing managed test wallet A created and funded both campaigns on
+22 September, then claimed both refunds on 23 September. The page and RPC
+reads independently showed `Closed`, zero escrow, and refunded contributions.
+Reloading the page retained the result and did not offer a second refund.
+
+| Campaign | Donation | Outcome | Receipt |
+| --- | --- | --- | --- |
+| #3, titled “D4 live UI · release” | 10.0000001 XLM | Full refund, no creator cut, zero escrow | [Refund #3](https://stellar.expert/explorer/testnet/tx/58bdcea2733db9b79565ceb2b59e38d2b1979f1cb2bdcfd15c303aa57fc3020a) |
+| #4, titled “D4 live UI · refund” | 6.50 PHP illustrative display = 1 Testnet XLM | Full 1 XLM refund, no creator cut, zero escrow | [Refund #4](https://stellar.expert/explorer/testnet/tx/6177ad2f8a1cefc56cc5b4c4a83191929f0866267e2b9ff7697fbf30fd95969c) |
+
+Campaign #3 was originally intended for the release test, but its deadlines
+expired during a pause without proof or quorum. Its title is not evidence of
+release: it exercised the refund path instead. Access to the second test
+account is still needed to complete the two-account browser release scenario.
+
+[Six signed browser transaction receipts, raw RPC responses and final state](evidence/week-4-d4-live.json)
+are separate from the SDK archive. The read-only collector
+`web/scripts/campaign-live-evidence.mts` verifies hashes, signatures and success
+before archiving; it never signs or submits transactions. It requires no
+private keys. Testnet RPC retention is finite, so the checked-in archive is
+the durable record.
+
+Live navigation exposed a stale screen/donation-draft issue when switching
+campaign IDs. [PR #12](https://github.com/Ariqhermawan/salapi/pull/12) isolates
+each campaign screen and adds a regression test (17 D4 browser tests passed
+locally). This does not change the deployed contract or wallet configuration.
+
 ## Security self-review and operational limits
 
 - Authorization: creator/donor/approver actions require the matching Soroban
@@ -149,6 +180,7 @@ reset existing state. It must never target Mainnet.
 
 ## Remaining acceptance evidence
 
-After the deployment is live: verify the pinned contract on `salapi.app`, run
-authenticated release and refund paths through the public UI, record the
-receipts and final states here, and attach the public demo/evidence index.
+Complete a fresh release scenario through the production UI with two signed-in
+approver accounts, record the receipts/final split, verify the navigation fix
+after deployment, and attach the final public demo. Do not reuse expired
+campaigns #3/#4 or represent their refunds as successful releases.
