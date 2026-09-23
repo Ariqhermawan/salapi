@@ -10,4 +10,12 @@ export const campaignEvidence = {
     { label: "Campaign #2 · full 30 XLM donor refund", hash: "26e12d1705d8fce36ac95a7c256979719de70a30f26f1ac075c57869bd6f1a7b" },
     { label: "Campaign #2 · full 20 XLM donor refund", hash: "1a1b77d7cc1486f1123d5bdd16151db068a015e87079e0b064368ce75fe2f70e" },
   ],
+  browserTransactions: [
+    { label: "Live UI #5 · create", hash: "f3f5cdbaf9c016f62df94e8b42446cfcdda464085c5fad7861964e6d5fc73dfd" },
+    { label: "Live UI #5 · donate 1 XLM", hash: "c60ae1d33f73f6e9dcc8e98a109a3a73c3e2750717c680593053696bc3472f60" },
+    { label: "Live UI #5 · submit proof", hash: "2c5632e487d10ff96d7001eca7e5a030c9b8a7d3b164a72266b918c644e1defb" },
+    { label: "Live UI #5 · approve B", hash: "72b71d719d28caf6b76ed0674c54ef69831b1bee1de3bab025c45fa272d5447a" },
+    { label: "Live UI #5 · approve A", hash: "6e221463cb600598829b3fbccb1f0044dc7e91547000a6a12a4e3c8fed6a4ba7" },
+    { label: "Live UI #5 · release 0.05 + 0.95 XLM", hash: "443a9e58e88d2758c7f74a017505c53a759c80e84692a4503037ed0011497a87" },
+  ],
 };
