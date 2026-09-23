@@ -67,3 +67,27 @@ test("D4 public acceptance archive verifies signatures, hashes and exact outcome
   const hash = createHash("sha256").update(readFileSync(new URL("../public/evidence/d4-demo-proof.txt", import.meta.url))).digest();
   assert.deepEqual([...hash], final.finalRelease.proof_hash.data);
 });
+
+test("D4 live-browser archive verifies both full refunds without claiming release", () => {
+  const evidence = JSON.parse(readFileSync(new URL("../../docs/instawards/evidence/week-4-d4-live.json", import.meta.url), "utf8"));
+  assert.equal(evidence.network, "Testnet");
+  assert.equal(evidence.origin, "https://salapi.app");
+  assert.equal(evidence.contractId, campaignEvidence.contractId);
+  assert.equal(evidence.transactions.length, 6);
+  for (const entry of evidence.transactions) {
+    const result = entry.rawRpc.result;
+    const tx = TransactionBuilder.fromXDR(result.envelopeXdr, Networks.TESTNET);
+    assert.equal(tx.hash().toString("hex"), entry.hash);
+    assert(tx.signatures.some(sig => Keypair.fromPublicKey(entry.signer).verify(tx.hash(), sig.signature())));
+    assert.equal(result.status, "SUCCESS");
+    assert.equal(xdr.TransactionResult.fromXDR(result.resultXdr, "base64").result().switch().name, "txSuccess");
+  }
+  for (const [index, total] of ["100000001", "10000000"].entries()) {
+    const { campaign, contribution } = evidence.finalStates[index];
+    assert.deepEqual(campaign.state, ["Closed"]);
+    assert.equal(campaign.total, total);
+    assert.equal(campaign.escrow, "0");
+    assert.equal(contribution.amount, total);
+    assert.equal(contribution.refunded, true);
+  }
+});

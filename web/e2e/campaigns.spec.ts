@@ -16,7 +16,7 @@ function actions() {
 }
 async function fixture(page: Page, options: { viewer?: string; now?: string; unavailable?: boolean; campaign?: typeof campaign } = {}) {
   const names = actions(); const writes: { name: string; args: unknown[] }[] = [];
-  await page.route("**/campaigns", async route => {
+  await page.route("**/campaigns*", async route => {
     const name = names.get(route.request().headers()["next-action"]);
     if (!name?.startsWith("campaign")) return route.continue();
     let value: unknown;
@@ -70,6 +70,13 @@ test.describe("D4 isolated local UI and HTTP authorization", () => {
     await page.getByRole("button", { name: "Confirm transaction", exact: true }).click();
     await expect(page.getByRole("link", { name: "Open created campaign #2" })).toBeVisible();
     expect(writes[0].name).toBe("campaignCreate"); expect(writes[0].args[0]).toMatchObject({ creatorCut: "5.25", approvers: wallets });
+  });
+  test("campaign navigation clears drafts and prior page state", async ({ page }) => {
+    await fixture(page, { viewer: wallets[0] });
+    await page.getByLabel("Donation amount", { exact: true }).fill("6.50");
+    await page.getByRole("link", { name: "UI fixture campaign", exact: true }).click();
+    await expect(page).toHaveURL(/\/campaigns\?id=1$/);
+    await expect(page.getByLabel("Donation amount", { exact: true })).toHaveValue("");
   });
   test("only configured reviewer sees proof approval and duplicate is disabled", async ({ page }) => {
     await fixture(page, { viewer: wallets[0], now: "1150", campaign: { ...campaign, state: "PendingProof", proofHash: "a".repeat(64), approvals: [wallets[0]] } });
