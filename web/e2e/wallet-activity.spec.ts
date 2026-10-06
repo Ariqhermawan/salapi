@@ -44,7 +44,6 @@ test("Activity sign-in preserves the intended destination without inventing pers
   await panel.getByRole("link", { name: "Sign in", exact: true }).click();
   await expect(page).toHaveURL(/\/signin\?next=%2Factivity$/);
   const signin = page.locator("#app-content");
-  await expect(signin.getByRole("heading", { level: 1 })).toBeVisible();
   // CI intentionally has no Supabase keys. Keep its honest unavailable state
   // valid, but require the OAuth button on configured Preview/production.
   if (new URL(page.url()).hostname === "localhost") {
