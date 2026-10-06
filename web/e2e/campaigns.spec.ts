@@ -189,5 +189,7 @@ test("D4 live deployment identity and real on-chain reads (opt-in, no mocks)", a
   await page.goto("/campaigns?mode=testnet");
   await page.getByText("View the D4 Testnet contract", { exact: true }).click({ timeout: 30000 });
   await expect(page.getByRole("link", { name: expected!, exact: true })).toBeVisible();
-  await expect(page.getByRole("alert")).toHaveCount(0);
+  // Next's route announcer is an empty accessibility alert outside the app.
+  // Keep rejecting all campaign error alerts without treating it as an error.
+  await expect(page.locator("#app-content").getByRole("alert")).toHaveCount(0);
 });
