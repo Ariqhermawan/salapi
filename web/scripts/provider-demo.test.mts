@@ -1,0 +1,7 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {demoAmountMinor,nextDemoPaymentStatus} from "../lib/provider-demo.ts";
+test("provider demo requires ordered review and explicit confirmation",()=>{assert.equal(nextDemoPaymentStatus("entry","succeeded",true,false),"entry");assert.equal(nextDemoPaymentStatus("entry","confirm",true,false),"entry");assert.equal(nextDemoPaymentStatus("entry","review",true,false),"review");assert.equal(nextDemoPaymentStatus("review","confirm",true,false),"pending");assert.equal(nextDemoPaymentStatus("pending","succeeded",true,false),"succeeded");});
+test("provider demos fail closed outside preview",()=>{for(const e of ["review","confirm","succeeded","failed","reset"] as const)assert.equal(nextDemoPaymentStatus("review",e,false,false),"review");});
+test("reversal only follows successful payout",()=>{assert.equal(nextDemoPaymentStatus("pending","reversed",true,true),"pending");assert.equal(nextDemoPaymentStatus("succeeded","reversed",true,false),"succeeded");assert.equal(nextDemoPaymentStatus("succeeded","reversed",true,true),"reversed");assert.equal(nextDemoPaymentStatus("pending","expired",true,true),"pending");});
+test("amount parser preserves minor units and rejects excess precision",()=>{assert.equal(demoAmountMinor("0.50",2),50n);assert.equal(demoAmountMinor("50000",0),50000n);for(const raw of ["0","-1","1e5","1.001","NaN"," 1","9007199254740992"])assert.equal(demoAmountMinor(raw,2),null);assert.equal(demoAmountMinor("0.1",0),null);});

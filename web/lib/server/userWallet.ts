@@ -167,9 +167,40 @@ export async function currentWalletPublicKey(): Promise<string | null> {
   }
 }
 
-/** Read-only shared-demo identity only when browser auth is not configured. */
+/** Read-only shared-demo identity for unconfigured auth or confirmed guests. */
 export async function currentArisanPublicKey(): Promise<string | null> {
   if (isLocalPreview) return null;
   if (!supabaseConfigured()) return demoPublic();
-  return currentWalletPublicKey();
+
+  let supabase: Awaited<ReturnType<typeof createSupabaseServer>>;
+  try {
+    supabase = await createSupabaseServer();
+  } catch {
+    return null;
+  }
+  let userId: string;
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error) return user === null && isAuthSessionMissingError(error) ? demoPublic() : null;
+    if (user === null) return demoPublic();
+    if (typeof user?.id !== "string" || user.id.length === 0) return null;
+    userId = user.id;
+  } catch (error) {
+    // An outage cannot establish that this request belongs to a guest.
+    return isAuthSessionMissingError(error) ? demoPublic() : null;
+  }
+
+  if (!supabaseAdminConfigured()) return null;
+  try {
+    const { data, error } = await createSupabaseAdmin()
+      .from("wallets")
+      .select("public_key")
+      .eq("user_id", userId)
+      .maybeSingle();
+    // Never provision, decrypt, or substitute a demo identity after sign-in.
+    if (error || typeof data?.public_key !== "string" || !data.public_key) return null;
+    return data.public_key;
+  } catch {
+    return null;
+  }
 }

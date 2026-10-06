@@ -1,20 +1,68 @@
 import { test, expect } from "@playwright/test";
 
-// The Circles funnel + back chain (regression guard for the reported bug):
-// Home "Donate" must open the circle DETAIL first, and backing out of the flow
-// entered from Home must return to Home — not strand the user in /circles.
+// The giving flows stay distinct: local Home uses fictional Circles fixtures;
+// non-preview Home still opens D4 campaign terms. Explicit D4 links keep mode.
+// These are read-only navigation checks, never a payment/chain acceptance test.
 
-test("Home Donate opens the circle detail, not the pledge", async ({ page }) => {
+test("Home giving link preserves the displayed local or D4 flow before any submission", async ({ page }) => {
   await page.goto("/", { waitUntil: "domcontentloaded", timeout: 45000 });
-  const donate = page.getByRole("button", { name: /donate/i }).first();
+  const donate = page.getByLabel("Campaign carousel").getByRole("link", { name: /^Donate(?: · local demo)?$/ }).first();
   await donate.waitFor({ state: "visible", timeout: 12000 });
-  await expect(async () => {
-    if (new URL(page.url()).pathname === "/") await donate.click();
-    await expect(page).toHaveURL(/\/circles\/tino-relief$/, { timeout: 1500 });
-  }).toPass({ timeout: 12000 });
+  if ((await donate.textContent())?.includes("local demo")) {
+    await expect(donate).toHaveAttribute("href", /^\/circles\/[a-z0-9-]+\/donate$/);
+    await donate.click();
+    await expect(page).toHaveURL(/\/circles\/[a-z0-9-]+\/donate$/);
+    await expect(page.getByRole("button", { name: "Review local donation", exact: true })).toBeVisible();
+    await expect(page.getByText("Where your pledge would go", { exact: true })).toBeVisible();
+  } else {
+    await expect(donate).toHaveAttribute("href", /^\/campaigns\?id=\d+$/);
+    await donate.click();
+    await expect(page).toHaveURL(/\/campaigns\?id=\d+$/);
+    await expect(page.getByRole("heading", { name: "Give with clarity.", exact: true })).toBeVisible();
+  }
 });
 
-test("back chain entered from Home: pledge -> detail -> Home", async ({ page }) => {
+test("Home exposes example discovery and keeps D4 as a distinct route", async ({ page }) => {
+  await page.goto("/", { waitUntil: "domcontentloaded", timeout: 45000 });
+  const catalog = page.getByRole("link", { name: "Browse all example causes", exact: true });
+  if (await catalog.count()) {
+    await expect(page.getByRole("link", { name: /^D4 Testnet campaigns/ })).toHaveAttribute("href", "/campaigns?mode=testnet");
+    await expect(catalog).toHaveAttribute("href", "/campaigns");
+    await expect(page.locator("#home-cause-category option")).toHaveCount(10);
+    await catalog.click();
+    await expect(page).toHaveURL(/\/campaigns$/);
+  } else {
+    const circles = page.getByRole("link", { name: "Explore Circles example causes", exact: true });
+    await expect(circles).toHaveAttribute("href", "/circles");
+    await circles.click();
+    await expect(page).toHaveURL(/\/circles$/);
+  }
+  await expect(page.getByRole("heading", { name: "A cause can bring us closer.", exact: true })).toBeVisible();
+  await page.getByRole("link", { name: /Explore this concept/ }).first().click();
+  await expect(page).toHaveURL(/\/circles\/[a-z0-9-]+$/);
+  await expect(page.getByRole("link", { name: "Preview a pledge", exact: true })).toBeVisible();
+});
+
+test("explicit examples and testnet mode switches retain separate catalogs and direct D4 IDs", async ({ page }) => {
+  await page.goto("/campaigns?mode=examples", { waitUntil: "domcontentloaded", timeout: 45000 });
+  await expect(page.getByRole("link", { name: "Browse examples", exact: true })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("link", { name: /Explore this concept/ })).toHaveCount(27);
+  await expect(page.getByRole("group", { name: "Example cause categories", exact: true }).getByRole("button")).toHaveCount(10);
+  await expect(page.getByRole("link", { name: "Testnet campaigns", exact: true })).toHaveAttribute("href", "/campaigns?mode=testnet");
+  await page.getByRole("link", { name: "Testnet campaigns", exact: true }).click();
+  await expect(page).toHaveURL(/\/campaigns\?mode=testnet$/);
+  await expect(page.getByRole("link", { name: "Testnet campaigns", exact: true })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("heading", { name: "Give with clarity.", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Explore this concept/ })).toHaveCount(0);
+});
+
+test("Vaults preserves discovery of Circles and the original Paluwagan pool", async ({ page }) => {
+  await page.goto("/vaults", { waitUntil: "domcontentloaded", timeout: 45000 });
+  await expect(page.getByRole("link", { name: /Salapi Circles · prototype/ })).toHaveAttribute("href", "/circles");
+  await expect(page.getByRole("link", { name: /Original Paluwagan pool/ })).toHaveAttribute("href", "/paluwagan");
+});
+
+test("donor Back retains history while the Circles breadcrumb always opens the catalog", async ({ page }) => {
   await page.goto("/", { waitUntil: "domcontentloaded", timeout: 45000 });
   await page.waitForTimeout(300);
   await page.goto("/circles/tino-relief", { waitUntil: "domcontentloaded", timeout: 45000 });
@@ -28,9 +76,18 @@ test("back chain entered from Home: pledge -> detail -> Home", async ({ page }) 
   await page.waitForTimeout(1000);
   expect(new URL(page.url()).pathname).toBe("/circles/tino-relief");
 
-  const back2 = page.getByRole("button", { name: "Back" }).first();
+  const back2 = page.getByRole("button", { name: "Circles", exact: true });
   await back2.waitFor({ state: "visible", timeout: 12000 });
   await back2.click();
   await page.waitForTimeout(1000);
-  expect(new URL(page.url()).pathname).toBe("/");
+  expect(new URL(page.url()).pathname).toBe("/circles");
+});
+
+test("Circles breadcrumb does not return a visitor to organizer tools", async ({ page }) => {
+  await page.goto("/circles/cats-recovery/manage", { waitUntil: "domcontentloaded", timeout: 45000 });
+  await page.getByRole("link", { name: "Example cause", exact: true }).click();
+  await expect(page).toHaveURL(/\/circles\/cats-recovery$/);
+  await page.getByRole("button", { name: "Circles", exact: true }).click();
+  await expect(page).toHaveURL(/\/circles$/);
+  await expect(page.getByRole("heading", { name: "A cause can bring us closer.", exact: true })).toBeVisible();
 });

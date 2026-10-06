@@ -1,0 +1,186 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { runInNewContext } from "node:vm";
+import ts from "typescript";
+import { parse, type AnyNode, type Declaration, type Rule } from "postcss";
+import { homeCopy } from "../lib/i18n/revamp-home.ts";
+import * as catalogCopy from "../lib/i18n/revamp-home-catalog.ts";
+import * as circlesCopy from "../lib/i18n/revamp-circles.ts";
+import * as homeCircles from "../lib/home-circles.ts";
+import { LOCALES, type Locale } from "../lib/i18n/config.ts";
+import { PREVIEW_CAMPAIGNS, PREVIEW_TIME, PREVIEW_WALLET } from "../lib/local-preview.ts";
+
+type Element = { type: unknown; props: Record<string, unknown> };
+type Wallet = { pesos: number; address: string };
+const source = (path: string) => readFileSync(new URL(path, import.meta.url), "utf8");
+const compile = (path: string) => ts.transpileModule(source(path), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
+}).outputText;
+const code = compile("../app/page.tsx");
+const cache = new Map<string, Record<string, unknown>>();
+function fixture(path: string): Record<string, unknown> {
+  if (cache.has(path)) return cache.get(path)!;
+  const exports: Record<string, unknown> = {}; cache.set(path, exports);
+  runInNewContext(compile(path), { exports, require(name: string) {
+    if (name === "./organizers") return fixture("../lib/circles/organizers.ts");
+    if (name === "./types") return fixture("../lib/circles/types.ts");
+    throw Error(`Unexpected pure fixture dependency: ${name}`);
+  } });
+  return exports;
+}
+function nodes(value: unknown): Element[] {
+  if (Array.isArray(value)) return value.flatMap(nodes);
+  if (!value || typeof value !== "object" || !("props" in value)) return [];
+  const node = value as Element;
+  return [node, ...nodes(node.props.children)];
+}
+function text(value: unknown): string {
+  if (typeof value === "string" || typeof value === "number") return String(value);
+  if (Array.isArray(value)) return value.map(text).join("");
+  return value && typeof value === "object" && "props" in value ? text((value as Element).props.children) : "";
+}
+const hasClass = (node: Element, name: string) => String(node.props.className ?? "").split(" ").includes(name);
+
+// Actual Home render with deterministic isolated hook state. Effects are not
+// run: no browser, auth, provisioning, navigation, storage or provider exists.
+// Other Home behavior already has effect coverage in home-circles-catalog.
+function render(options: { preview?: boolean; locale?: Locale; currency?: Locale; wallet?: Wallet | null; walletError?: string } = {}) {
+  const preview = options.preview ?? true, locale = options.locale ?? "en", currency = options.currency ?? "en";
+  const calls = { read: 0, write: 0, storage: 0, network: 0 };
+  const forbidden = (kind: keyof typeof calls) => () => { calls[kind]++; throw Error(`Forbidden ${kind} in isolated wallet action render`); };
+  const exports = {} as { default(): Element };
+  let cursor = 0;
+  const jsx = (type: unknown, props: Record<string, unknown>): Element => ({ type, props });
+  runInNewContext(code, {
+    exports, fetch: forbidden("network"), XMLHttpRequest: forbidden("network"),
+    localStorage: { getItem: forbidden("storage"), setItem: forbidden("storage") },
+    sessionStorage: { getItem: forbidden("storage"), setItem: forbidden("storage") },
+    require(name: string) {
+      if (name === "react/jsx-runtime") return { jsx, jsxs: jsx, Fragment: "Fragment" };
+      if (name === "react") return {
+        useState(initial: unknown) {
+          const index = cursor++;
+          const value = index === 0 && "wallet" in options ? options.wallet
+            : index === 5 && options.walletError ? options.walletError
+            : typeof initial === "function" ? initial() : initial;
+          return [value, forbidden("write")];
+        },
+        useRef: () => ({ current: null }), useEffect() {}, useCallback: (callback: unknown) => callback,
+      };
+      if (name === "next/link") return { default: "Link" };
+      if (name === "next/image") return { default: "Image" };
+      if (name.startsWith("@phosphor-icons/")) return { Heart: "Heart", Pause: "Pause", Play: "Play" };
+      if (name === "@/components/I18nProvider") return { useT: () => ({ locale, currency }) };
+      if (name === "@/components/ui/kit") return { Ico: new Proxy({}, { get: (_target, icon) => (props: Record<string, unknown>) => jsx("svg", { ...props, "data-icon": String(icon) }) }), Peso: "Peso" };
+      if (name === "@/lib/local-preview") return { isLocalPreview: preview, PREVIEW_WALLET, PREVIEW_TIME, PREVIEW_CAMPAIGNS, normalizePreviewCampaigns: forbidden("storage") };
+      if (name === "@/lib/circles/seed") return fixture("../lib/circles/seed.ts");
+      if (name === "@/lib/circles/types") return fixture("../lib/circles/types.ts");
+      if (name === "@/lib/home-circles") return homeCircles;
+      if (name === "@/lib/i18n/revamp-home") return { homeCopy };
+      if (name === "@/lib/i18n/revamp-home-catalog") return catalogCopy;
+      if (name === "@/lib/i18n/revamp-circles") return circlesCopy;
+      if (name === "@/lib/disaster") return { formatStroops: forbidden("read") };
+      if (name === "@/app/actions") return { walletState: forbidden("read"), myHandle: forbidden("read") };
+      if (name === "@/app/campaign-actions") return { campaignState: forbidden("read") };
+      if (name.endsWith(".module.css")) return { default: new Proxy({}, { get: (_target, key) => String(key) }) };
+      throw Error(`Unexpected Home render dependency: ${name}`);
+    },
+  });
+  const tree = exports.default();
+  const wallet = nodes(tree).find(node => node.type === "section" && hasClass(node, "wallet"))!; assert.ok(wallet);
+  const rail = nodes(wallet).find(node => node.type === "nav" && hasClass(node, "walletActions"))!; assert.ok(rail);
+  return { tree, wallet, rail, calls, links: nodes(rail).filter(node => node.type === "Link") };
+}
+
+test("actual Home wallet rail retains exactly two native navigation links in both modes and four languages", () => {
+  for (const preview of [true, false]) for (const locale of LOCALES) {
+    const ui = render({ preview, locale });
+    assert.equal(ui.rail.props["aria-label"], homeCopy(locale, "Wallet actions"));
+    assert.deepEqual(ui.links.map(node => node.props.href), ["/topup", "/withdraw"]);
+    for (const [index, label] of ["Top up", "Withdraw"].entries()) {
+      const link = ui.links[index], expected = homeCopy(locale, label);
+      assert.ok(hasClass(link, "walletAction"));
+      assert.equal(link.props["aria-label"], expected);
+      assert.equal(text(link), expected);
+      assert.equal(link.props.onClick, undefined);
+      assert.equal(link.props.role, undefined, "Navigation must keep native link semantics");
+      assert.equal(link.props.tabIndex, undefined, "Both links stay in native keyboard order");
+      assert.equal(link.props["aria-disabled"], undefined);
+      assert.ok(nodes(link).some(node => node.type === "span" && hasClass(node, "walletActionLabel") && text(node) === expected));
+      const icon = nodes(link).find(node => node.type === "span" && hasClass(node, "walletActionIcon"))!; assert.ok(icon);
+      assert.equal(String(icon.props["aria-hidden"]), "true");
+      assert.equal(nodes(icon).find(node => node.type === "svg")?.props["data-icon"], index === 0 ? "arrowDown" : "arrowUp");
+    }
+    assert.equal(nodes(ui.rail).some(node => node.type === "form" || node.type === "button"), false);
+    assert.deepEqual(ui.calls, { read: 0, write: 0, storage: 0, network: 0 });
+  }
+});
+
+test("action labels follow language independently of currency and retain exact balance props and Testnet truth framing", () => {
+  for (const preview of [true, false]) for (const locale of LOCALES) for (const currency of LOCALES) {
+    const balance = { pesos: 9876543.21, address: "Readonly isolated wallet" }, ui = render({ preview, locale, currency, wallet: balance });
+    assert.equal(text(ui.links[0]), homeCopy(locale, "Top up")); assert.equal(text(ui.links[1]), homeCopy(locale, "Withdraw"));
+    assert.equal(nodes(ui.wallet).find(node => node.type === "Peso")?.props.value, balance.pesos);
+    assert.ok(text(ui.wallet).includes(homeCopy(locale, "TESTNET BALANCE")));
+    assert.ok(text(ui.wallet).includes(homeCopy(locale, preview ? "test XLM · no real money" : "Native Testnet XLM · indicative value · no real money")));
+    assert.deepEqual(ui.calls, { read: 0, write: 0, storage: 0, network: 0 });
+  }
+});
+
+test("unknown, failed and zero balances keep wallet navigation without fabricating a zero balance", () => {
+  for (const preview of [true, false]) {
+    const unknown = render({ preview, wallet: null });
+    assert.equal(nodes(unknown.wallet).some(node => node.type === "Peso"), false);
+    assert.deepEqual(unknown.links.map(node => node.props.href), ["/topup", "/withdraw"]);
+    const failed = render({ preview, wallet: null, walletError: "Your wallet balance is unavailable." });
+    assert.ok(text(failed.wallet).includes("Your wallet balance is unavailable."));
+    assert.equal(nodes(failed.wallet).some(node => node.type === "Peso"), false);
+    const zero = render({ preview, wallet: { pesos: 0, address: "Readonly zero-balance fixture" } });
+    assert.equal(nodes(zero.wallet).find(node => node.type === "Peso")?.props.value, 0);
+    for (const ui of [unknown, failed, zero]) assert.deepEqual(ui.calls, { read: 0, write: 0, storage: 0, network: 0 });
+  }
+});
+
+const css = parse(source("../app/home.module.css"));
+function rules(selector: string) {
+  const found: Rule[] = []; css.walkRules(rule => { if (rule.selectors.includes(selector)) found.push(rule); }); return found;
+}
+function declaration(rule: Rule, property: string) { return rule.nodes.filter((node): node is Declaration => node.type === "decl" && node.prop === property).at(-1)?.value; }
+function insideReducedMotion(rule: Rule) {
+  let parent: AnyNode | undefined = rule.parent;
+  while (parent) { if (parent.type === "atrule" && parent.name === "media" && /prefers-reduced-motion\s*:\s*reduce/.test(parent.params)) return true; parent = parent.parent; }
+  return false;
+}
+
+test("wallet CSS defines a connected equal horizontal rail with minimum touch height", () => {
+  const rail = rules(".walletActions").find(rule => declaration(rule, "display") === "grid")!; assert.ok(rail);
+  assert.equal(declaration(rail, "grid-template-columns")?.replace(/\s/g, ""), "repeat(2,minmax(0,1fr))");
+  assert.ok(declaration(rail, "border-radius"));
+  const action = rules(".walletAction").find(rule => declaration(rule, "min-height"))!; assert.ok(action);
+  assert.ok(Number.parseFloat(declaration(action, "min-height")!) >= 44);
+  assert.ok(rules(".walletAction + .walletAction::before").some(rule => declaration(rule, "width") === "1px" && declaration(rule, "background")), "A shared divider keeps the two controls connected");
+});
+
+test("wallet CSS never hides labels or disables links at narrow breakpoints", () => {
+  css.walkRules(rule => {
+    const appliesToLabels = rule.selectors.some(selector => selector.includes(".walletActionLabel") || /\.walletActions\s+a\s+span/.test(selector));
+    if (appliesToLabels) {
+      assert.notEqual(declaration(rule, "display"), "none", rule.selector);
+      assert.notEqual(declaration(rule, "visibility"), "hidden", rule.selector);
+      assert.notEqual(declaration(rule, "opacity"), "0", rule.selector);
+    }
+    if (rule.selectors.some(selector => selector === ".walletAction" || selector === ".walletActions a")) {
+      assert.notEqual(declaration(rule, "pointer-events"), "none", rule.selector);
+      const height = declaration(rule, "min-height"); if (height) assert.ok(Number.parseFloat(height) >= 44, rule.selector);
+    }
+  });
+  assert.ok(rules(".walletActionLabel").length);
+});
+
+test("wallet CSS retains explicit keyboard focus and disables action transitions with reduced motion", () => {
+  assert.ok(rules(".walletAction:focus-visible").some(rule => {
+    const outline = declaration(rule, "outline"); return outline && outline !== "none" && Number.parseFloat(outline) > 0;
+  }));
+  assert.ok(rules(".walletAction").some(rule => insideReducedMotion(rule) && declaration(rule, "transition") === "none"));
+});
