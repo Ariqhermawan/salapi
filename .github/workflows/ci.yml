@@ -87,6 +87,9 @@ jobs:
       - name: Sign-out failure, retry and duplicate-request guards
         run: npm run test:signout
 
+      - name: Profile loading, verified identity and stale response guards
+        run: npm run test:profile
+
       - name: Prevent local-review builds in Vercel production
         run: node --experimental-strip-types --test scripts/local-preview-deployment.test.mts
 

@@ -69,6 +69,7 @@ function render(name: typeof files[number], locale: Locale, preview = true, prop
       if (dependency === "@/lib/supabase/env") return { supabaseConfigured: () => false };
       if (dependency === "@/lib/supabase/client") return { createSupabaseBrowser: forbidden };
       if (dependency === "@/app/actions") return { walletState: forbidden, myHandle: forbidden, topUpSandbox: forbidden, withdrawSandbox: forbidden, renameUsername: forbidden, registerUsername: forbidden };
+      if (dependency === "@/app/account-actions") return { settingsHandle: forbidden };
       if (dependency.endsWith(".module.css")) return { default: new Proxy({}, { get: (_, key) => key }) };
       throw new Error(`Unexpected dependency: ${dependency}`);
     },

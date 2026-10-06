@@ -36,6 +36,10 @@
 }
 .profile:hover { background: #eeeade; border-color: #d5ddea; }
 .profile:active { background: #e8e5db; }
+.profile:disabled { cursor: default; }
+.profile:disabled:hover { background: #f2efe7; border-color: #e6e1d6; }
+.profileAvatarPlaceholder { display: block; flex: 0 0 46px; width: 46px; height: 46px; border-radius: 50%; background: #e1e8f1; }
+.profileNamePlaceholder { display: block; width: min(185px, 85%); height: 24px; border-radius: 6px; }
 .profileCopy { display: block; flex: 1; min-width: 0; }
 .profileName { display: block; font-size: 19px; font-weight: 750; letter-spacing: -.03em; line-height: 1.25; overflow-wrap: anywhere; }
 .profileSub { display: block; margin-top: 4px; font-size: 11px; line-height: 1.4; color: #586985; }
