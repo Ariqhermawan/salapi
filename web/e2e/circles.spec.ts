@@ -4,19 +4,21 @@ import { test, expect } from "@playwright/test";
 // non-preview Home still opens D4 campaign terms. Explicit D4 links keep mode.
 // These are read-only navigation checks, never a payment/chain acceptance test.
 
-test("Home giving link preserves the displayed local or D4 flow before any submission", async ({ page }) => {
+test("Home campaign link preserves the displayed local or D4 flow before any submission", async ({ page }) => {
   await page.goto("/", { waitUntil: "domcontentloaded", timeout: 45000 });
-  const donate = page.getByLabel("Campaign carousel").getByRole("link", { name: /^Donate(?: · local demo)?$/ }).first();
-  await donate.waitFor({ state: "visible", timeout: 12000 });
-  if ((await donate.textContent())?.includes("local demo")) {
-    await expect(donate).toHaveAttribute("href", /^\/circles\/[a-z0-9-]+\/donate$/);
-    await donate.click();
+  // Closed/released D4 campaigns are correctly read-only "View campaign"
+  // cards. Their presence must not require inventing an open donation window.
+  const campaignLink = page.getByLabel("Campaign carousel").getByRole("link", { name: /^(?:Donate(?: · local demo)?|View campaign)$/ }).first();
+  await campaignLink.waitFor({ state: "visible", timeout: 12000 });
+  if ((await campaignLink.textContent())?.includes("local demo")) {
+    await expect(campaignLink).toHaveAttribute("href", /^\/circles\/[a-z0-9-]+\/donate$/);
+    await campaignLink.click();
     await expect(page).toHaveURL(/\/circles\/[a-z0-9-]+\/donate$/);
     await expect(page.getByRole("button", { name: "Review local donation", exact: true })).toBeVisible();
     await expect(page.getByText("Where your pledge would go", { exact: true })).toBeVisible();
   } else {
-    await expect(donate).toHaveAttribute("href", /^\/campaigns\?id=\d+$/);
-    await donate.click();
+    await expect(campaignLink).toHaveAttribute("href", /^\/campaigns\?id=\d+$/);
+    await campaignLink.click();
     await expect(page).toHaveURL(/\/campaigns\?id=\d+$/);
     await expect(page.getByRole("heading", { name: "Give with clarity.", exact: true })).toBeVisible();
   }

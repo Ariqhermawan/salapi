@@ -239,8 +239,30 @@ function campaignCard(campaign: Campaign, preview: boolean, locale: Locale = "en
   return { calls, reviews, get tree() { return tree; }, amount(value: string) {
     const input = nodes(tree).find(node => node.type === "input" && node.props.inputMode === "decimal")!; assert.ok(input);
     (input.props.onChange as (event: unknown) => void)({ target: { value } }); tree = render();
+  }, currency(value: string) {
+    const select = nodes(tree).find(node => node.type === "select" && node.props["aria-label"] === "Display currency")!; assert.ok(select);
+    (select.props.onChange as (event: unknown) => void)({ target: { value } }); tree = render();
   }, review() { const button = nodes(tree).find(node => node.type === "Btn" && text(node) === "Donate · Review amount")!; assert.ok(button); (button.props.onClick as () => void)(); tree = render(); } };
 }
+
+test("D4 display currency has an exact accessible label independent of option text and retains PHP review precision", () => {
+  const campaign = previewModule(true).PREVIEW_CAMPAIGNS[0];
+  for (const preview of [false, true]) {
+    const screen = campaignCard(campaign, preview);
+    const select = nodes(screen.tree).find(node => node.type === "select")!;
+    assert.ok(select);
+    assert.equal(select.props["aria-label"], "Display currency");
+    assert.equal(select.props.disabled, false);
+    assert.deepEqual(nodes(select).filter(node => node.type === "option").map(node => [node.props.value, text(node)]),
+      [["XLM", "Testnet XLM"], ["tl", "PHP (illustrative)"], ["id", "IDR (illustrative)"]]);
+    screen.amount("6.50"); screen.currency("tl"); screen.review();
+    assert.equal(nodes(screen.tree).find(node => node.type === "select")?.props.value, "tl");
+    assert.equal(nodes(screen.tree).find(node => node.type === "input" && node.props.inputMode === "decimal")?.props.value, "6.50");
+    assert.equal(screen.reviews.length, 1);
+    assert.match(screen.reviews[0].label, /^Donate 1 Testnet XLM to campaign #/);
+    assert.deepEqual(screen.calls, { network: 0, action: 0, storage: 0 });
+  }
+});
 
 test("actual D4 media is restricted to canonical preview identity and never applied to flag0/rebound IDs", () => {
   const fixtures = previewModule(true).PREVIEW_CAMPAIGNS;
