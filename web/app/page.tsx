@@ -14,11 +14,8 @@ import type { Campaign } from "@/lib/campaign";
 import { isLocalPreview, normalizePreviewCampaigns, PREVIEW_CAMPAIGNS, PREVIEW_WALLET, PREVIEW_TIME } from "@/lib/local-preview";
 import s from "./home.module.css";
 import { homeCopy } from "@/lib/i18n/revamp-home";
-import { SEED_CIRCLES } from "@/lib/circles/seed";
-import { progressPct } from "@/lib/circles/types";
-import { HOME_CAUSE_CATEGORIES, homeCircleExamples, isHomeCauseCategory, type HomeCauseCategory } from "@/lib/home-circles";
-import { circlesCopy, circlesCategory } from "@/lib/i18n/revamp-circles";
 import { homeCatalogCopy, type HomeCatalogKey } from "@/lib/i18n/revamp-home-catalog";
+import HomeCirclesCatalog from "@/components/HomeCirclesCatalog";
 
 function scrollHomeCard(strip: HTMLDivElement | null, next: number, count: number, reduceMotion: boolean): number | null {
   if (!strip || !count) return null;
@@ -32,7 +29,6 @@ function scrollHomeCard(strip: HTMLDivElement | null, next: number, count: numbe
 export default function Home() {
   const { currency, locale } = useT();
   const copy = (phrase: string) => homeCopy(locale, phrase);
-  const circleCopy = circlesCopy(locale);
   const catalogCopy = (phrase: HomeCatalogKey, vars?: Record<string, string | number>) => homeCatalogCopy(locale, phrase, vars);
   const balanceSize = currency === "id" || currency === "vi" ? 23 : currency === "tl" ? 29 : 32;
   const [wallet, setWallet] = useState<{ pesos: number; address: string } | null>(isLocalPreview ? PREVIEW_WALLET : null);
@@ -43,7 +39,6 @@ export default function Home() {
   const [walletError, setWalletError] = useState("");
   const [error, setError] = useState("");
   const [index, setIndex] = useState(0);
-  const [category, setCategory] = useState<HomeCauseCategory>("all");
   const [paused, setPaused] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(true);
   const strip = useRef<HTMLDivElement>(null);
@@ -83,8 +78,7 @@ export default function Home() {
   }, []);
   const open = campaigns.filter(c => c.state === "Funding" && Number(c.config.funding_deadline) > clock);
   const shown = open.length ? open : campaigns;
-  const examples = isLocalPreview ? homeCircleExamples(SEED_CIRCLES, category) : [];
-  const cardCount = isLocalPreview ? examples.length : shown.length;
+  const cardCount = isLocalPreview ? 0 : shown.length;
   const move = (next: number) => {
     const current = scrollHomeCard(strip.current, next, cardCount, reduceMotion);
     if (current !== null) setIndex(current);
@@ -123,39 +117,18 @@ export default function Home() {
         </nav>
       </div>
     </section>
-    <section className={s.crowdfunding} aria-labelledby="give-title">
-      <header className={s.giveHeader}><div><span className={s.eyebrow}>{isLocalPreview ? catalogCopy("CROWDFUNDING · PROTOTYPE") : copy("CROWDFUNDING · TESTNET")}</span><h1 id="give-title">{copy("Give with clarity.")}</h1><p>{copy("Choose a cause. See the terms before you give.")}</p></div>
-        <Image src="/illustrations/giving.png" alt={circleCopy("Two people sharing a blue heart")} width="118" height="118" /></header>
-      {isLocalPreview ? <>
-        <p className={s.catalogNotice}>{catalogCopy("Fictional causes · AI illustrations · no payment.")}</p>
-        <div className={s.catalogTools}>
-          <label htmlFor="home-cause-category"><span>{catalogCopy("Category")}</span><select id="home-cause-category" value={category} onChange={event => {
-            if (!isHomeCauseCategory(event.target.value)) return;
-            setCategory(event.target.value); setIndex(0); setPaused(true);
-          }}>{HOME_CAUSE_CATEGORIES.map(value => <option key={value} value={value}>{value === "all" ? circleCopy("All examples") : circlesCategory(locale, value)}</option>)}</select></label>
-          <Link href="/campaigns" aria-label={catalogCopy("Browse all example causes")}>{copy("See all")}{Ico.chev({ size: 12 })}</Link>
-        </div>
-        <div className={s.catalogCount} role="status">{circleCopy(examples.length === 1 ? "{count} example" : "{count} examples", { count: examples.length })}</div>
-      </> : <div className={s.stripLabel}><span>{copy(open.length ? "Open campaigns" : "Recent campaigns")}</span><Link href="/campaigns?mode=testnet">{copy("See all")} {Ico.chev({ size: 12 })}</Link></div>}
+    <HomeCirclesCatalog />
+    {!isLocalPreview && <section className={s.crowdfunding} aria-labelledby="testnet-campaign-title">
+      <header className={s.giveHeader}><div><span className={s.eyebrow}>{copy("CROWDFUNDING · TESTNET")}</span><h2 id="testnet-campaign-title">{catalogCopy("D4 Testnet campaigns")}</h2><p>{catalogCopy("Separate on-chain escrow and proof-review flow. Not the fictional examples above.")}</p></div></header>
+      <div className={s.stripLabel}><span>{copy(open.length ? "Open campaigns" : "Recent campaigns")}</span><Link href="/campaigns?mode=testnet">{copy("See all")} {Ico.chev({ size: 12 })}</Link></div>
       {loading ? <div className={s.skeletonCards}><div className="sl-skel" /><div className="sl-skel" /></div>
         : error ? <div className={s.empty} role="alert"><p>{copy(error)}</p><button onClick={loadCampaigns}>{copy("Try again")}</button></div>
-        : !cardCount ? <div className={s.empty}><strong>{isLocalPreview ? circleCopy("No example in this category yet.") : copy("Every cause starts with someone.")}</strong><p>{isLocalPreview ? circleCopy("Choose another category to explore the concept.") : copy("No campaigns yet. Start one and invite your community.")}</p></div>
-        : <div key={isLocalPreview ? category : "testnet"} className={s.strip} ref={strip} onPointerDown={() => setPaused(true)} onFocusCapture={() => setPaused(true)} onScroll={() => {
+        : !cardCount ? <div className={s.empty}><strong>{copy("Every cause starts with someone.")}</strong><p>{copy("No campaigns yet. Start one and invite your community.")}</p></div>
+        : <div className={s.strip} ref={strip} onPointerDown={() => setPaused(true)} onFocusCapture={() => setPaused(true)} onScroll={() => {
           if (!strip.current) return; const first = strip.current.children[0] as HTMLElement;
           setIndex(Math.min(cardCount - 1, Math.round(strip.current.scrollLeft / (first.offsetWidth + 14))));
         }} aria-label={copy("Campaign carousel")}>
-          {isLocalPreview ? examples.map((circle, i) => <article key={circle.id} className={`${s.campaign} ${s.catalogCard}`}>
-            <Link href={`/circles/${circle.id}`} className={s.photo} aria-label={catalogCopy("View example cause: {title}", { title: circle.title })}>
-              <Image src={circle.coverImage ?? "/illustrations/giving.png"} alt={circleCopy("AI-generated fictional campaign illustration")} width={420} height={220} sizes="(max-width: 500px) 82vw, 400px" loading={i === 0 ? "eager" : "lazy"} />
-              <span>{circlesCategory(locale, circle.category)}</span><small className={s.catalogAi}>{circleCopy("AI illustration")}</small>
-            </Link>
-            <div className={s.campaignBody}><span className={s.example}>{circleCopy("Example cause")}</span>
-              <h2><Link href={`/circles/${circle.id}`} className={s.catalogTitle}>{circle.title}</Link></h2>
-              <Link href={`/circles/${circle.id}/organizer`} className={s.catalogOrganizer} aria-label={circleCopy("View example organizer profile: {name}", { name: circle.organizer })}><span><strong>{circle.organizer}</strong><small>{circle.organizerLocation}{" "}{circleCopy("· Example organizer")}</small></span>{Ico.chev({ size: 14 })}</Link>
-              <div className={s.catalogProgress} aria-label={catalogCopy("{percent}% example progress. No donations collected.", { percent: progressPct(circle) })}><span>{catalogCopy("Example progress")}<strong>{progressPct(circle)}%</strong></span><div className={s.progress} aria-hidden="true"><span style={{ width: `${progressPct(circle)}%` }} /></div></div>
-              <Link className={s.donate} href={`/circles/${circle.id}/donate`}><Heart size={18} weight="fill" />{catalogCopy("Donate · local demo")}</Link>
-            </div>
-          </article>) : shown.map((c, i) => <article key={c.id} className={s.campaign}><div className={s.photo}>
+          {shown.map((c, i) => <article key={c.id} className={s.campaign}><div className={s.photo}>
             <Image src="/illustrations/giving.png" alt="Illustration of community giving, not campaign evidence" style={{ objectFit: "contain", background: "#eef3ff" }} width="420" height="220" sizes="(max-width: 500px) 82vw, 400px" loading={i === 0 ? "eager" : "lazy"} />
             <span>DONATION CAMPAIGN</span></div>
             <div className={s.campaignBody}><span className={s.example}>{`CAMPAIGN #${c.id} · ${c.state}`}</span><h2>{c.title}</h2>
@@ -165,15 +138,12 @@ export default function Home() {
             </div></article>)}
         </div>}
       <div className={s.carouselFooter}>
-        <Link href={isLocalPreview ? "/circles/create" : "/campaigns?create=1"} className={s.start}><span className={s.plus}>{Ico.plus({ size: 18 })}</span><strong>{copy("Start a campaign")}</strong></Link>
+        <Link href="/campaigns?create=1" className={s.start}><span className={s.plus}>{Ico.plus({ size: 18 })}</span><strong>{copy("Start a campaign")}</strong></Link>
         <div className={s.controls}><button aria-label={copy("Previous campaign")} onClick={() => move(index - 1)} disabled={cardCount < 2}>{Ico.back({ size: 16 })}</button><span>{String(Math.min(index + 1, cardCount)).padStart(2, "0")} / {String(cardCount).padStart(2, "0")}</span><button aria-label={copy("Next campaign")} onClick={() => move(index + 1)} disabled={cardCount < 2}>{Ico.chev({ size: 16 })}</button></div>
         <button className={s.pause} aria-label={copy(paused ? "Play campaign carousel" : "Pause campaign carousel")} onClick={() => setPaused(!paused)} disabled={reduceMotion || cardCount < 2}>{paused ? <Play size={15} weight="fill" /> : <Pause size={15} weight="fill" />}</button>
       </div>
-    </section>
-    {isLocalPreview ? <Link href="/campaigns?mode=testnet" className={s.testnetBridge}><span>{Ico.vault({ size: 20 })}</span><span><strong>{catalogCopy("D4 Testnet campaigns")}</strong><small>{catalogCopy("Separate escrow and proof-review flow. Local sample data here, not these example causes.")}</small></span>{Ico.chev({ size: 16 })}</Link> : <Link href="/circles" className={s.start} aria-label={copy("Explore Circles example causes")} style={{ marginTop: 12, justifyContent: "space-between", padding: "10px 12px" }}>
-      <Image src="/illustrations/giving.png" alt="" width={38} height={38} />
-      <span style={{ flex: 1, display: "grid", gap: 3 }}><strong style={{ maxWidth: "none", whiteSpace: "normal", textAlign: "left" }}>{copy("Circles · example causes")}</strong><small style={{ fontSize: 10, color: "#586985" }}>{copy("Explore the prototype. No payments.")}</small></span>{Ico.chev({ size: 17 })}
-    </Link>}
+    </section>}
+    {isLocalPreview && <Link href="/campaigns?mode=testnet" className={s.testnetBridge}><span>{Ico.vault({ size: 20 })}</span><span><strong>{catalogCopy("D4 Testnet campaigns")}</strong><small>{catalogCopy("Separate escrow and proof-review flow. Local sample data here, not these example causes.")}</small></span>{Ico.chev({ size: 16 })}</Link>}
     <section className={s.quick} aria-label={copy("QUICK ACTIONS")}><div className={s.sectionTitle}>{copy("QUICK ACTIONS")}<span /></div><div className={s.quickGrid}>
       {[
         { title: "Smart Savings", sub: isLocalPreview ? "Create a local saving goal" : "Lock toward a goal", art: "savings", demo: isLocalPreview, to: "/savings", tone: "mint" },

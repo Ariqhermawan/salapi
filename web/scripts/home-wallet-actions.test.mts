@@ -72,6 +72,7 @@ function render(options: { preview?: boolean; locale?: Locale; currency?: Locale
       if (name === "next/image") return { default: "Image" };
       if (name.startsWith("@phosphor-icons/")) return { Heart: "Heart", Pause: "Pause", Play: "Play" };
       if (name === "@/components/I18nProvider") return { useT: () => ({ locale, currency }) };
+      if (name === "@/components/HomeCirclesCatalog") return { default: "HomeCirclesCatalog" };
       if (name === "@/components/ui/kit") return { Ico: new Proxy({}, { get: (_target, icon) => (props: Record<string, unknown>) => jsx("svg", { ...props, "data-icon": String(icon) }) }), Peso: "Peso" };
       if (name === "@/lib/local-preview") return { isLocalPreview: preview, PREVIEW_WALLET, PREVIEW_TIME, PREVIEW_CAMPAIGNS, normalizePreviewCampaigns: forbidden("storage") };
       if (name === "@/lib/circles/seed") return fixture("../lib/circles/seed.ts");

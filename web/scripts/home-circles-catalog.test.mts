@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync, existsSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
+import { parse, type Declaration } from "postcss";
 import { LOCALES, type Locale } from "../lib/i18n/config.ts";
 import { homeCopy } from "../lib/i18n/revamp-home.ts";
 import * as catalogCopy from "../lib/i18n/revamp-home-catalog.ts";
@@ -45,16 +46,19 @@ function text(value: unknown): string {
 }
 const hasClass = (node: Element, name: string) => String(node.props.className ?? "").split(" ").includes(name);
 
-// Actual Home TSX, isolated effects and DOM-shaped carousel refs. No browser,
-// auth, provider, ledger, actual navigation or network requests are available.
+// Actual Home and HomeCirclesCatalog TSX, with separate hook state for each
+// component and isolated effects/DOM-shaped refs. No browser, auth, provider,
+// ledger, actual navigation or network requests are available.
 function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: boolean; deniedStorage?: boolean; failCampaigns?: boolean; liveCampaigns?: Campaign[] } = {}) {
   const preview = options.preview ?? true;
   const locale = options.locale ?? "en";
   const liveCampaigns = options.liveCampaigns ?? Array.from({ length: 12 }, (_, index) => ({ ...PREVIEW_CAMPAIGNS[0], id: String(800 + index), title: `Isolated Testnet campaign ${index + 1}` }));
   const calls = { wallet: 0, handle: 0, campaigns: [] as string[], network: 0, writes: 0, storageReads: 0 };
   let campaignFailure = options.failCampaigns ?? false;
-  const states: unknown[] = [];
+  const homeStates: unknown[] = [], catalogStates: unknown[] = [];
+  let states = homeStates;
   let cursor = 0;
+  let hydrated = false;
   let tree: Element;
   const effects: (() => void)[] = [];
   const timeouts = new Map<number, Callback>();
@@ -66,9 +70,16 @@ function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: bo
   const scrolls: { left: number; behavior: string }[] = [];
   const dependenciesEqual = (a: readonly unknown[], b: readonly unknown[]) => a.length === b.length && a.every((value, index) => Object.is(value, b[index]));
   const component = {} as { default(): Element };
-  const jsx = (type: unknown, props: Record<string, unknown>, key?: string): Element => ({ type, props, key });
+  const catalog = {} as { default(): Element };
+  const jsx = (type: unknown, props: Record<string, unknown>, key?: string): Element => {
+    if (type !== catalog.default) return { type, props, key };
+    const parentStates = states, parentCursor = cursor;
+    states = catalogStates; cursor = 0;
+    try { return catalog.default(); }
+    finally { states = parentStates; cursor = parentCursor; }
+  };
   const icons = new Proxy({}, { get: () => () => null });
-  runInNewContext(code, { exports: component, document,
+  const context = { document, window: { matchMedia: () => ({ get matches() { return mediaReduced; } }) },
     fetch() { calls.network++; throw Error("Network forbidden in isolated Home tests"); },
     sessionStorage: { getItem() { calls.storageReads++; if (options.deniedStorage) throw Error("Denied test storage"); return null; }, setItem() { calls.writes++; throw Error("Home must not write storage"); } },
     setTimeout(callback: Callback) { const id = ++timer; timeouts.set(id, callback); return id; }, clearTimeout(id: number) { timeouts.delete(id); },
@@ -77,22 +88,26 @@ function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: bo
     require(name: string) {
       if (name === "react/jsx-runtime") return { jsx, jsxs: jsx, Fragment: "Fragment" };
       if (name === "react") return {
-        useState(initial: unknown) { const index = cursor++; if (!(index in states)) states[index] = typeof initial === "function" ? initial() : initial; return [states[index], (value: unknown) => { states[index] = typeof value === "function" ? value(states[index]) : value; }]; },
+        useState(initial: unknown) { const index = cursor++, hookStates = states; if (!(index in hookStates)) hookStates[index] = typeof initial === "function" ? initial() : initial; return [hookStates[index], (value: unknown) => { hookStates[index] = typeof value === "function" ? value(hookStates[index]) : value; }]; },
         useRef(initial: unknown) { const index = cursor++; if (!(index in states)) states[index] = { current: initial }; return states[index]; },
+        useSyncExternalStore(_subscribe: unknown, getSnapshot: () => unknown, getServerSnapshot: () => unknown) { cursor++; return hydrated ? getSnapshot() : getServerSnapshot(); },
         useCallback(callback: Callback, dependencies: readonly unknown[]) { const index = cursor++; const previous = states[index] as { callback: Callback; dependencies: readonly unknown[] } | undefined; if (!previous || !dependenciesEqual(previous.dependencies, dependencies)) states[index] = { callback, dependencies }; return (states[index] as { callback: Callback }).callback; },
-        useEffect(callback: () => (() => void) | void, dependencies: readonly unknown[]) { const index = cursor++; const previous = states[index] as { dependencies: readonly unknown[]; cleanup?: () => void } | undefined; if (!previous || !dependenciesEqual(previous.dependencies, dependencies)) {
-          const next = { dependencies, cleanup: undefined as (() => void) | void }; states[index] = next;
+        useEffect(callback: () => (() => void) | void, dependencies: readonly unknown[]) { const index = cursor++, hookStates = states; const previous = hookStates[index] as { dependencies: readonly unknown[]; cleanup?: () => void } | undefined; if (!previous || !dependenciesEqual(previous.dependencies, dependencies)) {
+          const next = { dependencies, cleanup: undefined as (() => void) | void }; hookStates[index] = next;
           effects.push(() => { previous?.cleanup?.(); next.cleanup = callback(); });
         } },
       };
       if (name === "next/link") return { default: "Link" };
       if (name === "next/image") return { default: "Image" };
-      if (name.startsWith("@phosphor-icons/")) return { Heart: "Heart", Pause: "Pause", Play: "Play" };
+      if (name.startsWith("@phosphor-icons/")) return new Proxy({}, { get: (_target, key) => String(key) });
       if (name === "@/components/I18nProvider") return { useT: () => ({ locale, currency: "tl" }) };
+      if (name === "@/components/HomeCirclesCatalog") return { default: catalog.default };
       if (name === "@/components/ui/kit") return { Ico: icons, Peso: "Peso" };
+      if (name === "@/components/ui/icons") return { Ico: icons };
       if (name === "@/lib/local-preview") return { isLocalPreview: preview, PREVIEW_WALLET, PREVIEW_TIME, PREVIEW_CAMPAIGNS, normalizePreviewCampaigns: (rows: Campaign[]) => rows };
       if (name === "@/lib/circles/seed") return seed;
       if (name === "@/lib/circles/types") return circleTypes;
+      if (name === "@/lib/circles/organizers") return fixture("../lib/circles/organizers.ts");
       if (name === "@/lib/home-circles") return homeCircles;
       if (name === "@/lib/i18n/revamp-home") return { homeCopy };
       if (name === "@/lib/i18n/revamp-home-catalog") return catalogCopy;
@@ -103,11 +118,12 @@ function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: bo
       if (name.endsWith(".module.css")) return { default: new Proxy({}, { get: (_target, key) => String(key) }) };
       throw Error(`Unexpected actual Home dependency: ${name}`);
     },
-  });
+  };
+  runInNewContext(compile("../components/HomeCirclesCatalog.tsx"), { ...context, exports: catalog });
+  runInNewContext(code, { ...context, exports: component });
   function render() {
-    cursor = 0; tree = component.default();
-    const strip = nodes(tree).find(node => hasClass(node, "strip"));
-    if (strip) {
+    states = homeStates; cursor = 0; tree = component.default();
+    for (const strip of nodes(tree).filter(node => hasClass(node, "strip"))) {
       const ref = strip.props.ref as { current: { key?: string; scrollLeft: number; children: { offsetLeft: number; offsetWidth: number }[]; scrollTo(args: { left: number; behavior: string }): void } | null };
       if (!ref.current || ref.current.key !== strip.key) ref.current = { key: strip.key, scrollLeft: 0, children: [], scrollTo(args) { this.scrollLeft = args.left; scrolls.push(args); } };
       ref.current.children = nodes(strip.props.children).filter(node => node.type === "article").map((_node, index) => ({ offsetLeft: 16 + index * 264, offsetWidth: 250 }));
@@ -116,6 +132,7 @@ function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: bo
   }
   render();
   async function flush() {
+    hydrated = true;
     for (let loop = 0; loop < 5; loop++) {
       for (const effect of effects.splice(0)) effect();
       for (const [id, callback] of timeouts) { timeouts.delete(id); callback(); }
@@ -124,9 +141,9 @@ function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: bo
     }
     return tree!;
   }
-  function select(category: string) { const field = nodes(tree).find(node => node.props.id === "home-cause-category"); assert.ok(field); (field.props.onChange as (event: unknown) => void)({ target: { value: category } }); render(); }
+  function select(category: string) { const field = nodes(tree).find(node => node.props.id === "home-cause-category"); assert.ok(field); assert.notEqual(field.props.disabled, true, "The native category control must hydrate before accepting a choice"); (field.props.onChange as (event: unknown) => void)({ target: { value: category } }); render(); }
   function click(ariaLabel: string) { const button = nodes(tree).find(node => node.type === "button" && node.props["aria-label"] === ariaLabel); assert.ok(button, `Missing Home control ${ariaLabel}`); assert.notEqual(button.props.disabled, true); (button.props.onClick as () => void)(); render(); }
-  return { calls, render, flush, select, click, scrolls, intervals, document, set campaignFailure(value: boolean) { campaignFailure = value; }, get tree() { return tree!; }, get cards() { return nodes(tree).filter(node => node.type === "article"); }, changeReducedMotion(value: boolean) { mediaReduced = value; for (const listener of mediaListeners) listener(); render(); } };
+  return { calls, render, flush, select, click, scrolls, intervals, document, set campaignFailure(value: boolean) { campaignFailure = value; }, get tree() { return tree!; }, get catalog() { return nodes(tree).find(node => node.props["data-testid"] === "home-circles-catalog")!; }, get cards() { return nodes(tree).filter(node => node.type === "article" && "data-example-cause" in node.props); }, get d4Cards() { const strip = nodes(tree).find(node => node.props["aria-label"] === homeCopy(locale, "Campaign carousel")); return nodes(strip).filter(node => node.type === "article"); }, changeReducedMotion(value: boolean) { mediaReduced = value; for (const listener of mediaListeners) listener(); render(); } };
 }
 
 test("Home fixture selection keeps all 27 active examples and all nine categories without altering seeds", () => {
@@ -151,58 +168,86 @@ test("Home prototype UI phrases cover all four locales and preserve interpolatio
   }
 });
 
-for (const locale of LOCALES) test(`${locale}: actual Home preview renders all fixture covers/details/organizers with localized truth labels and no wallet actions`, async () => {
-  const ui = mount({ locale }); await ui.flush();
+for (const preview of [true, false]) for (const locale of LOCALES) test(`${locale}: ${preview ? "preview" : "live"} Home renders all 27 example covers, organizers and synthetic ratings`, async () => {
+  const ui = mount({ locale, preview }); await ui.flush();
   assert.equal(ui.cards.length, 27);
   const c = circlesCopy.circlesCopy(locale);
-  assert.ok(text(ui.tree).includes(catalogCopy.homeCatalogCopy(locale, "Fictional causes · AI illustrations · no payment.")));
+  assert.ok(ui.catalog);
+  assert.ok(text(ui.catalog).includes(catalogCopy.homeCatalogCopy(locale, "Fictional causes · AI photos · example ratings · no payment.")));
+  const organizers = fixture("../lib/circles/organizers.ts") as { getOrganizerForCircle(circle: Circle): { rating: number; reviewCount: number } };
   for (const [index, card] of ui.cards.entries()) {
     const circle = seed.SEED_CIRCLES[index];
+    const organizer = organizers.getOrganizerForCircle(circle);
     const image = nodes(card).find(node => node.type === "Image")!;
+    assert.equal(card.props["data-example-cause"], circle.id);
     assert.equal(image.props.src, circle.coverImage);
     assert.ok(existsSync(new URL(`../public${circle.coverImage}`, import.meta.url)));
-    assert.equal(image.props.alt, c("AI-generated fictional campaign illustration"));
+    assert.equal(image.props.alt, circle.imageAlt ?? c("AI-generated fictional campaign illustration"));
+    assert.equal(image.props.loading, index === 0 ? "eager" : "lazy");
     assert.ok(nodes(card).some(node => node.props.href === `/circles/${circle.id}`));
     assert.ok(nodes(card).some(node => node.props.href === `/circles/${circle.id}/organizer` && node.props["aria-label"] === c("View example organizer profile: {name}", { name: circle.organizer })));
-    assert.ok(nodes(card).some(node => node.props.href === `/circles/${circle.id}/donate` && text(node).trim() === catalogCopy.homeCatalogCopy(locale, "Donate · local demo")));
+    assert.ok(nodes(card).some(node => node.props.href === `/circles/${circle.id}/donate` && text(node).trim() === c("Preview a pledge")));
+    assert.ok(nodes(card).filter(node => node.type === "Link").every(node => node.props.prefetch === false));
     assert.ok(text(card).includes(circle.title)); assert.ok(text(card).includes(circle.organizer));
     assert.ok(text(card).includes(c("Example cause")));
+    assert.ok(text(card).includes(catalogCopy.homeCatalogCopy(locale, "Example rating")));
+    assert.ok(nodes(card).some(node => node.type === "span" && text(node) === catalogCopy.homeCatalogCopy(locale, "Example rating")), "The visible rating label must remain independently identifiable");
+    assert.ok(text(card).includes(organizer.rating.toFixed(1)));
+    assert.ok(text(card).includes(catalogCopy.homeCatalogCopy(locale, "{count} example reviews", { count: organizer.reviewCount })));
     assert.ok(nodes(card).some(node => node.props["aria-label"] === catalogCopy.homeCatalogCopy(locale, "{percent}% example progress. No donations collected.", { percent: circleTypes.progressPct(circle) })));
-    assert.doesNotMatch(text(card), /XLM|PHP|₱|exact-source-units/);
+    assert.doesNotMatch(text(card), /\bXLM\b|\bPHP\b|₱|exact-source-units|already KYC|Verified/);
+    assert.equal(nodes(card).some(node => String(node.props.href ?? "").startsWith("/campaigns?id=")), false);
   }
   assert.ok(nodes(ui.tree).some(node => node.props.href === "/campaigns?mode=testnet"));
   assert.ok(nodes(ui.tree).some(node => node.props.href === "/circles/create"));
-  assert.ok(nodes(ui.tree).some(node => node.props.href === "/campaigns" && node.props["aria-label"] === catalogCopy.homeCatalogCopy(locale, "Browse all example causes")));
-  const options = nodes(ui.tree).filter(node => node.type === "option"); assert.equal(options.length, 10);
+  assert.ok(nodes(ui.catalog).some(node => node.props.href === "/campaigns?mode=examples" && node.props["aria-label"] === catalogCopy.homeCatalogCopy(locale, "Browse all example causes")));
+  const options = nodes(ui.catalog).filter(node => node.type === "option"); assert.equal(options.length, 10);
   for (const option of options.slice(1)) assert.equal(text(option), circlesCopy.circlesCategory(locale, option.props.value as CircleCategory));
-  assert.equal(ui.calls.wallet, 0); assert.equal(ui.calls.handle, 0); assert.deepEqual(ui.calls.campaigns, []); assert.equal(ui.calls.network, 0); assert.equal(ui.calls.writes, 0);
+  assert.equal(ui.calls.wallet, preview ? 0 : 1); assert.equal(ui.calls.handle, preview ? 0 : 1);
+  assert.deepEqual(ui.calls.campaigns, preview ? [] : ["0", "809"]);
+  assert.equal(ui.calls.network, 0); assert.equal(ui.calls.writes, 0);
 });
 
-test("actual category changes reset the carousel, pause auto-play and expose three causes in every sector", async () => {
+test("actual category changes reset the manual catalog and expose three causes in every sector without financial reads", async () => {
   const ui = mount({ reducedMotion: false }); await ui.flush();
-  ui.click(homeCopy("en", "Next campaign")); assert.equal(ui.scrolls.at(-1)?.left, 264);
+  ui.click(catalogCopy.homeCatalogCopy("en", "Next example cause")); assert.equal(ui.scrolls.at(-1)?.left, 264);
   for (const category of homeCircles.HOME_CAUSE_CATEGORIES.slice(1)) {
     ui.select(category); await ui.flush(); assert.equal(ui.cards.length, 3); assert.equal(ui.intervals.size, 0);
     assert.ok(text(ui.tree).includes("01 / 03"));
     assert.ok(ui.cards.every(card => text(card).includes(circlesCopy.circlesCategory("en", category as CircleCategory))));
-    ui.click(homeCopy("en", "Next campaign")); assert.equal(ui.scrolls.at(-1)?.left, 264);
-    ui.click(homeCopy("en", "Previous campaign")); assert.equal(ui.scrolls.at(-1)?.left, 0);
+    ui.click(catalogCopy.homeCatalogCopy("en", "Next example cause")); assert.equal(ui.scrolls.at(-1)?.left, 264);
+    ui.click(catalogCopy.homeCatalogCopy("en", "Previous example cause")); assert.equal(ui.scrolls.at(-1)?.left, 0);
   }
   ui.select("all"); await ui.flush(); assert.equal(ui.cards.length, 27); assert.ok(text(ui.tree).includes("01 / 27"));
   ui.select("not-a-category"); await ui.flush(); assert.equal(ui.cards.length, 27);
+  assert.equal(ui.calls.wallet, 0); assert.equal(ui.calls.handle, 0); assert.deepEqual(ui.calls.campaigns, []);
 });
 
-test("actual carousel preserves reduced-motion, explicit pause/play, wraparound, hidden-page and interaction guards", async () => {
+test("server-rendered native catalog controls wait for hydration, then accept category and carousel events", async () => {
+  for (const preview of [true, false]) {
+    const ui = mount({ preview });
+    assert.equal(ui.cards.length, 27, "SSR must still expose the complete read-only example catalog");
+    assert.equal(String(ui.catalog.props["data-catalog-ready"]), "false");
+    const controls = nodes(ui.catalog).filter(node => node.type === "select" || node.type === "button");
+    assert.equal(controls.length, 3); assert.ok(controls.every(control => control.props.disabled === true));
+    assert.throws(() => ui.select("animals"), /hydrate before accepting/);
+    assert.equal(ui.calls.wallet, 0); assert.deepEqual(ui.calls.campaigns, []); assert.equal(ui.calls.writes, 0);
+    await ui.flush();
+    assert.equal(String(ui.catalog.props["data-catalog-ready"]), "true");
+    assert.ok(nodes(ui.catalog).filter(node => node.type === "select" || node.type === "button").every(control => control.props.disabled !== true));
+    ui.select("animals"); await ui.flush(); assert.equal(ui.cards.length, 3);
+    ui.click(catalogCopy.homeCatalogCopy("en", "Next example cause")); assert.ok(text(ui.catalog).includes("02 / 03"));
+    assert.equal(ui.calls.wallet, preview ? 0 : 1); assert.equal(ui.calls.writes, 0);
+  }
+});
+
+test("example catalog is manual-only, wraps correctly and respects reduced-motion changes", async () => {
   const reduced = mount({ reducedMotion: true }); await reduced.flush(); assert.equal(reduced.intervals.size, 0);
-  assert.equal(nodes(reduced.tree).find(node => node.props["aria-label"] === homeCopy("en", "Pause campaign carousel"))?.props.disabled, true);
-  reduced.click(homeCopy("en", "Previous campaign")); assert.equal(reduced.scrolls.at(-1)?.left, 26 * 264); assert.equal(reduced.scrolls.at(-1)?.behavior, "instant");
-  const ui = mount({ reducedMotion: false }); await ui.flush(); assert.equal(ui.intervals.size, 1);
-  for (const interval of [...ui.intervals.values()]) interval(); await ui.flush(); assert.equal(ui.scrolls.at(-1)?.behavior, "smooth"); assert.ok(text(ui.tree).includes("02 / 27"));
-  const count = ui.scrolls.length; ui.document.hidden = true; for (const interval of [...ui.intervals.values()]) interval(); await ui.flush(); assert.equal(ui.scrolls.length, count);
-  ui.document.hidden = false; ui.click(homeCopy("en", "Pause campaign carousel")); await ui.flush(); assert.equal(ui.intervals.size, 0);
-  ui.click(homeCopy("en", "Play campaign carousel")); await ui.flush(); assert.equal(ui.intervals.size, 1);
-  const strip = nodes(ui.tree).find(node => hasClass(node, "strip"))!; (strip.props.onPointerDown as () => void)(); await ui.flush(); assert.equal(ui.intervals.size, 0);
-  ui.click(homeCopy("en", "Play campaign carousel")); await ui.flush(); ui.changeReducedMotion(true); await ui.flush(); assert.equal(ui.intervals.size, 0);
+  reduced.click(catalogCopy.homeCatalogCopy("en", "Previous example cause")); assert.equal(reduced.scrolls.at(-1)?.left, 26 * 264); assert.equal(reduced.scrolls.at(-1)?.behavior, "instant");
+  const ui = mount({ reducedMotion: false }); await ui.flush(); assert.equal(ui.intervals.size, 0);
+  ui.click(catalogCopy.homeCatalogCopy("en", "Next example cause")); await ui.flush(); assert.equal(ui.scrolls.at(-1)?.behavior, "smooth"); assert.ok(text(ui.tree).includes("02 / 27"));
+  ui.changeReducedMotion(true); await ui.flush(); ui.click(catalogCopy.homeCatalogCopy("en", "Next example cause")); assert.equal(ui.scrolls.at(-1)?.behavior, "instant");
+  assert.equal(nodes(ui.catalog).some(node => node.props["aria-label"] === homeCopy("en", "Pause campaign carousel")), false);
 });
 
 test("unavailable preview storage does not substitute D4 data or trigger real readers", async () => {
@@ -211,34 +256,76 @@ test("unavailable preview storage does not substitute D4 data or trigger real re
 
 test("flag0 Home retains paginated D4 reads, contract IDs/exact source totals and original creation/navigation", async () => {
   const ui = mount({ preview: false }); await ui.flush();
-  assert.equal(ui.calls.wallet, 1); assert.equal(ui.calls.handle, 1); assert.deepEqual(ui.calls.campaigns, ["0", "809"]); assert.equal(ui.cards.length, 12);
-  for (const [index, card] of ui.cards.entries()) {
+  assert.equal(ui.calls.wallet, 1); assert.equal(ui.calls.handle, 1); assert.deepEqual(ui.calls.campaigns, ["0", "809"]); assert.equal(ui.cards.length, 27); assert.equal(ui.d4Cards.length, 12);
+  for (const [index, card] of ui.d4Cards.entries()) {
     assert.ok(text(card).includes(`Isolated Testnet campaign ${index + 1}`));
     assert.ok(text(card).includes(`exact-source-units:${PREVIEW_CAMPAIGNS[0].total} XLM`));
     assert.ok(nodes(card).some(node => node.props.href === `/campaigns?id=${800 + index}`));
     assert.equal(nodes(card).filter(node => String(node.props.href ?? "").startsWith("/circles/")).length, 0);
     assert.equal(nodes(card).some(node => String(node.props.src ?? "").startsWith("/circles/generated/")), false);
   }
-  assert.equal(nodes(ui.tree).some(node => node.props.id === "home-cause-category"), false);
+  assert.ok(nodes(ui.catalog).some(node => node.props.id === "home-cause-category"));
   assert.ok(nodes(ui.tree).some(node => node.props.href === "/campaigns?create=1"));
-  assert.ok(nodes(ui.tree).some(node => node.props.href === "/circles"));
+  assert.ok(text(ui.tree).includes(catalogCopy.homeCatalogCopy("en", "Separate on-chain escrow and proof-review flow. Not the fictional examples above.")));
+  ui.select("animals"); await ui.flush(); assert.equal(ui.cards.length, 3); assert.equal(ui.d4Cards.length, 12);
+  assert.deepEqual(ui.calls.campaigns, ["0", "809"], "Selecting examples never reloads or substitutes D4 contract data");
   assert.equal(ui.calls.storageReads, 0); assert.equal(ui.calls.network, 0); assert.equal(ui.calls.writes, 0);
 });
 
-test("flag0 campaign failure stays honest and retryable without falling back to fictional Circles", async () => {
-  const ui = mount({ preview: false, failCampaigns: true }); await ui.flush(); assert.equal(ui.cards.length, 0);
+test("flag0 D4 campaign failure remains honest and retryable while the independent example catalog stays available", async () => {
+  const ui = mount({ preview: false, failCampaigns: true }); await ui.flush(); assert.equal(ui.d4Cards.length, 0); assert.equal(ui.cards.length, 27);
   assert.ok(text(ui.tree).includes(homeCopy("en", "Campaigns could not be loaded. Please try again.")));
   const retry = nodes(ui.tree).find(node => node.type === "button" && text(node) === "Try again")!;
-  ui.campaignFailure = false; (retry.props.onClick as () => void)(); await ui.flush(); assert.equal(ui.cards.length, 12);
+  ui.campaignFailure = false; (retry.props.onClick as () => void)(); await ui.flush(); assert.equal(ui.d4Cards.length, 12); assert.equal(ui.cards.length, 27);
   assert.equal(ui.calls.network, 0); assert.equal(ui.calls.writes, 0);
 });
 
+test("examples render before wallet/D4 readers settle and remain present when the real D4 collection is empty", async () => {
+  const ui = mount({ preview: false, liveCampaigns: [] });
+  assert.equal(ui.cards.length, 27); assert.equal(ui.d4Cards.length, 0);
+  assert.equal(ui.calls.wallet, 0); assert.deepEqual(ui.calls.campaigns, []);
+  await ui.flush();
+  assert.equal(ui.cards.length, 27); assert.equal(ui.d4Cards.length, 0);
+  assert.ok(text(ui.tree).includes(homeCopy("en", "No campaigns yet. Start one and invite your community.")));
+  assert.ok(nodes(ui.tree).some(node => node.props.href === "/campaigns?create=1"));
+});
+
+test("closed D4 campaigns remain honest read-only cards, never fictional pledge links", async () => {
+  const campaign = { ...PREVIEW_CAMPAIGNS[0], id: "904", title: "Actual closed escrow fixture", state: "Closed" as Campaign["state"] };
+  const ui = mount({ preview: false, liveCampaigns: [campaign] }); await ui.flush();
+  assert.equal(ui.cards.length, 27); assert.equal(ui.d4Cards.length, 1);
+  const link = nodes(ui.d4Cards[0]).find(node => node.type === "Link")!;
+  assert.equal(link.props.href, "/campaigns?id=904"); assert.equal(text(link), homeCopy("en", "View campaign"));
+  assert.ok(text(ui.d4Cards[0]).includes("CAMPAIGN #904 · Closed"));
+});
+
 test("Home catalog responsive styles retain compact controls and persistent truth framing", () => {
-  const css = source("../app/home.module.css");
-  assert.match(css, /\.catalogTools select[^}]*min-height:\s*44px/);
-  assert.match(css, /\.catalogOrganizer[^}]*min-height:\s*44px/);
-  assert.match(css, /\.catalogTitle[^}]*min-height:\s*44px/);
-  assert.match(css, /\.catalogTools select:focus-visible/);
-  assert.doesNotMatch(css, /\.catalogNotice\s*\{[^}]*display:\s*none/);
+  const css = source("../components/HomeCirclesCatalog.module.css");
+  const sheet = parse(css);
+  for (const [selector, property] of [[".tools select", "min-height"], [".organizer", "min-height"], [".body h2 a", "min-height"], [".pledge", "min-height"], [".controls button", "height"]]) {
+    const values: string[] = [];
+    sheet.walkRules(rule => { if (rule.selectors.includes(selector)) for (const node of rule.nodes) if (node.type === "decl" && (node as Declaration).prop === property) values.push((node as Declaration).value); });
+    assert.ok(values.some(value => Number.parseFloat(value) >= 44), `${selector} must retain a 44px touch target`);
+  }
+  assert.match(css, /:focus-visible[^}]*outline:\s*2px/);
+  assert.doesNotMatch(css, /\.notice\s*\{[^}]*display:\s*none/);
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
+});
+
+test("Home always renders the example component before the separately gated D4 section", () => {
+  const home = source("../app/page.tsx"), catalog = source("../components/HomeCirclesCatalog.tsx");
+  assert.match(home, /<HomeCirclesCatalog\s*\/>\s*\{!isLocalPreview\s*&&\s*<section/);
+  assert.doesNotMatch(catalog, /campaignState|walletState|myHandle|sessionStorage|localStorage|fetch\s*\(/);
+  assert.doesNotMatch(catalog, /setInterval\s*\(/);
+});
+
+test("real D4 carousel keeps its pause, hidden-page and interaction safeguards independently of manual examples", async () => {
+  const ui = mount({ preview: false, reducedMotion: false }); await ui.flush(); assert.equal(ui.intervals.size, 1);
+  for (const interval of [...ui.intervals.values()]) interval(); await ui.flush(); assert.ok(text(ui.tree).includes("02 / 12"));
+  const count = ui.scrolls.length; ui.document.hidden = true; for (const interval of [...ui.intervals.values()]) interval(); await ui.flush(); assert.equal(ui.scrolls.length, count);
+  ui.document.hidden = false; ui.click(homeCopy("en", "Pause campaign carousel")); await ui.flush(); assert.equal(ui.intervals.size, 0);
+  ui.click(homeCopy("en", "Play campaign carousel")); await ui.flush(); assert.equal(ui.intervals.size, 1);
+  const strip = nodes(ui.tree).find(node => node.props["aria-label"] === homeCopy("en", "Campaign carousel"))!; (strip.props.onPointerDown as () => void)(); await ui.flush(); assert.equal(ui.intervals.size, 0);
+  ui.click(homeCopy("en", "Play campaign carousel")); await ui.flush(); ui.changeReducedMotion(true); await ui.flush(); assert.equal(ui.intervals.size, 0);
+  assert.equal(ui.cards.length, 27); assert.equal(ui.d4Cards.length, 12);
 });
