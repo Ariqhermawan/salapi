@@ -156,6 +156,7 @@ function componentSetup(options: { preview?: boolean; locale?: Locale; screen?: 
     "@/lib/local-preview": { isLocalPreview: preview, PREVIEW_WALLET }, "@/lib/xlm-deposit": deposit,
     "./XlmDepositPanel.module.css": { default: new Proxy({}, { get: (_target, name) => String(name) }) },
     "./XlmDepositPanel": { default: "XlmDepositPanel" }, "./PaymentProviderDemo": { default: "PaymentProviderDemo" },
+    "./PaymentChannelOptions": { default: "PaymentChannelOptions" },
     "@/app/actions": {
       walletDepositAddress: () => { calls.read++; return options.read ? options.read() : Promise.resolve(details); },
       walletState: async () => { calls.walletRead++; return { address, pesos: 0 }; }, topUpSandbox: forbidden("writes"),
@@ -302,7 +303,29 @@ test("actual preview TopUp preserves provider/faucet navigation and deposit mode
     (ui.update().props.onFaucet as () => void)(); const faucet = ui.update();
     assert.equal(nodes(faucet).some(node => node.type === "XlmDepositPanel" || node.type === "PaymentProviderDemo"), false);
     assert.equal(button(faucet, c.faucet).props["aria-pressed"], true);
+    click(button(faucet, c.provider));
+    assert.equal(ui.update().type, "PaymentProviderDemo");
     assert.equal(ui.calls.walletRead, 0); assert.equal(ui.calls.read, 0); noMutations(ui.calls);
+  }
+});
+
+test("non-preview GCash/QRIS discovery is read-only and independent of wallet or faucet reads", () => {
+  for (const locale of LOCALES) {
+    const ui = componentSetup({ screen: true, locale }), c = accountCopy(locale);
+    click(button(ui.update(), "GCash / QRIS"));
+    const tree = ui.update();
+    assert.equal(button(tree, "GCash / QRIS").props["aria-pressed"], true);
+    assert.ok(text(tree).includes(c.providersDisconnected));
+    assert.ok(text(tree).includes(c.noProviderRequest));
+    const catalog = nodes(tree).find(node => node.type === "PaymentChannelOptions");
+    assert.ok(catalog);
+    assert.equal(catalog.props.payout, false);
+    assert.equal(catalog.props.onChange, undefined);
+    assert.equal(nodes(tree).some(node => node.type === "PaymentProviderDemo" || node.type === "XlmDepositPanel"), false);
+    assert.equal(ui.calls.walletRead, 0); assert.equal(ui.calls.read, 0); noMutations(ui.calls);
+    click(button(tree, xlmDepositCopy(locale).deposit));
+    assert.ok(nodes(ui.update()).some(node => node.type === "XlmDepositPanel"));
+    assert.equal(ui.calls.walletRead, 0); noMutations(ui.calls);
   }
 });
 

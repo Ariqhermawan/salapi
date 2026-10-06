@@ -1,7 +1,7 @@
 import type { Locale } from "./config";
 
 const en = {
-  methods: "Choose how to add funds", provider: "Payment provider", faucet: "Testnet faucet", deposit: "Deposit XLM",
+  methods: "Choose how to add funds", provider: "Payment provider", faucet: "Testnet faucet", deposit: "Deposit XLM", paymentMethods: "GCash / QRIS",
   eyebrow: "FROM AN EXTERNAL WALLET", title: "Your wallet. Your address.", intro: "Receive native Testnet XLM directly into your Salapi wallet.",
   warning: "Testnet only. Do not send Mainnet XLM, USDC, or other assets. Testnet XLM has no monetary value.",
   previewTitle: "Preview, not a deposit address", previewBody: "This is an example wallet, not your personal wallet. Do not send any assets here. Your address and deposit QR are available in authenticated Testnet mode.",
@@ -17,7 +17,7 @@ type DepositCopy = typeof en;
 export const XLM_DEPOSIT_COPY: Record<Locale, DepositCopy> = {
   en,
   id: {
-    methods: "Pilih cara isi saldo", provider: "Provider pembayaran", faucet: "Faucet Testnet", deposit: "Deposit XLM",
+    methods: "Pilih cara isi saldo", provider: "Provider pembayaran", faucet: "Faucet Testnet", deposit: "Deposit XLM", paymentMethods: "GCash / QRIS",
     eyebrow: "DARI WALLET EKSTERNAL", title: "Wallet Anda. Alamat Anda.", intro: "Terima XLM native Testnet langsung ke wallet Salapi Anda.",
     warning: "Khusus Testnet. Jangan kirim XLM Mainnet, USDC, atau aset lain. XLM Testnet tidak bernilai uang.",
     previewTitle: "Preview, bukan alamat deposit", previewBody: "Ini wallet contoh, bukan wallet pribadi Anda. Jangan kirim aset ke sini. Alamat dan QR deposit Anda tersedia di mode Testnet dengan akun yang sudah masuk.",
@@ -30,7 +30,7 @@ export const XLM_DEPOSIT_COPY: Record<Locale, DepositCopy> = {
     inactive: "Jika akun belum aktif di Testnet, gunakan faucet Testnet terpisah terlebih dahulu. Halaman ini tidak mengaktifkan atau mendanai akun.",
   },
   tl: {
-    methods: "Piliin kung paano magdagdag", provider: "Payment provider", faucet: "Testnet faucet", deposit: "Mag-deposit ng XLM",
+    methods: "Piliin kung paano magdagdag", provider: "Payment provider", faucet: "Testnet faucet", deposit: "Mag-deposit ng XLM", paymentMethods: "GCash / QRIS",
     eyebrow: "MULA SA EXTERNAL WALLET", title: "Wallet mo. Address mo.", intro: "Tumanggap ng native Testnet XLM direkta sa iyong Salapi wallet.",
     warning: "Testnet lamang. Huwag magpadala ng Mainnet XLM, USDC, o ibang asset. Walang halaga bilang pera ang Testnet XLM.",
     previewTitle: "Preview, hindi deposit address", previewBody: "Halimbawang wallet ito, hindi ang personal mong wallet. Huwag magpadala ng asset dito. Makikita ang iyong address at deposit QR sa authenticated Testnet mode.",
@@ -43,7 +43,7 @@ export const XLM_DEPOSIT_COPY: Record<Locale, DepositCopy> = {
     inactive: "Kung hindi pa activated sa Testnet ang account, gamitin muna ang hiwalay na Testnet faucet. Hindi nag-a-activate o nagpopondo ang pahinang ito.",
   },
   vi: {
-    methods: "Chọn cách nạp", provider: "Nhà cung cấp thanh toán", faucet: "Faucet Testnet", deposit: "Nạp XLM",
+    methods: "Chọn cách nạp", provider: "Nhà cung cấp thanh toán", faucet: "Faucet Testnet", deposit: "Nạp XLM", paymentMethods: "GCash / QRIS",
     eyebrow: "TỪ VÍ BÊN NGOÀI", title: "Ví của bạn. Địa chỉ của bạn.", intro: "Nhận XLM gốc trên Testnet trực tiếp vào ví Salapi của bạn.",
     warning: "Chỉ dùng Testnet. Không gửi XLM Mainnet, USDC hoặc tài sản khác. XLM Testnet không có giá trị tiền tệ.",
     previewTitle: "Bản xem trước, không phải địa chỉ nạp", previewBody: "Đây là ví ví dụ, không phải ví cá nhân của bạn. Không gửi tài sản đến đây. Địa chỉ và mã QR nạp của bạn có trong chế độ Testnet sau khi đăng nhập.",

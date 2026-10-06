@@ -9,11 +9,14 @@ import { PREVIEW_WALLET } from "../lib/local-preview.ts";
 import type { Locale } from "../lib/i18n/config.ts";
 import { accountCopy, accountText } from "../lib/i18n/revamp-account.ts";
 import { xlmDepositCopy } from "../lib/i18n/xlm-deposit.ts";
+import * as channels from "../lib/payment-channels.ts";
+import { paymentChannelText } from "../lib/i18n/payment-channels.ts";
 
 type Element = { type: string; props: Record<string, unknown> };
 type Component = { default(props: Record<string, unknown>): Element | null };
 const files = ["PaymentProviderDemo", "TopUpScreen", "WithdrawScreen"] as const;
 const codes = Object.fromEntries(files.map(name => [name, ts.transpileModule(readFileSync(new URL(`../components/screens/${name}.tsx`, import.meta.url), "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText]));
+const channelCode = ts.transpileModule(readFileSync(new URL("../components/screens/PaymentChannelOptions.tsx", import.meta.url), "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText;
 
 function nodes(value: unknown): Element[] {
   if (Array.isArray(value)) return value.flatMap(nodes);
@@ -59,6 +62,21 @@ function setup(options: { payout?: boolean; currency?: Locale; locale?: Locale; 
       if (name === "@/components/I18nProvider") return { useT: () => ({ locale: options.locale ?? "en", currency, t: (key: string) => key }) };
       if (name === "@/lib/i18n/revamp-account") return { accountCopy, accountText };
       if (name === "@/lib/i18n/xlm-deposit") return { xlmDepositCopy };
+      if (name === "@/lib/payment-channels") return channels;
+      if (name === "@/lib/i18n/payment-channels") return { paymentChannelText };
+      if (name === "./PaymentChannelOptions" || name === "@/components/screens/PaymentChannelOptions") {
+        const channelModule = {} as Component;
+        runInNewContext(channelCode, { exports: channelModule, require(dependency: string) {
+          if (dependency === "react/jsx-runtime") return { jsx, jsxs: jsx };
+          if (dependency === "@/components/I18nProvider") return { useT: () => ({ locale: options.locale ?? "en" }) };
+          if (dependency === "@/lib/local-preview") return { isLocalPreview: preview };
+          if (dependency === "@/lib/payment-channels") return channels;
+          if (dependency === "@/lib/i18n/payment-channels") return { paymentChannelText };
+          if (dependency.endsWith(".module.css")) return { default: {} };
+          throw Error(`Unexpected channel dependency ${dependency}`);
+        } });
+        return channelModule;
+      }
       if (name === "./XlmDepositPanel") return { default: "DepositPanel" };
       if (name === "@/components/ui/kit") return { T: {}, Ico: icons, AppBar: "AppBar", IconButton: "IconButton", Card: "Card", Row: "Row", Btn: "Btn", Chip: "Chip", Money: "Money", PoweredByStellar: "PoweredByStellar" };
       if (name === "@/components/ui/SuccessMotion") return { default: (props: Record<string, unknown>) => jsx("SuccessMotion", { ...props, children: [props.title, props.children] }) };
@@ -83,6 +101,7 @@ function setup(options: { payout?: boolean; currency?: Locale; locale?: Locale; 
     currency(value: Locale) { currency = value; tree = render(); },
     async click(label: string) { (button(label).props.onClick as () => void)(); await settle(); },
     changeProvider(provider: string) { const node = find(node => node.type === "input" && node.props.name === "provider" && node.props.value === provider); (node.props.onChange as () => void)(); tree = render(); },
+    changeChannel(channel: string) { const node = find(node => node.props["data-payment-channel"] === channel); (node.props.onClick as () => void)(); tree = render(); },
     async faucet() { const node = find(node => node.type === "ProviderDemo"); (node.props.onFaucet as () => void)(); await settle(); },
   };
 }
@@ -119,7 +138,7 @@ test("every status event is denied outside local preview", () => {
 for (const currency of Object.keys(currencyValues) as Locale[]) {
   test(`${currency}: actual entry handlers reject invalid precision and malformed amounts`, async () => {
     const ui = setup({ currency });
-    for (const raw of ["", "-5", "0", "5e2", " 5", CURRENCY[currency].dp === 0 ? "1.5" : "1.234"]) {
+    for (const raw of ["", "-5", "0", "5e2", " 5", "1.234"]) {
       ui.amount(raw);
       assert.equal(ui.button("Review top-up demo").props.disabled, true);
       await ui.click("Review top-up demo");
@@ -132,9 +151,9 @@ for (const currency of Object.keys(currencyValues) as Locale[]) {
     const ui = setup({ currency, payout: true });
     await ui.click("Max");
     const raw = String(ui.find(node => node.props.id === "provider-demo-amount").props.value);
-    const minor = demoAmountMinor(raw, CURRENCY[currency].dp);
+    const minor = demoAmountMinor(raw, CURRENCY.tl.dp);
     assert.ok(minor !== null);
-    assert.ok(minor <= BigInt(Math.floor(localAmount(PREVIEW_WALLET.pesos, currency) * 10 ** CURRENCY[currency].dp)));
+    assert.ok(minor <= BigInt(Math.floor(localAmount(PREVIEW_WALLET.pesos, "tl") * 10 ** CURRENCY.tl.dp)));
     await ui.click("Review payout demo");
     assert.match(text(ui.tree), /Wallet balance changeNone/);
     await ui.click("Confirm local payout demo");
@@ -149,7 +168,8 @@ for (const currency of Object.keys(currencyValues) as Locale[]) {
 test("top-up Mayar selection and all simulated outcomes perform no provider or ledger write", async () => {
   for (const outcome of ["success", "failure", "expired"]) {
     const ui = setup({ currency: "en" });
-    ui.amount("10.25");
+    ui.changeChannel("qris");
+    ui.amount("25000");
     ui.changeProvider("mayar");
     await ui.click("Review top-up demo");
     assert.match(text(ui.tree), /ProviderMayar.id/);
@@ -172,10 +192,81 @@ test("payout Mayar remains unavailable even if its disabled selection handler is
   noWrites(ui);
 });
 
+test("GCash cannot enable Mayar, including a forcibly invoked disabled provider handler", async () => {
+  const ui = setup();
+  ui.amount("100.25");
+  assert.equal(ui.find(node => node.type === "input" && node.props.value === "mayar").props.disabled, true);
+  ui.changeProvider("mayar");
+  await ui.click("Review top-up demo");
+  assert.match(text(ui.tree), /ProviderXendit/);
+  assert.match(text(ui.tree), /GCash · PHP/);
+  assert.doesNotMatch(text(ui.tree), /ProviderMayar.id/);
+  noWrites(ui);
+});
+
+test("method switches clear the amount and cannot silently convert PHP into IDR", async () => {
+  const ui = setup({ currency: "en" });
+  ui.amount("100.25"); ui.changeChannel("qris");
+  assert.equal(ui.find(node => node.props.id === "provider-demo-amount").props.value, "");
+  assert.equal(ui.button("Review top-up demo").props.disabled, true);
+  assert.match(text(ui.tree), /Method changed.*amount was cleared/);
+  ui.amount("100.25");
+  assert.equal(ui.button("Review top-up demo").props.disabled, true);
+  await ui.click("Review top-up demo");
+  assert.ok(nodes(ui.tree).some(node => node.props.id === "provider-demo-amount"));
+  ui.amount("25000"); await ui.click("Review top-up demo");
+  assert.match(text(ui.tree), /QRIS · IDR/); assert.match(text(ui.tree), /Rp 25\.000/);
+  ui.currency("tl");
+  assert.match(text(ui.tree), /QRIS · IDR/); assert.match(text(ui.tree), /Rp 25\.000/);
+  await ui.click("Edit amount"); ui.changeChannel("gcash");
+  assert.equal(ui.find(node => node.props.id === "provider-demo-amount").props.value, "");
+  noWrites(ui);
+});
+
+test("QRIS payout is visible but inert, and IDR bank/e-wallet Max stays under the illustrative cap", async () => {
+  const ui = setup({ payout: true, currency: "en" });
+  const qris = ui.find(node => node.props["data-payment-channel"] === "qris");
+  assert.equal(qris.props.disabled, true);
+  assert.match(text(qris), /merchant QRIS here is payment-only.*QRIS TUNTAS.*not configured/);
+  ui.amount("100"); ui.changeChannel("qris");
+  assert.equal(ui.find(node => node.props.id === "provider-demo-amount").props.value, "100");
+  ui.changeChannel("bank-wallet");
+  assert.equal(ui.find(node => node.props.id === "provider-demo-amount").props.value, "");
+  ui.amount("1.5"); assert.equal(ui.button("Review payout demo").props.disabled, true);
+  await ui.click("Max");
+  const amount = String(ui.find(node => node.props.id === "provider-demo-amount").props.value);
+  assert.ok(demoAmountMinor(amount,0)! <= BigInt(Math.floor(localAmount(PREVIEW_WALLET.pesos,"id"))));
+  await ui.click("Review payout demo"); assert.match(text(ui.tree), /Bank \/ e-wallet · IDR/);
+  await ui.click("Confirm local payout demo"); await ui.click("Show success demo");
+  await ui.click("Explore a reversed payout example"); assert.match(text(ui.tree), /No real transaction exists/);
+  noWrites(ui);
+});
+
+test("a Mayar QRIS demo cannot force an unsupported switch into GCash", () => {
+  const ui = setup(); ui.changeChannel("qris"); ui.amount("25000"); ui.changeProvider("mayar");
+  const gcash = ui.find(node => node.props["data-payment-channel"] === "gcash"); assert.equal(gcash.props.disabled,true);
+  ui.changeChannel("gcash");
+  assert.equal(ui.find(node => node.props.id === "provider-demo-amount").props.value,"25000");
+  assert.equal(ui.find(node => node.type === "input" && node.props.value === "mayar").props.checked,true);
+  noWrites(ui);
+});
+
+test("a retained local method handler resets reviewed status and amount instead of reusing an old ticket", async () => {
+  const ui = setup();
+  const selectQris = ui.find(node => node.props["data-payment-channel"] === "qris").props.onClick as () => void;
+  ui.amount("100.25"); await ui.click("Review top-up demo");
+  assert.match(text(ui.tree), /GCash · PHP/);
+  selectQris(); ui.currency("vi");
+  assert.equal(ui.find(node => node.props.id === "provider-demo-amount").props.value, "");
+  assert.equal(ui.button("Review top-up demo").props.disabled, true);
+  assert.doesNotMatch(text(ui.tree), /Confirm local top-up demo/);
+  noWrites(ui);
+});
+
 test("payout entry rejects over-balance amounts in every display currency", async () => {
   for (const currency of Object.keys(currencyValues) as Locale[]) {
     const ui = setup({ currency, payout: true });
-    ui.amount(String(Math.ceil(localAmount(PREVIEW_WALLET.pesos, currency)) + 1000));
+    ui.amount(String(Math.ceil(localAmount(PREVIEW_WALLET.pesos, "tl")) + 1000));
     assert.equal(ui.button("Review payout demo").props.disabled, true);
     await ui.click("Review payout demo");
     assert.ok(nodes(ui.tree).some(node => node.props.id === "provider-demo-amount"));
@@ -202,14 +293,15 @@ test("payout failure leaves no settlement, and pending reset performs no cancell
   noWrites(reset);
 });
 
-test("review amount revalidates when display currency becomes nonrepresentable", async () => {
+test("display currency changes never reinterpret a reviewed GCash PHP amount", async () => {
   const ui = setup({ currency: "tl" });
   ui.amount("1.50");
   await ui.click("Review top-up demo");
   ui.currency("id");
   await ui.click("Confirm local top-up demo");
-  assert.ok(nodes(ui.tree).some(node => ["button", "Btn"].includes(node.type) && text(node) === "Confirm local top-up demo"));
-  assert.ok(!nodes(ui.tree).some(node => ["button", "Btn"].includes(node.type) && text(node) === "Show success demo"));
+  assert.match(text(ui.tree), /GCash · PHP/);
+  assert.match(text(ui.tree), /₱1.5/);
+  assert.ok(nodes(ui.tree).some(node => ["button", "Btn"].includes(node.type) && text(node) === "Show success demo"));
   noWrites(ui);
 });
 
@@ -246,7 +338,7 @@ for (const locale of ["en", "tl", "id", "vi"] as const) {
     const c = accountCopy(locale);
     const ui = setup({ locale, currency: "en", payout: true });
     assert.ok(text(ui.tree).includes(c.providersDisconnected));
-    assert.ok(text(ui.tree).includes(c.mayarUnavailable));
+    assert.ok(text(ui.tree).includes(paymentChannelText(locale,"mayarPayout")));
     assert.equal(ui.find(node => node.type === "input" && node.props.value === "mayar").props.disabled, true);
     await ui.click(c.max);
     await ui.click(c.reviewPayout);

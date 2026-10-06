@@ -13,6 +13,8 @@ import { DICTS } from "../lib/i18n/dictionaries.ts";
 import { CURRENCY, localAmount, formatLocalAmount, pesoFromLocal } from "../lib/ui/currency.ts";
 import { PREVIEW_WALLET } from "../lib/local-preview.ts";
 import { demoAmountMinor, nextDemoPaymentStatus } from "../lib/provider-demo.ts";
+import * as paymentChannels from "../lib/payment-channels.ts";
+import { paymentChannelText } from "../lib/i18n/payment-channels.ts";
 import { createSumsubDemoState, canPrepareSumsubDemo, canChooseSumsubDemoResult, transitionSumsubDemo, SUMSUB_CHECKLIST } from "../lib/verification/sumsub-demo.ts";
 
 const files = ["PaymentProviderDemo", "TopUpScreen", "WithdrawScreen", "KycTierScreen", "SettingsScreen", "LanguagePickerScreen", "CurrencyPickerScreen"] as const;
@@ -55,8 +57,11 @@ function render(name: typeof files[number], locale: Locale, preview = true, prop
       if (dependency === "@/components/ui/flags") return { Flag: () => null };
       if (dependency === "@/components/ui/SuccessMotion") return { default: box };
       if (dependency === "./PaymentProviderDemo") return { default: () => React.createElement("span", null, accountCopy(locale).providersDisconnected) };
+      if (dependency === "./PaymentChannelOptions") return { default: () => React.createElement("span", null, paymentChannelText(locale, "notMoney")) };
       if (dependency === "@/lib/local-preview") return { isLocalPreview: preview, PREVIEW_WALLET };
       if (dependency === "@/lib/provider-demo") return { demoAmountMinor, nextDemoPaymentStatus };
+      if (dependency === "@/lib/payment-channels") return paymentChannels;
+      if (dependency === "@/lib/i18n/payment-channels") return { paymentChannelText };
       if (dependency === "@/lib/verification/sumsub-demo") return { createSumsubDemoState, canPrepareSumsubDemo, canChooseSumsubDemoResult, transitionSumsubDemo, SUMSUB_CHECKLIST };
       if (dependency === "@/lib/circles/allowance") return { KYC_TIER_CEILING };
       if (dependency === "@/components/ui/OperationalAllowanceExplainer") return { Stage2Pill: () => null, WhyExistsLink: box };
@@ -114,7 +119,8 @@ for (const locale of LOCALES) {
     assert.ok(topup.includes(c.exploreCheckout));
     assert.ok(topup.includes(c.localOnly));
     const payout = render("PaymentProviderDemo", locale, true, { payout: true });
-    for (const key of ["mayarUnavailable", "notCash", "rehearsePayout", "noAccountDetails"] as const) assert.ok(payout.includes(c[key]), key);
+    for (const key of ["notCash", "rehearsePayout", "noAccountDetails"] as const) assert.ok(payout.includes(c[key]), key);
+    assert.ok(payout.includes(paymentChannelText(locale, "mayarPayout")));
     const mayarInput = payout.match(/<input\b[^>]*\bvalue="mayar"[^>]*>/)?.[0];
     assert.ok(mayarInput);
     assert.match(mayarInput, /\bdisabled=""/);

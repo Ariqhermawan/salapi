@@ -7,6 +7,7 @@ import { T, Ico, AppBar, IconButton, Card, Btn, Chip, Money, PoweredByStellar } 
 import { useGoBack } from "@/lib/ui/useGoBack";
 import { isLocalPreview, PREVIEW_WALLET } from "@/lib/local-preview";
 import PaymentProviderDemo from "./PaymentProviderDemo";
+import PaymentChannelOptions from "./PaymentChannelOptions";
 import SuccessMotion from "@/components/ui/SuccessMotion";
 import { accountCopy, type AccountCopyKey } from "@/lib/i18n/revamp-account";
 import { xlmDepositCopy } from "@/lib/i18n/xlm-deposit";
@@ -24,7 +25,7 @@ export default function TopUpScreen() {
   const [error, setError] = useState<AccountCopyKey | "">("");
   const submitting = useRef(false);
   const [faucet,setFaucet]=useState(false);
-  const [method,setMethod]=useState<"topup"|"xlm">(isLocalPreview ? "topup" : "xlm");
+  const [method,setMethod]=useState<"topup"|"xlm"|"provider">(isLocalPreview ? "topup" : "xlm");
   const depositCopy = xlmDepositCopy(locale);
   useEffect(() => {
     if (isLocalPreview || method !== "topup") return;
@@ -46,10 +47,27 @@ export default function TopUpScreen() {
       finally { submitting.current = false; }
     });
   }
-  const navigation = <nav className={depositStyles.methods} aria-label={depositCopy.methods}>
-    <button type="button" aria-pressed={method === "topup"} onClick={()=>setMethod("topup")}>{Ico.arrowDown({size:17})}{isLocalPreview && !faucet ? depositCopy.provider : depositCopy.faucet}</button>
+  const navigation = <nav className={depositStyles.methods} style={{ gridTemplateColumns: "repeat(3,minmax(0,1fr))" }} aria-label={depositCopy.methods}>
+    <button type="button" aria-pressed={method === "topup" && (!isLocalPreview || !faucet)} onClick={()=>{setMethod("topup");if(isLocalPreview)setFaucet(false);}}>{Ico.arrowDown({size:17})}{isLocalPreview ? depositCopy.provider : depositCopy.faucet}</button>
     <button type="button" aria-pressed={method === "xlm"} onClick={()=>setMethod("xlm")}>{Ico.qr({size:17})}{depositCopy.deposit}</button>
+    {isLocalPreview ? <button type="button" aria-pressed={method === "topup" && faucet} onClick={()=>{setMethod("topup");setFaucet(true);}}>{depositCopy.faucet}</button> : <button type="button" aria-pressed={method === "provider"} onClick={()=>setMethod("provider")}>{depositCopy.paymentMethods}</button>}
   </nav>;
+  // Payment-channel discovery must not load, fund or provision a wallet.
+  // Real checkout remains unavailable until an authenticated provider flow exists.
+  if(method === "provider") return <div style={{ fontFamily:T.fontSans, color:T.ink, paddingBottom:24 }}>
+    <AppBar title={t("topup.title")} leading={<IconButton ariaLabel={c.back} onClick={goBack}>{Ico.back({})}</IconButton>}/>
+    {navigation}
+    <div style={{padding:"4px 16px"}}>
+      <Card p={20} style={{marginBottom:16,background:"#F2EFE7"}}>
+        <Chip kind="warn">{c.providersDisconnected}</Chip>
+        <h1 style={{fontSize:26,lineHeight:1.2,letterSpacing:"-.03em",margin:"14px 0 10px"}}>{depositCopy.paymentMethods}</h1>
+        <p style={{fontSize:13,lineHeight:1.55,color:T.slate,margin:0}}>{c.providerSetup}</p>
+      </Card>
+      <PaymentChannelOptions payout={false}/>
+      <p style={{fontSize:12,lineHeight:1.55,color:T.slate}}>{c.noProviderRequest}</p>
+      <div style={{display:"flex",justifyContent:"center",marginTop:20}}><PoweredByStellar/></div>
+    </div>
+  </div>;
   if(method === "xlm") return <div style={{ fontFamily:T.fontSans, color:T.ink, paddingBottom:24 }}>
     <AppBar title={t("topup.title")} leading={<IconButton ariaLabel={c.back} onClick={goBack}>{Ico.back({})}</IconButton>}/>
     {navigation}<XlmDepositPanel/>
