@@ -3,6 +3,7 @@ import type { Locale } from "./config";
 // Feature-local copy only. Language is independent of display currency.
 // The English key remains the English output, including in older test stubs.
 export const REVAMP_MONEY_COPY = {
+  "Testnet forms use fixed demo conversion, not the CoinGecko market estimate. Review the exact XLM before confirming.": ["Gumagamit ang Testnet forms ng nakapirming demo conversion, hindi ng CoinGecko estimate. Suriin ang eksaktong XLM bago kumpirmahin.", "Form Testnet memakai konversi demo tetap, bukan estimasi pasar CoinGecko. Periksa jumlah XLM persis sebelum konfirmasi.", "Biểu mẫu Testnet dùng tỷ lệ demo cố định, không phải giá CoinGecko. Kiểm tra số XLM chính xác trước khi xác nhận."],
   "Back": ["Bumalik", "Kembali", "Quay lại"],
   "Receive": ["Tumanggap", "Terima", "Nhận"],
   "Transfer receipt details": ["Mga detalye ng resibo ng transfer", "Detail bukti transfer", "Chi tiết biên nhận chuyển tiền"],

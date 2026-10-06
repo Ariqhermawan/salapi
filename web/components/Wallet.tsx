@@ -3,28 +3,34 @@
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { walletState, topUpSandbox } from "@/app/actions";
+import { requireWalletState } from "@/lib/wallet-state";
 import { useT } from "@/components/I18nProvider";
 import { CountUp } from "@/components/ui/motion";
 import { CURRENCY, localAmount, formatUsdc } from "@/lib/ui/currency";
+import { isLocalPreview } from "@/lib/local-preview";
+import MarketValue from "@/components/MarketValue";
 
 export default function Wallet() {
   const { t, currency } = useT();
-  const [pesos, setPesos] = useState(0);
+  const [pesos, setPesos] = useState<number | null>(null);
   const [addr, setAddr] = useState("");
+  const [nativeStroops, setNativeStroops] = useState<string | undefined>();
   const [note, setNote] = useState("");
   const [pending, start] = useTransition();
 
   async function refresh() {
-    const s = await walletState();
+    const s = requireWalletState(await walletState());
     setPesos(s.pesos);
     setAddr(s.address);
+    setNativeStroops("nativeStroops" in s && typeof s.nativeStroops === "string" ? s.nativeStroops : undefined);
   }
   useEffect(() => {
     let active = true;
-    walletState().then((state) => {
+    walletState().then(requireWalletState).then((state) => {
       if (!active) return;
       setPesos(state.pesos);
       setAddr(state.address);
+      setNativeStroops("nativeStroops" in state && typeof state.nativeStroops === "string" ? state.nativeStroops : undefined);
     }).catch(() => {
       if (active) setNote("Your wallet could not be loaded. Please try again.");
     });
@@ -44,14 +50,14 @@ export default function Wallet() {
         <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-blue-200">
           {t("wallet.balance")}
         </div>
-        <CountUp
+        {pesos !== null ? isLocalPreview ? <CountUp
           value={localAmount(pesos, currency)}
           prefix={CURRENCY[currency].symbol}
           className="tabular mt-1.5 block text-[2.6rem] font-extrabold leading-none"
-        />
-        <div className="mt-1 font-mono text-[12px] text-blue-200/80">
+        /> : <div className="mt-1.5"><MarketValue nativeStroops={nativeStroops} size={40} color="#fff" /></div> : <p role="status">{note || t("common.loading")}</p>}
+        {isLocalPreview && pesos !== null && <div className="mt-1 font-mono text-[12px] text-blue-200/80">
           ≈ {formatUsdc(pesos)}
-        </div>
+        </div>}
         <div className="mt-2 text-[11px] text-blue-200/90">
           {addr ? `wallet ${addr.slice(0, 6)}…${addr.slice(-4)} · ` : ""}
           {t("wallet.cryptoInvisible")}

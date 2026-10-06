@@ -9,6 +9,7 @@ import { homeCopy } from "../lib/i18n/revamp-home.ts";
 import * as catalogCopy from "../lib/i18n/revamp-home-catalog.ts";
 import * as circlesCopy from "../lib/i18n/revamp-circles.ts";
 import { accountPhotoCopy } from "../lib/i18n/account-photo.ts";
+import { requireWalletState } from "../lib/wallet-state.ts";
 import * as homeCircles from "../lib/home-circles.ts";
 import { PREVIEW_CAMPAIGNS, PREVIEW_TIME, PREVIEW_WALLET } from "../lib/local-preview.ts";
 import type { Circle, CircleCategory } from "../lib/circles/types.ts";
@@ -50,7 +51,7 @@ const hasClass = (node: Element, name: string) => String(node.props.className ??
 // Actual Home and HomeCirclesCatalog TSX, with separate hook state for each
 // component and isolated effects/DOM-shaped refs. No browser, auth, provider,
 // ledger, actual navigation or network requests are available.
-function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: boolean; deniedStorage?: boolean; failCampaigns?: boolean; liveCampaigns?: Campaign[]; savedCatalogView?: unknown; navigationEntryReady?: boolean } = {}) {
+function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: boolean; deniedStorage?: boolean; failCampaigns?: boolean; failWallet?: boolean; liveCampaigns?: Campaign[]; savedCatalogView?: unknown; navigationEntryReady?: boolean } = {}) {
   const preview = options.preview ?? true;
   const locale = options.locale ?? "en";
   const liveCampaigns = options.liveCampaigns ?? Array.from({ length: 12 }, (_, index) => ({ ...PREVIEW_CAMPAIGNS[0], id: String(800 + index), title: `Isolated Testnet campaign ${index + 1}` }));
@@ -126,6 +127,7 @@ function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: bo
       if (name === "@/components/I18nProvider") return { useT: () => ({ locale, currency: "tl" }) };
       if (name === "@/components/HomeCirclesCatalog") return { default: catalog.default };
       if (name === "@/components/AccountAvatar") return { default: "AccountAvatar" };
+      if (name === "@/components/MarketValue") return { default: "MarketValue" };
       if (name === "@/components/useAccountPhoto") return { useAccountPhoto: () => ({ status: "ready", profile: null }) };
       if (name === "@/components/ui/kit") return { Ico: icons, Peso: "Peso" };
       if (name === "@/components/ui/icons") return { Ico: icons };
@@ -150,7 +152,8 @@ function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: bo
       if (name === "@/lib/i18n/revamp-circles") return circlesCopy;
       if (name === "@/lib/i18n/account-photo") return { accountPhotoCopy };
       if (name === "@/lib/disaster") return { formatStroops: (value: string) => `exact-source-units:${value}` };
-      if (name === "@/app/actions") return { async walletState() { calls.wallet++; assert.equal(preview, false); return { pesos: 123.45, address: "Readonly isolated Testnet wallet" }; }, async myHandle() { calls.handle++; assert.equal(preview, false); return "isolated"; } };
+      if (name === "@/lib/wallet-state") return { requireWalletState };
+      if (name === "@/app/actions") return { async walletState() { calls.wallet++; assert.equal(preview, false); return options.failWallet ? { ok: false, error: "Your wallet balance is unavailable." } : { pesos: 123.45, address: "Readonly isolated Testnet wallet", nativeStroops: "189923077" }; }, async myHandle() { calls.handle++; assert.equal(preview, false); return "isolated"; } };
       if (name === "@/app/campaign-actions") return { async campaignState(_ids: string, before: string) { calls.campaigns.push(before); assert.equal(preview, false); if (campaignFailure) return { ok: false, error: "Isolated readonly failure" }; const offset = before === "0" ? 0 : liveCampaigns.findIndex(campaign => campaign.id === before) + 1; return { ok: true, now: String(PREVIEW_TIME), campaigns: liveCampaigns.slice(offset, offset + 10) }; } };
       if (name.endsWith(".module.css")) return { default: new Proxy({}, { get: (_target, key) => String(key) }) };
       throw Error(`Unexpected actual Home dependency: ${name}`);
@@ -404,6 +407,19 @@ test("flag0 D4 campaign failure remains honest and retryable while the independe
   const retry = nodes(ui.tree).find(node => node.type === "button" && text(node) === "Try again")!;
   ui.campaignFailure = false; (retry.props.onClick as () => void)(); await ui.flush(); assert.equal(ui.d4Cards.length, 12); assert.equal(ui.cards.length, 27);
   assert.equal(ui.calls.network, 0); assert.equal(ui.calls.writes, 0);
+});
+
+test("structured wallet failure enters Home retry UI while both independent campaign catalogs remain available", async () => {
+  const options = { preview: false, failWallet: true };
+  const ui = mount(options); await ui.flush();
+  const wallet = nodes(ui.tree).find(node => node.type === "section" && hasClass(node, "wallet"))!;
+  assert.equal(nodes(wallet).some(node => node.type === "Peso" || node.type === "MarketValue" || hasClass(node, "sl-skel")), false);
+  assert.ok(text(wallet).includes("Your wallet balance is unavailable."));
+  assert.equal(ui.cards.length, 27); assert.equal(ui.d4Cards.length, 12);
+  const retry = nodes(wallet).find(node => node.type === "button" && hasClass(node, "walletRetry"))!;
+  options.failWallet = false; (retry.props.onClick as () => void)(); await ui.flush();
+  assert.equal(nodes(ui.tree).find(node => node.type === "MarketValue")?.props.nativeStroops, "189923077");
+  assert.equal(ui.calls.wallet, 2); assert.equal(ui.calls.network, 0); assert.equal(ui.calls.writes, 0);
 });
 
 test("examples render before wallet/D4 readers settle and remain present when the real D4 collection is empty", async () => {

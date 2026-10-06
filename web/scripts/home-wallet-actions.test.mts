@@ -6,6 +6,7 @@ import ts from "typescript";
 import { parse, type AnyNode, type Declaration, type Rule } from "postcss";
 import { homeCopy } from "../lib/i18n/revamp-home.ts";
 import { accountPhotoCopy } from "../lib/i18n/account-photo.ts";
+import { requireWalletState } from "../lib/wallet-state.ts";
 import * as catalogCopy from "../lib/i18n/revamp-home-catalog.ts";
 import * as circlesCopy from "../lib/i18n/revamp-circles.ts";
 import * as homeCircles from "../lib/home-circles.ts";
@@ -13,7 +14,7 @@ import { LOCALES, type Locale } from "../lib/i18n/config.ts";
 import { PREVIEW_CAMPAIGNS, PREVIEW_TIME, PREVIEW_WALLET } from "../lib/local-preview.ts";
 
 type Element = { type: unknown; props: Record<string, unknown> };
-type Wallet = { pesos: number; address: string };
+type Wallet = { pesos: number; address: string; nativeStroops?: string };
 const source = (path: string) => readFileSync(new URL(path, import.meta.url), "utf8");
 const compile = (path: string) => ts.transpileModule(source(path), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
@@ -79,6 +80,7 @@ function render(options: { preview?: boolean; locale?: Locale; currency?: Locale
       if (name === "@/components/I18nProvider") return { useT: () => ({ locale, currency }) };
       if (name === "@/components/HomeCirclesCatalog") return { default: "HomeCirclesCatalog" };
       if (name === "@/components/AccountAvatar") return { default: "AccountAvatar" };
+      if (name === "@/components/MarketValue") return { default: "MarketValue" };
       if (name === "@/components/useAccountPhoto") return { useAccountPhoto: () => ({ profile: null, status: "ready" }) };
       if (name === "@/lib/i18n/account-photo") return { accountPhotoCopy };
       if (name === "@/components/ui/kit") return { Ico: new Proxy({}, { get: (_target, icon) => (props: Record<string, unknown>) => jsx("svg", { ...props, "data-icon": String(icon) }) }), Peso: "Peso" };
@@ -90,6 +92,7 @@ function render(options: { preview?: boolean; locale?: Locale; currency?: Locale
       if (name === "@/lib/i18n/revamp-home-catalog") return catalogCopy;
       if (name === "@/lib/i18n/revamp-circles") return circlesCopy;
       if (name === "@/lib/disaster") return { formatStroops: forbidden("read") };
+      if (name === "@/lib/wallet-state") return { requireWalletState };
       if (name === "@/app/actions") return { walletState: forbidden("read"), myHandle: forbidden("read") };
       if (name === "@/app/campaign-actions") return { campaignState: forbidden("read") };
       if (name.endsWith(".module.css")) return { default: new Proxy({}, { get: (_target, key) => String(key) }) };
@@ -146,9 +149,13 @@ test("wallet balance/actions stay a two-child grid with truthful currency captio
 
 test("action labels follow language independently of currency and retain exact balance props and Testnet truth framing", () => {
   for (const preview of [true, false]) for (const locale of LOCALES) for (const currency of LOCALES) {
-    const balance = { pesos: 9876543.21, address: "Readonly isolated wallet" }, ui = render({ preview, locale, currency, wallet: balance });
+    const balance = { pesos: 9876543.21, address: "Readonly isolated wallet", nativeStroops: "123456789000" }, ui = render({ preview, locale, currency, wallet: balance });
     assert.equal(text(ui.links[0]), homeCopy(locale, "Top up")); assert.equal(text(ui.links[1]), homeCopy(locale, "Withdraw"));
-    assert.equal(nodes(ui.wallet).find(node => node.type === "Peso")?.props.value, balance.pesos);
+    if (preview) assert.equal(nodes(ui.wallet).find(node => node.type === "Peso")?.props.value, balance.pesos);
+    else {
+      assert.equal(nodes(ui.wallet).find(node => node.type === "MarketValue")?.props.nativeStroops, balance.nativeStroops);
+      assert.equal(nodes(ui.wallet).some(node => node.type === "Peso"), false, "Real wallet market display must not retain a static peso valuation");
+    }
     assert.ok(text(ui.wallet).includes(homeCopy(locale, "TESTNET BALANCE")));
     assert.ok(text(ui.wallet).includes(homeCopy(locale, preview ? "test XLM · no real money" : "Native Testnet XLM · indicative value · no real money")));
     assert.deepEqual(ui.calls, { read: 0, write: 0, storage: 0, network: 0 });
@@ -159,13 +166,21 @@ test("unknown, failed and zero balances keep wallet navigation without fabricati
   for (const preview of [true, false]) {
     const unknown = render({ preview, wallet: null });
     assert.equal(nodes(unknown.wallet).some(node => node.type === "Peso"), false);
+    assert.equal(nodes(unknown.wallet).some(node => node.type === "MarketValue"), false);
     assert.deepEqual(unknown.links.map(node => node.props.href), ["/topup", "/withdraw"]);
     const failed = render({ preview, wallet: null, walletError: "Your wallet balance is unavailable." });
     assert.ok(text(failed.wallet).includes("Your wallet balance is unavailable."));
     assert.equal(nodes(failed.wallet).some(node => node.type === "Peso"), false);
-    const zero = render({ preview, wallet: { pesos: 0, address: "Readonly zero-balance fixture" } });
-    assert.equal(nodes(zero.wallet).find(node => node.type === "Peso")?.props.value, 0);
-    for (const ui of [unknown, failed, zero]) assert.deepEqual(ui.calls, { read: 0, write: 0, storage: 0, network: 0 });
+    assert.equal(nodes(failed.wallet).some(node => node.type === "MarketValue"), false);
+    assert.equal(nodes(failed.wallet).some(node => hasClass(node, "sl-skel")), false, "Failure replaces pending geometry instead of stacking another row");
+    const stale = render({ preview, wallet: { pesos: 123, address: "Readonly old-balance fixture" }, walletError: "Your wallet balance is unavailable." });
+    assert.equal(nodes(stale.wallet).some(node => node.type === "Peso"), false, "A failed refresh must not keep displaying the old balance");
+    assert.equal(nodes(stale.wallet).some(node => node.type === "MarketValue"), false);
+    assert.ok(text(stale.wallet).includes("Your wallet balance is unavailable."));
+    const zero = render({ preview, wallet: { pesos: 0, address: "Readonly zero-balance fixture", nativeStroops: "0" } });
+    if (preview) assert.equal(nodes(zero.wallet).find(node => node.type === "Peso")?.props.value, 0);
+    else assert.equal(nodes(zero.wallet).find(node => node.type === "MarketValue")?.props.nativeStroops, "0");
+    for (const ui of [unknown, failed, stale, zero]) assert.deepEqual(ui.calls, { read: 0, write: 0, storage: 0, network: 0 });
   }
 });
 

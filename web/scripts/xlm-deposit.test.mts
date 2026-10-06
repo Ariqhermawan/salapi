@@ -11,6 +11,7 @@ import { xlmDepositCopy } from "../lib/i18n/xlm-deposit.ts";
 import { accountCopy } from "../lib/i18n/revamp-account.ts";
 import { LOCALES, type Locale } from "../lib/i18n/config.ts";
 import { PREVIEW_WALLET } from "../lib/local-preview.ts";
+import { requireWalletState } from "../lib/wallet-state.ts";
 
 const source = (path: string) => readFileSync(new URL(path, import.meta.url), "utf8");
 const compile = (path: string) => ts.transpileModule(source(path), {
@@ -123,7 +124,7 @@ const topUpCode = compile("../components/screens/TopUpScreen.tsx");
 
 // Actual JSX and effect callbacks with deterministic isolated React hooks.
 // Network, storage, provisioning, navigation and funding are forbidden.
-function componentSetup(options: { preview?: boolean; locale?: Locale; screen?: boolean; read?: () => Promise<XlmDepositDetails | null>; clipboard?: (value: string) => Promise<void> } = {}) {
+function componentSetup(options: { preview?: boolean; locale?: Locale; screen?: boolean; read?: () => Promise<XlmDepositDetails | null>; walletState?: () => Promise<{ address: string; pesos: number } | { ok: false; error: string }>; clipboard?: (value: string) => Promise<void> } = {}) {
   const preview = options.preview ?? false, locale = options.locale ?? "en";
   const calls = { read: 0, walletRead: 0, clipboard: [] as string[], network: 0, storage: 0, writes: 0, navigation: 0, stateWrites: 0 };
   const forbidden = (key: "network" | "storage" | "writes" | "navigation") => () => { calls[key]++; throw Error(`Forbidden ${key} in deposit render`); };
@@ -153,14 +154,16 @@ function componentSetup(options: { preview?: boolean; locale?: Locale; screen?: 
     "@/components/I18nProvider": { useT: () => ({ locale, currency: locale, t: (key: string) => key }) },
     "@/components/ui/kit": { Ico: icon, T: {}, ...Object.fromEntries(["AppBar", "IconButton", "Card", "Btn", "Chip", "Money", "PoweredByStellar"].map(name => [name, name])) },
     "@/components/ui/SuccessMotion": { default: "SuccessMotion" },
+    "@/components/MarketValue": { default: "MarketValue" },
     "@/lib/i18n/revamp-account": { accountCopy }, "@/lib/i18n/xlm-deposit": { xlmDepositCopy },
     "@/lib/local-preview": { isLocalPreview: preview, PREVIEW_WALLET }, "@/lib/xlm-deposit": deposit,
+    "@/lib/wallet-state": { requireWalletState },
     "./XlmDepositPanel.module.css": { default: new Proxy({}, { get: (_target, name) => String(name) }) },
     "./XlmDepositPanel": { default: "XlmDepositPanel" }, "./PaymentProviderDemo": { default: "PaymentProviderDemo" },
     "./PaymentChannelOptions": { default: "PaymentChannelOptions" },
     "@/app/actions": {
       walletDepositAddress: () => { calls.read++; return options.read ? options.read() : Promise.resolve(details); },
-      walletState: async () => { calls.walletRead++; return { address, pesos: 0 }; }, topUpSandbox: forbidden("writes"),
+      walletState: async () => { calls.walletRead++; return options.walletState ? options.walletState() : { address, pesos: 0 }; }, topUpSandbox: forbidden("writes"),
     },
   }, {
     fetch: forbidden("network"), XMLHttpRequest: forbidden("network"), localStorage: storage, sessionStorage: storage,
@@ -337,4 +340,17 @@ test("non-preview faucet balance reads require an explicit method choice and are
   click(button(faucet, c.deposit)); const depositTree = ui.update(), before = ui.calls.stateWrites;
   await settle(); assert.equal(ui.calls.stateWrites, before);
   assert.ok(nodes(depositTree).some(node => node.type === "XlmDepositPanel")); noMutations(ui.calls);
+});
+
+for (const locale of LOCALES) test(`${locale}: structured faucet wallet failure displays an error with no fake balance, wallet address or funding action`, async () => {
+  const ui = componentSetup({ screen: true, locale, walletState: async () => ({ ok: false, error: "Isolated unavailable wallet" }) });
+  const entry = ui.update(); assert.equal(ui.calls.walletRead, 0);
+  click(button(entry, xlmDepositCopy(locale).faucet)); ui.update(); await settle();
+  const tree = ui.update(), c = accountCopy(locale);
+  assert.ok(nodes(tree).some(node => node.props.role === "alert" && text(node) === c.walletLoad));
+  assert.equal(text(tree).includes(c.loadingWallet), false);
+  assert.equal(nodes(tree).some(node => node.type === "Money"), false);
+  assert.equal(text(tree).includes(address), false); assert.equal(text(tree).includes(PREVIEW_WALLET.address), false);
+  assert.equal(nodes(tree).find(node => node.type === "Btn" && text(node) === c.requestXlm)?.props.disabled, true);
+  assert.equal(ui.calls.walletRead, 1); noMutations(ui.calls);
 });

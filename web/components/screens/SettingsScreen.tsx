@@ -1,4 +1,5 @@
 "use client";
+import { requireWalletState } from "@/lib/wallet-state";
 
 // Profile and settings share one compact account sheet. Unavailable features
 // remain explicitly labelled instead of resembling enabled security controls.
@@ -216,7 +217,7 @@ export default function SettingsScreen() {
         setNameStatus("error");
         setLoadError("usernameLoad");
       });
-      walletState().then((w) => { if (active && !signOutInFlight.current) setAddr(w.address); }).catch(() => { if (active && !signOutInFlight.current) setLoadError("settingsWalletLoad"); });
+      walletState().then(requireWalletState).then((w) => { if (active && !signOutInFlight.current) setAddr(w.address); }).catch(() => { if (active && !signOutInFlight.current) setLoadError("settingsWalletLoad"); });
     }
     if (configured) {
       // Only use the Auth server's getUser response, not a cached session or

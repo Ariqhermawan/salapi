@@ -1,12 +1,8 @@
-﻿// Salapi, display currency. The transaction rail is USDC, but the app is
-// crypto-invisible: the user only ever sees their local currency plus a small
-// PLAIN-DOLLAR anchor ("≈ $10.60"), never the token name "USDC". The literal
-// "USDC" + tx hash live only in the on-chain receipt / "View on Stellar" layer.
-// Rates are ILLUSTRATIVE (testnet), one dollar anchor, matching the V4 brief
-// example (≈ $200 · ₱11,600 · Rp 3,200,000 · ₫5,100,000).
-//
-// The app's existing numeric values are PHP pesos, so PHP is the anchor:
-// usdc = php / PHP_PER_USDC, then local = usdc * perUsdc.
+// Legacy illustrative display units for fixtures and Testnet input envelopes.
+// The current transaction rail is native Testnet XLM, not USDC. These fixed
+// ratios are NOT market prices or real fiat balances. CoinGecko market wallet
+// estimates use lib/market-prices.ts with exact nativeStroops instead.
+// Existing contract-bound input conversion remains in lib/money.ts.
 
 import type { Locale } from "@/lib/i18n/config";
 
@@ -62,10 +58,8 @@ export function formatParts(
   return { symbol: m.symbol, int: match[1], dec: match[2], dp: m.dp };
 }
 
-// The stable dollar-value anchor shown beside the local amount. Crypto-
-// invisible: the rail is USDC (≈ US$1) but the user sees a plain "$" figure,
-// never the token name. (Name kept as formatUsdc to avoid churn across call
-// sites; output is the USD anchor.)
+// Legacy illustrative USD anchor. The historical function name does not imply
+// a USDC balance, an exchange quote, or a USDC transaction.
 export function formatUsdc(php: number): string {
   const u = pesoToUsdc(php);
   return (

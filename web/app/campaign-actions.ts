@@ -2,7 +2,7 @@
 
 import { rpc, scValToNative, type xdr } from "@stellar/stellar-sdk";
 import { CONTRACTS, RPC_URL, readContract, invokeAs, sc, txLink, donationCampaignId } from "@/lib/server/stellar";
-import { currentWalletPublicKey, getAuthenticatedSigner } from "@/lib/server/userWallet";
+import { currentWalletPublicKey, prepareAuthenticatedWallet } from "@/lib/server/userWallet";
 import { campaignAmount } from "@/lib/campaign-money";
 import { campaignId, campaignError, campaignStruct, parseCampaignConfig, proofHash, publicProofUrl, type Campaign } from "@/lib/campaign";
 import { isLocalPreview } from "@/lib/local-preview";
@@ -59,7 +59,7 @@ export async function campaignEvents() {
 async function write(make: (who: string, id: string) => Promise<{ method: string; args: xdr.ScVal[] }>) {
   if (isLocalPreview) return { ok: false as const, error: "Local preview cannot submit campaign transactions." };
   try {
-    const signer = await getAuthenticatedSigner();
+    const signer = await prepareAuthenticatedWallet();
     const id = await deployment();
     const { method, args } = await make(signer.publicKey, id);
     const result = await invokeAs(signer.secret, id, method, args);

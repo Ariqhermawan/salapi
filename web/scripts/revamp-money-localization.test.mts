@@ -11,6 +11,7 @@ import * as money from "../lib/money.ts";
 import { CURRENCY, formatLocal, formatLocalAmount, pesoFromLocal } from "../lib/ui/currency.ts";
 import { authRedirectPath } from "../lib/authRedirect.ts";
 import { PREVIEW_WALLET, PREVIEW_RECIPIENT } from "../lib/local-preview.ts";
+import { requireWalletState } from "../lib/wallet-state.ts";
 
 type Element = { type: unknown; props: Record<string, unknown> };
 type Handler = (...args: unknown[]) => unknown;
@@ -42,11 +43,11 @@ function dictionary(locale: Locale, key: string, vars?: Record<string, string | 
 }
 
 // Executes real component functions and local helpers, not browser/SDK APIs.
-function mount(name: typeof names[number], locale: Locale, options: { preview?: boolean; next?: string; hash?: string; denied?: boolean } = {}) {
+function mount(name: typeof names[number], locale: Locale, options: { preview?: boolean; next?: string; hash?: string; denied?: boolean; walletState?: () => Promise<{ ok: false; error: string }>; myHandle?: () => Promise<string | null> } = {}) {
   const preview = options.preview ?? true;
   const memory = new Map<string, string>();
   const storage = { getItem(key: string) { if (options.denied) throw Error("Isolated denied storage"); return memory.get(key) ?? null; }, setItem(key: string, value: string) { if (options.denied) throw Error("Isolated denied storage"); memory.set(key, value); }, removeItem(key: string) { memory.delete(key); } };
-  const calls = { auth: 0, serverWrites: 0, lookups: 0, navigations: [] as string[], clipboard: [] as string[], cookies: 0 };
+  const calls = { auth: 0, serverWrites: 0, lookups: 0, walletReads: 0, handleReads: 0, navigations: [] as string[], clipboard: [] as string[], cookies: 0 };
   const localPreview = { isLocalPreview: preview, PREVIEW_WALLET, PREVIEW_RECIPIENT };
   let id = 0;
   const base = { window: { location: { origin: "http://localhost:3000", assign: (value: string) => calls.navigations.push(value) }, sessionStorage: storage }, sessionStorage: storage,
@@ -98,6 +99,7 @@ function mount(name: typeof names[number], locale: Locale, options: { preview?: 
       if (dependency === "@/lib/ui/useGoBack") return { useGoBack: () => () => calls.navigations.push("back") };
       if (dependency === "@/lib/ui/useUnresolvedSubmission") return { useUnresolvedSubmission: () => ({ locked: false, state: { kind: "clear" }, run() { throw Error("Real submission forbidden"); } }) };
       if (dependency === "@/lib/ui/currency") return { CURRENCY, formatLocal, formatLocalAmount, pesoFromLocal };
+      if (dependency === "@/lib/wallet-state") return { requireWalletState };
       if (dependency === "@/lib/money") return money;
       if (dependency === "@/lib/local-preview") return localPreview;
       if (dependency === "@/lib/local-preview-history") return local.history;
@@ -107,7 +109,7 @@ function mount(name: typeof names[number], locale: Locale, options: { preview?: 
       if (dependency === "@/lib/authRedirect") return { authRedirectPath };
       if (dependency === "@/lib/supabase/env") return { supabaseConfigured: () => true };
       if (dependency === "@/lib/supabase/client") return { createSupabaseBrowser() { calls.auth++; throw Error("Auth forbidden in localization tests"); } };
-      if (dependency === "@/app/actions") return { async lookupRecipient(username: string) { calls.lookups++; return { ok: true, username, address: PREVIEW_RECIPIENT }; }, myHandle() { throw Error("Unexpected wallet read"); }, walletState() { throw Error("Unexpected wallet read"); }, registerUsername() { calls.serverWrites++; throw Error("Write forbidden"); }, sendByUsername() { calls.serverWrites++; throw Error("Write forbidden"); } };
+      if (dependency === "@/app/actions") return { async lookupRecipient(username: string) { calls.lookups++; return { ok: true, username, address: PREVIEW_RECIPIENT }; }, myHandle() { if (!options.myHandle) throw Error("Unexpected wallet read"); calls.handleReads++; return options.myHandle(); }, walletState() { if (!options.walletState) throw Error("Unexpected wallet read"); calls.walletReads++; return options.walletState(); }, registerUsername() { calls.serverWrites++; throw Error("Write forbidden"); }, sendByUsername() { calls.serverWrites++; throw Error("Write forbidden"); } };
       if (dependency.endsWith(".module.css")) return { default: {} };
       throw Error(`Unstubbed screen dependency: ${dependency}`);
     },
@@ -151,6 +153,7 @@ for (const locale of LOCALES) {
     assert.ok(nodes(ui.tree).some(item => item.props.id === "send-recipient" && item.props.placeholder === m("e.g. jamamam")));
     ui.change("send-amount", "100.25"); ui.click(m("Review transfer")); await ui.flush();
     ui.find(m("Confirm local demo")); assert.ok(text(ui.tree).includes("₱100.25"));
+    assert.ok(text(ui.tree).includes(m("Testnet forms use fixed demo conversion, not the CoinGecko market estimate. Review the exact XLM before confirming.")));
     ui.click(m("Confirm local demo")); await ui.flush(); ui.find(m("Local transfer demo complete"));
     assert.equal(ui.calls.serverWrites, 0); assert.equal(ui.calls.auth, 0);
     const records = (ui.local.history.listPreviewTransfers as () => { amountStroops: string }[])();
@@ -160,6 +163,18 @@ for (const locale of LOCALES) {
     const ui = mount("ReceiveScreen", locale); await ui.flush(); ui.find(m("Testnet only · no real money"));
     const qr = nodes(ui.tree).find(item => item.type === "QRCodeSVG"); assert.equal(qr?.props.value, `http://localhost:3000/send?to=${PREVIEW_WALLET.handle}`);
     ui.click(dictionary(locale, "receive.share")); await ui.flush(); assert.deepEqual(ui.calls.clipboard, [qr!.props.value]); assert.equal(ui.calls.auth, 0);
+  });
+  test(`${locale}: Receive returned wallet failure disables sharing and never fabricates a receive QR`, async () => {
+    const ui = mount("ReceiveScreen", locale, { preview: false, walletState: async () => ({ ok: false, error: "Isolated unavailable wallet" }), myHandle: async () => null });
+    await ui.flush(); ui.find(m("Receive code unavailable"));
+    ui.find(m("Your wallet could not be loaded. Reload this page before sharing a receive link."));
+    assert.equal(nodes(ui.tree).some(item => item.type === "QRCodeSVG"), false);
+    assert.equal(text(ui.tree).includes(m("Loading receive code…")), false);
+    assert.equal(ui.find(dictionary(locale, "receive.share")).props.disabled, true);
+    assert.equal(text(ui.tree).includes(PREVIEW_WALLET.address), false);
+    assert.equal(ui.calls.walletReads, 1); assert.equal(ui.calls.handleReads, 1);
+    assert.equal(ui.calls.auth, 0); assert.equal(ui.calls.serverWrites, 0);
+    assert.deepEqual(ui.calls.clipboard, []); assert.deepEqual(ui.calls.navigations, []);
   });
   test(`${locale}: transaction detail localizes invalid-hash errors without producing an explorer link`, async () => {
     const ui = mount("TxDetailScreen", locale, { hash: "invalid" }); await ui.flush(); ui.find(m("This is not a valid Stellar transaction hash."));

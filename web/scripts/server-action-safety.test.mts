@@ -41,7 +41,7 @@ const sendCode = compile("../components/screens/SendScreen.tsx", true);
 
 function walletSetup(options: { reads?: Read[]; readThrows?: Error; saveError?: boolean; configured?: boolean; admin?: boolean; signedIn?: boolean; user?: unknown; preview?: boolean; authError?: Error; authThrows?: boolean; clientThrows?: Error } = {}) {
   const reads = [...(options.reads ?? [{ data: { public_key: "saved-public", secret_cipher: "saved-secret" } }])];
-  const calls = { reads: 0, mints: 0, upserts: 0, funding: 0, demo: 0, auth: 0, decrypts: 0, keyLoads: 0, columns: [] as string[], owners: [] as unknown[] };
+  const calls = { reads: 0, mints: 0, upserts: 0, funding: 0, demo: 0, auth: 0, decrypts: 0, keyLoads: 0, readiness: [] as string[], columns: [] as string[], owners: [] as unknown[] };
   const keys: Record<string, string> = { "saved-secret": "saved-public", "new-secret": "new-public", "winner-secret": "winner-public" };
   const admin = { from: (table: string) => {
     assert.equal(table, "wallets");
@@ -60,7 +60,7 @@ function walletSetup(options: { reads?: Read[]; readThrows?: Error; saveError?: 
       upsert: async () => { calls.upserts++; return { error: options.saveError ? { message: "Isolated persistence failure" } : null }; },
     };
   } };
-  const api = moduleFrom<{ getSigner(): Promise<Signer>; getAuthenticatedSigner(): Promise<Signer>; currentArisanPublicKey(): Promise<string | null> }>(walletCode, {
+  const api = moduleFrom<{ getSigner(): Promise<Signer>; prepareAuthenticatedWallet(): Promise<Signer>; getAuthenticatedSigner(): Promise<Signer>; currentArisanPublicKey(): Promise<string | null> }>(walletCode, {
     "@stellar/stellar-sdk": { Keypair: {
       random: () => { calls.mints++; return { publicKey: () => "new-public", secret: () => "new-secret" }; },
       fromSecret: (secret: string) => { calls.keyLoads++; return { publicKey: () => keys[secret] ?? "mismatch-public" }; },
@@ -68,6 +68,11 @@ function walletSetup(options: { reads?: Read[]; readThrows?: Error; saveError?: 
     "@supabase/supabase-js": { isAuthSessionMissingError },
     "@/lib/local-preview": { isLocalPreview: options.preview ?? false },
     "@/lib/server/stellar": { FRIENDBOT: "https://isolated.invalid", demoPublic: () => { calls.demo++; return "demo-public"; } },
+    // Network semantics are exercised with the actual helper in readiness tests.
+    // This existing identity suite treats saved/winner fixtures as active.
+    "@/lib/server/walletReadiness": { ensureTestnetAccount: async (address: string) => {
+      calls.readiness.push(address); if (address === "new-public") calls.funding++; return 1n;
+    } },
     "@/lib/supabase/env": { supabaseConfigured: () => options.configured ?? true, supabaseAdminConfigured: () => options.admin ?? true },
     "@/lib/supabase/server": { createSupabaseServer: async () => {
       if (options.clientThrows) throw options.clientThrows;
@@ -85,6 +90,7 @@ test("an existing canonical wallet is identity-checked without minting or fundin
   const { api, calls } = walletSetup();
   assert.equal((await api.getSigner()).publicKey, "saved-public");
   assert.equal(calls.mints, 0); assert.equal(calls.funding, 0); assert.equal(calls.upserts, 0);
+  assert.deepEqual(calls.readiness, ["saved-public"]);
 });
 test("auth response errors or outages cannot downgrade signing to the shared demo wallet", async () => {
   for (const options of [{ authThrows: true }, { authError: new Error("Isolated unavailable auth"), signedIn: false }]) {
@@ -130,6 +136,7 @@ test("canonical key mismatches fail closed both on load and after first-use pers
 test("first-use race losers return the canonical winner without funding discarded keys", async () => {
   const { api, calls } = walletSetup({ reads: [{ data: null }, { data: { public_key: "winner-public", secret_cipher: "winner-secret" } }] });
   assert.equal((await api.getSigner()).publicKey, "winner-public"); assert.equal(calls.funding, 0);
+  assert.deepEqual(calls.readiness, ["winner-public"]);
 });
 test("a first-use winner is funded only after its canonical persisted identity is confirmed", async () => {
   const { api, calls } = walletSetup({ reads: [{ data: null }, { data: { public_key: "new-public", secret_cipher: "new-secret" } }] });
@@ -227,6 +234,7 @@ function stellarSetup(options: { status?: "SUCCESS" | "FAILED" | "NOT_FOUND"; se
     "@stellar/stellar-sdk": { rpc: { Server }, Keypair: { fromSecret: () => ({ publicKey: () => "isolated-public" }) },
       Contract, TransactionBuilder: Builder, Networks: { TESTNET: "isolated-network" }, BASE_FEE: "100", scValToNative: (value: unknown) => value },
     "@/lib/money": money, "@/lib/local-preview": { isLocalPreview: options.preview ?? false },
+    "@/lib/server/walletReadiness": { getTestnetNativeBalance: async () => { throw Error("Unexpected balance access in isolated submission tests"); } },
   }, { process: { env: { SALAPI_DEMO_SECRET: "isolated-demo-secret", SALAPI_SPONSOR_SECRET: "isolated-sponsor-secret" } } });
   return { api, calls };
 }

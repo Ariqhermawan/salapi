@@ -61,10 +61,16 @@ function failedTransaction(result: Extract<TxResult, { ok: false }>) {
 
 export async function walletState() {
   if (isLocalPreview) return PREVIEW_WALLET;
-  const { publicKey: address } = await getSigner();
-  const bal = await getNativeBalance(address);
-  const pesos = stroopsToPesos(bal);
-  return { address, pesos, pesoLabel: fmtPeso(pesos) };
+  try {
+    const { publicKey: address } = await getSigner();
+    const bal = await getNativeBalance(address);
+    const pesos = stroopsToPesos(bal);
+    return { address, pesos, pesoLabel: fmtPeso(pesos), nativeStroops: bal.toString() };
+  } catch {
+    // Readiness/provider failures are expected retry states, not server HTTP500
+    // or fabricated zero balances. Never return custody/provider diagnostics.
+    return { ok: false as const, error: "Your wallet balance is unavailable." };
+  }
 }
 
 /** Opening Activity must never create a wallet, fund it, or request a signer. */
@@ -107,6 +113,7 @@ export async function topUpSandbox() {
       : "Sandbox: in production, GCash → a licensed Stellar anchor credits your wallet. Your testnet balance stands in.",
     pesoLabel: fmtPeso(stroopsToPesos(bal)),
     pesos: stroopsToPesos(bal),
+    nativeStroops: bal.toString(),
   };
 }
 
@@ -121,6 +128,7 @@ export async function withdrawSandbox(requested: number) {
       "Sandbox: in production, Salapi cashes out to your GCash via a licensed Stellar anchor. On testnet the on-chain balance is unchanged.",
     pesoLabel: fmtPeso(stroopsToPesos(bal)),
     pesos: stroopsToPesos(bal),
+    nativeStroops: bal.toString(),
     requested,
   };
 }
