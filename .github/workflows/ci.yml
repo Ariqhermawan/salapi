@@ -84,6 +84,9 @@ jobs:
       - name: Revamp parity, four-language UI, storage failures and submission guards
         run: npm run test:revamp
 
+      - name: Sign-out failure, retry and duplicate-request guards
+        run: npm run test:signout
+
       - name: Prevent local-review builds in Vercel production
         run: node --experimental-strip-types --test scripts/local-preview-deployment.test.mts
 
