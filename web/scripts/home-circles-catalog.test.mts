@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync, existsSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
+import { parse, type Declaration } from "postcss";
 import { LOCALES, type Locale } from "../lib/i18n/config.ts";
 import { homeCopy } from "../lib/i18n/revamp-home.ts";
 import * as catalogCopy from "../lib/i18n/revamp-home-catalog.ts";
@@ -183,6 +184,7 @@ for (const preview of [true, false]) for (const locale of LOCALES) test(`${local
     assert.ok(nodes(card).some(node => node.props.href === `/circles/${circle.id}`));
     assert.ok(nodes(card).some(node => node.props.href === `/circles/${circle.id}/organizer` && node.props["aria-label"] === c("View example organizer profile: {name}", { name: circle.organizer })));
     assert.ok(nodes(card).some(node => node.props.href === `/circles/${circle.id}/donate` && text(node).trim() === c("Preview a pledge")));
+    assert.ok(nodes(card).filter(node => node.type === "Link").every(node => node.props.prefetch === false));
     assert.ok(text(card).includes(circle.title)); assert.ok(text(card).includes(circle.organizer));
     assert.ok(text(card).includes(c("Example cause")));
     assert.ok(text(card).includes(catalogCopy.homeCatalogCopy(locale, "Example rating")));
@@ -256,10 +258,34 @@ test("flag0 D4 campaign failure remains honest and retryable while the independe
   assert.equal(ui.calls.network, 0); assert.equal(ui.calls.writes, 0);
 });
 
+test("examples render before wallet/D4 readers settle and remain present when the real D4 collection is empty", async () => {
+  const ui = mount({ preview: false, liveCampaigns: [] });
+  assert.equal(ui.cards.length, 27); assert.equal(ui.d4Cards.length, 0);
+  assert.equal(ui.calls.wallet, 0); assert.deepEqual(ui.calls.campaigns, []);
+  await ui.flush();
+  assert.equal(ui.cards.length, 27); assert.equal(ui.d4Cards.length, 0);
+  assert.ok(text(ui.tree).includes(homeCopy("en", "No campaigns yet. Start one and invite your community.")));
+  assert.ok(nodes(ui.tree).some(node => node.props.href === "/campaigns?create=1"));
+});
+
+test("closed D4 campaigns remain honest read-only cards, never fictional pledge links", async () => {
+  const campaign = { ...PREVIEW_CAMPAIGNS[0], id: "904", title: "Actual closed escrow fixture", state: "Closed" as Campaign["state"] };
+  const ui = mount({ preview: false, liveCampaigns: [campaign] }); await ui.flush();
+  assert.equal(ui.cards.length, 27); assert.equal(ui.d4Cards.length, 1);
+  const link = nodes(ui.d4Cards[0]).find(node => node.type === "Link")!;
+  assert.equal(link.props.href, "/campaigns?id=904"); assert.equal(text(link), homeCopy("en", "View campaign"));
+  assert.ok(text(ui.d4Cards[0]).includes("CAMPAIGN #904 · Closed"));
+});
+
 test("Home catalog responsive styles retain compact controls and persistent truth framing", () => {
   const css = source("../components/HomeCirclesCatalog.module.css");
-  assert.match(css, /min-height:\s*44px/);
-  assert.match(css, /:focus-visible/);
+  const sheet = parse(css);
+  for (const [selector, property] of [[".tools select", "min-height"], [".organizer", "min-height"], [".body h2 a", "min-height"], [".pledge", "min-height"], [".controls button", "height"]]) {
+    const values: string[] = [];
+    sheet.walkRules(rule => { if (rule.selectors.includes(selector)) for (const node of rule.nodes) if (node.type === "decl" && (node as Declaration).prop === property) values.push((node as Declaration).value); });
+    assert.ok(values.some(value => Number.parseFloat(value) >= 44), `${selector} must retain a 44px touch target`);
+  }
+  assert.match(css, /:focus-visible[^}]*outline:\s*2px/);
   assert.doesNotMatch(css, /\.notice\s*\{[^}]*display:\s*none/);
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
 });
