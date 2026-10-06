@@ -9,16 +9,18 @@ import type { Circle } from "@/lib/circles/types";
 import { isLocalPreview } from "@/lib/local-preview";
 import styles from "./CirclesPreview.module.css";
 import { circlesCopy } from "@/lib/i18n/revamp-circles";
+import { useGoBack } from "@/lib/ui/useGoBack";
 
 export default function CircleManageScreen({ circle }: { circle: Circle }) {
+  const goBack = useGoBack(`/circles/${circle.id}`);
   const { currency, locale } = useT();
   const c = circlesCopy(locale);
   const [note, setNote] = useState("");
   return (
     <div className={styles.screen}>
       <div className={styles.top}>
-        <Link href={`/circles/${circle.id}`} className={styles.back}>
-          {Ico.back({ size: 14, c: T.action })}{c("Example cause")}</Link>
+        <button type="button" onClick={goBack} className={styles.back}>
+          {Ico.back({ size: 14, c: T.action })}{c("Back")}</button>
         <span className={styles.badge}>{c("Organizer prototype")}</span>
       </div>
       <header className={styles.hero}>

@@ -10,6 +10,8 @@ import { SalapiMascot, type MascotPose } from "@/components/ui/mascot";
 import { spot, HeroCircle, HeroGrow, DooStars } from "@/components/ui/doodles";
 import { useT } from "@/components/I18nProvider";
 import { LEARN, LEARN_X, type LearnTopicId } from "@/lib/learn-content";
+import { useGoBack } from "@/lib/ui/useGoBack";
+import { accountCopy } from "@/lib/i18n/revamp-account";
 
 const CREAM = "#F2EFE7";
 const POSE: Record<LearnTopicId, MascotPose> = { fund: "point", circle: "wave", grow: "cheer" };
@@ -232,6 +234,7 @@ function DoodleHero({ topic, pose }: { topic: LearnTopicId; pose: MascotPose }) 
 }
 
 export default function LearnArticleScreen({ topic }: { topic: LearnTopicId }) {
+  const goBack = useGoBack("/learn");
   const router = useRouter();
   const { locale } = useT();
   const L = LEARN[locale] ?? LEARN.en;
@@ -421,7 +424,7 @@ export default function LearnArticleScreen({ topic }: { topic: LearnTopicId }) {
   return (
     <div style={{ fontFamily: fontStack, color: T.ink, minHeight: "100%", paddingBottom: 110 }}>
       <AppBar
-        leading={<IconButton ariaLabel="Back to Learn" onClick={() => router.push("/learn")}>{Ico.back({})}</IconButton>}
+        leading={<IconButton ariaLabel={accountCopy(locale).back} onClick={goBack}>{Ico.back({})}</IconButton>}
         title={L.indexEyebrow}
       />
       <div style={{ padding: "4px 16px 16px" }}>

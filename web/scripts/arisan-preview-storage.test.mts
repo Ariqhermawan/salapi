@@ -6,6 +6,7 @@ import ts from "typescript";
 import { CURRENCY, formatLocal, formatLocalAmount, pesoFromLocal } from "../lib/ui/currency.ts";
 import { PREVIEW_WALLET } from "../lib/local-preview.ts";
 import { moneyInputToStroops, pesosToStroopsExact } from "../lib/money.ts";
+import * as accountCopy from "../lib/i18n/revamp-account.ts";
 
 type Element = { type: string; props: Record<string, unknown> };
 type Api = { readPreviewArisanRoom(id: number, checked?: boolean): unknown; savePreviewArisanRoom(room: unknown): boolean; clearPreviewArisanRoom(id: number): boolean; commitPreviewArisanSession(changes: { key: string; value: string | null }[]): boolean; previewArisanRoomKey(id: number): string };
@@ -44,7 +45,8 @@ function setup(screen: typeof screens[number], options: { roomId?: number; mode?
       if (name === "react") return react;
       if (name === "next/navigation") return { useRouter: () => ({ replace: (path: string) => calls.navigation.push(path), push: (path: string) => calls.navigation.push(path) }) };
       if (name === "next/image") return { default: "Image" };
-      if (name === "@/components/I18nProvider") return { useT: () => ({ currency: "en", t: (key: string) => key }) };
+      if (name === "@/components/I18nProvider") return { useT: () => ({ locale: "en", currency: "en", t: (key: string) => key }) };
+      if (name === "@/lib/i18n/revamp-account") return accountCopy;
       if (name === "@/components/ui/kit") return { T: {}, Ico: new Proxy({}, { get: () => () => null }), AppBar: "AppBar", IconButton: "IconButton", Card: "Card", Btn: "Btn", Chip: "Chip", Avatar: "Avatar", PoweredByStellar: "PoweredByStellar" };
       if (name === "@/components/ui/SuccessMotion") return { default: (props: Record<string, unknown>) => jsx("SuccessMotion", { ...props, children: [props.title, props.children] }) };
       if (name === "@/lib/ui/success-feedback") return { announceSuccessMotion: () => { calls.success++; } };

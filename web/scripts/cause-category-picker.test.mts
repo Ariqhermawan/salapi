@@ -6,6 +6,7 @@ import ts from "typescript";
 import { parse, type AnyNode, type Declaration, type Rule } from "postcss";
 import * as copy from "../lib/i18n/revamp-circles.ts";
 import * as discoveryCopy from "../lib/i18n/revamp-campaign-discovery.ts";
+import * as homeCircles from "../lib/home-circles.ts";
 import { DICTS } from "../lib/i18n/dictionaries.ts";
 import { LOCALES, type Locale } from "../lib/i18n/config.ts";
 import type { Circle, CircleCategory } from "../lib/circles/types.ts";
@@ -153,6 +154,8 @@ test("native picker callbacks select the exact canonical category once and chang
 const discoverCode = compile("../components/screens/CirclesDiscoverScreen.tsx");
 function discovery(locale: Locale, preview: boolean, campaignEntry: boolean) {
   const values: unknown[] = []; let cursor = 0;
+  const navigationViews = new Map<string, string>();
+  const backCalls: string[] = [];
   const screenModule = moduleFrom<{ default(props: { campaignEntry: boolean }): Element }>(discoverCode, {
     "react/jsx-runtime": jsxRuntime,
     "react": { useState(initial: unknown) { const index = cursor++; if (!(index in values)) values[index] = initial; return [values[index], (next: unknown) => { values[index] = typeof next === "function" ? next(values[index]) : next; }]; } },
@@ -164,11 +167,22 @@ function discovery(locale: Locale, preview: boolean, campaignEntry: boolean) {
     "@/lib/circles/seed": { SEED_CIRCLES }, "@/lib/circles/types": circleTypes,
     "@/lib/circles/organizers": fixture("../lib/circles/organizers.ts"),
     "@/lib/i18n/revamp-circles": copy, "@/lib/i18n/revamp-campaign-discovery": discoveryCopy,
+    "@/lib/home-circles": homeCircles,
+    "@/lib/ui/useNavigationViewState": { useNavigationViewState: (key: string) => navigationViews.get(key) ?? "" },
+    "@/lib/ui/app-navigation": { writeNavigationViewState(key: string, value: Record<string, unknown>) {
+      assert.equal(key, "circles-discovery");
+      assert.deepEqual(Object.keys(value).sort(), ["category", "sort"]);
+      navigationViews.set(key, JSON.stringify(value));
+    } },
+    "@/lib/ui/useGoBack": { useGoBack: (fallback: string) => () => { backCalls.push(fallback); } },
     "@/lib/local-preview": { isLocalPreview: preview }, "./CirclesDiscoverRevamp.module.css": styleModule,
   });
   function render() { cursor = 0; return screenModule.default({ campaignEntry }); }
   let tree = render();
-  return { get tree() { return tree; }, category(category: Category) { select(tile(tree, category)); tree = render(); }, sort(sort: string) {
+  return { backCalls, get tree() { return tree; }, back() {
+    const button = nodes(tree).find(node => node.type === "button" && text(node) === copy.circlesCopy(locale)("Back"))!; assert.ok(button);
+    assert.equal(button.props.type, "button"); select(button);
+  }, category(category: Category) { select(tile(tree, category)); tree = render(); }, sort(sort: string) {
     const selectNode = nodes(tree).find(node => node.type === "select" && node.props.id === "circles-sort")!; assert.ok(selectNode);
     (selectNode.props.onChange as (event: unknown) => void)({ target: { value: sort } }); tree = render();
   } };
@@ -200,9 +214,10 @@ test("integrated Discover preserves all category/sort combinations, full counts 
 test("integrated picker preserves canonical Circles/profile paths, separate D4 bridge and preview-supported visibility", () => {
   for (const preview of [false, true]) for (const campaignEntry of [false, true]) {
     const screen = discovery("en", preview, campaignEntry);
+    screen.back(); assert.deepEqual(screen.backCalls, [campaignEntry ? "/" : "/vaults"]);
     for (const category of categories) {
       screen.category(category); const all = nodes(screen.tree);
-      assert.ok(all.some(node => node.type === "Link" && node.props.href === (campaignEntry ? "/" : "/vaults")));
+      assert.ok(all.some(node => node.type === "button" && node.props.type === "button" && text(node) === "Back"));
       assert.equal(all.some(node => node.type === "Link" && node.props.href === "/campaigns?mode=testnet"), !campaignEntry);
       assert.equal(all.some(node => node.type === "Link" && node.props.href === "/circles/supported"), preview);
       assert.ok(all.some(node => node.type === "Link" && node.props.href === "/circles/create"));

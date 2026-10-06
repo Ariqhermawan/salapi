@@ -5,6 +5,7 @@ import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import * as copy from "../lib/i18n/revamp-circles.ts";
 import * as discoveryCopy from "../lib/i18n/revamp-campaign-discovery.ts";
+import * as homeCircles from "../lib/home-circles.ts";
 import * as currency from "../lib/ui/currency.ts";
 import { DICTS } from "../lib/i18n/dictionaries.ts";
 import { isLocale, LOCALES, type Locale } from "../lib/i18n/config.ts";
@@ -71,6 +72,7 @@ function setup(name: ScreenName, locale: Locale = "en", preview = true) {
   let cursor = 0;
   const pending: Promise<unknown>[] = [];
   const memory = new Map<string, string>();
+  const navigationViews = new Map<string, string>();
   const calls = { storage: 0, network: 0, action: 0 };
   const forbidden = (kind: "network" | "action") => () => { calls[kind]++; throw Error(`Forbidden ${kind} in isolated locale test`); };
   const exports = {} as { default(props: unknown): Element; selectCircleExamples(circles: readonly Circle[], category: CircleCategory | "all", sort: string): Circle[] };
@@ -100,6 +102,13 @@ function setup(name: ScreenName, locale: Locale = "en", preview = true) {
       } }) };
       if (module === "@/lib/i18n/revamp-circles") return copy;
       if (module === "@/lib/i18n/revamp-campaign-discovery") return discoveryCopy;
+      if (module === "@/lib/home-circles") return homeCircles;
+      if (module === "@/lib/ui/useNavigationViewState") return { useNavigationViewState: (key: string) => navigationViews.get(key) ?? "" };
+      if (module === "@/lib/ui/app-navigation") return { writeNavigationViewState(key: string, value: Record<string, unknown>) {
+        assert.equal(key, "circles-discovery");
+        assert.deepEqual(Object.keys(value).sort(), ["category", "sort"]);
+        navigationViews.set(key, JSON.stringify(value));
+      } };
       if (module === "@/lib/i18n/config") return { isLocale };
       if (module === "@/lib/ui/currency") return currency;
       if (module === "@/lib/circles/seed") return seed;
@@ -205,7 +214,8 @@ test("four locales render translated catalog, detail, donor, manager and creator
     assert.ok(text(discovery.tree).includes(c("A cause can bring us closer.")));
     assert.ok(text(discovery.tree).includes(c("Sort causes")));
     assert.equal(nodes(discovery.tree).filter(node => node.type === "option").length, 4);
-    assert.equal(nodes(discovery.tree).filter(node => node.type === "button").length, 10);
+    assert.equal(nodes(discovery.tree).filter(node => node.type === "button" && typeof node.props["data-category"] === "string").length, 10);
+    assert.ok(nodes(discovery.tree).some(node => node.type === "button" && node.props.type === "button" && text(node).trim() === c("Back")));
     const detail = setup("CircleDetailScreen", locale, preview);
     const tabs = nodes(detail.tree).filter(node => node.props.role === "tab");
     assert.deepEqual(tabs.map(text), [c("Story"), c("Updates") + "3", c("Public proof")]);

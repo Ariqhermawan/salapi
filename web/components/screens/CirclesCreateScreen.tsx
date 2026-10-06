@@ -14,6 +14,7 @@ import { useT } from "@/components/I18nProvider";
 import { isLocale, type Locale } from "@/lib/i18n/config";
 import { CATEGORY_LABEL, type CircleCategory } from "@/lib/circles/types";
 import { isLocalPreview } from "@/lib/local-preview";
+import { useGoBack } from "@/lib/ui/useGoBack";
 import styles from "./CirclesPreview.module.css";
 import { circlesCopy, circlesCategory } from "@/lib/i18n/revamp-circles";
 
@@ -66,6 +67,7 @@ function readDraft(value: unknown): Draft | null {
 }
 
 export default function CirclesCreateScreen() {
+  const goBack = useGoBack("/circles");
   const { currency, locale } = useT();
   const c = circlesCopy(locale);
   const [step, setStep] = useState<Step>(0);
@@ -280,8 +282,8 @@ export default function CirclesCreateScreen() {
   return (
     <div className={styles.screen}>
       <div className={styles.top}>
-        <Link href="/circles" className={styles.back}>
-          {Ico.back({ size: 14, c: T.action })}{c("Circles")}</Link>
+        <button type="button" className={styles.back} onClick={goBack}>
+          {Ico.back({ size: 14, c: T.action })}{c("Back")}</button>
         <span className={styles.badge}>{c("Prototype · browser draft")}</span>
       </div>
       <header className={styles.hero}>

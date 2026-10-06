@@ -83,6 +83,9 @@ test("live Home D4 cards retain direct contract IDs separately from examples", a
   await expect(page).toHaveURL(/\/campaigns\?id=\d+$/);
   await expect(page.getByRole("heading", { name: "Give with clarity.", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: /Explore this concept/ })).toHaveCount(0);
+  await page.getByRole("button", { name: "Back", exact: true }).first().click();
+  await expect(page).toHaveURL(new URL("/", page.url()).href);
+  await expect(page.getByTestId("home-circles-catalog")).toBeVisible();
 });
 
 test("explicit examples and testnet mode switches retain separate catalogs and direct D4 IDs", async ({ page }) => {
@@ -104,32 +107,35 @@ test("Vaults preserves discovery of Circles and the original Paluwagan pool", as
   await expect(page.getByRole("link", { name: /Original Paluwagan pool/ })).toHaveAttribute("href", "/paluwagan");
 });
 
-test("donor Back retains history while the Circles breadcrumb always opens the catalog", async ({ page }) => {
+test("donor and detail Back unwind the actual Home to cause to pledge path", async ({ page }) => {
   await page.goto("/", { waitUntil: "domcontentloaded", timeout: 45000 });
-  await page.waitForTimeout(300);
-  await page.goto("/circles/tino-relief", { waitUntil: "domcontentloaded", timeout: 45000 });
-  await page.waitForTimeout(300);
-  await page.goto("/circles/tino-relief/donate", { waitUntil: "domcontentloaded", timeout: 45000 });
-
-  const back = page.getByRole("button", { name: "Back" }).first();
-  await back.waitFor({ state: "visible", timeout: 12000 });
-  await page.waitForTimeout(500);
-  await back.click();
-  await page.waitForTimeout(1000);
-  expect(new URL(page.url()).pathname).toBe("/circles/tino-relief");
-
-  const back2 = page.getByRole("button", { name: "Circles", exact: true });
-  await back2.waitFor({ state: "visible", timeout: 12000 });
-  await back2.click();
-  await page.waitForTimeout(1000);
-  expect(new URL(page.url()).pathname).toBe("/circles");
+  const catalog = page.getByTestId("home-circles-catalog");
+  await expect(catalog).toHaveAttribute("data-catalog-ready", "true");
+  await catalog.locator('a[href="/circles/tino-relief"]').first().click();
+  await expect(page).toHaveURL(/\/circles\/tino-relief$/);
+  await page.getByRole("link", { name: "Preview a pledge", exact: true }).click();
+  await expect(page).toHaveURL(/\/circles\/tino-relief\/donate$/);
+  await page.getByRole("button", { name: "Back", exact: true }).first().click();
+  await expect(page).toHaveURL(/\/circles\/tino-relief$/);
+  await page.getByRole("button", { name: "Back", exact: true }).first().click();
+  await expect(page).toHaveURL(new URL("/", page.url()).href);
+  await expect(page.getByTestId("home-circles-catalog")).toBeVisible();
 });
 
-test("Circles breadcrumb does not return a visitor to organizer tools", async ({ page }) => {
+test("detail Back returns to organizer tools while explicit body links remain canonical", async ({ page }) => {
   await page.goto("/circles/cats-recovery/manage", { waitUntil: "domcontentloaded", timeout: 45000 });
+  await expect.poll(() => page.evaluate(() => Boolean(window.history.state?.__salapiNavigation))).toBe(true);
   await page.getByRole("link", { name: "Example cause", exact: true }).click();
   await expect(page).toHaveURL(/\/circles\/cats-recovery$/);
-  await page.getByRole("button", { name: "Circles", exact: true }).click();
+  await page.getByRole("button", { name: "Back", exact: true }).first().click();
+  await expect(page).toHaveURL(/\/circles\/cats-recovery\/manage$/);
+  await expect(page.getByRole("heading", { name: "Care for the cause.", exact: true })).toBeVisible();
+
+  await page.getByRole("link", { name: "Example cause", exact: true }).click();
+  await page.getByRole("link", { name: /^View example organizer profile:/ }).click();
+  await expect(page.getByRole("link", { name: "View example cause", exact: true })).toHaveAttribute("href", "/circles/cats-recovery");
+  await expect(page.getByRole("link", { name: "Browse Circles", exact: true })).toHaveAttribute("href", "/circles");
+  await page.getByRole("link", { name: "Browse Circles", exact: true }).click();
   await expect(page).toHaveURL(/\/circles$/);
   await expect(page.getByRole("heading", { name: "A cause can bring us closer.", exact: true })).toBeVisible();
 });

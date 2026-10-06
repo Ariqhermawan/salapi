@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import * as money from "../lib/money.ts";
+import * as accountCopy from "../lib/i18n/revamp-account.ts";
 
 type Result = { ok: boolean; pending?: boolean; hash?: string; link?: string; error?: string };
 type Actions = Record<string, (...args: unknown[]) => Promise<Result>>;
@@ -73,6 +74,8 @@ test("actual CampaignScreen anonymous sign-in href preserves create intent and o
       if (name === "@/components/ui/kit") return { T: {}, Ico: new Proxy({}, { get: () => () => null }), Btn: "Btn", Card: "Card", PoweredByStellar: "PoweredByStellar" };
       if (name === "@/lib/ui/useUnresolvedSubmission") return { useUnresolvedSubmission: () => ({ locked: false }) };
       if (name === "@/components/I18nProvider") return { useT: () => ({ locale: "en" }) };
+      if (name === "@/lib/i18n/revamp-account") return accountCopy;
+      if (name === "@/lib/ui/useGoBack") return { useGoBack: () => () => { throw Error("Navigation forbidden in isolated sign-in rendering test"); } };
       if (name === "@/lib/local-preview") return { isLocalPreview: false, PREVIEW_WALLET: { address: "example" }, PREVIEW_CAMPAIGNS: [] };
       if (name.endsWith(".module.css")) return { default: {} };
       return {};

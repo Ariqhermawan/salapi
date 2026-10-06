@@ -4,7 +4,7 @@
 // (the AppBar title). Each row shows the country flag and the display
 // currency that language carries (the currency follows the language).
 
-import { useRouter } from "next/navigation";
+import { useGoBack } from "@/lib/ui/useGoBack";
 import { LOCALES, LOCALE_META, type Locale } from "@/lib/i18n/config";
 import { CURRENCY } from "@/lib/ui/currency";
 import { useT } from "@/components/I18nProvider";
@@ -28,13 +28,13 @@ const FLAG: Record<Locale, FlagCode> = {
 export default function LanguagePickerScreen() {
   const { locale, setLocale, t } = useT();
   const c = accountCopy(locale);
-  const router = useRouter();
+  const goBack = useGoBack("/settings");
 
   return (
     <div style={{ fontFamily: T.fontSans, color: T.ink, minHeight: "100%" }}>
       <AppBar
         leading={
-          <IconButton ariaLabel={c.backSettings} onClick={() => router.push("/settings")}>
+          <IconButton ariaLabel={c.back} onClick={goBack}>
             {Ico.back({})}
           </IconButton>
         }

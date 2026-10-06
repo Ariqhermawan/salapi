@@ -8,7 +8,7 @@
 .screen a { text-decoration: none; }
 .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
 .top > strong { font-size: 14px; font-weight: 650; text-align: center; letter-spacing: -.025em; }
-.back { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-width: 44px; min-height: 44px; padding: 0 4px; border-radius: 9px; color: #2563eb; font-size: 12px; font-weight: 650; }
+.back { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-width: 44px; min-height: 44px; padding: 0 4px; border: 0; border-radius: 9px; background: transparent; color: #2563eb; font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; }
 .back:hover { background: #e7effd; }
 .badge { padding: 6px 10px; border-radius: 7px; color: #255baf; background: #e5eeff; font-size: 10px; font-weight: 650; line-height: 1.4; }
 .hero { display: flex; align-items: center; gap: 14px; padding: 21px 18px 23px; border: 1px solid #e7e2d7; border-radius: 24px; background: #f2efe7; }

@@ -46,6 +46,8 @@
 .back {
   display: inline-flex;
   align-items: center;
+  min-width: 44px;
+  min-height: 44px;
   gap: 6px;
   font: inherit;
   font-size: 11px;

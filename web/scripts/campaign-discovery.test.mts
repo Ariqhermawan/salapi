@@ -8,6 +8,8 @@ import * as discoveryCopy from "../lib/i18n/revamp-campaign-discovery.ts";
 import * as circlesCopy from "../lib/i18n/revamp-circles.ts";
 import * as money from "../lib/campaign-money.ts";
 import * as currency from "../lib/ui/currency.ts";
+import * as accountCopy from "../lib/i18n/revamp-account.ts";
+import * as homeCircles from "../lib/home-circles.ts";
 import { publicProofUrl, type Campaign } from "../lib/campaign.ts";
 import { formatStroops } from "../lib/disaster.ts";
 import { DICTS } from "../lib/i18n/dictionaries.ts";
@@ -126,6 +128,10 @@ test("actual mode navigation has explicit links, one current page, and truthful 
 
 function catalog(preview = true, campaignEntry = true) {
   let cursor = 0; const states: unknown[] = [];
+  // One isolated history entry per harness. These snapshots contain UI-only
+  // category/sort, not browser storage, ledger balances or donor preferences.
+  const navigationViews = new Map<string, string>();
+  const backCalls: string[] = [];
   const calls = { network: 0, action: 0, storage: 0 };
   const forbidden = (kind: keyof typeof calls) => () => { calls[kind]++; throw Error(`Forbidden ${kind}`); };
   const exports = {} as { default(props: unknown): Element };
@@ -145,6 +151,14 @@ function catalog(preview = true, campaignEntry = true) {
       if (name === "@/lib/circles/organizers") return fixture("../lib/circles/organizers.ts");
       if (name === "@/lib/i18n/revamp-circles") return circlesCopy;
       if (name === "@/lib/i18n/revamp-campaign-discovery") return discoveryCopy;
+      if (name === "@/lib/home-circles") return homeCircles;
+      if (name === "@/lib/ui/useNavigationViewState") return { useNavigationViewState: (key: string) => navigationViews.get(key) ?? "" };
+      if (name === "@/lib/ui/app-navigation") return { writeNavigationViewState(key: string, value: Record<string, unknown>) {
+        assert.equal(key, "circles-discovery");
+        assert.deepEqual(Object.keys(value).sort(), ["category", "sort"]);
+        navigationViews.set(key, JSON.stringify(value));
+      } };
+      if (name === "@/lib/ui/useGoBack") return { useGoBack: (fallback: string) => () => { backCalls.push(fallback); } };
       if (name === "@/lib/local-preview") return previewModule(preview);
       if (name.endsWith(".module.css")) return { default: {} };
       if (name === "@/app/actions") return new Proxy({}, { get: () => forbidden("action") });
@@ -153,7 +167,10 @@ function catalog(preview = true, campaignEntry = true) {
   });
   const render = () => { cursor = 0; return exports.default({ campaignEntry }); };
   let tree = render();
-  return { calls, get tree() { return tree; }, filter(category: CircleCategory | "all") {
+  return { calls, backCalls, get tree() { return tree; }, back() {
+    const button = nodes(tree).find(node => node.type === "button" && text(node) === "Back")!; assert.ok(button);
+    assert.equal(button.props.type, "button"); (button.props.onClick as () => void)();
+  }, filter(category: CircleCategory | "all") {
     const label = category === "all" ? "All examples" : circlesCopy.circlesCategory("en", category);
     const button = nodes(tree).find(node => node.type === "button" && (node.props["aria-label"] === label || text(node) === label))!; assert.ok(button);
     (button.props.onClick as () => void)(); tree = render();
@@ -187,13 +204,15 @@ test("default local catalog renders all 27 causes with nine filters, original ph
 test("catalog entry and explicit flag0 examples retain truthful labels and separate D4/draft/support paths", () => {
   for (const preview of [true, false]) {
     const screen = catalog(preview), all = nodes(screen.tree);
-    assert.ok(all.some(node => node.type === "Link" && node.props.href === "/" && text(node) === "Home"));
+    assert.ok(all.some(node => node.type === "button" && node.props.type === "button" && text(node) === "Back"));
+    screen.back(); assert.deepEqual(screen.backCalls, ["/"]);
     assert.equal(all.some(node => node.type === "Link" && node.props.href === "/campaigns?mode=testnet"), false, "Campaign entry uses its separate mode navigation, not a duplicate bridge");
     assert.ok(all.some(node => node.type === "Link" && node.props.href === "/circles/create"));
     assert.equal(all.some(node => node.type === "Link" && node.props.href === "/circles/supported"), preview);
     assert.match(text(screen.tree), /Fictional causes, AI photos and example ratings/);
     assert.match(text(screen.tree), /No live donations or on-chain receipts/);
     const standalone = catalog(preview, false);
+    standalone.back(); assert.deepEqual(standalone.backCalls, ["/vaults"]);
     assert.ok(nodes(standalone.tree).some(node => node.type === "Link" && node.props.href === "/campaigns?mode=testnet" && text(node).includes("Open donation campaigns")));
     assert.ok(text(standalone.tree).includes(preview ? "local sample data. No transactions." : "Testnet campaign escrow, proof review and two wallet approvals."));
     assert.deepEqual(standalone.calls, { network: 0, action: 0, storage: 0 });
@@ -225,6 +244,8 @@ function campaignCard(campaign: Campaign, preview: boolean, locale: Locale = "en
       if (name === "@/lib/local-preview") return local;
       if (name === "@/lib/vault-campaign-media") return media;
       if (name === "@/lib/i18n/revamp-campaign-discovery") return discoveryCopy;
+      if (name === "@/lib/i18n/revamp-account") return accountCopy;
+      if (name === "@/lib/ui/useGoBack") return { useGoBack: () => forbidden("action") };
       if (name === "@/app/campaign-actions") return new Proxy({}, { get: () => forbidden("action") });
       if (name === "@/lib/ui/useUnresolvedSubmission") return { useUnresolvedSubmission: forbidden("action") };
       if (name === "@/lib/campaign-preview-storage") return { saveCampaignPreview: forbidden("storage") };

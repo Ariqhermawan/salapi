@@ -1,6 +1,6 @@
 .screen { color:#101d35; padding-bottom:16px; }
 .appBar { display:grid; grid-template-columns:44px minmax(0,1fr) auto; align-items:center; gap:8px; padding:8px 16px 4px; }
-.appBar>a { display:grid; place-items:center; min-height:44px; border-radius:50%; background:#eaf0f8; }
+.appBar>button { display:grid; place-items:center; min-width:44px; min-height:44px; border:0; border-radius:50%; color:inherit; background:#eaf0f8; font:inherit; cursor:pointer; }
 .appBar>strong { font-size:14px; font-weight:650; text-align:center; letter-spacing:-.025em; }
 .appBar>span { font-size:10px; font-weight:700; color:#a05816; padding:6px 8px; background:#fff1dd; border-radius:99px; }
 .body { display:grid; gap:12px; padding:8px 18px 0; }

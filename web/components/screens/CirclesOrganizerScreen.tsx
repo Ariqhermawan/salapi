@@ -9,6 +9,8 @@ import { useT } from "@/components/I18nProvider";
 import { formatLocal } from "@/lib/ui/currency";
 import { CATEGORY_LABEL, type Circle, type CircleCategory } from "@/lib/circles/types";
 import type { CircleOrganizer } from "@/lib/circles/organizers";
+import { useGoBack } from "@/lib/ui/useGoBack";
+import { circlesCopy } from "@/lib/i18n/revamp-circles";
 import styles from "./CirclesOrganizerRevamp.module.css";
 
 const photos: Partial<Record<CircleCategory, string>> = {
@@ -53,12 +55,15 @@ function CauseCard({ cause, history = false }: { cause: Circle; history?: boolea
 export default function CirclesOrganizerScreen({ circle, organizer, causes, history }: {
   circle: Circle; organizer: CircleOrganizer; causes: Circle[]; history: Circle[];
 }) {
+  const { locale } = useT();
+  const c = circlesCopy(locale);
+  const causePath = `/circles/${circle.id}`;
+  const goBack = useGoBack(causePath);
   const [allCauses, setAllCauses] = useState(false);
   const [allReviews, setAllReviews] = useState(false);
   const featured = causes.find(cause => cause.id === circle.id) ?? causes[0];
   const visibleCauses = allCauses ? causes : featured ? [featured] : [];
   const visibleReviews = allReviews ? organizer.reviews : organizer.reviews.slice(0, 1);
-  const causePath = `/circles/${circle.id}`;
 
   function viewReviews() {
     setAllReviews(true);
@@ -66,7 +71,7 @@ export default function CirclesOrganizerScreen({ circle, organizer, causes, hist
   }
 
   return <div className={styles.screen}>
-    <div className={styles.top}><Link className={styles.back} href={causePath}><span aria-hidden="true">{Ico.back({ size: 19, c: T.action })}</span>Back to cause</Link>
+    <div className={styles.top}><button type="button" className={styles.back} onClick={goBack}><span aria-hidden="true">{Ico.back({ size: 19, c: T.action })}</span>{c("Back")}</button>
       <span className={styles.badge}>Example profile</span></div>
 
     <section className={styles.identity} aria-labelledby="organizer-name">
