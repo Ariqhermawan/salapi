@@ -88,6 +88,7 @@ function setup(name: ScreenName, locale: Locale = "en", preview = true, circleId
     require(module: string) {
       if (module === "react/jsx-runtime") return { jsx, jsxs: jsx, Fragment: "Fragment" };
       if (module === "react") return {
+        useSyncExternalStore(_subscribe: unknown, getSnapshot: () => unknown) { return getSnapshot(); },
         useState(initial: unknown) { const i = cursor++; if (!(i in states)) states[i] = typeof initial === "function" ? initial() : initial; return [states[i], (value: unknown) => { states[i] = typeof value === "function" ? value(states[i]) : value; }]; },
         useRef(initial: unknown) { const i = cursor++; if (!(i in states)) states[i] = { current: initial }; return states[i]; },
         useEffect() {},

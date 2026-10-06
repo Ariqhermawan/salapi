@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useRef, useState, useSyncExternalStore, useTransition } from "react";
 import Link from "next/link";
 import { joinCirclesWaitlist } from "@/app/actions";
 import { Ico, T, Btn, PoweredByStellar } from "@/components/ui/kit";
@@ -38,6 +38,11 @@ type Draft = {
 const DRAFT_KEY = "salapi.circles.draft.v1";
 const stepLabels = ["The cause", "The goal", "The details", "Review"] as const;
 const categories = Object.keys(CATEGORY_LABEL) as CircleCategory[];
+// SSR fields must not accept input or clicks before their React handlers exist.
+// Matching server/first-hydration snapshots keep the form disabled until commit.
+function subscribeHydration() { return () => {}; }
+function clientHydrationSnapshot() { return true; }
+function serverHydrationSnapshot() { return false; }
 function readDraft(value: unknown): Draft | null {
   if (!value || typeof value !== "object") return null;
   const draft = value as Partial<Draft>;
@@ -63,6 +68,7 @@ function readDraft(value: unknown): Draft | null {
 }
 
 export default function CirclesCreateScreen() {
+  const hydrated = useSyncExternalStore(subscribeHydration, clientHydrationSnapshot, serverHydrationSnapshot);
   const goBack = useGoBack("/circles");
   const { currency, locale } = useT();
   const c = circlesCopy(locale);
@@ -335,7 +341,7 @@ export default function CirclesCreateScreen() {
   return (
     <div className={styles.screen}>
       <div className={styles.top}>
-        <button type="button" className={styles.back} onClick={goBack}>
+        <button type="button" className={styles.back} disabled={!hydrated} onClick={goBack}>
           {Ico.back({ size: 14, c: T.action })}{c("Back")}</button>
         <span className={styles.badge}>{c("Prototype · browser draft")}</span>
       </div>
@@ -376,6 +382,8 @@ export default function CirclesCreateScreen() {
             <strong>{c(stepLabels[step])}</strong>
           </div>
           <section className={styles.card} style={{ marginTop: 0 }}>
+            <fieldset disabled={!hydrated} aria-busy={!hydrated} data-testid="circle-draft-fields"
+              style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>
             {step === 0 && (
               <div className={styles.form}>
                 <h2>{c("Tell us what matters.")}</h2>
@@ -561,6 +569,7 @@ export default function CirclesCreateScreen() {
                 {step === 3 ? c("Save complete browser draft") : c("Continue")}
               </Btn>
             </div>
+            </fieldset>
           </section>
           <p
             className={styles.hint}

@@ -48,3 +48,11 @@ jobs:
         env:
           E2E_BASE_URL: https://salapi.app
         run: npm run test:e2e
+
+      - name: Preserve deployed guest E2E evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-deployed-traces
+          path: web/test-results
+          if-no-files-found: ignore
