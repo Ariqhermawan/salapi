@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Heart } from "@phosphor-icons/react/dist/csr/Heart";
@@ -16,12 +16,20 @@ import { circlesCopy, circlesCategory } from "@/lib/i18n/revamp-circles";
 import { homeCatalogCopy, type HomeCatalogKey } from "@/lib/i18n/revamp-home-catalog";
 import styles from "./HomeCirclesCatalog.module.css";
 
+// Native selects can be changed before React attaches their handlers. Keep
+// interactive controls disabled in SSR/hydration, then enable at client commit.
+// Stable snapshots avoid a state-setting effect or a hydration mismatch.
+function subscribeCatalogReady() { return () => {}; }
+function catalogReadySnapshot() { return true; }
+function catalogServerReadySnapshot() { return false; }
+
 // Discovery fixtures are independent of wallet state and D4 escrow. These
 // routes preview the existing Circles concept; this component cannot pay.
 export default function HomeCirclesCatalog() {
   const { locale } = useT();
   const c = circlesCopy(locale);
   const copy = (key: HomeCatalogKey, vars?: Record<string, string | number>) => homeCatalogCopy(locale, key, vars);
+  const ready = useSyncExternalStore(subscribeCatalogReady, catalogReadySnapshot, catalogServerReadySnapshot);
   const [category, setCategory] = useState<HomeCauseCategory>("all");
   const [index, setIndex] = useState(0);
   const strip = useRef<HTMLDivElement>(null);
@@ -29,7 +37,7 @@ export default function HomeCirclesCatalog() {
 
   function move(next: number) {
     const element = strip.current;
-    if (!element || !examples.length) return;
+    if (!ready || !element || !examples.length) return;
     const current = (next + examples.length) % examples.length;
     const card = element.children[current] as HTMLElement | undefined;
     const first = element.children[0] as HTMLElement | undefined;
@@ -53,7 +61,7 @@ export default function HomeCirclesCatalog() {
     setIndex(nearest);
   }
 
-  return <section className={styles.catalog} aria-labelledby="home-circles-title" data-testid="home-circles-catalog">
+  return <section className={styles.catalog} aria-labelledby="home-circles-title" data-testid="home-circles-catalog" data-catalog-ready={ready}>
     <header className={styles.header}>
       <div>
         <span className={styles.eyebrow}>{copy("CROWDFUNDING · PROTOTYPE")}</span>
@@ -66,8 +74,8 @@ export default function HomeCirclesCatalog() {
     <div className={styles.tools}>
       <label htmlFor="home-cause-category">
         <span>{copy("Category")}</span>
-        <select id="home-cause-category" value={category} onChange={event => {
-          if (!isHomeCauseCategory(event.target.value)) return;
+        <select id="home-cause-category" value={category} disabled={!ready} onChange={event => {
+          if (!ready || !isHomeCauseCategory(event.target.value)) return;
           setCategory(event.target.value);
           setIndex(0);
         }}>
@@ -96,7 +104,7 @@ export default function HomeCirclesCatalog() {
               {Ico.chev({ size: 15 })}
             </Link>
             {organizer ? <div className={styles.rating}>
-              <span>{copy("Example rating")} <Star size={13} weight="fill" aria-hidden="true" /><strong>{organizer.rating.toFixed(1)}/5</strong></span>
+              <span><span>{copy("Example rating")}</span><Star size={13} weight="fill" aria-hidden="true" /><strong>{organizer.rating.toFixed(1)}/5</strong></span>
               <small>{copy("{count} example reviews", { count: organizer.reviewCount })}</small>
             </div> : null}
             <div className={styles.progress} aria-label={copy("{percent}% example progress. No donations collected.", { percent })}>
@@ -111,9 +119,9 @@ export default function HomeCirclesCatalog() {
     <div className={styles.footer}>
       <Link href="/circles/create" prefetch={false} className={styles.explore}>{c("Sketch your own cause")}{Ico.chev({ size: 15 })}</Link>
       <div className={styles.controls}>
-        <button type="button" aria-label={copy("Previous example cause")} onClick={() => move(index - 1)} disabled={examples.length < 2}>{Ico.back({ size: 17 })}</button>
+        <button type="button" aria-label={copy("Previous example cause")} onClick={() => move(index - 1)} disabled={!ready || examples.length < 2}>{Ico.back({ size: 17 })}</button>
         <span aria-label={copy("{current} of {count} example causes", { current: Math.min(index + 1, examples.length), count: examples.length })}>{String(Math.min(index + 1, examples.length)).padStart(2, "0")} / {String(examples.length).padStart(2, "0")}</span>
-        <button type="button" aria-label={copy("Next example cause")} onClick={() => move(index + 1)} disabled={examples.length < 2}>{Ico.chev({ size: 17 })}</button>
+        <button type="button" aria-label={copy("Next example cause")} onClick={() => move(index + 1)} disabled={!ready || examples.length < 2}>{Ico.chev({ size: 17 })}</button>
       </div>
     </div>
   </section>;

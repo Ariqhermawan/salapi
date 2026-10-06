@@ -46,6 +46,8 @@ test("Home categories show three examples per sector and clickable organizer rat
   const catalog = page.getByTestId("home-circles-catalog");
   const category = catalog.locator("#home-cause-category");
   await expect(catalog.getByText("Fictional causes · AI photos · example ratings · no payment.", { exact: true })).toBeVisible();
+  await expect(catalog).toHaveAttribute("data-catalog-ready", "true");
+  await expect(category).toBeEnabled();
   for (const sector of ["disaster", "medical", "education", "community", "family", "creator", "animals", "care", "volunteer"]) {
     await category.selectOption(sector);
     await expect(catalog.locator("article[data-example-cause]")).toHaveCount(3);

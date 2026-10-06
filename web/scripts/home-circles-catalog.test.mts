@@ -58,6 +58,7 @@ function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: bo
   const homeStates: unknown[] = [], catalogStates: unknown[] = [];
   let states = homeStates;
   let cursor = 0;
+  let hydrated = false;
   let tree: Element;
   const effects: (() => void)[] = [];
   const timeouts = new Map<number, Callback>();
@@ -89,9 +90,10 @@ function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: bo
       if (name === "react") return {
         useState(initial: unknown) { const index = cursor++, hookStates = states; if (!(index in hookStates)) hookStates[index] = typeof initial === "function" ? initial() : initial; return [hookStates[index], (value: unknown) => { hookStates[index] = typeof value === "function" ? value(hookStates[index]) : value; }]; },
         useRef(initial: unknown) { const index = cursor++; if (!(index in states)) states[index] = { current: initial }; return states[index]; },
+        useSyncExternalStore(_subscribe: unknown, getSnapshot: () => unknown, getServerSnapshot: () => unknown) { cursor++; return hydrated ? getSnapshot() : getServerSnapshot(); },
         useCallback(callback: Callback, dependencies: readonly unknown[]) { const index = cursor++; const previous = states[index] as { callback: Callback; dependencies: readonly unknown[] } | undefined; if (!previous || !dependenciesEqual(previous.dependencies, dependencies)) states[index] = { callback, dependencies }; return (states[index] as { callback: Callback }).callback; },
-        useEffect(callback: () => (() => void) | void, dependencies: readonly unknown[]) { const index = cursor++; const previous = states[index] as { dependencies: readonly unknown[]; cleanup?: () => void } | undefined; if (!previous || !dependenciesEqual(previous.dependencies, dependencies)) {
-          const next = { dependencies, cleanup: undefined as (() => void) | void }; states[index] = next;
+        useEffect(callback: () => (() => void) | void, dependencies: readonly unknown[]) { const index = cursor++, hookStates = states; const previous = hookStates[index] as { dependencies: readonly unknown[]; cleanup?: () => void } | undefined; if (!previous || !dependenciesEqual(previous.dependencies, dependencies)) {
+          const next = { dependencies, cleanup: undefined as (() => void) | void }; hookStates[index] = next;
           effects.push(() => { previous?.cleanup?.(); next.cleanup = callback(); });
         } },
       };
@@ -130,6 +132,7 @@ function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: bo
   }
   render();
   async function flush() {
+    hydrated = true;
     for (let loop = 0; loop < 5; loop++) {
       for (const effect of effects.splice(0)) effect();
       for (const [id, callback] of timeouts) { timeouts.delete(id); callback(); }
@@ -138,7 +141,7 @@ function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: bo
     }
     return tree!;
   }
-  function select(category: string) { const field = nodes(tree).find(node => node.props.id === "home-cause-category"); assert.ok(field); (field.props.onChange as (event: unknown) => void)({ target: { value: category } }); render(); }
+  function select(category: string) { const field = nodes(tree).find(node => node.props.id === "home-cause-category"); assert.ok(field); assert.notEqual(field.props.disabled, true, "The native category control must hydrate before accepting a choice"); (field.props.onChange as (event: unknown) => void)({ target: { value: category } }); render(); }
   function click(ariaLabel: string) { const button = nodes(tree).find(node => node.type === "button" && node.props["aria-label"] === ariaLabel); assert.ok(button, `Missing Home control ${ariaLabel}`); assert.notEqual(button.props.disabled, true); (button.props.onClick as () => void)(); render(); }
   return { calls, render, flush, select, click, scrolls, intervals, document, set campaignFailure(value: boolean) { campaignFailure = value; }, get tree() { return tree!; }, get catalog() { return nodes(tree).find(node => node.props["data-testid"] === "home-circles-catalog")!; }, get cards() { return nodes(tree).filter(node => node.type === "article" && "data-example-cause" in node.props); }, get d4Cards() { const strip = nodes(tree).find(node => node.props["aria-label"] === homeCopy(locale, "Campaign carousel")); return nodes(strip).filter(node => node.type === "article"); }, changeReducedMotion(value: boolean) { mediaReduced = value; for (const listener of mediaListeners) listener(); render(); } };
 }
@@ -188,6 +191,7 @@ for (const preview of [true, false]) for (const locale of LOCALES) test(`${local
     assert.ok(text(card).includes(circle.title)); assert.ok(text(card).includes(circle.organizer));
     assert.ok(text(card).includes(c("Example cause")));
     assert.ok(text(card).includes(catalogCopy.homeCatalogCopy(locale, "Example rating")));
+    assert.ok(nodes(card).some(node => node.type === "span" && text(node) === catalogCopy.homeCatalogCopy(locale, "Example rating")), "The visible rating label must remain independently identifiable");
     assert.ok(text(card).includes(organizer.rating.toFixed(1)));
     assert.ok(text(card).includes(catalogCopy.homeCatalogCopy(locale, "{count} example reviews", { count: organizer.reviewCount })));
     assert.ok(nodes(card).some(node => node.props["aria-label"] === catalogCopy.homeCatalogCopy(locale, "{percent}% example progress. No donations collected.", { percent: circleTypes.progressPct(circle) })));
@@ -217,6 +221,24 @@ test("actual category changes reset the manual catalog and expose three causes i
   ui.select("all"); await ui.flush(); assert.equal(ui.cards.length, 27); assert.ok(text(ui.tree).includes("01 / 27"));
   ui.select("not-a-category"); await ui.flush(); assert.equal(ui.cards.length, 27);
   assert.equal(ui.calls.wallet, 0); assert.equal(ui.calls.handle, 0); assert.deepEqual(ui.calls.campaigns, []);
+});
+
+test("server-rendered native catalog controls wait for hydration, then accept category and carousel events", async () => {
+  for (const preview of [true, false]) {
+    const ui = mount({ preview });
+    assert.equal(ui.cards.length, 27, "SSR must still expose the complete read-only example catalog");
+    assert.equal(String(ui.catalog.props["data-catalog-ready"]), "false");
+    const controls = nodes(ui.catalog).filter(node => node.type === "select" || node.type === "button");
+    assert.equal(controls.length, 3); assert.ok(controls.every(control => control.props.disabled === true));
+    assert.throws(() => ui.select("animals"), /hydrate before accepting/);
+    assert.equal(ui.calls.wallet, 0); assert.deepEqual(ui.calls.campaigns, []); assert.equal(ui.calls.writes, 0);
+    await ui.flush();
+    assert.equal(String(ui.catalog.props["data-catalog-ready"]), "true");
+    assert.ok(nodes(ui.catalog).filter(node => node.type === "select" || node.type === "button").every(control => control.props.disabled !== true));
+    ui.select("animals"); await ui.flush(); assert.equal(ui.cards.length, 3);
+    ui.click(catalogCopy.homeCatalogCopy("en", "Next example cause")); assert.ok(text(ui.catalog).includes("02 / 03"));
+    assert.equal(ui.calls.wallet, preview ? 0 : 1); assert.equal(ui.calls.writes, 0);
+  }
 });
 
 test("example catalog is manual-only, wraps correctly and respects reduced-motion changes", async () => {
