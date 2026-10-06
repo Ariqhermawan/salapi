@@ -28,8 +28,9 @@ function text(value: unknown): string {
 
 // The real component and handlers execute with isolated hooks and in-memory
 // draft storage. No browser, credential, Supabase SDK or network can run here.
-function setup(options: { preview?: boolean; result?: { ok: boolean; error?: string }; throws?: boolean; storageMode?: "normal" | "blocked" | "drop" | "tamper" | "readback-error"; previous?: string } = {}) {
+function setup(options: { preview?: boolean; result?: { ok: boolean; error?: string }; throws?: boolean; storageMode?: "normal" | "blocked" | "drop" | "tamper" | "readback-error"; previous?: string; phase?: "server" | "hydrate" | "client" } = {}) {
   const states: unknown[] = [];
+  let phase = options.phase ?? "client";
   let cursor = 0;
   const transitions: Promise<unknown>[] = [];
   const memory = new Map<string, string>();
@@ -64,6 +65,7 @@ function setup(options: { preview?: boolean; result?: { ok: boolean; error?: str
     require(name: string) {
       if (name === "react/jsx-runtime") return { jsx, jsxs: jsx, Fragment: "Fragment" };
       if (name === "react") return {
+        useSyncExternalStore(_subscribe: unknown, clientSnapshot: () => unknown, serverSnapshot: () => unknown) { return phase === "client" ? clientSnapshot() : serverSnapshot(); },
         useState(initial: unknown) { const index = cursor++; if (!(index in states)) states[index] = initial; return [states[index], (value: unknown) => { states[index] = typeof value === "function" ? value(states[index]) : value; }]; },
         useRef(initial: unknown) { const index = cursor++; if (!(index in states)) states[index] = { current: initial }; return states[index]; },
         useTransition: () => [false, (action: () => Promise<unknown>) => transitions.push(action())],
@@ -112,8 +114,28 @@ function setup(options: { preview?: boolean; result?: { ok: boolean; error?: str
     click("Continue"); input("circle-draft-goal", "10.00"); click("Continue"); click("Continue");
     check("Save this concept on this device only"); click("Save complete browser draft");
   }
-  return { input, check, click, submit, save, memory, payloads, downloads, get tree() { return tree; } };
+  return { input, check, click, submit, save, memory, payloads, downloads, setPhase(next: typeof phase) { phase = next; tree = render(); }, get tree() { return tree; } };
 }
+
+test("SSR and first hydration keep all draft controls disabled; committed handlers unlock without editing storage", () => {
+  const screen = setup({ phase: "server" });
+  const fields = () => nodes(screen.tree).find(node => node.props["data-testid"] === "circle-draft-fields");
+  for (const phase of ["server", "hydrate"] as const) {
+    screen.setPhase(phase);
+    assert.equal(fields()?.type, "fieldset"); assert.equal(fields()?.props.disabled, true);
+    assert.equal(fields()?.props["aria-busy"], true);
+    assert.ok(nodes(fields()).some(node => node.props.id === "circle-draft-title"));
+    assert.ok(nodes(fields()).some(node => node.props.id === "circle-draft-story"));
+    assert.ok(nodes(fields()).some(node => node.props.id === "circle-draft-category"));
+    for (const label of ["Restore last browser draft", "Continue"]) assert.ok(nodes(fields()).some(node => node.type === "Btn" && text(node).trim() === label));
+    assert.equal(screen.memory.size, 0); assert.equal(screen.payloads.length, 0);
+  }
+  screen.setPhase("client");
+  assert.equal(fields()?.props.disabled, false); assert.equal(fields()?.props["aria-busy"], false);
+  completeCause(screen, "animals");
+  assert.equal(nodes(screen.tree).find(node => node.props.id === "circle-draft-photo-0")?.props.value, draftGallery.defaultDraftGallery("animals")[0].src);
+  assert.equal(screen.memory.size, 0); assert.equal(screen.payloads.length, 0);
+});
 
 test("saving a complete browser draft never automatically submits organizer details", () => {
   for (const preview of [false, true]) {
