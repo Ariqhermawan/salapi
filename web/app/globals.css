@@ -1,7 +1,10 @@
 @import "tailwindcss";
 
-.sl-state-enter{animation:sl-section-in .28s ease-out both}
-@keyframes sl-section-in{from{opacity:.6;transform:translateY(7px)}to{opacity:1;transform:none}}
+/* Route/state wrappers can contain fixed dialogs. Keep their entry fade free
+   of transforms and persistent stacking contexts, including instant opens. */
+.sl-state-enter{animation:sl-section-in .28s ease-out backwards}
+.sl-state-enter:has([aria-modal="true"]){animation:none}
+@keyframes sl-section-in{from{opacity:.6}to{opacity:1}}
 .sl-success-feedback{position:absolute;left:14px;right:14px;bottom:110px;z-index:70;filter:drop-shadow(0 8px 16px #102b5120)}
 .sl-success-feedback>button{position:absolute;right:0;top:0;min-width:44px;min-height:44px;border:0;border-radius:12px;background:transparent;color:#115d4c;font-size:22px;cursor:pointer}
 .sl-success-feedback>div{padding-right:44px}
@@ -219,7 +222,9 @@
 }
 
 /* Quiet blue-white surfaces and visible interaction states. */
-.sl-app-frame { box-shadow: 0 28px 80px -30px rgba(0,7,20,.65); container-type:inline-size; }
+/* Keep fixed app dialogs inside this visible frame, not the scrolled route
+   or the desktop marketing viewport. Container queries alone do not do this. */
+.sl-app-frame { box-shadow: 0 28px 80px -30px rgba(0,7,20,.65); container-type:inline-size; contain:layout; }
 .sl-main { scrollbar-width: thin; scrollbar-color: #ccd7e8 transparent; scroll-behavior: smooth; }
 .sl-preview-banner { display:flex; align-items:center; justify-content:center; gap:7px; flex-shrink:0; padding:7px 10px; background:#e7effe; color:#244c91; font-size:10px; font-weight:650; letter-spacing:.02em; border-bottom:1px solid #d5e3fb; }
 .sl-preview-dot { width:5px; height:5px; border-radius:50%; background:#2563eb; }

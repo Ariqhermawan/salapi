@@ -113,13 +113,16 @@ function screen(mode: Mode) {
     card = (child.type as (props: unknown) => Element)(child.props);
   }
   render();
+  function reviewDonation() {
+    const input = nodes(card).find(node => node.type === "input" && node.props.inputMode === "decimal")!;
+    (input.props.onChange as (event: unknown) => void)({ target: { value: "5" } }); render();
+    const review = nodes(card).find(node => node.type === "Btn" && text(node) === "Donate · Review amount")!;
+    (review.props.onClick as () => void)(); render();
+  }
   return {
-    store,
+    store, review: reviewDonation,
     async donate() {
-      const input = nodes(card).find(node => node.type === "input" && node.props.inputMode === "decimal")!;
-      (input.props.onChange as (event: unknown) => void)({ target: { value: "5" } }); render();
-      const review = nodes(card).find(node => node.type === "Btn" && text(node) === "Donate · Review amount")!;
-      (review.props.onClick as () => void)(); render();
+      reviewDonation();
       const confirm = nodes(root).find(node => node.type === "Btn" && text(node) === "Confirm local example")!;
       assert.ok(confirm); (confirm.props.onClick as () => void)();
       await Promise.resolve(); render();
@@ -127,6 +130,51 @@ function screen(mode: Mode) {
     get root() { return root; }, get card() { return card; },
   };
 }
+test("shared route motion cannot retain a transformed fixed-dialog containing block or modal stacking context", () => {
+  const css = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8");
+  const route = readFileSync(new URL("../components/RouteMotion.tsx", import.meta.url), "utf8");
+  const entry = css.match(/\.sl-state-enter\s*\{([^}]+)\}/)?.[1];
+  const keyframes = css.match(/@keyframes\s+sl-section-in\s*\{[\s\S]*?}\s*}/)?.[0];
+  assert.ok(entry); assert.ok(keyframes);
+  assert.match(route, /className="sl-state-enter"/);
+  assert.match(entry, /animation:\s*sl-section-in\s+\.28s\s+ease-out\s+backwards/);
+  assert.doesNotMatch(entry + keyframes, /transform\s*:|filter\s*:|will-change\s*:|contain\s*:|\bforwards\b|\bboth\b/);
+  assert.match(keyframes, /opacity:\s*\.6/); assert.match(keyframes, /opacity:\s*1/);
+  assert.match(css, /\.sl-state-enter:has\(\[aria-modal="true"\]\)\s*\{\s*animation:\s*none\s*}/);
+  assert.match(css, /@media\(prefers-reduced-motion:reduce\)\{\.sl-state-enter\{animation:none}}/);
+});
+
+test("visible app frame explicitly contains fixed dialogs without a transformed scroll wrapper", () => {
+  const css = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8");
+  const frame = css.match(/\.sl-app-frame\s*\{([^}]+)\}/)?.[1]; assert.ok(frame);
+  assert.match(frame, /container-type:\s*inline-size\s*;/);
+  assert.match(frame, /contain:\s*layout\s*;/);
+  assert.doesNotMatch(frame, /transform\s*:|filter\s*:|will-change\s*:/);
+  const route = css.match(/\.sl-state-enter\s*\{([^}]+)\}/)?.[1]; assert.ok(route);
+  assert.doesNotMatch(route, /contain\s*:|transform\s*:/);
+});
+
+test("actual campaign review remains frame-fixed with a bounded scrollable card and cancel cannot submit", () => {
+  const ui = screen("normal"); ui.review();
+  const dialog = nodes(ui.root).find(node => node.props.role === "dialog")!; assert.ok(dialog);
+  const overlay = dialog.props.style as Record<string, unknown>;
+  assert.equal(dialog.props["aria-modal"], "true"); assert.equal(dialog.props.tabIndex, -1);
+  assert.equal(overlay.position, "fixed"); assert.equal(overlay.inset, 0); assert.equal(overlay.zIndex, 100);
+  assert.equal(overlay.display, "flex"); assert.equal(overlay.alignItems, "center"); assert.equal(overlay.justifyContent, "center");
+  assert.equal(overlay.boxSizing, "border-box"); assert.equal(overlay.overflowY, "auto");
+  const card = nodes(dialog).find(node => node.type === "Card")!; assert.ok(card);
+  const style = card.props.style as Record<string, unknown>;
+  assert.equal(style.minHeight, 0); assert.equal(style.maxHeight, "100%"); assert.equal(style.overflowY, "auto");
+  assert.equal(style.overscrollBehavior, "contain"); assert.equal(style.boxSizing, "border-box");
+  const source = readFileSync(new URL("../components/screens/CampaignScreen.tsx", import.meta.url), "utf8");
+  assert.match(source, /dialog\?\.focus\(\{ preventScroll: true }\)/);
+  assert.match(source, /previousFocus\?\.focus\(\{ preventScroll: true }\)/);
+  const cancel = nodes(dialog).find(node => node.type === "Btn" && text(node) === "Cancel")!; assert.ok(cancel);
+  (cancel.props.onClick as () => void)();
+  assert.equal(ui.store.writes, 0);
+  assert.equal(ui.store.memory.get(CAMPAIGN_PREVIEW_KEY), JSON.stringify(PREVIEW_CAMPAIGNS));
+});
+
 test("actual campaign donation failure keeps amount/escrow/input and has no success animation", async () => {
   for (const mode of ["throw", "drop", "tamper", "partial", "read-blocked"] as const) {
     const ui = screen(mode); await ui.donate();

@@ -56,6 +56,76 @@ test.describe("D4 isolated local UI and HTTP authorization", () => {
     await expect(page.getByRole("status")).toContainText("Testnet transaction confirmed");
     expect(writes).toEqual([{ name: "campaignDonate", args: ["1", { amount: "6.50", currency: "tl" }] }]);
   });
+  for (const variant of [
+    { name: "desktop instant-open", viewport: { width: 1280, height: 720 }, reduced: false, create: false },
+    { name: "short mobile long review", viewport: { width: 390, height: 480 }, reduced: false, create: true },
+    { name: "desktop reduced motion", viewport: { width: 1280, height: 720 }, reduced: true, create: false },
+  ]) {
+    test(`confirmation stays inside the visible frame and blocks navigation: ${variant.name}`, async ({ page }) => {
+      await page.setViewportSize(variant.viewport);
+      await page.emulateMedia({ reducedMotion: variant.reduced ? "reduce" : "no-preference" });
+      const writes = await fixture(page, { viewer: wallets[0] });
+      if (variant.create) {
+        await page.getByText("Start a campaign", { exact: true }).click();
+        await page.getByLabel("1. Name your cause", { exact: true }).fill("Long cause terms for a careful review. ".repeat(40));
+        await page.getByLabel("Beneficiary public wallet", { exact: true }).fill(wallets[1]);
+        await page.getByLabel("2. Funding closes", { exact: true }).fill("2030-01-01T12:00");
+        await page.getByLabel("Review closes", { exact: true }).fill("2030-01-02T12:00");
+        for (let i = 0; i < 3; i++) await page.getByLabel(`${i === 0 ? "3. " : ""}Approver ${i + 1} public wallet`, { exact: true }).fill(wallets[i]);
+      } else {
+        await page.getByLabel("Donation amount", { exact: true }).fill("6.50");
+        await page.getByLabel("Display currency", { exact: true }).selectOption("tl");
+      }
+      const review = page.getByRole("button", { name: variant.create ? "Review campaign terms" : "Donate · Review amount", exact: true });
+      await review.scrollIntoViewIfNeeded();
+      // Re-enter and pause the wrapper fade so opening during motion is tested,
+      // not only after its animation has completed.
+      await page.locator("main > .sl-state-enter").evaluate(node => {
+        (node as HTMLElement).style.animation = "none";
+        void (node as HTMLElement).offsetHeight;
+        (node as HTMLElement).style.animation = "";
+        const animation = node.getAnimations()[0];
+        if (animation) { animation.currentTime = 80; animation.pause(); }
+      });
+      const scrollBefore = await page.locator("main").evaluate(node => node.scrollTop);
+      expect(scrollBefore).toBeGreaterThan(0);
+      await review.click();
+      const dialog = page.getByRole("dialog", { name: "Confirm campaign transaction", exact: true });
+      await expect(dialog).toBeVisible();
+      await expect(dialog).toBeFocused();
+      const geometry = await dialog.evaluate(node => {
+        const frame = document.querySelector(".sl-app-frame")!.getBoundingClientRect();
+        const overlay = node.getBoundingClientRect();
+        const card = node.querySelector<HTMLElement>(".sl-card")!;
+        const box = card.getBoundingClientRect();
+        const wrapper = node.closest(".sl-state-enter")!;
+        return { frame: { x: frame.x, y: frame.y, width: frame.width, height: frame.height },
+          overlay: { x: overlay.x, y: overlay.y, width: overlay.width, height: overlay.height },
+          card: { top: box.top, bottom: box.bottom, width: box.width, height: box.height, clientHeight: card.clientHeight, scrollHeight: card.scrollHeight },
+          wrapperTransform: getComputedStyle(wrapper).transform, wrapperAnimation: getComputedStyle(wrapper).animationName,
+          navBlocked: !!document.elementFromPoint(frame.left + 45, frame.bottom - 25)?.closest('[role="dialog"]') };
+      });
+      expect(geometry.wrapperTransform).toBe("none");
+      expect(geometry.wrapperAnimation).toBe("none");
+      for (const dimension of ["x", "y", "width", "height"] as const) expect(Math.abs(geometry.overlay[dimension] - geometry.frame[dimension])).toBeLessThanOrEqual(2);
+      expect(geometry.card.top).toBeGreaterThanOrEqual(geometry.overlay.y + 19);
+      expect(geometry.card.bottom).toBeLessThanOrEqual(geometry.overlay.y + geometry.overlay.height - 19);
+      expect(geometry.card.width).toBeLessThanOrEqual(420);
+      expect(geometry.navBlocked).toBe(true);
+      if (variant.create) expect(geometry.card.scrollHeight).toBeGreaterThan(geometry.card.clientHeight);
+      expect(await page.locator("main").evaluate(node => node.scrollTop)).toBe(scrollBefore);
+      // Existing focus trap must still reach the scroll-contained controls.
+      await page.keyboard.press("Shift+Tab");
+      await expect(dialog.getByRole("button", { name: "Cancel", exact: true })).toBeFocused();
+      await page.keyboard.press("Tab");
+      await expect(dialog.getByRole("button", { name: "Confirm transaction", exact: true })).toBeFocused();
+      await page.keyboard.press("Escape");
+      await expect(dialog).toHaveCount(0);
+      await expect(review).toBeFocused();
+      expect(await page.locator("main").evaluate(node => node.scrollTop)).toBe(scrollBefore);
+      expect(writes).toHaveLength(0);
+    });
+  }
   test("creator config is confirmed once with three fixed approvers", async ({ page }) => {
     const writes = await fixture(page, { viewer: wallets[0] });
     await page.getByText("Start a campaign", { exact: true }).click();

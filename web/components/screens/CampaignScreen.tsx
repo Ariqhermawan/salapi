@@ -248,7 +248,7 @@ export default function CampaignScreen({ id, initialCreate = false }: { id: stri
     if (!confirm) return;
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const dialog = dialogRef.current;
-    dialog?.focus();
+    dialog?.focus({ preventScroll: true });
     function handleKey(event: KeyboardEvent) {
       if (event.key === "Escape" && !busy) { setConfirm(null); setError(""); return; }
       if (event.key !== "Tab" || !dialog) return;
@@ -259,7 +259,7 @@ export default function CampaignScreen({ id, initialCreate = false }: { id: stri
       else if (!event.shiftKey && (document.activeElement === last || document.activeElement === dialog)) { event.preventDefault(); first.focus(); }
     }
     document.addEventListener("keydown",handleKey);
-    return () => { document.removeEventListener("keydown",handleKey); previousFocus?.focus(); };
+    return () => { document.removeEventListener("keydown",handleKey); previousFocus?.focus({ preventScroll: true }); };
   },[confirm,busy]);
   const refresh = useCallback(async () => {
     if (isLocalPreview) { setPreviewTime(Math.floor(Date.now()/1000)); return; }
@@ -327,8 +327,8 @@ export default function CampaignScreen({ id, initialCreate = false }: { id: stri
       <p className={styles.muted}>If timely approval is incomplete, each donor can claim their full recorded donation after review closes. These campaigns have their own rules, separate from Disaster Vault.</p>
       <footer className={styles.footer}><PoweredByStellar /><small>Public proof on Stellar Testnet.</small></footer>
     </div>
-    {confirm && <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Confirm campaign transaction" style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(11,18,32,.55)", display: "grid", placeItems: "center", padding: 20 }}>
-      <Card style={{ maxWidth: 420, width: "100%" }}><div style={group}><span className={styles.eyebrow}>{isLocalPreview ? "Local preview" : "Testnet transaction"}</span><h2 style={{ fontSize: 24, fontWeight: 750, letterSpacing: "-.04em" }}>Review before confirming</h2><p className={styles.muted} style={{ overflowWrap: "anywhere" }}>{confirm.label}</p>
+    {confirm && <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Confirm campaign transaction" style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(11,18,32,.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, boxSizing: "border-box", overflowY: "auto" }}>
+      <Card style={{ maxWidth: 420, width: "100%", minHeight: 0, maxHeight: "100%", boxSizing: "border-box", overflowY: "auto", overscrollBehavior: "contain" }}><div style={group}><span className={styles.eyebrow}>{isLocalPreview ? "Local preview" : "Testnet transaction"}</span><h2 style={{ fontSize: 24, fontWeight: 750, letterSpacing: "-.04em" }}>Review before confirming</h2><p className={styles.muted} style={{ overflowWrap: "anywhere" }}>{confirm.label}</p>
         {error && <p role="alert">{error}</p>}<Btn disabled={busy} loading={busy} onClick={() => void execute()}>{busy ? "Confirming…" : isLocalPreview ? "Confirm local example" : "Confirm transaction"}</Btn>
         <Btn kind="secondary" disabled={busy} onClick={() => { setConfirm(null); setError(""); }}>Cancel</Btn>
       </div></Card>
