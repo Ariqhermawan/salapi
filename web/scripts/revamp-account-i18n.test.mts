@@ -9,6 +9,7 @@ import ts from "typescript";
 import { isAuthSessionMissingError } from "@supabase/supabase-js";
 import { ACCOUNT_COPY, accountCopy, accountText, accountCurrencyName, accountLanguageName, type AccountCopyKey } from "../lib/i18n/revamp-account.ts";
 import { xlmDepositCopy } from "../lib/i18n/xlm-deposit.ts";
+import { accountPhotoCopy } from "../lib/i18n/account-photo.ts";
 import { LOCALES, LOCALE_META, type Locale } from "../lib/i18n/config.ts";
 import { DICTS } from "../lib/i18n/dictionaries.ts";
 import { CURRENCY, localAmount, formatLocalAmount, pesoFromLocal } from "../lib/ui/currency.ts";
@@ -49,6 +50,10 @@ function render(name: typeof files[number], locale: Locale, preview = true, prop
       if (dependency === "next/image") return { default: (props: Record<string, unknown>) => React.createElement("span", null, props.alt as string) };
       if (dependency === "next/navigation") return { useRouter: () => ({ push: forbidden }) };
       if (dependency === "@/components/I18nProvider") return { useT: () => ({ locale, currency: "en", currencyPref: "en", t: (key: string) => translate(locale, key), setLocale: forbidden, setCurrency: forbidden }) };
+      if (dependency === "@/components/AccountAvatar") return { default: box };
+      if (dependency === "@/components/AccountPhotoEditor") return { default: () => null };
+      if (dependency === "@/components/useAccountPhoto") return { useAccountPhoto: () => ({ profile: null, status: "ready" }) };
+      if (dependency === "@/lib/i18n/account-photo") return { accountPhotoCopy };
       if (dependency === "@/lib/i18n/revamp-account") return copyModule;
       if (dependency === "@/lib/i18n/xlm-deposit") return { xlmDepositCopy };
       if (dependency === "./XlmDepositPanel") return { default: () => React.createElement("span", null, xlmDepositCopy(locale).warning) };

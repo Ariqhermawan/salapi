@@ -246,3 +246,33 @@ test("mark-seen returns false if storage throws or drops the newly seen state", 
     h.mode(mode); assert.equal(h.api.markCircleUpdatesSeen(source.id, [newId]), false, mode); noExternal(h);
   }
 });
+
+test("optional anonymous/comment preferences persist only bounded text in the preview session", () => {
+  const h = setup();
+  const circle = catalog.getCircle("tino-relief")!;
+  const saved = h.api.recordLocalSupport({ circle, displayValue: "10.01", currency: "en", anonymous: true, comment: "  Stay strong.\nWe are with you.  " });
+  assert.ok(saved); assert.equal(saved.anonymous, true); assert.equal(saved.comment, "Stay strong.\nWe are with you.");
+  assert.deepEqual(plain(h.api.readLocalSupports()), [plain(saved)]);
+  assert.equal(Object.keys(saved).some(key => /name|email|avatar|userId/i.test(key)), false);
+  const empty = h.api.recordLocalSupport({ circle, displayValue: "10.01", currency: "en", anonymous: false, comment: "  " });
+  assert.ok(empty); assert.equal(empty.anonymous, false); assert.equal(empty.comment, undefined);
+  assert.ok(h.api.recordLocalSupport({ circle, displayValue: "10.01", currency: "en", comment: "x".repeat(300) }));
+  noExternal(h);
+});
+
+test("malformed demo preferences are rejected before storage, including tampered readers", () => {
+  const h = setup(); const circle = catalog.getCircle("tino-relief")!;
+  for (const preferences of [{ anonymous: "true" }, { anonymous: 1 }, { comment: null }, { comment: 42 }, { comment: "x".repeat(301) }, { comment: "bad\u0000text" }]) {
+    assert.equal(h.api.recordLocalSupport({ circle, displayValue: "10.01", currency: "en", ...preferences }), null);
+  }
+  noStorage(h);
+  const good = validRecord(h);
+  for (const patch of [{ anonymous: "yes" }, { comment: "x".repeat(301) }, { comment: "bad\u0007text" }]) {
+    h.raw(envelope({ ...good, ...patch })); assert.equal(h.api.readLocalSupports().length, 0);
+  }
+  for (const preview of [false]) {
+    const inert = setup({ preview });
+    assert.equal(inert.api.recordLocalSupport({ circle, displayValue: "10.01", currency: "en", anonymous: true, comment: "Not sent." }), null);
+    noStorage(inert);
+  }
+});

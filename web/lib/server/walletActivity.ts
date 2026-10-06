@@ -5,15 +5,17 @@ import { isLocalPreview } from "@/lib/local-preview";
 import { supabaseConfigured, supabaseAdminConfigured } from "@/lib/supabase/env";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
-import { isWalletActivityCursor, normalizeWalletActivity, WALLET_ACTIVITY_PAGE_SIZE, type WalletActivityPageResult, type WalletActivityResult } from "../wallet-activity";
+import { isWalletActivityCursor, normalizeWalletActivity, normalizeWalletActivityFee, WALLET_ACTIVITY_PAGE_SIZE, type WalletActivityItem, type WalletActivityPageResult, type WalletActivityResult } from "../wallet-activity";
 
 const HORIZON_ACTIVITY = "https://horizon-testnet.stellar.org";
-const MAX_RESPONSE_BYTES = 512_000;
+// Joined receipts contain XDR, so keep a bounded larger page envelope.
+const MAX_RESPONSE_BYTES = 2_000_000;
+const MAX_FEE_BUMP_READS = 8;
 const unavailable = (address: string | null): Extract<WalletActivityPageResult, { ok: false }> => ({ ok: false, address, code: "unavailable", error: "Wallet history is unavailable. Try again." });
 const sessionUnavailable = (ownerId: string | null = null): WalletActivityResult => ({ ...unavailable(null), ownerId });
 const unauthenticated = (): WalletActivityResult => ({ ok: false, ownerId: null, address: null, code: "unauthenticated", error: "Sign in to load your wallet history." });
 
-async function limitedJson(response: Response): Promise<unknown> {
+async function limitedJson(response: Response, maximumBytes = MAX_RESPONSE_BYTES): Promise<unknown> {
   if (!response.body) throw new Error("Missing history response");
   const reader = response.body.getReader(), decoder = new TextDecoder("utf-8", { fatal: true });
   let bytes = 0, body = "";
@@ -22,7 +24,7 @@ async function limitedJson(response: Response): Promise<unknown> {
       const part = await reader.read();
       if (part.done) break;
       bytes += part.value.byteLength;
-      if (bytes > MAX_RESPONSE_BYTES) { await reader.cancel(); throw new Error("History response too large"); }
+      if (bytes > maximumBytes) { await reader.cancel(); throw new Error("History response too large"); }
       body += decoder.decode(part.value, { stream: true });
     }
     body += decoder.decode();
@@ -30,7 +32,35 @@ async function limitedJson(response: Response): Promise<unknown> {
   } finally { reader.releaseLock(); }
 }
 
-/** Public on-chain reads only, with one bounded request and no link following. */
+async function attachOuterFees(items: WalletActivityItem[], records: Record<string, unknown>[], address: string): Promise<WalletActivityItem[]> {
+  const outerByInner = new Map<string, string>();
+  for (const record of records) {
+    const transaction = record.transaction as { hash?: unknown; fee_bump_transaction?: { hash?: unknown } } | undefined;
+    const outer = transaction?.fee_bump_transaction?.hash;
+    if (typeof record.transaction_hash === "string" && typeof outer === "string" && /^[a-f0-9]{64}$/i.test(outer) && outer.toLowerCase() !== transaction?.hash)
+      outerByInner.set(record.transaction_hash.toLowerCase(), outer.toLowerCase());
+  }
+  const required = [...new Set(items.filter(item => item.fee.status === "unavailable").map(item => outerByInner.get(item.hash)).filter((hash): hash is string => !!hash))].slice(0, MAX_FEE_BUMP_READS);
+  const receipts = new Map<string, unknown>();
+  // Parallel independent reads, one shared deadline, fixed host, no _links.
+  // Missing/limited fee reads never erase otherwise confirmed movements.
+  const signal = AbortSignal.timeout(4_000);
+  await Promise.all(required.map(async hash => {
+    try {
+      const response = await fetch(new URL(`/transactions/${hash}`, HORIZON_ACTIVITY), { method: "GET", cache: "no-store", redirect: "error", signal, headers: { Accept: "application/json" } });
+      if (!response.ok) return;
+      const receipt = await limitedJson(response, 512_000) as { hash?: unknown };
+      if (receipt?.hash === hash) receipts.set(hash, receipt);
+    } catch { /* The row explicitly reports unavailable, never a zero fee. */ }
+  }));
+  return items.map(item => {
+    const outer = outerByInner.get(item.hash);
+    const fee = item.fee.status === "available" ? item.fee : normalizeWalletActivityFee(outer ? receipts.get(outer) : undefined, item.hash, address);
+    return { ...item, fee: fee.status === "available" && StrKey.isValidEd25519PublicKey(fee.payer) ? fee : { status: "unavailable" } };
+  });
+}
+
+/** Public on-chain reads only. Join fees with the page, never follow _links. */
 export async function readWalletActivityPage(address: string, cursor: string | null = null): Promise<WalletActivityPageResult> {
   if (!StrKey.isValidEd25519PublicKey(address)) return { ok: false, address: null, code: "invalid-wallet", error: "Your saved wallet address is invalid." };
   if (cursor !== null && !isWalletActivityCursor(cursor)) return { ok: false, address, code: "invalid-cursor", error: "Invalid history page. Refresh your activity." };
@@ -39,6 +69,7 @@ export async function readWalletActivityPage(address: string, cursor: string | n
     url.searchParams.set("order", "desc");
     url.searchParams.set("limit", String(WALLET_ACTIVITY_PAGE_SIZE));
     url.searchParams.set("include_failed", "false");
+    url.searchParams.set("join", "transactions");
     if (cursor) url.searchParams.set("cursor", cursor);
     const response = await fetch(url, { method: "GET", cache: "no-store", redirect: "error", signal: AbortSignal.timeout(8_000), headers: { Accept: "application/json" } });
     if (!response.ok) return unavailable(address);
@@ -52,7 +83,7 @@ export async function readWalletActivityPage(address: string, cursor: string | n
       if (previous !== null && current >= previous) return unavailable(address);
       previous = current;
     }
-    const items = normalizeWalletActivity(records, address);
+    const items = await attachOuterFees(normalizeWalletActivity(records, address), records, address);
     const nextCursor = records.length === WALLET_ACTIVITY_PAGE_SIZE ? records.at(-1).paging_token as string : null;
     return { ok: true, address, items, nextCursor };
   } catch { return unavailable(address); }

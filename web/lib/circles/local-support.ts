@@ -22,18 +22,25 @@ export type LocalSupportRecord = {
   organizerMinor: string;
   beneficiaryPct: number;
   organizerPct: number;
+  anonymous?: boolean;
+  comment?: string;
   seenUpdateIds: string[];
   unread: 0;
 };
 
 type UpdateRef = { id: string };
-export type LocalSupportInput = { circle: Circle; displayValue: string; currency: Locale };
+export type LocalSupportInput = { circle: Circle; displayValue: string; currency: Locale; anonymous?: boolean; comment?: string };
 
 const KEY = `salapi.preview.support.v1.${PREVIEW_WALLET.address}`;
 const MAX_RECORDS = 50;
 const MINOR = /^(0|[1-9]\d{0,15})$/;
 const UPDATE_ID = /^[a-zA-Z0-9_-]{1,100}$/;
 const ISO_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+const COMMENT_CONTROL = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/;
+
+function validComment(value: unknown): value is string | undefined {
+  return value === undefined || typeof value === "string" && value.length <= 300 && !COMMENT_CONTROL.test(value);
+}
 
 function cleanUpdateIds(value: unknown): string[] | null {
   if (!Array.isArray(value) || value.length > 1000 || value.some((id) => typeof id !== "string" || !UPDATE_ID.test(id))) return null;
@@ -51,6 +58,7 @@ function validRecord(value: unknown): value is LocalSupportRecord {
     || typeof record.confirmedAt !== "string" || !ISO_TIME.test(record.confirmedAt) || !Number.isFinite(Date.parse(record.confirmedAt))
     || new Date(record.confirmedAt).toISOString() !== record.confirmedAt
     || !isLocale(record.currency) || typeof record.displayValue !== "string"
+    || (record.anonymous !== undefined && typeof record.anonymous !== "boolean") || !validComment(record.comment)
     || record.unread !== 0 || cleanUpdateIds(record.seenUpdateIds) === null
     || typeof record.totalMinor !== "string" || !MINOR.test(record.totalMinor)
     || typeof record.beneficiaryMinor !== "string" || !MINOR.test(record.beneficiaryMinor)
@@ -83,6 +91,7 @@ export function readLocalSupports(): LocalSupportRecord[] {
         confirmedAt: record.confirmedAt, currency: record.currency, displayValue: record.displayValue,
         totalMinor: record.totalMinor, beneficiaryMinor: record.beneficiaryMinor, organizerMinor: record.organizerMinor,
         beneficiaryPct: record.beneficiaryPct, organizerPct: record.organizerPct,
+        anonymous: record.anonymous, comment: record.comment,
         seenUpdateIds: [...new Set(record.seenUpdateIds)], unread: 0,
       }));
   } catch { return []; }
@@ -90,7 +99,8 @@ export function readLocalSupports(): LocalSupportRecord[] {
 
 /** Only call after explicit confirmation of a local demo. No email or network write. */
 export function recordLocalSupport(input: LocalSupportInput): LocalSupportRecord | null {
-  if (!isLocalPreview || typeof window === "undefined" || !input || !isLocale(input.currency) || typeof input.displayValue !== "string") return null;
+  if (!isLocalPreview || typeof window === "undefined" || !input || !isLocale(input.currency) || typeof input.displayValue !== "string"
+    || (input.anonymous !== undefined && typeof input.anonymous !== "boolean") || !validComment(input.comment)) return null;
   const circle = getCircle(input.circle?.id);
   if (!circle || circle.status === "completed") return null;
   const allocation = previewPledgeAllocation(input.displayValue, input.currency, circle.allowance?.percentage ?? 0);
@@ -102,6 +112,7 @@ export function recordLocalSupport(input: LocalSupportInput): LocalSupportRecord
       confirmedAt: new Date().toISOString(), currency: input.currency, displayValue: input.displayValue.trim(),
       totalMinor: allocation.totalMinor.toString(), beneficiaryMinor: allocation.beneficiaryMinor.toString(), organizerMinor: allocation.organizerMinor.toString(),
       beneficiaryPct: allocation.beneficiaryPct, organizerPct: allocation.organizerPct,
+      anonymous: input.anonymous, comment: input.comment?.trim() || undefined,
       seenUpdateIds: cleanUpdateIds((circle.updates ?? []).map((update) => update.id)) ?? [], unread: 0,
     };
     sessionStorage.setItem(KEY, JSON.stringify({ version: 1, supports: [record, ...readLocalSupports()].slice(0, MAX_RECORDS) }));

@@ -12,6 +12,7 @@ import { LOCALES, LOCALE_META, type Locale } from "../lib/i18n/config.ts";
 import { DICTS } from "../lib/i18n/dictionaries.ts";
 import { CURRENCY } from "../lib/ui/currency.ts";
 import { PREVIEW_WALLET } from "../lib/local-preview.ts";
+import { accountPhotoCopy } from "../lib/i18n/account-photo.ts";
 
 const source = readFileSync(new URL("../components/screens/SettingsScreen.tsx", import.meta.url), "utf8");
 const compiled = ts.transpileModule(source, {
@@ -84,6 +85,10 @@ function loadScreen({
       if (dependency === "next/image") return { default: (props: { alt: string }) => React.createElement("span", null, props.alt) };
       if (dependency === "next/navigation") return { useRouter: () => ({ push: forbidden }) };
       if (dependency === "@/components/I18nProvider") return { useT: () => ({ locale, currency: "en", currencyPref: "en", t: (key: string) => translate(locale, key) }) };
+      if (dependency === "@/components/AccountAvatar") return { default: kit.Avatar };
+      if (dependency === "@/components/AccountPhotoEditor") return { default: () => null };
+      if (dependency === "@/components/useAccountPhoto") return { useAccountPhoto: () => ({ profile: null, status: "ready" }) };
+      if (dependency === "@/lib/i18n/account-photo") return { accountPhotoCopy };
       if (dependency === "@/lib/i18n/revamp-account") return { accountCopy, accountCurrencyName };
       if (dependency === "@/lib/i18n/config") return { LOCALE_META };
       if (dependency === "@/lib/ui/currency") return { CURRENCY };

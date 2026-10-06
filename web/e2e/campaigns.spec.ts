@@ -23,6 +23,9 @@ async function fixture(page: Page, options: { viewer?: string; now?: string; una
     if (name === "campaignState") value = options.unavailable ? { ok: false, error: "Configured contract does not match D4" }
       : { ok: true, contractId: "CCN2O4Z6CSUVF74DWZBJJ526IMEXVRCYKY74PM5BDKA22WWTOW5WHZDY", viewer: options.viewer ?? null,
         now: options.now ?? "1000", campaigns: [options.campaign ?? campaign] };
+    else if (name === "campaignMedia") value = { ok: false, available: false, code: "not_configured", network: "testnet",
+      contractId: null, campaignId: (options.campaign ?? campaign).id, creatorWallet: null, photos: [], updatedAt: null,
+      ownerId: null, canManage: false, permissionCode: null };
     else { writes.push({ name, args: JSON.parse(route.request().postData() ?? "[]") }); value = { ok: true, link: "https://stellar.expert/explorer/testnet/tx/ui-fixture-only", value: "2" }; }
     await route.fulfill({ contentType: "text/x-component", body: `0:{"a":"$@1","f":"","i":false}\n1:${JSON.stringify(value)}\n` });
   });

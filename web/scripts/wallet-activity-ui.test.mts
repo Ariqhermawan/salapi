@@ -4,6 +4,8 @@ import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import * as copy from "../lib/i18n/revamp-money.ts";
+import { activityCopy } from "../lib/i18n/wallet-activity.ts";
+import { XLM_ACTIVITY_ASSET, USDC_ACTIVITY_ASSET } from "../lib/wallet-activity.ts";
 import { PREVIEW_WALLET } from "../lib/local-preview.ts";
 import { formatLocal } from "../lib/ui/currency.ts";
 import type { WalletActivityResult, WalletActivityItem } from "../lib/wallet-activity.ts";
@@ -32,7 +34,7 @@ function text(value: unknown): string {
   return value && typeof value === "object" && "props" in value ? text((value as Element).props.children) : "";
 }
 const item = (id = "101:sac-0", direction: "sent" | "received" = "received", amount = "4461538462"): WalletActivityItem => ({
-  id, hash: "a".repeat(64), createdAt: "2026-10-06T13:29:22Z", direction, amountStroops: amount, counterparty, kind: "soroban-transfer",
+  id, hash: "a".repeat(64), createdAt: "2026-10-06T13:29:22Z", direction, amountStroops: amount, counterparty, kind: "soroban-transfer", asset: XLM_ACTIVITY_ASSET, fee: { status: "unavailable" },
 });
 const pageResult = (items: WalletActivityItem[] = [], nextCursor: string | null = null, wallet: string | null = address, ownerId = "owner-a"): WalletActivityResult => ({ ok: true, ownerId, address: wallet, items, nextCursor });
 
@@ -88,6 +90,7 @@ function mount(options: { preview?: boolean; configured?: boolean; locale?: "en"
       if (dependency === "@/lib/ui/useGoBack") return { useGoBack: () => () => {} };
       if (dependency === "@/components/I18nProvider") return { useT: () => ({ currency: "en", locale: options.locale ?? "en" }) };
       if (dependency === "@/lib/i18n/revamp-money") return copy;
+      if (dependency === "@/lib/i18n/wallet-activity") return { activityCopy };
       if (dependency === "@/lib/ui/currency") return { formatLocal };
       if (dependency === "@/lib/local-preview") return { isLocalPreview: preview, PREVIEW_WALLET };
       if (dependency === "@/lib/local-preview-history") return { listPreviewTransfers: () => [] };
@@ -176,7 +179,7 @@ test("native incoming and outgoing receipts use exact units and never invented h
   assert.doesNotMatch(text(h.tree), /\$50|PHP|Rp|₱/);
   const receipt = nodes(h.tree).find((node) => node.props["aria-controls"] === "activity-receipt-101:sac-0")!;
   (receipt.props.onClick as () => void)(); h.render();
-  assert.ok(text(h.tree).includes("4461538462 stroops"));
+  assert.ok(text(h.tree).includes("4461538462 units"));
   assert.ok(nodes(h.tree).some((node) => node.props.href === `https://stellar.expert/explorer/testnet/tx/${"a".repeat(64)}` && node.props.rel === "noopener noreferrer"));
   assert.ok(text(h.tree).includes(counterparty));
   h.unmount();
@@ -190,7 +193,7 @@ test("empty confirmed history and unavailable history are distinct, with retry",
   assert.equal(h.historyRequests.length, 2);
   h.historyRequests[1].deferred.resolve(pageResult()); await h.flush();
   assert.equal(state(h.tree), "empty");
-  assert.match(text(h.tree), /No confirmed XLM transfers yet/);
+  assert.match(text(h.tree), /No confirmed XLM or verified USDC transfers yet/);
   h.unmount();
 });
 test("pagination requests are single-flight and duplicate operation rows are deduplicated", async () => {
@@ -267,7 +270,7 @@ test("unmount unsubscribes and does not mutate state after a late action", async
 test("non-native page with a cursor is not misrepresented as empty all-time history", async () => {
   const h = mount(); h.emitAuth("owner-a"); await h.flush();
   h.historyRequests[0].deferred.resolve(pageResult([], "101")); await h.flush();
-  assert.match(text(h.tree), /No XLM transfers on this page/);
+  assert.match(text(h.tree), /No XLM or verified USDC transfers on this page/);
   assert.doesNotMatch(text(h.tree), /No confirmed XLM transfers yet/);
   assert.ok(nodes(h.tree).some((node) => text(node) === "Load earlier transfers"));
   h.unmount();
@@ -292,7 +295,50 @@ test("local preview uses only local receipts without Auth or live actions", asyn
 test("Indonesian incoming history and error states are localized independently of display currency", async () => {
   const h = mount({ locale: "id" }); h.emitAuth("owner-a"); await h.flush();
   h.historyRequests[0].deferred.resolve(pageResult([item()])); await h.flush();
-  assert.match(text(h.tree), /XLM diterima.*\+446\.1538462/);
-  assert.match(text(h.tree), /Hanya XLM terkonfirmasi/);
+  assert.match(text(h.tree), /Menerima XLM.*\+446\.1538462/);
+  assert.match(text(h.tree), /Hanya XLM dan USDC Testnet dari Circle/);
+  h.unmount();
+});
+
+test("mixed-asset history labels actual USDC without relabeling the previous XLM movement", async () => {
+  const h = mount(); h.emitAuth("owner-a"); await h.flush();
+  const usdc = { ...item("99:payment", "sent", "500000001"), asset: USDC_ACTIVITY_ASSET };
+  h.historyRequests[0].deferred.resolve(pageResult([item(), usdc])); await h.flush();
+  assert.match(text(h.tree), /Received XLM.*\+446\.1538462/);
+  assert.match(text(h.tree), /Sent USDC.*−50\.0000001.*Testnet USDC/);
+  assert.doesNotMatch(text(h.tree), /\$50|50 Testnet XLM/);
+  const receipt = nodes(h.tree).find(node => node.props["aria-controls"] === "activity-receipt-99:payment")!;
+  (receipt.props.onClick as () => void)(); h.render();
+  assert.ok(text(h.tree).includes(USDC_ACTIVITY_ASSET.issuer!));
+  assert.ok(text(h.tree).includes(USDC_ACTIVITY_ASSET.contractId!));
+  assert.match(text(h.tree), /50\.0000001 Testnet USDC/);
+  h.unmount();
+});
+
+test("network fee is separately stated in XLM with its actual payer, not deducted from token amount", async () => {
+  const h = mount(); h.emitAuth("owner-a"); await h.flush();
+  const receipt = { ...item("99:payment", "sent", "500000000"), asset: USDC_ACTIVITY_ASSET,
+    fee: { status: "available" as const, amountStroops: "321", payer: counterparty, paidByWallet: false, transactionHash: "b".repeat(64), feeBump: true } };
+  h.historyRequests[0].deferred.resolve(pageResult([receipt])); await h.flush();
+  assert.match(text(h.tree), /Sent USDC.*−50.*Testnet USDC/);
+  assert.match(text(h.tree), /Network fee: 0\.0000321 XLM.*Paid by another wallet/);
+  const button = nodes(h.tree).find(node => node.props["aria-controls"] === "activity-receipt-99:payment")!;
+  (button.props.onClick as () => void)(); h.render();
+  assert.match(text(h.tree), /Fee payer.*GCBKRBB/);
+  assert.match(text(h.tree), /total fee for the transaction, not a fee per movement/);
+  assert.match(text(h.tree), /Fee-bump transaction/);
+  assert.ok(nodes(h.tree).some(node => node.props.href === `https://stellar.expert/explorer/testnet/tx/${"b".repeat(64)}` && text(node) === "View network fee receipt"));
+  assert.doesNotMatch(text(h.tree), /Paid by your wallet/);
+  h.unmount();
+});
+
+test("unknown fees are never displayed as zero or incorrectly assigned to an incoming receiver", async () => {
+  const h = mount({ locale: "id" }); h.emitAuth("owner-a"); await h.flush();
+  h.historyRequests[0].deferred.resolve(pageResult([item()])); await h.flush();
+  assert.match(text(h.tree), /Biaya jaringan belum tersedia/);
+  const button = nodes(h.tree).find(node => node.props["aria-controls"] === "activity-receipt-101:sac-0")!;
+  (button.props.onClick as () => void)(); h.render();
+  assert.match(text(h.tree), /Tidak diasumsikan biaya nol atau siapa pembayarnya/);
+  assert.doesNotMatch(text(h.tree), /Biaya jaringan: 0 XLM|Dibayar wallet kamu/);
   h.unmount();
 });

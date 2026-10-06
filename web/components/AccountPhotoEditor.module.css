@@ -1,0 +1,15 @@
+.editor { padding: 16px; margin-bottom: 14px; border: 1px solid #dfe6f0; border-radius: 20px; background: #fff; }
+.heading { display: flex; align-items: center; gap: 12px; }
+.heading > div { min-width: 0; }
+.heading h2 { margin: 0 0 4px; font-size: 15px; color: #0c1730; }
+.heading p, .hint { margin: 0; color: #586985; font-size: 11px; line-height: 1.5; }
+.file { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.actions button, .error button { min-height: 44px; padding: 8px 12px; border: 1px solid #d7e3fc; border-radius: 12px; background: #eff4fe; color: #2563eb; font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; }
+.actions button:disabled { cursor: default; opacity: .6; }
+.actions button:focus-visible, .error button:focus-visible { outline: 2px solid #2563eb; outline-offset: 3px; }
+.hint { margin-top: 10px; }
+.success, .error { font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.success { color: #047857; }
+.error { color: #b91c1c; }
+.error button { margin-left: 8px; }

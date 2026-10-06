@@ -20,11 +20,25 @@ export type CircleOrganizer = {
   reviewCount: number;
   reviews: CircleReview[];
   historyIds: string[];
+  avatarSrc?: string;
+  avatarAlt?: string;
 };
 
 type OrganizerSpec = Omit<CircleOrganizer, "rating" | "reviewCount" | "reviews"> & {
   scores: [number, number, number];
   reviewDates: [string, string, string];
+};
+
+const organizerImages: Record<string, string> = {
+  "maria-cebu": "/circles/face-1.png",
+  "mei-family": "/circles/face-2.png",
+  "ana-family": "/circles/face-4.png",
+  "kapatid-tinta": "/circles/face-3.png",
+  "karang-taruna-rw06": "/circles/organizers/karang-taruna-rw06.svg",
+  "teachers-tubigon": "/circles/organizers/teachers-tubigon.svg",
+  "paws-home": "/circles/organizers/paws-home.svg",
+  "ruang-peduli": "/circles/organizers/ruang-peduli.svg",
+  "lintas-alam": "/circles/organizers/lintas-alam.svg",
 };
 
 function organizer(spec: OrganizerSpec): CircleOrganizer {
@@ -44,6 +58,10 @@ function organizer(spec: OrganizerSpec): CircleOrganizer {
   }));
   return {
     ...profile,
+    avatarSrc: organizerImages[profile.id],
+    avatarAlt: profile.kind === "ngo"
+      ? "Illustrative logo for fictional organization " + profile.name
+      : "Illustrative portrait for fictional organizer " + profile.name + ", not a verified identity",
     reviews,
     reviewCount: reviews.length,
     rating: Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length * 10) / 10,

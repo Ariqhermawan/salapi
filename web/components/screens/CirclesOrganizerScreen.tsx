@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Avatar, Ico, T, PoweredByStellar } from "@/components/ui/kit";
 import OrganizerVerification from "@/components/ui/OrganizerVerification";
+import ExampleOrganizerAvatar from "@/components/ui/ExampleOrganizerAvatar";
 import { useT } from "@/components/I18nProvider";
 import { formatLocal } from "@/lib/ui/currency";
 import { CATEGORY_LABEL, type Circle, type CircleCategory } from "@/lib/circles/types";
@@ -76,7 +77,7 @@ export default function CirclesOrganizerScreen({ circle, organizer, causes, hist
 
     <section className={styles.identity} aria-labelledby="organizer-name">
       <div className={styles.identityHeader}>
-        <div className={styles.identityRow}><span className={styles.monogram} aria-hidden="true">{organizer.initials}</span>
+        <div className={styles.identityRow}><ExampleOrganizerAvatar organizer={organizer} size={64} decorative={false} />
           <div><h1 id="organizer-name">{organizer.name}</h1><p className={styles.location}>{organizer.location} · {organizer.kind === "ngo" ? "NGO organizer" : "Individual organizer"}</p>
             <OrganizerVerification kind={organizer.kind} /></div></div>
         <div className={styles.rating}><span>Example rating</span><strong>{organizer.rating.toFixed(1)}<small>/5</small></strong>

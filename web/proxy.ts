@@ -23,6 +23,15 @@ import { isLocalPreview } from "@/lib/local-preview";
 
 function buildCsp(nonce: string): string {
   const isDev = process.env.NODE_ENV === "development";
+  // Permit only the configured storage origin, not every Supabase tenant.
+  // URL parsing keeps credentials/paths/query text out of the CSP source list.
+  let storageOrigin = "";
+  try {
+    const storageUrl = new URL(SUPABASE_URL);
+    if (storageUrl.protocol === "https:" && !storageUrl.username && !storageUrl.password) {
+      storageOrigin = storageUrl.origin;
+    }
+  } catch { /* An absent provider should not block local/demo pages. */ }
   return [
     "default-src 'self'",
     "base-uri 'self'",
@@ -36,7 +45,7 @@ function buildCsp(nonce: string): string {
     // matching the previous policy.
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDev ? " 'unsafe-eval'" : ""}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    "img-src 'self' data: blob:",
+    `img-src 'self' data: blob: https://googleusercontent.com https://*.googleusercontent.com${storageOrigin ? " " + storageOrigin : ""}`,
     "font-src 'self' https://fonts.gstatic.com",
     "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.stellar.org https://stellar.expert",
     "worker-src 'self' blob:",

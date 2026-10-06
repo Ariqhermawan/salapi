@@ -6,6 +6,7 @@ import ts from "typescript";
 import { LOCALES, type Locale } from "../lib/i18n/config.ts";
 import { DICTS } from "../lib/i18n/dictionaries.ts";
 import * as copy from "../lib/i18n/revamp-money.ts";
+import * as activityCopyModule from "../lib/i18n/wallet-activity.ts";
 import * as money from "../lib/money.ts";
 import { CURRENCY, formatLocal, formatLocalAmount, pesoFromLocal } from "../lib/ui/currency.ts";
 import { authRedirectPath } from "../lib/authRedirect.ts";
@@ -86,6 +87,7 @@ function mount(name: typeof names[number], locale: Locale, options: { preview?: 
       };
       if (dependency === "@/components/I18nProvider") return { useT: () => ({ locale, currency: "tl", t: (key: string, vars?: Record<string, string | number>) => dictionary(locale, key, vars) }) };
       if (dependency === "@/lib/i18n/revamp-money") return copy;
+      if (dependency === "@/lib/i18n/wallet-activity") return activityCopyModule;
       if (dependency === "next/navigation") return { useRouter: () => ({ push: (value: string) => calls.navigations.push(value) }), useSearchParams: () => ({ get: (key: string) => key === "next" ? options.next ?? "/vaults" : null }) };
       if (dependency === "next/image" || dependency === "next/link") return { default: dependency };
       if (dependency === "qrcode.react") return { QRCodeSVG: "QRCodeSVG" };

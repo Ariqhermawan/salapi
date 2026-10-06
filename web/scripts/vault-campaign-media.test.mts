@@ -9,7 +9,7 @@ import { formatStroops } from "../lib/disaster.ts";
 import type { Campaign } from "../lib/campaign.ts";
 import type { Locale } from "../lib/i18n/config.ts";
 
-type Media = { coverSrc: string; organizerName: string; organizerPhotoSrc: string; organizerHref: string };
+type Media = { coverSrc: string; gallery: { src: string; alt: string; caption: string }[]; organizerName: string; organizerPhotoSrc: string; organizerHref: string };
 type Element = { type: string; props: Record<string, unknown> };
 function nodes(value: unknown): Element[] {
   if (Array.isArray(value)) return value.flatMap(nodes);
@@ -118,6 +118,21 @@ test("flag0 never binds fictional media even when live ID and title exactly matc
   assert.deepEqual(ui.calls, { actions: 0, network: 0, storage: 0 });
 });
 
+test("every canonical local D4 fixture has three distinct, existing, explicitly illustrative gallery scenes", () => {
+  for (const campaign of PREVIEW_CAMPAIGNS) {
+    const result = media.vaultCampaignMedia(campaign, true)!;
+    assert.equal(result.gallery.length, 3);
+    assert.equal(new Set(result.gallery.map(photo => photo.src)).size, 3);
+    assert.equal(result.gallery[0].src, result.coverSrc);
+    for (const photo of result.gallery) {
+      assert.match(photo.alt, /AI.*not verified campaign evidence/);
+      assert.match(photo.caption, /not documentary evidence|Not a photo of this campaign/);
+      const bytes = readFileSync(new URL(`../public${photo.src}`, import.meta.url));
+      assert.equal(bytes.subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
+    }
+  }
+});
+
 test("unknown local ID and changed title or creator cannot rebind canonical portraits and profiles", () => {
   const original = PREVIEW_CAMPAIGNS[0];
   const changed = [
@@ -176,14 +191,19 @@ test("media presentation preserves campaign escrow, proof status, campaign actio
   }
 });
 
-test("all referenced campaign and portrait PNG assets exist with usable dimensions", () => {
+test("all referenced campaign images and organizer portraits or logos exist with usable dimensions", () => {
   const covers = new Set<string>();
   for (const campaign of PREVIEW_CAMPAIGNS) {
     const result = media.vaultCampaignMedia(campaign, true)!;
     covers.add(result.coverSrc);
     for (const path of [result.coverSrc, result.organizerPhotoSrc]) {
-      assert.match(path, /^\/circles\/(generated\/)?[a-z0-9-]+\.png$/);
+      assert.match(path, /^\/circles\/((generated\/)?[a-z0-9-]+\.png|organizers\/[a-z0-9-]+\.svg)$/);
       const bytes = readFileSync(new URL(`../public${path}`, import.meta.url));
+      if (path.endsWith(".svg")) {
+        assert.match(bytes.toString(), /viewBox="0 0 96 96"/);
+        assert.match(bytes.toString(), /Fictional.*logo/);
+        continue;
+      }
       assert.equal(bytes.subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
       const width = bytes.readUInt32BE(16), height = bytes.readUInt32BE(20);
       assert.ok(width >= 44 && height >= 44);

@@ -69,6 +69,11 @@
 .reviewNote .back { margin-top: 1px; }
 .card { padding: 17px 16px; border: 1px solid #dfe6f0; border-radius: 20px; background: #fff; }
 .form { display: grid; gap: 13px; }
+.demoPreferences { margin-bottom: 12px; }
+.demoPreferences h3 { margin: 0 0 9px; color: #0c1730; font-size: 14px; font-weight: 650; line-height: 1.4; }
+.demoPreferences .checks { align-items: center; margin-bottom: 12px; }
+.demoPreferences textarea { resize: vertical; min-height: 89px; }
+.demoPreferences .commentCount { margin-top: 4px; color: #586985; text-align: right; font-size: 10px; line-height: 1.5; }
 .form h2 { color: #0c1730; font-size: 22px; font-weight: 750; line-height: 1.25; letter-spacing: -.035em; }
 .field { display: flex; flex-direction: column; gap: 7px; color: #405776; font-size: 12px; font-weight: 600; line-height: 1.5; }
 .input { min-height: 46px; min-width: 0; width: 100%; box-sizing: border-box; padding: 11px 12px; border: 1px solid #d6e0ef; border-radius: 11px; background: #f9fbfe; color: #0c1730; font: inherit; font-size: 16px; }
@@ -91,7 +96,7 @@
 .campaignLink:hover { color: #1d4ed8; background: #eef4ff; }
 .footer { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding-top: 16px; text-align: center; }
 .footer > span:last-child { color: #586985; font-size: 10px; line-height: 1.45; }
-.screen button:focus-visible, .screen a:focus-visible, .screen input:focus-visible { outline: 2px solid #2563eb; outline-offset: 3px; }
+.screen button:focus-visible, .screen a:focus-visible, .screen input:focus-visible, .screen textarea:focus-visible { outline: 2px solid #2563eb; outline-offset: 3px; }
 .screen button:active { transform: translateY(1px); }
 @container (max-width: 420px) {
   .cause { gap: 11px; padding: 12px; }

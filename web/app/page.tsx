@@ -16,6 +16,9 @@ import s from "./home.module.css";
 import { homeCopy } from "@/lib/i18n/revamp-home";
 import { homeCatalogCopy, type HomeCatalogKey } from "@/lib/i18n/revamp-home-catalog";
 import HomeCirclesCatalog from "@/components/HomeCirclesCatalog";
+import AccountAvatar from "@/components/AccountAvatar";
+import { useAccountPhoto } from "@/components/useAccountPhoto";
+import { accountPhotoCopy } from "@/lib/i18n/account-photo";
 
 function scrollHomeCard(strip: HTMLDivElement | null, next: number, count: number, reduceMotion: boolean): number | null {
   if (!strip || !count) return null;
@@ -31,6 +34,8 @@ export default function Home() {
   const copy = (phrase: string) => homeCopy(locale, phrase);
   const catalogCopy = (phrase: HomeCatalogKey, vars?: Record<string, string | number>) => homeCatalogCopy(locale, phrase, vars);
   const balanceSize = currency === "id" || currency === "vi" ? 23 : currency === "tl" ? 29 : 32;
+  const photo = useAccountPhoto();
+  const photoCopy = accountPhotoCopy(locale);
   const [wallet, setWallet] = useState<{ pesos: number; address: string } | null>(isLocalPreview ? PREVIEW_WALLET : null);
   const [handle, setHandle] = useState<string | null>(isLocalPreview ? PREVIEW_WALLET.handle : null);
   const [campaigns, setCampaigns] = useState<Campaign[]>(isLocalPreview ? PREVIEW_CAMPAIGNS : []);
@@ -95,8 +100,8 @@ export default function Home() {
   return <div className={s.home}>
     <section className={s.wallet} aria-label={copy("Your Testnet wallet")}>
       <div className={s.identity}>
-        <Link href="/settings" className={s.avatar} aria-label={copy("Your account")}>{handle?.charAt(0).toUpperCase() || "S"}</Link>
-        <div className={s.name}><span>{copy("Hi there")}</span><strong>{handle ? handle.charAt(0).toUpperCase() + handle.slice(1) : copy("Welcome to Salapi")}</strong><small>{handle ? `@${handle}` : copy("Your community money, together.")}</small></div>
+        <Link href="/settings" className={s.avatar} aria-label={copy("Your account")}><AccountAvatar name={handle || photo.profile?.email || "Salapi"} photoUrl={photo.profile?.photoUrl ?? null} size={44} alt={photoCopy.alt} loading={photo.status === "loading"} /></Link>
+        <div className={s.name}><span>{copy("Hi there")}</span><strong>{handle ? handle.charAt(0).toUpperCase() + handle.slice(1) : photo.profile?.email || copy("Welcome to Salapi")}</strong><small>{handle ? `@${handle}` : copy("Your community money, together.")}</small></div>
         <Link href="/learn" className={s.round} aria-label={copy("Help and learning")}>{Ico.bulb({ size: 20, c: "#fff" })}</Link>
         <Link href="/receive" className={s.round} aria-label={copy("Receive by QR")}>{Ico.qr({ size: 20, c: "#fff" })}</Link>
       </div>

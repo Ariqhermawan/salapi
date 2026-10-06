@@ -62,6 +62,20 @@ export type CircleUpdate = {
   proofLabel?: string;
 };
 
+// Illustrative gallery media, never documentary campaign or delivery evidence.
+export type CircleGalleryPhoto = { src: string; alt: string; caption: string };
+
+// Synthetic feed only. Anonymous entries must never disclose identity or avatar.
+export type CircleDonorExample = {
+  id: string;
+  displayName?: string;
+  anonymous: boolean;
+  amountPesos: number;
+  comment?: string;
+  createdAt: string;
+  avatarSrc?: string;
+};
+
 // One preview circle on the Discover screen + detail page.
 export type Circle = {
   id: string;
@@ -91,6 +105,8 @@ export type Circle = {
   status?: "funding" | "completed";
   completedOn?: string;
   updates?: CircleUpdate[];
+  gallery?: CircleGalleryPhoto[];
+  donorExamples?: CircleDonorExample[];
 };
 
 export function progressPct(c: Pick<Circle, "pesoRaised" | "pesoTarget">): number {
