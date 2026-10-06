@@ -1,382 +1,530 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useGoBack } from "@/lib/ui/useGoBack";
 import { disasterState, disasterContribute } from "@/app/actions";
 import { useT } from "@/components/I18nProvider";
-import {
-  T,
-  Ico,
-  AppBar,
-  IconButton,
-  Card,
-  Btn,
-  Chip,
-  Peso,
-  PoweredByStellar,
-} from "@/components/ui/kit";
-import {
-  CURRENCY,
-  formatLocalAmount,
-  pesoFromLocal,
-} from "@/lib/ui/currency";
+import { T, Ico, Btn, PoweredByStellar } from "@/components/ui/kit";
+import { CURRENCY, formatLocalAmount } from "@/lib/ui/currency";
+import { formatStroops } from "@/lib/disaster";
 import DisasterControls from "@/components/DisasterControls";
 import { CampaignEvidence } from "@/components/screens/CampaignScreen";
 import type { Locale } from "@/lib/i18n/config";
+import styles from "./VaultsRevamp.module.css";
+import { useUnresolvedSubmission } from "@/lib/ui/useUnresolvedSubmission";
+import SubmissionStatusPanel from "@/components/ui/SubmissionStatusPanel";
 
 const EXPLORER = "https://stellar.expert/explorer/testnet";
-const LEGACY_DISASTER_CONTRACT = "CCKQ3UVBZ75KSZDO6IPA5U6PFARJG4PLRGN2SAIW5RAGQ6K4B7ZDWBUZ";
-// Every Soroban contract Salapi runs on Testnet. Click any line in the UI to
-// inspect it on Stellar Expert — the entry point for reviewers verifying the
-// "we said we built it, here it is on-chain" claim. Names stay as technical
-// artifacts (no localisation).
-const CONTRACTS: { name: string; id: string }[] = [
-  { name: "base-vault",       id: "CBC6BTKW5VA6Y2XH6WP4IEPWDZ7TBPYSIIOZQMTEH62N62NFT4F4VYDD" },
-  { name: "username-registry",id: "CDDINUQXTF6SHZN2ZJ36IT7P4YOJ3OZN3H6LTYHVCQ35YYO7YTAWM4G3" },
-  { name: "disaster (historical, single-admin)",         id: LEGACY_DISASTER_CONTRACT },
-  { name: "paluwagan",        id: "CCXNSK6IGPSB4QGUSNB2EFZWYV53NKVX5AV3XSJANCDDD7TULGQSY37X" },
-  { name: "smart-savings",    id: "CBQBUAOP3T235Q2U63XNC2NQVNAOXQL2KHWALO6FTIOJS46NTKIZJ5WI" },
-  { name: "arisan-rooms",     id: "CDAUA3TN4PRJFVHWBITT2DZMCY24DEZRA4NQLZLEX5CKL6AOA6RLII4S" },
+const PREVIEW = process.env.NEXT_PUBLIC_LOCAL_PREVIEW === "1";
+const LEGACY_DISASTER_CONTRACT =
+  "CCKQ3UVBZ75KSZDO6IPA5U6PFARJG4PLRGN2SAIW5RAGQ6K4B7ZDWBUZ";
+const CONTRACTS = [
+  {
+    name: "base-vault",
+    id: "CBC6BTKW5VA6Y2XH6WP4IEPWDZ7TBPYSIIOZQMTEH62N62NFT4F4VYDD",
+  },
+  {
+    name: "username-registry",
+    id: "CDDINUQXTF6SHZN2ZJ36IT7P4YOJ3OZN3H6LTYHVCQ35YYO7YTAWM4G3",
+  },
+  { name: "Historical disaster (single admin)", id: LEGACY_DISASTER_CONTRACT },
+  {
+    name: "paluwagan",
+    id: "CCXNSK6IGPSB4QGUSNB2EFZWYV53NKVX5AV3XSJANCDDD7TULGQSY37X",
+  },
+  {
+    name: "smart-savings",
+    id: "CBQBUAOP3T235Q2U63XNC2NQVNAOXQL2KHWALO6FTIOJS46NTKIZJ5WI",
+  },
+  {
+    name: "arisan-rooms",
+    id: "CDAUA3TN4PRJFVHWBITT2DZMCY24DEZRA4NQLZLEX5CKL6AOA6RLII4S",
+  },
 ];
-// Founding on-chain trail: technical proof artifact with real testnet tx
-// hashes, step labels stay as technical literals (see ActivityScreen).
-const TRAIL: { step: string; hash: string }[] = [
-  { step: "Deploy disaster vault", hash: "1bed6a16e6b6b2a8fddf3c8e247764f77f80bc18f58cd019bec225e60d891d12" },
-  { step: "Register @juandelacruz", hash: "00d0861463b124d7ec83b1cb5ef65f4b13579167127b8acede5c01362f8bf913" },
-  { step: "Initialize(admin, token)", hash: "f49b815b47b052ba12f288c64c1e11e336b9a6a1afaf5d359db08b928e20beb1" },
-  { step: "Contribute 5 XLM", hash: "618dedd72dd1ba49f7432dc33e237007da5280c857d00e4eff6164247ad0cd66" },
-  { step: "set_disaster(true)", hash: "7ecdeaf152745257b1d0f619503f6f59971068ad1a3bf7dd8499a08295608d0a" },
-  { step: "Disburse 2 XLM", hash: "1115f685287faf7b508e97d378df5f4ccb1ccc302d007b2190776ad0c986a837" },
+const TRAIL = [
+  {
+    step: "Deploy disaster vault",
+    hash: "1bed6a16e6b6b2a8fddf3c8e247764f77f80bc18f58cd019bec225e60d891d12",
+  },
+  {
+    step: "Register @juandelacruz",
+    hash: "00d0861463b124d7ec83b1cb5ef65f4b13579167127b8acede5c01362f8bf913",
+  },
+  {
+    step: "Initialize(admin, token)",
+    hash: "f49b815b47b052ba12f288c64c1e11e336b9a6a1afaf5d359db08b928e20beb1",
+  },
+  {
+    step: "Contribute 5 XLM",
+    hash: "618dedd72dd1ba49f7432dc33e237007da5280c857d00e4eff6164247ad0cd66",
+  },
+  {
+    step: "set_disaster(true)",
+    hash: "7ecdeaf152745257b1d0f619503f6f59971068ad1a3bf7dd8499a08295608d0a",
+  },
+  {
+    step: "Disburse 2 XLM",
+    hash: "1115f685287faf7b508e97d378df5f4ccb1ccc302d007b2190776ad0c986a837",
+  },
 ];
-// Quick-pick donations per display currency — round figures in each.
 const QUICK: Record<Locale, string[]> = {
   en: ["1", "2", "5", "10", "20"],
   tl: ["50", "100", "200", "500", "1000"],
   id: ["10000", "20000", "50000", "100000", "200000"],
   vi: ["20000", "50000", "100000", "200000", "500000"],
 };
-
 type Pool = Awaited<ReturnType<typeof disasterState>>;
+const previewPool: Pool = {
+  ok: true,
+  contractId: "CCN2O4Z6CSUVF74DWZBJJ526IMEXVRCYKY74PM5BDKA22WWTOW5WHZDY",
+  config: {
+    signers: [
+      "GAKZLTZFGSSM372XUKW2ZIJ5GSHVVIW5BYZIKIXRW2BW4MM6TUI5536Y",
+      "GAVWJIZ45MHV2KWBHNBBB7YHU5CPTIDD3YONC4ZNP7IGE6Z3C777OV4H",
+      "GAXPCCZD3AKYIRCI5CCX2TRIMVGQ45XEUEZPF5RBUZHYFRRZGN64ZNO3",
+    ],
+    token: "",
+    cap_bps: 2000,
+    timelock_ledgers: 20,
+  },
+  pesos: 45,
+  pesoLabel: "₱45",
+  active: true,
+  status: {
+    balance: "80307692",
+    spent_24h: "0",
+    cap: "16061538",
+    allowance: "16061538",
+    paused: false,
+    epoch: "1",
+    ledger: 21,
+    next_id: "3",
+  },
+};
 
 export default function TransparencyScreen() {
-  const { t, currency } = useT();
-  const router = useRouter();
-  const goBack = useGoBack("/");
-  const [pool, setPool] = useState<Pool | null>(null);
-  const [phase, setPhase] = useState<"view" | "amount" | "processing" | "done">("view");
+  const submission = useUnresolvedSubmission("disaster:d3");
+  const { currency } = useT();
+  const goBack = useGoBack("/vaults");
+  const [pool, setPool] = useState<Pool | null>(PREVIEW ? previewPool : null);
+  const [phase, setPhase] = useState<"view" | "amount" | "processing" | "done">(
+    "view",
+  );
   const [amount, setAmount] = useState("");
   const [done, setDone] = useState<{ link?: string } | null>(null);
   const [err, setErr] = useState("");
-  const [pending, start] = useTransition();
-  const amtTouched = useRef(false);
-
+  const [transitionPending, start] = useTransition();
+  const pending = transitionPending || submission.locked;
+  const touched = useRef(false);
   const refresh = useCallback(async () => {
-    try { setPool(await disasterState()); }
-    catch { setPool({ ok: false, error: "Connection lost. Please refresh." }); }
+    if (PREVIEW) return;
+    try {
+      setPool(await disasterState());
+    } catch {
+      setPool({
+        ok: false,
+        error: "The pool couldn't be loaded. Please try again.",
+      });
+    }
   }, []);
   useEffect(() => {
-    void refresh();
+    const initialLoad = setTimeout(() => void refresh(), 0);
+    return () => clearTimeout(initialLoad);
   }, [refresh]);
-
-  // Prefill a sensible donation in the active display currency, until the
-  // user touches the field (currency resolves after hydration).
   useEffect(() => {
-    if (!amtTouched.current) setAmount(QUICK[currency][2]);
+    const initialAmount = setTimeout(() => {
+      if (!touched.current) setAmount(QUICK[currency][2]);
+    }, 0);
+    return () => clearTimeout(initialAmount);
   }, [currency]);
-
   const amt = Number(amount) || 0;
-  const amtLabel = formatLocalAmount(amt, currency);
-
+  const label = formatLocalAmount(amt, currency);
   function donate() {
+    if (PREVIEW) {
+      setErr(
+        "This local design preview does not send transactions. Your balance stays unchanged.",
+      );
+      return;
+    }
+    if (pending || !pool?.ok || amt <= 0) return;
     setPhase("processing");
     start(async () => {
       setErr("");
-      const r = await disasterContribute({ amount, currency });
-      if (r.ok) {
-        setDone({ link: r.link });
-        setPhase("done");
-      } else {
-        setErr(r.error);
+      try {
+        const result = await submission.run(() => disasterContribute({ amount, currency }));
+        if (!result) { setPhase("amount"); return; }
+        if (result.ok) {
+          setDone({ link: result.link });
+          setPhase("done");
+        } else {
+          setErr(result.error);
+          setPhase("amount");
+        }
+      } catch {
+        setErr(
+          "The connection was interrupted. Check the public pool and your activity before retrying; the contribution may have been submitted.",
+        );
         setPhase("amount");
       }
       await refresh();
     });
   }
 
-  const shell: React.CSSProperties = {
-    fontFamily: T.fontSans,
-    color: T.ink,
-    minHeight: "100%",
-    paddingBottom: 110,
-  };
-
-  // ── DONATE · PROCESSING ──
-  if (phase === "processing") {
+  if (phase === "processing")
     return (
-      <div style={shell}>
-        <AppBar leading={<IconButton onClick={() => setPhase("amount")}>{Ico.x({})}</IconButton>} title={t("common.processing")} />
-        <div style={{ padding: "32px 28px 0", textAlign: "center" }}>
-          <div style={{ width: 68, height: 68, borderRadius: 99, background: T.warnTint, color: T.warn, display: "inline-flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
-            <span className="sl-spin" style={{ position: "absolute", inset: 0, borderRadius: 99, border: "3px solid " + T.warn, borderTopColor: "transparent" }} />
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={T.warn} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l8 4v6c0 5-4 7-8 8-4-1-8-3-8-8V7l8-4z" /></svg>
-          </div>
-          <div style={{ marginTop: 14, fontSize: 19, fontWeight: 600 }}>{t("transparency.donating", { amount: amtLabel })}</div>
-          <div style={{ marginTop: 4, fontSize: 13, color: T.slate }}>{t("transparency.processingSub")}</div>
+      <div className={styles.screen}>
+        <SubmissionStatusPanel guard={submission} onRefresh={refresh} />
+        <div className={styles.publicBack}>
+          <span className={styles.publicBadge}>Stellar Testnet</span>
         </div>
-        <div style={{ padding: "22px 16px 0" }}>
-          <Card p={14}>
-            {[t("transparency.pStep1"), t("transparency.pStep2"), t("transparency.pStep3")].map((s, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 0", borderBottom: i < 2 ? "1px solid " + T.hairline : "none" }}>
-                {i < 2 ? (
-                  <div style={{ width: 22, height: 22, borderRadius: 99, background: T.moneyInTint, color: T.moneyIn, display: "flex", alignItems: "center", justifyContent: "center" }}>{Ico.check({ size: 14, c: T.moneyIn })}</div>
-                ) : (
-                  <div className="sl-spin" style={{ width: 22, height: 22, borderRadius: 99, border: "2px solid " + T.warn, borderTopColor: "transparent" }} />
-                )}
-                <div style={{ flex: 1, fontSize: 14, fontWeight: i === 2 ? 600 : 500, color: i === 2 ? T.ink : T.slate }}>{s}</div>
-              </div>
-            ))}
-          </Card>
-        </div>
+        <section
+          className={styles.detailCard}
+          style={{ textAlign: "center", padding: "38px 20px" }}
+        >
+          <span
+            className="sl-spin"
+            aria-hidden="true"
+            style={{
+              width: 42,
+              height: 42,
+              border: "3px solid #d9e6ff",
+              borderTopColor: T.action,
+              borderRadius: "50%",
+              display: "inline-block",
+              marginBottom: 20,
+            }}
+          />
+          <h2>Submitting your contribution</h2>
+          <p role="status">
+            Waiting for the Testnet transaction result. Keep this page open.
+          </p>
+          <p>{label} at an indicative Testnet conversion rate.</p>
+        </section>
       </div>
     );
-  }
-
-  // ── DONATE · SUCCESS ──
-  if (phase === "done" && done) {
+  if (phase === "done" && done)
     return (
-      <div style={shell}>
-        <AppBar leading={<IconButton onClick={() => { setDone(null); setPhase("view"); }}>{Ico.x({})}</IconButton>} title="" />
-        <div style={{ padding: "20px 24px 0", textAlign: "center" }}>
-          <div className="sl-tick" style={{ width: 72, height: 72, borderRadius: 99, background: "linear-gradient(160deg,#FBF1E0,#fff)", display: "inline-flex", alignItems: "center", justifyContent: "center", boxShadow: "inset 0 0 0 1px " + T.hairline }}>
-            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke={T.warn} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 21s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.6-7 10-7 10z" /></svg>
-          </div>
-          <div style={{ marginTop: 14, fontSize: 12, color: T.slate, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase" }}>{t("transparency.thankYou")}</div>
-          <div className="sl-rise" style={{ marginTop: 6 }}><Peso value={pesoFromLocal(amt, currency)} size={38} /></div>
-          <div style={{ marginTop: 6, fontSize: 13, color: T.slate, lineHeight: 1.5, maxWidth: 280, margin: "6px auto 0" }}>
-            {t("transparency.doneNote")}
-          </div>
+      <div className={styles.screen}>
+        <SubmissionStatusPanel guard={submission} onRefresh={refresh} />
+        <div className={styles.publicBack}>
+          <button
+            className={styles.backLink}
+            type="button"
+            onClick={() => {
+              setDone(null);
+              setPhase("view");
+            }}
+          >
+            {Ico.back({ size: 14, c: T.action })} Back to the pool
+          </button>
         </div>
-        <div style={{ padding: "16px 16px 0" }}>
-          <Card p={14}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ width: 32, height: 32, borderRadius: 99, background: T.warnTint, color: T.warn, display: "flex", alignItems: "center", justifyContent: "center" }}>{Ico.arrowUp({ c: T.warn, size: 14 })}</div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>{t("transparency.poolNowAt")}</div>
-                <div style={{ fontSize: 12, color: T.slate }}>{t("transparency.liveOnChain")}</div>
-              </div>
-              {pool && pool.ok ? <Peso value={pool.pesos} size={15} /> : null}
-            </div>
-          </Card>
+        <section className={styles.rulesSection}>
+          <span className={styles.eyebrow}>Transaction confirmed</span>
+          <h1>Contribution received.</h1>
+          <p>
+            {label} at an indicative Testnet conversion rate. These are
+            valueless Testnet tokens.
+          </p>
+        </section>
+        <div className={styles.detailCard} style={{ marginTop: 17 }}>
+          <h3>Public pool balance</h3>
+          <p>
+            {pool?.ok
+              ? `${formatStroops(pool.status.balance)} Testnet XLM`
+              : "Refresh to read the latest pool balance."}
+          </p>
           {done.link && (
-            <div style={{ marginTop: 10, padding: "10px 12px", borderRadius: 10, background: T.actionTint, color: T.action, fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 10 }}>
-              {Ico.check({ size: 16, c: T.action })}
-              <a href={done.link} target="_blank" rel="noopener noreferrer" style={{ color: T.action, fontFamily: T.fontMono, display: "inline-flex", alignItems: "center", gap: 5 }}>
-                {t("transparency.receiptVerifiable")} {Ico.link({ size: 13, c: T.action })}
-              </a>
-            </div>
+            <a
+              className={styles.receiptLink}
+              href={done.link}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <div>
+                <strong>View your transaction receipt</strong>
+                <span>Verify it on Stellar Expert</span>
+              </div>
+              {Ico.link({ size: 17, c: T.action })}
+            </a>
           )}
         </div>
-        <div style={{ padding: "14px 16px 0", display: "flex", flexDirection: "column", gap: 8 }}>
-          <Btn kind="primary" onClick={() => { setDone(null); setPhase("view"); }}>{t("transparency.viewFeed")}</Btn>
-          <Btn kind="ghost" onClick={() => router.push("/")}>{t("transparency.done")}</Btn>
+        <div className={styles.actionPair}>
+          <Btn
+            onClick={() => {
+              setDone(null);
+              setPhase("view");
+            }}
+          >
+            View the pool
+          </Btn>
         </div>
+        <footer className={styles.footer}>
+          <PoweredByStellar />
+        </footer>
       </div>
     );
-  }
-
-  // ── DONATE · AMOUNT ──
-  if (phase === "amount") {
+  if (phase === "amount")
     return (
-      <div style={shell}>
-        <AppBar leading={<IconButton onClick={() => setPhase("view")}>{Ico.back({})}</IconButton>} title={t("wallet.donate")} />
-        <div style={{ padding: "4px 16px 8px" }}>
-          <Card p={14}>
-            <Chip kind="warn">Donations open · Testnet</Chip>
-            <div style={{ marginTop: 6, fontSize: 17, fontWeight: 600, letterSpacing: "-0.01em" }}>{t("transparency.poolName")}</div>
-            <div style={{ marginTop: 4, fontSize: 12, color: T.slate, lineHeight: 1.5 }}>
-              {t("transparency.poolDesc")}
-            </div>
-          </Card>
+      <div className={styles.screen}>
+        <SubmissionStatusPanel guard={submission} onRefresh={refresh} />
+        <div className={styles.publicBack}>
+          <button
+            type="button"
+            className={styles.backLink}
+            onClick={() => setPhase("view")}
+          >
+            {Ico.back({ size: 14, c: T.action })} Disaster Vault
+          </button>
+          <span className={styles.publicBadge}>Stellar Testnet</span>
         </div>
-        <div style={{ padding: "4px 20px 0" }}>
-          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: T.slate }}>{t("transparency.youreDonating")}</div>
-        </div>
-        <div style={{ padding: "6px 24px 0", textAlign: "center" }}>
-          <div className="sl-balance" style={{ fontSize: 42, fontWeight: 600, letterSpacing: "-0.03em", display: "inline-flex", alignItems: "baseline", gap: 4 }}>
-            <span style={{ fontSize: 24, color: T.slate, fontWeight: 500 }}>
-              {CURRENCY[currency].symbol}
+        <section className={styles.publicHeader}>
+          <div>
+            <span className={styles.eyebrow}>
+              Contribute to the public pool
             </span>
-            <input
-              value={amount}
-              onChange={(e) => {
-                amtTouched.current = true;
-                setAmount(e.target.value.replace(/[^0-9.]/g, ""));
-              }}
-              inputMode="decimal"
-              placeholder="0"
-              style={{ width: Math.max(2, amount.length || 1) + "ch", border: "none", outline: "none", background: "transparent", font: "inherit", color: T.ink, textAlign: "center" }}
-            />
+            <h1>Give together.</h1>
+            <p>
+              Help fund this shared Disaster Vault. Payouts follow its approval
+              rules.
+            </p>
           </div>
-        </div>
-        <div style={{ padding: "12px 16px 0", display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
-          {QUICK[currency].map((p) => (
-            <span
-              key={p}
-              onClick={() => {
-                amtTouched.current = true;
-                setAmount(p);
-              }}
-              style={{ cursor: "pointer" }}
-            >
-              <Chip kind={p === amount ? "action" : "neutral"} size="md">
-                {formatLocalAmount(Number(p), currency)}
-              </Chip>
-            </span>
-          ))}
-        </div>
-        <div style={{ padding: "12px 16px 0" }}>
-          <div style={{ padding: "10px 12px", borderRadius: 12, background: T.canvas, display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 28, height: 28, borderRadius: 99, background: T.surface, display: "flex", alignItems: "center", justifyContent: "center" }}>{Ico.shield({ size: 16, c: T.action })}</div>
-            <div style={{ flex: 1, fontSize: 12, color: T.slate, lineHeight: 1.4 }}>
-              {t("transparency.finalNote")}
-            </div>
+        </section>
+        {PREVIEW && (
+          <div className={styles.previewNotice}>
+            Local preview · example data
           </div>
+        )}
+        <div className={styles.warmSection}>
+          <label className={styles.inputLabel} htmlFor="disaster-contribution">
+            Contribution amount ({CURRENCY[currency].code})
+          </label>
+          <input
+            id="disaster-contribution"
+            className={styles.input}
+            value={amount}
+            inputMode="decimal"
+            autoComplete="off"
+            onChange={(event) => {
+              touched.current = true;
+              setAmount(event.target.value.replace(/[^0-9.]/g, ""));
+            }}
+            style={{ fontSize: 30, fontWeight: 650, padding: "19px 14px" }}
+          />
+          <div className={styles.actionPair} style={{ flexWrap: "wrap" }}>
+            {QUICK[currency].map((value) => (
+              <button
+                type="button"
+                key={value}
+                aria-pressed={amount === value}
+                className={styles.softLabel}
+                style={{
+                  border: 0,
+                  cursor: "pointer",
+                  background: amount === value ? T.action : "white",
+                  color: amount === value ? "white" : T.action,
+                  padding: "10px 12px",
+                }}
+                onClick={() => {
+                  touched.current = true;
+                  setAmount(value);
+                }}
+              >
+                {formatLocalAmount(Number(value), currency)}
+              </button>
+            ))}
+          </div>
+          <p className={styles.amountNote}>
+            Display currencies use an indicative conversion. The transaction
+            sends valueless Stellar Testnet XLM, not real money.
+          </p>
+        </div>
+        <div className={styles.readOnlyNotice} style={{ marginTop: 17 }}>
+          Contributions remain open even if payouts are paused. Two different
+          configured signer wallets approve a payout, followed by the 20-ledger
+          wait and spending cap.
         </div>
         {err && (
-          <div style={{ margin: "12px 16px 0", padding: "10px 12px", borderRadius: 10, background: "#FBEAE8", color: T.danger, fontSize: 13 }}>{err}</div>
+          <div
+            role="alert"
+            className={styles.errorText}
+            style={{ marginTop: 15 }}
+          >
+            {err}
+          </div>
         )}
-        <div style={{ padding: "16px 16px 0" }}>
-          <Btn kind="primary" disabled={pending || amt <= 0} loading={pending} leading={!pending && Ico.shield({ c: "#fff" })} onClick={donate}>
-            {t("transparency.donatePublicly", { amount: amtLabel })}
+        <div className={styles.actionPair}>
+          <Btn
+            disabled={pending || amt <= 0 || !pool?.ok}
+            loading={pending}
+            onClick={donate}
+          >
+            {PREVIEW
+              ? "Preview contribution"
+              : `Confirm Testnet contribution · ${label}`}
           </Btn>
         </div>
       </div>
     );
-  }
 
-  // ── VIEW · PUBLIC TRANSPARENCY DASHBOARD ──
-  return (
-    <div style={shell}>
-      <AppBar
-        leading={<IconButton onClick={goBack}>{Ico.back({})}</IconButton>}
-        title=""
-        trailing={<span style={{ fontSize: 12, color: T.slate, fontFamily: T.fontMono }}>{t("transparency.publicNoLogin")}</span>}
-      />
-      <div style={{ padding: "4px 16px 6px" }}>
-        <Chip kind="warn">Stellar Testnet</Chip>
-        <div style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em", marginTop: 6, lineHeight: 1.2 }}>{t("transparency.title")}</div>
-        <div style={{ fontSize: 12.5, color: T.slate, marginTop: 4, lineHeight: 1.5 }}>
-          {t("transparency.sub")}
-        </div>
-      </div>
-
-      {/* Pool card */}
-      <div style={{ padding: "10px 16px 0" }}>
-        <div style={{ background: T.ink, color: "#fff", borderRadius: 16, padding: "14px 16px" }}>
-          <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,0.55)" }}>{t("transparency.poolTotal")}</div>
-          <div style={{ marginTop: 6 }}>
-            {pool === null ? (
-              <div style={{ fontSize: 18, color: "rgba(255,255,255,0.6)" }}>{t("transparency.readingTestnet")}</div>
-            ) : pool.ok ? (
-              <Peso value={pool.pesos} size={30} color="#fff" />
-            ) : (
-              <div style={{ fontSize: 14, color: "rgba(255,255,255,0.7)" }}>{pool.error}</div>
-            )}
-          </div>
-          {pool?.ok && <p style={{ margin: "6px 0 0", fontSize: 11, color: "rgba(255,255,255,0.6)" }}>Illustrative display value only. The vault holds valueless Testnet XLM.</p>}
-          <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
-            <div style={{ flex: 1, padding: "6px 10px", background: "rgba(255,255,255,0.06)", borderRadius: 8 }}>
-              <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.45)" }}>{t("transparency.statusLabel")}</div>
-              <div className="sl-mono" style={{ fontSize: 14, fontWeight: 600, marginTop: 2 }}>
-                {pool && pool.ok ? (pool.active ? "Active" : "Paused") : "-"}
-              </div>
-            </div>
-            <div style={{ flex: 1, padding: "6px 10px", background: "rgba(255,255,255,0.06)", borderRadius: 8 }}>
-              <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.45)" }}>{t("transparency.disburseGate")}</div>
-              <div className="sl-mono" style={{ fontSize: 14, fontWeight: 600, marginTop: 2 }}>{pool?.ok ? "2-of-3" : "Unavailable"}</div>
-            </div>
-          </div>
-          <div style={{ marginTop: 8, fontSize: 11, color: "rgba(255,255,255,0.6)", display: "flex", alignItems: "center", gap: 8 }}>
-            <span className="sl-pulse" style={{ width: 6, height: 6, borderRadius: 99, background: T.moneyIn }} />
-            <span>{pool?.ok ? "Two approvals · 20-ledger wait · rolling 24h cap" : "D3 contract not verified"}</span>
-          </div>
-        </div>
-      </div>
-
-      <DisasterControls pool={pool} onRefresh={refresh} />
-      <CampaignEvidence />
-
-      <div style={{ padding: "12px 16px 0" }}>
-        <Btn kind="primary" disabled={!pool?.ok} leading={Ico.shield({ c: "#fff" })} onClick={() => { setErr(""); setPhase("amount"); }}>
-          {t("transparency.donateCta")}
-        </Btn>
-      </div>
-
-      {/* Verifiable trail */}
-      <div style={{ padding: "16px 20px 4px", fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: T.slate }}>
-        Historical deployment trail (pre-D3)
-      </div>
-      <div style={{ padding: "0 16px" }}>
-        <Card p={0}>
-          {TRAIL.map((tx, i) => (
-            <div key={tx.hash} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderBottom: i < TRAIL.length - 1 ? "1px solid " + T.hairline : "none", minHeight: 44 }}>
-              <div style={{ width: 28, height: 28, borderRadius: 99, background: T.actionTint, color: T.action, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: T.fontMono, fontSize: 11, fontWeight: 600 }}>
-                {String(i + 1).padStart(2, "0")}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13.5, fontWeight: 600 }}>{tx.step}</div>
-                <div style={{ fontSize: 11, color: T.slate, fontFamily: T.fontMono, marginTop: 1 }}>{tx.hash.slice(0, 14)}…</div>
-              </div>
-              <a href={`${EXPLORER}/tx/${tx.hash}`} target="_blank" rel="noopener noreferrer" style={{ color: T.action, display: "inline-flex" }}>
-                {Ico.link({ size: 15, c: T.action })}
-              </a>
-            </div>
-          ))}
-        </Card>
-        <a
-          href={`${EXPLORER}/contract/${LEGACY_DISASTER_CONTRACT}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ marginTop: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontSize: 12, color: T.action, fontFamily: T.fontMono, fontWeight: 600 }}
-        >
-          Historical Disaster contract: {LEGACY_DISASTER_CONTRACT.slice(0, 12)}… {Ico.link({ size: 13, c: T.action })}
-        </a>
-      </div>
-
-      {/* Every deployed Soroban contract behind Salapi — click to verify on Stellar Expert. */}
-      <div style={{ padding: "22px 20px 4px", fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: T.slate }}>
-        {t("transparency.contractsLabel")}
-      </div>
-      <div style={{ padding: "0 16px" }}>
-        <Card p={0}>
-          {CONTRACTS.map((c, i) => (
+  const appendix = (
+    <>
+      <details className={styles.evidenceAppendix}>
+        <summary>Historical deployment trail, before D3</summary>
+        <section className={styles.detailCard}>
+          <p>
+            This trail belongs to the legacy single-admin deployment. Its funds
+            and transactions are separate from the current D3 pool.
+          </p>
+          {TRAIL.map((tx) => (
             <a
-              key={c.id}
-              href={`${EXPLORER}/contract/${c.id}`}
+              key={tx.hash}
+              href={`${EXPLORER}/tx/${tx.hash}`}
               target="_blank"
               rel="noopener noreferrer"
-              style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderBottom: i < CONTRACTS.length - 1 ? "1px solid " + T.hairline : "none", color: T.ink, textDecoration: "none", minHeight: 44 }}
+              className={styles.eventLink}
             >
-              <div style={{ width: 28, height: 28, borderRadius: 99, background: T.actionTint, color: T.action, display: "flex", alignItems: "center", justifyContent: "center", flex: "0 0 auto" }}>
-                {Ico.link({ size: 14, c: T.action })}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13.5, fontWeight: 600, fontFamily: T.fontMono }}>{c.name}</div>
-                <div style={{ fontSize: 11, color: T.slate, fontFamily: T.fontMono, marginTop: 1 }}>{c.id.slice(0, 14)}…</div>
-              </div>
+              <span>{tx.step}</span>
+              {Ico.link({ size: 13, c: T.action })}
             </a>
           ))}
-        </Card>
-        <div style={{ marginTop: 8, fontSize: 11, color: T.slate, lineHeight: 1.5, textAlign: "center", padding: "0 8px" }}>
-          {t("transparency.contractsBody")}
+          <a
+            className={styles.eventLink}
+            href={`${EXPLORER}/contract/${LEGACY_DISASTER_CONTRACT}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Historical Disaster contract ↗
+          </a>
+        </section>
+      </details>
+      <details className={styles.evidenceAppendix}>
+        <summary>Other Salapi Testnet contracts</summary>
+        <section className={styles.detailCard}>
+          {CONTRACTS.map((contract) => (
+            <a
+              key={contract.id}
+              className={styles.eventLink}
+              href={`${EXPLORER}/contract/${contract.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <span>{contract.name}</span>
+              {Ico.link({ size: 13, c: T.action })}
+            </a>
+          ))}
+          <Link className={styles.eventLink} href="/docs">
+            Read the documentation ↗
+          </Link>
+        </section>
+      </details>
+      <details className={styles.evidenceAppendix}>
+        <summary>Separate donation campaign evidence, D4</summary>
+        <p className={styles.amountNote}>
+          Campaigns use their own escrow and proof approvals. They do not use
+          the D3 pool rules for the 20-ledger wait or spending cap.
+        </p>
+        <CampaignEvidence />
+      </details>
+    </>
+  );
+  return (
+    <div className={styles.screen}>
+      <div className={styles.publicBack}>
+        <button type="button" className={styles.backLink} onClick={goBack}>
+          {Ico.back({ size: 14, c: T.action })} Vaults
+        </button>
+        <span className={styles.publicBadge}>Public · no login needed</span>
+      </div>
+      <header className={styles.publicHeader}>
+        <div>
+          <span className={styles.eyebrow}>Community Disaster Vault</span>
+          <h1>Care, with shared control.</h1>
+          <p>
+            A public pool for disaster relief. Follow each request from approval
+            to payout.
+          </p>
         </div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/illustrations/disaster.png"
+          alt="Hands holding a community shelter"
+        />
+      </header>
+      <div className={styles.testnetNote}>
+        <span className={styles.statusDot} /> Stellar Testnet{" "}
+        <span>No real money</span>
+        {PREVIEW && <strong>Example data</strong>}
       </div>
-
-      <div style={{ padding: "14px 16px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+      <section className={styles.poolCard} aria-label="Community pool balance">
+        <span className={styles.eyebrow}>Shared pool balance</span>
+        {pool === null ? (
+          <p role="status" className={styles.amountNote}>
+            Reading the Testnet pool…
+          </p>
+        ) : pool.ok ? (
+          <div className={styles.poolAmount}>
+            {formatStroops(pool.status.balance)}
+            <small>Testnet XLM</small>
+          </div>
+        ) : (
+          <div role="alert">
+            <p className={styles.amountNote}>{pool.error}</p>
+            <button
+              type="button"
+              className={styles.textButton}
+              onClick={() => void refresh()}
+            >
+              Try again
+            </button>
+          </div>
+        )}
+        <div className={styles.poolMeta}>
+          <span
+            className={
+              pool?.ok && !pool.status.paused
+                ? styles.activePill
+                : styles.pausedPill
+            }
+          >
+            {pool?.ok
+              ? pool.status.paused
+                ? "Payouts paused"
+                : "Payouts active"
+              : "Status unavailable"}
+          </span>
+          <span>
+            {pool?.ok ? "2-of-3 wallet approvals" : "Checking contract"}
+          </span>
+        </div>
+      </section>
+      <p className={styles.amountNote}>
+        This is the community pool, separate from your personal wallet. Testnet
+        XLM has no real value.
+      </p>
+      <div className={styles.donateRow}>
+        <Btn
+          disabled={!pool?.ok}
+          kind="primary"
+          size="md"
+          leading={Ico.plus({ size: 16, c: "white" })}
+          onClick={() => {
+            setErr("");
+            setPhase("amount");
+          }}
+        >
+          Contribute to the pool
+        </Btn>
+      </div>
+      <DisasterControls
+        pool={pool}
+        onRefresh={refresh}
+        publicProof={appendix}
+      />
+      <footer className={styles.footer}>
         <PoweredByStellar />
-        <span style={{ fontSize: 11, color: T.slate, fontFamily: T.fontMono }}>{t("transparency.readOnly")}</span>
-      </div>
+        <span>Public proof on Stellar Testnet.</span>
+      </footer>
     </div>
   );
 }

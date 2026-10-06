@@ -1,6 +1,6 @@
 // Minimal, conservative service worker — enables PWA install + an offline
 // fallback without interfering with Next.js RSC/navigation.
-const CACHE = "salapi-v2";
+const CACHE = "salapi-v3";
 const ASSETS = ["/icon.svg", "/icon-maskable.svg", "/manifest.webmanifest"];
 
 self.addEventListener("install", (e) => {
@@ -22,6 +22,37 @@ self.addEventListener("activate", (e) => {
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET") return;
+
+  // The public install metadata changes with the app's claims and icon list.
+  // Refresh it from the network instead of keeping an older cached description.
+  // Only the exact, same-origin manifest can enter this public cache path.
+  const url = new URL(request.url);
+  if (
+    url.origin === self.location.origin &&
+    url.pathname === "/manifest.webmanifest" &&
+    !url.search
+  ) {
+    event.respondWith(
+      fetch(request, { cache: "no-store" })
+        .then(async (response) => {
+          if (response.ok) {
+            try {
+              const cache = await caches.open(CACHE);
+              await cache.put(request, response.clone());
+            } catch {
+              // A cache/storage failure must not hide fresh public metadata.
+            }
+          }
+          return response;
+        })
+        .catch(async (error) => {
+          const cached = await caches.match(request);
+          if (cached) return cached;
+          throw error;
+        })
+    );
+    return;
+  }
 
   // Only handle top-level navigations: network-first, offline fallback.
   if (request.mode === "navigate") {

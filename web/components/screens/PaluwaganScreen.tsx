@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useGoBack } from "@/lib/ui/useGoBack";
 import {
@@ -10,6 +10,7 @@ import {
   paluwaganCollect,
 } from "@/app/actions";
 import { useT } from "@/components/I18nProvider";
+import { moneyCopy, moneyMessage } from "@/lib/i18n/revamp-money";
 import {
   T,
   Ico,
@@ -23,8 +24,33 @@ import {
   PoweredByStellar,
 } from "@/components/ui/kit";
 import { formatLocal } from "@/lib/ui/currency";
+import { isLocalPreview, PREVIEW_WALLET } from "@/lib/local-preview";
+import { useUnresolvedSubmission } from "@/lib/ui/useUnresolvedSubmission";
+import SubmissionStatusPanel from "@/components/ui/SubmissionStatusPanel";
+import SuccessMotion from "@/components/ui/SuccessMotion";
+import {
+  applyLocalPaluwagan,
+  localPaluwaganDisplayPesos,
+  localPaluwaganSummary,
+  LOCAL_PALUWAGAN_ROSTER,
+  readLocalPaluwagan,
+  type LocalPaluwaganAction,
+  type LocalPaluwaganState,
+} from "@/lib/local-preview-paluwagan";
 
 type State = Awaited<ReturnType<typeof paluwaganState>>;
+type LocalReview = { action: LocalPaluwaganAction; revision: number; round: number; amountStroops: string; recipientLabel: string };
+
+function localView(state: LocalPaluwaganState): State {
+  const summary = localPaluwaganSummary(state);
+  const sharePesos = localPaluwaganDisplayPesos(state.shareStroops);
+  const potPesos = localPaluwaganDisplayPesos(summary.potStroops);
+  return { ready: true, round: state.round, cycleRound: Math.min(state.round + 1, LOCAL_PALUWAGAN_ROSTER.length),
+    sharePesos, potPesos, sharePeso: formatLocal(sharePesos, "tl"), potPeso: formatLocal(potPesos, "tl"),
+    allPaid: summary.allPaid, recipientLabel: summary.recipientLabel,
+    seats: LOCAL_PALUWAGAN_ROSTER.map((member, index) => ({ addr: member.id === "you" ? PREVIEW_WALLET.address : `demo-${member.id}`,
+      label: member.label, paid: state.paid[index], isRecipient: member.id === summary.recipientId })) };
+}
 
 const RING = ["#FDE6D9", "#DCEAF8", "#E8E3FA", "#DDF1E5", "#FBEAE0", "#E1ECF6"];
 
@@ -60,39 +86,100 @@ function Confetti() {
 }
 
 export default function PaluwaganScreen() {
-  const { t, currency } = useT();
+  const submission = useUnresolvedSubmission("paluwagan:legacy");
+  const { t, currency, locale } = useT();
+  const m = moneyCopy(locale);
   const router = useRouter();
   const goBack = useGoBack("/vaults");
   const [st, setSt] = useState<State | null>(null);
   const [msg, setMsg] = useState<{ tone: "ok" | "err"; text: string; link?: string } | null>(null);
   const [party, setParty] = useState(false);
-  const [pending, start] = useTransition();
+  const [transitionPending, start] = useTransition();
+  const pending = transitionPending || submission.locked;
+  const submitting = useRef(false);
+  const [localState, setLocalState] = useState<LocalPaluwaganState | null>(null);
+  const [localReview, setLocalReview] = useState<LocalReview | null>(null);
+  const reviewedLocal = useRef<LocalReview | null>(null);
+  const [localSuccess, setLocalSuccess] = useState("");
+  const [localNeedsReload, setLocalNeedsReload] = useState(false);
 
   async function refresh() {
-    setSt(await paluwaganState());
+    if (isLocalPreview) {
+      const result = readLocalPaluwagan();
+      if (result.ok) { setLocalState(result.state); setSt(localView(result.state)); setLocalNeedsReload(false); setMsg(null); }
+      else { setLocalState(null); setSt({ ready: false }); setLocalNeedsReload(true); setMsg({ tone: "err", text: result.error }); }
+      return;
+    }
+    try { setSt(await paluwaganState()); }
+    catch {
+      setSt({ ready: false });
+      setMsg({ tone: "err", text: "The circle could not be loaded. Reload this page to try again." });
+    }
   }
   useEffect(() => {
-    refresh();
+    Promise.resolve().then(refresh);
   }, []);
+
+  function reviewLocal(action: LocalPaluwaganAction) {
+    if (!isLocalPreview || !localState || pending || submitting.current || localNeedsReload) return;
+    const summary = localPaluwaganSummary(localState);
+    if (summary.completed || action === "pay-mine" && localState.paid[0] ||
+      action === "friends-pay" && localState.paid.slice(1).every(Boolean) || action === "collect" && !summary.allPaid) return;
+    const shares = action === "friends-pay" ? localState.paid.slice(1).filter(paid => !paid).length : 1;
+    const review: LocalReview = { action, revision: localState.revision, round: localState.round + 1,
+      amountStroops: action === "collect" ? summary.fullPotStroops : (BigInt(localState.shareStroops) * BigInt(shares)).toString(),
+      recipientLabel: summary.recipientLabel };
+    reviewedLocal.current = review;
+    setLocalReview(review);
+    setMsg(null);
+    setLocalSuccess("");
+  }
+
+  function confirmLocal() {
+    const review = reviewedLocal.current;
+    if (!isLocalPreview || !review || submitting.current) return;
+    submitting.current = true;
+    reviewedLocal.current = null;
+    setLocalReview(null);
+    setLocalSuccess("");
+    try {
+      const result = applyLocalPaluwagan(review.action, review.revision);
+      if (!result.ok) { setLocalNeedsReload(true); setMsg({ tone: "err", text: result.error }); return; }
+      setLocalState(result.state);
+      setSt(localView(result.state));
+      setMsg(null);
+      setLocalSuccess(review.action === "collect" ? m("Example round {round} payout saved for {name}.", { round: review.round, name: review.recipientLabel === "You" ? m("You") : review.recipientLabel }) : m("Example contributions saved for this browser session."));
+    } finally { submitting.current = false; }
+  }
 
   function run(
     fn: () => Promise<{ ok: boolean; link?: string; error?: string }>,
     okText: string,
     celebrate = false
   ) {
+    if (submitting.current || submission.locked) return;
+    submitting.current = true;
     start(async () => {
       setMsg(null);
-      const r = await fn();
-      if (r.ok) {
-        setMsg({ tone: "ok", text: okText, link: r.link });
-        if (celebrate) {
-          setParty(true);
-          setTimeout(() => setParty(false), 2400);
+      try {
+        if (isLocalPreview) { setMsg({ tone: "ok", text: m("Local demo only. No contribution or payout was submitted.") }); return; }
+        const r = await submission.run(fn);
+        if (!r) return;
+        if (r.ok) {
+          setMsg({ tone: "ok", text: okText, link: r.link });
+          if (celebrate) {
+            setParty(true);
+            setTimeout(() => setParty(false), 2400);
+          }
+        } else {
+          setMsg({ tone: "err", text: r.error || t("paluwagan.somethingWrong") });
         }
-      } else {
-        setMsg({ tone: "err", text: r.error || t("paluwagan.somethingWrong") });
+        await refresh();
+      } catch {
+        setMsg({ tone: "err", text: m("The operation was not confirmed. Check the wallet history before trying again.") });
+      } finally {
+        submitting.current = false;
       }
-      await refresh();
     });
   }
 
@@ -100,15 +187,16 @@ export default function PaluwaganScreen() {
     fontFamily: T.fontSans,
     color: T.ink,
     minHeight: "100%",
-    paddingBottom: 110,
+    paddingBottom: isLocalPreview ? 24 : 110,
   };
 
   // ── LOADING ──
   if (st === null) {
     return (
       <div style={shell}>
+        <SubmissionStatusPanel guard={submission} onRefresh={refresh} />
         <AppBar
-          leading={<IconButton onClick={goBack}>{Ico.back({})}</IconButton>}
+          leading={<IconButton ariaLabel={m("Back to Vaults")} onClick={goBack}>{Ico.back({})}</IconButton>}
           title={t("paluwagan.title")}
         />
         <div style={{ padding: "60px 24px", textAlign: "center", color: T.slate, fontSize: 14 }}>
@@ -127,8 +215,9 @@ export default function PaluwaganScreen() {
     ];
     return (
       <div style={shell}>
+        <SubmissionStatusPanel guard={submission} onRefresh={refresh} />
         <AppBar
-          leading={<IconButton onClick={goBack}>{Ico.back({})}</IconButton>}
+          leading={<IconButton ariaLabel={m("Back to Vaults")} onClick={goBack}>{Ico.back({})}</IconButton>}
           title={t("paluwagan.title")}
         />
         <div style={{ padding: "10px 24px 0" }}>
@@ -186,8 +275,10 @@ export default function PaluwaganScreen() {
           </div>
         </div>
         <div style={{ padding: "28px 16px 0", textAlign: "center", color: T.slate, fontSize: 13, lineHeight: 1.5 }}>
-          {t("paluwagan.notConfigured")}
+          {isLocalPreview ? m("The saved local circle could not be loaded. No example record was overwritten and no tokens moved.") : t("paluwagan.notConfigured")}
         </div>
+        {msg && <p role="alert" style={{ padding: "0 20px", color: T.danger, fontSize: 13 }}>{moneyMessage(locale, msg.text)}</p>}
+        {isLocalPreview && <div style={{ padding: "0 16px" }}><Btn kind="secondary" onClick={() => void refresh()}>{m("Reload local circle")}</Btn></div>}
         <div style={{ padding: "20px 16px 0", display: "flex", justifyContent: "center" }}>
           <PoweredByStellar />
         </div>
@@ -201,15 +292,19 @@ export default function PaluwaganScreen() {
   const paidCount = seats.filter((s) => s.paid).length;
   const mine = seats.find((s) => /^(ikaw|you)/i.test(s.label));
   const iPaid = mine?.paid ?? false;
+  const completedLocal = isLocalPreview && localState ? localPaluwaganSummary(localState).completed : false;
 
   return (
     <div style={shell}>
+      <SubmissionStatusPanel guard={submission} onRefresh={refresh} />
       {party && <Confetti />}
       <AppBar
-        leading={<IconButton onClick={goBack}>{Ico.back({})}</IconButton>}
+        leading={<IconButton ariaLabel={m("Back to Vaults")} onClick={goBack}>{Ico.back({})}</IconButton>}
         title={t("paluwagan.circleName")}
-        trailing={<IconButton onClick={() => router.push("/activity")}>{Ico.activity({})}</IconButton>}
+        trailing={<IconButton ariaLabel={m("View Activity")} onClick={() => router.push("/activity")}>{Ico.activity({})}</IconButton>}
       />
+
+      <div style={{ padding: "8px 16px" }}><Card p={18} style={{ background: "#F2EFE7" }}><Chip kind="warn">{isLocalPreview ? m("EXAMPLE ROOM") : m("LEGACY TESTNET MODE")}</Chip><p style={{ margin: "10px 0 0", fontSize: 13, color: T.slate, lineHeight: 1.55 }}>{m("This Paluwagan uses a fixed roster and contributions each round. Arisan Rooms use a separate upfront deposit model. A missing contribution can hold up this pot; this legacy mode has no donor refund flow.")}</p>{isLocalPreview && <p style={{ margin: "8px 0 0", fontSize: 12, color: T.slate, lineHeight: 1.5 }}>{m("Browser-only example, including the two starting paid shares. No real deposits, tokens, wallet balance changes, contract calls or notifications. Rotation: Maria, Jose, then You.")}</p>}</Card></div>
 
       <div style={{ padding: "4px 16px 4px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", gap: 8 }}>
@@ -219,13 +314,13 @@ export default function PaluwaganScreen() {
               total: pad2(total),
             })}
           </Chip>
-          <Chip kind="neutral">{t("paluwagan.monthly")}</Chip>
+          <Chip kind="neutral">{isLocalPreview ? completedLocal ? m("Cycle complete") : m("Fixed rotation") : t("paluwagan.monthly")}</Chip>
         </div>
         <Chip
           kind="success"
           leading={<span className="sl-pulse" style={{ width: 6, height: 6, borderRadius: 99, background: T.moneyIn, display: "inline-block" }} />}
         >
-          {t("paluwagan.live")}
+          {isLocalPreview ? m("Local example") : t("paluwagan.live")}
         </Chip>
       </div>
 
@@ -233,14 +328,14 @@ export default function PaluwaganScreen() {
       <div style={{ padding: "10px 16px 0" }}>
         <div style={{ position: "relative", width: "100%", height: 220, background: T.surface, borderRadius: 20, boxShadow: "inset 0 0 0 1px " + T.hairline, overflow: "hidden" }}>
           <div style={{ position: "absolute", inset: "24px 50px", borderRadius: 99, border: "2px dashed " + T.hairline }} />
-          {seats.map((m, i) => {
+          {seats.map((member, i) => {
             const a = (i / total) * Math.PI * 2 - Math.PI / 2;
             const r = 80;
-            const turn = m.isRecipient;
+            const turn = member.isRecipient;
             const w = turn ? 50 : 40;
             return (
               <div
-                key={m.addr}
+                key={member.addr}
                 style={{
                   position: "absolute",
                   left: `calc(50% + ${Math.cos(a) * r}px - ${w / 2}px)`,
@@ -264,14 +359,14 @@ export default function PaluwaganScreen() {
                     fontWeight: 600,
                     boxShadow: turn
                       ? "0 0 0 3px " + T.action + ", 0 8px 24px -6px rgba(37,99,235,.5)"
-                      : m.paid
+                      : member.paid
                         ? "inset 0 0 0 1.5px " + T.moneyIn
                         : "inset 0 0 0 1px " + T.hairline,
                     position: "relative",
                   }}
                 >
-                  {m.label.trim().charAt(0).toUpperCase()}
-                  {m.paid && !turn && (
+                  {member.label.trim().charAt(0).toUpperCase()}
+                  {member.paid && !turn && (
                     <div style={{ position: "absolute", bottom: -2, right: -2, width: 16, height: 16, borderRadius: 99, background: T.moneyIn, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 0 0 2px " + T.surface }}>
                       {Ico.check({ size: 10, c: "#fff" })}
                     </div>
@@ -287,7 +382,7 @@ export default function PaluwaganScreen() {
           })}
           <div style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)", width: 104, height: 104, borderRadius: 99, background: T.ink, color: "#fff", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2, boxShadow: "0 10px 28px -8px rgba(11,18,32,.4)" }}>
             <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.55)" }}>
-              {t("paluwagan.pot")}
+              {isLocalPreview ? m("Example pot") : t("paluwagan.pot")}
             </div>
             <Peso value={st.potPesos} size={19} weight={600} color="#fff" />
             <div style={{ fontSize: 9, color: "rgba(255,255,255,0.5)", fontFamily: T.fontMono }}>
@@ -303,11 +398,11 @@ export default function PaluwaganScreen() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
             <div>
               <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: T.slate }}>
-                {t("paluwagan.goesTo")}
+                {isLocalPreview ? completedLocal ? m("Example cycle") : m("Next example payout") : t("paluwagan.goesTo")}
               </div>
               <div style={{ marginTop: 4, display: "flex", alignItems: "center", gap: 8 }}>
                 <Avatar name={st.recipientLabel} size={26} />
-                <div style={{ fontSize: 15, fontWeight: 600 }}>{st.recipientLabel}</div>
+                <div style={{ fontSize: 15, fontWeight: 600 }}>{st.recipientLabel === "You" ? m("You") : st.recipientLabel}</div>
               </div>
             </div>
             <div style={{ textAlign: "right" }}>
@@ -322,7 +417,7 @@ export default function PaluwaganScreen() {
           <div style={{ marginTop: 10, padding: "8px 10px", borderRadius: 10, background: T.canvas, fontSize: 12, color: T.slate, display: "flex", gap: 8, alignItems: "center" }}>
             {Ico.shield({ size: 14, c: iPaid ? T.moneyIn : T.slate })}
             <span>
-              {iPaid
+              {isLocalPreview ? m("Example contribution status only. No tokens are held or moved by this preview.") : iPaid
                 ? t("paluwagan.youPaid", { n: pad2(st.cycleRound) })
                 : t("paluwagan.youNotPaid", { n: pad2(st.cycleRound) })}
             </span>
@@ -331,7 +426,7 @@ export default function PaluwaganScreen() {
       </div>
 
       {/* Pre-round reminder — a nudge before the round closes */}
-      {!st.allPaid && (
+      {!st.allPaid && !completedLocal && (
         <div style={{ padding: "12px 16px 0" }}>
           <div
             style={{
@@ -363,7 +458,7 @@ export default function PaluwaganScreen() {
                 {t("paluwagan.reminderTitle")}
               </div>
               <div style={{ marginTop: 2, fontSize: 12, color: T.slate, lineHeight: 1.45 }}>
-                {t("paluwagan.reminderBody")}
+                {isLocalPreview ? m("This reminder is illustrative. No messages or notifications are sent.") : m("Agree on payment reminders with your circle before the round closes.")}
               </div>
               <div
                 style={{
@@ -387,15 +482,17 @@ export default function PaluwaganScreen() {
           {t("paluwagan.members")}
         </div>
         <Card p={0}>
-          {seats.map((m, i) => {
-            const status = m.isRecipient
+          {seats.map((member, i) => {
+            const status = completedLocal
+              ? { label: m("Example payout saved"), kind: "success" as const }
+              : member.isRecipient
               ? { label: t("paluwagan.statusReceiving"), kind: "action" as const }
-              : m.paid
+              : member.paid
                 ? { label: t("paluwagan.statusPaid"), kind: "success" as const }
                 : { label: t("paluwagan.statusNotPaid"), kind: "neutral" as const };
             return (
               <div
-                key={m.addr}
+                key={member.addr}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -405,9 +502,9 @@ export default function PaluwaganScreen() {
                   minHeight: 44,
                 }}
               >
-                <Avatar name={m.label} size={30} />
+                <Avatar name={member.label} size={30} />
                 <div style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600 }}>
-                  {m.label}
+                  {member.label === "You" ? m("You") : member.label}
                 </div>
                 <Chip kind={status.kind} size="sm">
                   {status.label}
@@ -432,10 +529,11 @@ export default function PaluwaganScreen() {
               gap: 8,
               flexWrap: "wrap",
             }}
+            role={msg.tone === "err" ? "alert" : "status"}
           >
             <span style={{ fontWeight: 600 }}>
               {msg.tone === "ok" ? "✓ " : ""}
-              {msg.text}
+              {moneyMessage(locale, msg.text)}
             </span>
             {msg.link && (
               <a
@@ -451,19 +549,37 @@ export default function PaluwaganScreen() {
         </div>
       )}
 
+      {isLocalPreview && localSuccess && <div style={{ padding: "12px 16px 0" }}><SuccessMotion title={localSuccess}><p style={{ margin: 0 }}>{m("Local simulation only. No tokens moved and no on-chain receipt was created.")}</p></SuccessMotion></div>}
+
+      {isLocalPreview && localReview && <div style={{ padding: "12px 16px 0" }}><Card p={18} style={{ background: "#F2EFE7" }}>
+        <section aria-label={m("Review local Paluwagan action")}>
+          <h2 style={{ margin: "0 0 8px", fontSize: 18 }}>{localReview.action === "collect" ? m("Review example payout") : m("Review example contribution")}</h2>
+          <dl style={{ margin: 0, display: "grid", gridTemplateColumns: "1fr auto", gap: 8, fontSize: 14 }}>
+            <dt>{m("Example round")}</dt><dd style={{ margin: 0 }}>{localReview.round} of {total}</dd>
+            <dt>{m("Illustrative amount")}</dt><dd style={{ margin: 0, fontWeight: 600 }}>{formatLocal(localPaluwaganDisplayPesos(localReview.amountStroops), currency)}</dd>
+            <dt>{localReview.action === "collect" ? m("Example recipient") : m("Marked paid")}</dt><dd style={{ margin: 0 }}>{localReview.action === "collect" ? (localReview.recipientLabel === "You" ? m("You") : localReview.recipientLabel) : localReview.action === "pay-mine" ? m("You") : m("Unpaid friends only")}</dd>
+          </dl>
+          <p style={{ fontSize: 12, lineHeight: 1.5, color: T.slate }}>{m("This only saves fictional circle progress in this browser session. It does not debit your wallet, send funds, pay fees or produce a Stellar transaction.")}</p>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            <Btn kind="primary" disabled={pending} onClick={confirmLocal}>{m("Confirm local simulation")}</Btn>
+            <Btn kind="ghost" disabled={pending} onClick={() => { reviewedLocal.current = null; setLocalReview(null); }}>{m("Cancel")}</Btn>
+          </div>
+        </section>
+      </Card></div>}
+
       {/* Actions */}
       <div style={{ padding: "12px 16px 0", display: "flex", flexDirection: "column", gap: 8 }}>
-        {st.allPaid ? (
+        {completedLocal ? <Card p={16}><h2 style={{ margin: "0 0 8px", fontSize: 18 }}>{m("Example cycle complete.")}</h2><p style={{ margin: 0, fontSize: 13, color: T.slate, lineHeight: 1.5 }}>{m("All three fictional members have one saved example payout. There is no fourth round, automatic restart or real money movement.")}</p></Card> : st.allPaid ? (
           <Btn
             kind="primary"
             loading={pending}
-            disabled={pending}
+            disabled={pending || localNeedsReload}
             leading={!pending && Ico.check({ c: "#fff" })}
             onClick={() =>
-              run(paluwaganCollect, t("paluwagan.potReleased", { who: st.recipientLabel }), true)
+              isLocalPreview ? reviewLocal("collect") : run(paluwaganCollect, t("paluwagan.potReleased", { who: st.recipientLabel }), true)
             }
           >
-            {pending
+            {isLocalPreview ? m("Review example payout · {amount} to {name}", { amount: formatLocal(st.potPesos, currency), name: st.recipientLabel === "You" ? m("You") : st.recipientLabel }) : pending
               ? t("paluwagan.releasing")
               : t("paluwagan.releasePot", {
                   pot: formatLocal(st.potPesos, currency),
@@ -474,10 +590,10 @@ export default function PaluwaganScreen() {
           <Btn
             kind="primary"
             loading={pending}
-            disabled={pending || iPaid}
+            disabled={pending || iPaid || localNeedsReload}
             leading={!pending && Ico.check({ c: "#fff" })}
             onClick={() =>
-            run(
+            isLocalPreview ? reviewLocal("pay-mine") : run(
               paluwaganPayMine,
               t("paluwagan.sharePaidOk", {
                 share: formatLocal(st.sharePesos, currency),
@@ -485,7 +601,7 @@ export default function PaluwaganScreen() {
             )
           }
           >
-            {iPaid
+            {isLocalPreview ? iPaid ? m("Your example share is marked paid") : m("Review my example share · {amount}", { amount: formatLocal(st.sharePesos, currency) }) : iPaid
               ? t("paluwagan.sharePaid")
               : pending
                 ? t("paluwagan.paying")
@@ -494,14 +610,21 @@ export default function PaluwaganScreen() {
                   })}
           </Btn>
         )}
-        <Btn
+        {!completedLocal && <Btn
           kind="secondary"
-          disabled={pending || st.allPaid}
-          onClick={() => run(paluwaganFriendsPay, t("paluwagan.friendsPaidOk"))}
+          disabled={pending || st.allPaid || localNeedsReload || isLocalPreview && !!localState?.paid.slice(1).every(Boolean)}
+          onClick={() => isLocalPreview ? reviewLocal("friends-pay") : run(paluwaganFriendsPay, t("paluwagan.friendsPaidOk"))}
         >
-          {t("paluwagan.simFriends")}
-        </Btn>
+          {isLocalPreview ? m("Review friends' example shares") : t("paluwagan.simFriends")}
+        </Btn>}
+        {isLocalPreview && <Btn kind="ghost" disabled={pending} onClick={() => { reviewedLocal.current = null; setLocalReview(null); setLocalSuccess(""); void refresh(); }}>{m("Reload local circle")}</Btn>}
       </div>
+
+      {isLocalPreview && localState && localState.payouts.length > 0 && <div style={{ padding: "14px 16px 0" }}><Card p={16}>
+        <h2 style={{ margin: "0 0 10px", fontSize: 16 }}>{m("Example payout history")}</h2>
+        <p style={{ margin: "0 0 12px", fontSize: 12, color: T.slate }}>{m("Browser-session examples, not payment receipts or confirmed transactions.")}</p>
+        <ol style={{ margin: 0, paddingLeft: 20, fontSize: 13, lineHeight: 1.8 }}>{localState.payouts.map(payout => <li key={payout.round}>{m("Round")} {payout.round}: {LOCAL_PALUWAGAN_ROSTER.find(member => member.id === payout.recipientId)?.label} · {formatLocal(localPaluwaganDisplayPesos(payout.amountStroops), currency)}</li>)}</ol>
+      </Card></div>}
 
       <div style={{ padding: "12px 16px 0", display: "flex", justifyContent: "center" }}>
         <PoweredByStellar />

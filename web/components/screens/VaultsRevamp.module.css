@@ -1,0 +1,1492 @@
+.screen {
+  color: #101b35;
+  padding: 20px 20px 120px;
+  font-family: var(--font-geist-sans), sans-serif;
+  min-width: 0;
+}
+.screen h1,
+.screen h2,
+.screen h3,
+.screen p {
+  margin: 0;
+}
+.screen h1 {
+  font-size: 34px;
+  letter-spacing: -1.5px;
+  font-weight: 750;
+  line-height: 1.08;
+}
+.screen h2 {
+  font-size: 20px;
+  letter-spacing: -0.6px;
+  font-weight: 700;
+}
+.screen h3 {
+  font-size: 18px;
+  letter-spacing: -0.4px;
+  font-weight: 680;
+}
+.screen a {
+  text-decoration: none;
+}
+.vaultHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 2px 18px;
+}
+.vaultHeader p {
+  color: #6c7892;
+  font-size: 13px;
+  margin-top: 8px;
+  line-height: 1.5;
+}
+.eyebrow {
+  color: #2563eb;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.1px;
+  display: block;
+  margin-bottom: 8px;
+}
+.headerArt {
+  width: 116px;
+  height: 95px;
+  object-fit: contain;
+  mix-blend-mode: multiply;
+}
+.testnetNote {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #967029;
+  font-size: 10px;
+  font-weight: 650;
+  margin-bottom: 22px;
+  flex-wrap: wrap;
+}
+.testnetNote > span:not(.statusDot) {
+  color: #758099;
+  font-weight: 450;
+  margin-left: 3px;
+}
+.testnetNote strong {
+  margin-left: auto;
+  color: #526680;
+  font-weight: 550;
+}
+.statusDot {
+  width: 6px;
+  height: 6px;
+  background: #d4a05a;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.warmSection {
+  background: #f2efe7;
+  padding: 18px 14px 14px;
+  border-radius: 25px;
+}
+.sectionHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.sectionCopy {
+  color: #6b7790;
+  font-size: 12px;
+  line-height: 1.5;
+  margin-top: 6px !important;
+}
+.textButton {
+  font: inherit;
+  color: #2563eb;
+  background: none;
+  border: 0;
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 0;
+  cursor: pointer;
+}
+.textButton:disabled {
+  opacity: 0.5;
+}
+.vaultStack {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+.personalVault {
+  background: white;
+  border-radius: 19px;
+  padding: 17px 16px;
+  box-shadow: 0 3px 10px #18376a05;
+}
+.cardTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 13px;
+}
+.softLabel {
+  font-size: 10px;
+  font-weight: 650;
+  padding: 5px 8px;
+  background: #eaf1ff;
+  color: #2563eb;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+.roleLabel {
+  font-size: 10px;
+  color: #68768c;
+}
+.vaultTitleRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+}
+.vaultTitleRow p {
+  font-size: 11px;
+  color: #758099;
+  margin-top: 5px;
+  line-height: 1.4;
+}
+.vaultStats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 17px 0 0;
+  padding: 14px 0;
+  border-top: 1px solid #edf0f5;
+  border-bottom: 1px solid #edf0f5;
+  font-variant-numeric: tabular-nums;
+}
+.vaultStats dt {
+  font-size: 10px;
+  color: #758099;
+  margin-bottom: 5px;
+}
+.vaultStats dd {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+}
+.vaultStats small {
+  display: block;
+  font-size: 9px;
+  color: #7c879d;
+  font-weight: 450;
+  margin-top: 4px;
+  letter-spacing: 0;
+}
+.cardAction {
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 650;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 14px;
+}
+.campaignSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 14px;
+  color: #6d7a91;
+  font-size: 11px;
+}
+.fundNote {
+  color: #7c847c;
+  font-size: 10px;
+  line-height: 1.5;
+  padding: 14px 2px 0;
+}
+.communitySection {
+  display: flex;
+  position: relative;
+  align-items: center;
+  gap: 13px;
+  margin-top: 22px;
+  background: #eaf1ff;
+  border-radius: 20px;
+  padding: 20px 14px;
+}
+.communitySection > img {
+  width: 70px;
+  height: 85px;
+  object-fit: contain;
+  mix-blend-mode: multiply;
+}
+.communitySection h2 {
+  font-size: 19px;
+}
+.communitySection p {
+  font-size: 11px;
+  color: #6b7893;
+  margin: 5px 0 9px;
+}
+.communitySection a {
+  font-size: 11px;
+  font-weight: 650;
+  color: #2563eb;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.communitySection .eyebrow {
+  font-size: 9px;
+}
+.communityStatus {
+  position: absolute;
+  right: 13px;
+  top: 13px;
+  font-size: 9px;
+  color: #527089;
+}
+.exploreSection {
+  padding: 25px 1px 0;
+}
+.exploreSection h2 {
+  font-size: 19px;
+}
+.smallMuted {
+  font-size: 10px;
+  color: #8290a8;
+  max-width: 100px;
+  text-align: right;
+}
+.compactExplore {
+  margin-top: 12px;
+  display: grid;
+  gap: 0;
+}
+.fullExplore {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.exploreLink {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 1px;
+  border-bottom: 1px solid #e6ebf3;
+  color: #132342;
+}
+.exploreLink img {
+  width: 48px;
+  height: 43px;
+  object-fit: contain;
+  mix-blend-mode: multiply;
+}
+.exploreLink > div {
+  flex: 1;
+}
+.exploreLink h3 {
+  font-size: 13px;
+}
+.exploreLink p {
+  font-size: 10px;
+  color: #7b879e;
+  margin-top: 4px;
+}
+.fullExplore .exploreLink {
+  background: #fff;
+  border: 0;
+  border-radius: 17px;
+  padding: 15px 10px;
+  flex-wrap: wrap;
+}
+.fullExplore .exploreLink img {
+  width: 58px;
+  height: 55px;
+}
+.fullExplore .exploreLink > div {
+  flex-basis: 100%;
+}
+.comingSoon {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 13px;
+  padding: 15px 13px;
+  background: #eef1f7;
+  border-radius: 17px;
+}
+.comingSoon img {
+  width: 40px;
+  height: 43px;
+  object-fit: contain;
+  mix-blend-mode: multiply;
+  opacity: 0.6;
+}
+.comingSoon > div {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+}
+.comingSoon strong {
+  font-size: 12px;
+  color: #63718b;
+  font-weight: 600;
+}
+.comingSoon > div span {
+  font-size: 10px;
+  color: #8b96ab;
+}
+.comingSoon > .softLabel {
+  background: #dde4ef;
+  color: #7c899e;
+  font-size: 9px;
+}
+.footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  padding-top: 29px;
+}
+.footer > span {
+  font-size: 10px;
+  color: #8c99af;
+}
+.emptyState {
+  padding: 24px 6px 8px;
+}
+.emptyState p {
+  font-size: 12px;
+  color: #758099;
+  line-height: 1.6;
+  margin-top: 8px;
+}
+.actionPair {
+  display: flex;
+  gap: 8px;
+  margin-top: 17px;
+}
+.primaryLink,
+.secondaryLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 13px 17px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 650;
+}
+.primaryLink {
+  color: white;
+  background: #2563eb;
+}
+.secondaryLink {
+  background: white;
+  color: #2563eb;
+}
+.inlineNotice {
+  font-size: 12px;
+  color: #8b611f;
+  background: #fff8e9;
+  border-radius: 12px;
+  margin-top: 14px;
+  padding: 13px;
+  line-height: 1.5;
+}
+.inlineNotice button {
+  border: 0;
+  background: none;
+  color: #2563eb;
+  font: inherit;
+  cursor: pointer;
+  padding-left: 5px;
+}
+.loadingGrid {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+.skeleton {
+  height: 170px;
+  border-radius: 17px;
+  background: linear-gradient(100deg, #ffffff80, #fff, #ffffff80);
+  background-size: 250% 100%;
+  animation: loading 1.8s ease-in-out infinite;
+}
+@keyframes loading {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+.publicHeader {
+  padding: 7px 0 22px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.publicHeader h1 {
+  font-size: 30px;
+}
+.publicHeader p {
+  font-size: 12px;
+  color: #738098;
+  line-height: 1.5;
+  margin-top: 7px;
+}
+.publicHeader img {
+  width: 103px;
+  height: 109px;
+  object-fit: contain;
+  mix-blend-mode: multiply;
+}
+.publicBack {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #61718e;
+  font-size: 11px;
+  background: transparent;
+  border: 0;
+  padding: 8px 0;
+  cursor: pointer;
+}
+.publicBadge {
+  font-size: 10px;
+  color: #7f8ba0;
+}
+.poolCard {
+  border-radius: 23px;
+  padding: 22px;
+  background: #e7efff;
+  position: relative;
+  overflow: hidden;
+}
+.poolCard:after {
+  content: "";
+  position: absolute;
+  width: 170px;
+  height: 170px;
+  right: -90px;
+  top: -100px;
+  border: 20px solid #ffffff45;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.poolCard .eyebrow {
+  color: #5876a9;
+  font-size: 9px;
+}
+.poolAmount {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  font-size: 32px;
+  font-weight: 750;
+  letter-spacing: -1px;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+.poolAmount small {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: #7385a3;
+}
+.poolMeta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid #cddcfa;
+  margin-top: 17px;
+  padding-top: 12px;
+  font-size: 10px;
+  color: #6a7fa3;
+}
+.activePill,
+.pausedPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 650;
+  color: #197e66;
+}
+.activePill:before,
+.pausedPill:before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  background: currentColor;
+  border-radius: 50%;
+}
+.pausedPill {
+  color: #a07526;
+}
+.donateRow {
+  margin-top: 14px;
+}
+.amountNote {
+  font-size: 10px;
+  color: #8590a6;
+  line-height: 1.5;
+  margin-top: 10px !important;
+}
+.tabs {
+  display: flex;
+  gap: 3px;
+  background: #e9eef7;
+  border-radius: 13px;
+  padding: 4px;
+  margin: 22px 0 18px;
+}
+.tab {
+  flex: 1;
+  background: transparent;
+  color: #8190a9;
+  border: 0;
+  border-radius: 10px;
+  padding: 11px 5px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.tab[aria-selected="true"] {
+  color: #2563eb;
+  background: white;
+  box-shadow: 0 2px 5px #20427b0b;
+}
+.panel {
+  display: grid;
+  gap: 14px;
+}
+.rulesSection {
+  background: #f2efe7;
+  padding: 19px 16px;
+  border-radius: 21px;
+}
+.rulesSection h2 {
+  font-size: 18px;
+}
+.rulesSection p {
+  color: #79838f;
+  font-size: 11px;
+  line-height: 1.55;
+  margin-top: 6px;
+}
+.ruleGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 18px;
+}
+.ruleTile {
+  padding: 14px 12px;
+  border-radius: 13px;
+  background: #ffffffb5;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ruleTile strong {
+  font-size: 18px;
+  font-weight: 700;
+  color: #173b73;
+  letter-spacing: -0.5px;
+}
+.ruleTile span {
+  color: #78849c;
+  font-size: 10px;
+  line-height: 1.5;
+}
+.readOnlyNotice {
+  font-size: 11px;
+  color: #657895;
+  background: #eaf1ff;
+  border-radius: 13px;
+  padding: 14px;
+  line-height: 1.6;
+}
+.readOnlyNotice a {
+  color: #2563eb;
+  display: block;
+  margin-top: 6px;
+}
+.detailCard {
+  background: white;
+  border-radius: 18px;
+  padding: 17px;
+  border: 1px solid #e9eef5;
+}
+.detailCard h3 {
+  font-size: 15px;
+  margin: 0 0 7px !important;
+}
+.detailCard p {
+  font-size: 11px;
+  color: #79869b;
+  line-height: 1.55;
+  margin: 7px 0 !important;
+}
+.statList {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  font-size: 11px;
+  gap: 12px;
+  margin: 17px 0 0;
+}
+.statList dt {
+  color: #7f8da2;
+}
+.statList dd {
+  margin: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #233f65;
+}
+.technicalDetails summary {
+  font-size: 11px;
+  color: #607493;
+  cursor: pointer;
+  line-height: 1.5;
+  padding: 10px 0;
+}
+.technicalDetails ul,
+.technicalDetails ol {
+  padding-left: 18px;
+  font-size: 10px;
+  color: #8290a5;
+  line-height: 1.7;
+}
+.technicalDetails a {
+  color: #2563eb;
+  overflow-wrap: anywhere;
+}
+.inputLabel {
+  display: block;
+  font-size: 11px;
+  font-weight: 550;
+  color: #667895;
+}
+.form {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+.input {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  background: #f8fafc;
+  border: 1px solid #dce5f1;
+  border-radius: 12px;
+  padding: 12px;
+  font: inherit;
+  font-size: 13px;
+  color: #18345c;
+  margin-top: 6px;
+}
+.formSubmit {
+  border: 0;
+  border-radius: 12px;
+  padding: 13px;
+  font-size: 12px;
+  font-weight: 650;
+  color: white;
+  background: #2563eb;
+  cursor: pointer;
+}
+.proposal {
+  background: #f8faff;
+  border: 1px solid #e9eef7;
+  padding: 15px;
+  border-radius: 14px;
+  margin-top: 12px;
+}
+.proposalHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+}
+.proposalHeader h4 {
+  margin: 0;
+  font-size: 13px;
+}
+.proposalStatus {
+  font-size: 9px;
+  color: #557ca8;
+  background: #e7f0ff;
+  padding: 5px 7px;
+  border-radius: 5px;
+}
+.approvalTrack {
+  display: flex;
+  gap: 6px;
+  margin: 12px 0 10px;
+}
+.approvalChip {
+  font-size: 9px;
+  padding: 5px 8px;
+  border-radius: 7px;
+  background: #e6ebf3;
+  color: #8591a5;
+}
+.approvalChip[data-approved="true"] {
+  color: #227c69;
+  background: #e5f4ee;
+}
+.receiptLink {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #e4ebf6;
+  border-radius: 13px;
+  color: #203d68;
+}
+.receiptLink div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.receiptLink strong {
+  font-size: 12px;
+}
+.receiptLink span {
+  font-size: 10px;
+  color: #8391a8;
+}
+.eventLink {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid #ecf0f6;
+  padding: 13px 0;
+  color: #2563eb;
+  font-size: 11px;
+}
+.errorText {
+  background: #fff1ed;
+  border-radius: 12px;
+  padding: 13px;
+  color: #ae4b39;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.reviewCard {
+  border: 1px solid #c8dafa;
+  background: #f0f6ff;
+  padding: 17px;
+  border-radius: 18px;
+}
+.reviewCard h3 {
+  font-size: 15px;
+}
+.reviewCard p {
+  font-size: 11px;
+  line-height: 1.6;
+  color: #6982a5;
+  overflow-wrap: anywhere;
+  margin: 10px 0 !important;
+}
+.previewNotice {
+  font-size: 10px;
+  background: #fff6e7;
+  color: #9d742e;
+  border-radius: 9px;
+  padding: 9px 12px;
+  margin-bottom: 12px;
+}
+.evidenceAppendix {
+  margin-top: 8px;
+}
+.evidenceAppendix > summary {
+  font-size: 11px;
+  cursor: pointer;
+  padding: 15px 4px;
+  color: #71839c;
+}
+.evidenceAppendix a {
+  overflow-wrap: anywhere;
+}
+.screen button:focus-visible,
+.screen a:focus-visible,
+.screen summary:focus-visible,
+.screen input:focus-visible {
+  outline: 3px solid #9abcfa;
+  outline-offset: 3px;
+}
+.screen button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.screen a,
+.screen button {
+  transition:
+    background 0.18s,
+    transform 0.18s;
+}
+.screen a:hover {
+  color: #164db8;
+}
+.screen button:active {
+  transform: translateY(1px);
+}
+
+/* The passbook treatment belongs to Vaults; public pool controls share this module. */
+.vaultsScreen {
+  padding-top: 16px;
+  padding-bottom: 16px;
+}
+.vaultsScreen .vaultHeader {
+  padding: 10px 1px 14px;
+  align-items: flex-end;
+}
+.vaultsScreen .vaultHeader > div {
+  min-width: 0;
+}
+.vaultsScreen .vaultHeader h1 {
+  font-size: 38px;
+  letter-spacing: -1.6px;
+}
+.vaultsScreen .vaultHeader p {
+  font-size: 12px;
+  line-height: 1.45;
+  margin-top: 7px;
+}
+.vaultsScreen .vaultHeader .eyebrow {
+  font-size: 9px;
+  letter-spacing: 1.3px;
+  margin-bottom: 6px;
+}
+.vaultsScreen .headerArt {
+  width: 112px;
+  height: 88px;
+  flex-shrink: 0;
+}
+.vaultsScreen .testnetNote {
+  margin-bottom: 17px;
+}
+.vaultsScreen .warmSection {
+  position: relative;
+  padding: 18px 12px 13px 20px;
+  border-radius: 23px;
+  background: #f2efe7;
+}
+.vaultsScreen .warmSection::before {
+  content: "";
+  position: absolute;
+  left: -4px;
+  top: 55px;
+  bottom: 16px;
+  width: 15px;
+  background: radial-gradient(circle at 50% 6px, #d2cbbc 3px, transparent 3.5px);
+  background-size: 15px 27px;
+  pointer-events: none;
+}
+.vaultsScreen .warmSection h2 {
+  font-size: 21px;
+  letter-spacing: -0.7px;
+}
+.vaultsScreen .sectionCopy {
+  font-size: 11px;
+  margin-top: 4px !important;
+}
+.vaultsScreen .textButton {
+  padding: 7px 0;
+  font-size: 11px;
+}
+.vaultsScreen .vaultStack {
+  margin-top: 13px;
+  gap: 8px;
+  background: transparent;
+  border-radius: 0;
+}
+.vaultsScreen .personalVault {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 11px;
+  align-items: start;
+  padding: 16px 12px;
+  background: transparent;
+  border: 1px solid #deded5;
+  border-radius: 12px;
+  box-shadow: none;
+}
+.vaultsScreen .arisanVault {
+  background: #fffdf9;
+}
+.vaultsScreen .campaignVault {
+  background: #fffdf9;
+  border: 1px solid #d4ddea;
+  border-radius: 16px;
+  overflow: hidden;
+  min-width: 0;
+}
+.campaignHero {
+  position: relative;
+  isolation: isolate;
+  min-height: 160px;
+  display: flex;
+  background: #193e6a;
+}
+.campaignHero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(180deg, rgba(10, 23, 40, .2) 10%, rgba(10, 23, 40, .5) 45%, rgba(10, 23, 40, .94) 100%);
+  pointer-events: none;
+}
+.campaignCover {
+  object-fit: cover;
+  z-index: -2;
+}
+.campaignHeroContent {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 30px;
+  width: 100%;
+  min-width: 0;
+  padding: 14px 15px 16px;
+  color: #fff;
+}
+.campaignHeroTop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.campaignNumber,
+.campaignRole {
+  background: #0a172bcc;
+  border-radius: 6px;
+  padding: 5px 7px;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.campaignRole {
+  margin-left: auto;
+  font-weight: 500;
+}
+.campaignPhotoNote {
+  display: block;
+  font-size: 9px;
+  line-height: 1.4;
+  color: #e0eaff;
+  margin-bottom: 4px;
+}
+.vaultsScreen .campaignHero h3 {
+  color: #fff;
+  font-size: 21px;
+  line-height: 1.18;
+  font-weight: 750;
+  letter-spacing: -.6px;
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+}
+.campaignBody {
+  padding: 13px 15px 10px;
+}
+.campaignOrganizer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e5e9ef;
+  color: #182d4a;
+}
+.campaignAvatar,
+.campaignAvatarFallback {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #e9f1ff;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px #dce4ef;
+}
+.campaignAvatarFallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.campaignOrganizer > span:not(.campaignAvatarFallback) {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  gap: 3px;
+}
+.campaignOrganizer small {
+  font-size: 9px;
+  color: #687b95;
+  line-height: 1.45;
+}
+.campaignOrganizer strong {
+  font-size: 12px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.campaignOrganizer > svg {
+  flex-shrink: 0;
+}
+.vaultsScreen .campaignVault .cardAction {
+  min-height: 36px;
+  margin-top: 8px;
+}
+@media (max-width: 370px) {
+  .campaignHeroContent {
+    padding: 12px;
+  }
+  .vaultsScreen .campaignHero h3 {
+    font-size: 18px;
+  }
+  .campaignBody {
+    padding: 12px;
+  }
+}
+.vaultsScreen .arisanVault + .campaignVault {
+  margin-top: 4px;
+}
+.vaultStamp {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  margin-top: 13px;
+  border-radius: 50%;
+  background: #e8f1ff;
+}
+.vaultStamp img {
+  width: 46px;
+  height: 43px;
+  object-fit: contain;
+  mix-blend-mode: multiply;
+}
+.campaignVault .vaultStamp {
+  background: #dceaff;
+}
+.vaultContent {
+  min-width: 0;
+}
+.vaultsScreen .cardTop {
+  margin-bottom: 7px;
+  flex-wrap: wrap;
+  gap: 5px 8px;
+}
+.vaultsScreen .softLabel {
+  font-size: 9px;
+  font-weight: 650;
+  padding: 4px 6px;
+  border-radius: 4px;
+  background: #e5efff;
+}
+.vaultsScreen .roleLabel {
+  margin-left: auto;
+  font-size: 9px;
+  white-space: nowrap;
+}
+.vaultsScreen .personalVault h3 {
+  font-size: 16px;
+  line-height: 1.25;
+  letter-spacing: -0.5px;
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+}
+.vaultsScreen .vaultTitleRow p {
+  margin-top: 4px;
+  font-size: 10px;
+  line-height: 1.45;
+}
+.vaultBottomRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+}
+.vaultsScreen .vaultStats {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.95fr);
+  gap: 11px;
+  margin-top: 12px;
+  padding: 11px 0 0;
+  border-top: 1px solid #e4e8ef;
+  border-bottom: 0;
+}
+.vaultsScreen .vaultStats > div + div {
+  padding-left: 11px;
+  border-left: 1px solid #dfe5ee;
+}
+.vaultsScreen .vaultStats dt {
+  font-size: 9px;
+  line-height: 1.4;
+  margin-bottom: 4px;
+}
+.vaultsScreen .vaultStats dd {
+  font-size: 18px;
+  line-height: 1.2;
+  letter-spacing: -0.5px;
+  overflow-wrap: anywhere;
+}
+.vaultsScreen .vaultStats small {
+  font-size: 8px;
+  line-height: 1.4;
+  letter-spacing: 0;
+  margin-top: 4px;
+}
+.vaultsScreen .cardAction {
+  padding-top: 0;
+  justify-content: flex-end;
+  gap: 5px;
+  font-size: 11px;
+  line-height: 1.4;
+  min-height: 30px;
+}
+.vaultBottomRow .cardAction {
+  white-space: nowrap;
+  margin-bottom: 5px;
+}
+.vaultsScreen .campaignSummary {
+  margin-top: 8px;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 10px;
+  line-height: 1.45;
+}
+.vaultsScreen .campaignSummary > span:first-child {
+  flex: 1;
+}
+.vaultsScreen .campaignSummary strong {
+  color: #163960;
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.vaultsScreen .campaignSummary .softLabel {
+  color: #456c9a;
+  background: #dce9fc;
+}
+.proofNote {
+  color: #687d99;
+  font-size: 10px;
+  line-height: 1.4;
+  margin-top: 5px !important;
+}
+.vaultsScreen .campaignVault .cardAction {
+  margin-top: 7px;
+}
+.vaultsScreen .fundNote {
+  font-size: 9px;
+  line-height: 1.55;
+  padding: 12px 1px 0;
+}
+.vaultsScreen .skeleton {
+  height: 145px;
+}
+.vaultsScreen .communitySection {
+  gap: 13px;
+  margin-top: 18px;
+  border-radius: 17px;
+  padding: 19px 15px 17px;
+  background: #153f74;
+  color: #fff;
+}
+.vaultsScreen .communitySection > img {
+  width: 74px;
+  height: 91px;
+  flex-shrink: 0;
+  mix-blend-mode: normal;
+}
+.vaultsScreen .communitySection > div {
+  flex: 1;
+  min-width: 0;
+}
+.vaultsScreen .communitySection .eyebrow {
+  color: #a7c9ff;
+  font-size: 8px;
+  letter-spacing: 1.1px;
+  margin-bottom: 6px;
+}
+.vaultsScreen .communitySection h2 {
+  font-size: 19px;
+  letter-spacing: -0.5px;
+}
+.vaultsScreen .communitySection p {
+  font-size: 10px;
+  line-height: 1.5;
+  color: #d2e0f4;
+  margin: 5px 0 10px;
+}
+.vaultsScreen .communitySection a {
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 10px;
+  line-height: 1.4;
+  color: #fff;
+  background: #2563eb;
+  padding: 10px 11px;
+  border-radius: 10px;
+}
+.vaultsScreen .communitySection a:hover {
+  background: #1d55cf;
+  color: #fff;
+}
+.vaultsScreen .communityStatus {
+  color: #b9cde8;
+  top: 12px;
+  right: 15px;
+  font-size: 8px;
+}
+.vaultsScreen .exploreSection {
+  padding-top: 22px;
+}
+.vaultsScreen .exploreSection h2 {
+  font-size: 18px;
+}
+.vaultsScreen .smallMuted {
+  font-size: 9px;
+  line-height: 1.45;
+}
+.vaultsScreen .compactExplore,
+.vaultsScreen .fullExplore {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  margin-top: 13px;
+}
+.vaultsScreen .exploreLink {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 8px 10px 10px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  min-width: 0;
+}
+.vaultsScreen .exploreLink + .exploreLink {
+  border-left: 1px solid #dfe6f0;
+}
+.vaultsScreen .exploreLink img {
+  width: 39px;
+  height: 35px;
+}
+.vaultsScreen .exploreLink > div {
+  flex: 1;
+  flex-basis: auto;
+  min-width: 0;
+}
+.vaultsScreen .exploreLink h3 {
+  font-size: 11px;
+  line-height: 1.35;
+  letter-spacing: -0.2px;
+}
+.vaultsScreen .exploreLink p {
+  font-size: 9px;
+  line-height: 1.4;
+  margin-top: 4px;
+}
+.vaultsScreen .exploreLink > svg {
+  align-self: flex-end;
+}
+.legacyIcon {
+  width: 39px;
+  height: 35px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.vaultsScreen .comingSoon {
+  gap: 10px;
+  margin-top: 12px;
+  padding: 12px 11px;
+  border-radius: 12px;
+  background: #edf1f7;
+}
+.vaultsScreen .comingSoon img {
+  width: 32px;
+  height: 34px;
+}
+.vaultsScreen .comingSoon strong {
+  font-size: 11px;
+}
+.vaultsScreen .comingSoon > div span {
+  font-size: 9px;
+}
+.vaultsScreen .comingSoon > .softLabel {
+  background: transparent;
+  color: #708099;
+  padding-right: 0;
+}
+.vaultsScreen .footer {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #dfe6f0;
+}
+.vaultsScreen .footer > span {
+  font-size: 9px;
+}
+@media (max-width: 440px) {
+  .vaultsScreen {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .vaultsScreen .headerArt {
+    width: 95px;
+    height: 82px;
+  }
+  .vaultsScreen .personalVault {
+    grid-template-columns: 42px minmax(0, 1fr);
+    gap: 9px;
+    padding: 14px 10px;
+  }
+  .vaultStamp {
+    width: 42px;
+    height: 42px;
+  }
+  .vaultStamp img {
+    width: 40px;
+    height: 37px;
+  }
+  .vaultBottomRow {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+  .vaultBottomRow .cardAction {
+    margin-bottom: 0;
+    min-height: 26px;
+  }
+  .vaultsScreen .vaultStats {
+    margin-top: 10px;
+    padding-top: 9px;
+  }
+  .vaultsScreen .communitySection > img {
+    width: 62px;
+    height: 81px;
+  }
+}
+@media (max-width: 370px) {
+  .vaultsScreen .headerArt {
+    width: 77px;
+    height: 74px;
+  }
+  .vaultsScreen .vaultHeader h1 {
+    font-size: 34px;
+  }
+  .vaultsScreen .vaultHeader p {
+    max-width: 185px;
+    font-size: 11px;
+  }
+  .vaultsScreen .warmSection {
+    padding-left: 17px;
+    padding-right: 10px;
+  }
+  .vaultsScreen .personalVault {
+    grid-template-columns: 35px minmax(0, 1fr);
+    gap: 7px;
+  }
+  .vaultStamp {
+    width: 35px;
+    height: 35px;
+  }
+  .vaultStamp img {
+    width: 34px;
+    height: 32px;
+  }
+  .vaultsScreen .personalVault h3 {
+    font-size: 15px;
+  }
+  .vaultsScreen .vaultStats dd {
+    font-size: 17px;
+  }
+  .vaultsScreen .communitySection {
+    padding-left: 12px;
+    padding-right: 12px;
+    gap: 10px;
+  }
+  .vaultsScreen .communitySection > img {
+    width: 49px;
+    height: 73px;
+  }
+  .vaultsScreen .communitySection h2 {
+    font-size: 17px;
+  }
+  .vaultsScreen .exploreLink {
+    padding-left: 7px;
+    padding-right: 7px;
+  }
+}
+@media (max-width: 370px) {
+  .screen {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+  .headerArt {
+    width: 80px;
+  }
+  .screen h1 {
+    font-size: 31px;
+  }
+  .vaultStats dd {
+    font-size: 16px;
+  }
+  .tab {
+    font-size: 10px;
+    padding-left: 2px;
+    padding-right: 2px;
+  }
+  .communitySection > img {
+    width: 50px;
+  }
+  .communitySection h2 {
+    font-size: 17px;
+  }
+  .fullExplore {
+    grid-template-columns: 1fr;
+  }
+  .publicHeader img {
+    width: 80px;
+  }
+  .poolAmount {
+    font-size: 29px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+  .screen button,
+  .screen a {
+    transition: none;
+  }
+}

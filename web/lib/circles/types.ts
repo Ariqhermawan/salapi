@@ -14,7 +14,10 @@ export type CircleCategory =
   | "education"
   | "community"
   | "family"
-  | "creator";
+  | "creator"
+  | "animals"
+  | "care"
+  | "volunteer";
 
 export const CATEGORY_LABEL: Record<CircleCategory, string> = {
   disaster: "Disaster relief",
@@ -23,6 +26,9 @@ export const CATEGORY_LABEL: Record<CircleCategory, string> = {
   community: "Community",
   family: "Family",
   creator: "Creator support",
+  animals: "Animal care",
+  care: "Care & meals",
+  volunteer: "Volunteer action",
 };
 
 // Discover-screen filter buckets (mirrors the GoFundMe / Kitabisa cadence).
@@ -42,6 +48,18 @@ export type PreviewDonation = {
   pesoAmount: number; // app-internal currency unit (PHP)
   whenLabel: string; // human-friendly ("2 hours ago")
   note?: string;
+};
+
+// Synthetic demonstration updates, never a payment receipt or verified proof.
+export type CircleUpdate = {
+  id: string;
+  title: string;
+  date: string;
+  body: string;
+  image?: string;
+  kind: "milestone" | "spend" | "delivery";
+  amountPHP?: number;
+  proofLabel?: string;
 };
 
 // One preview circle on the Discover screen + detail page.
@@ -65,6 +83,14 @@ export type Circle = {
   // Absent or { percentage: 0, tier: 0 } = day-30 default (100 percent to
   // beneficiary, no organizer cut).
   allowance?: AllowanceConfig;
+  // Optional additions preserve older create/draft consumers of Circle.
+  organizerId?: string;
+  coverImage?: string;
+  imageAlt?: string;
+  summary?: string;
+  status?: "funding" | "completed";
+  completedOn?: string;
+  updates?: CircleUpdate[];
 };
 
 export function progressPct(c: Pick<Circle, "pesoRaised" | "pesoTarget">): number {

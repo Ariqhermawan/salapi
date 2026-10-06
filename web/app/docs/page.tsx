@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import type { ReactNode } from "react";
 import { disasterId, donationCampaignId } from "@/lib/server/stellar";
+import { isLocalPreview } from "@/lib/local-preview";
+import { PoweredByStellarV2 } from "@/components/ui/brand";
+import styles from "@/components/screens/CampaignArisan.module.css";
 
 export const dynamic = "force-dynamic";
 
@@ -58,9 +62,9 @@ const externalLinkStyle = {
 
 const cardStyle = {
   background: "#fff",
-  border: "1px solid #e6e8ee",
-  borderRadius: 16,
-  padding: 16,
+  border: "1px solid #e1e7f0",
+  borderRadius: 24,
+  padding: 22,
 };
 
 function ExternalLink({ href, children }: { href: string; children: ReactNode }) {
@@ -82,45 +86,50 @@ export default function PublicDocsPage() {
     <div
       style={{
         minHeight: "100%",
-        padding: "18px 16px 34px",
-        color: "#0b1220",
-        fontFamily: "var(--font-sans)",
+        padding: "18px 20px 45px",
+        color: "#10203a",
+        fontFamily: "var(--font-geist-sans)",
       }}
     >
-      <header>
+      <div className={styles.toolbar} style={{ marginBottom: 20 }}><Link href="/">← Back to Salapi</Link><span className={styles.badge}>Public · No login</span></div>
+      <header className={styles.hero}>
+        <div>
         <div style={{ color: "#1d4ed8", fontSize: 11, fontWeight: 750, letterSpacing: "0.12em", textTransform: "uppercase" }}>
           Salapi · public documentation
         </div>
         <h1 style={{ margin: "7px 0 0", fontSize: 30, lineHeight: 1.08, letterSpacing: "-0.035em" }}>
-          Trustless community money pools on Stellar.
+          Rules you can read.<br />Proof you can check.
         </h1>
         <p style={{ margin: "10px 0 0", color: "#5b6472", fontSize: 14, lineHeight: 1.55 }}>
-          A short, checkable guide for users, builders, and reviewers. Salapi is a
-          crypto-invisible wallet for savings circles, transfers, and transparent
-          disaster relief.
+          A guide to donation campaigns, shared money pools and public receipts.
+          Check the terms, then inspect the Testnet evidence.
         </p>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 14 }}>
           <span style={{ borderRadius: 999, background: "#fff7ed", color: "#9a3412", padding: "5px 9px", fontSize: 11, fontWeight: 700 }}>
             STELLAR TESTNET
           </span>
-          <span style={{ borderRadius: 999, background: "#ecfdf5", color: "#047857", padding: "5px 9px", fontSize: 11, fontWeight: 700 }}>
-            7 CONTRACT PACKAGES
-          </span>
         </div>
+        </div><Image src="/illustrations/disaster.png" width={112} height={112} className={styles.doodle} alt="Hands supporting a community vault" />
       </header>
+      {isLocalPreview && <p className={styles.notice} style={{ marginTop: 15 }}>You are viewing a local design preview. Example balances and actions do not query or update a deployed contract. The receipt links below point to archived Testnet evidence.</p>}
 
       <nav
         aria-label="Documentation sections"
-        style={{ display: "flex", gap: 12, overflowX: "auto", padding: "18px 0 4px", whiteSpace: "nowrap" }}
+        style={{ display: "flex", gap: 8, overflowX: "auto", padding: "20px 0", whiteSpace: "nowrap", fontSize: 12 }}
       >
-        <a href="#overview" style={externalLinkStyle}>Overview</a>
-        <a href="#architecture" style={externalLinkStyle}>How it works</a>
-        <a href="#contracts" style={externalLinkStyle}>Contracts</a>
-        <a href="#evidence" style={externalLinkStyle}>Evidence</a>
-        <a href="#status" style={externalLinkStyle}>Status</a>
+        {[ ["#rules", "The rules"], ["#overview", "Overview"], ["#contracts", "Contracts"], ["#evidence", "Evidence"], ["#status", "Status"] ].map(([href,label]) => <a key={href} href={href} className={styles.filter}>{label}</a>)}
       </nav>
 
-      <main style={{ display: "grid", gap: 12 }}>
+      <div style={{ display: "grid", gap: 16 }}>
+        <section id="rules" className={styles.card}>
+          <span className={styles.eyebrow}>Different pools, different rules</span><h2 style={{ fontSize: 23, letterSpacing: "-.035em", fontWeight: 750, margin: "9px 0 20px" }}>Choose the right flow.</h2>
+          <div className={styles.stack}>
+            <div><h3>Donation campaigns · D4</h3><p className={styles.muted}>Each campaign has its own escrow, locked recipients, a 0 to 10% creator share, three approvers, and funding/review deadlines. After funding closes, two wallets approve the same proof before the deadline. After quorum, anyone can release to the fixed recipients. If timely approval is incomplete, each donor claims their own full contribution back.</p><Link href="/campaigns?mode=testnet" className={styles.textButton}>Explore campaigns →</Link></div>
+            <div className={styles.terms}><h3>Disaster Vault · D3</h3><p className={styles.muted}>A shared relief pool with three fixed signer wallets. Payouts need two approvals, then wait 20 ledgers. Execution rechecks a rolling 24-hour limit of 20% of the current balance. Pause and unpause need quorum. Contributions remain open while paused.</p><Link href="/transparency" className={styles.textButton}>View Disaster Vault and public proof →</Link></div>
+            <div className={styles.terms}><h3>Arisan Rooms</h3><p className={styles.muted}>Members fund N × their share upfront for N rounds. The draw uses participant commitments and reveals, then a finalization call pays the selected eligible member. A host still starts a full room. This is a rotating pool, with no interest or yield.</p><Link href="/arisan" className={styles.textButton}>View Arisan Rooms →</Link></div>
+          </div>
+          <p className={styles.notice} style={{ marginTop: 18 }}>D4 donation campaigns do not use D3&apos;s 20-ledger wait or spending cap. Wallet approvals and public receipts do not prove real-world delivery.</p>
+        </section>
         <section id="overview" style={cardStyle}>
           <h2 style={{ margin: 0, fontSize: 18 }}>What Salapi solves</h2>
           <p style={{ margin: "9px 0 0", color: "#5b6472", fontSize: 13.5, lineHeight: 1.6 }}>
@@ -155,12 +164,12 @@ export default function PublicDocsPage() {
         <section id="contracts" style={cardStyle}>
           <h2 style={{ margin: 0, fontSize: 18 }}>Testnet contracts</h2>
           <p style={{ margin: "8px 0 12px", color: "#5b6472", fontSize: 13.5, lineHeight: 1.55 }}>
-            These are Salapi&apos;s Testnet contract deployments. Historical
+            These are recorded Salapi Testnet contract deployments. Historical
             single-admin Disaster evidence is separate from the D3 deployment.
             Arisan has separate demo- and long-cadence deployments compiled
             from the same source.
           </p>
-          <div style={{ display: "grid", gap: 9 }}>
+          <details><summary style={{ cursor: "pointer", fontWeight: 650, color: "#2563eb", fontSize: 13 }}>Contract addresses and source packages</summary><div style={{ display: "grid", gap: 14, marginTop: 15 }}>
             {displayedContracts.map((contract) => (
               <div key={contract.name} style={{ borderTop: "1px solid #eef0f4", paddingTop: 9 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "baseline" }}>
@@ -174,10 +183,11 @@ export default function PublicDocsPage() {
                 </ExternalLink>
               </div>
             ))}
-          </div>
+          </div></details>
           <p style={{ color: "#5b6472", fontSize: 12.5, lineHeight: 1.5 }}>
-            {d3 ? "The D3 address above is read from the same DISASTER_CONTRACT setting as application transactions. The transparency page verifies its on-chain configuration before enabling actions."
-              : "D3 application cutover is pending: DISASTER_CONTRACT is not configured. No legacy fallback is used for D3 actions."}
+            {isLocalPreview ? "Local preview uses example state. These addresses and source links are reference evidence; this page does not claim a live deployment verification."
+              : d3 ? "The configured D3 address comes from the same setting used by application transactions. Transparency checks its on-chain configuration before enabling actions."
+              : "This environment has no D3 deployment configured. D3 actions do not fall back to the historical single-admin contract."}
           </p>
           <p style={{ margin: "12px 0 0", color: "#5b6472", fontSize: 12.5, lineHeight: 1.5 }}>
             Full deploy, initialization, and flow transaction hashes are in the
@@ -194,15 +204,19 @@ export default function PublicDocsPage() {
             Expert link to verify the underlying network activity.
           </p>
           <ul style={{ margin: "10px 0 0", paddingLeft: 18, color: "#5b6472", fontSize: 13.5, lineHeight: 1.75 }}>
-            <li><ExternalLink href="https://salapi.app">Live application</ExternalLink></li>
-            <li><ExternalLink href="https://salapi.app/transparency">Live transparency dashboard</ExternalLink></li>
+            <li><Link href="/" style={externalLinkStyle}>Open the application</Link></li>
+            <li><Link href="/transparency" style={externalLinkStyle}>Open transparency</Link></li>
             <li><ExternalLink href="https://github.com/Ariqhermawan/salapi/pull/3">Week 1 Deliverable 1 pull request</ExternalLink></li>
             <li><ExternalLink href="https://github.com/Ariqhermawan/salapi/blob/main/docs/instawards/week-1-d1.md">Week 1 D1 report</ExternalLink></li>
             <li><ExternalLink href="https://stellar.expert/explorer/testnet/tx/a670f325bce65a8ec093499cad43699269efddcd5d939a9403ca52eafcff7579">Example 6.50 PHP Testnet contribution</ExternalLink></li>
             <li><ExternalLink href="https://github.com/Ariqhermawan/salapi/blob/main/docs/instawards/week-2-d2.md">Week 2 D2 commit-reveal report</ExternalLink></li>
             <li><ExternalLink href={`https://github.com/Ariqhermawan/salapi/blob/${sourceRef}/docs/instawards/week-3-d3.md`}>D3 controls, acceptance tests, and deployment status</ExternalLink></li>
-            <li><Link href="/campaigns" style={externalLinkStyle}>D4 donation campaigns</Link></li>
+            <li><ExternalLink href="https://github.com/Ariqhermawan/salapi/pull/10">D3 implementation PR #10</ExternalLink></li>
+            <li><Link href="/campaigns?mode=testnet" style={externalLinkStyle}>D4 donation campaigns</Link></li>
             <li><ExternalLink href={`https://github.com/Ariqhermawan/salapi/blob/${sourceRef}/docs/instawards/week-4-d4.md`}>D4 release/refund evidence and security self-review</ExternalLink></li>
+            <li><ExternalLink href="https://github.com/Ariqhermawan/salapi/pull/11">D4 implementation PR #11</ExternalLink></li>
+            <li><ExternalLink href="https://github.com/Ariqhermawan/salapi/pull/13">D4 browser acceptance archive PR #13</ExternalLink></li>
+            <li><ExternalLink href="https://stellar.expert/explorer/testnet/tx/443a9e58e88d2758c7f74a017505c53a759c80e84692a4503037ed0011497a87">Archived campaign #5 payout: 0.05 + 0.95 Testnet XLM</ExternalLink></li>
             <li><ExternalLink href="https://stellar.expert/explorer/testnet/tx/f83d24369795458db27a033e921ce84c261840ca29019baaa151dcb1518e50cb">D2 normal round: three reveals</ExternalLink></li>
             <li><ExternalLink href="https://stellar.expert/explorer/testnet/tx/1fc95b8cbd2c5a3f54e5b44f0dad88aac55df5af30e5e1c7a0e9fb6ab5a7d0bc">D2 timeout round: one non-revealer</ExternalLink></li>
             <li><ExternalLink href="https://stellar.expert/explorer/testnet/tx/89734260b9a5c1bb099ed65f26a0f815059aea5d6b6fb8aa27f3c7c5c9a256b0">D2 no-reveal liveness fallback</ExternalLink></li>
@@ -212,12 +226,13 @@ export default function PublicDocsPage() {
         <section id="status" style={cardStyle}>
           <h2 style={{ margin: 0, fontSize: 18 }}>Current status and boundaries</h2>
           <ul style={{ margin: "10px 0 0", paddingLeft: 18, color: "#5b6472", fontSize: 13.5, lineHeight: 1.7 }}>
-            <li>Live environment: Stellar Testnet only; no real funds and no mainnet deployment.</li>
-            <li>Week 1 D1 (exact integer money boundary) is shipped and merged to <code>main</code>.</li>
-            <li>Week 2 D2 (participant commit-reveal draw) is implemented and verified on Testnet.</li>
+            <li>Stellar Testnet only. No real donations, fiat payments or mainnet funds.</li>
+            <li>The milestone reports above archive D1 integer amount handling and D2 participant commit-reveal acceptance. Historical acceptance does not verify every current session.</li>
             <li>D3 implements fixed 2-of-3 approvals, a 20-ledger payout timelock, a rolling 24-hour cap, and quorum-controlled pause/unpause. Live cutover and evidence status are tracked in the D3 report.</li>
             <li>D4 escrows each campaign separately, fixes its three approvers and creator share at creation, requires two approvals of the same proof, and supports full donor-claimed refunds if review expires incomplete. The Testnet asset is fixed at deployment. D4 has no D3 spending cap or 20-ledger wait.</li>
             <li>Independent audit, independent signer custody, and fiat anchor integration remain outside this Testnet implementation.</li>
+            <li>Current wallets are managed by Salapi. Three distinct signer wallets do not establish three independent organizations or independent key custody.</li>
+            <li>Smart Savings is coming soon in this product experience. Its Testnet contract source remains listed as technical reference.</li>
           </ul>
           <p style={{ margin: "12px 0 0", color: "#5b6472", fontSize: 12.5, lineHeight: 1.5 }}>
             Security assumptions, custody trade-offs, and the mainnet checklist
@@ -225,12 +240,14 @@ export default function PublicDocsPage() {
             <ExternalLink href="https://github.com/Ariqhermawan/salapi/blob/main/SECURITY.md"> security policy</ExternalLink>.
           </p>
         </section>
-      </main>
+      </div>
 
       <footer style={{ marginTop: 18, paddingBottom: 8, color: "#7a8494", fontSize: 11.5, lineHeight: 1.5 }}>
         <ExternalLink href="https://github.com/Ariqhermawan/salapi">Source code on GitHub</ExternalLink>
         <span aria-hidden> · </span>
         <Link href="/" style={{ color: "#7a8494" }}>Back to Salapi</Link>
+        <span aria-hidden> · </span><Link href="/privacy">Privacy notice</Link><span aria-hidden> · </span><Link href="/terms">Testnet terms</Link>
+        <div style={{ marginTop: 20 }}><PoweredByStellarV2 size={12} /></div>
       </footer>
     </div>
   );

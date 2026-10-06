@@ -1,0 +1,36 @@
+.methods{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;margin:0 16px 16px;padding:5px;border:1px solid #dbe5f3;border-radius:16px;background:#e9eff8}
+.methods button{min-height:48px;border:0;border-radius:11px;padding:9px 8px;display:flex;align-items:center;justify-content:center;gap:7px;font:600 12px var(--font-geist-sans),system-ui,sans-serif;color:#526784;background:transparent;cursor:pointer;transition:background .16s,color .16s}
+.methods button[aria-pressed=true]{background:#fff;color:#235fe6;box-shadow:0 2px 5px #102b510a}
+.panel{font-family:var(--font-geist-sans),system-ui,sans-serif;color:#0c1730;padding:0 16px 8px;min-width:0}
+.hero{border-radius:22px;background:#102b51;color:#fff;padding:22px}
+.eyebrow{font-size:10px;letter-spacing:.08em;font-weight:750;color:#bed5fa}
+.hero h1{font-size:30px;font-weight:750;line-height:1.12;letter-spacing:-.04em;margin:10px 0}
+.hero p{font-size:13px;line-height:1.6;margin:0;color:#c5d7f0;max-width:42ch}
+.network{display:inline-flex;align-items:center;gap:6px;background:#dce9ff;color:#214c8d;border-radius:999px;padding:7px 10px;font-size:11px;font-weight:700;margin-top:15px}
+.warning{display:flex;align-items:flex-start;gap:9px;background:#fff3df;color:#96500b;border:1px solid #f0dfbe;padding:13px;border-radius:14px;font-size:12px;line-height:1.55;margin:12px 0}
+.warning svg{flex-shrink:0;margin-top:1px}
+.card{background:#fff;border:1px solid #dfe6f0;border-radius:22px;padding:20px;min-width:0}
+.card h2,.steps h2{font-size:16px;font-weight:700;line-height:1.4;margin:0 0 8px;letter-spacing:-.025em}
+.card>p,.steps p{font-size:12px;color:#586985;line-height:1.6;margin:0 0 14px}
+.previewMark{display:grid;place-items:center;width:64px;height:64px;background:#eaf1ff;color:#2563eb;border-radius:20px;margin:0 auto 15px}
+.qr{display:flex;justify-content:center;margin:0 0 10px}.qr svg{max-width:100%;height:auto}
+.card>.qrHint{text-align:center;font-size:11px;max-width:38ch;margin:0 auto 18px}
+.addressLabel{display:block;font-size:11px;font-weight:650;color:#586985;margin-bottom:8px}
+.address{display:block;white-space:normal;overflow-wrap:anywhere;user-select:all;font:12px/1.7 var(--font-geist-mono),monospace;border:1px solid #dbe5f3;border-radius:12px;padding:13px;background:#f3f7fc;color:#173b66}
+.copy,.secondary,.history,.actions a,.explorer{min-height:44px;display:flex;align-items:center;justify-content:center;gap:8px;border-radius:12px;font:650 12px var(--font-geist-sans),system-ui,sans-serif;text-decoration:none;cursor:pointer}
+.copy{width:100%;border:0;background:#2563eb;color:#fff;margin-top:12px;min-height:48px}
+.copy:disabled{background:#e5ebf4;color:#6f809a;cursor:not-allowed}
+.secondary{width:100%;border:1px solid #dbe5f3;background:#f3f7fc;color:#235fe6}
+.card>.status{margin:0;font-size:11px;min-height:0}.status:empty{display:none}
+.card>.error{color:#b42332;margin-top:9px}
+.metadata{margin:17px 0 0}.metadata>div{display:flex;justify-content:space-between;gap:14px;padding:11px 0;border-top:1px solid #e6edf6;font-size:12px}
+.metadata dt{color:#586985}.metadata dd{margin:0;text-align:right;font-weight:650;overflow-wrap:anywhere}
+.card>.hint{font-size:11px;margin:4px 0 0}
+.explorer{color:#235fe6;justify-content:space-between;margin:10px 0}
+.actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.actions a{background:#2563eb;color:#fff}
+.steps{padding:20px 3px 8px}.steps ol{padding-left:22px;margin:12px 0;display:grid;gap:10px;font-size:12px;line-height:1.6;color:#435b7e}
+.steps li::marker{font-weight:700;color:#2563eb}.steps p{font-size:11px;margin:0}
+.history{justify-content:space-between;color:#235fe6;background:#eaf1ff;padding:0 14px;margin-top:12px}
+.methods button:focus-visible,.panel button:focus-visible,.panel a:focus-visible{outline:2px solid #2563eb;outline-offset:3px}
+@container(max-width:350px){.methods{margin-inline:12px}.methods button{font-size:11px;gap:5px}.panel{padding-inline:12px}.card{padding:16px}.hero{padding:19px}.hero h1{font-size:27px}.address{font-size:11px}}
+@media(prefers-reduced-motion:reduce){.methods button{transition:none}}

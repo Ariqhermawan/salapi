@@ -1,0 +1,195 @@
+.home { padding: 10px 16px 24px; color: #0c1730; }
+.wallet { background: #092247; color: white; border-radius: 24px; padding: 12px 16px; box-shadow: 0 14px 34px -25px #0c2e5c; }
+.identity { display: flex; align-items: center; gap: 10px; padding-bottom: 8px; border-bottom: 1px solid #ffffff26; }
+.avatar { width: 46px; height: 46px; border-radius: 50%; flex-shrink: 0; display: grid; place-items: center; background: #fff; color: #2563eb; font-size: 22px; font-weight: 750; }
+.name { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.name > span { display:none; }
+.name strong { font-size: 17px; letter-spacing: -.025em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.name small { color: #c7d7ef; font-size: 11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.round { width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid #ffffff26; background: #ffffff10; border-radius: 50%; flex-shrink: 0; }
+.walletContent { display: grid; grid-template-columns: minmax(0,1fr) 176px; gap: 12px; padding-top: 10px; align-items:center; }
+.walletContent > div:first-child { text-align:center; min-width:0; }
+.balanceLabel { display: flex; gap: 8px; align-items: center; justify-content:center; flex-wrap: wrap; }
+.balanceLabel > span:first-child { color: #9a4d0b; background: #fff0d7; border: 1px solid #f1d4a8; border-radius: 20px; padding: 4px 8px; font-size: 9px; letter-spacing: .06em; font-weight: 700; }
+.amount { display: flex; align-items: baseline; justify-content:center; white-space: nowrap; margin-top: 5px; }
+.amount > span { font-size: 19px; margin-right: 2px; }
+.walletContent p { color: #bdcce4; font-size: 10px; line-height: 1.5; margin: 8px 0 0; }
+.walletActions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; min-width: 0; padding: 4px; border-radius: 18px; background: #ffffff0a; box-shadow: inset 0 0 0 1px #ffffff14; }
+.walletAction { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-width: 0; min-height: 48px; padding: 8px 4px; border-radius: 14px; color: #f2f6ff; transition: background .18s ease, transform .18s ease; }
+.walletAction + .walletAction::before { content: ""; position: absolute; left: -3px; top: 50%; width: 1px; height: 26px; background: #ffffff1f; transform: translateY(-50%); }
+.walletActionIcon { display: grid; place-items: center; flex: 0 0 auto; width: 30px; height: 30px; border-radius: 11px; color: #c8dcff; background: #ffffff0d; box-shadow: inset 0 0 0 1px #ffffff1f; transition: transform .18s ease; }
+.walletAction:first-child .walletActionIcon { color: #164cbc; background: #dceaff; box-shadow: none; }
+.walletActionLabel { font-size: 11px; line-height: 1.3; font-weight: 650; text-align: center; text-wrap: balance; }
+.walletAction:active { transform: scale(.98); background: #ffffff12; }
+.walletAction:focus-visible { outline: 2px solid #a9cbff; outline-offset: 2px; background: #ffffff12; }
+@media (hover: hover) { .walletAction:hover { background: #ffffff0d; } .walletAction:hover .walletActionIcon { transform: translateY(-2px); } }
+.walletRetry { color: white; font-size: 11px; text-decoration: underline; margin-top: 8px; }
+.crowdfunding { margin-top: 10px; padding: 12px; background: #f2efe7; border: 1px solid #e7e3db; border-radius: 25px; }
+.giveHeader { display: flex; align-items: center; min-height: 62px; padding: 0 4px 8px; gap:8px; }
+.eyebrow { display:block; line-height:1.3; color: #2563eb; font-weight: 750; font-size: 10px; letter-spacing: .07em; }
+.giveHeader h1 { font-size: 29px; line-height: 1.05; letter-spacing: -.045em; font-weight: 780; margin: 6px 0 4px; }
+.giveHeader p { font-size: 11px; line-height: 1.4; color: #586985; max-width: 265px; margin: 0; }
+.giveHeader img { width: 70px; height: auto; object-fit: contain; flex-shrink: 0; margin-left: auto; }
+.start { display: flex; flex: 1; align-items: center; justify-content:center; gap: 6px; min-height:46px; padding: 6px 8px; border-radius: 14px; color:#164cbc; background: #e4efff; transition: background .2s; }
+.start:hover { background: #d9e9ff; }
+.plus { width: 27px; height: 27px; background: #d0e3ff; color: #2563eb; border-radius: 50%; display: grid; place-items: center; flex-shrink: 0; }
+.start strong { font-size: 12px; font-weight: 740; letter-spacing: -.02em; white-space:nowrap; }
+.stripLabel { display: flex; justify-content: space-between; font-size: 11px; font-weight: 600; color: #586985; padding: 0 4px 10px; }
+.stripLabel a { color: #2563eb; display: inline-flex; align-items: center; gap: 2px; }
+.strip { display: flex; gap: 14px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; position: relative; padding-bottom: 3px; }
+.strip::-webkit-scrollbar { display: none; }
+.campaign { flex: 0 0 83%; min-width: 0; scroll-snap-align: start; border-radius: 19px; background: #fff; overflow: hidden; box-shadow: 0 3px 5px #17365f08; }
+.photo { height: 72px; position: relative; overflow: hidden; }
+.photo img { width: 100%; height: 100%; object-fit: cover; }
+.photo > span { position: absolute; top: 12px; left: 12px; background: #13233de6; color: white; font-size: 10px; padding: 5px 10px; border-radius: 30px; font-weight: 700; }
+.campaignBody { padding: 10px 14px; }
+.example { font-size: 9px; font-weight: 750; color: #2563eb; background: #eaf2ff; padding: 4px 7px; border-radius: 20px; }
+.campaign h2 { margin: 8px 0 5px; font-size: 21px; font-weight: 760; line-height: 1.08; letter-spacing: -.035em; text-wrap: balance; }
+.campaign p { font-size: 11px; color: #586985; line-height: 1.45; margin: 0 0 8px; }
+.raised { font-size: 12px; margin-bottom: 8px; }
+.raised strong { font-weight: 740; }
+.raised > span { color: #586985; }
+.progress { height: 8px; border-radius: 9px; background: #e1e7ef; overflow: hidden; }
+.progress span { height: 100%; background: #00ad84; display: block; border-radius: inherit; }
+.donate { display: flex; justify-content: center; gap: 9px; align-items: center; background: #2563eb; color: white; min-height: 46px; font-size: 15px; font-weight: 650; border-radius: 13px; margin-top: 8px; box-shadow: 0 6px 14px -9px #2563eb; }
+.carouselFooter { display: flex; align-items: center; gap: 6px; margin-top: 10px; color: #586985; font-size: 9px; }
+.controls { display: flex; align-items: center; background: white; border: 1px solid #dedfe3; border-radius: 24px; }
+.controls button { width: 44px; height: 44px; display: grid; place-items: center; }
+.controls span { min-width: 35px; text-align: center; font-variant-numeric: tabular-nums; }
+.pause { width: 44px; height: 44px; flex-shrink:0; border-radius: 24px; background: white; border: 1px solid #dedfe3; display: grid; place-items: center; }
+.quick { margin-top: 20px; }
+.sectionTitle { display: flex; align-items: center; gap: 12px; font-size: 10px; font-weight: 750; color: #586985; letter-spacing: .09em; margin: 0 3px 11px; }
+.sectionTitle span { flex: 1; height: 1px; background: #dfe6f0; }
+.quickGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.tile { min-height: 99px; display: flex; align-items: center; gap: 6px; padding: 9px 7px; border: 2px solid white; border-radius: 19px; position: relative; box-shadow: 0 4px 12px -9px #18376925; }
+.tile img { width: 66px; height: auto; object-fit: contain; flex-shrink: 0; }
+.tile > div { display: grid; gap: 4px; min-width: 0; }
+.tile strong { font-size: 14px; font-weight: 750; line-height: 1.15; letter-spacing: -.025em; }
+.tile small { color: #586985; font-size: 10px; line-height: 1.3; }
+.blue { background: #eaf3ff; }
+.mint { background: #edf9f4; }
+.cream { background: #fff7e9; }
+.coming { background: #dfe6ee; color: #536785; border-radius: 20px; font-size: 9px; padding: 3px 7px; width: fit-content; font-weight: 600; }
+.tileArrow { width: 23px; height: 23px; display: grid; place-items: center; position: absolute; bottom: 7px; right: 7px; color: #2563eb; background: white; border-radius: 50%; }
+.stellar { display: grid; justify-items: center; gap: 5px; padding-top: 23px; color: #586985; font-size: 12px; }
+.stellar > div { display: flex; align-items: center; gap: 9px; }
+.stellar img { width: 88px; height: auto; }
+.stellar small { font-size: 10px; }
+.stellar > a { font-size: 10px; color: #2563eb; margin-top: 3px; }
+.skeletonCards { display: flex; gap: 14px; height: 330px; overflow: hidden; }
+.skeletonCards > div { min-width: 83%; border-radius: 19px; }
+.empty { min-height: 130px; display: grid; align-content: center; gap: 10px; padding: 25px; color: #586985; background: #fff; border-radius: 18px; font-size: 13px; }
+.empty button { color: #2563eb; font-weight: 700; text-align: left; }
+.catalogNotice { margin: 0 4px 6px; color: #6a6256; font-size: 10px; line-height: 1.45; }
+.catalogTools { display: flex; align-items: center; gap: 10px; margin: 0 4px 4px; }
+.catalogTools label { display: flex; align-items: center; gap: 7px; flex: 1; min-width: 0; color: #586985; font-size: 10px; font-weight: 650; }
+.catalogTools select { min-height: 44px; width: 100%; min-width: 0; border: 1px solid #dedfe3; border-radius: 11px; padding: 8px; background: white; color: #13233d; font-size: 12px; }
+.catalogTools > a { min-height: 44px; display: inline-flex; align-items: center; gap: 3px; color: #2563eb; font-size: 11px; font-weight: 650; white-space: nowrap; }
+.catalogCount { color: #586985; font-size: 10px; padding: 0 4px 7px; }
+.catalogCard .photo { display: block; height: 78px; }
+.catalogCard h2 { font-size: 18px; line-height: 1.15; margin: 6px 0 0; text-wrap: pretty; }
+.catalogTitle { min-height: 44px; display: flex; align-items: center; overflow-wrap: anywhere; }
+.catalogAi { position: absolute; right: 7px; bottom: 5px; color: #fff; background: #13233dd9; border-radius: 5px; padding: 3px 5px; font-size: 8px; }
+.catalogOrganizer { min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 7px; color: #164cbc; margin-top: 2px; }
+.catalogOrganizer > span { display: grid; gap: 3px; min-width: 0; }
+.catalogOrganizer strong { font-size: 11px; overflow-wrap: anywhere; }
+.catalogOrganizer small { font-size: 9px; color: #586985; line-height: 1.35; }
+.catalogOrganizer > svg { flex-shrink: 0; }
+.catalogProgress { display: grid; gap: 5px; margin: 3px 0 8px; }
+.catalogProgress > span { display: flex; align-items: baseline; justify-content: space-between; color: #586985; font-size: 9px; gap: 7px; }
+.catalogProgress strong { color: #13233d; font-size: 10px; font-variant-numeric: tabular-nums; }
+.catalogProgress .progress { height: 6px; }
+.catalogCard .donate { font-size: 13px; margin-top: 3px; }
+.testnetBridge { display: flex; align-items: center; gap: 9px; min-height: 44px; margin-top: 12px; border: 1px solid #d7e3f6; border-radius: 14px; padding: 11px 12px; color: #164cbc; background: #eaf2ff; }
+.testnetBridge > span:nth-child(2) { flex: 1; display: grid; gap: 4px; min-width: 0; }
+.testnetBridge strong { font-size: 12px; }
+.testnetBridge small { font-size: 10px; line-height: 1.4; color: #586985; }
+.catalogTools select:focus-visible, .catalogTools > a:focus-visible, .catalogTitle:focus-visible, .catalogOrganizer:focus-visible, .catalogCard .photo:focus-visible, .testnetBridge:focus-visible { outline: 2px solid #2563eb; outline-offset: 3px; }
+@container (max-width: 420px) {
+  .home { padding: 10px 12px 24px; } .wallet { padding: 12px 14px; }
+  .identity { padding-bottom: 8px; } .avatar { width: 40px; height: 40px; }
+  .name > span { display: none; }
+  .walletContent { grid-template-columns: minmax(0,1fr); gap: 10px; padding-top: 10px; align-items: center; }
+  .walletAction { flex-direction: row; padding: 6px 8px; gap: 8px; }
+  .walletActionLabel { font-size: 12px; }
+  .amount { margin-top: 5px; } .walletContent p { margin-top: 4px; }
+  .crowdfunding { margin-top: 10px; padding-top: 10px; }
+  .giveHeader { min-height: 62px; } .giveHeader h1 { font-size: 27px; }
+  .giveHeader img { width: 62px; height: auto; } .giveHeader p { max-width: 215px; font-size: 11px; }
+  .controls span { display:none; }
+  .photo { height: 72px; } .campaignBody { padding: 10px 12px; }
+  .campaign h2 { font-size: 20px; margin-top: 8px; }
+  .campaign p { margin-bottom: 10px; }
+  .donate { margin-top: 8px; }
+  .tile img { width: 52px; height: auto; } .tile strong { font-size: 13px; }
+}
+@container (min-width: 421px) {
+  .walletContent { grid-template-columns:minmax(0,1fr) 176px; }
+}
+@container (max-width: 350px) { .walletContent { gap:6px; } .walletAction { padding-inline:4px; gap:6px; } .walletActionIcon { width:28px; height:28px; } .walletActionLabel { font-size:11px; } .quickGrid { gap: 7px; } .tile { flex-direction: column; align-items: flex-start; padding: 10px; } .tile img { align-self: center; } .giveHeader img { width: 44px; } .giveHeader h1 { font-size: 23px; } .name strong { font-size: 15px; } .identity { gap:7px; } }
+/* Short windows retain Donate and campaign creation above the persistent tab bar.
+   Descriptive copy stays available inside the campaign detail. */
+@media (max-height: 820px) {
+  .home { padding-top:8px; }
+  .wallet { padding-top:10px; padding-bottom:10px; }
+  .identity { padding-bottom:6px; } .walletContent { padding-top:6px; }
+  .balanceLabel > span:first-child { padding-top:2px; padding-bottom:2px; }
+  .amount { margin-top:3px; }
+  .walletContent p { margin-top:4px; font-size:9px; line-height:1.3; }
+  .crowdfunding { margin-top:10px; padding-top:10px; }
+  .giveHeader { min-height:62px; } .giveHeader h1 { font-size:27px; }
+  .giveHeader h1 { margin-top:3px; margin-bottom:3px; }
+  .giveHeader p { font-size:10px; line-height:1.3; max-width:none; }
+  .giveHeader img { width:65px; }
+  .photo { height:64px; }
+  .campaign p { display:none; }
+  .campaign h2 { font-size:20px; margin-bottom:8px; }
+  .campaignBody { padding-top:9px; padding-bottom:10px; }
+  @container (max-width: 350px) {
+    .giveHeader { min-height:54px; }
+    .giveHeader h1 { font-size:23px; }
+    .giveHeader img { width:44px; }
+    .giveHeader p { display:none; }
+    .photo { height:36px; }
+    .campaign h2 { font-size:16px; }
+  }
+}
+@container (max-width: 350px) {
+  .start { padding:6px; }
+  .plus { width:22px; height:22px; }
+  .start strong { font-size:11px; line-height:1.2; white-space:normal; max-width:68px; text-align:left; }
+}
+@container (max-width: 310px) { .start .plus { display:none; } }
+@media (max-height: 760px) {
+  .giveHeader p { display:none; }
+  @container (min-width: 421px) {
+    .giveHeader { min-height:54px; }
+    .giveHeader img { width:50px; }
+    .campaign { display:grid; grid-template-columns:92px minmax(0,1fr); }
+    .photo { height:100%; min-height:164px; }
+    .campaignBody { font-size:11px; line-height:1.4; }
+    .campaign h2 { font-size:18px; }
+    .raised { line-height:1.5; }
+    .photo > span { top:8px; left:6px; right:6px; padding:5px; font-size:8px; text-align:center; border-radius:8px; }
+  }
+  @container (max-width: 310px) {
+    .giveHeader { position:relative; min-height:54px; }
+    .giveHeader img { position:absolute; right:0; top:-2px; width:30px; }
+    .eyebrow { font-size:8px; }
+    .giveHeader h1 { font-size:22px; }
+    .photo { height:38px; }
+    .campaignBody { padding:8px 10px; }
+    .campaign h2 { font-size:16px; }
+    .donate { margin-top:6px; }
+  }
+}
+@media (prefers-reduced-motion: reduce) { .strip { scroll-behavior: auto; } .walletAction, .walletActionIcon { transition: none; } .walletAction:active, .walletAction:hover .walletActionIcon { transform: none; } }
+@media (max-height:700px) {
+  @container (max-width:350px) {
+    .giveHeader { min-height:46px; }
+    .carouselFooter { margin-top:8px; }
+  }
+}
+@media (max-height: 820px) { .catalogCard .photo { height: 64px; } .catalogCard h2 { font-size: 17px; } }
+@media (max-height: 760px) { @container (min-width: 421px) { .catalogCard .photo { height: 100%; } .catalogAi { left: 5px; right: 5px; text-align: center; } } }
+@container (max-width: 350px) { .catalogTools { gap: 6px; } .catalogTools label { gap: 4px; } .catalogTools select { font-size: 11px; padding: 6px 3px; } .catalogCard h2 { font-size: 16px; } .catalogNotice { font-size: 9px; } }

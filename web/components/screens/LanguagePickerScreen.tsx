@@ -16,6 +16,7 @@ import {
   PoweredByStellar,
 } from "@/components/ui/kit";
 import { Flag, type FlagCode } from "@/components/ui/flags";
+import { accountCopy, accountLanguageName } from "@/lib/i18n/revamp-account";
 
 const FLAG: Record<Locale, FlagCode> = {
   en: "gb",
@@ -26,13 +27,14 @@ const FLAG: Record<Locale, FlagCode> = {
 
 export default function LanguagePickerScreen() {
   const { locale, setLocale, t } = useT();
+  const c = accountCopy(locale);
   const router = useRouter();
 
   return (
     <div style={{ fontFamily: T.fontSans, color: T.ink, minHeight: "100%" }}>
       <AppBar
         leading={
-          <IconButton onClick={() => router.push("/settings")}>
+          <IconButton ariaLabel={c.backSettings} onClick={() => router.push("/settings")}>
             {Ico.back({})}
           </IconButton>
         }
@@ -52,6 +54,8 @@ export default function LanguagePickerScreen() {
           const active = l === locale;
           return (
             <button
+              type="button"
+              aria-pressed={active}
               key={l}
               onClick={() => setLocale(l)}
               style={{
@@ -105,7 +109,7 @@ export default function LanguagePickerScreen() {
                     marginTop: 1,
                   }}
                 >
-                  {m.english} · {CURRENCY[l].code}
+                  {accountLanguageName(locale, l)} · {CURRENCY[l].code}
                 </span>
               </span>
               {active && Ico.check({ size: 20, c: T.action })}

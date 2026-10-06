@@ -8,7 +8,7 @@ import { CountUp } from "@/components/ui/motion";
 import { CURRENCY, localAmount, formatUsdc } from "@/lib/ui/currency";
 
 export default function Wallet() {
-  const { t, locale } = useT();
+  const { t, currency } = useT();
   const [pesos, setPesos] = useState(0);
   const [addr, setAddr] = useState("");
   const [note, setNote] = useState("");
@@ -20,7 +20,15 @@ export default function Wallet() {
     setAddr(s.address);
   }
   useEffect(() => {
-    refresh();
+    let active = true;
+    walletState().then((state) => {
+      if (!active) return;
+      setPesos(state.pesos);
+      setAddr(state.address);
+    }).catch(() => {
+      if (active) setNote("Your wallet could not be loaded. Please try again.");
+    });
+    return () => { active = false; };
   }, []);
 
   return (
@@ -37,8 +45,8 @@ export default function Wallet() {
           {t("wallet.balance")}
         </div>
         <CountUp
-          value={localAmount(pesos, locale)}
-          prefix={CURRENCY[locale].symbol}
+          value={localAmount(pesos, currency)}
+          prefix={CURRENCY[currency].symbol}
           className="tabular mt-1.5 block text-[2.6rem] font-extrabold leading-none"
         />
         <div className="mt-1 font-mono text-[12px] text-blue-200/80">
@@ -51,9 +59,13 @@ export default function Wallet() {
         <button
           onClick={() =>
             start(async () => {
-              const r = await topUpSandbox();
-              setNote(r.note);
-              await refresh();
+              try {
+                const r = await topUpSandbox();
+                setNote(r.note);
+                await refresh();
+              } catch {
+                setNote("Your wallet could not be refreshed. Please try again.");
+              }
             })
           }
           disabled={pending}

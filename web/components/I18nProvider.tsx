@@ -7,6 +7,7 @@ import {
   useEffect,
   useMemo,
   useState,
+  useSyncExternalStore,
 } from "react";
 import {
   DEFAULT_LOCALE,
@@ -19,6 +20,31 @@ import { DICTS } from "@/lib/i18n/dictionaries";
 // Display-currency preference, stored apart from the language. null means
 // "follow the language" — the default the app shipped with.
 const CURRENCY_PREF_KEY = "salapi_currency";
+
+// Primitive snapshots stay referentially stable, including during hydration.
+// Browser preferences are an external store, not a mount-time state effect.
+const SERVER_PREFERENCES = `${DEFAULT_LOCALE}:`;
+function preferencesSnapshot() {
+  let storedLocale: string | null = null;
+  let storedCurrency: string | null = null;
+  let cookieLocale: string | undefined;
+  try { storedLocale = localStorage.getItem(LOCALE_COOKIE); } catch { /* Optional preference. */ }
+  try { storedCurrency = localStorage.getItem(CURRENCY_PREF_KEY); } catch { /* Optional preference. */ }
+  try {
+    cookieLocale = document.cookie.split(";").map((cookie) => cookie.trim())
+      .find((cookie) => cookie.startsWith(`${LOCALE_COOKIE}=`))?.slice(LOCALE_COOKIE.length + 1);
+  } catch { /* Cookies can be unavailable independently of storage. */ }
+  const locale = isLocale(storedLocale) ? storedLocale : isLocale(cookieLocale) ? cookieLocale : DEFAULT_LOCALE;
+  return `${locale}:${isLocale(storedCurrency) ? storedCurrency : ""}`;
+}
+function subscribePreferences(notify: () => void) {
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === null || event.key === LOCALE_COOKIE || event.key === CURRENCY_PREF_KEY) notify();
+  };
+  window.addEventListener("storage", onStorage);
+  return () => window.removeEventListener("storage", onStorage);
+}
+function serverPreferencesSnapshot() { return SERVER_PREFERENCES; }
 
 type Ctx = {
   locale: Locale;
@@ -45,36 +71,21 @@ function resolve(obj: unknown, path: string): string | undefined {
 }
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>(DEFAULT_LOCALE);
-  const [currencyPref, setCurrencyPrefState] = useState<Locale | null>(null);
+  const snapshot = useSyncExternalStore(subscribePreferences, preferencesSnapshot, serverPreferencesSnapshot);
+  const [storedLocale, storedCurrency] = snapshot.split(":");
+  // Explicit changes remain usable for this provider even if persistence fails.
+  const [localeOverride, setLocaleState] = useState<Locale | null>(null);
+  const [currencyOverride, setCurrencyPrefState] = useState<Locale | null | undefined>(undefined);
+  const locale = localeOverride ?? (isLocale(storedLocale) ? storedLocale : DEFAULT_LOCALE);
+  const currencyPref = currencyOverride === undefined ? (isLocale(storedCurrency) ? storedCurrency : null) : currencyOverride;
 
-  useEffect(() => {
-    const fromLs =
-      typeof window !== "undefined" ? localStorage.getItem(LOCALE_COOKIE) : null;
-    const fromCookie = document.cookie
-      .split("; ")
-      .find((c) => c.startsWith(LOCALE_COOKIE + "="))
-      ?.split("=")[1];
-    const initial = fromLs ?? fromCookie;
-    if (isLocale(initial) && initial !== locale) setLocaleState(initial);
-    const cur =
-      typeof window !== "undefined"
-        ? localStorage.getItem(CURRENCY_PREF_KEY)
-        : null;
-    if (isLocale(cur)) setCurrencyPrefState(cur);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useEffect(() => { document.documentElement.lang = locale; }, [locale]);
 
   const setLocale = useCallback((l: Locale) => {
     setLocaleState(l);
-    try {
-      localStorage.setItem(LOCALE_COOKIE, l);
-      document.cookie = `${LOCALE_COOKIE}=${l}; path=/; max-age=31536000`;
-      document.documentElement.lang = l;
-    } catch {
-      /* storage may be unavailable */
-    }
-  }, []);
+    try { localStorage.setItem(LOCALE_COOKIE, l); } catch { /* Optional preference. */ }
+    try { document.cookie = `${LOCALE_COOKIE}=${l}; path=/; max-age=31536000`; } catch { /* Optional preference. */ }
+  }, [setLocaleState]);
 
   const setCurrency = useCallback((c: Locale | null) => {
     setCurrencyPrefState(c);
@@ -84,7 +95,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     } catch {
       /* storage may be unavailable */
     }
-  }, []);
+  }, [setCurrencyPrefState]);
 
   const t = useCallback(
     (key: string, vars?: Record<string, string | number>) => {

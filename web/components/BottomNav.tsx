@@ -35,7 +35,12 @@ export default function BottomNav() {
   const active =
     path === "/"
       ? "/"
-      : items.find((i) => i.id !== "/" && path.startsWith(i.id))?.id ?? "";
+      : /^\/(vaults|arisan|paluwagan|campaigns|circles|savings|transparency)/.test(path)
+        ? "/vaults"
+        : /^\/(send|receive|topup|withdraw)/.test(path) ? "/send"
+        : path.startsWith("/tx/") ? "/activity"
+        : path.startsWith("/you/") ? "/settings"
+        : items.find((i) => i.id !== "/" && path.startsWith(i.id))?.id ?? "";
 
   return (
     <TabBar

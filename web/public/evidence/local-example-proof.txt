@@ -1,0 +1,4 @@
+SALAPI LOCAL PREVIEW
+This is an illustrative proof document for a fictional campaign.
+No real donation, delivery, on-chain approval, or transaction is verified here.
+The displayed hash and campaign balances are sample data only.

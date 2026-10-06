@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { supabaseConfigured } from "@/lib/supabase/env";
 import { authRedirectPath } from "@/lib/authRedirect";
+import { isLocalPreview } from "@/lib/local-preview";
 
 // OAuth redirect target: exchange the ?code for a session, then go to the app.
 export async function GET(request: Request) {
@@ -28,7 +29,7 @@ export async function GET(request: Request) {
     return response;
   }
 
-  if (code && supabaseConfigured()) {
+  if (!isLocalPreview && code && supabaseConfigured()) {
     const supabase = await createSupabaseServer();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (error) {

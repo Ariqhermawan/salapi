@@ -1,408 +1,189 @@
 "use client";
-
-// Salapi home — V10 "Circles-first" (live). SALAPI CIRCLES is the hero /
-// onboarding block, rendered with real photography (web/public/circles/*) and
-// face avatars, on the real design kit (T, Ico, Card, Btn, Chip, Progress).
-// Tuned to fit ONE phone screen without scrolling.
-//
-// Honesty signals kept: TESTNET on the balance, PREVIEW on Circles, SANDBOX on
-// the Disaster Vault tile. Balance + circle figures are illustrative demo /
-// preview values under those badges; the prior real-data home is preserved at
-// Backup/app-page-legacy-realdata.tsx (re-wire walletState/i18n when desired).
-
-import { useEffect, useState } from "react";
-import type { ReactNode } from "react";
-import { useRouter } from "next/navigation";
-import {
-  T,
-  Ico,
-  Card,
-  Btn,
-  Chip,
-  Progress,
-  TestnetPill,
-  PoweredByStellar,
-} from "@/components/ui/kit";
-import { myHandle } from "@/app/actions";
-import { createSupabaseBrowser } from "@/lib/supabase/client";
-import { supabaseConfigured } from "@/lib/supabase/env";
+import Link from "next/link";
+import Image from "next/image";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Heart } from "@phosphor-icons/react/dist/csr/Heart";
+import { Pause } from "@phosphor-icons/react/dist/csr/Pause";
+import { Play } from "@phosphor-icons/react/dist/csr/Play";
+import { myHandle, walletState } from "@/app/actions";
+import { campaignState } from "@/app/campaign-actions";
+import { Ico, Peso } from "@/components/ui/kit";
 import { useT } from "@/components/I18nProvider";
+import { formatStroops } from "@/lib/disaster";
+import type { Campaign } from "@/lib/campaign";
+import { isLocalPreview, normalizePreviewCampaigns, PREVIEW_CAMPAIGNS, PREVIEW_WALLET, PREVIEW_TIME } from "@/lib/local-preview";
+import s from "./home.module.css";
+import { homeCopy } from "@/lib/i18n/revamp-home";
+import { SEED_CIRCLES } from "@/lib/circles/seed";
+import { progressPct } from "@/lib/circles/types";
+import { HOME_CAUSE_CATEGORIES, homeCircleExamples, isHomeCauseCategory, type HomeCauseCategory } from "@/lib/home-circles";
+import { circlesCopy, circlesCategory } from "@/lib/i18n/revamp-circles";
+import { homeCatalogCopy, type HomeCatalogKey } from "@/lib/i18n/revamp-home-catalog";
 
-const BALANCE_INT = "1,667";
-const BALANCE_CENTS = "93";
-
-const VIOLET = "#7C3AED";
-const VIOLET_TINT = "#EDE9FE";
-const AMBER_FG = "#B45309";
-
-const FEATURED = {
-  to: "/circles/tino-relief",
-  chip: "DISASTER RELIEF",
-  title: "Tino survivors, Cebu — rebuild a fishing barangay",
-  raised: "$3,181",
-  pct: 74,
-  gave: 128,
-  img: "/circles/disaster.jpg",
-  faces: [1, 3, 2, 5],
-};
-
-type Cause = {
-  to: string;
-  cat: string;
-  catBg: string;
-  title: string;
-  raised: string;
-  pct: number;
-  gave: number;
-  img: string;
-  faces: number[];
-};
-
-const MORE: Cause[] = [
-  {
-    to: "/circles/ate-mei-dialysis",
-    cat: "MEDICAL",
-    catBg: "rgba(5,150,105,.94)",
-    title: "Ate Mei needs dialysis — 12 sessions to stabilize",
-    raised: "$1,074",
-    pct: 35,
-    gave: 96,
-    img: "/circles/medical.jpg",
-    faces: [4, 1, 3],
-  },
-  {
-    to: "/circles/barangay-library",
-    cat: "EDUCATION",
-    catBg: "rgba(124,58,237,.94)",
-    title: "Books and tuition for 30 island students",
-    raised: "$2,455",
-    pct: 62,
-    gave: 142,
-    img: "/circles/education.jpg",
-    faces: [2, 5, 1],
-  },
-  {
-    to: "/circles",
-    cat: "LIVELIHOOD",
-    catBg: "rgba(37,99,235,.94)",
-    title: "New nets and motors for fisher families",
-    raised: "$1,832",
-    pct: 48,
-    gave: 101,
-    img: "/circles/livelihood.jpg",
-    faces: [5, 2, 4],
-  },
-];
-
-function PeopleIcon({ c = T.moneyIn, size = 14 }: { c?: string; size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-      <circle cx="9" cy="7" r="4" />
-      <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
-    </svg>
-  );
+function scrollHomeCard(strip: HTMLDivElement | null, next: number, count: number, reduceMotion: boolean): number | null {
+  if (!strip || !count) return null;
+  const current = (next + count) % count;
+  const card = strip.children[current] as HTMLElement | undefined;
+  const first = strip.children[0] as HTMLElement | undefined;
+  if (!card || !first) return null;
+  strip.scrollTo({ left: card.offsetLeft - first.offsetLeft, behavior: reduceMotion ? "instant" : "smooth" });
+  return current;
 }
-
-function HeartIcon() {
-  return (
-    <svg width={15} height={15} viewBox="0 0 24 24" fill="#fff" aria-hidden>
-      <path d="M12 21s-7-4.6-9.3-9C1 8.7 2.7 5.5 6 5.5c2 0 3.2 1.1 4 2.3.8-1.2 2-2.3 4-2.3 3.3 0 5 3.2 3.3 6.5C19 16.4 12 21 12 21Z" />
-    </svg>
-  );
-}
-
-function FaceStack({ faces, size = 20, ring = "#fff" }: { faces: number[]; size?: number; ring?: string }) {
-  return (
-    <div style={{ display: "flex", alignItems: "center" }}>
-      {faces.map((n, i) => (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          key={n}
-          src={`/circles/face-${n}.png`}
-          alt=""
-          width={size}
-          height={size}
-          style={{
-            width: size,
-            height: size,
-            borderRadius: 99,
-            objectFit: "cover",
-            marginLeft: i === 0 ? 0 : -(size * 0.34),
-            border: `2px solid ${ring}`,
-            boxShadow: "0 1px 3px rgba(11,18,32,.28)",
-          }}
-        />
-      ))}
-    </div>
-  );
-}
-
-function HeaderIconBtn({ children, onClick, label, dot = false }: { children: ReactNode; onClick?: () => void; label: string; dot?: boolean }) {
-  return (
-    <button
-      onClick={onClick}
-      aria-label={label}
-      style={{ position: "relative", width: 37, height: 37, borderRadius: 99, border: "none", background: "#fff", color: T.ink, display: "inline-flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px -3px rgba(11,18,32,.18), inset 0 0 0 1px " + T.hairline, cursor: "pointer" }}
-    >
-      {children}
-      {dot && <span aria-hidden style={{ position: "absolute", top: 7, right: 8, width: 7, height: 7, borderRadius: 99, background: T.action, border: "2px solid #fff" }} />}
-    </button>
-  );
-}
-
 export default function Home() {
-  const router = useRouter();
-  const { t } = useT();
-  const configured = supabaseConfigured();
-  const go = (p: string) => () => router.push(p);
-
-  // Show the signed-in user's own @handle from the on-chain username registry,
-  // falling back to the Salapi brand label when there is no registered name.
-  // Read-only (myHandle never provisions a wallet); `loaded` lets us fade the
-  // identity in so the fallback-to-real swap is not a jarring flash.
-  const [handle, setHandle] = useState<string | null>(null);
-  const [loaded, setLoaded] = useState(false);
-  const [supaEmail, setSupaEmail] = useState<string | null>(null);
-  const [authChecked, setAuthChecked] = useState(!configured);
+  const { currency, locale } = useT();
+  const copy = (phrase: string) => homeCopy(locale, phrase);
+  const circleCopy = circlesCopy(locale);
+  const catalogCopy = (phrase: HomeCatalogKey, vars?: Record<string, string | number>) => homeCatalogCopy(locale, phrase, vars);
+  const balanceSize = currency === "id" || currency === "vi" ? 23 : currency === "tl" ? 29 : 32;
+  const [wallet, setWallet] = useState<{ pesos: number; address: string } | null>(isLocalPreview ? PREVIEW_WALLET : null);
+  const [handle, setHandle] = useState<string | null>(isLocalPreview ? PREVIEW_WALLET.handle : null);
+  const [campaigns, setCampaigns] = useState<Campaign[]>(isLocalPreview ? PREVIEW_CAMPAIGNS : []);
+  const [loading, setLoading] = useState(!isLocalPreview);
+  const [clock, setClock] = useState(isLocalPreview ? PREVIEW_TIME : 0);
+  const [walletError, setWalletError] = useState("");
+  const [error, setError] = useState("");
+  const [index, setIndex] = useState(0);
+  const [category, setCategory] = useState<HomeCauseCategory>("all");
+  const [paused, setPaused] = useState(false);
+  const [reduceMotion, setReduceMotion] = useState(true);
+  const strip = useRef<HTMLDivElement>(null);
+  const loadWallet = useCallback(async () => {
+    if (isLocalPreview) return;
+    setWalletError("");
+    try { const [state, name] = await Promise.all([walletState(), myHandle()]); setWallet(state); setHandle(name); }
+    catch { setWalletError("Your wallet balance is unavailable."); }
+  }, []);
+  const loadCampaigns = useCallback(async () => {
+    if (isLocalPreview) {
+      try { const saved = JSON.parse(sessionStorage.getItem("salapi.preview.campaigns") || "null"); if (Array.isArray(saved) && saved.length) setCampaigns(normalizePreviewCampaigns(saved)); } catch { /* Keep the labeled sample when browser storage is unavailable. */ }
+      return;
+    }
+    setLoading(true); setError("");
+    try {
+      let before = "0"; const rows: Campaign[] = [];
+      for (let page = 0; page < 100; page++) {
+        const state = await campaignState("", before);
+        if (!state.ok) throw new Error(state.error);
+        setClock(Number(state.now));
+        rows.push(...state.campaigns);
+        if (state.campaigns.length < 10) break;
+        const next = state.campaigns.at(-1)?.id;
+        if (!next || next === before) break;
+        before = next;
+      }
+      setCampaigns(rows);
+    } catch { setError("Campaigns could not be loaded. Please try again."); }
+    finally { setLoading(false); }
+  }, []);
+  useEffect(() => { const task = setTimeout(() => { void loadWallet(); void loadCampaigns(); }, 0); return () => clearTimeout(task); }, [loadWallet, loadCampaigns]);
   useEffect(() => {
-    if (!configured) return;
-    createSupabaseBrowser()
-      .auth.getUser()
-      .then(({ data }) => setSupaEmail(data.user?.email ?? null))
-      .catch(() => {})
-      .finally(() => setAuthChecked(true));
-  }, [configured]);
+    const q = matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setReduceMotion(q.matches); update();
+    q.addEventListener("change", update); return () => q.removeEventListener("change", update);
+  }, []);
+  const open = campaigns.filter(c => c.state === "Funding" && Number(c.config.funding_deadline) > clock);
+  const shown = open.length ? open : campaigns;
+  const examples = isLocalPreview ? homeCircleExamples(SEED_CIRCLES, category) : [];
+  const cardCount = isLocalPreview ? examples.length : shown.length;
+  const move = (next: number) => {
+    const current = scrollHomeCard(strip.current, next, cardCount, reduceMotion);
+    if (current !== null) setIndex(current);
+  };
   useEffect(() => {
-    // The server action needs the refreshed Supabase auth cookie. Waiting for
-    // the browser auth check avoids a one-shot lookup racing the OAuth
-    // callback, which otherwise leaves the home header stuck on @salapi until
-    // a later navigation.
-    if (!authChecked) return;
-    let active = true;
-    myHandle()
-      .then((u) => {
-        if (!active) return;
-        setHandle(u);
-        setLoaded(true);
-      })
-      .catch((e) => {
-        if (active) setLoaded(true);
-        console.error("[home] handle load failed:", e);
-      });
-    return () => {
-      active = false;
-    };
-  }, [authChecked, supaEmail]);
-  const displayHandle = handle ?? "salapi";
-  const displayName = handle
-    ? handle.charAt(0).toUpperCase() + handle.slice(1)
-    : "Salapi";
-  const avatarInitial = displayName.charAt(0).toUpperCase();
-
-  return (
-    <div style={{ fontFamily: T.fontSans, color: T.ink, paddingBottom: 2 }}>
-      {/* Greeting */}
-      <div style={{ padding: "6px 16px 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, opacity: loaded ? 1 : 0.6, transition: "opacity 200ms ease" }}>
-          <div style={{ width: 40, height: 40, borderRadius: 99, background: "#fff", display: "grid", placeItems: "center", fontWeight: 800, color: T.action, fontSize: 16, boxShadow: "0 2px 8px -3px rgba(11,18,32,.18), inset 0 0 0 1px " + T.hairline }} aria-hidden>
-            {avatarInitial}
-          </div>
-          <div>
-            <div style={{ fontSize: 12, color: T.slate, fontWeight: 500, lineHeight: 1.1 }}>Hi 👋</div>
-            <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: "-0.01em" }}>
-              {displayName} <span style={{ color: T.slate, fontWeight: 500, fontFamily: T.fontMono, fontSize: 13 }}>· @{displayHandle}</span>
-            </div>
-          </div>
-        </div>
-        <div style={{ display: "flex", gap: 7 }}>
-          {authChecked && !supaEmail && (
-            <button
-              onClick={go("/signin")}
-              aria-label={t("signin.signIn")}
-              style={{ height: 37, padding: "0 12px", borderRadius: 99, border: "none", background: T.action, color: "#fff", fontFamily: T.fontSans, fontSize: 12, fontWeight: 700, cursor: "pointer", boxShadow: "0 6px 14px -7px rgba(37,99,235,.65)" }}
-            >
-              {t("signin.signIn")}
-            </button>
-          )}
-          <HeaderIconBtn label="Learn" onClick={go("/learn")}>{Ico.bulb({ size: 16, c: T.slate })}</HeaderIconBtn>
-          <HeaderIconBtn label="Activity" onClick={go("/activity")} dot>{Ico.bell({ size: 16, c: T.slate })}</HeaderIconBtn>
-          <HeaderIconBtn label="Receive" onClick={go("/receive")}>{Ico.qr({ size: 16, c: T.slate })}</HeaderIconBtn>
-        </div>
+    if (paused || reduceMotion || cardCount < 2) return;
+    const timer = setInterval(() => {
+      if (document.hidden) return;
+      const current = scrollHomeCard(strip.current, index + 1, cardCount, reduceMotion);
+      if (current !== null) setIndex(current);
+    }, 6000);
+    return () => clearInterval(timer);
+  }, [paused, reduceMotion, cardCount, index]);
+  return <div className={s.home}>
+    <section className={s.wallet} aria-label={copy("Your Testnet wallet")}>
+      <div className={s.identity}>
+        <Link href="/settings" className={s.avatar} aria-label={copy("Your account")}>{handle?.charAt(0).toUpperCase() || "S"}</Link>
+        <div className={s.name}><span>{copy("Hi there")}</span><strong>{handle ? handle.charAt(0).toUpperCase() + handle.slice(1) : copy("Welcome to Salapi")}</strong><small>{handle ? `@${handle}` : copy("Your community money, together.")}</small></div>
+        <Link href="/learn" className={s.round} aria-label={copy("Help and learning")}>{Ico.bulb({ size: 20, c: "#fff" })}</Link>
+        <Link href="/receive" className={s.round} aria-label={copy("Receive by QR")}>{Ico.qr({ size: 20, c: "#fff" })}</Link>
       </div>
-
-      {/* Balance hero — premium dark, gradient + glow */}
-      <div style={{ padding: "6px 16px 0" }}>
-        <div
-          style={{ position: "relative", overflow: "hidden", borderRadius: 20, padding: 13, color: "#fff", background: "radial-gradient(120% 120% at 88% -10%, rgba(37,99,235,.55), transparent 52%), linear-gradient(165deg,#101a31 0%,#0b1220 60%,#0a0f1c 100%)", boxShadow: "0 16px 34px -22px rgba(11,18,32,.7), inset 0 0 0 1px rgba(255,255,255,.06)" }}
-        >
-          <div aria-hidden style={{ position: "absolute", inset: 0, background: "radial-gradient(60% 50% at 12% 120%, rgba(5,150,105,.30), transparent 60%)" }} />
-          <div style={{ position: "relative" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "rgba(255,255,255,.62)" }}>Available balance</span>
-              <TestnetPill />
-            </div>
-            <div className="sl-balance sl-rise" style={{ marginTop: 5, fontWeight: 800, fontSize: 35, lineHeight: 1, letterSpacing: "-0.03em", display: "flex", alignItems: "flex-start", gap: 2 }}>
-              <span style={{ fontSize: 19, fontWeight: 700, marginTop: 5, color: "rgba(255,255,255,.72)" }}>$</span>
-              {BALANCE_INT}
-              <span style={{ fontSize: 17, fontWeight: 700, marginTop: 5, color: "rgba(255,255,255,.5)" }}>.{BALANCE_CENTS}</span>
-            </div>
-            <div style={{ marginTop: 6, fontSize: 11.5, color: "rgba(255,255,255,.6)", display: "flex", alignItems: "center", gap: 6 }}>
-              <span className="sl-mono" style={{ color: "rgba(255,255,255,.75)" }}>approx $1,667.93</span>
-              <span>·</span>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 5, color: "#5fe3ad", fontWeight: 600 }}>
-                <span aria-hidden style={{ width: 6, height: 6, borderRadius: 99, background: "#34d399" }} />
-                Live · crypto invisible
-              </span>
-            </div>
-            <div style={{ marginTop: 11, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 9 }}>
-              <button onClick={go("/topup")} style={{ height: 42, borderRadius: 12, border: "none", background: "#fff", color: T.ink, fontFamily: T.fontSans, fontWeight: 700, fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", gap: 7, cursor: "pointer", boxShadow: "0 6px 16px -8px rgba(0,0,0,.5)" }}>
-                {Ico.arrowDown({ c: T.action, size: 16 })} Top up
-              </button>
-              <button onClick={go("/withdraw")} style={{ height: 42, borderRadius: 12, border: "none", background: "rgba(255,255,255,.1)", color: "#fff", fontFamily: T.fontSans, fontWeight: 700, fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", gap: 7, boxShadow: "inset 0 0 0 1px rgba(255,255,255,.18)", cursor: "pointer" }}>
-                {Ico.arrowUp({ c: "#fff", size: 16 })} Withdraw
-              </button>
-            </div>
-          </div>
+      <div className={s.walletContent}><div><div className={s.balanceLabel}><span>{copy("TESTNET BALANCE")}</span></div>
+        {wallet ? <div className={s.amount}><span>≈ </span><Peso value={wallet.pesos} size={balanceSize} color="#fff" /></div> : <div className="sl-skel" style={{ height: 40, width: "80%", marginTop: 12 }} />}
+        <p>{isLocalPreview ? `${PREVIEW_WALLET.xlm} ${copy("test XLM · no real money")}` : copy("Native Testnet XLM · indicative value · no real money")}</p>
+        {walletError && <button className={s.walletRetry} onClick={loadWallet}>{copy(walletError)} {copy("Retry")}</button>}
+      </div>
+        <nav className={s.walletActions} aria-label={copy("Wallet actions")}>
+          <Link href="/topup" className={s.walletAction} aria-label={copy("Top up")}>
+            <span className={s.walletActionIcon} aria-hidden="true">{Ico.arrowDown({ size: 18, c: "currentColor" })}</span>
+            <span className={s.walletActionLabel}>{copy("Top up")}</span>
+          </Link>
+          <Link href="/withdraw" className={s.walletAction} aria-label={copy("Withdraw")}>
+            <span className={s.walletActionIcon} aria-hidden="true">{Ico.arrowUp({ size: 18, c: "currentColor" })}</span>
+            <span className={s.walletActionLabel}>{copy("Withdraw")}</span>
+          </Link>
+        </nav>
+      </div>
+    </section>
+    <section className={s.crowdfunding} aria-labelledby="give-title">
+      <header className={s.giveHeader}><div><span className={s.eyebrow}>{isLocalPreview ? catalogCopy("CROWDFUNDING · PROTOTYPE") : copy("CROWDFUNDING · TESTNET")}</span><h1 id="give-title">{copy("Give with clarity.")}</h1><p>{copy("Choose a cause. See the terms before you give.")}</p></div>
+        <Image src="/illustrations/giving.png" alt={circleCopy("Two people sharing a blue heart")} width="118" height="118" /></header>
+      {isLocalPreview ? <>
+        <p className={s.catalogNotice}>{catalogCopy("Fictional causes · AI illustrations · no payment.")}</p>
+        <div className={s.catalogTools}>
+          <label htmlFor="home-cause-category"><span>{catalogCopy("Category")}</span><select id="home-cause-category" value={category} onChange={event => {
+            if (!isHomeCauseCategory(event.target.value)) return;
+            setCategory(event.target.value); setIndex(0); setPaused(true);
+          }}>{HOME_CAUSE_CATEGORIES.map(value => <option key={value} value={value}>{value === "all" ? circleCopy("All examples") : circlesCategory(locale, value)}</option>)}</select></label>
+          <Link href="/campaigns" aria-label={catalogCopy("Browse all example causes")}>{copy("See all")}{Ico.chev({ size: 12 })}</Link>
         </div>
-      </div>
-
-      {/* SALAPI CIRCLES — hero / onboarding flagship */}
-      <div style={{ padding: "4px 16px 0" }}>
-        <Card p={11} elevation style={{ borderRadius: 18 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: "0.09em", color: T.action }}>SALAPI CIRCLES</span>
-            <Chip kind="neutral" size="sm">PREVIEW</Chip>
-          </div>
-
-          {/* 2-column: pitch (left) + featured photo card (right) */}
-          <div style={{ display: "flex", gap: 11, marginTop: 8, alignItems: "stretch" }}>
-            <div style={{ flex: "1.12 1 0", minWidth: 0, display: "flex", flexDirection: "column" }}>
-              <div style={{ fontSize: 16.5, fontWeight: 800, letterSpacing: "-0.027em", lineHeight: 1.08 }}>
-                Raise for any cause — proof on every peso.
-              </div>
-              <div style={{ marginTop: 5, fontSize: 10.5, color: T.slate, lineHeight: 1.28 }}>
-                Every donation lands in a smart contract with a public receipt, withdrawable only to the cause.
-              </div>
-              <span style={{ marginTop: 6, alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 6, fontSize: 10.5, fontWeight: 600, color: T.moneyIn, background: T.moneyInTint, padding: "4px 9px", borderRadius: 99, lineHeight: 1.2 }}>
-                <PeopleIcon c={T.moneyIn} size={12} />
-                12 gave this hour ·{" "}<b style={{ color: T.ink, fontWeight: 800 }}>+$240</b>
-              </span>
-              <div style={{ marginTop: 6, fontSize: 11, color: T.ink, lineHeight: 1.28 }}>
-                Start your own cause —{" "}<b style={{ fontWeight: 700 }}>public proof in 2 minutes.</b>
-              </div>
+        <div className={s.catalogCount} role="status">{circleCopy(examples.length === 1 ? "{count} example" : "{count} examples", { count: examples.length })}</div>
+      </> : <div className={s.stripLabel}><span>{copy(open.length ? "Open campaigns" : "Recent campaigns")}</span><Link href="/campaigns?mode=testnet">{copy("See all")} {Ico.chev({ size: 12 })}</Link></div>}
+      {loading ? <div className={s.skeletonCards}><div className="sl-skel" /><div className="sl-skel" /></div>
+        : error ? <div className={s.empty} role="alert"><p>{copy(error)}</p><button onClick={loadCampaigns}>{copy("Try again")}</button></div>
+        : !cardCount ? <div className={s.empty}><strong>{isLocalPreview ? circleCopy("No example in this category yet.") : copy("Every cause starts with someone.")}</strong><p>{isLocalPreview ? circleCopy("Choose another category to explore the concept.") : copy("No campaigns yet. Start one and invite your community.")}</p></div>
+        : <div key={isLocalPreview ? category : "testnet"} className={s.strip} ref={strip} onPointerDown={() => setPaused(true)} onFocusCapture={() => setPaused(true)} onScroll={() => {
+          if (!strip.current) return; const first = strip.current.children[0] as HTMLElement;
+          setIndex(Math.min(cardCount - 1, Math.round(strip.current.scrollLeft / (first.offsetWidth + 14))));
+        }} aria-label={copy("Campaign carousel")}>
+          {isLocalPreview ? examples.map((circle, i) => <article key={circle.id} className={`${s.campaign} ${s.catalogCard}`}>
+            <Link href={`/circles/${circle.id}`} className={s.photo} aria-label={catalogCopy("View example cause: {title}", { title: circle.title })}>
+              <Image src={circle.coverImage ?? "/illustrations/giving.png"} alt={circleCopy("AI-generated fictional campaign illustration")} width={420} height={220} sizes="(max-width: 500px) 82vw, 400px" loading={i === 0 ? "eager" : "lazy"} />
+              <span>{circlesCategory(locale, circle.category)}</span><small className={s.catalogAi}>{circleCopy("AI illustration")}</small>
+            </Link>
+            <div className={s.campaignBody}><span className={s.example}>{circleCopy("Example cause")}</span>
+              <h2><Link href={`/circles/${circle.id}`} className={s.catalogTitle}>{circle.title}</Link></h2>
+              <Link href={`/circles/${circle.id}/organizer`} className={s.catalogOrganizer} aria-label={circleCopy("View example organizer profile: {name}", { name: circle.organizer })}><span><strong>{circle.organizer}</strong><small>{circle.organizerLocation}{" "}{circleCopy("· Example organizer")}</small></span>{Ico.chev({ size: 14 })}</Link>
+              <div className={s.catalogProgress} aria-label={catalogCopy("{percent}% example progress. No donations collected.", { percent: progressPct(circle) })}><span>{catalogCopy("Example progress")}<strong>{progressPct(circle)}%</strong></span><div className={s.progress} aria-hidden="true"><span style={{ width: `${progressPct(circle)}%` }} /></div></div>
+              <Link className={s.donate} href={`/circles/${circle.id}/donate`}><Heart size={18} weight="fill" />{catalogCopy("Donate · local demo")}</Link>
             </div>
-
-            {/* featured photo card */}
-            <div
-              onClick={go(FEATURED.to)}
-              style={{ flex: "0.88 1 0", minWidth: 0, position: "relative", borderRadius: 13, overflow: "hidden", minHeight: 124, cursor: "pointer", boxShadow: "inset 0 0 0 1px " + T.hairline }}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={FEATURED.img} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
-              <div aria-hidden style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(7,12,22,.90) 2%, rgba(7,12,22,.5) 40%, rgba(7,12,22,0) 66%)" }} />
-              <span style={{ position: "absolute", left: 8, top: 8, fontSize: 8.5, fontWeight: 800, letterSpacing: "0.05em", color: "#fff", background: "rgba(11,18,32,.55)", backdropFilter: "blur(4px)", padding: "3px 7px", borderRadius: 99 }}>{FEATURED.chip}</span>
-              <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: "0 10px 10px", color: "#fff" }}>
-                <div style={{ fontSize: 12.5, fontWeight: 700, lineHeight: 1.22, textShadow: "0 1px 8px rgba(0,0,0,.4)" }}>{FEATURED.title}</div>
-                <div style={{ marginTop: 6, fontSize: 11, fontWeight: 600 }}>
-                  {FEATURED.raised} <span style={{ color: "rgba(255,255,255,.78)" }}>raised · {FEATURED.pct}%</span>
-                </div>
-                <div style={{ marginTop: 5, height: 5, borderRadius: 99, background: "rgba(255,255,255,.28)", overflow: "hidden" }}>
-                  <div style={{ width: FEATURED.pct + "%", height: "100%", borderRadius: 99, background: "linear-gradient(90deg,#34d399,#059669)" }} />
-                </div>
-                <div style={{ marginTop: 8, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <FaceStack faces={FEATURED.faces} size={20} />
-                  <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,.88)" }}>{FEATURED.gave} gave</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* CTAs */}
-          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-            <Btn kind="primary" size="md" full={false} style={{ flex: 1, height: 40 }} onClick={go(FEATURED.to)} leading={<HeartIcon />}>Donate</Btn>
-            <Btn kind="quiet" size="md" full={false} style={{ height: 40 }} onClick={go("/circles/create")} leading={Ico.plus({ size: 16, c: T.action })}>Start a circle</Btn>
-            <button onClick={go("/circles")} aria-label="Share" style={{ width: 42, height: 40, flex: "0 0 auto", borderRadius: T.rCtrl, background: "#fff", display: "grid", placeItems: "center", boxShadow: "inset 0 0 0 1px " + T.hairline, cursor: "pointer" }}>
-              <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke={T.ink} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v13" />
-              </svg>
-            </button>
-          </div>
-        </Card>
+          </article>) : shown.map((c, i) => <article key={c.id} className={s.campaign}><div className={s.photo}>
+            <Image src="/illustrations/giving.png" alt="Illustration of community giving, not campaign evidence" style={{ objectFit: "contain", background: "#eef3ff" }} width="420" height="220" sizes="(max-width: 500px) 82vw, 400px" loading={i === 0 ? "eager" : "lazy"} />
+            <span>DONATION CAMPAIGN</span></div>
+            <div className={s.campaignBody}><span className={s.example}>{`CAMPAIGN #${c.id} · ${c.state}`}</span><h2>{c.title}</h2>
+              <p>Funds remain in escrow until the campaign proof receives two wallet approvals.</p>
+              <div className={s.raised}><strong>{formatStroops(c.total)} XLM</strong><span> {copy("funded on Testnet")}</span></div>
+              <Link className={s.donate} href={`/campaigns?id=${c.id}`}><Heart size={18} weight="fill" />{copy(c.state === "Funding" ? "Donate" : "View campaign")}</Link>
+            </div></article>)}
+        </div>}
+      <div className={s.carouselFooter}>
+        <Link href={isLocalPreview ? "/circles/create" : "/campaigns?create=1"} className={s.start}><span className={s.plus}>{Ico.plus({ size: 18 })}</span><strong>{copy("Start a campaign")}</strong></Link>
+        <div className={s.controls}><button aria-label={copy("Previous campaign")} onClick={() => move(index - 1)} disabled={cardCount < 2}>{Ico.back({ size: 16 })}</button><span>{String(Math.min(index + 1, cardCount)).padStart(2, "0")} / {String(cardCount).padStart(2, "0")}</span><button aria-label={copy("Next campaign")} onClick={() => move(index + 1)} disabled={cardCount < 2}>{Ico.chev({ size: 16 })}</button></div>
+        <button className={s.pause} aria-label={copy(paused ? "Play campaign carousel" : "Pause campaign carousel")} onClick={() => setPaused(!paused)} disabled={reduceMotion || cardCount < 2}>{paused ? <Play size={15} weight="fill" /> : <Pause size={15} weight="fill" />}</button>
       </div>
-
-      {/* LIVE TODAY — quick tiles */}
-      <div style={{ padding: "4px 16px 0" }}>
-        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: T.slate, padding: "0 4px 6px" }}>Live today</div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 7 }}>
-          {[
-            { ico: Ico.lock, bg: T.moneyInTint, fg: T.moneyIn, t: "Smart Savings", s: "Lock toward a goal", to: "/savings", sandbox: false, group: false },
-            { ico: Ico.star, bg: VIOLET_TINT, fg: VIOLET, t: "Savings circle", s: "Group saving you trust", to: "/paluwagan", sandbox: false, group: true },
-            { ico: Ico.send, bg: T.actionTint, fg: T.action, t: "Send by @", s: "Send to anyone by name", to: "/send", sandbox: false, group: false },
-            { ico: Ico.shield, bg: T.warnTint, fg: AMBER_FG, t: "Disaster Vault", s: "Verifiable on-chain", to: "/transparency", sandbox: true, group: false },
-          ].map((tile) => (
-            <div
-              key={tile.t}
-              onClick={go(tile.to)}
-              className="sl-lift"
-              style={{ cursor: "pointer", background: T.surface, borderRadius: 13, padding: 8, boxShadow: "0 2px 8px -2px rgba(11,18,32,.08), inset 0 0 0 1px " + T.hairline, display: "flex", gap: 9, alignItems: "center" }}
-            >
-              <div style={{ width: 32, height: 32, borderRadius: 9, background: tile.bg, color: tile.fg, display: "grid", placeItems: "center", flex: "0 0 auto" }} aria-hidden>
-                {tile.group ? <PeopleIcon c={tile.fg} size={17} /> : tile.ico({ size: 17, c: tile.fg })}
-              </div>
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                  <span style={{ fontSize: 12.5, fontWeight: 700, lineHeight: 1.1 }}>{tile.t}</span>
-                  {tile.sandbox && <Chip kind="warn" size="sm">SANDBOX</Chip>}
-                </div>
-                <div style={{ marginTop: 1, fontSize: 10, color: T.slate }}>{tile.s}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* MORE LIVE CAUSES */}
-      <div style={{ padding: "4px 0 0" }}>
-        <div style={{ display: "flex", alignItems: "center", padding: "0 20px 5px" }}>
-          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: T.slate }}>More live causes</span>
-          <span onClick={go("/circles")} style={{ marginLeft: "auto", fontSize: 11.5, fontWeight: 600, color: T.action, cursor: "pointer" }}>See all ›</span>
-        </div>
-        <div className="sl-hscroll" style={{ display: "flex", gap: 9, overflowX: "auto", padding: "2px 16px 4px" }}>
-          {MORE.map((c) => (
-            <div
-              key={c.title}
-              onClick={go(c.to)}
-              className="sl-lift"
-              style={{ flex: "0 0 130px", cursor: "pointer", background: "#fff", borderRadius: 13, overflow: "hidden", boxShadow: "0 8px 20px -16px rgba(11,18,32,.22), inset 0 0 0 1px " + T.hairline }}
-            >
-              <div style={{ height: 40, position: "relative" }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={c.img} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
-                <span style={{ position: "absolute", left: 6, top: 6, fontSize: 7.5, fontWeight: 800, letterSpacing: "0.04em", color: "#fff", background: c.catBg, padding: "2px 6px", borderRadius: 99 }}>{c.cat}</span>
-              </div>
-              <div style={{ padding: "6px 9px 6px" }}>
-                <div style={{ fontSize: 11, fontWeight: 700, lineHeight: 1.2, height: 25, overflow: "hidden" }}>{c.title}</div>
-                <div style={{ marginTop: 5, fontSize: 10, fontWeight: 600 }}>
-                  {c.raised} <span style={{ color: T.slate, fontWeight: 500 }}>· {c.pct}%</span>
-                </div>
-                <div style={{ marginTop: 4 }}>
-                  <Progress pct={c.pct} h={4} color={T.moneyIn} />
-                </div>
-                <div style={{ marginTop: 7, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <FaceStack faces={c.faces} size={17} />
-                  <span style={{ fontSize: 9.5, color: T.slate, fontWeight: 600 }}>{c.gave} gave</span>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Footer */}
-      <div style={{ padding: "4px 20px 4px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <PoweredByStellar />
-      </div>
-    </div>
-  );
+    </section>
+    {isLocalPreview ? <Link href="/campaigns?mode=testnet" className={s.testnetBridge}><span>{Ico.vault({ size: 20 })}</span><span><strong>{catalogCopy("D4 Testnet campaigns")}</strong><small>{catalogCopy("Separate escrow and proof-review flow. Local sample data here, not these example causes.")}</small></span>{Ico.chev({ size: 16 })}</Link> : <Link href="/circles" className={s.start} aria-label={copy("Explore Circles example causes")} style={{ marginTop: 12, justifyContent: "space-between", padding: "10px 12px" }}>
+      <Image src="/illustrations/giving.png" alt="" width={38} height={38} />
+      <span style={{ flex: 1, display: "grid", gap: 3 }}><strong style={{ maxWidth: "none", whiteSpace: "normal", textAlign: "left" }}>{copy("Circles · example causes")}</strong><small style={{ fontSize: 10, color: "#586985" }}>{copy("Explore the prototype. No payments.")}</small></span>{Ico.chev({ size: 17 })}
+    </Link>}
+    <section className={s.quick} aria-label={copy("QUICK ACTIONS")}><div className={s.sectionTitle}>{copy("QUICK ACTIONS")}<span /></div><div className={s.quickGrid}>
+      {[
+        { title: "Smart Savings", sub: isLocalPreview ? "Create a local saving goal" : "Lock toward a goal", art: "savings", demo: isLocalPreview, to: "/savings", tone: "mint" },
+        { title: "Arisan", sub: "Fund together, upfront", art: "arisan", to: "/arisan", tone: "blue" },
+        { title: "Send by @", sub: "Send to anyone by name", art: "send", to: "/send", tone: "blue" },
+        { title: "Disaster Vault", sub: "Shared payout approvals", art: "disaster", to: "/transparency", tone: "cream" },
+      ].map(tile => <Link key={tile.art} href={tile.to} className={`${s.tile} ${s[tile.tone]}`}>
+        <Image src={`/illustrations/${tile.art}.png`} alt="" width="78" height="78" /><div><strong>{copy(tile.title)}</strong><small>{copy(tile.sub)}</small>{tile.demo && <span className={s.coming}>{copy("Local demo")}</span>}</div><span className={s.tileArrow}>{Ico.chev({ size: 14 })}</span>
+      </Link>)}
+    </div></section>
+    <footer className={s.stellar}><div><span>Powered by</span><Image src="/stellar.png" width="90" height="27" alt="Stellar" /></div><small>{copy("Public proof on Stellar Testnet")}</small><Link href="/docs">{copy("How Salapi works")}</Link></footer>
+  </div>;
 }

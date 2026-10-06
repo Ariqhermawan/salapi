@@ -32,14 +32,14 @@ export const S = {
 } as const;
 
 export const T = {
-  ink: "#0B1220",
+  ink: "#0C1730",
   ink80: "rgba(11,18,32,0.80)",
   ink60: "rgba(11,18,32,0.60)",
-  slate: "#5B6472",
-  hairline: "#E6E8EE",
-  canvas: "#F4F6FB",
+  slate: "#586985",
+  hairline: "#DFE6F0",
+  canvas: "#F3F7FC",
   surface: "#FFFFFF",
-  surfaceAlt: "#FAFBFD",
+  surfaceAlt: "#F2EFE7",
   action: "#2563EB",
   actionPress: "#1D4ED8",
   actionTint: "#EFF4FE",
@@ -59,11 +59,11 @@ export const T = {
     "var(--font-geist-sans), system-ui, -apple-system, sans-serif",
   fontMono: "var(--font-geist-mono), ui-monospace, Menlo, monospace",
   fontUni: "var(--font-geist-sans), 'Noto Sans', system-ui, sans-serif",
-  rCard: 16,
-  rCtrl: 12,
+  rCard: 22,
+  rCtrl: 14,
   rPill: 999,
   shadow:
-    "0 1px 2px rgba(11,18,32,0.04), 0 8px 24px -8px rgba(11,18,32,0.10)",
+    "0 3px 5px rgba(24,55,105,0.03), 0 10px 28px -16px rgba(24,55,105,0.18)",
   shadowSm: "0 1px 2px rgba(11,18,32,0.05)",
 } as const;
 

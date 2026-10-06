@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { useGoBack } from "@/lib/ui/useGoBack";
 import {
   smartSavingsState,
@@ -10,6 +10,7 @@ import {
   smartSavingsWithdraw,
 } from "@/app/actions";
 import { useT } from "@/components/I18nProvider";
+import { moneyCopy, moneyMessage } from "@/lib/i18n/revamp-money";
 import {
   T,
   Ico,
@@ -30,6 +31,11 @@ import {
   pesoFromLocal,
 } from "@/lib/ui/currency";
 import type { Locale } from "@/lib/i18n/config";
+import { isLocalPreview } from "@/lib/local-preview";
+import { useUnresolvedSubmission } from "@/lib/ui/useUnresolvedSubmission";
+import SubmissionStatusPanel from "@/components/ui/SubmissionStatusPanel";
+import SuccessMotion from "@/components/ui/SuccessMotion";
+import { confirmSavingsPreview, readSavingsPreview, reviewSavingsPreview, savingsPreviewAmount, type SavingsPreviewGoal, type SavingsPreviewReview, type SavingsPreviewState } from "@/lib/savings-preview";
 import {
   type SavingsGoal,
   allocate,
@@ -154,13 +160,103 @@ function ModeCard({
   );
 }
 
-export default function SavingsScreen() {
-  const { t, currency } = useT();
-  const router = useRouter();
+const previewInput: React.CSSProperties = { width: "100%", minHeight: 48, padding: "12px 14px", border: "1px solid #dce4ef", borderRadius: 14, background: "#fff", color: T.ink, fontSize: 16, boxSizing: "border-box" };
+const previewLabel: React.CSSProperties = { display: "grid", gap: 8, fontSize: 13, fontWeight: 600, color: T.slate };
+const previewAmount = (units: string, currency: Locale) => formatLocal(Number(BigInt(units)) * 13 / 20_000_000, currency);
+
+function PreviewSavingsScreen() {
+  const { currency, locale } = useT();
+  const m = moneyCopy(locale);
+  const goBack = useGoBack("/vaults");
+  const [state, setState] = useState<SavingsPreviewState | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [selected, setSelected] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [name, setName] = useState("");
+  const [target, setTarget] = useState("");
+  const [mode, setMode] = useState<SavingsPreviewGoal["mode"]>("disciplined");
+  const [deposit, setDeposit] = useState("");
+  const [withdrawal, setWithdrawal] = useState("");
+  const [review, setReview] = useState<SavingsPreviewReview | null>(null);
+  const confirming = useRef(false);
+  const reviewedId = useRef<string | null>(null);
+  function restore() {
+    reviewedId.current = null;
+    const result = readSavingsPreview(); setLoaded(true); setReview(null);
+    if (!result.ok) { setError(result.error); setState(null); return; }
+    setState(result.value); setError("");
+    setSelected(current => result.value.goals.some(goal => goal.id === current) ? current : result.value.goals[0]?.id ?? "");
+  }
+  useEffect(() => { const timer = setTimeout(restore, 0); return () => clearTimeout(timer); }, []);
+  const goal = state?.goals.find(goal => goal.id === selected) ?? state?.goals[0];
+  const meta = CURRENCY[currency];
+  const amountValid = (value: string) => savingsPreviewAmount({ amount: value, currency }) !== null;
+  const createView = creating || state?.goals.length === 0;
+  function prepare(kind: SavingsPreviewReview["kind"]) {
+    if (!state || confirming.current) return;
+    const result = reviewSavingsPreview(state, { kind, goalId: goal?.id, name, mode, money: { amount: kind === "create" ? target : kind === "deposit" ? deposit : withdrawal, currency } });
+    setNotice("");
+    if (!result.ok) { setError(result.error); return; }
+    reviewedId.current = result.value.id;
+    setError(""); setReview(result.value);
+  }
+  function confirm() {
+    if (!review || reviewedId.current !== review.id || confirming.current) return;
+    confirming.current = true;
+    reviewedId.current = null;
+    try {
+      const result = confirmSavingsPreview(review);
+      if (!result.ok) { setError(result.error); setReview(null); setState(null); return; }
+      setState(result.value.state); setSelected(review.goalId); setCreating(false); setReview(null); setError(""); setDeposit(""); setWithdrawal("");
+      setNotice(result.value.duplicate ? m("This local review was already saved. No duplicate change was made.") : m("{result}. Browser-session simulation only. No wallet balance changed and no money moved.", { result: review.kind === "create" ? m("Goal created") : review.kind === "deposit" ? m("Deposit added to the example") : m("Saved demo released") }));
+    } finally { confirming.current = false; }
+  }
+  const reviewGoal = review ? state?.goals.find(current => current.id === review.goalId) : undefined;
+  return <div style={{ fontFamily: T.fontSans, color: T.ink, paddingBottom: 16 }}>
+    <AppBar title={m("Smart Savings")} leading={<IconButton ariaLabel={m("Back to Vaults")} onClick={goBack}>{Ico.back({})}</IconButton>} />
+    <div style={{ display: "grid", gap: 16, padding: "4px 16px 0" }}>
+      <Card p={20} style={{ background: "#F2EFE7", borderRadius: 26 }}><div style={{ display: "flex", alignItems: "center", gap: 16 }}><div style={{ minWidth: 0, flex: 1 }}><Chip kind="warn">{m("LOCAL SAVINGS DEMO")}</Chip><h1 style={{ fontSize: 28, lineHeight: 1.15, letterSpacing: "-.04em", margin: "14px 0 8px", fontWeight: 800 }}>{m("A little closer.")}<br />{m("One step at a time.")}</h1><p style={{ margin: 0, color: T.slate, fontSize: 13, lineHeight: 1.55 }}>{m("Set a goal, practice deposits, and see its withdrawal rules before confirming.")}</p></div><Image src="/illustrations/savings.png" alt="A plant growing from a savings jar" width={104} height={116} style={{ objectFit: "contain", flex: "0 0 auto", width: "27%", maxWidth: 104 }} /></div></Card>
+      <p style={{ margin: 0, color: T.slate, fontSize: 12, lineHeight: 1.55 }}>{m("Examples are saved only in this browser session. Display currency is illustrative. No interest, yield, auth, provider or blockchain request is involved.")}</p>
+      {error ? <div role="alert" style={{ borderRadius: 14, padding: 14, background: "#FBEAE8", color: T.danger, fontSize: 13, lineHeight: 1.5 }}>{moneyMessage(locale, error)}</div> : null}
+      {notice ? <SuccessMotion key={notice} title={m("Local savings demo saved")}>{notice}</SuccessMotion> : null}
+      {!loaded ? <p role="status">{m("Reading this browser session…")}</p> : !state ? <Card p={20}><h2 style={{ fontSize: 19, margin: "0 0 10px" }}>{m("Your session could not load.")}</h2><p style={{ color: T.slate, fontSize: 13, lineHeight: 1.5 }}>{m("Existing savings data has not been reset. Restore browser storage access before saving another demo.")}</p><Btn kind="secondary" onClick={restore}>{m("Retry reading local savings")}</Btn></Card> : review ? <Card p={20} style={{ background: "#fff", borderRadius: 24 }}>
+        <Chip kind="action">{m("REVIEW · NO MONEY MOVES")}</Chip><h2 style={{ fontSize: 23, fontWeight: 750, letterSpacing: "-.03em", margin: "14px 0" }}>{review.kind === "create" ? m("Check your goal.") : review.kind === "deposit" ? m("Review your deposit demo.") : m("Review your withdrawal demo.")}</h2>
+        <dl style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px 16px", margin: 0, fontSize: 14 }}><dt style={{ color: T.slate }}>{m("Goal")}</dt><dd style={{ margin: 0, textAlign: "right", overflowWrap: "anywhere", fontWeight: 700 }}>{review.name ?? reviewGoal?.name}</dd><dt style={{ color: T.slate }}>{review.kind === "create" ? m("Target") : m("Demo amount")}</dt><dd style={{ margin: 0, textAlign: "right", fontWeight: 700 }}>{previewAmount(review.amount,currency)}</dd><dt style={{ color: T.slate }}>{m("Rule")}</dt><dd style={{ margin: 0, textAlign: "right" }}>{m((review.mode ?? reviewGoal?.mode) === "disciplined" ? "Disciplined" : "Flexible")}</dd><dt style={{ color: T.slate }}>{m("Wallet balance change")}</dt><dd style={{ margin: 0, textAlign: "right" }}>{m("None")}</dd></dl>
+        <p style={{ color: T.slate, fontSize: 13, lineHeight: 1.55, margin: "18px 0" }}>{(review.mode ?? reviewGoal?.mode) === "disciplined" ? m("Disciplined: release the full saved demo only after reaching the target.") : m("Flexible: withdraw a positive demo amount up to this goal's saved amount.")} {m("This changes only the local example, not your wallet.")}</p>
+        <Btn onClick={confirm}>{m("Confirm local savings demo")}</Btn><Btn kind="secondary" onClick={() => { reviewedId.current = null; setReview(null); setError(""); }}>{m("Edit before confirming")}</Btn>
+      </Card> : createView ? <Card p={20} style={{ borderRadius: 24 }}>
+        <h2 style={{ margin: "0 0 18px", fontSize: 22, fontWeight: 750 }}>{m("Give your goal a name.")}</h2>
+        <div style={{ display: "grid", gap: 18 }}><label style={previewLabel}>{m("Goal name")}<input aria-label={m("Local goal name")} style={previewInput} value={name} maxLength={40} placeholder={m("e.g. Emergency fund")} onChange={event => setName(event.target.value)} /></label><label style={previewLabel}>{m("Target ·")} {meta.code}<input aria-label={m("Local goal target")} inputMode="decimal" style={previewInput} value={target} placeholder="0" onChange={event => setTarget(event.target.value)} /></label>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0,1fr))", gap: 8 }}>{TARGETS[currency].map(value => <button type="button" key={value} onClick={() => setTarget(value)} style={{ border: "1px solid #dce4ef", borderRadius: 12, minHeight: 44, background: T.actionTint, color: T.action, fontSize: 12, fontWeight: 650 }}>{formatLocalAmount(Number(value),currency)}</button>)}</div>
+          <div role="group" aria-label={m("Local goal withdrawal rule")} style={{ display: "grid", gap: 8 }}><ModeCard selected={mode === "disciplined"} onClick={() => setMode("disciplined")} icon={Ico.lock({})} name={m("Disciplined")} desc={m("Release the full saved demo once the target is reached.")} /><ModeCard selected={mode === "flexible"} onClick={() => setMode("flexible")} icon={Ico.shield({})} name={m("Flexible")} desc={m("Withdraw any positive demo amount up to the saved amount.")} /></div>
+          <Btn disabled={!name.trim() || !amountValid(target) || state.goals.length >= 12} onClick={() => prepare("create")}>{m("Review local goal")}</Btn>{state.goals.length ? <Btn kind="quiet" onClick={() => { setCreating(false); setError(""); }}>{m("Back to your local goals")}</Btn> : null}
+        </div>
+      </Card> : goal ? <>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }} aria-label={m("Choose local savings goal")}>{state.goals.map(current => <button key={current.id} type="button" aria-pressed={current.id === goal.id} onClick={() => { setSelected(current.id); setError(""); setNotice(""); setDeposit(""); setWithdrawal(""); }} style={{ maxWidth: "100%", minHeight: 44, borderRadius: 14, border: "1px solid #dce4ef", padding: "10px 14px", color: current.id === goal.id ? "#fff" : T.ink, background: current.id === goal.id ? T.action : "#fff", fontWeight: 650, overflowWrap: "anywhere" }}>{current.name}</button>)}</div>
+        <Card p={20} style={{ background: "#0C2447", color: "#fff", borderRadius: 24 }}><div style={{ display: "flex", alignItems: "center", gap: 18 }}><div style={{ flex: 1, minWidth: 0 }}><span style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: ".1em", color: "#acc8ff" }}>{m(goal.mode === "disciplined" ? "Disciplined" : "Flexible")} {m("· local goal")}</span><h2 style={{ margin: "10px 0", fontSize: 25, fontWeight: 750, overflowWrap: "anywhere" }}>{goal.name}</h2><strong style={{ fontSize: 27, overflowWrap: "anywhere" }}>{previewAmount(goal.saved,currency)}</strong><p style={{ color: "#bdccea", fontSize: 13, margin: "8px 0" }}>{m("of")} {previewAmount(goal.target,currency)} {m("target")}</p></div><Ring pct={Number(BigInt(goal.saved) * 100n / BigInt(goal.target))} label="demo progress" /></div><p style={{ color: "#bdccea", fontSize: 12, margin: "16px 0 0" }}>{m("An example tally only. Your Salapi wallet balance is unchanged.")}</p></Card>
+        <Card p={20} style={{ borderRadius: 24 }}><h3 style={{ fontSize: 18, margin: "0 0 14px" }}>{m("Take the next small step.")}</h3><label style={previewLabel}>{m("Deposit demo ·")} {meta.code}<input aria-label={m("Local savings deposit")} style={previewInput} inputMode="decimal" placeholder="0" value={deposit} onChange={event => setDeposit(event.target.value)} /></label><div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 8, margin: "12px 0" }}>{ADDS[currency].map(value => <button type="button" key={value} onClick={() => setDeposit(value)} style={{ minHeight: 44, border: 0, borderRadius: 12, background: T.actionTint, color: T.action, fontWeight: 650, fontSize: 12 }}>{formatLocalAmount(Number(value),currency)}</button>)}</div><Btn disabled={!amountValid(deposit)} onClick={() => prepare("deposit")}>{m("Review deposit demo")}</Btn></Card>
+        <Card p={20} style={{ background: "#F2EFE7", borderRadius: 24 }}><h3 style={{ fontSize: 18, margin: "0 0 10px" }}>{m("Your withdrawal rule.")}</h3><p style={{ fontSize: 13, color: T.slate, lineHeight: 1.55 }}>{goal.mode === "disciplined" ? m("Release the full saved demo only after the target is reached. There is no time-based unlock or interest.") : m("Choose a positive amount up to this goal's saved demo tally. This does not cash out real money.")}</p>{goal.mode === "flexible" ? <label style={{ ...previewLabel, marginBottom: 14 }}>{m("Withdrawal demo ·")} {meta.code}<input aria-label={m("Local savings withdrawal")} style={previewInput} inputMode="decimal" placeholder="0" value={withdrawal} onChange={event => setWithdrawal(event.target.value)} /></label> : null}<Btn kind="secondary" disabled={goal.mode === "disciplined" ? BigInt(goal.saved) === 0n || BigInt(goal.saved) < BigInt(goal.target) : !amountValid(withdrawal) || (savingsPreviewAmount({ amount: withdrawal, currency }) ?? 0n) > BigInt(goal.saved)} onClick={() => prepare("withdraw")}>{m("Review withdrawal demo")}</Btn>{goal.mode === "disciplined" && BigInt(goal.saved) < BigInt(goal.target) ? <p role="status" style={{ margin: "12px 0 0", fontSize: 12, color: T.slate }}>{m("Target not reached. Withdrawal demo is locked.")}</p> : null}</Card>
+        <Btn kind="quiet" disabled={state.goals.length >= 12} onClick={() => { setCreating(true); setName(""); setTarget(""); setNotice(""); setError(""); }}>{m("Create another local goal")}</Btn>
+      </> : null}
+      <div style={{ display: "grid", gap: 8, justifyItems: "center", color: T.slate, fontSize: 12, marginTop: 8 }}><PoweredByStellar /><span>{m("Local simulation · no money or Testnet tokens move.")}</span></div>
+    </div>
+  </div>;
+}
+
+export default function SavingsScreen() { return isLocalPreview ? <PreviewSavingsScreen /> : <LiveSavingsScreen />; }
+
+function LiveSavingsScreen() {
+  const submission = useUnresolvedSubmission("savings:experimental");
+  const { t, currency, locale } = useT();
+  const m = moneyCopy(locale);
   const goBack = useGoBack("/vaults");
   const [st, setSt] = useState<State | null>(null);
   const [goals, setGoals] = useState<SavingsGoal[]>([]);
-  const [pending, start] = useTransition();
+  const [transitionPending, start] = useTransition();
+  const pending = transitionPending || submission.locked;
+  const submitting = useRef(false);
   const [msg, setMsg] = useState<{
     tone: "ok" | "err";
     text: string;
@@ -186,7 +282,14 @@ export default function SavingsScreen() {
   const goalLabel = (g: SavingsGoal) => g.name || t("savings.defaultGoalName");
 
   async function refresh() {
-    const s = await smartSavingsState();
+    if (isLocalPreview) return;
+    let s: State;
+    try { s = await smartSavingsState(); }
+    catch {
+      setSt({ ready: false });
+      setMsg({ tone: "err", text: "The experimental savings vault could not be loaded. Reload this page to try again." });
+      return;
+    }
     setSt(s);
     if (s.ready && s.hasGoal) {
       let g = loadGoals();
@@ -213,8 +316,7 @@ export default function SavingsScreen() {
   }
 
   useEffect(() => {
-    refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    Promise.resolve().then(refresh);
   }, []);
 
   // Prefill the create target in the active display currency.
@@ -222,7 +324,18 @@ export default function SavingsScreen() {
     if (!cTouched.current) setCTarget(TARGETS[currency][2]);
   }, [currency]);
 
+  function execute(operation: () => Promise<void>) {
+    if (isLocalPreview || submitting.current || submission.locked) return;
+    submitting.current = true;
+    start(async () => {
+      try { await operation(); }
+      catch { setMsg({ tone: "err", text: m("The operation was not confirmed. Check the wallet history before trying again.") }); }
+      finally { submitting.current = false; }
+    });
+  }
+
   function create() {
+    if (isLocalPreview) return;
     const targetPhp = pesoFromLocal(Number(cTarget) || 0, currency);
     const name = cName.trim();
     if (!name) {
@@ -233,12 +346,13 @@ export default function SavingsScreen() {
       setMsg({ tone: "err", text: t("savings.somethingWrong") });
       return;
     }
-    start(async () => {
+    execute(async () => {
       setMsg(null);
-      const r = await smartSavingsOpen(
+      const r = await submission.run(() => smartSavingsOpen(
         { amount: cTarget, currency },
         cMode
-      );
+      ));
+      if (!r) return;
       if (r.ok) {
         saveGoals([{ id: newId(), name, target: targetPhp, weight: 100, saved: 0 }]);
         setMsg({
@@ -256,6 +370,7 @@ export default function SavingsScreen() {
   }
 
   function deposit() {
+    if (isLocalPreview) return;
     const display = Number(depAmt) || 0;
     const amtPhp = pesoFromLocal(display, currency);
     if (!(amtPhp > 0)) {
@@ -264,9 +379,10 @@ export default function SavingsScreen() {
     }
     const splitMode = goals.length < 2 || depTab === "split";
     const single = goals.find((g) => g.id === depGoal) ?? goals[0];
-    start(async () => {
+    execute(async () => {
       setMsg(null);
-      const r = await smartSavingsDeposit({ amount: depAmt, currency });
+      const r = await submission.run(() => smartSavingsDeposit({ amount: depAmt, currency }));
+      if (!r) return;
       if (r.ok) {
         let g: SavingsGoal[];
         let text: string;
@@ -301,9 +417,11 @@ export default function SavingsScreen() {
   }
 
   function withdraw() {
-    start(async () => {
+    if (isLocalPreview) return;
+    execute(async () => {
       setMsg(null);
-      const r = await smartSavingsWithdraw();
+      const r = await submission.run(() => smartSavingsWithdraw());
+      if (!r) return;
       if (r.ok) {
         clearGoals();
         setMsg({ tone: "ok", text: t("savings.releasedOk"), link: r.link });
@@ -347,6 +465,10 @@ export default function SavingsScreen() {
     const g = goals.map((go) =>
       go.id === id ? { ...go, weight: Math.max(0, go.weight + delta) } : go
     );
+    if (g.every((go) => go.weight === 0)) {
+      setMsg({ tone: "err", text: m("Keep at least one goal allocation above zero.") });
+      return;
+    }
     saveGoals(g);
     setGoals(g);
   }
@@ -358,7 +480,7 @@ export default function SavingsScreen() {
     paddingBottom: 110,
   };
 
-  const Toast = () =>
+  const messageToast =
     msg ? (
       <div style={{ padding: "14px 16px 0" }}>
         <div
@@ -376,7 +498,7 @@ export default function SavingsScreen() {
         >
           <span style={{ fontWeight: 600 }}>
             {msg.tone === "ok" ? "✓ " : ""}
-            {msg.text}
+            {moneyMessage(locale, msg.text)}
           </span>
           {msg.link && (
             <a
@@ -398,11 +520,13 @@ export default function SavingsScreen() {
         </div>
       </div>
     ) : null;
+  const toast = <><SubmissionStatusPanel guard={submission} onRefresh={refresh} />{messageToast}</>;
 
   // ── LOADING ──
   if (st === null) {
     return (
       <div style={shell}>
+        {toast}
         <AppBar
           leading={<IconButton onClick={goBack}>{Ico.back({})}</IconButton>}
           title={t("savings.title")}
@@ -431,6 +555,7 @@ export default function SavingsScreen() {
             {t("savings.notConfigured")}
           </div>
         </div>
+        {toast}
         <div style={{ padding: "26px 16px 0", display: "flex", justifyContent: "center" }}>
           <PoweredByStellar />
         </div>
@@ -562,7 +687,7 @@ export default function SavingsScreen() {
           </div>
         </div>
 
-        <Toast />
+        {toast}
 
         <div style={{ padding: "16px 16px 0" }}>
           <Btn
@@ -603,7 +728,7 @@ export default function SavingsScreen() {
           </div>
           <div style={{ marginTop: 8, fontSize: 13, color: T.slate }}>{t("savings.maturedNote")}</div>
         </div>
-        <Toast />
+        {toast}
         <div style={{ padding: "30px 16px 0" }}>
           <Card>
             <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "2px 0 12px" }}>
@@ -647,6 +772,7 @@ export default function SavingsScreen() {
 
       {/* Vault summary */}
       <div style={{ padding: "4px 16px 0" }}>
+        <p style={{ padding: 14, borderRadius: 14, background: T.warnTint, color: T.warn, fontSize: 12, lineHeight: 1.5 }}>{m("Experimental Testnet savings. Goals below are local envelopes of one contract vault, not separate locks. No yield or fiat withdrawal is available.")}</p>
         <Card>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <Ring pct={totalPct} label={t("savings.savedLabel")} />
@@ -920,7 +1046,7 @@ export default function SavingsScreen() {
         </Card>
       </div>
 
-      <Toast />
+      {toast}
 
       {/* Deposit CTA */}
       <div style={{ padding: "14px 16px 0" }}>

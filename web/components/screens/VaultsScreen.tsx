@@ -1,344 +1,557 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { paluwaganState, smartSavingsState, disasterState } from "@/app/actions";
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { arisanList, disasterState, paluwaganState } from "@/app/actions";
+import { campaignState } from "@/app/campaign-actions";
 import { useT } from "@/components/I18nProvider";
+import { Ico, T, PoweredByStellar } from "@/components/ui/kit";
+import { formatLocal } from "@/lib/ui/currency";
+import { formatStroops } from "@/lib/disaster";
+import type { Campaign } from "@/lib/campaign";
+import type { Locale } from "@/lib/i18n/config";
+import { vaultCampaignMedia } from "@/lib/vault-campaign-media";
 import {
-  T,
-  Ico,
-  AppBar,
-  Card,
-  Btn,
-  Peso,
-  Progress,
-  PoweredByStellar,
-} from "@/components/ui/kit";
+  PREVIEW_CAMPAIGNS,
+  PREVIEW_TIME,
+  PREVIEW_WALLET,
+  normalizePreviewCampaigns,
+} from "@/lib/local-preview";
+import styles from "./VaultsRevamp.module.css";
+import { readPreviewArisanRoom } from "./arisan-preview";
 
-type Pal = Awaited<ReturnType<typeof paluwaganState>>;
-type Sav = Awaited<ReturnType<typeof smartSavingsState>>;
-type Dis = Awaited<ReturnType<typeof disasterState>>;
-
-function pesoNum(label: string) {
-  return Number(label.replace(/[^0-9.]/g, "")) || 0;
+type Rooms = Awaited<ReturnType<typeof arisanList>>;
+type Campaigns = Awaited<ReturnType<typeof campaignState>>;
+type Pool = Awaited<ReturnType<typeof disasterState>>;
+type LegacyCircle = Awaited<ReturnType<typeof paluwaganState>>;
+const PREVIEW = process.env.NEXT_PUBLIC_LOCAL_PREVIEW === "1";
+const campaignCardCopy: Record<Locale, {
+  campaign: string; organizer: string; beneficiary: string; approver: string; donor: string;
+  exampleOrganizer: string; organizerWallet: string; photo: string; portrait: string;
+  viewProfile: string; noPhoto: string; inEscrow: string; review: string; viewCampaign: string;
+}> = {
+  en: { campaign: "Donation campaign", organizer: "Organizer", beneficiary: "Beneficiary", approver: "Approver", donor: "Donor", exampleOrganizer: "Fictional organizer example", organizerWallet: "Organizer wallet", photo: "Illustrative campaign photo", portrait: "Illustrative profile photo, not a verified identity", viewProfile: "View example organizer profile", noPhoto: "Campaign photo not provided", inEscrow: "Testnet XLM in escrow", review: "Proof review", viewCampaign: "View campaign" },
+  tl: { campaign: "Kampanya ng donasyon", organizer: "Organizer", beneficiary: "Benepisyaryo", approver: "Tagapag-apruba", donor: "Donor", exampleOrganizer: "Halimbawang kathang-isip na organizer", organizerWallet: "Wallet ng organizer", photo: "Larawang ilustrasyon ng kampanya", portrait: "Ilustrasyong larawan sa profile, hindi beripikadong pagkakakilanlan", viewProfile: "Tingnan ang halimbawang profile ng organizer", noPhoto: "Walang ibinigay na larawan ng kampanya", inEscrow: "Testnet XLM sa escrow", review: "Pagsusuri ng patunay", viewCampaign: "Tingnan ang kampanya" },
+  id: { campaign: "Campaign donasi", organizer: "Penyelenggara", beneficiary: "Penerima manfaat", approver: "Pemberi persetujuan", donor: "Donatur", exampleOrganizer: "Contoh penyelenggara fiktif", organizerWallet: "Wallet penyelenggara", photo: "Foto campaign ilustrasi", portrait: "Foto profil ilustrasi, bukan identitas terverifikasi", viewProfile: "Lihat profil penyelenggara contoh", noPhoto: "Foto campaign belum tersedia", inEscrow: "Testnet XLM dalam escrow", review: "Tinjauan bukti", viewCampaign: "Lihat campaign" },
+  vi: { campaign: "Chiến dịch quyên góp", organizer: "Nhà tổ chức", beneficiary: "Người thụ hưởng", approver: "Người phê duyệt", donor: "Người quyên góp", exampleOrganizer: "Nhà tổ chức hư cấu mẫu", organizerWallet: "Ví nhà tổ chức", photo: "Ảnh minh họa chiến dịch", portrait: "Ảnh hồ sơ minh họa, không phải danh tính đã xác minh", viewProfile: "Xem hồ sơ nhà tổ chức mẫu", noPhoto: "Chưa cung cấp ảnh chiến dịch", inEscrow: "Testnet XLM trong ký quỹ", review: "Xem xét bằng chứng", viewCampaign: "Xem chiến dịch" },
+};
+const previewRooms: Rooms = {
+  ready: true,
+  total: 2,
+  nextCursor: null,
+  mine: [
+    {
+      id: 1,
+      name: "Family arisan",
+      status: "Open",
+      memberCount: 5,
+      memberTarget: 5,
+      sharePeso: "₱250",
+      potPeso: "₱1,250",
+      sharePesos: 250,
+      potPesos: 1250,
+      cadence: "Weekly",
+      firstKocok: 0,
+      round: 0,
+      isMember: true,
+      isHost: true,
+      code: "FAM234",
+    },
+    {
+      id: 2,
+      name: "Weekend community circle",
+      status: "Active",
+      memberCount: 4,
+      memberTarget: 4,
+      sharePeso: "₱180",
+      potPeso: "₱720",
+      sharePesos: 180,
+      potPesos: 720,
+      cadence: "Biweekly",
+      firstKocok: 1791321600,
+      round: 2,
+      isMember: true,
+      isHost: false,
+      code: "CIR234",
+    },
+  ],
+};
+function previewCampaignState(list = PREVIEW_CAMPAIGNS): Campaigns {
+  return {
+    ok: true,
+    contractId: "Local example, no deployed contract",
+    viewer: PREVIEW_WALLET.address,
+    now: String(PREVIEW_TIME),
+    campaigns: list,
+  };
 }
-
-// Counts a value up from 0 to `target` once `run` turns true. Honors
-// prefers-reduced-motion by snapping straight to the final figure.
-function useCountUp(target: number, run: boolean) {
-  const [val, setVal] = useState(0);
-  useEffect(() => {
-    if (!run) {
-      setVal(0);
-      return;
-    }
-    const reduce =
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduce || target <= 0) {
-      setVal(target);
-      return;
-    }
-    let raf = 0;
-    const t0 = performance.now();
-    const dur = 1100;
-    const step = (now: number) => {
-      const p = Math.min(1, (now - t0) / dur);
-      setVal(target * (1 - Math.pow(1 - p, 3)));
-      if (p < 1) raf = requestAnimationFrame(step);
-      else setVal(target);
-    };
-    raf = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(raf);
-  }, [target, run]);
-  return val;
-}
-
-function VaultTile({
-  icon,
-  title,
-  stat,
-  amountLabel,
-  amount,
-  progressPct,
-  onClick,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  stat: string;
-  amountLabel: string;
-  amount: number | null;
-  progressPct?: number;
-  onClick: () => void;
-}) {
+function isPreviewCampaign(value: unknown): value is Campaign {
+  if (!value || typeof value !== "object") return false;
+  const c = value as Campaign;
   return (
-    <Card p={14} elevation className="sl-lift" style={{ cursor: "pointer" }} onClick={onClick}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 11,
-            background: T.actionTint,
-            color: T.action,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          {icon}
-        </div>
-        {Ico.chev({ size: 14, c: T.slate })}
-      </div>
-      <div style={{ marginTop: 10, fontSize: 14, fontWeight: 600 }}>{title}</div>
-      <div style={{ marginTop: 2, fontSize: 12, color: T.slate }}>{stat}</div>
-      <div
-        style={{
-          marginTop: 10,
-          fontSize: 10,
-          fontWeight: 600,
-          letterSpacing: "0.1em",
-          textTransform: "uppercase",
-          color: T.slate,
-        }}
-      >
-        {amountLabel}
-      </div>
-      <div style={{ marginTop: 1 }}>
-        {amount === null ? (
-          <span className="sl-balance" style={{ fontSize: 17, fontWeight: 700, color: T.slate }}>
-            -
-          </span>
-        ) : (
-          <Peso value={amount} size={17} weight={700} />
-        )}
-      </div>
-      {typeof progressPct === "number" && (
-        <div style={{ marginTop: 8 }}>
-          <Progress pct={progressPct} color={T.moneyIn} />
-        </div>
-      )}
-    </Card>
+    typeof c.id === "string" &&
+    /^\d+$/.test(c.id) &&
+    typeof c.title === "string" &&
+    ["Funding", "PendingProof", "Refundable", "Released", "Closed"].includes(
+      c.state,
+    ) &&
+    typeof c.total === "string" &&
+    /^\d+$/.test(c.total) &&
+    typeof c.escrow === "string" &&
+    /^\d+$/.test(c.escrow) &&
+    Boolean(c.config) &&
+    typeof c.config.creator === "string" &&
+    typeof c.config.beneficiary === "string" &&
+    Array.isArray(c.config.approvers) &&
+    c.config.approvers.every((a) => typeof a === "string") &&
+    Array.isArray(c.approvals) &&
+    Boolean(c.contribution) &&
+    typeof c.contribution.amount === "string" &&
+    /^\d+$/.test(c.contribution.amount)
   );
 }
+const choices = [
+  {
+    href: "/arisan",
+    art: "arisan",
+    name: "Arisan / Paluwagan",
+    copy: "Fund together before the first draw.",
+    action: "Create or join",
+  },
+  {
+    href: "/campaigns",
+    art: "giving",
+    name: "Donation campaigns",
+    copy: "Proof and two approvals before payout.",
+    action: "Explore causes",
+  },
+  {
+    href: "/transparency",
+    art: "disaster",
+    name: "Disaster Vault",
+    copy: "A community pool with shared controls.",
+    action: "View public pool",
+  },
+  {
+    href: "/circles",
+    art: "giving",
+    name: "Salapi Circles · prototype",
+    copy: "Example causes and organizer profiles. No payments.",
+    action: "Explore example causes",
+  },
+] as const;
 
 export default function VaultsScreen() {
-  const { t } = useT();
-  const router = useRouter();
-  const [pal, setPal] = useState<Pal | null>(null);
-  const [sav, setSav] = useState<Sav | null>(null);
-  const [dis, setDis] = useState<Dis | null>(null);
-
-  useEffect(() => {
-    paluwaganState().then(setPal);
-    smartSavingsState().then(setSav);
-    disasterState().then((d) => {
-      setDis(d);
-      if (!d.ok) setTimeout(() => disasterState().then(setDis), 700);
-    });
+  const { currency, locale } = useT();
+  const cardCopy = campaignCardCopy[locale] ?? campaignCardCopy.en;
+  const [rooms, setRooms] = useState<Rooms | null>(
+    PREVIEW ? previewRooms : null,
+  );
+  const [campaigns, setCampaigns] = useState<Campaigns | null>(
+    PREVIEW ? previewCampaignState() : null,
+  );
+  const [pool, setPool] = useState<Pool | null>(null);
+  const [legacyCircle, setLegacyCircle] = useState<LegacyCircle | null>(null);
+  const [loading, setLoading] = useState(!PREVIEW);
+  const refresh = useCallback(async () => {
+    if (PREVIEW) {
+      let list = PREVIEW_CAMPAIGNS;
+      const mine = previewRooms.ready
+        ? previewRooms.mine.map((room) => ({ ...room }))
+        : [];
+      try {
+        const saved: unknown = JSON.parse(
+          sessionStorage.getItem("salapi.preview.campaigns") || "null",
+        );
+        if (Array.isArray(saved) && saved.every(isPreviewCampaign))
+          list = normalizePreviewCampaigns(saved);
+        const draft = JSON.parse(
+          sessionStorage.getItem("salapi.preview.arisan-draft") || "null",
+        );
+        const share = draft?.sharePesos ?? draft?.share;
+        if (
+          draft?.id === 9001 &&
+          typeof draft.name === "string" &&
+          Number.isFinite(share) &&
+          share > 0 &&
+          Number.isInteger(draft.members) &&
+          draft.members >= 3 &&
+          draft.members <= 20 &&
+          ["Weekly", "Biweekly", "Monthly"].includes(draft.cadence)
+        )
+          mine.unshift({
+            ...mine[0],
+            id: 9001,
+            name: draft.name,
+            memberTarget: draft.members,
+            memberCount: 1,
+            sharePesos: share,
+            potPesos: share * draft.members,
+            sharePeso: String(share),
+            potPeso: String(share * draft.members),
+            cadence: draft.cadence,
+            code: "NEW234",
+          });
+        if (sessionStorage.getItem("salapi.preview.arisan-joined") === "1")
+          mine.forEach((room) => {
+            if (room.id === 1) room.isHost = false;
+          });
+      } catch {
+        /* Keep the original examples if browser session storage is unavailable. */
+      }
+      setCampaigns(previewCampaignState(list));
+      const currentRooms = mine.map(room => {
+        const savedRoom = readPreviewArisanRoom(room.id);
+        if (savedRoom) return { ...room, ...savedRoom };
+        try {
+          if (room.id === 1 && sessionStorage.getItem("salapi.preview.arisan-left") === "1") {
+            room.isMember = false;
+            room.isHost = false;
+          }
+          if (sessionStorage.getItem(`salapi.preview.arisan-cancelled.${room.id}`) === "1")
+            room.status = "Dissolved";
+        } catch {
+          /* Keep the original example when browser storage is unavailable. */
+        }
+        return room;
+      }).filter(room => room.isMember || room.isHost);
+      setRooms({ ready: true, total: currentRooms.length, mine: currentRooms, nextCursor: null });
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    await Promise.allSettled([
+      arisanList()
+        .then(setRooms)
+        .catch(() =>
+          setRooms({ ready: false, error: "We couldn't load your rooms." }),
+        ),
+      campaignState()
+        .then(setCampaigns)
+        .catch(() =>
+          setCampaigns({
+            ok: false,
+            error: "We couldn't load your campaigns.",
+          }),
+        ),
+      disasterState()
+        .then(setPool)
+        .catch(() =>
+          setPool({
+            ok: false,
+            error: "The community pool is temporarily unavailable.",
+          }),
+        ),
+      paluwaganState()
+        .then(setLegacyCircle)
+        .catch(() => setLegacyCircle(null)),
+    ]);
+    setLoading(false);
   }, []);
-
-  const shell: React.CSSProperties = {
-    fontFamily: T.fontSans,
-    color: T.ink,
-    minHeight: "100%",
-  };
-
-  const disActive = Boolean(dis && dis.ok && dis.active);
-  const savHasGoal = Boolean(sav && sav.ready && sav.hasGoal);
-  const disReady = Boolean(dis && dis.ok);
-  const disRaisedTarget = dis && dis.ok ? pesoNum(dis.pesoLabel) : 0;
-  const disRaisedShown = useCountUp(disRaisedTarget, disReady);
+  useEffect(() => {
+    const initialLoad = setTimeout(() => void refresh(), 0);
+    return () => clearTimeout(initialLoad);
+  }, [refresh]);
+  const mine =
+    campaigns?.ok && campaigns.viewer
+      ? campaigns.campaigns.filter(
+          (c) =>
+            c.config.creator === campaigns.viewer ||
+            c.config.beneficiary === campaigns.viewer ||
+            c.config.approvers.includes(campaigns.viewer!) ||
+            BigInt(c.contribution.amount) > 0n,
+        )
+      : [];
+  const myRooms = rooms?.ready ? rooms.mine : [];
+  const hasLegacyCircle = Boolean(
+    legacyCircle?.ready && legacyCircle.potPesos > 0,
+  );
+  const hasVaults = myRooms.length > 0 || mine.length > 0;
+  const incomplete =
+    !PREVIEW && ((rooms && !rooms.ready) || (campaigns && !campaigns.ok));
 
   return (
-    <div style={shell}>
-      <AppBar large title={t("vaults.title")} sub={t("vaults.sub")} />
-
-      <div style={{ padding: "4px 16px 0" }}>
-        {/* Disaster Relief hero — photo-forward, live on-chain pool overlaid.
-            Real data only (disasterState); taps through to /transparency. */}
-        <div
-          onClick={() => router.push("/transparency")}
-          className="sl-lift"
-          style={{
-            position: "relative",
-            borderRadius: 18,
-            overflow: "hidden",
-            cursor: "pointer",
-            minHeight: 196,
-            boxShadow: "0 16px 34px -18px rgba(11,18,32,.55), inset 0 0 0 1px " + T.hairline,
-          }}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/circles/disaster.jpg"
-            alt=""
-            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
-          />
-          <div
-            aria-hidden
-            style={{
-              position: "absolute",
-              inset: 0,
-              background:
-                "linear-gradient(to top, rgba(7,12,22,.92) 4%, rgba(7,12,22,.48) 44%, rgba(7,12,22,.12) 100%)",
-            }}
-          />
-          {/* status pill (glass) */}
-          <span
-            style={{
-              position: "absolute",
-              top: 12,
-              left: 12,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "5px 10px",
-              borderRadius: 99,
-              background: "rgba(11,18,32,.5)",
-              backdropFilter: "blur(4px)",
-              color: "#fff",
-              fontSize: 10.5,
-              fontWeight: 700,
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
-            }}
+    <div className={`${styles.screen} ${styles.vaultsScreen}`}>
+      <header className={styles.vaultHeader}>
+        <div>
+          <span className={styles.eyebrow}>Your community money</span>
+          <h1>Vaults</h1>
+          <p>Your shared funds, with clear rules.</p>
+        </div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/illustrations/arisan.png"
+          alt="Friends pooling their contributions"
+          className={styles.headerArt}
+        />
+      </header>
+      <div className={styles.testnetNote}>
+        <span className={styles.statusDot} /> Stellar Testnet{" "}
+        <span>No real money</span>
+        {PREVIEW && <strong>Example data</strong>}
+      </div>
+      <section className={styles.warmSection} aria-label="Your vaults" aria-busy={loading}>
+        <div className={styles.sectionHeading}>
+          <h2>Your vaults</h2>
+          <button
+            type="button"
+            className={styles.textButton}
+            onClick={() => void refresh()}
+            disabled={loading}
           >
-            <span
-              className="sl-dotpulse"
-              style={{ width: 6, height: 6, borderRadius: 99, background: disActive ? "#34d399" : "#F0B26B", display: "block" }}
-            />
-            {disActive ? t("vaults.statusActive") : t("vaults.statusStandby")}
-          </span>
-          {/* name + desc + pool + donate */}
-          <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: "0 16px 14px", color: "#fff" }}>
-            <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: "-0.02em", textShadow: "0 2px 12px rgba(0,0,0,.5)" }}>
-              {t("vaults.disasterName")}
-            </div>
-            <div style={{ marginTop: 3, fontSize: 12.5, color: "rgba(255,255,255,.82)", lineHeight: 1.45, maxWidth: 250 }}>
-              {t("vaults.disasterDesc")}
-            </div>
-            <div style={{ marginTop: 12, display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12 }}>
-              <div>
-                <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,.7)" }}>
-                  {t("vaults.poolLive")}
-                </div>
-                <div style={{ marginTop: 2 }}>
-                  {dis && dis.ok ? (
-                    <Peso value={disRaisedShown} size={27} color="#fff" />
-                  ) : (
-                    <span style={{ fontSize: 14, color: "rgba(255,255,255,.7)" }}>{t("common.loading")}</span>
-                  )}
-                </div>
-              </div>
-              <Btn kind="primary" size="md" full={false} className="sl-glow" onClick={() => router.push("/transparency")}>
-                {t("wallet.donate")}
-              </Btn>
+            Refresh {Ico.refresh({ size: 13, c: T.action })}
+          </button>
+        </div>
+        <p className={styles.sectionCopy}>
+          Rooms and recent campaigns you take part in.
+        </p>
+        {loading && !hasVaults ? (
+          <div
+            role="status"
+            aria-label="Loading your vaults"
+            className={styles.loadingGrid}
+          >
+            <div className={styles.skeleton} />
+            <div className={styles.skeleton} />
+          </div>
+        ) : null}
+        {incomplete && (
+          <div className={styles.inlineNotice} role="alert">
+            Some vaults could not be loaded.{" "}
+            <button type="button" onClick={() => void refresh()}>
+              Try again
+            </button>
+          </div>
+        )}
+        {!loading && !incomplete && !hasVaults && (
+          <div className={styles.emptyState}>
+            <h3>A shared goal starts here.</h3>
+            <p>
+              Create a room with people you know, join with an invite, or
+              support a campaign.
+            </p>
+            <div className={styles.actionPair}>
+              <Link href="/arisan/new" className={styles.primaryLink}>
+                Create a room
+              </Link>
+              <Link href="/arisan/join" className={styles.secondaryLink}>
+                Join a room
+              </Link>
             </div>
           </div>
-        </div>
-
-        {/* Your money: Arisan + Savings */}
-        <div
-          style={{
-            padding: "10px 4px 4px",
-            fontSize: 11,
-            fontWeight: 600,
-            letterSpacing: "0.1em",
-            textTransform: "uppercase",
-            color: T.slate,
-          }}
-        >
-          {t("vaults.yourMoney")}
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          <VaultTile
-            icon={Ico.refresh({ size: 18, c: T.action })}
-            title={t("vaults.arisanName")}
-            stat={pal && pal.ready ? t("vaults.arisanRound", { n: pal.cycleRound }) : t("common.loading")}
-            amountLabel={t("vaults.pot")}
-            amount={pal && pal.ready ? pal.potPesos : null}
-            onClick={() => router.push("/paluwagan")}
-          />
-          <VaultTile
-            icon={Ico.shield({ size: 18, c: T.action })}
-            title={t("vaults.savingsName")}
-            stat={
-              savHasGoal && sav && sav.ready && sav.hasGoal
-                ? t("vaults.savingsStatGoal", { pct: sav.pct })
-                : t("vaults.savingsStatStart")
-            }
-            amountLabel={t("vaults.saved")}
-            amount={savHasGoal && sav && sav.ready && sav.hasGoal ? sav.savedPesos : null}
-            progressPct={savHasGoal && sav && sav.ready && sav.hasGoal ? sav.pct : undefined}
-            onClick={() => router.push("/savings")}
-          />
-        </div>
-
-        {/* Preview tiles — Salapi Circles + Arisan Rooms (slim 2-col row). */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 10 }}>
-          <Card p={10} elevation className="sl-lift" style={{ cursor: "pointer" }} onClick={() => router.push("/circles")}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 9,
-                  background: T.warnTint,
-                  color: T.warn,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flex: "0 0 auto",
-                }}
-              >
-                {Ico.sparkle({ size: 14, c: T.warn })}
+        )}
+        {rooms?.ready && rooms.nextCursor !== null ? <Link href="/arisan" className={styles.secondaryLink} style={{ minHeight: 44 }}>Find older rooms</Link> : null}
+        <div className={styles.vaultStack}>
+          {myRooms.map((room) => (
+            <article key={room.id} className={`${styles.personalVault} ${styles.arisanVault}`}>
+              <div className={styles.vaultStamp} aria-hidden="true">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/illustrations/arisan.png" alt="" />
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                  {t("vaults.circlesName")}
+              <div className={styles.vaultContent}>
+                <div className={styles.cardTop}>
+                  <span className={styles.softLabel}>Arisan / Paluwagan</span>
+                  <span className={styles.roleLabel}>
+                    {room.isHost ? "Host" : "Member"}
+                  </span>
                 </div>
-                <div style={{ fontSize: 10, color: T.warn, fontWeight: 600, letterSpacing: "0.04em", marginTop: 1 }}>
-                  {t("home.circlesBadge")}
+                <div className={styles.vaultTitleRow}>
+                  <div>
+                    <h3>{room.name}</h3>
+                    <p>
+                      {room.status === "Open"
+                        ? room.memberCount === room.memberTarget
+                          ? "Fully joined · waiting for the host"
+                          : "Collecting members"
+                        : room.status === "Active"
+                          ? `Round ${room.round} · ${room.cadence.toLowerCase()}`
+                          : room.status === "Done"
+                            ? "All rounds complete"
+                            : "Room dissolved"}
+                    </p>
+                  </div>
+                </div>
+                <div className={styles.vaultBottomRow}>
+                  <dl className={styles.vaultStats}>
+                    <div>
+                      <dt>Contribution per round</dt>
+                      <dd>
+                        {formatLocal(room.sharePesos, currency)}
+                        <small>Indicative Testnet value</small>
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Target round pot</dt>
+                      <dd>
+                        {formatLocal(room.potPesos, currency)}
+                        <small>
+                          {room.memberCount}/{room.memberTarget} members
+                        </small>
+                      </dd>
+                    </div>
+                  </dl>
+                  <Link href={`/arisan/${room.id}`} className={styles.cardAction}>
+                    View room {Ico.chev({ size: 15, c: T.action })}
+                  </Link>
                 </div>
               </div>
-              {Ico.chev({ size: 12, c: T.slate })}
+            </article>
+          ))}
+          {mine.map((campaign) => {
+            const media = vaultCampaignMedia(campaign, PREVIEW);
+            const creator = campaign.config.creator;
+            const shortCreator = `${creator.slice(0, 6)}…${creator.slice(-6)}`;
+            return <article key={campaign.id} className={styles.campaignVault} aria-labelledby={`vault-campaign-${campaign.id}`}>
+              <header className={styles.campaignHero} data-has-photo={Boolean(media)}>
+                {media ? <Image src={media.coverSrc} alt="" fill sizes="(max-width: 440px) 100vw, 460px" className={styles.campaignCover} /> : null}
+                <div className={styles.campaignHeroContent}>
+                  <div className={styles.campaignHeroTop}>
+                    <span className={styles.campaignNumber}>{cardCopy.campaign} #{campaign.id}</span>
+                    <span className={styles.campaignRole}>
+                    {campaign.config.creator === campaigns?.viewer
+                      ? cardCopy.organizer
+                      : campaign.config.beneficiary === campaigns?.viewer
+                        ? cardCopy.beneficiary
+                        : campaign.config.approvers.includes(
+                              campaigns?.viewer ?? "",
+                            )
+                          ? cardCopy.approver
+                          : cardCopy.donor}
+                    </span>
+                  </div>
+                  <div>
+                    <span className={styles.campaignPhotoNote}>{media ? cardCopy.photo : cardCopy.noPhoto}</span>
+                    <h3 id={`vault-campaign-${campaign.id}`}>{campaign.title}</h3>
+                  </div>
+                </div>
+              </header>
+              <div className={styles.campaignBody}>
+                {media ? <Link href={media.organizerHref} className={styles.campaignOrganizer} aria-label={`${cardCopy.viewProfile}: ${media.organizerName}`}>
+                  <Image src={media.organizerPhotoSrc} alt={cardCopy.portrait} width={44} height={44} className={styles.campaignAvatar} />
+                  <span><small>{cardCopy.exampleOrganizer}</small><strong>{media.organizerName}</strong></span>
+                  {Ico.chev({size:14,c:T.action})}
+                </Link> : <a href={`https://stellar.expert/explorer/testnet/account/${creator}`} target="_blank" rel="noopener noreferrer" className={styles.campaignOrganizer}>
+                  <span className={styles.campaignAvatarFallback} aria-hidden="true">{Ico.vault({size:20,c:T.action})}</span>
+                  <span><small>{cardCopy.organizerWallet}</small><strong>{shortCreator}</strong></span>
+                  {Ico.link({size:14,c:T.action})}
+                </a>}
+                <div className={styles.campaignSummary}>
+                  <span>
+                    <strong>{formatStroops(campaign.escrow)}</strong> {cardCopy.inEscrow}
+                  </span>
+                  <span className={styles.softLabel}>
+                    {campaign.state === "PendingProof"
+                      ? cardCopy.review
+                      : campaign.state}
+                  </span>
+                </div>
+                {campaign.state === "PendingProof" && (
+                  <p className={styles.proofNote}>
+                    {campaign.proofHash
+                      ? `${campaign.approvals.length} of 2 required approvals`
+                      : "Awaiting the organizer's proof"}
+                  </p>
+                )}
+                <Link
+                  href={`/campaigns?id=${campaign.id}`}
+                  className={styles.cardAction}
+                >
+                  {cardCopy.viewCampaign} {Ico.chev({ size: 15, c: T.action })}
+                </Link>
+              </div>
+            </article>;
+          })}
+        </div>
+        {hasVaults && (
+          <p className={styles.fundNote}>
+            Shared pots and campaign escrow are separate from your available
+            wallet balance.
+          </p>
+        )}
+        {!PREVIEW &&
+          campaigns?.ok &&
+          campaigns.campaigns.length > 0 &&
+          BigInt(campaigns.campaigns.at(-1)!.id) > 1n && (
+            <Link href="/campaigns?mode=testnet" className={styles.cardAction}>
+              Browse older campaigns {Ico.chev({ size: 14, c: T.action })}
+            </Link>
+          )}
+      </section>
+      <section
+        className={styles.communitySection}
+        aria-label="Community Disaster Vault"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/illustrations/disaster.png"
+          alt="Hands supporting a community shelter"
+        />
+        <div>
+          <span className={styles.eyebrow}>Community pool</span>
+          <h2>Disaster Vault</h2>
+          <p>Two approvals. Time to review. Public proof.</p>
+          <Link href="/transparency">
+            View pool and payout requests {Ico.chev({ size: 14, c: "#fff" })}
+          </Link>
+        </div>
+        <span className={styles.communityStatus}>
+          {PREVIEW
+            ? "Example"
+            : pool?.ok
+              ? pool.active
+                ? "Active"
+                : "Paused"
+              : loading
+                ? "Loading"
+                : "Unavailable"}
+        </span>
+      </section>
+      <section className={styles.exploreSection}>
+        <div className={styles.sectionHeading}>
+          <h2>{hasVaults ? "Make room for more" : "Explore vaults"}</h2>
+          <span className={styles.smallMuted}>Choose how you pool or give</span>
+        </div>
+        <div className={hasVaults ? styles.compactExplore : styles.fullExplore}>
+          {choices.map((choice) => (
+            <Link
+              key={choice.href}
+              href={choice.href}
+              className={styles.exploreLink}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={`/illustrations/${choice.art}.png`} alt="" />
+              <div>
+                <h3>{choice.name}</h3>
+                <p>{hasVaults ? choice.action : choice.copy}</p>
+              </div>
+              {Ico.chev({ size: 15, c: T.action })}
+            </Link>
+          ))}
+        </div>
+          <Link href="/paluwagan" className={styles.exploreLink}>
+            <span className={styles.legacyIcon}>
+              {Ico.refresh({ size: 22, c: T.action })}
+            </span>
+            <div>
+              <h3>Original Paluwagan pool</h3>
+              <p>{hasLegacyCircle && legacyCircle?.ready ? `Shared pool · round ${legacyCircle.cycleRound}` : PREVIEW ? "Original shared-pool example" : "Original shared pool · Stellar Testnet"}</p>
             </div>
-          </Card>
-          <Card p={10} elevation className="sl-lift" style={{ cursor: "pointer" }} onClick={() => router.push("/arisan")}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 9,
-                  background: T.actionTint,
-                  color: T.action,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flex: "0 0 auto",
-                }}
-              >
-                {Ico.refresh({ size: 14, c: T.action })}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                  {t("arisan.title")}
-                </div>
-                <div style={{ fontSize: 10, color: T.warn, fontWeight: 600, letterSpacing: "0.04em", marginTop: 1 }}>
-                  {t("home.circlesBadge")}
-                </div>
-              </div>
-              {Ico.chev({ size: 12, c: T.slate })}
-            </div>
-          </Card>
-        </div>
-      </div>
-
-      <div style={{ padding: "14px 16px 0", display: "flex", justifyContent: "center" }}>
+            {Ico.chev({ size: 15, c: T.action })}
+          </Link>
+        <Link href="/savings" className={styles.exploreLink}>
+          <span className={styles.legacyIcon}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/illustrations/savings.png" alt="" width={32} height={34} />
+          </span>
+          <div><h3>Smart Savings</h3><p>{PREVIEW ? "Personal saving goals · local demo" : "Personal saving goals · Stellar Testnet"}</p></div>
+          {Ico.chev({ size: 15, c: T.action })}
+        </Link>
+      </section>
+      <footer className={styles.footer}>
         <PoweredByStellar />
-      </div>
+        <span>Public proof on Stellar Testnet.</span>
+      </footer>
     </div>
   );
 }
