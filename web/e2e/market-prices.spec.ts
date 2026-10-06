@@ -1,6 +1,9 @@
 import { readFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { test, expect, type Page } from "@playwright/test";
+import { circlesCopy } from "../lib/i18n/revamp-circles";
+import { homeCatalogCopy } from "../lib/i18n/revamp-home-catalog";
+import type { Locale } from "../lib/i18n/config";
 
 // Repository automated browser QA, localhost only. Not native Android or
 // live-user transaction proof. Main's actual API verification is separate.
@@ -17,7 +20,7 @@ function quote(now: number, price = .25, status: "fresh" | "stale" = "fresh", ag
   } };
 }
 
-async function setup(page: Page, priceBody: () => object, currency = "en") {
+async function setup(page: Page, priceBody: () => object, currency = "en", locale: Locale = "en") {
   const manifest = JSON.parse(readFileSync(".next/server/server-reference-manifest.json", "utf8"));
   const names = new Map(Object.entries(manifest.node as Record<string, { exportedName: string }>).map(([id, value]) => [id, value.exportedName]));
   expect([...names.values()]).toContain("walletState");
@@ -26,9 +29,9 @@ async function setup(page: Page, priceBody: () => object, currency = "en") {
   page.on("pageerror", error => errors.push(error.message));
   page.on("console", message => { if (message.type() === "error") errors.push(message.text()); });
   await page.addInitScript(selected => {
-    localStorage.setItem("salapi_locale", "en");
-    localStorage.setItem("salapi_currency", selected);
-  }, currency);
+    localStorage.setItem("salapi_locale", selected.locale);
+    localStorage.setItem("salapi_currency", selected.currency);
+  }, { currency, locale });
   await page.route("**/*", async route => {
     const request = route.request(), url = new URL(request.url());
     if (url.pathname === "/api/market-prices") {
@@ -155,6 +158,55 @@ test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () =>
     await expect(market.getByRole("status")).not.toContainText("$1,120");
     await expect(market.getByRole("status")).not.toContainText("$0");
     expect(fixture.calls.forbidden).toEqual([]); expect(fixture.errors).toEqual([]);
+  });
+
+  const fitCases: { state: "fresh" | "stale" | "unavailable"; locale: Locale; viewport: { width: number; height: number } }[] = [
+    ...(["fresh", "stale", "unavailable"] as const).map(state => ({ state, locale: state === "unavailable" ? "id" as const : "en" as const, viewport: { width: 1280, height: 800 } })),
+    ...(["tl", "id", "vi"] as const).map(locale => ({ state: "fresh" as const, locale, viewport: { width: 390, height: 844 } })),
+  ];
+  for (const { state, locale, viewport } of fitCases) test.describe(`${locale} ${viewport.width}x${viewport.height} ${state} market-state fit`, () => {
+    test.use({ viewport, isMobile: viewport.width < 1024, hasTouch: viewport.width < 1024 });
+    test(`full Home footer fits at ${viewport.width}x${viewport.height} with ${state} price status`, async ({ page }) => {
+      // The production app frame is shorter than its desktop browser viewport.
+      // Include the longer localized unavailable copy, not only short USD text.
+      const body = () => state === "unavailable"
+        ? { status: "unavailable", source: "CoinGecko", reason: "provider-unavailable" }
+        : quote(Date.now(), .25, state, state === "stale" ? 121_000 : 0);
+      const fixture = await setup(page, body, "en", locale);
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      const market = await openHome(page);
+      await expect(market).toHaveAttribute("data-market-value", state);
+      await expect(market.getByRole("status")).toHaveText(state === "unavailable" ? "Harga pasar tidak tersedia" : "≈ $2,500.00");
+      await expect(market.getByRole("link", { name: "CoinGecko", exact: true })).toBeVisible();
+      const catalog = page.getByTestId("home-circles-catalog");
+      await expect(catalog).toHaveAttribute("data-catalog-ready", "true");
+      await expect(page.locator("html")).toHaveAttribute("lang", locale);
+      await page.evaluate(async () => { await document.fonts.ready; });
+      const geometry = await page.evaluate(() => {
+        const frame = document.querySelector<HTMLElement>(".sl-app-frame")!, main = document.querySelector<HTMLElement>("#app-content")!, nav = document.querySelector<HTMLElement>(".sl-tabbar")!;
+        const controls = [...nav.querySelectorAll("button,button span")].map(node => node.getBoundingClientRect()).filter(rect => rect.height > 0 && rect.width > 0);
+        return { bottom: Math.min(innerHeight, frame.getBoundingClientRect().bottom, main.getBoundingClientRect().bottom, nav.getBoundingClientRect().top, ...controls.map(rect => rect.top)), scrollTop: main.scrollTop, documentScrollTop: document.scrollingElement?.scrollTop ?? 0 };
+      });
+      const c = circlesCopy(locale);
+      const footerControls = [
+        catalog.getByRole("link", { name: c("Sketch your own cause"), exact: true }),
+        catalog.getByRole("button", { name: homeCatalogCopy(locale, "Previous example cause"), exact: true }),
+        catalog.getByRole("button", { name: homeCatalogCopy(locale, "Next example cause"), exact: true }),
+      ];
+      mkdirSync(output, { recursive: true });
+      await page.screenshot({ path: join(output, viewport.width === 1280 ? `market-desktop-${state}-home-fit.png` : `market-mobile-${locale}-${state}-home-fit.png`), fullPage: false });
+      expect(geometry.scrollTop).toBe(0); expect(geometry.documentScrollTop).toBe(0);
+      for (const control of footerControls) {
+        await expect(control).toBeVisible();
+        const rect = await control.boundingBox(); expect(rect).not.toBeNull();
+        expect(rect!.y + rect!.height, `${state} footer must fit above the raised Send control`).toBeLessThanOrEqual(geometry.bottom + 1);
+        expect(rect!.height).toBeGreaterThanOrEqual(43.5); expect(rect!.width).toBeGreaterThanOrEqual(43.5);
+      }
+      await footerControls[2].click();
+      await expect(catalog.getByLabel(homeCatalogCopy(locale, "{current} of {count} example causes", { current: 2, count: 27 }), { exact: true })).toHaveText("02 / 27");
+      expect(await page.locator("#app-content").evaluate(node => node.scrollTop)).toBe(0);
+      expect(fixture.calls.forbidden).toEqual([]); expect(fixture.errors).toEqual([]);
+    });
   });
 
   test("Withdraw separates market estimate from fixed demo limit without submitting a withdrawal", async ({ page }) => {

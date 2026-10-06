@@ -211,9 +211,10 @@
   .walletAction { min-height: 44px; padding-block: 4px; }
   .walletActionIcon { width: 24px; height: 24px; }
 }
-/* Preserve the complete first card in short windows after adding the visible
-   market source and quote timestamp. Keep navigation touch targets unchanged. */
-@media (max-height: 760px) {
+/* Preserve the complete first card after adding the visible market source and
+   quote timestamp. Desktop app frames are only 94vh, so an 800px browser also
+   needs this compact spacing. Keep navigation touch targets unchanged. */
+@media (max-height: 820px) {
   .wallet { padding-top: 8px; padding-bottom: 8px; }
   .identity { padding-bottom: 4px; }
   .walletContent { padding-top: 4px; }
