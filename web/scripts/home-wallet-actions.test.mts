@@ -165,6 +165,19 @@ test("unknown, failed and zero balances keep wallet navigation without fabricati
   }
 });
 
+test("pending balance reserves the real currency amount height without an oversized loading row", () => {
+  for (const currency of LOCALES) {
+    const ui = render({ preview: false, wallet: null, currency });
+    const skeleton = nodes(ui.wallet).find(node => hasClass(node, "sl-skel"));
+    assert.ok(skeleton);
+    const size = currency === "id" || currency === "vi" ? 23 : currency === "tl" ? 29 : 32;
+    assert.equal((skeleton.props.style as { height: number }).height, size);
+    assert.equal((skeleton.props.style as { margin: string }).margin, "5px auto 0");
+    assert.equal(nodes(ui.wallet).some(node => node.type === "Peso"), false, "Pending state must not fabricate a balance");
+    assert.deepEqual(ui.calls, { read: 0, write: 0, storage: 0, network: 0 });
+  }
+});
+
 const css = parse(source("../app/home.module.css"));
 function rules(selector: string) {
   const found: Rule[] = []; css.walkRules(rule => { if (rule.selectors.includes(selector)) found.push(rule); }); return found;
