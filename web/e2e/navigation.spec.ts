@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { LOCALE_COOKIE } from "../lib/i18n/config";
+import { getCircle } from "../lib/circles/seed";
 
 const browserHealth = new WeakMap<Page, { errors: string[]; console: string[] }>();
 
@@ -7,13 +8,56 @@ const browserHealth = new WeakMap<Page, { errors: string[]; console: string[] }>
 // submit a signup, or authorize a financial transaction. Compare full routes so
 // lost mode/tab queries cannot pass as a correct return to the same pathname.
 async function expectRoute(page: Page, route: string) {
-  await expect(page).toHaveURL(new URL(route, page.url()).href);
+  await expect(page).toHaveURL(new URL(route, page.url()).href, { timeout: 20000 });
+  await renderedRoute(page);
+}
+
+// App Router updates the URL before its new screen has necessarily committed.
+// Wait for a route-specific body before using a shared header Back control.
+async function renderedRoute(page: Page) {
+  const { pathname, searchParams } = new URL(page.url());
+  const main = page.locator("#app-content");
+  const heading = (name: string) => main.getByRole("heading", { name, exact: true, level: 1 });
+  const visible = (locator: ReturnType<typeof heading>) => expect(locator).toBeVisible({ timeout: 20000 });
+  if (pathname === "/") {
+    await expect(page.getByTestId("home-circles-catalog")).toHaveAttribute("data-catalog-ready", "true", { timeout: 20000 });
+  } else if (pathname === "/circles" || (pathname === "/campaigns" && searchParams.get("mode") === "examples")) {
+    await visible(heading("A cause can bring us closer."));
+    await visible(main.getByRole("group", { name: "Example cause categories", exact: true }));
+  } else if (pathname === "/campaigns") {
+    await expect(page.getByTestId("home-circles-catalog")).toHaveCount(0, { timeout: 20000 });
+    await visible(heading("Give with clarity."));
+  } else if (pathname === "/circles/create") {
+    await visible(main.locator("#circle-draft-title"));
+  } else if (/^\/circles\/[^/]+\/organizer$/.test(pathname)) {
+    await visible(main.locator("h1#organizer-name"));
+  } else if (/^\/circles\/[^/]+\/donate$/.test(pathname)) {
+    await visible(heading("Donate"));
+  } else if (/^\/circles\/[^/]+\/manage$/.test(pathname)) {
+    await visible(heading("Care for the cause."));
+  } else if (/^\/circles\/[^/]+$/.test(pathname)) {
+    const circle = getCircle(pathname.split("/")[2]);
+    expect(circle, "Known example cause route").toBeDefined();
+    await visible(heading(circle!.title));
+    await visible(main.getByRole("tablist", { name: "Circle prototype details", exact: true }));
+  } else if (pathname === "/learn/fund") {
+    await visible(heading("Give with clarity."));
+    await visible(main.getByText("Choose a cause and read its terms before giving.", { exact: true }));
+  } else if (pathname === "/settings/language") {
+    await visible(main.getByRole("button", { name: /^English/ }));
+  } else if (pathname === "/receive") {
+    await visible(main.getByText(/^(Share your username or scan this code to receive Testnet XLM\.|Try receiving with your example username in this local preview\.)$/));
+  } else {
+    const titles: Record<string, string> = { "/vaults": "Vaults", "/learn": "Clear rules. Confident steps.", "/settings": "You", "/activity": "Activity", "/send": "Send by name.", "/withdraw": "Plan your cash out." };
+    expect(titles[pathname], "Route has a rendered-screen readiness assertion").toBeDefined();
+    await visible(heading(titles[pathname]));
+  }
 }
 
 async function appReady(page: Page) {
   // Wait for the shared client tracker, not a fixed sleep or an SSR-visible
   // header. Otherwise a pre-hydration click could be silently discarded.
-  await expect.poll(() => page.evaluate(() => Boolean(window.history.state?.__salapiNavigation))).toBe(true);
+  await expect.poll(() => page.evaluate(() => Boolean(window.history.state?.__salapiNavigation)), { timeout: 20000 }).toBe(true);
 }
 
 async function home(page: Page, route = "/") {
@@ -26,9 +70,10 @@ async function home(page: Page, route = "/") {
 }
 
 async function headerBack(page: Page) {
+  await renderedRoute(page);
   await appReady(page);
   // Creation also has an in-form Back; the first Back is its screen header.
-  const back = page.locator("#app-content").getByRole("button", { name: "Back", exact: true }).first();
+  const back = page.locator("#app-content").getByRole("button", { name: /^Back(?: to .+)?$/ }).first();
   await expect(back).toBeVisible();
   await expect(back).toBeEnabled();
   await back.click();
@@ -44,6 +89,7 @@ test.beforeEach(async ({ page, context, baseURL }) => {
   page.on("pageerror", error => health.errors.push(error.message));
   page.on("console", event => {
     if (event.type() !== "error" && event.type() !== "warning") return;
+    if (event.text() === "Service Worker registration blocked by Playwright") return;
     // Vercel's optional Preview feedback toolbar is not part of the app.
     const url = event.location().url;
     if (url.startsWith("https://vercel.live/_next-live/feedback/") || event.text().includes("https://vercel.live/_next-live/feedback/feedback.js")) return;
@@ -60,7 +106,7 @@ test.afterEach(async ({ page }) => {
 test("Home organizer, cause and create headers return to their actual Home entry", async ({ page }) => {
   const homeRoute = "/?entry=back-regression-home";
   let catalog = await home(page, homeRoute);
-  await catalog.getByRole("link", { name: "View example organizer profile: Maria S.", exact: true }).click();
+  await catalog.locator('article[data-example-cause="tino-relief"]').getByRole("link", { name: "View example organizer profile: Maria S.", exact: true }).click();
   await expectRoute(page, "/circles/tino-relief/organizer");
   await expect(page.getByRole("heading", { name: "Maria S.", exact: true })).toBeVisible();
   await headerBack(page);
@@ -101,6 +147,7 @@ test("Vaults discovery and D4 header Back return to Vaults rather than Home", as
   await page.getByRole("link", { name: /^Salapi Circles · prototype/ }).click();
   await expectRoute(page, "/circles");
   await page.getByRole("link", { name: "Explore this concept", exact: true }).first().click();
+  await expect(page).toHaveURL(/\/circles\/[a-z0-9-]+$/, { timeout: 20000 });
   await headerBack(page);
   await expectRoute(page, "/circles");
   await headerBack(page);
@@ -186,7 +233,7 @@ test("untrusted external predecessor is not used by app Back and fallback replac
 test("two rapid header clicks queue only one Back and cannot skip Home into external history", async ({ page }) => {
   await page.goto("about:blank#qa-rapid-back-origin");
   const catalog = await home(page, "/?entry=back-regression-rapid");
-  await catalog.getByRole("link", { name: "View example organizer profile: Maria S.", exact: true }).click();
+  await catalog.locator('article[data-example-cause="tino-relief"]').getByRole("link", { name: "View example organizer profile: Maria S.", exact: true }).click();
   await expectRoute(page, "/circles/tino-relief/organizer");
   await appReady(page);
   const back = page.locator("#app-content").getByRole("button", { name: "Back", exact: true }).first();
@@ -252,6 +299,7 @@ test("Discovery Back restores the full query, category, sort and main scroll pos
   const scrollTop = await page.locator("#app-content").evaluate(element => element.scrollTop);
   expect(scrollTop).toBeGreaterThan(0);
   await cause.click();
+  await expect(page).toHaveURL(/\/circles\/[a-z0-9-]+$/, { timeout: 20000 });
   await headerBack(page);
   await expectRoute(page, route);
   await expect(category).toHaveAttribute("aria-pressed", "true");
