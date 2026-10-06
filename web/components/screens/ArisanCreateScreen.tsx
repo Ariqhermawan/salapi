@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { arisanCreate, type ArisanCadence } from "@/app/actions";
 import { useT } from "@/components/I18nProvider";
 import {
@@ -11,13 +12,19 @@ import {
   IconButton,
   Card,
   Btn,
-  Chip,
 } from "@/components/ui/kit";
 import {
   CURRENCY,
   formatLocalAmount,
+  pesoFromLocal,
 } from "@/lib/ui/currency";
 import { useGoBack } from "@/lib/ui/useGoBack";
+import { isLocalPreview } from "@/lib/local-preview";
+import { moneyInputToStroops, pesosToStroopsExact } from "@/lib/money";
+import { useUnresolvedSubmission } from "@/lib/ui/useUnresolvedSubmission";
+import SubmissionStatusPanel from "@/components/ui/SubmissionStatusPanel";
+import styles from "./CampaignArisan.module.css";
+import { commitPreviewArisanSession, previewArisanRoomKey } from "./arisan-preview";
 
 const PRESETS_LOCAL: Record<string, number[]> = {
   // Display-currency presets per locale (illustrative).
@@ -30,15 +37,18 @@ const PRESETS_LOCAL: Record<string, number[]> = {
 const CADENCES: ArisanCadence[] = ["Weekly", "Biweekly", "Monthly"];
 
 export default function ArisanCreateScreen() {
+  const submission = useUnresolvedSubmission("arisan:rooms");
   const { t, currency } = useT();
   const router = useRouter();
   const goBack = useGoBack("/arisan");
-  const [pending, start] = useTransition();
+  const [transitionPending, start] = useTransition();
+  const pending = transitionPending || submission.locked;
   const [name, setName] = useState("");
   const [members, setMembers] = useState(3);
   const [shareLocal, setShareLocal] = useState<string>("");
   const [cadence, setCadence] = useState<ArisanCadence>("Weekly");
   const [error, setError] = useState<string | null>(null);
+  const [reviewing, setReviewing] = useState(false);
 
   const meta = CURRENCY[currency];
   const presets = PRESETS_LOCAL[meta.code] ?? PRESETS_LOCAL.USD;
@@ -47,25 +57,39 @@ export default function ArisanCreateScreen() {
   const lockedLocal = shareLocalNum * members;
 
   const canSubmit = useMemo(() => {
-    if (members < 3 || members > 20) return false;
-    if (shareLocalNum <= 0) return false;
-    return true;
-  }, [members, shareLocalNum]);
+    if (!Number.isInteger(members) || members < 3 || members > 20) return false;
+    if (!/^\d+(?:\.\d{1,7})?$/.test(shareLocal) || !Number.isFinite(shareLocalNum) || shareLocalNum <= 0) return false;
+    if (!Number.isFinite(lockedLocal) || !Number.isFinite(pesoFromLocal(shareLocalNum, currency))) return false;
+    const stroops = moneyInputToStroops({ amount: shareLocal, currency });
+    return stroops !== null && stroops > 0n && stroops <= pesosToStroopsExact("1000000000")!;
+  }, [members, shareLocalNum, shareLocal, lockedLocal, currency]);
 
   function submit() {
+    if (pending || !canSubmit) return;
     setError(null);
     start(async () => {
-      const r = await arisanCreate({
+      if (isLocalPreview) {
+        try {
+        const draft = JSON.stringify({ id: 9001, name: name.trim() || "New community arisan", members, share: shareLocalNum, sharePesos: pesoFromLocal(shareLocalNum, currency), currency, cadence });
+        if (!commitPreviewArisanSession([{ key: previewArisanRoomKey(9001), value: null }, { key: "salapi.preview.arisan-cancelled.9001", value: null }, { key: "salapi.preview.arisan-draft", value: draft }])) throw new Error("Preview room could not be saved.");
+        router.replace("/arisan/9001");
+        } catch { setError("Browser storage could not confirm the local room save. No room was opened and no tokens moved. Check the local room before retrying."); }
+        return;
+      }
+      try {
+      const r = await submission.run(() => arisanCreate({
         name: name.trim() || t("arisan.defaultName"),
         memberTarget: members,
         share: { amount: shareLocal, currency },
         cadence,
-      });
+      }));
+      if (!r) return;
       if (r.ok) {
         router.replace(`/arisan/${r.id}`);
       } else {
         setError(r.error || t("arisan.somethingWrong"));
       }
+      } catch { setError("Room creation was interrupted. Check your rooms before retrying."); }
     });
   }
 
@@ -78,13 +102,15 @@ export default function ArisanCreateScreen() {
 
   return (
     <div style={shell}>
+      <SubmissionStatusPanel guard={submission} />
       <AppBar
         leading={
-          <IconButton onClick={goBack}>{Ico.back({})}</IconButton>
+          <IconButton ariaLabel="Back to arisan rooms" onClick={reviewing ? () => setReviewing(false) : goBack}>{Ico.back({})}</IconButton>
         }
         title={t("arisan.create.title")}
       />
-
+      <header className={styles.formIntro}><div><span className={styles.eyebrow}>{reviewing ? "Step 2 of 2 · Review" : "Step 1 of 2 · Set the terms"}</span><h1>{reviewing ? "Check your circle." : "Start something together."}</h1><p>{isLocalPreview ? "Example data. Creating a room here only changes this local preview." : "Create a Testnet room, then invite people you know."}</p></div><Image className={styles.doodle} width={112} height={112} src="/illustrations/arisan.png" alt="People pooling funds together" /></header>
+      {reviewing ? <div className={styles.body}><section className={styles.review}><h2>{name.trim() || t("arisan.defaultName")}</h2><dl><dt>Members</dt><dd>{members}</dd><dt>Share per round</dt><dd>{formatLocalAmount(shareLocalNum,currency)}</dd><dt>Payout per draw</dt><dd>{formatLocalAmount(lockedLocal,currency)}</dd><dt>Your upfront deposit</dt><dd>{formatLocalAmount(lockedLocal,currency)}</dd><dt>Schedule</dt><dd>{t("arisan.cadence." + cadence)}</dd></dl><p className={styles.muted}>Each member deposits {members} × their share before the first draw. This is a rotating pool, with no interest or yield. Display currency is illustrative; live Testnet rooms move valueless XLM.</p></section>{error && <div role="alert" className={styles.error}>{error}</div>}<Btn disabled={pending} loading={pending} onClick={submit}>{isLocalPreview ? "Create local example room" : "Create Testnet room"}</Btn><Btn kind="secondary" disabled={pending} onClick={() => setReviewing(false)}>Edit terms</Btn></div> : <>
       <div style={{ padding: "8px 16px 0" }}>
         <Card p={16}>
           <Label>{t("arisan.create.nameLabel")}</Label>
@@ -93,6 +119,7 @@ export default function ArisanCreateScreen() {
             onChange={(e) => setName(e.target.value)}
             maxLength={40}
             placeholder={t("arisan.create.namePlaceholder")}
+            aria-label={t("arisan.create.nameLabel")}
             style={inputStyle}
           />
         </Card>
@@ -106,7 +133,8 @@ export default function ArisanCreateScreen() {
             <button
               onClick={() => setMembers((m) => Math.max(3, m - 1))}
               style={stepBtn}
-              aria-label="decrement"
+              aria-label="Remove a member"
+              disabled={members <= 3}
             >
               −
             </button>
@@ -116,7 +144,8 @@ export default function ArisanCreateScreen() {
             <button
               onClick={() => setMembers((m) => Math.min(20, m + 1))}
               style={stepBtn}
-              aria-label="increment"
+              aria-label="Add a member"
+              disabled={members >= 20}
             >
               +
             </button>
@@ -138,6 +167,7 @@ export default function ArisanCreateScreen() {
               inputMode="decimal"
               onChange={(e) => setShareLocal(e.target.value.replace(/[^0-9.]/g, ""))}
               placeholder="0"
+              aria-label={t("arisan.create.shareLabel")}
               style={{ ...inputStyle, fontSize: 24, fontWeight: 600, padding: "8px 0" }}
             />
           </div>
@@ -188,7 +218,7 @@ export default function ArisanCreateScreen() {
 
       {/* Locked preview */}
       <div style={{ padding: "12px 16px 0" }}>
-        <Card p={16} style={{ background: T.actionTint }}>
+        <Card p={20} style={{ background: "#F2EFE7" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             {Ico.lock({ size: 18, c: T.action })}
             <div style={{ flex: 1 }}>
@@ -206,6 +236,8 @@ export default function ArisanCreateScreen() {
           <div style={{ marginTop: 10, fontSize: 12, color: T.slate, lineHeight: 1.5 }}>
             {t("arisan.create.lockedBody")}
           </div>
+          <p className={styles.muted} style={{ marginTop: 8 }}>Upfront deposit per member = {members} × the share. It funds all {members} rounds before anyone receives a payout.</p>
+          {!isLocalPreview && <p className={styles.muted} style={{ marginTop: 8 }}>Current Testnet demo timing: joining closes about 2 minutes after creation. The host must start the full room before the first draw at about 3 minutes. Weekly, biweekly and monthly describe later rounds.</p>}
         </Card>
       </div>
 
@@ -220,17 +252,18 @@ export default function ArisanCreateScreen() {
       <div style={{ padding: "20px 16px 0" }}>
         <Btn
           kind="primary"
-          onClick={submit}
+          onClick={() => setReviewing(true)}
           disabled={!canSubmit || pending}
           loading={pending}
         >
-          {t("arisan.create.cta")}
+          Review room terms
         </Btn>
       </div>
 
       <div style={{ padding: "12px 24px 0", fontSize: 12, color: T.slate, lineHeight: 1.5, textAlign: "center" }}>
         {t("arisan.create.footer")}
       </div>
+      </>}
     </div>
   );
 }

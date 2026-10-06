@@ -5,6 +5,7 @@ import { CONTRACTS, RPC_URL, readContract, invokeAs, sc, txLink, donationCampaig
 import { currentWalletPublicKey, getAuthenticatedSigner } from "@/lib/server/userWallet";
 import { campaignAmount } from "@/lib/campaign-money";
 import { campaignId, campaignError, campaignStruct, parseCampaignConfig, proofHash, publicProofUrl, type Campaign } from "@/lib/campaign";
+import { isLocalPreview } from "@/lib/local-preview";
 
 type RawCampaign = Omit<Campaign, "id" | "config" | "total" | "escrow" | "state" | "proofHash" | "proofUrl" | "contribution"> & {
   id: bigint; config: Omit<Campaign["config"], "funding_deadline" | "review_deadline"> & { funding_deadline: bigint; review_deadline: bigint };
@@ -24,6 +25,7 @@ function serialize(c: RawCampaign, contribution = { amount: "0", refunded: false
     proofUrl: c.proof_url, approvals: c.approvals, contribution };
 }
 export async function campaignState(id = "", before = "0") {
+  if (isLocalPreview) return { ok: false as const, error: "Local preview does not read live campaign state." };
   try {
     const contractId = await deployment();
     const [raw, viewer, now] = await Promise.all([
@@ -39,6 +41,7 @@ export async function campaignState(id = "", before = "0") {
   } catch (error) { return { ok: false as const, error: campaignError(error) }; }
 }
 export async function campaignEvents() {
+  if (isLocalPreview) return { ok: false as const, error: "Local preview does not read live campaign events." };
   try {
     const id = await deployment();
     const server = new rpc.Server(RPC_URL);
@@ -54,12 +57,14 @@ export async function campaignEvents() {
 // Authentication is mandatory for every UI write, including donations/refunds.
 // Caller addresses never come from request input; no shared-demo-wallet fallback.
 async function write(make: (who: string, id: string) => Promise<{ method: string; args: xdr.ScVal[] }>) {
+  if (isLocalPreview) return { ok: false as const, error: "Local preview cannot submit campaign transactions." };
   try {
     const signer = await getAuthenticatedSigner();
     const id = await deployment();
     const { method, args } = await make(signer.publicKey, id);
     const result = await invokeAs(signer.secret, id, method, args);
     return result.ok ? { ok: true as const, hash: result.hash, link: txLink(result.hash), value: String(result.value ?? "") }
+      : result.pending ? { ok: false as const, pending: true as const, hash: result.hash, link: txLink(result.hash), error: result.error }
       : { ok: false as const, error: campaignError(result.error) };
   } catch (error) { return { ok: false as const, error: campaignError(error) }; }
 }

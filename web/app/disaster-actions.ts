@@ -5,6 +5,7 @@ import { disasterId, readContract, invokeAs, sc, txLink, stroopsToPesos, fmtPeso
 import { currentWalletPublicKey, getAuthenticatedSigner, getSigner } from "@/lib/server/userWallet";
 import { disasterError, disasterProposalId, parseDisasterAction, requireDisasterMembership } from "@/lib/disaster";
 import { moneyInputToStroops, pesosToStroopsExact, type MoneyInput } from "@/lib/money";
+import { isLocalPreview } from "@/lib/local-preview";
 
 type Config = { signers: string[]; token: string; cap_bps: number; timelock_ledgers: number };
 type Proposal = { id: bigint; proposer: string; action: ["Disburse", string, bigint] | ["Pause"] | ["Unpause"];
@@ -25,6 +26,7 @@ async function deployment() {
 }
 
 export async function disasterState() {
+  if (isLocalPreview) return { ok: false as const, error: "Local preview does not read the live disaster pool." };
   try {
     const { id, cfg } = await deployment();
     const state = await readContract(id, "status") as Status;
@@ -40,6 +42,7 @@ export async function disasterState() {
 }
 
 export async function disasterProposals(before = "0") {
+  if (isLocalPreview) return { ok: false as const, error: "Local preview does not read live disaster proposals." };
   try {
     const cursor = disasterProposalId(before, true);
     const { id } = await deployment();
@@ -57,6 +60,7 @@ export async function disasterProposals(before = "0") {
 }
 
 export async function disasterEvents() {
+  if (isLocalPreview) return { ok: false as const, error: "Local preview does not read live disaster events." };
   try {
     const id = disasterId();
     if (!id) throw new Error("D3 deployment is not configured");
@@ -75,6 +79,7 @@ export async function disasterEvents() {
 }
 
 export async function disasterContribute(input: MoneyInput) {
+  if (isLocalPreview) return { ok: false as const, error: "Local preview cannot submit contributions." };
   try {
     const amount = moneyInputToStroops(input);
     if (amount == null || amount <= 0n || amount > pesosToStroopsExact("1000000000")!)
@@ -83,6 +88,7 @@ export async function disasterContribute(input: MoneyInput) {
     const signer = await getSigner();
     const result = await invokeAs(signer.secret, id, "contribute", [sc.addr(signer.publicKey), sc.i128(amount)]);
     return result.ok ? { ok: true as const, hash: result.hash, link: txLink(result.hash) }
+      : result.pending ? { ok: false as const, pending: true as const, hash: result.hash, link: txLink(result.hash), error: result.error }
       : { ok: false as const, error: disasterError(result.error) };
   } catch (error) {
     return { ok: false as const, error: error instanceof Error ? error.message : "Contribution failed" };
@@ -90,12 +96,14 @@ export async function disasterContribute(input: MoneyInput) {
 }
 
 async function privileged(method: "propose" | "approve" | "execute", args: xdr.ScVal[]) {
+  if (isLocalPreview) return { ok: false as const, error: "Local preview cannot submit signer actions." };
   try {
     const signer = await getAuthenticatedSigner();
     const { id, cfg } = await deployment();
     requireDisasterMembership(signer.publicKey, cfg.signers, signer.demo);
     const result = await invokeAs(signer.secret, id, method, [sc.addr(signer.publicKey), ...args]);
     return result.ok ? { ok: true as const, hash: result.hash, link: txLink(result.hash) }
+      : result.pending ? { ok: false as const, pending: true as const, hash: result.hash, link: txLink(result.hash), error: result.error }
       : { ok: false as const, error: disasterError(result.error) };
   } catch (error) {
     return { ok: false as const, error: error instanceof Error ? error.message : "Signer action failed" };

@@ -7,7 +7,9 @@ import { supabaseConfigured } from "@/lib/supabase/env";
 import { T, Ico, Btn, Wordmark, TestnetPill, PoweredByStellar } from "@/components/ui/kit";
 import { SalapiMark } from "@/components/ui/brand";
 import { useT } from "@/components/I18nProvider";
+import { moneyCopy, moneyMessage } from "@/lib/i18n/revamp-money";
 import { authRedirectPath } from "@/lib/authRedirect";
+import { isLocalPreview } from "@/lib/local-preview";
 
 function GoogleMark() {
   return (
@@ -23,14 +25,15 @@ function GoogleMark() {
 
 export default function SignInScreen() {
   const router = useRouter();
-  const { t } = useT();
+  const { t, locale } = useT();
+  const m = moneyCopy(locale);
   const searchParams = useSearchParams();
   const [pending, start] = useTransition();
   const [busy, setBusy] = useState(false);
   const [emailMode, setEmailMode] = useState(false);
   const submitting = useRef(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const configured = supabaseConfigured();
+  const configured = !isLocalPreview && supabaseConfigured();
   const next = authRedirectPath(searchParams?.get("next") ?? null);
 
   // If auth/callback bounced us here with ?error=oauth (exchangeCodeForSession
@@ -41,7 +44,7 @@ export default function SignInScreen() {
     searchParams?.get("error") === "oauth" ? t("signin.oauthError") : null;
   const authError = submitError ?? urlError;
 
-  const enter = () => start(() => void router.push("/"));
+  const enter = () => start(() => void router.push(next));
 
   async function google() {
     if (submitting.current) return;
@@ -53,6 +56,8 @@ export default function SignInScreen() {
       // Keep the requested in-app destination in a short-lived first-party
       // cookie. The callback URL stays exact (and therefore remains on the
       // Supabase allow-list) while the path survives the external OAuth hop.
+      // User-click OAuth handoff cookie; not a render-time global mutation.
+      // eslint-disable-next-line react-hooks/immutability
       document.cookie = `salapi_auth_next=${encodeURIComponent(next)}; Path=/; Max-Age=600; SameSite=Lax`;
       const supabase = createSupabaseBrowser();
       const { error } = await supabase.auth.signInWithOAuth({
@@ -62,14 +67,14 @@ export default function SignInScreen() {
       if (error) {
         submitting.current = false;
         setBusy(false);
-        setSubmitError(error.message || "Couldn't start Google sign-in.");
+        setSubmitError(error.message || m("Couldn't start Google sign-in."));
       }
       // success → browser is redirecting to Google
     } catch (e) {
       submitting.current = false;
       setBusy(false);
       setSubmitError(
-        e instanceof Error ? e.message : "Couldn't start Google sign-in."
+        e instanceof Error ? e.message : m("Couldn't start Google sign-in.")
       );
     }
   }
@@ -116,7 +121,7 @@ export default function SignInScreen() {
         <div style={{ width: 54, height: 54, borderRadius: 16, background: "linear-gradient(160deg,#2563EB,#0B1220)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14, boxShadow: "0 14px 30px -10px rgba(37,99,235,.5)" }}>
           <SalapiMark size={33} c="#fff" />
         </div>
-        <div style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em", textAlign: "center", lineHeight: 1.2 }}>{t("signin.welcome")}</div>
+        <div style={{ fontSize: 32, fontWeight: 800, letterSpacing: "-0.04em", textAlign: "center", lineHeight: 1.12 }}>{t("signin.welcome")}</div>
         <div style={{ marginTop: 4, fontSize: 13, color: T.slate, textAlign: "center" }}>{t("signin.subtitle")}</div>
       </div>
 
@@ -131,7 +136,7 @@ export default function SignInScreen() {
             alignItems: "flex-start",
             padding: "12px 14px",
             borderRadius: 12,
-            background: T.actionTint,
+            background: "#F2EFE7",
           }}
         >
           <div style={{ marginTop: 1 }}>{Ico.shield({ size: 16, c: T.action })}</div>
@@ -149,13 +154,14 @@ export default function SignInScreen() {
       <div style={{ padding: "16px 16px 0", display: "flex", flexDirection: "column", gap: 8 }}>
         {authError && (
           <div role="alert" style={{ background: "#FEF2F2", color: "#B91C1C", border: "1px solid #FECACA", borderRadius: 12, padding: "10px 12px", fontSize: 13, lineHeight: 1.4, textAlign: "center" }}>
-            {authError}
+            {moneyMessage(locale, authError)}
           </div>
         )}
-        <Btn kind="primary" disabled={working} loading={working} leading={!working && <GoogleMark />} onClick={google}>
-          {busy && !emailMode ? t("signin.redirecting") : t("signin.google")}
+        <Btn kind="primary" disabled={working} loading={working} leading={configured && !working && <GoogleMark />} onClick={google}>
+          {isLocalPreview ? m("Enter local preview") : !configured ? m("Explore demo") : busy && !emailMode ? t("signin.redirecting") : t("signin.google")}
         </Btn>
-        <Btn kind="secondary" disabled={working} onClick={enter}>{t("signin.phone")}</Btn>
+        <Btn kind="secondary" disabled onClick={enter}>{m("Phone sign-in · coming soon")}</Btn>
+        {configured && <Btn kind="quiet" disabled={working} onClick={enter}>{m("Explore as guest")}</Btn>}
         <Btn kind="ghost" disabled={working || !configured} onClick={() => setEmailMode(!emailMode)}>{t("signin.email")}</Btn>
         {emailMode && configured && (
           <form onSubmit={emailSignIn} style={{ display: "grid", gap: 10, marginTop: 4 }}>
@@ -180,7 +186,7 @@ export default function SignInScreen() {
           {configured ? t("signin.footerConfigured") : t("signin.footerSandbox")}
         </div>
         <div style={{ fontSize: 11, color: T.slate, lineHeight: 1.5, marginBottom: 10 }}>
-          {t("signin.terms")}
+          {m("Explore Salapi on Stellar Testnet. Read the")} <a href="/terms" style={{ color: T.action }}>{m("Testnet terms")}</a> {m("and")} <a href="/privacy" style={{ color: T.action }}>{m("privacy information")}</a> {m("before using an account.")}
         </div>
         <div style={{ display: "flex", justifyContent: "center" }}>
           <PoweredByStellar />

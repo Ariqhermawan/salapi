@@ -3,18 +3,26 @@
 // Zero-dependency motion kit. Design-agnostic primitives the eventual
 // claude.ai/design output can compose. Honors prefers-reduced-motion.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+
+const REDUCED_QUERY = "(prefers-reduced-motion: reduce)";
+function reducedMotionSnapshot() {
+  return typeof window !== "undefined" && !!window.matchMedia?.(REDUCED_QUERY).matches;
+}
+function subscribeReducedMotion(notify: () => void) {
+  const media = window.matchMedia?.(REDUCED_QUERY);
+  if (!media) return () => {};
+  if (media.addEventListener) {
+    media.addEventListener("change", notify);
+    return () => media.removeEventListener("change", notify);
+  }
+  media.addListener(notify);
+  return () => media.removeListener(notify);
+}
+function serverReducedMotionSnapshot() { return false; }
 
 export function useReducedMotion() {
-  const [reduced, setReduced] = useState(false);
-  useEffect(() => {
-    const m = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setReduced(m.matches);
-    const fn = () => setReduced(m.matches);
-    m.addEventListener("change", fn);
-    return () => m.removeEventListener("change", fn);
-  }, []);
-  return reduced;
+  return useSyncExternalStore(subscribeReducedMotion, reducedMotionSnapshot, serverReducedMotionSnapshot);
 }
 
 /** Smoothly counts a number up when it changes (e.g. the balance). */
@@ -29,13 +37,18 @@ export function CountUp({
   duration?: number;
   className?: string;
 }) {
-  const [n, setN] = useState(value);
-  const from = useRef(value);
   const reduced = useReducedMotion();
+  const immediate = reduced || !Number.isFinite(duration) || duration <= 0;
+  const [display, setDisplay] = useState({ n: value, immediate });
+  const from = useRef(value);
+  // Reduced-motion values are derived immediately, not one effect later.
+  // Remember that displayed value so turning motion back on never flashes stale money.
+  if (display.immediate !== immediate || (immediate && display.n !== value)) {
+    setDisplay({ n: immediate ? value : display.n, immediate });
+  }
 
   useEffect(() => {
-    if (reduced) {
-      setN(value);
+    if (immediate) {
       from.current = value;
       return;
     }
@@ -45,18 +58,19 @@ export function CountUp({
     const tick = (t: number) => {
       const p = Math.min(1, (t - start) / duration);
       const eased = 1 - Math.pow(1 - p, 3);
-      setN(a + (value - a) * eased);
+      const n = a + (value - a) * eased;
+      from.current = n;
+      setDisplay({ n, immediate: false });
       if (p < 1) raf = requestAnimationFrame(tick);
-      else from.current = value;
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [value, duration, reduced]);
+  }, [value, duration, immediate]);
 
   return (
     <span className={className}>
       {prefix}
-      {Math.round(n).toLocaleString("en-PH")}
+      {Math.round(immediate ? value : display.n).toLocaleString("en-PH")}
     </span>
   );
 }
@@ -117,26 +131,27 @@ export function SuccessCheck({ size = 56 }: { size?: number }) {
 }
 
 /** Tasteful confetti burst (DOM, no canvas, auto-cleans). */
+const CONFETTI_COLORS = ["#2563eb", "#059669", "#f59e0b", "#1d4ed8"];
+const CONFETTI_PARTICLES = Array.from({ length: 28 }, (_, i) => ({
+  left: `${30 + ((i * 17) % 41)}%`,
+  background: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+  borderRadius: i % 2 ? "50%" : "2px",
+  animation: `s-confetti ${(900 + ((i * 137) % 1000)) / 1000}s ${((i * 37) % 200) / 1000}s ease-out forwards`,
+}));
 export function Confetti({ fire }: { fire: boolean }) {
   const reduced = useReducedMotion();
   if (!fire || reduced) return null;
-  const colors = ["#2563eb", "#059669", "#f59e0b", "#1d4ed8"];
   return (
     <div className="pointer-events-none fixed inset-0 z-50 overflow-hidden">
-      {Array.from({ length: 28 }).map((_, i) => (
+      {CONFETTI_PARTICLES.map((particle, i) => (
         <span
           key={i}
           style={{
             position: "absolute",
-            left: `${50 + (Math.random() * 40 - 20)}%`,
+            ...particle,
             top: "30%",
             width: 8,
             height: 8,
-            background: colors[i % colors.length],
-            borderRadius: i % 2 ? "50%" : "2px",
-            animation: `s-confetti ${0.9 + Math.random()}s ${
-              Math.random() * 0.2
-            }s ease-out forwards`,
           }}
         />
       ))}

@@ -20,6 +20,7 @@ import {
   nativeBalanceToStroops,
   pesosToStroopsExact,
 } from "@/lib/money";
+import { isLocalPreview } from "@/lib/local-preview";
 
 export const RPC_URL =
   process.env.STELLAR_RPC_URL ?? "https://soroban-testnet.stellar.org";
@@ -120,7 +121,62 @@ export async function readContract(
 export type TxResult = { ok: true; hash: string; value: unknown } | {
   ok: false;
   error: string;
+  pending?: false;
+  hash?: string;
+} | {
+  ok: false;
+  error: string;
+  pending: true;
+  hash: string;
 };
+
+function unconfirmedTransaction(hash: string): TxResult {
+  return { ok: false, pending: true, hash,
+    error: `Transaction status is unknown. Do not resubmit. Check Testnet hash ${hash}.` };
+}
+
+function confirmedTransaction(hash: string, result: rpc.Api.GetTransactionResponse): TxResult {
+  if (result.status === "SUCCESS")
+    return { ok: true, hash, value: result.returnValue != null ? scValToNative(result.returnValue) : null };
+  if (result.status === "FAILED")
+    return { ok: false, hash, error: `Transaction failed on Testnet. hash=${hash} resultXdr=${result.resultXdr.toXDR("base64").slice(0, 200)}` };
+  return unconfirmedTransaction(hash);
+}
+
+/** Reconcile one known envelope. This never signs, prepares, or resubmits. */
+export async function submittedTransactionStatus(hash: string): Promise<TxResult> {
+  if (isLocalPreview) return { ok: false, error: "Local preview cannot query submitted transactions." };
+  if (typeof hash !== "string" || !/^[a-f0-9]{64}$/.test(hash))
+    return { ok: false, error: "Invalid transaction hash" };
+  try {
+    return confirmedTransaction(hash, await server().getTransaction(hash));
+  } catch {
+    return unconfirmedTransaction(hash);
+  }
+}
+
+async function submitAndConfirm(
+  srv: rpc.Server,
+  transaction: Parameters<rpc.Server["sendTransaction"]>[0],
+): Promise<TxResult> {
+  // Preserve the signed identity even if the submission response is lost. A
+  // fresh transaction is NOT a safe retry of an unknown accepted envelope.
+  const hash = transaction.hash().toString("hex");
+  try {
+    const sent = await srv.sendTransaction(transaction);
+    if (sent.status === "ERROR")
+      return { ok: false, hash, error: JSON.stringify(sent.errorResult ?? sent) };
+    let result = await srv.getTransaction(hash);
+    for (let i = 0; i < 30 && result.status === "NOT_FOUND"; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      result = await srv.getTransaction(hash);
+    }
+    return confirmedTransaction(hash, result);
+  } catch {
+    // The call may have reached the network before failing locally.
+    return unconfirmedTransaction(hash);
+  }
+}
 
 /** Build, sign with the demo signer, submit, and await a testnet tx. */
 export async function invoke(
@@ -128,6 +184,7 @@ export async function invoke(
   method: string,
   args: xdr.ScVal[] = []
 ): Promise<TxResult> {
+  if (isLocalPreview) return { ok: false, error: "Local preview cannot submit transactions." };
   try {
     const srv = server();
     const kp = demoKeypair();
@@ -142,25 +199,7 @@ export async function invoke(
 
     const prepared = await srv.prepareTransaction(built);
     prepared.sign(kp);
-    const sent = await srv.sendTransaction(prepared);
-    if (sent.status === "ERROR") {
-      return { ok: false, error: JSON.stringify(sent.errorResult ?? sent) };
-    }
-    // poll
-    let gt = await srv.getTransaction(sent.hash);
-    for (let i = 0; i < 30 && gt.status === "NOT_FOUND"; i++) {
-      await new Promise((r) => setTimeout(r, 1000));
-      gt = await srv.getTransaction(sent.hash);
-    }
-    if (gt.status === "SUCCESS") {
-      return {
-        ok: true,
-        hash: sent.hash,
-        value:
-          gt.returnValue != null ? scValToNative(gt.returnValue) : null,
-      };
-    }
-    return { ok: false, error: `tx ${gt.status}` };
+    return await submitAndConfirm(srv, prepared);
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
@@ -213,6 +252,7 @@ export async function invokeAs(
   method: string,
   args: xdr.ScVal[] = []
 ): Promise<TxResult> {
+  if (isLocalPreview) return { ok: false, error: "Local preview cannot submit transactions." };
   try {
     const srv = server();
     const kp = Keypair.fromSecret(secret);
@@ -226,32 +266,7 @@ export async function invokeAs(
       .build();
     const prepared = await srv.prepareTransaction(built);
     prepared.sign(kp);
-    const sent = await srv.sendTransaction(prepared);
-    if (sent.status === "ERROR")
-      return { ok: false, error: JSON.stringify(sent.errorResult ?? sent) };
-    let gt = await srv.getTransaction(sent.hash);
-    for (let i = 0; i < 30 && gt.status === "NOT_FOUND"; i++) {
-      await new Promise((r) => setTimeout(r, 1000));
-      gt = await srv.getTransaction(sent.hash);
-    }
-    if (gt.status === "SUCCESS")
-      return {
-        ok: true,
-        hash: sent.hash,
-        value: gt.returnValue != null ? scValToNative(gt.returnValue) : null,
-      };
-    // tx executed and failed — surface enough for the caller to diagnose.
-    type FailMeta = {
-      resultXdr?: { toXDR?: (fmt: string) => string };
-      resultMetaXdr?: { toXDR?: (fmt: string) => string };
-    };
-    const meta = gt as unknown as FailMeta;
-    const xdr1 = meta.resultXdr?.toXDR?.("base64") ?? "";
-    const xdr2 = meta.resultMetaXdr?.toXDR?.("base64") ?? "";
-    return {
-      ok: false,
-      error: `tx ${gt.status} hash=${sent.hash} resultXdr=${xdr1.slice(0, 200)}`,
-    };
+    return await submitAndConfirm(srv, prepared);
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
@@ -299,6 +314,7 @@ export async function invokeSponsored(
   method: string,
   args: xdr.ScVal[] = []
 ): Promise<TxResult> {
+  if (isLocalPreview) return { ok: false, error: "Local preview cannot submit transactions." };
   const sk = sponsorKeypair();
   if (!sk) {
     console.warn(
@@ -331,21 +347,7 @@ export async function invokeSponsored(
     );
     bump.sign(sk); // sponsor signs the outer envelope
 
-    const sent = await srv.sendTransaction(bump);
-    if (sent.status === "ERROR")
-      return { ok: false, error: JSON.stringify(sent.errorResult ?? sent) };
-    let gt = await srv.getTransaction(sent.hash);
-    for (let i = 0; i < 30 && gt.status === "NOT_FOUND"; i++) {
-      await new Promise((r) => setTimeout(r, 1000));
-      gt = await srv.getTransaction(sent.hash);
-    }
-    if (gt.status === "SUCCESS")
-      return {
-        ok: true,
-        hash: sent.hash,
-        value: gt.returnValue != null ? scValToNative(gt.returnValue) : null,
-      };
-    return { ok: false, error: `tx ${gt.status} hash=${sent.hash}` };
+    return await submitAndConfirm(srv, bump);
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }

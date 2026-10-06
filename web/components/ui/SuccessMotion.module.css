@@ -1,0 +1,7 @@
+.notice{display:flex;align-items:center;gap:12px;min-width:0;padding:15px;border:1px solid #cce5dc;border-radius:18px;background:#eaf7f1;color:#115d4c;animation:arrive .32s ease-out both}
+.notice strong{display:block;font-size:14px;line-height:1.4;font-weight:700;overflow-wrap:anywhere}
+.mark{width:48px;height:48px;flex:0 0 48px;overflow:visible;animation:pop .42s cubic-bezier(.2,.8,.3,1) both}
+.halo{fill:#d1eee1}.ring{fill:none;stroke:#079675;stroke-width:2;stroke-dasharray:108;stroke-dashoffset:108;animation:trace .55s .05s ease forwards}.check{fill:none;stroke:#079675;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:26;stroke-dashoffset:26;animation:trace .32s .3s ease forwards}
+.body{margin-top:4px;font-size:12px;line-height:1.5;color:#47685e}.body p{margin:0}.body a{color:#17604e;text-decoration:underline}
+@keyframes trace{to{stroke-dashoffset:0}}@keyframes pop{from{transform:scale(.72)}to{transform:scale(1)}}@keyframes arrive{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.notice,.mark,.ring,.check{animation:none}.ring,.check{stroke-dashoffset:0}}

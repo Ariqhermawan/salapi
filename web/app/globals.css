@@ -1,11 +1,21 @@
 @import "tailwindcss";
 
+/* Route/state wrappers can contain fixed dialogs. Keep their entry fade free
+   of transforms and persistent stacking contexts, including instant opens. */
+.sl-state-enter{animation:sl-section-in .28s ease-out backwards}
+.sl-state-enter:has([aria-modal="true"]){animation:none}
+@keyframes sl-section-in{from{opacity:.6}to{opacity:1}}
+.sl-success-feedback{position:absolute;left:14px;right:14px;bottom:110px;z-index:70;filter:drop-shadow(0 8px 16px #102b5120)}
+.sl-success-feedback>button{position:absolute;right:0;top:0;min-width:44px;min-height:44px;border:0;border-radius:12px;background:transparent;color:#115d4c;font-size:22px;cursor:pointer}
+.sl-success-feedback>div{padding-right:44px}
+@media(prefers-reduced-motion:reduce){.sl-state-enter{animation:none}}
+
 /* ── Invisible Rails — design tokens ─────────────────────────────── */
 @theme {
-  --color-ink: #0b1220;
-  --color-slate: #5b6472;
-  --color-hairline: #e6e8ee;
-  --color-canvas: #f4f6fb;
+  --color-ink: #0c1730;
+  --color-slate: #586985;
+  --color-hairline: #dfe6f0;
+  --color-canvas: #f3f7fc;
   --color-surface: #ffffff;
   --color-action: #2563eb;
   --color-action-deep: #1d4ed8;
@@ -186,12 +196,15 @@
 
 /* ── Desktop browser frame — the app as a phone on a calm dark backdrop.
    Mobile is untouched (full-screen app); this only kicks in ≥1024px. ── */
+.sl-shell {
+  background:
+    radial-gradient(ellipse at 58% 0%, rgba(31, 64, 135, .3), transparent 65%),
+    radial-gradient(ellipse at 100% 100%, rgba(8, 57, 65, .24), transparent 58%),
+    #0b1220;
+}
 @media (min-width: 1024px) {
-  .sl-shell {
-    background:
-      radial-gradient(circle at 50% 0%, rgba(37,99,235,0.18), transparent 60%),
-      radial-gradient(circle at 100% 100%, rgba(5,150,105,0.12), transparent 60%),
-      #0b1220;
+  body {
+    background: #0b1220;
   }
 }
 
@@ -207,6 +220,60 @@
 .sl-hscroll::-webkit-scrollbar {
   display: none;
 }
+
+/* Quiet blue-white surfaces and visible interaction states. */
+/* Keep fixed app dialogs inside this visible frame, not the scrolled route
+   or the desktop marketing viewport. Container queries alone do not do this. */
+.sl-app-frame { box-shadow: 0 28px 80px -30px rgba(0,7,20,.65); container-type:inline-size; contain:layout; }
+.sl-main { scrollbar-width: thin; scrollbar-color: #ccd7e8 transparent; scroll-behavior: smooth; }
+.sl-preview-banner { display:flex; align-items:center; justify-content:center; gap:7px; flex-shrink:0; padding:7px 10px; background:#e7effe; color:#244c91; font-size:10px; font-weight:650; letter-spacing:.02em; border-bottom:1px solid #d5e3fb; }
+.sl-preview-dot { width:5px; height:5px; border-radius:50%; background:#2563eb; }
+.sl-skip { position:fixed; left:16px; top:-80px; z-index:999; padding:12px 18px; border-radius:12px; background:#fff; color:#1d4ed8; border:2px solid #2563eb; }
+.sl-skip:focus { top:16px; }
+:where(a,button,input,select,textarea,[tabindex]):focus-visible { outline:3px solid #2563eb; outline-offset:3px; }
+button { touch-action:manipulation; }
+button:not(:disabled), a, [role=button]:not([aria-disabled=true]) { cursor:pointer; }
+input,textarea,select { accent-color:#2563eb; }
+input:disabled,button:disabled { cursor:not-allowed; }
+.sl-card { transition:box-shadow .16s,transform .16s,border-color .16s; }
+.sl-row { transition:background .16s; }
+.sl-row[role=button]:hover { background:#f5f8fe; }
+.sl-btn:hover:not(:disabled) { filter:brightness(.96); }
+.sl-btn:active:not(:disabled) { transform:translateY(1px); }
+.sl-tabbar { backdrop-filter:blur(16px); background:rgba(255,255,255,.96)!important; }
+.sl-appbar h1 { text-wrap:balance; }
+.sl-marketing { width:390px; flex-direction:column; gap:20px; padding:24px 14px; color:#f7f9fd; text-align:center; }
+.sl-brand { display:flex; flex-direction:column; align-items:center; gap:5px; }
+.sl-marketing-badge { align-self:center; display:flex; gap:7px; align-items:center; padding:7px 11px; border:1px solid #344663; border-radius:99px; color:#c3d3ed; font-size:11px; font-weight:600; }
+.sl-marketing-badge span { width:6px; height:6px; border-radius:50%; background:#78a7ff; }
+.sl-marketing h1 { font-size:43px; line-height:1.08; letter-spacing:-.045em; font-weight:750; }
+.sl-marketing h1 span { color:#a8c8ff; }
+.sl-marketing p { font-size:15px; line-height:1.65; color:#b5c4dc; }
+.sl-marketing-story { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; }
+.sl-marketing-story p { max-width:310px; margin:0; font-size:14px; line-height:1.65; }
+.sl-marketing-story p:last-child { color:#d4e1f5; }
+.sl-marketing-art { width:170px; height:110px; overflow:hidden; position:relative; }
+.sl-marketing-art img { position:absolute; top:-32px; left:0; width:170px; height:170px; object-fit:contain; }
+.sl-marketing-links { display:flex; gap:6px; }
+.sl-marketing-links a { flex:1; background:rgba(255,255,255,.05); border:1px solid #344663; border-radius:13px; padding:12px 9px; font-size:10px; font-weight:650; display:flex; gap:4px; align-items:center; justify-content:center; }
+.sl-marketing-links a:hover { border-color:#78a7ff; background:rgba(255,255,255,.09); }
+.sl-marketing-links span { color:#a8c8ff; }
+.sl-marketing-footer { display:grid; justify-items:center; text-align:center; gap:14px; border-top:1px solid #344663; padding-top:20px; }
+.sl-marketing-powered { display:flex; align-items:center; justify-content:center; gap:12px; color:#b5c4dc; font-size:12px; }
+.sl-marketing-footer img { width:95px; height:23px; object-fit:contain; filter:brightness(0) invert(1); }
+.sl-marketing-footer a { color:#a8c8ff; font-size:12px; font-weight:650; display:flex; gap:7px; justify-content:center; align-items:center; }
+.sl-marketing small { color:#aabbd4; font-size:10px; }
+@media(min-width:1024px) and (max-height:760px) {
+  .sl-marketing { gap:12px; padding-top:12px; padding-bottom:12px; }
+  .sl-marketing h1 { font-size:32px; }
+  .sl-marketing-story { gap:8px; }
+  .sl-marketing-story p { font-size:12px; line-height:1.5; }
+  .sl-marketing-art { width:120px; height:78px; }
+  .sl-marketing-art img { width:120px; height:120px; top:-23px; }
+  .sl-marketing-footer { gap:10px; padding-top:14px; }
+}
+@media(max-width:1023px) { .sl-app-frame { box-shadow:none; } }
+@media(prefers-reduced-motion:reduce) { .sl-main { scroll-behavior:auto; } .sl-btn,.sl-card,.sl-row { transition:none; } }
 
 /* ── Vault "Brankas Hidup" — living-vault motion ──────────────────
    The Vault hero reads as a real safe: a slow-turning dial, a soft

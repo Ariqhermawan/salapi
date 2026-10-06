@@ -75,6 +75,21 @@ jobs:
       - name: D4 exact split, configuration and proof validation
         run: npm run test:campaign
 
+      - name: Circles example fixtures, allocation and local support guards
+        run: npm run test:circles
+
+      - name: Local payment and verification provider simulation guards
+        run: npm run test:providers
+
+      - name: Revamp parity, four-language UI, storage failures and submission guards
+        run: npm run test:revamp
+
+      - name: Prevent local-review builds in Vercel production
+        run: node --experimental-strip-types --test scripts/local-preview-deployment.test.mts
+
+      - name: PWA public-only cache freshness and offline guards
+        run: node --experimental-strip-types --test scripts/pwa-service-worker.test.mts
+
   web-e2e-local:
     name: web E2E (local)
     runs-on: ubuntu-latest

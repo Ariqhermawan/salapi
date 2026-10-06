@@ -57,7 +57,7 @@ export function IconButton({ children, onClick, size = 44, ariaLabel }: { childr
 
 export function AppBar({ title, leading, trailing, sub, large = false }: { title?: ReactNode; leading?: ReactNode; trailing?: ReactNode; sub?: ReactNode; large?: boolean }) {
   return (
-    <div style={{ padding: large ? "14px 20px 4px" : "8px 16px", display: "flex", flexDirection: "column", gap: large ? 8 : 0, background: T.canvas }}>
+    <header className="sl-appbar" style={{ padding: large ? "20px 20px 8px" : "12px 16px", display: "flex", flexDirection: "column", gap: large ? 8 : 0, background: T.canvas }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", minHeight: 36 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>{leading}</div>
         {!large && <div style={{ fontSize: 15, fontWeight: 600, letterSpacing: "-0.01em" }}>{title}</div>}
@@ -65,16 +65,16 @@ export function AppBar({ title, leading, trailing, sub, large = false }: { title
       </div>
       {large && (
         <div style={{ padding: "4px 4px 12px" }}>
-          <div style={{ fontSize: 26, fontWeight: 600, letterSpacing: "-0.02em", lineHeight: 1.1 }}>{title}</div>
-          {sub && <div style={{ marginTop: 4, fontSize: 13, color: T.slate }}>{sub}</div>}
+          <h1 style={{ fontSize: 32, fontWeight: 750, letterSpacing: "-0.035em", lineHeight: 1.08, margin: 0 }}>{title}</h1>
+          {sub && <div style={{ marginTop: 8, fontSize: 14, lineHeight: 1.5, color: T.slate }}>{sub}</div>}
         </div>
       )}
-    </div>
+    </header>
   );
 }
 
 type BtnKind = "primary" | "secondary" | "ghost" | "success" | "danger" | "quiet";
-export function Btn({ children, kind = "primary", size = "lg", full = true, leading, trailing, style = {}, onClick, disabled, loading, className }: { children: ReactNode; kind?: BtnKind; size?: "lg" | "md" | "sm"; full?: boolean; leading?: ReactNode; trailing?: ReactNode; style?: CSSProperties; onClick?: () => void; disabled?: boolean; loading?: boolean; className?: string }) {
+export function Btn({ children, type = "button", kind = "primary", size = "lg", full = true, leading, trailing, style = {}, onClick, disabled, loading, className }: { children: ReactNode; type?: "button" | "submit" | "reset"; kind?: BtnKind; size?: "lg" | "md" | "sm"; full?: boolean; leading?: ReactNode; trailing?: ReactNode; style?: CSSProperties; onClick?: () => void; disabled?: boolean; loading?: boolean; className?: string }) {
   const h = size === "lg" ? 52 : size === "md" ? 44 : 36;
   const fs = size === "lg" ? 16 : size === "md" ? 15 : 14;
   const kinds: Record<BtnKind, CSSProperties> = {
@@ -86,7 +86,7 @@ export function Btn({ children, kind = "primary", size = "lg", full = true, lead
     quiet: { background: T.actionTint, color: T.action },
   };
   return (
-    <button className={className} onClick={onClick} disabled={disabled} style={{ height: h, padding: "0 18px", borderRadius: T.rCtrl, border: "none", fontFamily: T.fontSans, fontWeight: 600, fontSize: fs, letterSpacing: "-0.005em", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, width: full ? "100%" : "auto", cursor: "pointer", transition: "transform .12s, background .12s, box-shadow .12s", opacity: disabled ? 0.45 : 1, ...kinds[kind], ...style }}>
+    <button type={type} className={["sl-btn", className].filter(Boolean).join(" ")} aria-busy={loading || undefined} onClick={onClick} disabled={disabled || loading} style={{ minHeight: h, padding: "10px 18px", borderRadius: T.rCtrl, border: "none", fontFamily: T.fontSans, fontWeight: 650, fontSize: fs, letterSpacing: "-0.005em", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, width: full ? "100%" : "auto", cursor: disabled || loading ? "not-allowed" : "pointer", transition: "transform .18s, background .18s, box-shadow .18s", opacity: disabled ? 0.45 : 1, ...kinds[kind], ...style }}>
       {loading && <span className="sl-spin" style={{ width: 14, height: 14, borderRadius: 99, border: "2px solid currentColor", borderTopColor: "transparent" }} />}
       {!loading && leading}
       <span>{children}</span>
@@ -97,7 +97,7 @@ export function Btn({ children, kind = "primary", size = "lg", full = true, lead
 
 export function Card({ children, p = 16, style = {}, onClick, hairline = true, elevation = false, className }: { children: ReactNode; p?: number; style?: CSSProperties; onClick?: () => void; hairline?: boolean; elevation?: boolean; className?: string }) {
   return (
-    <div className={className} onClick={onClick} style={{ background: T.surface, borderRadius: T.rCard, padding: p, boxShadow: elevation ? T.shadow + (hairline ? ", inset 0 0 0 1px " + T.hairline : "") : hairline ? "inset 0 0 0 1px " + T.hairline : "none", ...style }}>
+    <div className={["sl-card", className].filter(Boolean).join(" ")} onClick={onClick} role={onClick ? "button" : undefined} tabIndex={onClick ? 0 : undefined} onKeyDown={onClick ? (e) => { if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); onClick(); } } : undefined} style={{ background: T.surface, borderRadius: T.rCard, padding: p, boxShadow: elevation ? T.shadow + (hairline ? ", inset 0 0 0 1px " + T.hairline : "") : hairline ? "inset 0 0 0 1px " + T.hairline : "none", ...style }}>
       {children}
     </div>
   );
@@ -105,7 +105,7 @@ export function Card({ children, p = 16, style = {}, onClick, hairline = true, e
 
 export function Row({ leading, title, sub, trailing, onClick, divider = true, style = {} }: { leading?: ReactNode; title?: ReactNode; sub?: ReactNode; trailing?: ReactNode; onClick?: () => void; divider?: boolean; style?: CSSProperties }) {
   return (
-    <div onClick={onClick} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderBottom: divider ? "1px solid " + T.hairline : "none", ...style }}>
+    <div className="sl-row" role={onClick ? "button" : undefined} tabIndex={onClick ? 0 : undefined} onKeyDown={onClick ? (e) => { if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); onClick(); } } : undefined} onClick={onClick} style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px", minHeight: 62, borderBottom: divider ? "1px solid " + T.hairline : "none", ...style }}>
       {leading && <div style={{ flex: "0 0 auto" }}>{leading}</div>}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 15, fontWeight: 500, lineHeight: 1.25, color: T.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{title}</div>
@@ -119,27 +119,30 @@ export function Row({ leading, title, sub, trailing, onClick, divider = true, st
 export type Tab = { id: string; label: string; icon: (p?: { size?: number; c?: string }) => ReactNode; fab?: boolean };
 export function TabBar({ active = "home", items, onNav }: { active?: string; items: Tab[]; onNav?: (id: string) => void }) {
   return (
-    <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 8px)", paddingTop: 6, background: T.surface, borderTop: "1px solid " + T.hairline, display: "grid", gridTemplateColumns: `repeat(${items.length},1fr)`, alignItems: "end" }}>
+    <nav aria-label="Main navigation" className="sl-tabbar" style={{ position: "absolute", bottom: 0, left: 0, right: 0, paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 8px)", paddingTop: 10, background: T.surface, borderTop: "1px solid " + T.hairline, display: "grid", gridTemplateColumns: `repeat(${items.length},1fr)`, alignItems: "end", zIndex: 20 }}>
       {items.map((it) => {
         const isActive = it.id === active;
         const col = isActive ? T.action : T.slate;
+        const tabStyle: CSSProperties = { display: "grid", gridTemplateRows: "24px 14px", alignContent: "center", justifyItems: "center", gap: 8, position: "relative", minWidth: 0, height: 52, padding: 0, color: it.fab ? T.action : col, cursor: "pointer", border: 0, background: "transparent", fontFamily: T.fontSans };
+        const labelStyle: CSSProperties = { gridRow: 2, fontSize: 10, lineHeight: "14px", fontWeight: isActive || it.fab ? 600 : 500, letterSpacing: "0.02em", whiteSpace: "nowrap" };
         if (it.fab) {
           return (
-            <div key={it.id} onClick={() => onNav?.(it.id)} style={{ display: "flex", justifyContent: "center", alignItems: "center", position: "relative", height: 44, cursor: "pointer" }}>
-              <div style={{ width: 50, height: 50, borderRadius: 16, position: "absolute", top: -13, background: T.action, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 10px 22px -6px rgba(37,99,235,.55), 0 2px 6px rgba(11,18,32,.06)" }}>
+            <button type="button" aria-label={it.label} aria-current={isActive ? "page" : undefined} key={it.id} onClick={() => onNav?.(it.id)} style={tabStyle}>
+              <span style={{ width: 54, height: 54, borderRadius: 19, position: "absolute", top: -20, left: "50%", transform: "translateX(-50%)", background: T.action, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 10px 22px -6px rgba(37,99,235,.4), 0 2px 6px rgba(11,18,32,.06)" }}>
                 {it.icon({ size: 23, c: "#fff" })}
-              </div>
-            </div>
+              </span>
+              <span style={labelStyle}>{it.label}</span>
+            </button>
           );
         }
         return (
-          <div key={it.id} onClick={() => onNav?.(it.id)} style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3, height: 44, color: col, cursor: "pointer" }}>
-            {it.icon({ size: 21, c: col })}
-            <div style={{ fontSize: 10, fontWeight: isActive ? 600 : 500, letterSpacing: "0.02em" }}>{it.label}</div>
-          </div>
+          <button type="button" aria-current={isActive ? "page" : undefined} key={it.id} onClick={() => onNav?.(it.id)} style={tabStyle}>
+            <span style={{ display: "grid", placeItems: "center", width: 24, height: 24 }}>{it.icon({ size: 21, c: col })}</span>
+            <span style={labelStyle}>{it.label}</span>
+          </button>
         );
       })}
-    </div>
+    </nav>
   );
 }
 

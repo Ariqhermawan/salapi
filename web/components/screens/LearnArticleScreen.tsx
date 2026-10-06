@@ -11,7 +11,7 @@ import { spot, HeroCircle, HeroGrow, DooStars } from "@/components/ui/doodles";
 import { useT } from "@/components/I18nProvider";
 import { LEARN, LEARN_X, type LearnTopicId } from "@/lib/learn-content";
 
-const CREAM = "#FAF6EE";
+const CREAM = "#F2EFE7";
 const POSE: Record<LearnTopicId, MascotPose> = { fund: "point", circle: "wave", grow: "cheer" };
 const TOPIC_SPOTS: Record<LearnTopicId, [string, string, string]> = {
   fund: ["storm", "ledger", "magnify"],
@@ -20,7 +20,7 @@ const TOPIC_SPOTS: Record<LearnTopicId, [string, string, string]> = {
 };
 const CTA_ROUTE: Record<LearnTopicId, string> = {
   fund: "/transparency",
-  circle: "/paluwagan",
+  circle: "/arisan",
   grow: "/savings",
 };
 
@@ -83,7 +83,7 @@ function TestnetStrip() {
       </span>
       <span style={{ flex: 1, height: 1, background: T.warn, opacity: 0.2 }} />
       <span style={{ fontSize: 11.5, fontWeight: 500, opacity: 0.85, letterSpacing: "-0.005em" }}>
-        Real funds arrive at mainnet launch.
+        No real money. Future availability is not confirmed.
       </span>
     </div>
   );
@@ -139,7 +139,8 @@ function LearnCTA({
   onClick: () => void;
 }) {
   return (
-    <div
+    <button
+      type="button"
       onClick={onClick}
       style={{
         marginTop: 18,
@@ -152,6 +153,10 @@ function LearnCTA({
         gap: 14,
         cursor: "pointer",
         boxShadow: "0 8px 24px -10px rgba(37,99,235,.6)",
+        width: "100%",
+        border: 0,
+        textAlign: "left",
+        fontFamily: "inherit",
       }}
     >
       <div style={{ flex: "0 0 auto" }}>{doodle}</div>
@@ -160,14 +165,15 @@ function LearnCTA({
         <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", marginTop: 2 }}>{sub}</div>
       </div>
       {Ico.chev({ c: "#fff", size: 18 })}
-    </div>
+    </button>
   );
 }
 
 // Language-agnostic illustrations (original editorial art).
 const HERO_IMG: Partial<Record<LearnTopicId, string>> = {
-  fund: "/learn/fund-hero.webp",
-  circle: "/learn/circle-hero.webp",
+  fund: "/illustrations/giving.png",
+  circle: "/illustrations/arisan.png",
+  grow: "/illustrations/savings.png",
 };
 // Real primary/authoritative sources per case (index-aligned: PH, ID, VN).
 // Team can swap for the exact article they prefer.
@@ -190,7 +196,7 @@ function DoodleHero({ topic, pose }: { topic: LearnTopicId; pose: MascotPose }) 
     return (
       <div style={{ position: "relative", borderRadius: 16, overflow: "hidden", boxShadow: "inset 0 0 0 1px " + T.hairline, background: CREAM }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={hero} alt="" style={{ display: "block", width: "100%", aspectRatio: "16 / 9", objectFit: "cover" }} />
+        <img src={hero} alt="" style={{ display: "block", width: "100%", height: 220, objectFit: "contain", padding: 20, boxSizing: "border-box" }} />
       </div>
     );
   }
@@ -415,7 +421,7 @@ export default function LearnArticleScreen({ topic }: { topic: LearnTopicId }) {
   return (
     <div style={{ fontFamily: fontStack, color: T.ink, minHeight: "100%", paddingBottom: 110 }}>
       <AppBar
-        leading={<IconButton onClick={() => router.push("/learn")}>{Ico.back({})}</IconButton>}
+        leading={<IconButton ariaLabel="Back to Learn" onClick={() => router.push("/learn")}>{Ico.back({})}</IconButton>}
         title={L.indexEyebrow}
       />
       <div style={{ padding: "4px 16px 16px" }}>
@@ -425,9 +431,9 @@ export default function LearnArticleScreen({ topic }: { topic: LearnTopicId }) {
         <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: T.action, fontFamily: T.fontMono }}>
           {head.eyebrow}
         </div>
-        <div style={{ marginTop: 8, fontSize: 21, fontWeight: 600, letterSpacing: "-0.02em", lineHeight: 1.2 }}>
+        <h1 style={{ margin: "10px 0 0", fontSize: 30, fontWeight: 800, letterSpacing: "-0.04em", lineHeight: 1.12 }}>
           {head.title}
-        </div>
+        </h1>
         <div style={{ marginTop: 12, fontSize: 15, fontStyle: "italic", color: T.slate, fontWeight: 500, lineHeight: 1.45 }}>
           {head.lede}
         </div>
@@ -445,6 +451,7 @@ export default function LearnArticleScreen({ topic }: { topic: LearnTopicId }) {
           onClick={() => router.push(CTA_ROUTE[topic])}
         />
         <div style={{ marginTop: 24, textAlign: "center" }}>
+          <a href="/docs" style={{ color: T.action, fontSize: 13, fontWeight: 700, display: "inline-block", marginBottom: 18 }}>Read public documentation ↗</a>
           <PoweredByStellar />
         </div>
       </div>

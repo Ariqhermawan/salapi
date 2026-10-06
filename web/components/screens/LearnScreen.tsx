@@ -6,18 +6,11 @@
 import { useRouter } from "next/navigation";
 import { T, Ico, AppBar, IconButton, TestnetPill, PoweredByStellar } from "@/components/ui/kit";
 import { SalapiMascot } from "@/components/ui/mascot";
-import { HeroFund, HeroCircle, HeroGrow } from "@/components/ui/doodles";
 import { useT } from "@/components/I18nProvider";
-import { LEARN, type LearnTopicId } from "@/lib/learn-content";
+import { LEARN } from "@/lib/learn-content";
 import { useGoBack } from "@/lib/ui/useGoBack";
 
-const CREAM = "#FAF6EE";
-
-function HeroThumb({ id, width = 78 }: { id: LearnTopicId; width?: number }) {
-  if (id === "fund") return <HeroFund width={width} />;
-  if (id === "circle") return <HeroCircle width={width} />;
-  return <HeroGrow width={width} />;
-}
+const CREAM = "#F2EFE7";
 
 export default function LearnScreen() {
   const router = useRouter();
@@ -29,7 +22,7 @@ export default function LearnScreen() {
   return (
     <div style={{ fontFamily: fontStack, color: T.ink, minHeight: "100%", paddingBottom: 110 }}>
       <AppBar
-        leading={<IconButton onClick={goBack}>{Ico.back({})}</IconButton>}
+        leading={<IconButton ariaLabel="Back to Home" onClick={goBack}>{Ico.back({})}</IconButton>}
         title={L.indexEyebrow}
         trailing={<TestnetPill />}
       />
@@ -40,8 +33,8 @@ export default function LearnScreen() {
           style={{
             background: CREAM,
             color: T.ink,
-            borderRadius: 16,
-            padding: "14px 14px",
+            borderRadius: 24,
+            padding: "22px 20px",
             display: "flex",
             alignItems: "center",
             gap: 12,
@@ -63,9 +56,9 @@ export default function LearnScreen() {
             <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase", color: T.action, fontFamily: T.fontMono }}>
               {L.indexEyebrow}
             </div>
-            <div style={{ marginTop: 4, fontSize: 17, fontWeight: 600, letterSpacing: "-0.015em", lineHeight: 1.22 }}>
+            <h1 style={{ margin: "8px 0 0", fontSize: 28, fontWeight: 800, letterSpacing: "-0.04em", lineHeight: 1.12 }}>
               {L.indexTitle}
-            </div>
+            </h1>
             <div style={{ marginTop: 4, fontSize: 12, color: T.slate, lineHeight: 1.45 }}>{L.indexSub}</div>
           </div>
           <div style={{ position: "relative", flex: "0 0 auto", transform: "rotate(-4deg)" }}>
@@ -77,8 +70,9 @@ export default function LearnScreen() {
       {/* Topic cards */}
       <div style={{ padding: "0 16px 4px", display: "flex", flexDirection: "column", gap: 8 }}>
         {L.cards.map((card) => (
-          <div
+          <button
             key={card.id}
+            type="button"
             onClick={() => router.push(`/learn/${card.id}`)}
             style={{
               background: T.surface,
@@ -89,12 +83,17 @@ export default function LearnScreen() {
               alignItems: "center",
               gap: 12,
               cursor: "pointer",
+              width: "100%",
+              border: 0,
+              fontFamily: "inherit",
+              textAlign: "left",
+              color: T.ink,
             }}
           >
             <div
               style={{
-                width: 72,
-                height: 56,
+                width: 84,
+                height: 84,
                 borderRadius: 10,
                 background: CREAM,
                 display: "flex",
@@ -105,13 +104,14 @@ export default function LearnScreen() {
                 boxShadow: "inset 0 0 0 1px " + T.hairline,
               }}
             >
-              <HeroThumb id={card.id} width={68} />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={"/illustrations/" + (card.id === "fund" ? "giving" : card.id === "circle" ? "arisan" : "savings") + ".png"} alt="" width={80} height={80} style={{ objectFit: "contain" }} />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontFamily: T.fontMono, fontSize: 10, color: T.action, fontWeight: 600, letterSpacing: "0.06em" }}>
                 {card.kicker}
               </div>
-              <div style={{ marginTop: 2, fontSize: 13.5, fontWeight: 600, lineHeight: 1.25 }}>{card.title}</div>
+              <div style={{ marginTop: 6, fontSize: 17, fontWeight: 800, lineHeight: 1.2, letterSpacing: "-.025em" }}>{card.title}</div>
               <div style={{ marginTop: 3, fontSize: 11, color: T.slate, lineHeight: 1.4 }}>{card.blurb}</div>
               <div style={{ marginTop: 4, fontFamily: T.fontMono, fontSize: 10, color: T.slate, letterSpacing: 0.02 }}>
                 {card.mins}
@@ -119,7 +119,7 @@ export default function LearnScreen() {
               </div>
             </div>
             <div style={{ color: T.slate, flex: "0 0 auto" }}>{Ico.chev({ c: T.slate, size: 18 })}</div>
-          </div>
+          </button>
         ))}
         <div style={{ padding: "10px 4px 0", textAlign: "center" }}>
           <PoweredByStellar />

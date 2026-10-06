@@ -12,6 +12,9 @@ const ROUTES = [
   "/circles",
   "/circles/tino-relief",
   "/circles/tino-relief/donate",
+  "/circles/tino-relief/organizer",
+  "/circles/supported",
+  "/campaigns",
   "/receive",
   "/transparency",
   "/paluwagan",
@@ -20,6 +23,8 @@ const ROUTES = [
   "/topup",
   "/withdraw",
   "/docs",
+  "/privacy",
+  "/terms",
 ];
 
 for (const route of ROUTES) {
@@ -28,8 +33,10 @@ for (const route of ROUTES) {
     const resp = await page.goto(route, { waitUntil: "domcontentloaded", timeout: 45000 });
     expect(resp?.status(), `HTTP status for ${route}`).toBeLessThan(400);
     if (route === "/docs") {
-      await expect(page.getByRole("heading", { name: "Trustless community money pools on Stellar." })).toBeVisible({ timeout: 12000 });
+      await expect(page.getByRole("heading", { name: /Rules you can read\.\s*Proof you can check\./ })).toBeVisible({ timeout: 12000 });
       await expect(page.getByText("Public evidence")).toBeVisible({ timeout: 12000 });
+    } else if (route === "/privacy" || route === "/terms") {
+      await expect(page.getByRole("heading", { level: 1 })).toBeVisible({ timeout: 12000 });
     } else {
       // Global BottomNav renders on every app route → shell mounted.
       await expect(page.getByText("Vaults").first()).toBeVisible({ timeout: 12000 });

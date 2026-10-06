@@ -1,0 +1,551 @@
+.screen {
+  padding: 19px 20px 27px;
+  color: #11213a;
+  min-width: 0;
+  font-family: var(--font-geist-sans), sans-serif;
+}
+.screen h1,
+.screen h2,
+.screen p {
+  margin: 0;
+}
+.header h1 {
+  font-size: 32px;
+  font-weight: 740;
+  letter-spacing: -1.3px;
+  line-height: 1.14;
+}
+.header p {
+  color: #71839d;
+  font-size: 12px;
+  line-height: 1.5;
+  margin-top: 5px;
+}
+.walletRow {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 15px 16px;
+  border-radius: 17px;
+  margin: 18px 0 17px;
+  color: white;
+  background: linear-gradient(130deg, #071329, #11254a);
+  box-shadow: 0 10px 20px -18px #0c244c;
+}
+.walletIcon {
+  width: 38px;
+  height: 41px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #ffffff24;
+  background: #ffffff12;
+  border-radius: 10px;
+}
+.walletIdentity {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+.walletIdentity strong {
+  font-size: 12px;
+  font-weight: 640;
+  letter-spacing: 0.1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.walletIdentity span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: #d2dced;
+}
+.walletIdentity i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #39d8b3;
+  flex-shrink: 0;
+}
+.walletExplorer {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 10px 0 10px 12px;
+  border-left: 1px solid #ffffff20;
+  font-size: 10px;
+  color: #bdd8ff;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px;
+  padding: 3px;
+  margin-bottom: 12px;
+  border-radius: 12px;
+  border: 1px solid #dbe5f6;
+}
+.tab {
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 12px 10px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: #6e83a5;
+  cursor: pointer;
+}
+.tab[aria-selected="true"] {
+  background: #2563eb;
+  color: white;
+  box-shadow: 0 2px 5px -3px #1a52cd;
+}
+.creamPanel {
+  border-radius: 23px;
+  background: #f2efe7;
+  padding: 19px 17px 18px;
+}
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.doodle {
+  width: 142px;
+  height: 118px;
+  object-fit: contain;
+  mix-blend-mode: multiply;
+  margin: 1px 0 11px;
+}
+.emptyState h2 {
+  font-size: 20px;
+  font-weight: 690;
+  letter-spacing: -0.7px;
+  line-height: 1.3;
+  text-wrap: balance;
+}
+.emptyState p {
+  max-width: 275px;
+  color: #728199;
+  font-size: 11px;
+  line-height: 1.65;
+  margin-top: 9px;
+}
+.sendButton {
+  display: flex;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  text-decoration: none;
+  border-radius: 11px;
+  color: white;
+  background: #2563eb;
+  font-size: 13px;
+  font-weight: 650;
+  margin-top: 18px;
+  box-shadow: 0 5px 14px -10px #1b53d1;
+}
+.proofTeaser {
+  display: grid;
+  grid-template-columns: 29px 1fr 16px;
+  align-items: start;
+  gap: 13px;
+  width: 100%;
+  padding: 18px 0 0;
+  margin-top: 21px;
+  border: none;
+  border-top: 1px solid #d6dce8;
+  background: transparent;
+  color: #14213c;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.proofTeaser > span {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.proofTeaser strong {
+  font-size: 12px;
+  font-weight: 660;
+  letter-spacing: -0.1px;
+}
+.proofTeaser small {
+  color: #73849b;
+  font-size: 10px;
+  line-height: 1.5;
+}
+.proofTeaser b {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  color: #2563eb;
+  font-weight: 550;
+  margin-top: 6px;
+}
+.proofTeaser > svg:last-child {
+  margin-top: 7px;
+}
+.footer {
+  display: flex;
+  justify-content: center;
+  margin-top: 22px;
+  padding: 3px 0;
+}
+.sectionHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.sectionHeading h2 {
+  font-size: 18px;
+  letter-spacing: -0.6px;
+  font-weight: 680;
+}
+.sectionHeading p {
+  color: #7787a0;
+  font-size: 10px;
+  line-height: 1.6;
+  margin-top: 6px;
+}
+.refresh {
+  display: grid;
+  place-items: center;
+  padding: 8px;
+  border: none;
+  border-radius: 9px;
+  background: #ffffff80;
+  cursor: pointer;
+}
+.timeline {
+  list-style: none;
+  margin: 21px 0 0;
+  padding: 0;
+}
+.timelineItem {
+  position: relative;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 13px;
+  padding: 0 0 19px;
+}
+.timelineItem:not(:last-child):before {
+  content: "";
+  position: absolute;
+  top: 34px;
+  bottom: -1px;
+  left: 17px;
+  border-left: 1px dashed #becde3;
+}
+.timelineIcon {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  color: #2563eb;
+  background: #f4f8ff;
+  border: 1px solid #d5e3f7;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+.atSymbol {
+  font-size: 21px;
+  font-weight: 470;
+}
+.receiptBody {
+  min-width: 0;
+}
+.receiptButton {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 3px 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.receiptButton > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.receiptButton strong {
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.receiptButton span {
+  font-size: 10px;
+  color: #8995a6;
+}
+.receiptAmount {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+  align-items: end;
+}
+.receiptAmount strong {
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.receiptAmount small {
+  color: #6583b0;
+  font-size: 9px;
+  padding: 4px 6px;
+  background: #e5eefc;
+  border-radius: 5px;
+}
+.receiptDetails {
+  padding: 13px;
+  margin-top: 10px;
+  background: #ffffff85;
+  border-radius: 11px;
+}
+.receiptDetails p {
+  color: #7a899e;
+  font-size: 10px;
+  line-height: 1.65;
+}
+.receiptDetails dl {
+  display: grid;
+  gap: 7px;
+  margin: 12px 0;
+  font-size: 10px;
+  line-height: 1.5;
+}
+.receiptDetails dt {
+  color: #8694ab;
+}
+.receiptDetails dd {
+  margin: 0 0 5px;
+  color: #334b6d;
+  font-variant-numeric: tabular-nums;
+}
+.address {
+  font-family: var(--font-geist-mono), monospace;
+  word-break: break-all;
+}
+.proofPanel {
+  padding-top: 21px;
+}
+.proofHeader {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 0 0 18px;
+  border-bottom: 1px solid #d6dce8;
+}
+.proofHeader h2 {
+  font-size: 17px;
+  letter-spacing: -0.5px;
+  font-weight: 680;
+}
+.proofHeader p {
+  font-size: 10px;
+  color: #7285a0;
+  line-height: 1.6;
+  margin-top: 5px;
+}
+.archiveTimeline {
+  margin-top: 19px;
+}
+.archiveTimeline .timelineItem {
+  padding-bottom: 21px;
+}
+.archiveRow {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  padding-top: 3px;
+}
+.archiveRow strong {
+  font-size: 13px;
+  font-weight: 660;
+  letter-spacing: -0.2px;
+}
+.archiveRow p {
+  font-size: 10px;
+  color: #73869f;
+  line-height: 1.65;
+  margin-top: 5px;
+}
+.archiveRow > span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 9px;
+  color: #8c9ab0;
+  margin-top: 6px;
+}
+.archiveNote {
+  display: flex;
+  align-items: start;
+  gap: 12px;
+  padding: 13px 12px;
+  background: #e8effa;
+  border: 1px solid #d6e2f3;
+  border-radius: 13px;
+}
+.archiveNote > svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.archiveNote p {
+  color: #6a809e;
+  font-size: 10px;
+  line-height: 1.65;
+}
+.technicalDetails {
+  margin-top: 15px;
+}
+.technicalDetails summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10px;
+  font-weight: 550;
+  color: #6a809f;
+  cursor: pointer;
+  list-style: none;
+  padding: 10px 0;
+}
+.technicalDetails summary::-webkit-details-marker {
+  display: none;
+}
+.technicalDetails[open] summary > svg {
+  transform: rotate(90deg);
+}
+.technicalDetails ol {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.technicalDetails li {
+  border-top: 1px solid #d8dfeb;
+}
+.technicalDetails a {
+  display: flex;
+  flex-direction: column;
+  padding: 13px 0;
+  color: inherit;
+  text-decoration: none;
+  gap: 7px;
+}
+.technicalDetails strong {
+  font-size: 11px;
+  font-weight: 550;
+}
+.technicalDetails code {
+  word-break: break-all;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 9px;
+  color: #8794a8;
+  line-height: 1.7;
+}
+.technicalDetails span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 9px;
+  color: #2563eb;
+}
+.projectDocs {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: 10px;
+  text-decoration: none;
+  color: #2563eb;
+  margin-top: 12px;
+  padding: 8px 0;
+}
+.error {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: #aa5b48;
+  background: #fff0ec;
+  border-radius: 12px;
+  padding: 13px;
+  margin-bottom: 13px;
+}
+.error button {
+  width: fit-content;
+  font: inherit;
+  color: #2563eb;
+  border: none;
+  background: transparent;
+  padding: 3px 0;
+  cursor: pointer;
+}
+.screen button:focus-visible,
+.screen a:focus-visible,
+.screen summary:focus-visible {
+  outline: 3px solid #aac8fa;
+  outline-offset: 3px;
+}
+@media (max-width: 370px) {
+  .screen {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+  .walletRow {
+    gap: 9px;
+    padding: 13px;
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+  }
+  .walletIcon {
+    width: 34px;
+  }
+  .walletExplorer {
+    padding-left: 9px;
+    font-size: 9px;
+  }
+  .walletIdentity strong {
+    font-size: 11px;
+  }
+  .walletIdentity span {
+    font-size: 9px;
+  }
+  .creamPanel {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+  .emptyState h2 {
+    font-size: 19px;
+  }
+  .receiptButton {
+    flex-direction: column;
+  }
+  .receiptAmount {
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+  }
+}

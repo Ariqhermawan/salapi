@@ -1,18 +1,27 @@
 import type { NextConfig } from "next";
 
+// Public flags are baked into the client bundle. A local-review build must not
+// become the live app, while localhost production-mode audits and explicitly
+// labelled Vercel Preview demos remain supported.
+if (
+  process.env.VERCEL_ENV === "production" &&
+  process.env.NEXT_PUBLIC_LOCAL_PREVIEW === "1"
+) {
+  throw new Error(
+    "Local preview is not allowed in Vercel production. Rebuild with NEXT_PUBLIC_LOCAL_PREVIEW unset or 0."
+  );
+}
+
 // The Salapi APP's Content-Security-Policy is set per-request in `proxy.ts`, so
 // script-src can use a fresh nonce instead of 'unsafe-inline'. This file keeps
 // two things:
 //   1. the non-CSP security headers, applied to every route, and
 //   2. a static CSP for the /landing marketing page only.
 //
-// /landing is a static file in public/ with two legitimate inline <script>
-// blocks (sticky-nav + the flowing-ribbon canvas). Next cannot stamp a nonce
-// into a static file, so /landing keeps 'unsafe-inline' for those scripts. It
-// carries no user data, so its XSS surface is effectively nil. Every other route
-// is an app document that gets the stricter nonce CSP from proxy.ts (including
-// /offline, a normal dynamic page); the two never overlap because proxy.ts's
-// matcher excludes /landing.
+// /landing is a static file in public/ with a separate policy. Next cannot
+// stamp a per-request nonce into that file. App documents use the stricter
+// nonce policy in proxy.ts, including the dynamically rendered /offline page.
+// The matcher excludes /landing; this does not exempt app or auth routes.
 const landingCsp = [
   "default-src 'self'",
   "base-uri 'self'",
@@ -42,6 +51,10 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  devIndicators: false,
+  async rewrites() {
+    return [{ source: "/landing", destination: "/landing/index.html" }];
+  },
   async headers() {
     return [
       // Non-CSP security headers on every route (incl. static assets + /landing).

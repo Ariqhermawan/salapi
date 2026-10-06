@@ -1,42 +1,40 @@
 "use client";
 
-// Desktop landing aside (lg: breakpoint) - the marketing column shown next
-// to the phone frame on big screens at salapi-blond.vercel.app. Previously
-// rendered inline in app/layout.tsx (a server component) with hardcoded
-// English strings, which was the practical reason the locale switcher
-// appeared broken on desktop: the most visually dominant text never moved
-// when locale changed. Now a client component that consumes useT() and
-// re-renders on locale change, so tapping Indonesian/Tagalog/Vietnamese
-// actually flips the visible landing copy.
-
-import { useT } from "@/components/I18nProvider";
-import { Wordmark, MakerLockup, PoweredByStellar } from "@/components/ui/kit";
+// The desktop introduction stays English; app controls retain their locale.
+import Link from "next/link";
+import Image from "next/image";
+import { Wordmark, MakerLockup } from "@/components/ui/kit";
 
 export default function MarketingAside() {
-  const { t } = useT();
   return (
-    <aside className="hidden text-white lg:flex lg:max-w-[420px] lg:flex-col lg:gap-7 lg:px-8">
-      <div className="flex flex-col gap-2">
-        <Wordmark size={24} c="#fff" />
-        <MakerLockup c="rgba(255,255,255,0.55)" />
+    <aside className="sl-marketing hidden lg:flex" lang="en">
+      <div className="sl-brand">
+        <Wordmark size={30} c="#f7f9fd" dot="#78a7ff" />
+        <MakerLockup c="#e2e8f0" />
       </div>
+      <span className="sl-marketing-badge"><span />Built on Stellar Testnet</span>
       <div>
-        <h1 className="text-[40px] font-semibold leading-[1.1] tracking-[-0.025em]">
-          {t("landing.h1Line1")}
+        <h1>
+          Money for everyone.
           <br />
-          {t("landing.h1Line2")}
+          <span>Technology, invisible.</span>
         </h1>
-        <p className="mt-4 max-w-[380px] text-[15px] leading-relaxed text-white/70">
-          {t("landing.tagline")}
-        </p>
       </div>
-      <a
-        href="/docs"
-        className="w-fit text-sm text-white/70 underline underline-offset-4 transition hover:text-white"
-      >
-        Public documentation →
-      </a>
-      <PoweredByStellar c="rgba(255,255,255,0.5)" />
+      <div className="sl-marketing-story">
+        <p>Community money, with a clearer view of every step.</p>
+        <div className="sl-marketing-art"><Image src="/illustrations/giving.png" width="170" height="170" alt="Two people sharing a blue heart" /></div>
+        <p>Give with proof, save together, and send by name.</p>
+      </div>
+      <div className="sl-marketing-links">
+        <Link href="/campaigns">Give with clarity <span>↗</span></Link>
+        <Link href="/arisan">Save together <span>↗</span></Link>
+        <Link href="/send">Send by @ <span>↗</span></Link>
+      </div>
+      <footer className="sl-marketing-footer">
+        <div className="sl-marketing-powered"><span>Powered by</span><Image src="/stellar.png" width="100" height="24" alt="Stellar" /></div>
+        <Link href="/docs">Public documentation <span aria-hidden="true">↗</span></Link>
+        <small>Testnet only. No real-money donations or cash-out.</small>
+      </footer>
     </aside>
   );
 }

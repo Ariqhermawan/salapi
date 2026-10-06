@@ -9,11 +9,14 @@ export const metadata = {
 // Next 16: route segment params arrive as a Promise; await before use.
 export default async function CircleDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ tab?: string | string[] }>;
 }) {
-  const { id } = await params;
+  const [{ id }, query] = await Promise.all([params, searchParams]);
   const circle = getCircle(id);
   if (!circle) notFound();
-  return <CircleDetailScreen circle={circle} />;
+  const initialTab = query.tab === "updates" ? "updates" : query.tab === "proof" ? "proof" : "story";
+  return <CircleDetailScreen key={`${circle.id}-${initialTab}`} circle={circle} initialTab={initialTab} />;
 }

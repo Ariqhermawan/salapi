@@ -7,7 +7,7 @@
 
 import { useRouter } from "next/navigation";
 import { LOCALES, LOCALE_META, type Locale } from "@/lib/i18n/config";
-import { CURRENCY, CURRENCY_LABEL } from "@/lib/ui/currency";
+import { CURRENCY } from "@/lib/ui/currency";
 import { useT } from "@/components/I18nProvider";
 import {
   T,
@@ -16,6 +16,7 @@ import {
   IconButton,
   PoweredByStellar,
 } from "@/components/ui/kit";
+import { accountCopy, accountCurrencyName } from "@/lib/i18n/revamp-account";
 
 type Opt = {
   key: Locale | null;
@@ -27,6 +28,7 @@ type Opt = {
 
 export default function CurrencyPickerScreen() {
   const { t, locale, currencyPref, setCurrency } = useT();
+  const c = accountCopy(locale);
   const router = useRouter();
 
   const opts: Opt[] = [
@@ -43,7 +45,7 @@ export default function CurrencyPickerScreen() {
     ...LOCALES.map(
       (l): Opt => ({
         key: l,
-        title: CURRENCY_LABEL[l],
+        title: accountCurrencyName(locale, l),
         sub: LOCALE_META[l].native,
         badge: (
           <span style={{ fontSize: 15, fontWeight: 700 }}>
@@ -59,7 +61,7 @@ export default function CurrencyPickerScreen() {
     <div style={{ fontFamily: T.fontSans, color: T.ink, minHeight: "100%" }}>
       <AppBar
         leading={
-          <IconButton onClick={() => router.push("/settings")}>
+          <IconButton ariaLabel={c.backSettings} onClick={() => router.push("/settings")}>
             {Ico.back({})}
           </IconButton>
         }
@@ -76,6 +78,8 @@ export default function CurrencyPickerScreen() {
       >
         {opts.map((o) => (
           <button
+            type="button"
+            aria-pressed={o.active}
             key={String(o.key)}
             onClick={() => setCurrency(o.key)}
             style={{
@@ -150,7 +154,7 @@ export default function CurrencyPickerScreen() {
           lineHeight: 1.5,
         }}
       >
-        {t("settings.currencyNote")}
+        {c.currencyWarning}
       </div>
       <div style={{ padding: "14px 16px 0", textAlign: "center" }}>
         <PoweredByStellar />

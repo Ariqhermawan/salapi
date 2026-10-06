@@ -19,6 +19,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { SUPABASE_URL, SUPABASE_ANON, supabaseConfigured } from "@/lib/supabase/env";
+import { isLocalPreview } from "@/lib/local-preview";
 
 function buildCsp(nonce: string): string {
   const isDev = process.env.NODE_ENV === "development";
@@ -75,7 +76,7 @@ export async function proxy(request: NextRequest) {
 
   // No Supabase configured: attach the CSP (if any) and continue. The app runs
   // on the shared demo signer in this mode.
-  if (!supabaseConfigured()) {
+  if (isLocalPreview || !supabaseConfigured()) {
     return withCsp(NextResponse.next({ request: { headers: requestHeaders } }));
   }
 

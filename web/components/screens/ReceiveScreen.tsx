@@ -7,10 +7,10 @@
 // Stellar address only when no username is claimed yet.
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { QRCodeSVG } from "qrcode.react";
 import { myHandle, walletState } from "@/app/actions";
 import { useT } from "@/components/I18nProvider";
+import { moneyCopy, moneyMessage } from "@/lib/i18n/revamp-money";
 import {
   T,
   Ico,
@@ -20,6 +20,7 @@ import {
   PoweredByStellar,
 } from "@/components/ui/kit";
 import { useGoBack } from "@/lib/ui/useGoBack";
+import { isLocalPreview, PREVIEW_WALLET } from "@/lib/local-preview";
 
 const SITE = "https://salapi.app";
 
@@ -45,16 +46,19 @@ function ShareGlyph({ c = "#fff", size = 18 }: { c?: string; size?: number }) {
 }
 
 export default function ReceiveScreen() {
-  const { t } = useT();
-  const router = useRouter();
+  const { t, locale } = useT();
+  const m = moneyCopy(locale);
   const goBack = useGoBack("/send");
-  const [username, setUsername] = useState<string | null>(null);
-  const [address, setAddress] = useState("");
+  const [username, setUsername] = useState<string | null>(isLocalPreview ? PREVIEW_WALLET.handle : null);
+  const [address, setAddress] = useState(isLocalPreview ? PREVIEW_WALLET.address : "");
   const [copied, setCopied] = useState(false);
+  const [base, setBase] = useState(SITE);
+  const [shareError, setShareError] = useState("");
 
   useEffect(() => {
-    walletState().then((s) => setAddress(s.address));
-    myHandle().then((u) => u && setUsername(u));
+    if (isLocalPreview) { Promise.resolve(window.location.origin).then(setBase); return; }
+    walletState().then((s) => setAddress(s.address)).catch(() => setShareError("Your wallet could not be loaded. Reload this page before sharing a receive link."));
+    myHandle().then((u) => u && setUsername(u)).catch(() => {});
   }, []);
 
   const handle = username
@@ -64,16 +68,18 @@ export default function ReceiveScreen() {
       : "…";
   // Scannable destination: a real pay deep-link when a username exists, else
   // the raw on-chain address as a safe fallback.
-  const shareUrl = username ? `${SITE}/send?to=${username}` : address || SITE;
+  const shareUrl = username ? `${base}/send?to=${username}` : address || base;
 
   async function onShare() {
+    setShareError("");
     const data = { title: "Salapi", text: t("receive.sub"), url: shareUrl };
     try {
       if (typeof navigator !== "undefined" && navigator.share) {
         await navigator.share(data);
         return;
       }
-    } catch {
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
       /* user dismissed the share sheet, or it is unsupported — fall through */
     }
     try {
@@ -81,7 +87,7 @@ export default function ReceiveScreen() {
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1800);
     } catch {
-      /* clipboard unavailable */
+      setShareError(m("Sharing is unavailable in this browser. You can copy the username shown above."));
     }
   }
 
@@ -97,7 +103,7 @@ export default function ReceiveScreen() {
     >
       <AppBar
         leading={
-          <IconButton ariaLabel="Back" onClick={goBack}>
+          <IconButton ariaLabel={m("Back")} onClick={goBack}>
             {Ico.back({})}
           </IconButton>
         }
@@ -114,7 +120,7 @@ export default function ReceiveScreen() {
             margin: "0 auto",
           }}
         >
-          {t("receive.sub")}
+          {isLocalPreview ? m("Try receiving with your example username in this local preview.") : m("Share your username or scan this code to receive Testnet XLM.")}
         </p>
       </div>
 
@@ -124,8 +130,8 @@ export default function ReceiveScreen() {
           style={{
             width: "100%",
             maxWidth: 320,
-            background: T.surface,
-            borderRadius: 22,
+            background: "#F2EFE7",
+            borderRadius: 28,
             boxShadow:
               "0 20px 44px -22px rgba(11,18,32,.4), inset 0 0 0 1px " + T.hairline,
             padding: "24px 24px 22px",
@@ -155,14 +161,14 @@ export default function ReceiveScreen() {
               boxShadow: "inset 0 0 0 1px " + T.hairline,
             }}
           >
-            <QRCodeSVG
+            {username || address ? <QRCodeSVG
               value={shareUrl}
               size={188}
               level="M"
               marginSize={2}
               fgColor={T.ink}
               bgColor="#ffffff"
-            />
+            /> : <div role="status" style={{ width: 188, height: 188, display: "grid", placeItems: "center", color: T.slate, fontSize: 13 }}>{shareError ? m("Receive code unavailable") : m("Loading receive code…")}</div>}
           </div>
           <div
             style={{
@@ -171,12 +177,13 @@ export default function ReceiveScreen() {
               fontWeight: 800,
               letterSpacing: "-0.02em",
               color: T.action,
+              overflowWrap: "anywhere",
             }}
           >
             {handle}
           </div>
           <div style={{ marginTop: 4, fontSize: 12, color: T.slate }}>
-            {t("receive.railNote")}
+            {m("Testnet only · no real money")}
           </div>
         </div>
       </div>
@@ -185,8 +192,10 @@ export default function ReceiveScreen() {
       <div style={{ flex: 1, minHeight: 12 }} />
 
       <div style={{ padding: "18px 16px 0" }}>
+        {shareError && <p role="alert" style={{ color: T.danger, fontSize: 13, lineHeight: 1.5 }}>{moneyMessage(locale, shareError)}</p>}
         <Btn
           kind="primary"
+          disabled={!username && !address}
           onClick={onShare}
           leading={copied ? Ico.check({ c: "#fff" }) : <ShareGlyph />}
         >

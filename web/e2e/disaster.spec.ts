@@ -60,12 +60,12 @@ test.describe("D3 local UI and HTTP authorization", () => {
     const controls = page.getByRole("region", { name: "Disaster Vault controls" });
     await expect(controls.getByText("Vault balance", { exact: true })).toBeVisible();
     await expect(controls.getByText("0 XLM", { exact: true })).toHaveCount(4);
-    await expect(controls.getByText(/Public read-only view/)).toBeVisible();
-    await expect(page.getByRole("button", { name: "Donate to this pool", exact: true })).toBeEnabled();
+    await expect(controls.getByText(/Public view\. Everyone can review the pool/)).toBeVisible();
+    await expect(page.getByRole("button", { name: "Contribute to the pool", exact: true })).toBeEnabled();
     await expect(controls.getByRole("button", { name: /Approve|Execute|Review payout/ })).toHaveCount(0);
-    await controls.getByText("View the three fixed signers", { exact: true }).click();
+    await controls.getByText("The three signer wallets and custody details", { exact: true }).click();
     for (const signer of signers) await expect(controls.getByRole("link", { name: signer, exact: true })).toBeVisible();
-    await expect(controls.getByRole("link", { name: "Sign in for signer controls" }))
+    await expect(controls.getByRole("link", { name: "Sign in for signer access", exact: true }))
       .toHaveAttribute("href", "/signin?next=%2Ftransparency");
   });
 
@@ -73,15 +73,16 @@ test.describe("D3 local UI and HTTP authorization", () => {
     await fixture(page, { unavailable: true });
     await expect(page.getByRole("region", { name: "Disaster Vault controls" }))
       .toContainText("Configured contract does not match the D3 Testnet controls");
-    await expect(page.getByRole("button", { name: "Donate to this pool", exact: true })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Contribute to the pool", exact: true })).toBeDisabled();
     await expect(page.getByRole("button", { name: /Approve #|Execute #|Review payout/ })).toHaveCount(0);
   });
 
   test("signer UI reviews exact 6.50 PHP before sending a proposal (mocked responses)", async ({ page }) => {
     const writes = await fixture(page, { viewer: signers[0] });
+    await page.getByRole("tab", { name: "Payout requests", exact: true }).click();
     await page.getByLabel("Recipient wallet", { exact: true }).fill(recipient);
     await page.getByLabel("Payout amount", { exact: true }).fill("6.50");
-    await page.getByRole("button", { name: "Review payout proposal" }).click();
+    await page.getByRole("button", { name: "Review payout request", exact: true }).click();
     await expect(page.getByText(`Send 1 Testnet XLM to ${recipient}.`, { exact: false })).toBeVisible();
     expect(writes).toHaveLength(0);
     await page.getByRole("button", { name: "Confirm propose", exact: true }).click();
@@ -98,12 +99,13 @@ test.describe("D3 local UI and HTTP authorization", () => {
       { ...payout, id: "2", kind: "Unpause", amount: null, recipient: null, epoch: "1" },
       { ...payout, id: "1", executed: true },
     ] });
+    await page.getByRole("tab", { name: "Payout requests", exact: true }).click();
     await expect(page.getByRole("button", { name: "Approve #4", exact: true })).toBeDisabled();
     await expect(page.getByRole("button", { name: "Execute #4", exact: true })).toBeDisabled();
-    await expect(page.getByText(/Wait 20 ledgers/)).toBeVisible();
+    await expect(page.getByText(/Wait 20 ledgers/).first()).toBeVisible();
     await expect(page.getByRole("button", { name: "Execute #3", exact: true })).toBeDisabled();
-    await expect(page.getByText(/Blocked: payouts paused/)).toBeVisible();
-    await expect(page.getByText(/Stale control proposal/)).toBeVisible();
+    await expect(page.getByText(/Blocked: payouts paused/).first()).toBeVisible();
+    await expect(page.getByText(/Stale control request/).first()).toBeVisible();
     await expect(page.getByRole("button", { name: /Approve #2|Execute #2|Approve #1|Execute #1/ })).toHaveCount(0);
   });
 
@@ -130,8 +132,10 @@ test("D3 public UI reads the expected live Testnet deployment (opt-in, no mocks)
   await page.goto("/transparency");
   const controls = page.getByRole("region", { name: "Disaster Vault controls" });
   await expect(controls.getByText("Vault balance", { exact: true })).toBeVisible({ timeout: 30000 });
-  await expect(controls.getByRole("link", { name: `Active D3 contract: ${expected}` })).toBeVisible({ timeout: 30000 });
-  await expect(controls.getByText(/Public read-only view/)).toBeVisible();
-  await expect(controls.getByText("Loading proposals…")).toHaveCount(0);
+  await expect(controls.getByText(/Public view\. Everyone can review the pool/)).toBeVisible();
+  await controls.getByRole("tab", { name: "Payout requests", exact: true }).click();
+  await expect(controls.getByText("Loading requests…", { exact: true })).toHaveCount(0);
+  await controls.getByRole("tab", { name: "Public proof", exact: true }).click();
+  await expect(controls.getByRole("link", { name: /^Active D3 contract/ })).toHaveAttribute("href", `https://stellar.expert/explorer/testnet/contract/${expected}`, { timeout: 30000 });
   await expect(controls.getByRole("alert")).toHaveCount(0);
 });

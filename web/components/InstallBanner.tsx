@@ -1,12 +1,24 @@
 ﻿"use client";
 
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 import { useInstallPrompt } from "@/hooks/useInstallPrompt";
 import { SalapiMark } from "@/components/ui/brand";
 import { useT } from "@/components/I18nProvider";
 
 const DISMISS_KEY = "salapi_install_dismissed";
+function dismissalSnapshot() {
+  try { return localStorage.getItem(DISMISS_KEY) === "1"; }
+  catch { return false; }
+}
+function subscribeDismissal(notify: () => void) {
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === null || event.key === DISMISS_KEY) notify();
+  };
+  window.addEventListener("storage", onStorage);
+  return () => window.removeEventListener("storage", onStorage);
+}
+function serverDismissalSnapshot() { return true; }
 
 // The primary bottom-nav tabs (Home, Vault, Activity) are deliberately
 // single-screen, no-scroll layouts, so the install promo would push their
@@ -17,11 +29,9 @@ export default function InstallBanner() {
   const pathname = usePathname();
   const { canInstall, promptInstall } = useInstallPrompt();
   const { t } = useT();
-  const [dismissed, setDismissed] = useState(true);
-
-  useEffect(() => {
-    setDismissed(localStorage.getItem(DISMISS_KEY) === "1");
-  }, []);
+  const persistedDismissal = useSyncExternalStore(subscribeDismissal, dismissalSnapshot, serverDismissalSnapshot);
+  const [dismissedInMemory, setDismissed] = useState(false);
+  const dismissed = persistedDismissal || dismissedInMemory;
 
   if (HIDDEN_ROUTES.includes(pathname) || !canInstall || dismissed) return null;
 
@@ -47,8 +57,8 @@ export default function InstallBanner() {
       <button
         aria-label={t("install.dismiss")}
         onClick={() => {
-          localStorage.setItem(DISMISS_KEY, "1");
           setDismissed(true);
+          try { localStorage.setItem(DISMISS_KEY, "1"); } catch { /* Still dismiss for this visit. */ }
         }}
         className="px-1 text-[var(--color-slate)]"
       >

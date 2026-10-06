@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Salapi, crypto-invisible fintech",
     short_name: "Salapi",
     description:
-      "GCash-funded savings, paluwagan, disaster relief & P2P on Stellar. Crypto invisible.",
+      "Community money on Stellar Testnet. Give with proof, save together, and send by username. No real money.",
     start_url: "/",
     display: "standalone",
     orientation: "portrait",

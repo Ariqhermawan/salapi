@@ -1,7 +1,7 @@
 "use client";
 
 import { useT } from "@/components/I18nProvider";
-import { T } from "@/components/ui/kit";
+import { T, Btn } from "@/components/ui/kit";
 import { SalapiMascot } from "@/components/ui/mascot";
 
 // PWA offline fallback. Composes T tokens (no Tailwind utility classes) and
@@ -47,6 +47,7 @@ export default function OfflineScreen() {
       >
         {t("offline.body")}
       </p>
+      <Btn kind="primary" full={false} onClick={() => window.location.reload()}>Try again</Btn>
     </div>
   );
 }

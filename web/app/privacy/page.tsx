@@ -1,0 +1,22 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { PoweredByStellarV2 } from "@/components/ui/brand";
+import styles from "@/components/screens/CampaignArisan.module.css";
+
+export const metadata: Metadata = {
+  title: "Draft privacy notice · Salapi",
+  description: "An informational draft describing account data, managed Testnet wallets, public receipts and browser storage in Salapi.",
+};
+
+export default function PrivacyPage() {
+  return <article className={styles.body} style={{ paddingBottom: 45 }}>
+    <nav className={styles.toolbar} aria-label="Privacy navigation"><Link href="/settings">← Back to your account</Link><Link href="/terms">Testnet terms</Link></nav>
+    <header className={styles.hero} style={{ gridTemplateColumns: "1fr" }}><div><span className={styles.eyebrow}>Salapi by Catatu · Informational draft</span><h1>Your data.<br />Clearer expectations.</h1><p>This notice describes the current Testnet app. It is a draft for review, with operator and retention details still to be completed before publication.</p></div></header>
+    <aside className={styles.notice}><strong>Testnet only.</strong> Salapi currently uses valueless Testnet XLM. The local design preview uses example data and blocks wallet provisioning and transactions.</aside>
+    <section className={styles.card}><h2 style={{ fontSize: 23 }}>Account and wallet data</h2><p className={styles.muted}>When authentication is configured, Salapi uses Supabase for sign-in and saved account records. Depending on the sign-in method, account data can include an email address, profile information, user ID and session cookies.</p><p className={styles.muted}>The current app uses service-managed Testnet wallets. Wallet records link a public address to a user ID and store an encrypted signing secret on the server. This is a custodial setup, not independent user key custody.</p></section>
+    <section className={styles.card}><h2 style={{ fontSize: 23 }}>What becomes public</h2><p className={styles.muted}>Stellar Testnet transactions, wallet addresses, registered usernames, contract events and campaign terms can be inspected publicly. Proof URLs and document hashes submitted to campaigns are public references. Do not include private, financial or sensitive personal information in a public proof document.</p><p className={styles.muted}>Computing a proof file&apos;s SHA-256 hash in the campaign form happens on your device. That action does not upload the file. If you host a proof document elsewhere, the hosting service has its own privacy terms.</p><p className={styles.muted}>Deleting a local account or clearing browser storage does not remove already published network records. Testnet operators may reset their network separately.</p></section>
+    <section className={styles.card}><h2 style={{ fontSize: 23 }}>Browser storage and providers</h2><p className={styles.muted}>The app uses cookies for authentication, browser storage for preferences and some local draft/goal metadata, and a service worker for cached application assets. Clearing that storage can remove local preferences and drafts and require signing in again.</p><p className={styles.muted}>Supabase, Stellar network infrastructure and Stellar Expert can receive requests needed for authentication, data reads and transaction receipts. Vercel traffic and performance tools are loaded only when observability is explicitly enabled for that environment. The local preview does not load those production observability tools.</p></section>
+    <section className={styles.card}><h2 style={{ fontSize: 23 }}>Requests and unfinished details</h2><p className={styles.muted}>For a privacy question, contact the Salapi team through the project&apos;s existing communication channel. A dedicated privacy contact and a verified operator address have not yet been specified in this draft.</p><div className={styles.notice} style={{ marginTop: 15 }}>Before publication, complete the legal operator identity, privacy contact, retention periods, request-handling process, provider disclosures and any applicable regional requirements. This draft does not promise a deletion deadline or a complete legal compliance policy.</div></section>
+    <footer className={styles.stack}><Link className={styles.textButton} href="/docs">Read the technical documentation →</Link><PoweredByStellarV2 size={12} /></footer>
+  </article>;
+}

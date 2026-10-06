@@ -14,16 +14,22 @@ import {
   smartSavingsId,
   arisanRoomsId,
   FRIENDS,
+  submittedTransactionStatus,
+  type TxResult,
 } from "@/lib/server/stellar";
 import {
   moneyInputToStroops,
   pesosToStroopsExact,
   type MoneyInput,
 } from "@/lib/money";
-import { getSigner, currentWalletPublicKey } from "@/lib/server/userWallet";
+import { getSigner, currentWalletPublicKey, currentArisanPublicKey } from "@/lib/server/userWallet";
 import { disasterContribute as contributeToDisaster, disasterState as readDisasterState } from "./disaster-actions";
 import { supabaseAdminConfigured } from "@/lib/supabase/env";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
+import { isLocalPreview, PREVIEW_RECIPIENT, PREVIEW_WALLET } from "@/lib/local-preview";
+import { arisanRoomPage } from "@/lib/arisan-list";
+import { recipientReviewError } from "@/lib/recipient-review";
+import { xlmDepositDetails } from "@/lib/server/xlmDeposit";
 import {
   createArisanCommitment,
   deriveArisanSecret,
@@ -45,11 +51,30 @@ function amountStroops(input: unknown): bigint | null {
   return stroops;
 }
 
+function failedTransaction(result: Extract<TxResult, { ok: false }>) {
+  return result.pending
+    ? { ok: false as const, pending: true as const, hash: result.hash, link: txLink(result.hash), error: result.error }
+    : { ok: false as const, error: result.error };
+}
+
 export async function walletState() {
+  if (isLocalPreview) return PREVIEW_WALLET;
   const { publicKey: address } = await getSigner();
   const bal = await getNativeBalance(address);
   const pesos = stroopsToPesos(bal);
   return { address, pesos, pesoLabel: fmtPeso(pesos) };
+}
+
+/** Opening Activity must never create a wallet, fund it, or request a signer. */
+export async function walletHistoryAddress(): Promise<{ address: string | null }> {
+  if (isLocalPreview) return { address: PREVIEW_WALLET.address };
+  return { address: await currentWalletPublicKey() };
+}
+
+/** Public deposit instructions only. Never provision, fund, or use a demo signer. */
+export async function walletDepositAddress() {
+  if (isLocalPreview) return null;
+  return xlmDepositDetails(await currentWalletPublicKey());
 }
 
 /** Simulated GCash top-up (labeled sandbox). Real GCash = licensed anchor at
@@ -111,7 +136,7 @@ export async function registerUsername(name: string) {
   ]);
   return r.ok
     ? { ok: true as const, name: clean, hash: r.hash, link: txLink(r.hash) }
-    : { ok: false as const, error: r.error };
+    : failedTransaction(r);
 }
 
 export async function renameUsername(name: string) {
@@ -129,6 +154,7 @@ export async function renameUsername(name: string) {
     return { ok: true as const, name: clean, hash: r.hash, link: txLink(r.hash) };
   const taken = /taken|#1/i.test(r.error ?? "");
   return {
+    ...failedTransaction(r),
     ok: false as const,
     error: taken ? `@${clean} is already taken` : r.error || "Couldn't rename",
   };
@@ -152,6 +178,7 @@ export async function myUsername() {
  * wallet or no registered username, so the UI falls back to its brand label.
  */
 export async function myHandle(): Promise<string | null> {
+  if (isLocalPreview) return PREVIEW_WALLET.handle;
   try {
     const publicKey = await currentWalletPublicKey();
     if (!publicKey) return null;
@@ -165,8 +192,30 @@ export async function myHandle(): Promise<string | null> {
   }
 }
 
-export async function sendByUsername(name: string, input: MoneyInput) {
-  const clean = name.trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
+/** Resolves the recipient without creating a wallet or submitting a transfer. */
+export async function lookupRecipient(name: string) {
+  const clean = name.trim().replace(/^@/, "").toLowerCase();
+  if (!/^[a-z0-9_]{3,32}$/.test(clean)) return { ok: false as const, error: "Enter a username with 3–32 letters, numbers or underscores." };
+  if (isLocalPreview) {
+    if (clean === PREVIEW_WALLET.handle) return { ok: false as const, error: "Choose someone other than yourself." };
+    return { ok: true as const, username: clean, address: PREVIEW_RECIPIENT, localPreview: true };
+  }
+  try {
+    const address = await readContract(CONTRACTS.usernameRegistry, "resolve", [sc.str(clean)]);
+    if (typeof address !== "string") return { ok: false as const, error: `@${clean} was not found.` };
+    const own = await currentWalletPublicKey();
+    if (own === address) return { ok: false as const, error: "Choose someone other than yourself." };
+    return { ok: true as const, username: clean, address };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    return { ok: false as const, error: /Error\(Contract, #/.test(message) ? `@${clean} was not found.` : "Recipient lookup is unavailable. Try again before sending." };
+  }
+}
+
+export async function sendByUsername(name: string, input: MoneyInput, expectedAddress?: string) {
+  if (isLocalPreview) return { ok: false as const, error: "Local preview cannot submit transfers." };
+  const clean = name.trim().replace(/^@/, "").toLowerCase();
+  if (!/^[a-z0-9_]{3,32}$/.test(clean)) return { ok: false as const, error: "Enter a valid username" };
   const amount = amountStroops(input);
   if (amount == null)
     return { ok: false as const, error: "Enter a valid amount" };
@@ -182,17 +231,36 @@ export async function sendByUsername(name: string, input: MoneyInput) {
   } catch {
     return { ok: false as const, error: `@${clean} not found` };
   }
-  const s = await getSigner();
-  if (to === s.publicKey)
-    return { ok: false as const, error: "Can't send to yourself" };
-  const r = await invokeAs(s.secret, CONTRACTS.tokenXlmSac, "transfer", [
-    sc.addr(s.publicKey),
-    sc.addr(to),
-    sc.i128(amount),
-  ]);
-  return r.ok
-    ? { ok: true as const, to, hash: r.hash, link: txLink(r.hash) }
-    : { ok: false as const, error: r.error };
+  const reviewError = recipientReviewError(to, expectedAddress);
+  if (reviewError) return { ok: false as const, error: reviewError };
+  try {
+    const s = await getSigner();
+    if (to === s.publicKey)
+      return { ok: false as const, error: "Can't send to yourself" };
+    const r = await invokeAs(s.secret, CONTRACTS.tokenXlmSac, "transfer", [
+      sc.addr(s.publicKey),
+      sc.addr(to),
+      sc.i128(amount),
+    ]);
+    if (r.ok) return { ok: true as const, to, hash: r.hash, link: txLink(r.hash) };
+    if (r.pending) return { ok: false as const, pending: true as const, hash: r.hash, link: txLink(r.hash), error: r.error };
+    return { ok: false as const, error: r.error };
+  } catch {
+    return { ok: false as const, error: "Your wallet or transfer preparation is unavailable. No transaction was submitted." };
+  }
+}
+
+/** Public Testnet status lookup only. Never obtains a signer or retries Send. */
+export async function checkSubmittedTransaction(hash: string) {
+  const result = await submittedTransactionStatus(hash);
+  if (result.ok) return { ok: true as const, hash: result.hash, link: txLink(result.hash) };
+  if (result.pending) return { ok: false as const, pending: true as const, hash: result.hash, error: result.error };
+  return { ok: false as const, error: result.error };
+}
+
+/** Compatibility name for Send; all reconciliation shares the same guard. */
+export async function checkSubmittedTransfer(hash: string) {
+  return checkSubmittedTransaction(hash);
 }
 
 // ── Paluwagan (arisan) ────────────────────────────────────────────
@@ -277,7 +345,7 @@ export async function paluwaganPayMine() {
   ]);
   return r.ok
     ? { ok: true as const, link: txLink(r.hash) }
-    : { ok: false as const, error: r.error };
+    : failedTransaction(r);
 }
 
 export async function paluwaganFriendsPay() {
@@ -294,7 +362,7 @@ export async function paluwaganFriendsPay() {
       sc.addr(f.pub()),
     ]);
     if (r.ok) paid++;
-    else return { ok: false as const, error: `${f.label}: ${r.error}` };
+    else return { ...failedTransaction(r), error: `${f.label}: ${r.error}` };
   }
   return { ok: true as const, paid };
 }
@@ -306,7 +374,7 @@ export async function paluwaganCollect() {
   const r = await invokeAs(s.secret, id, "payout", []);
   return r.ok
     ? { ok: true as const, link: txLink(r.hash) }
-    : { ok: false as const, error: r.error };
+    : failedTransaction(r);
 }
 
 // ── Smart Savings (goal vault) ────────────────────────────────────
@@ -373,7 +441,7 @@ export async function smartSavingsOpen(
   ]);
   return r.ok
     ? { ok: true as const, link: txLink(r.hash) }
-    : { ok: false as const, error: r.error };
+    : failedTransaction(r);
 }
 
 export async function smartSavingsDeposit(input: MoneyInput) {
@@ -389,7 +457,7 @@ export async function smartSavingsDeposit(input: MoneyInput) {
   ]);
   return r.ok
     ? { ok: true as const, link: txLink(r.hash) }
-    : { ok: false as const, error: r.error };
+    : failedTransaction(r);
 }
 
 export async function smartSavingsWithdraw() {
@@ -399,7 +467,7 @@ export async function smartSavingsWithdraw() {
   const r = await invokeAs(s.secret, id, "withdraw", [sc.addr(s.publicKey)]);
   return r.ok
     ? { ok: true as const, link: txLink(r.hash) }
-    : { ok: false as const, error: r.error };
+    : failedTransaction(r);
 }
 
 // A contract read can be degraded under concurrent RPC load — the Vaults
@@ -546,13 +614,15 @@ async function readArisanRoom(id: string, roomId: number) {
   };
 }
 
-export async function arisanList() {
+export async function arisanList(cursor?: number) {
   const id = arisanRoomsId();
   if (!id) return { ready: false as const };
+  if (cursor !== undefined && (typeof cursor !== "number" || !Number.isSafeInteger(cursor) || cursor < 1))
+    return { ready: false as const, error: "Invalid room cursor" };
   try {
-    const me = (await getSigner()).publicKey;
-    const count = Number(await readContract(id, "room_count")) || 0;
-    const limit = Math.min(count, 50); // demo safety cap
+    const me = await currentArisanPublicKey();
+    const count = Number(await readContract(id, "room_count"));
+    const page = arisanRoomPage(count, cursor);
     type Row = {
       id: number;
       name: string;
@@ -571,7 +641,7 @@ export async function arisanList() {
       code: string | null;
     };
     const rooms: Row[] = [];
-    for (let i = limit; i >= 1; i--) {
+    for (const i of page.ids) {
       try {
         // Same Rp 0 cold-load guard the disaster/paluwagan reads already have:
         // a transient zero shareStroops would make this room's tile flash
@@ -586,11 +656,11 @@ export async function arisanList() {
           }
           if (attempt < 3) await new Promise((res) => setTimeout(res, 300));
         }
-        if (r == null) continue;
+        if (r == null) throw new Error("Room share could not be confirmed");
         const members =
           ((await readContract(id, "get_members", [sc.u32(i)])) as string[]) ||
           [];
-        const isMember = members.includes(me);
+        const isMember = me != null && members.includes(me);
         const isHost = r.host === me;
         const pot = r.shareStroops * BigInt(r.memberTarget);
         rooms.push({
@@ -611,7 +681,7 @@ export async function arisanList() {
           code: isMember ? r.code : null,
         });
       } catch {
-        /* gap or read failure — skip */
+        throw new Error("A room could not be loaded. This page was not advanced. Please retry.");
       }
     }
     // Hide dev-test rooms that were created by automated scripts during
@@ -623,7 +693,7 @@ export async function arisanList() {
     const mine = rooms
       .filter((r) => !DEV_ROOM_NAMES.has(r.name))
       .filter((r) => r.isMember);
-    return { ready: true as const, total: count, mine };
+    return { ready: true as const, total: count, mine, nextCursor: page.nextCursor };
   } catch (e) {
     return {
       ready: false as const,
@@ -691,7 +761,7 @@ export async function arisanCreate(input: {
     sc.u64(firstKocok),
     sc.u64(joinDeadline),
   ]);
-  if (!r.ok) return { ok: false as const, error: r.error };
+  if (!r.ok) return failedTransaction(r);
   return {
     ok: true as const,
     id: Number(r.value),
@@ -731,7 +801,7 @@ export async function arisanJoin(rawCode: string) {
   ]);
   return r.ok
     ? { ok: true as const, id: res.id, link: txLink(r.hash) }
-    : { ok: false as const, error: r.error };
+    : failedTransaction(r);
 }
 
 export async function arisanLeave(roomId: number) {
@@ -744,7 +814,7 @@ export async function arisanLeave(roomId: number) {
   ]);
   return r.ok
     ? { ok: true as const, link: txLink(r.hash) }
-    : { ok: false as const, error: r.error };
+    : failedTransaction(r);
 }
 
 export async function arisanStart(roomId: number) {
@@ -757,7 +827,7 @@ export async function arisanStart(roomId: number) {
   ]);
   return r.ok
     ? { ok: true as const, link: txLink(r.hash) }
-    : { ok: false as const, error: r.error };
+    : failedTransaction(r);
 }
 
 export async function arisanCancel(roomId: number) {
@@ -770,7 +840,7 @@ export async function arisanCancel(roomId: number) {
   ]);
   return r.ok
     ? { ok: true as const, link: txLink(r.hash) }
-    : { ok: false as const, error: r.error };
+    : failedTransaction(r);
 }
 
 function arisanDrawSecret(
@@ -812,6 +882,7 @@ export async function arisanCommit(roomId: number) {
   return r.ok
     ? { ok: true as const, hash: r.hash, link: txLink(r.hash) }
     : {
+        ...failedTransaction(r),
         ok: false as const,
         error: r.error,
         errorKey: arisanFriendlyError(r.error, "arisan.somethingWrong"),
@@ -835,6 +906,7 @@ export async function arisanReveal(roomId: number) {
   return r.ok
     ? { ok: true as const, hash: r.hash, link: txLink(r.hash) }
     : {
+        ...failedTransaction(r),
         ok: false as const,
         error: r.error,
         errorKey: arisanFriendlyError(r.error, "arisan.somethingWrong"),
@@ -852,7 +924,7 @@ export async function arisanFinalize(roomId: number) {
     sc.u32(rid),
     sc.addr(s.publicKey),
   ]);
-  if (!r.ok) return { ok: false as const, error: r.error };
+  if (!r.ok) return failedTransaction(r);
   const winner = typeof r.value === "string" ? r.value : "";
   return {
     ok: true as const,
@@ -905,6 +977,7 @@ export async function arisanPostpone(roomId: number, delaySeconds: number) {
   // HostError dump. The UI's run() helper falls back to the raw error if
   // errorKey is absent, so older callers stay compatible.
   return {
+    ...failedTransaction(r),
     ok: false as const,
     error: r.error,
     errorKey: arisanFriendlyError(r.error, "arisan.somethingWrong"),
@@ -939,7 +1012,7 @@ export async function arisanFriendsJoin(roomId: number) {
       sc.sym(code),
       sc.addr(f.pub()),
     ]);
-    if (!r.ok) return { ok: false as const, error: `${f.label}: ${r.error}` };
+    if (!r.ok) return { ...failedTransaction(r), error: `${f.label}: ${r.error}` };
     joined++;
   }
   return { ok: true as const, joined };
@@ -1009,7 +1082,7 @@ async function arisanFriendsDrawAction(
             sc.bytes(secret),
           ]);
     if (!result.ok)
-      return { ok: false as const, error: `${friend.label}: ${result.error}` };
+      return { ...failedTransaction(result), error: `${friend.label}: ${result.error}` };
     submitted++;
     links.push(txLink(result.hash));
   }
@@ -1204,6 +1277,7 @@ export async function joinCirclesWaitlist(input: {
   anonymous: boolean;
   marketingOk: boolean;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (isLocalPreview) return { ok: false, error: "Local preview does not submit waitlist details." };
   // Server Functions are reachable via direct POST per Next 16 docs, so any
   // assumption about the shape of `input` must be defended at runtime.
   if (!input || typeof input !== "object")

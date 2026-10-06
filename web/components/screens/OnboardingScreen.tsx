@@ -1,131 +1,53 @@
 "use client";
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { T, Ico, Btn, Wordmark, Avatar, Peso, MakerLockup, PoweredByStellar } from "@/components/ui/kit";
+import { T, Btn, Wordmark, Chip, MakerLockup, PoweredByStellar } from "@/components/ui/kit";
 import { useT } from "@/components/I18nProvider";
+import type { Locale } from "@/lib/i18n/config";
 
-function BalanceVisual() {
-  return (
-    <div style={{ width: 210, height: 124, borderRadius: 18, background: "linear-gradient(160deg,#fff 0%,#F4F6FB 100%)", boxShadow: "0 10px 30px -8px rgba(11,18,32,0.18), inset 0 0 0 1px " + T.hairline, padding: 18, position: "relative" }}>
-      <div style={{ fontSize: 10, fontWeight: 600, color: T.slate, letterSpacing: "0.1em", textTransform: "uppercase" }}>Available</div>
-      <div style={{ marginTop: 8 }}><Peso value={24580.5} size={28} /></div>
-      <div style={{ position: "absolute", bottom: 12, right: 14 }}><Wordmark size={12} /></div>
-    </div>
-  );
-}
-
-function SendVisual() {
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 28 }}>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-        <Avatar name="You" size={56} />
-        <div style={{ fontSize: 12, color: T.slate, fontFamily: T.fontMono }}>@you</div>
-      </div>
-      <div style={{ width: 110, borderTop: "2px dashed " + T.hairline, position: "relative", height: 2 }}>
-        <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", background: T.action, color: "#fff", width: 36, height: 36, borderRadius: 99, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 8px 24px -8px rgba(37,99,235,0.55)" }}>
-          {Ico.send({ c: "#fff", size: 18 })}
-        </div>
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-        <Avatar name="Maria" size={56} />
-        <div style={{ fontSize: 12, color: T.slate, fontFamily: T.fontMono }}>@maria</div>
-      </div>
-    </div>
-  );
-}
-
-function CircleVisual() {
-  const seats = [0, 1, 2, 3, 4, 5];
-  return (
-    <div style={{ width: 200, height: 200, position: "relative" }}>
-      <div style={{ position: "absolute", inset: 30, borderRadius: 99, border: "2px dashed " + T.hairline }} />
-      {seats.map((i) => {
-        const a = (i / seats.length) * Math.PI * 2 - Math.PI / 2;
-        const x = 100 + Math.cos(a) * 70 - 18;
-        const y = 100 + Math.sin(a) * 70 - 18;
-        const active = i === 2;
-        return (
-          <div key={i} style={{ position: "absolute", left: x, top: y, width: 36, height: 36, borderRadius: 99, background: active ? T.action : T.surface, color: active ? "#fff" : T.ink, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 600, boxShadow: active ? "0 8px 24px -6px rgba(37,99,235,.6)" : "inset 0 0 0 1px " + T.hairline }}>
-            {["M", "J", "L", "P", "K", "A"][i]}
-          </div>
-        );
-      })}
-      <div style={{ position: "absolute", left: 60, top: 60, width: 80, height: 80, borderRadius: 99, background: T.canvas, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", boxShadow: "inset 0 0 0 1px " + T.hairline }}>
-        <div style={{ fontSize: 10, fontWeight: 600, color: T.slate, letterSpacing: "0.08em", textTransform: "uppercase" }}>Pot</div>
-        <div className="sl-balance" style={{ fontSize: 18, fontWeight: 600 }}>₱6,000</div>
-      </div>
-    </div>
-  );
-}
-
-const SLIDE_VISUALS = [
-  <BalanceVisual key="balance" />,
-  <SendVisual key="send" />,
-  <CircleVisual key="circle" />,
-];
-
+const SLIDES: Record<Locale, { tag: string; title: string; body: string }[]> = {
+  en: [
+    { tag: "GIVE WITH CLARITY", title: "A cause you care about.\nTerms you can see.", body: "Explore donation campaigns. Check the beneficiary, creator share and review deadline before contributing valueless Testnet XLM." },
+    { tag: "SAVE TOGETHER", title: "Your circle.\nClear rules.", body: "Arisan Rooms collect the full required deposit upfront. Check every member, schedule and payout rule before joining." },
+    { tag: "SEND BY NAME", title: "An @username.\nA public receipt.", body: "Review the recipient and amount, then send Testnet XLM. Currency values are illustrative. Real deposits and withdrawals are not connected." },
+  ],
+  id: [
+    { tag: "DONASI DENGAN JELAS", title: "Tujuan yang kamu peduli.\nSyarat yang terlihat.", body: "Jelajahi campaign donasi. Periksa penerima, bagian pembuat dan batas waktu review sebelum menyetor XLM Testnet tanpa nilai uang." },
+    { tag: "MENABUNG BERSAMA", title: "Lingkaranmu.\nAturan yang jelas.", body: "Arisan Rooms meminta seluruh setoran di muka. Periksa anggota, jadwal dan aturan pencairan sebelum bergabung." },
+    { tag: "KIRIM LEWAT NAMA", title: "Satu @username.\nBukti publik.", body: "Periksa penerima dan nominal sebelum mengirim XLM Testnet. Nilai mata uang hanya ilustrasi. Setoran dan penarikan uang nyata belum terhubung." },
+  ],
+  tl: [
+    { tag: "MALINAW NA PAGBIBIGAY", title: "Layuning mahalaga.\nPatakarang nakikita.", body: "Suriin ang benepisyaryo, bahagi ng gumawa at review deadline bago magbigay ng Testnet XLM na walang tunay na halaga." },
+    { tag: "SAMA-SAMANG IPON", title: "Ang inyong grupo.\nMalinaw na patakaran.", body: "Buong deposito muna sa Arisan Rooms. Suriin ang mga miyembro, iskedyul at patakaran ng payout bago sumali." },
+    { tag: "MAGPADALA SA PANGALAN", title: "Isang @username.\nPampublikong resibo.", body: "Suriin ang tatanggap at halaga bago magpadala ng Testnet XLM. Halimbawa lang ang currency value. Hindi pa konektado ang tunay na cash in at cash out." },
+  ],
+  vi: [
+    { tag: "QUYÊN GÓP MINH BẠCH", title: "Mục tiêu bạn quan tâm.\nĐiều kiện rõ ràng.", body: "Xem người nhận, phần của người tạo và hạn xét duyệt trước khi đóng góp XLM Testnet không có giá trị tiền thật." },
+    { tag: "TIẾT KIỆM CÙNG NHAU", title: "Nhóm của bạn.\nQuy tắc rõ ràng.", body: "Arisan Rooms yêu cầu nộp toàn bộ khoản góp trước. Kiểm tra thành viên, lịch và quy tắc chi trả trước khi tham gia." },
+    { tag: "GỬI BẰNG TÊN", title: "Một @username.\nBiên nhận công khai.", body: "Kiểm tra người nhận và số tiền trước khi gửi XLM Testnet. Giá trị tiền tệ chỉ minh họa. Nạp và rút tiền thật chưa kết nối." },
+  ],
+};
+const ART = ["giving", "arisan", "send"];
 export default function OnboardingScreen() {
   const router = useRouter();
-  const { t } = useT();
-  const [i, setI] = useState(0);
-  const last = i === SLIDE_VISUALS.length - 1;
-  const slideKey = `onboarding.slide${i}`;
-
-  return (
-    <div style={{ fontFamily: T.fontSans, color: T.ink, minHeight: "100%", display: "flex", flexDirection: "column", paddingBottom: 110 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px 0" }}>
-        <Wordmark size={20} />
-        <button onClick={() => router.push("/")} style={{ fontSize: 13, color: T.slate, fontWeight: 500, background: "none", border: "none", cursor: "pointer", fontFamily: T.fontSans }}>
-          {t("onboarding.skip")}
-        </button>
+  const { t, locale } = useT();
+  const [index, setIndex] = useState(0);
+  const slide = SLIDES[locale][index];
+  const last = index === 2;
+  return <div style={{ fontFamily: T.fontSans, color: T.ink, minHeight: "100%", display: "flex", flexDirection: "column", padding: "16px 20px 28px" }}>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><Wordmark size={22} /><button type="button" onClick={() => router.push("/")} style={{ border: 0, background: "none", color: T.slate, fontWeight: 700, padding: 10 }}>{t("onboarding.skip")}</button></div>
+    <div style={{ flex: 1, padding: "30px 12px 22px", textAlign: "center" }}>
+      <div style={{ background: "#F2EFE7", borderRadius: 32, padding: 24, marginBottom: 26 }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={"/illustrations/" + ART[index] + ".png"} alt="" width={220} height={220} style={{ width: "min(100%, 240px)", height: 220, objectFit: "contain" }} />
       </div>
-
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "20px 24px 0", textAlign: "center" }}>
-        <div style={{ marginBottom: 16, minHeight: 180, display: "flex", alignItems: "center" }}>{SLIDE_VISUALS[i]}</div>
-        <div style={{ fontSize: 11, color: T.action, fontWeight: 600, letterSpacing: "0.14em", textTransform: "uppercase", marginBottom: 8 }}>{t(`${slideKey}.eyebrow`)}</div>
-        <div style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.15, whiteSpace: "pre-line", maxWidth: 280 }}>{t(`${slideKey}.title`)}</div>
-        <div style={{ marginTop: 10, fontSize: 14, color: T.slate, lineHeight: 1.5, maxWidth: 280 }}>{t(`${slideKey}.body`)}</div>
-
-        {/* Gap fix 4 - empathetic "why we built this" caption, slide 0 only. */}
-        {i === 0 && (
-          <div
-            role="note"
-            aria-label={t("onboarding.painPoint.caption")}
-            style={{
-              marginTop: 16,
-              paddingTop: 14,
-              borderTop: "1px solid " + T.hairline,
-              fontSize: 12.5,
-              lineHeight: 1.55,
-              color: T.slate,
-              maxWidth: 320,
-            }}
-          >
-            {t("onboarding.painPoint.caption")}
-          </div>
-        )}
-      </div>
-
-      <div style={{ padding: "16px 16px 0" }}>
-        <div style={{ display: "flex", gap: 6, justifyContent: "center", marginBottom: 12 }}>
-          {[0, 1, 2].map((k) => (
-            <div key={k} style={{ width: k === i ? 24 : 8, height: 8, borderRadius: 99, background: k === i ? T.ink : T.hairline, transition: "width .3s" }} />
-          ))}
-        </div>
-        <Btn kind="primary" onClick={() => (last ? router.push("/signin") : setI(i + 1))}>
-          {last ? t("onboarding.getStarted") : t("onboarding.next")}
-        </Btn>
-        <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
-          <MakerLockup />
-        </div>
-        {/* Final-slide brand footer per Gap fix 3 audit. */}
-        {last && (
-          <div style={{ display: "flex", justifyContent: "center", marginTop: 10 }}>
-            <PoweredByStellar />
-          </div>
-        )}
-      </div>
+      <div style={{ color: T.action, fontSize: 11, fontWeight: 800, letterSpacing: ".1em" }}>{slide.tag}</div>
+      <h1 style={{ fontSize: 32, fontWeight: 800, letterSpacing: "-.04em", lineHeight: 1.12, whiteSpace: "pre-line", margin: "12px 0 16px" }}>{slide.title}</h1>
+      <p style={{ fontSize: 14, color: T.slate, lineHeight: 1.65, margin: 0 }}>{slide.body}</p>
+      <div style={{ marginTop: 20 }}><Chip kind="warn">STELLAR TESTNET · NO REAL MONEY</Chip></div>
     </div>
-  );
+    <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 18 }}>{ART.map((_, i) => <button key={i} type="button" aria-label={"Slide " + (i + 1)} aria-pressed={i === index} onClick={() => setIndex(i)} style={{ width: i === index ? 28 : 10, height: 10, padding: 0, border: 0, borderRadius: 99, background: i === index ? T.action : T.hairline }} />)}</div>
+    <Btn kind="primary" onClick={() => last ? router.push("/signin") : setIndex(index + 1)}>{last ? t("onboarding.getStarted") : t("onboarding.next")}</Btn>
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, marginTop: 20 }}><MakerLockup /><PoweredByStellar /></div>
+  </div>;
 }

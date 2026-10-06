@@ -1,0 +1,21 @@
+import type { ReactNode } from "react";
+import type { CircleCategory } from "@/lib/circles/types";
+
+// Small, code-native line drawings. No image requests, IDs, or animation on
+// SVG paths. Hoisted scenes stay identical across selection and locale changes.
+const SCENES = {
+  all: <><circle cx="62" cy="46" r="28"/><path d="M37 35q18 8 49 1M35 53q26-5 52 3M62 18q-16 26 0 56q17-25 0-56M42 26l8 9-5 9 9 5 3 12M80 28l-9 7 6 12-6 5 5 11"/><path d="M18 76q12-13 25 0M81 79q11-14 24-1M24 69v-6m73 7v-7M15 31l5-2m76-9 4-4M61 85v6"/><circle cx="30" cy="61" r="5"/><circle cx="93" cy="61" r="5"/><path d="M52 85q-4-7 2-8q5-1 7 4q4-6 8-3q6 4-8 13Z"/></>,
+  animals: <><path d="M20 34l-2-17 15 11q9-3 18 0l13-11-1 21q6 7 4 17q-2 16-21 17q-21 0-25-15q-4-13-1-23Z"/><path d="m27 46 7 1m20-1 5-1M40 53l5 3 4-4m-5 4v5m-7-2q7 6 15-1M16 53l-11-2m13 8-10 3M65 54l8-3"/><path d="M83 38q9-8 20-1l6 17q1 16-15 19q-18 1-19-14l3-11M79 37q-15-8-10 11q3 13 9 4M103 36q14-7 12 11q-1 12-8 8M85 51h1m14-1h1M88 59q6-5 10 0l-5 5Z"/><path d="M46 89q-6-7 0-11q8-5 12 4q5-7 11-2q7 7-2 10Z"/><circle cx="42" cy="75" r="3"/><circle cx="52" cy="71" r="3"/><circle cx="62" cy="73" r="3"/><path d="m14 78-3 4m99-5 4 3"/></>,
+  care: <><path d="M28 50q31-8 63 0M29 51q4 23 30 24q27 1 32-24"/><ellipse cx="60" cy="78" rx="35" ry="5"/><path d="M43 40q-6-5-1-11q4-6 0-12M58 37q-6-7-1-13M73 40q-6-5-1-11q4-6 0-12M15 40v36m-5-38v13q5 6 10 0V38M106 76V55q-8-3-7-12q2-14 8-14q7 1 6 14q0 9-7 12"/><path d="M48 91q-5-5 0-8q5-2 8 3q4-5 8-2q5 5-8 12ZM26 22l-6 2m67-5 4-4"/></>,
+  volunteer: <><path d="M60 69V40M60 52q-22-2-25-22q22-1 25 22ZM60 43q1-23 24-26q2 22-24 26Z"/><path d="M26 65q6-9 14-5l13 6q5 1 4 6q-1 5-7 2l-13-4M17 73l12 6 26 9q9 3 14-3l30-19q4-3 1-7q-3-4-7-1L74 71q-8-8-18-5M9 60l13-4 14 27-13 7Z"/><path d="M22 96q11-7 22 0t22 0t22 0M20 21l-5-4m79 25 6-2M71 8v5"/></>,
+  disaster: <><path d="m22 44 24-22 26 21M27 41v34h40V42M40 74V55h14v19M20 84q10-8 20 0t20 0t20 0t20 0M17 94q10-7 20 0t20 0t20 0t20 0"/><path d="M75 51h27v24H75ZM75 59h27M88 51v8M81 63h8m-10 7h6M17 27q-8-4-3-11q5-6 12-2q2-11 11-9q9 1 11 9q10-4 13 4M79 16q10-8 17 3q11-2 12 6M13 38l-3 5m72-12-3 6m20 0-3 6"/></>,
+  medical: <><path d="M33 15v19q0 13 14 14q14-1 14-14V15M28 14h9v9h-9Zm29 0h9v9h-9ZM47 48v22q0 18 16 18q17-1 17-20V53"/><circle cx="80" cy="46" r="8"/><circle cx="80" cy="46" r="3"/><path d="M21 70H8V52h26v14M18 55v11m-5-5h10M73 17q-5-10-12-6q-7 4-1 11l12 10q21-10 18-20q-4-9-12-3l-5 8M100 65v11m-6-6h12M25 86l-5 3"/></>,
+  education: <><path d="M59 40q-20-13-42-7v47q22-5 42 8q21-12 43-8V33q-23-6-43 7ZM59 41v46M25 46q14-2 25 5M25 57q14-2 25 5M25 68q14-2 25 5M69 49q14-6 25-3M69 60q14-6 25-3M69 71q14-6 25-3"/><path d="m40 18 30-5 2 8-30 5-9-2 7-6ZM65 14l2 8M88 16v10m-5-5h10M18 18l-4 5m89 66 6 2M12 90q6 4 12 0"/></>,
+  community: <><path d="M22 80V60q0-13 13-13q12 0 15 11l8 8M70 59q3-12 14-12q14 0 14 15v18M28 61v17M92 61v17M39 58l15 13q6 5 12 0l16-13M49 69l10 11 11-11"/><circle cx="35" cy="33" r="10"/><circle cx="84" cy="33" r="10"/><path d="M27 30q5-14 16-5M76 29q9-12 16 1M13 84q46 12 92 0M52 25q-7-10 0-13q6-3 10 4q5-7 10-3q7 6-10 17ZM10 40l-5-2m102-3 6-3M61 92v5"/></>,
+  family: <><path d="m22 30 38-22 37 23M30 26v58h61V27M22 88h76"/><circle cx="46" cy="43" r="8"/><circle cx="77" cy="43" r="8"/><circle cx="61" cy="62" r="6"/><path d="M34 76V65q0-12 12-12q10 0 12 11M66 64q2-12 11-11q12 0 12 12v11M49 81V73q0-8 11-8q11 0 12 8v8M39 64l11 9m34-10-13 10M54 35q-4-6 0-8q4-2 7 2q3-4 7-1q5 4-7 10Z"/><path d="m10 59 5 2m91-16 5-3M41 94q18 4 37 0"/></>,
+  creator: <><path d="M27 30q25-16 51 0q21 13 13 32q-4 9-14 7q-10-3-12 3q-2 6 4 10q3 7-7 8q-21 1-35-16q-17-22 0-44Z"/><circle cx="38" cy="42" r="4"/><circle cx="52" cy="35" r="4"/><circle cx="69" cy="40" r="4"/><circle cx="36" cy="59" r="4"/><path d="m92 18 9 5-25 43-8 9 3-13 21-44ZM89 24l10 5M77 57l-8-5M81 76q-3 9-12 8q5-2 5-8q4-8 7 0ZM18 14v11m-5-5h11M109 64l-5 4M15 82l-6 3"/></>,
+} satisfies Record<CircleCategory | "all", ReactNode>;
+
+export default function CauseCategoryDoodle({ category }: { category: CircleCategory | "all" }) {
+  return <svg viewBox="0 0 120 100" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" data-cause-doodle={category}>{SCENES[category]}</svg>;
+}
