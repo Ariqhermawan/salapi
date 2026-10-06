@@ -102,6 +102,9 @@ jobs:
       - name: Canonical Testnet wallet setup, funding retries and balance failures
         run: npm run test:wallet
 
+      - name: CoinGecko quote validation, credential omission and market display guards
+        run: npm run test:market
+
       - name: Prevent local-review builds in Vercel production
         run: node --experimental-strip-types --test scripts/local-preview-deployment.test.mts
 
