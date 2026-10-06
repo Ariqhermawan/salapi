@@ -1,4 +1,8 @@
 import { test, expect, type Locator, type Page } from "@playwright/test";
+import { LOCALE_COOKIE, type Locale } from "../lib/i18n/config";
+import { homeCopy } from "../lib/i18n/revamp-home";
+import { homeCatalogCopy } from "../lib/i18n/revamp-home-catalog";
+import { circlesCopy } from "../lib/i18n/revamp-circles";
 
 // Measure the app's own clipped scrollport, not just the desktop browser.
 // D4/quick actions may still continue below this compact first screen.
@@ -48,15 +52,23 @@ async function expectTouchTarget(locator: Locator, label: string) {
   expect(rect!.width, `${label} must retain a 44px touch target`).toBeGreaterThanOrEqual(43.5);
 }
 
-for (const viewport of [{ width: 390, height: 740 }, { width: 390, height: 844 }, { width: 1440, height: 950 }]) {
-  test.describe(`${viewport.width}x${viewport.height} app-frame geometry`, () => {
+const viewportCases: { viewport: { width: number; height: number }; locale: Locale }[] = [
+  ...[{ width: 390, height: 740 }, { width: 390, height: 844 }, { width: 1440, height: 950 }, { width: 1280, height: 800 }].map(viewport => ({ viewport, locale: "en" as const })),
+  ...(["tl", "id", "vi"] as const).map(locale => ({ viewport: { width: 390, height: 844 }, locale })),
+];
+
+for (const { viewport, locale } of viewportCases) {
+  test.describe(`${locale} ${viewport.width}x${viewport.height} app-frame geometry`, () => {
     test.use({ viewport, isMobile: viewport.width < 1024, hasTouch: viewport.width < 1024 });
-  test(`Home wallet and full example card fit the real first viewport at ${viewport.width}x${viewport.height}`, async ({ page }) => {
+  test(`Home wallet and full example card fit the real first viewport at ${viewport.width}x${viewport.height}`, async ({ page, context, baseURL }) => {
+    const c = circlesCopy(locale);
+    await context.addCookies([{ name: LOCALE_COOKIE, value: locale, url: new URL(baseURL ?? "http://localhost:4747").origin }]);
     await page.setViewportSize(viewport);
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/", { waitUntil: "domcontentloaded", timeout: 45000 });
     const catalog = page.getByTestId("home-circles-catalog");
     await expect(catalog).toHaveAttribute("data-catalog-ready", "true");
+    await expect(page.locator("html")).toHaveAttribute("lang", locale);
     await page.evaluate(async () => { await document.fonts.ready; });
     const firstCard = catalog.locator("article[data-example-cause]").first();
     await expect.poll(() => firstCard.locator("img").evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true);
@@ -66,23 +78,27 @@ for (const viewport of [{ width: 390, height: 740 }, { width: 390, height: 844 }
     expect(bounds.scrollTop, "The app must start at its actual main scrollTop=0").toBe(0);
     expect(bounds.documentScrollTop, "Document scrolling must not mask app-frame clipping").toBe(0);
     await expect(catalog.locator("article[data-example-cause]")).toHaveCount(27);
-    const wallet = page.getByRole("region", { name: "Your Testnet wallet", exact: true });
+    const wallet = page.getByRole("region", { name: homeCopy(locale, "Your Testnet wallet"), exact: true });
     const category = catalog.locator("#home-cause-category");
-    const pledge = firstCard.getByRole("link", { name: "Preview a pledge", exact: true });
-    const create = catalog.getByRole("link", { name: "Sketch your own cause", exact: true });
-    const previous = catalog.getByRole("button", { name: "Previous example cause", exact: true });
-    const next = catalog.getByRole("button", { name: "Next example cause", exact: true });
+    const pledge = firstCard.getByRole("link", { name: c("Preview a pledge"), exact: true });
+    const create = catalog.getByRole("link", { name: c("Sketch your own cause"), exact: true });
+    const previous = catalog.getByRole("button", { name: homeCatalogCopy(locale, "Previous example cause"), exact: true });
+    const next = catalog.getByRole("button", { name: homeCatalogCopy(locale, "Next example cause"), exact: true });
 
     await expectFullyInside(wallet, bounds, "Testnet wallet and its actions");
-    await expectFullyInside(catalog.getByText("Fictional causes · AI photos · example ratings · no payment.", { exact: true }), bounds, "Persistent example/AI/no-payment framing");
-    await expectFullyInside(firstCard.getByRole("link", { name: /^View example organizer profile:/ }), bounds, "Clickable example organizer");
-    await expectFullyInside(firstCard.getByText("Example rating", { exact: true }), bounds, "Example rating label");
+    const walletCaption = wallet.locator("p");
+    await expectFullyInside(walletCaption, bounds, "Persistent no-real-money wallet caption");
+    const captionText = await walletCaption.textContent();
+    expect([homeCopy(locale, "Native Testnet XLM · indicative value · no real money"), homeCopy(locale, "test XLM · no real money")].some(copy => captionText?.includes(copy)), "Locale-specific Testnet/no-real-money framing must stay visible").toBe(true);
+    await expectFullyInside(catalog.getByText(homeCatalogCopy(locale, "Fictional causes · AI photos · example ratings · no payment."), { exact: true }), bounds, "Persistent example/AI/no-payment framing");
+    await expectFullyInside(firstCard.locator('a[href$="/organizer"]'), bounds, "Clickable example organizer");
+    await expectFullyInside(firstCard.getByText(homeCatalogCopy(locale, "Example rating"), { exact: true }), bounds, "Example rating label");
     await expectFullyInside(pledge, bounds, "Preview pledge CTA");
     await expectFullyInside(create, bounds, "Example creation footer");
     await expectFullyInside(previous, bounds, "Previous example footer control");
     await expectFullyInside(next, bounds, "Next example footer control");
     for (const [control, label] of [[category, "Category"], [pledge, "Preview pledge"], [create, "Sketch cause"], [previous, "Previous example"], [next, "Next example"]] as const) await expectTouchTarget(control, label);
-    for (const label of ["Top up", "Withdraw"]) await expectTouchTarget(wallet.getByRole("link", { name: label, exact: true }), label);
+    for (const label of ["Top up", "Withdraw"]) await expectTouchTarget(wallet.getByRole("link", { name: homeCopy(locale, label), exact: true }), label);
 
     // These controls must remain usable without Playwright silently scrolling
     // the main panel down to reach them. Category updates must also not move it.
@@ -90,10 +106,10 @@ for (const viewport of [{ width: 390, height: 740 }, { width: 390, height: 844 }
     await expect(catalog.locator("article[data-example-cause]")).toHaveCount(3);
     expect((await appScrollport(page)).scrollTop).toBe(0);
     await next.click();
-    await expect(catalog.getByLabel("2 of 3 example causes", { exact: true })).toHaveText("02 / 03");
+    await expect(catalog.getByLabel(homeCatalogCopy(locale, "{current} of {count} example causes", { current: 2, count: 3 }), { exact: true })).toHaveText("02 / 03");
     expect((await appScrollport(page)).scrollTop).toBe(0);
     await previous.click();
-    await expect(catalog.getByLabel("1 of 3 example causes", { exact: true })).toHaveText("01 / 03");
+    await expect(catalog.getByLabel(homeCatalogCopy(locale, "{current} of {count} example causes", { current: 1, count: 3 }), { exact: true })).toHaveText("01 / 03");
     expect((await appScrollport(page)).scrollTop).toBe(0);
     await expectFullyInside(create, await appScrollport(page), "Filtered example creation footer");
   });
