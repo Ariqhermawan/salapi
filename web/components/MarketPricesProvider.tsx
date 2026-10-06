@@ -40,7 +40,9 @@ export function MarketPricesProvider({ children }: { children: React.ReactNode }
     const timeout = setTimeout(() => controller.abort(), 8000);
     const task = (async () => {
       try {
-        const response = await fetch("/api/market-prices", { signal: controller.signal, cache: "no-store", credentials: "omit" });
+        // Keep Preview protection cookies on this same-origin app route. The
+        // CoinGecko key and upstream provider request remain server-only.
+        const response = await fetch("/api/market-prices", { signal: controller.signal, cache: "no-store", credentials: "same-origin" });
         if (!response.ok) throw new Error("Market quote unavailable");
         const incoming = validateMarketPrices(await response.json(), Date.now());
         if (incoming.status === "unavailable") {

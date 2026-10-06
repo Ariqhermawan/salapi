@@ -32,13 +32,13 @@ function mountProvider(preview = false) {
   const timeouts = new Map<number, { callback: () => void; delay: number }>();
   const intervals = new Map<number, { callback: () => void; delay: number }>();
   const listeners = new Set<() => void>();
-  const requests: { options: RequestInit; resolve: (response: { ok: boolean; json: () => Promise<unknown> }) => void; reject: (reason: unknown) => void }[] = [];
+  const requests: { url: string; options: RequestInit; resolve: (response: { ok: boolean; json: () => Promise<unknown> }) => void; reject: (reason: unknown) => void }[] = [];
   const exported = {} as { MarketPricesProvider(props: { children: unknown }): Element };
   runInNewContext(providerCode, { exports: exported, Promise, AbortController, Date: { now: () => now },
     setTimeout(callback: () => void, delay: number) { const id = ++nextTimer; timeouts.set(id, { callback, delay }); return id; }, clearTimeout(id: number) { timeouts.delete(id); },
     setInterval(callback: () => void, delay: number) { const id = ++nextTimer; intervals.set(id, { callback, delay }); return id; }, clearInterval(id: number) { intervals.delete(id); },
     document: { get hidden() { return hidden; }, addEventListener(name: string, fn: () => void) { assert.equal(name, "visibilitychange"); listeners.add(fn); }, removeEventListener(_name: string, fn: () => void) { listeners.delete(fn); } },
-    fetch(url: string, options: RequestInit) { assert.equal(url, "/api/market-prices"); return new Promise((resolve, reject) => requests.push({ options, resolve, reject })); },
+    fetch(url: string, options: RequestInit) { assert.equal(url, "/api/market-prices"); return new Promise((resolve, reject) => requests.push({ url, options, resolve, reject })); },
     require(name: string) {
       if (name === "react/jsx-runtime") return { jsx, jsxs: jsx };
       if (name === "@/lib/local-preview") return { isLocalPreview: preview };
@@ -80,10 +80,23 @@ test("one provider deduplicates concurrent consumer refreshes and publishes fres
   const h = mountProvider(); h.start();
   const a = h.value().refresh(), b = h.value().refresh();
   assert.equal(a, b); assert.equal(h.requests.length, 1);
-  assert.equal(h.requests[0].options.credentials, "omit");
+  assert.equal(h.requests[0].options.credentials, "same-origin");
   h.resolve(0, quote(h.now())); await h.flush();
   assert.equal(h.value().prices.status, "fresh"); assert.equal(h.value().loading, false);
   assert.equal(h.listeners.size, 1); h.unmount(); assert.equal(h.listeners.size, 0); assert.equal(h.intervals.size, 0);
+});
+
+test("same-origin quote request retains Preview access cookies without sending provider credentials", async () => {
+  const h = mountProvider(); h.start();
+  assert.equal(h.requests.length, 1);
+  const request = h.requests[0];
+  assert.equal(request.url, "/api/market-prices", "Quotes are requested from the app, never from a third-party provider");
+  assert.equal(request.options.credentials, "same-origin", "Protected Preview access requires its same-origin cookie");
+  assert.equal(request.options.cache, "no-store");
+  assert.equal(request.options.headers, undefined, "No API key, provider header or custom authentication header reaches the browser");
+  assert.equal(request.options.body, undefined);
+  assert.deepEqual(Object.keys(request.options).sort(), ["cache", "credentials", "signal"]);
+  h.resolve(0, quote(h.now())); await h.flush(); h.unmount();
 });
 
 test("automatic 60-second refresh updates the shared price and suppresses hidden polling", async () => {
