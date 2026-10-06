@@ -114,6 +114,7 @@ function setup(options: { currency?: Locale; locale?: Locale; circleId?: string;
       if (name === "next/image") return { default: "Image" };
       if (name === "@/components/ui/SuccessMotion") return { default: "SuccessMotion" };
       if (name === "@/components/ui/OrganizerVerification") return { default: "OrganizerVerification" };
+      if (name === "@/components/ui/ExampleOrganizerAvatar") return { default: "ExampleOrganizerAvatar" };
       if (name === "@/components/I18nProvider") return { useT: () => ({ currency, locale }) };
       if (name === "@/lib/i18n/revamp-circles") return revampCircles;
       if (name === "@/components/ui/kit") return { T: {}, Ico: icons, PoweredByStellar: "PoweredByStellar" };
@@ -152,6 +153,8 @@ function setup(options: { currency?: Locale; locale?: Locale; circleId?: string;
     calls, joinPayloads, supports, get tree() { return tree; }, input, button,
     amount(value: string) { (input("circle-preview-amount").props.onChange as (event: unknown) => void)({ target: { value } }); tree = render(); },
     email(value: string) { (input("circle-launch-email").props.onChange as (event: unknown) => void)({ target: { value } }); tree = render(); },
+    anonymous(value: boolean) { (input("circle-demo-anonymous").props.onChange as (event: unknown) => void)({ target: { checked: value } }); tree = render(); },
+    comment(value: string) { const field = nodes(tree).find(node => node.type === "textarea" && node.props.id === "circle-demo-comment"); assert.ok(field); (field.props.onChange as (event: unknown) => void)({ target: { value } }); tree = render(); },
     currency(value: Locale) { currency = value; tree = render(); }, storageMode(value: StorageMode) { storageMode = value; },
     async invoke(handler: () => void) { handler(); await settle(); },
     async click(label: string) { (button(label).props.onClick as () => void)(); await settle(); },
@@ -314,4 +317,34 @@ test("seven-percent proposal stays seven percent without an invented platform de
   const screen = setup({ currency: "id", circleId: "creator-baybayin" }); screen.amount("50000");
   assert.deepEqual(allocation(screen.tree), expected("id", 46500, 3500, 7));
   assert.match(text(screen.tree), /Platform fee: not configured/); assert.doesNotMatch(text(screen.tree), /2%|platform deduction/i); noWrites(screen.calls);
+});
+
+test("local review preferences stay unsaved until confirmation and retain anonymity/comment after read-back", async () => {
+  const screen = setup({ currency: "en" }); screen.amount("50");
+  assert.equal(nodes(screen.tree).some(node => node.props.id === "circle-demo-comment"), false);
+  await screen.click("Review local donation");
+  assert.equal(screen.input("circle-demo-anonymous").props.checked, false);
+  screen.anonymous(true); screen.comment("  A little encouragement from this local demo.  ");
+  noWrites(screen.calls);
+  await screen.click("Change amount"); await screen.click("Review local donation");
+  assert.equal(screen.input("circle-demo-anonymous").props.checked, true);
+  const field = nodes(screen.tree).find(node => node.props.id === "circle-demo-comment")!;
+  assert.equal(field.props.maxLength, 300); assert.equal(field.props.value, "  A little encouragement from this local demo.  ");
+  noWrites(screen.calls);
+  await screen.click("Confirm local demo");
+  const [record] = screen.supports.readLocalSupports();
+  assert.equal(record.anonymous, true); assert.equal(record.comment, "A little encouragement from this local demo.");
+  assert.equal(record.displayValue, "50"); assert.equal(saved(screen.tree), true);
+  assert.equal(screen.calls.joins, 0); assert.equal(screen.calls.network, 0); assert.equal(screen.calls.persistentStorage, 0);
+});
+
+test("overlong handler input cannot bypass the local comment bound, and live signup never exposes or submits a comment", async () => {
+  const local = setup(); await local.click("Review local donation"); local.comment("x".repeat(301));
+  await local.click("Confirm local demo"); assert.equal(saved(local.tree), false); noWrites(local.calls);
+  const live = setup({ preview: false, joinResult: { ok: true } });
+  await live.click("Continue to optional signup");
+  assert.equal(nodes(live.tree).some(node => node.props.id === "circle-demo-comment" || node.props.id === "circle-demo-anonymous"), false);
+  live.email("qa@example.invalid"); await live.submit();
+  assert.equal(Object.hasOwn(live.joinPayloads[0] as object, "comment"), false);
+  assert.equal(live.calls.writes, 0); assert.equal(live.calls.reads, 0);
 });

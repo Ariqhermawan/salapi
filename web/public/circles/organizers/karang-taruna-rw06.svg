@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title">
+  <title id="title">Fictional Karang Taruna neighborhood organization logo</title>
+  <rect width="96" height="96" rx="24" fill="#dcedef"/>
+  <path d="M18 44 35 29l17 15v25H18Zm34-4 14-12 14 12v29H52Z" fill="#226b72"/>
+  <path d="M30 48h10v14H30Zm32-4h8v12h-8" fill="#fff6df"/>
+  <path d="M17 76c10-9 19 9 30 0s20 9 32 0" fill="none" stroke="#2c8ca2" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="47" cy="20" r="6" fill="#d49d38"/>
+</svg>

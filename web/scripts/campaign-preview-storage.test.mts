@@ -93,6 +93,7 @@ function screen(mode: Mode) {
     };
     if (name === "next/link") return { default: "Link" };
     if (name === "next/image") return { default: "Image" };
+    if (name === "@/components/D4CampaignGallery") return { default: "D4CampaignGallery" };
     if (name === "@/components/ui/kit") return { T: {}, Ico: new Proxy({}, { get: () => () => null }), Btn: "Btn", Card: "Card", PoweredByStellar: "PoweredByStellar" };
     if (name === "@/components/ui/SuccessMotion") return { default: "SuccessMotion" };
     if (name === "@/lib/ui/useUnresolvedSubmission") return { useUnresolvedSubmission: () => ({ locked: false, run: forbidden }) };

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import { previewPledgeAllocation } from "../lib/circles/pledge-allocation.ts";
@@ -181,7 +181,7 @@ test("each active and completed cause has dated milestone, spend and delivery up
     assert.ok(updates.length >= 3);
     assert.equal(new Set(updates.map(update => update.kind)).size, 3);
     let previousDate = "";
-    for (const update of updates) {
+    for (const [index, update] of updates.entries()) {
       assert.equal(updateIds.has(update.id), false);
       updateIds.add(update.id);
       assert.match(update.date, /^\d{4}-\d{2}-\d{2}$/);
@@ -190,7 +190,7 @@ test("each active and completed cause has dated milestone, spend and delivery up
       previousDate = update.date;
       assert.match(update.body, /fictional demo update/i);
       assert.match(update.proofLabel!, /synthetic|generated/i);
-      assert.equal(update.image, circle.coverImage);
+      assert.equal(update.image, circle.gallery![index].src);
       assert.doesNotMatch(update.body + update.proofLabel, /\b[a-f0-9]{64}\b/i);
       if (update.kind === "spend") {
         assert.ok(Number.isFinite(update.amountPHP));
@@ -200,6 +200,70 @@ test("each active and completed cause has dated milestone, spend and delivery up
     if (circle.status === "completed") assert.equal(previousDate, circle.completedOn);
   }
   assert.equal(updateIds.size, 162);
+});
+
+test("all 54 causes have at least three distinct existing illustrative gallery photos", () => {
+  for (const circle of all) {
+    const gallery = circle.gallery!;
+    assert.equal(gallery.length, 3, circle.id);
+    assert.equal(new Set(gallery.map(photo => photo.src)).size, 3, circle.id);
+    assert.equal(gallery[0].src, circle.coverImage);
+    for (const photo of gallery) {
+      assert.match(photo.src, /^\/circles\/generated\/[a-z0-9-]+\.png$/);
+      assert.ok(existsSync(new URL("../public" + photo.src, import.meta.url)), photo.src);
+      assert.match(photo.alt, /AI.generated|generated/i);
+      assert.match(photo.alt, /fictional.*not verified|not verified/i);
+      assert.match(photo.caption, /AI concept/i);
+      assert.match(photo.caption, /not|fictional/i);
+    }
+    assert.equal(new Set(circle.updates!.map(update => update.image)).size, 3);
+  }
+  assert.ok(getCircle("tino-relief")!.gallery!.every(photo => /tino-relief/.test(photo.src)));
+});
+
+test("individual organizers have distinct illustrative portraits and NGOs have distinct example logos", () => {
+  for (const profile of ORGANIZERS) {
+    assert.ok(profile.avatarSrc);
+    assert.ok(existsSync(new URL("../public" + profile.avatarSrc, import.meta.url)), profile.id);
+    assert.match(profile.avatarAlt!, /illustrative.*fictional/i);
+    if (profile.kind === "individual") assert.match(profile.avatarSrc!, /face-\d\.png$/);
+    else {
+      assert.match(profile.avatarSrc!, /organizers\/.+\.svg$/);
+      const svg = readFileSync(new URL("../public" + profile.avatarSrc, import.meta.url), "utf8");
+      assert.match(svg, /fictional/i);
+      assert.doesNotMatch(svg, /<script|<foreignObject|https?:\/\/[^w]/i);
+    }
+  }
+  assert.equal(new Set(ORGANIZERS.map(profile => profile.avatarSrc)).size, 9);
+});
+
+test("example donor feeds include named comments and anonymous records without leaked identity", () => {
+  const donorIds = new Set<string>();
+  for (const circle of all) {
+    const donors = circle.donorExamples!;
+    assert.equal(donors.length, 5, circle.id);
+    assert.ok(donors.some(donor => donor.anonymous && donor.comment));
+    assert.ok(donors.some(donor => !donor.anonymous && donor.comment && donor.avatarSrc));
+    let previousTime = Infinity;
+    for (const donor of donors) {
+      assert.equal(donorIds.has(donor.id), false);
+      donorIds.add(donor.id);
+      assert.ok(Number.isFinite(donor.amountPesos) && donor.amountPesos > 0);
+      const time = Date.parse(donor.createdAt);
+      assert.ok(Number.isFinite(time) && time <= previousTime);
+      previousTime = time;
+      if (donor.comment) assert.match(donor.comment, /example comment/i);
+      if (donor.anonymous) {
+        assert.equal(donor.displayName, undefined);
+        assert.equal(donor.avatarSrc, undefined);
+      } else {
+        assert.match(donor.displayName!, /example/i);
+        assert.ok(existsSync(new URL("../public" + donor.avatarSrc, import.meta.url)));
+      }
+    }
+    assert.ok(donors.length < circle.donorCount, "sample feed is not the full synthetic donor count");
+  }
+  assert.equal(donorIds.size, 270);
 });
 
 test("all displayed goals and synthetic totals are finite and statuses have coherent timelines", () => {

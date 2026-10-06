@@ -145,6 +145,7 @@ function catalog(preview = true, campaignEntry = true) {
       if (name === "@/components/I18nProvider") return { useT: () => ({ locale: "en", t(key: string) { let value: unknown = DICTS.en; for (const part of key.split(".")) value = (value as Record<string, unknown>)[part]; assert.equal(typeof value, "string"); return value; } }) };
       if (name === "@/components/ui/kit") return { Ico: new Proxy({}, { get: () => () => null }), T: {}, PoweredByStellar: "PoweredByStellar" };
       if (name === "@/components/ui/OrganizerVerification") return { default: "OrganizerVerification" };
+      if (name === "@/components/ui/ExampleOrganizerAvatar") return { default: "ExampleOrganizerAvatar" };
       if (name === "@/components/CauseCategoryPicker") return fixture("../components/CauseCategoryPicker.tsx");
       if (name === "@/lib/circles/seed") return seed;
       if (name === "@/lib/circles/types") return circleTypes;
@@ -235,6 +236,7 @@ function campaignCard(campaign: Campaign, preview: boolean, locale: Locale = "en
       if (name === "next/link") return { default: "Link" };
       if (name === "next/image") return { default: "Image" };
       if (name === "@phosphor-icons/react/dist/csr/Heart") return { Heart: "Heart" };
+      if (name === "@/components/D4CampaignGallery") return { default: "D4CampaignGallery" };
       if (name === "@/components/I18nProvider") return { useT: () => ({ locale }) };
       if (name === "@/components/ui/kit") return { Ico: new Proxy({}, { get: () => () => null }), T: {}, Btn: "Btn", Card: "Card", PoweredByStellar: "PoweredByStellar" };
       if (name === "@/lib/campaign-money") return money;
@@ -289,7 +291,7 @@ test("actual D4 media is restricted to canonical preview identity and never appl
   const fixtures = previewModule(true).PREVIEW_CAMPAIGNS;
   for (const campaign of fixtures) for (const preview of [true, false]) {
     const screen = campaignCard(campaign, preview);
-    assert.equal(nodes(screen.tree).filter(node => node.type === "Image").length, preview ? 2 : 0);
+    assert.equal(nodes(screen.tree).filter(node => node.type === "Image").length, preview ? 1 : 0);
     assert.equal(nodes(screen.tree).some(node => String(node.props.href ?? "").startsWith("/circles/")), preview);
     if (preview) assert.match(text(screen.tree), /Illustrative campaign photo|Fictional organizer example/);
     assert.deepEqual(screen.calls, { network: 0, action: 0, storage: 0 });
@@ -335,5 +337,24 @@ test("D4 illustrative labels are four-locale while fixture identity and money st
     assert.ok(text(screen.tree).includes("Maria S."));
     assert.equal(nodes(screen.tree).find(node => node.type === "Image" && node.props.width === 44)?.props.alt, c("Illustrative profile photo, not a verified identity"));
     assert.ok(text(screen.tree).includes(formatStroops(campaign.escrow)));
+  }
+});
+
+test("D4 details bind organizer galleries to campaign identity without rebinding fictional media to live campaigns", () => {
+  for (const campaign of previewModule(true).PREVIEW_CAMPAIGNS) {
+    for (const preview of [true, false]) {
+      const screen = campaignCard(campaign, preview);
+      const gallery = nodes(screen.tree).find(node => node.type === "D4CampaignGallery");
+      assert.ok(gallery);
+      assert.equal(gallery.props.campaignId, campaign.id);
+      assert.equal(gallery.props.creatorWallet, campaign.config.creator);
+      assert.equal(gallery.props.localPreview, preview);
+      const photos = gallery.props.examplePhotos as { src: string }[] | undefined;
+      if (preview) {
+        assert.equal(photos?.length, 3);
+        assert.equal(new Set(photos!.map(photo => photo.src)).size, 3);
+      } else assert.equal(photos, undefined);
+      assert.deepEqual(screen.calls, { network: 0, action: 0, storage: 0 });
+    }
   }
 });

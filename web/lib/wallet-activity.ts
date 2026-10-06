@@ -1,10 +1,25 @@
-/** Public, confirmed native-XLM movements. No fiat amounts or balance guesses. */
+/** Network-specific identities, verified against Circle's issuer documentation.
+ * The SAC is Asset("USDC", issuer).contractId(Networks.TESTNET), not a code-only
+ * token match. This history allowlist does not change the app's transfer rail.
+ */
+export const USDC_TESTNET_ISSUER = "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5";
+export const USDC_TESTNET_SAC = "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA";
+export type WalletActivityAsset = { code: "XLM" | "USDC"; issuer: string | null; contractId: string | null; decimals: 7; network: "testnet" };
+export const XLM_ACTIVITY_ASSET: WalletActivityAsset = { code: "XLM", issuer: null, contractId: null, decimals: 7, network: "testnet" };
+export const USDC_ACTIVITY_ASSET: WalletActivityAsset = { code: "USDC", issuer: USDC_TESTNET_ISSUER, contractId: USDC_TESTNET_SAC, decimals: 7, network: "testnet" };
+export type WalletActivityFee =
+  | { status: "unavailable" }
+  | { status: "available"; amountStroops: string; payer: string; paidByWallet: boolean; transactionHash: string; feeBump: boolean };
+
+/** Public, confirmed allowlisted asset movements. No fiat or balance guesses. */
 export type WalletActivityItem = {
   id: string;
   hash: string;
   createdAt: string;
   direction: "sent" | "received";
   amountStroops: string;
+  asset: WalletActivityAsset;
+  fee: WalletActivityFee;
   counterparty: string | null;
   kind: "payment" | "soroban-transfer" | "account-created" | "path-payment";
 };
@@ -28,7 +43,7 @@ export function isWalletActivityCursor(value: unknown): value is string {
   return typeof value === "string" && /^[1-9]\d{0,19}$/.test(value) && BigInt(value) <= MAX_CURSOR;
 }
 
-/** Horizon uses decimal XLM, including for native SAC balance-change events. */
+/** Horizon uses seven decimals for Stellar classic assets and SAC events. */
 export function activityXlmToStroops(value: unknown): string | null {
   if (typeof value !== "string" || !/^(?:0|[1-9]\d{0,31})(?:\.\d{1,7})?$/.test(value)) return null;
   const [whole, fraction = ""] = value.split(".");
@@ -47,6 +62,42 @@ export function activityStroopsToXlm(value: string): string {
 type RecordValue = Record<string, unknown>;
 const object = (value: unknown): value is RecordValue => !!value && typeof value === "object" && !Array.isArray(value);
 const publicAddress = (value: unknown): value is string => typeof value === "string" && /^[GC][A-Z2-7]{55}$/.test(value);
+const transactionHash = (value: unknown): value is string => typeof value === "string" && /^[a-f0-9]{64}$/i.test(value);
+
+function assetOf(raw: RecordValue, prefix = ""): WalletActivityAsset | null {
+  if (raw[`${prefix}asset_type`] === "native") return XLM_ACTIVITY_ASSET;
+  const code = raw[`${prefix}asset_code`], issuer = raw[`${prefix}asset_issuer`];
+  if (raw[`${prefix}asset_type`] === "credit_alphanum4" && code === "USDC" && issuer === USDC_TESTNET_ISSUER) {
+    if (!prefix && raw.contract_id !== undefined && raw.contract_id !== USDC_TESTNET_SAC) return null;
+    return USDC_ACTIVITY_ASSET;
+  }
+  // A verified SAC is sufficient only when no contradictory classic identity
+  // is supplied. An arbitrary contract or spoofed USDC issuer is never USDC.
+  if (!prefix && raw.contract_id === USDC_TESTNET_SAC && code === undefined && issuer === undefined) return USDC_ACTIVITY_ASSET;
+  return null;
+}
+
+/** Horizon fee_charged is the finalized transaction fee, including Soroban
+ * resource fees/refunds. Never add resource_fee or sum inner + fee-bump fees.
+ * A fee belongs to a transaction, not each operation or balance-change event.
+ */
+export function normalizeWalletActivityFee(raw: unknown, expectedHash: string, address: string): WalletActivityFee {
+  const unavailable: WalletActivityFee = { status: "unavailable" };
+  if (!object(raw) || raw.successful !== true || !transactionHash(raw.hash) || !transactionHash(expectedHash)) return unavailable;
+  if (raw.inner_transaction !== undefined && (!object(raw.inner_transaction) || !transactionHash(raw.inner_transaction.hash))) return unavailable;
+  if (raw.fee_bump_transaction !== undefined && (!object(raw.fee_bump_transaction) || !transactionHash(raw.fee_bump_transaction.hash))) return unavailable;
+  const inner = object(raw.inner_transaction) && transactionHash(raw.inner_transaction.hash) ? raw.inner_transaction.hash.toLowerCase() : null;
+  if (raw.hash.toLowerCase() !== expectedHash.toLowerCase() && inner !== expectedHash.toLowerCase()) return unavailable;
+  const bump = object(raw.fee_bump_transaction) && transactionHash(raw.fee_bump_transaction.hash) ? raw.fee_bump_transaction.hash.toLowerCase() : null;
+  // The inner lookup can report zero: that is not evidence of a free transfer.
+  // Read the outer receipt instead before assigning a sponsored fee.
+  if (bump && bump !== raw.hash.toLowerCase()) return unavailable;
+  const charged = typeof raw.fee_charged === "number" && Number.isSafeInteger(raw.fee_charged) ? String(raw.fee_charged) : raw.fee_charged;
+  if (typeof charged !== "string" || !/^(?:0|[1-9]\d{0,18})$/.test(charged) || BigInt(charged) > 9_223_372_036_854_775_807n ||
+      typeof raw.fee_account !== "string" || !/^G[A-Z2-7]{55}$/.test(raw.fee_account)) return unavailable;
+  return { status: "available", amountStroops: charged, payer: raw.fee_account, paidByWallet: raw.fee_account === address,
+    transactionHash: raw.hash.toLowerCase(), feeBump: Boolean(bump || inner) };
+}
 
 /**
  * Normalize the account payments feed, which includes classic payments and
@@ -67,35 +118,40 @@ export function normalizeWalletActivity(records: unknown, address: string): Wall
         typeof createdAt !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/.test(createdAt) || !Number.isFinite(Date.parse(createdAt))) {
       throw new Error("Invalid wallet activity receipt");
     }
-    function add(from: unknown, to: unknown, amount: unknown, kind: WalletActivityItem["kind"], suffix: string) {
+    const fee = normalizeWalletActivityFee(raw.transaction, hash as string, address);
+    function add(from: unknown, to: unknown, amount: unknown, kind: WalletActivityItem["kind"], suffix: string, asset: WalletActivityAsset, selfSwap = false) {
       if (from !== address && to !== address) return;
-      if (from === to) return;
+      if (from === to && !selfSwap) return;
       const amountStroops = activityXlmToStroops(amount);
       if (!amountStroops || !publicAddress(from) || !publicAddress(to)) throw new Error("Invalid native-XLM movement");
       const itemId = `${id}:${suffix}`;
       if (seen.has(itemId)) return;
       seen.add(itemId);
-      const direction = from === address ? "sent" : "received";
+      const direction = selfSwap && suffix === "destination" ? "received" : from === address ? "sent" : "received";
       items.push({ id: itemId, hash: (hash as string).toLowerCase(), createdAt: createdAt as string, direction, amountStroops,
-        counterparty: direction === "sent" ? to : from, kind });
+        counterparty: direction === "sent" ? to : from, kind, asset, fee });
     }
-    if (raw.type === "payment" && raw.asset_type === "native") {
-      add(raw.from, raw.to, raw.amount, "payment", "payment");
+    if (raw.type === "payment") {
+      const asset = assetOf(raw);
+      if (asset) add(raw.from, raw.to, raw.amount, "payment", "payment", asset);
     } else if (raw.type === "create_account") {
-      add(raw.funder, raw.account, raw.starting_balance, "account-created", "creation");
+      add(raw.funder, raw.account, raw.starting_balance, "account-created", "creation", XLM_ACTIVITY_ASSET);
     } else if (raw.type === "invoke_host_function") {
       if (!Array.isArray(raw.asset_balance_changes)) throw new Error("Missing Stellar Asset Contract events");
       if (raw.asset_balance_changes.length > 100) throw new Error("Too many Stellar Asset Contract events");
       raw.asset_balance_changes.forEach((change, index) => {
         if (!object(change)) throw new Error("Invalid Stellar Asset Contract event");
-        if (change.asset_type === "native" && change.type === "transfer") {
-          add(change.from, change.to, change.amount, "soroban-transfer", `sac-${index}`);
+        const asset = assetOf(change);
+        if (asset && change.type === "transfer") {
+          add(change.from, change.to, change.amount, "soroban-transfer", `sac-${index}`, asset);
         }
       });
     } else if (raw.type === "path_payment_strict_receive" || raw.type === "path_payment_strict_send") {
       // The source and destination assets/amounts can differ after a swap.
-      if (raw.from === address && raw.source_asset_type === "native") add(raw.from, raw.to, raw.source_amount, "path-payment", "source");
-      else if (raw.to === address && raw.asset_type === "native") add(raw.from, raw.to, raw.amount, "path-payment", "destination");
+      const source = assetOf(raw, "source_"), destination = assetOf(raw);
+      const selfSwap = raw.from === address && raw.to === address && source?.code !== destination?.code;
+      if (raw.from === address && source) add(raw.from, raw.to, raw.source_amount, "path-payment", "source", source, selfSwap);
+      if (raw.to === address && destination) add(raw.from, raw.to, raw.amount, "path-payment", "destination", destination, selfSwap);
     }
   }
   return items;

@@ -8,6 +8,7 @@ import { LOCALES, type Locale } from "../lib/i18n/config.ts";
 import { homeCopy } from "../lib/i18n/revamp-home.ts";
 import * as catalogCopy from "../lib/i18n/revamp-home-catalog.ts";
 import * as circlesCopy from "../lib/i18n/revamp-circles.ts";
+import { accountPhotoCopy } from "../lib/i18n/account-photo.ts";
 import * as homeCircles from "../lib/home-circles.ts";
 import { PREVIEW_CAMPAIGNS, PREVIEW_TIME, PREVIEW_WALLET } from "../lib/local-preview.ts";
 import type { Circle, CircleCategory } from "../lib/circles/types.ts";
@@ -95,6 +96,7 @@ function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: bo
     setInterval(callback: Callback) { const id = ++timer; intervals.set(id, callback); return id; }, clearInterval(id: number) { intervals.delete(id); },
     matchMedia: () => ({ get matches() { return mediaReduced; }, addEventListener(_event: string, callback: () => void) { mediaListeners.add(callback); }, removeEventListener(_event: string, callback: () => void) { mediaListeners.delete(callback); } }),
     require(name: string) {
+      if (name === "@/components/ui/ExampleOrganizerAvatar") return { default: "ExampleOrganizerAvatar" };
       if (name === "react/jsx-runtime") return { jsx, jsxs: jsx, Fragment: "Fragment" };
       if (name === "react") return {
         useState(initial: unknown) { const index = cursor++, hookStates = states; if (!(index in hookStates)) hookStates[index] = typeof initial === "function" ? initial() : initial; return [hookStates[index], (value: unknown) => { hookStates[index] = typeof value === "function" ? value(hookStates[index]) : value; }]; },
@@ -123,6 +125,8 @@ function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: bo
       if (name.startsWith("@phosphor-icons/")) return new Proxy({}, { get: (_target, key) => String(key) });
       if (name === "@/components/I18nProvider") return { useT: () => ({ locale, currency: "tl" }) };
       if (name === "@/components/HomeCirclesCatalog") return { default: catalog.default };
+      if (name === "@/components/AccountAvatar") return { default: "AccountAvatar" };
+      if (name === "@/components/useAccountPhoto") return { useAccountPhoto: () => ({ status: "ready", profile: null }) };
       if (name === "@/components/ui/kit") return { Ico: icons, Peso: "Peso" };
       if (name === "@/components/ui/icons") return { Ico: icons };
       if (name === "@/lib/local-preview") return { isLocalPreview: preview, PREVIEW_WALLET, PREVIEW_TIME, PREVIEW_CAMPAIGNS, normalizePreviewCampaigns: (rows: Campaign[]) => rows };
@@ -144,6 +148,7 @@ function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: bo
       if (name === "@/lib/i18n/revamp-home") return { homeCopy };
       if (name === "@/lib/i18n/revamp-home-catalog") return catalogCopy;
       if (name === "@/lib/i18n/revamp-circles") return circlesCopy;
+      if (name === "@/lib/i18n/account-photo") return { accountPhotoCopy };
       if (name === "@/lib/disaster") return { formatStroops: (value: string) => `exact-source-units:${value}` };
       if (name === "@/app/actions") return { async walletState() { calls.wallet++; assert.equal(preview, false); return { pesos: 123.45, address: "Readonly isolated Testnet wallet" }; }, async myHandle() { calls.handle++; assert.equal(preview, false); return "isolated"; } };
       if (name === "@/app/campaign-actions") return { async campaignState(_ids: string, before: string) { calls.campaigns.push(before); assert.equal(preview, false); if (campaignFailure) return { ok: false, error: "Isolated readonly failure" }; const offset = before === "0" ? 0 : liveCampaigns.findIndex(campaign => campaign.id === before) + 1; return { ok: true, now: String(PREVIEW_TIME), campaigns: liveCampaigns.slice(offset, offset + 10) }; } };

@@ -1,5 +1,6 @@
 "use client";
 import SuccessMotion from "@/components/ui/SuccessMotion";
+import D4CampaignGallery from "@/components/D4CampaignGallery";
 
 import Link from "next/link";
 import Image from "next/image";
@@ -97,6 +98,7 @@ function CreateCampaign({ run, busy, onPreviewCreate, initialCreate = false }: {
   return <details className={`${styles.card} ${styles.creation}`} open={initialCreate || undefined}><summary className={styles.createSummary}><div><strong>Start a campaign</strong><span>Bring your cause to the community.</span></div>{Ico.plus({ c: T.action, size: 20 })}</summary>
     <div className={styles.formSection}>
       <p className={styles.muted}>Set the terms, then review before creating. Recipients, share, reviewers and deadlines lock at creation.</p>
+      <p className={styles.muted}>After creation, open the campaign to add a public gallery of 3 to 6 organizer photos. Photos are stored separately from the locked financial terms and are not delivery proof.</p>
       {input("title", "1. Name your cause")}{input("beneficiary", "Beneficiary public wallet")}{input("creatorCut", "Creator share, 0 to 10%")}
       <p className={styles.muted}>This share goes to the creator. It is not a Salapi platform fee.</p>
       <div className={styles.dateGrid}>{input("funding", "2. Funding closes", "datetime-local")}{input("review", "Review closes", "datetime-local")}</div>
@@ -133,7 +135,7 @@ function CampaignCard({ c, viewer, now, run, busy, detail, onPreviewUpdate }: { 
     } catch (e) { setError(e instanceof Error ? e.message : "Invalid amount"); }
   }
   return <section className={`${styles.card} ${media ? styles.photoCard : ""}`} aria-label={`Campaign #${c.id}`}>
-    {media ? <header className={styles.campaignPhoto}>
+    {media && !detail ? <header className={styles.campaignPhoto}>
       <Image src={media.coverSrc} fill sizes="(max-width: 500px) 100vw, 460px" alt="" />
       <div><span>{photoCopy("Illustrative campaign photo")}</span><Link href={`/campaigns?id=${c.id}`}><h2>{c.title}</h2></Link></div>
     </header> : null}
@@ -142,8 +144,10 @@ function CampaignCard({ c, viewer, now, run, busy, detail, onPreviewUpdate }: { 
       <Image src={media.organizerPhotoSrc} width={44} height={44} alt={photoCopy("Illustrative profile photo, not a verified identity")} />
       <span><small>{photoCopy("Fictional organizer example")}</small><strong>{media.organizerName}</strong></span>{Ico.chev({size:16,c:T.action})}
     </Link> : null}
-    <div><div className={styles.row}><span className={styles.eyebrow}>Campaign #{c.id.length > 8 ? "Local draft" : c.id}</span><span className={styles.badge}>{status}</span></div>{!media && <Link href={`/campaigns?id=${c.id}`}><h2>{c.title}</h2></Link>}
+    <div><div className={styles.row}><span className={styles.eyebrow}>Campaign #{c.id.length > 8 ? "Local draft" : c.id}</span><span className={styles.badge}>{status}</span></div>{(!media || detail) && <Link href={`/campaigns?id=${c.id}`}><h2>{c.title}</h2></Link>}
       <p className={styles.muted}>Funding closes {stamp(c.config.funding_deadline)}{viewer ? ` · ${role}` : ""}</p></div>
+    {detail && <D4CampaignGallery key={c.id} campaignId={c.id} creatorWallet={c.config.creator} viewer={viewer}
+      localPreview={isLocalPreview} examplePhotos={media?.gallery} />}
     <div className={styles.metrics}>
       <div><small>Total donated</small><strong>{formatStroops(c.total)} <span>Testnet XLM</span></strong></div>
       <div><small>Remaining escrow</small><strong>{formatStroops(c.escrow)} <span>Testnet XLM</span></strong></div>

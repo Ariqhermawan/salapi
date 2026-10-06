@@ -5,6 +5,7 @@ import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import { parse, type AnyNode, type Declaration, type Rule } from "postcss";
 import { homeCopy } from "../lib/i18n/revamp-home.ts";
+import { accountPhotoCopy } from "../lib/i18n/account-photo.ts";
 import * as catalogCopy from "../lib/i18n/revamp-home-catalog.ts";
 import * as circlesCopy from "../lib/i18n/revamp-circles.ts";
 import * as homeCircles from "../lib/home-circles.ts";
@@ -77,6 +78,9 @@ function render(options: { preview?: boolean; locale?: Locale; currency?: Locale
       if (name.startsWith("@phosphor-icons/")) return { Heart: "Heart", Pause: "Pause", Play: "Play" };
       if (name === "@/components/I18nProvider") return { useT: () => ({ locale, currency }) };
       if (name === "@/components/HomeCirclesCatalog") return { default: "HomeCirclesCatalog" };
+      if (name === "@/components/AccountAvatar") return { default: "AccountAvatar" };
+      if (name === "@/components/useAccountPhoto") return { useAccountPhoto: () => ({ profile: null, status: "ready" }) };
+      if (name === "@/lib/i18n/account-photo") return { accountPhotoCopy };
       if (name === "@/components/ui/kit") return { Ico: new Proxy({}, { get: (_target, icon) => (props: Record<string, unknown>) => jsx("svg", { ...props, "data-icon": String(icon) }) }), Peso: "Peso" };
       if (name === "@/lib/local-preview") return { isLocalPreview: preview, PREVIEW_WALLET, PREVIEW_TIME, PREVIEW_CAMPAIGNS, normalizePreviewCampaigns: forbidden("storage") };
       if (name === "@/lib/circles/seed") return fixture("../lib/circles/seed.ts");

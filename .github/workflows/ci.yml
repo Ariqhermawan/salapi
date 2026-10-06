@@ -75,6 +75,9 @@ jobs:
       - name: D4 exact split, configuration and proof validation
         run: npm run test:campaign
 
+      - name: D4 organizer media ownership, validation and isolated UI
+        run: npm run test:campaign-media
+
       - name: Circles example fixtures, allocation and local support guards
         run: npm run test:circles
 
@@ -89,6 +92,9 @@ jobs:
 
       - name: Profile loading, verified identity and stale response guards
         run: npm run test:profile
+
+      - name: Account photo ownership, Google fallback, upload validation and CSP
+        run: npm run test:photo
 
       - name: Authenticated read-only wallet history and account-switch guards
         run: npm run test:activity

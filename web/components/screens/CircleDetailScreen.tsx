@@ -6,6 +6,9 @@ import Image from "next/image";
 import { useGoBack } from "@/lib/ui/useGoBack";
 import { Ico, T, Progress, PoweredByStellar } from "@/components/ui/kit";
 import OrganizerVerification from "@/components/ui/OrganizerVerification";
+import ExampleOrganizerAvatar from "@/components/ui/ExampleOrganizerAvatar";
+import CircleGallery from "@/components/CircleGallery";
+import CircleDonorExamples from "@/components/CircleDonorExamples";
 import { CURRENCY, formatLocal } from "@/lib/ui/currency";
 import { useT } from "@/components/I18nProvider";
 import { progressPct, type CircleCategory, type Circle, type CircleUpdate } from "@/lib/circles/types";
@@ -15,7 +18,7 @@ import { readLocalSupports, markCircleUpdatesSeen, unreadSupportUpdates, type Lo
 import type { Locale } from "@/lib/i18n/config";
 import { isLocalPreview } from "@/lib/local-preview";
 import styles from "./CirclesDetailRevamp.module.css";
-import { circlesCopy, circlesCategory } from "@/lib/i18n/revamp-circles";
+import { circlesCopy } from "@/lib/i18n/revamp-circles";
 
 const photos: Partial<Record<CircleCategory, string>> = {
   disaster: "/circles/disaster.jpg", medical: "/circles/medical.jpg", education: "/circles/education.jpg",
@@ -52,7 +55,10 @@ function ExampleImage({ circle, src, className, priority = false }: {
   const c = circlesCopy(locale);
   const fallback = photos[circle.category] ?? "/illustrations/giving.png";
   const source = failed ? fallback : src ?? circle.coverImage ?? fallback;
-  return <Image src={source} alt={circle.imageAlt ?? c("AI-generated fictional campaign illustration")} fill
+  const alt = failed ? c("AI-generated fictional campaign illustration")
+    : src ? circle.gallery?.find(photo => photo.src === src)?.alt ?? c("AI-generated fictional campaign illustration")
+      : circle.imageAlt ?? c("AI-generated fictional campaign illustration");
+  return <Image src={source} alt={alt} fill
     sizes="(max-width: 500px) 100vw, 500px" priority={priority}
     className={`${className ?? ""} ${source === "/illustrations/giving.png" ? styles.doodleCover : ""}`}
     onError={() => setFailed(true)} />;
@@ -113,12 +119,20 @@ export default function CircleDetailScreen({ circle, initialTab = "story" }: {
 
   function organizerLink(compact = false) {
     return <Link className={`${styles.organizerProfile} ${compact ? styles.organizerFooter : ""}`}
+      data-testid="circle-organizer-card" data-organizer-kind={organizer?.kind}
       href={`/circles/${circle.id}/organizer`} aria-label={c("View example organizer profile: {name}", { name: circle.organizer })}>
-      <span aria-hidden="true">{Ico.user({ size: 18, c: T.action })}</span>
-      <div><p>{compact ? c("View organizer: ") : c("Example organizer: ")}<strong>{circle.organizer}</strong></p>
-        <div className={styles.organizerMeta}><span>{circle.organizerLocation}</span>{organizer && <OrganizerVerification kind={organizer.kind} compact />}</div>
+      <span className={styles.organizerAvatar}>
+        {organizer ? <ExampleOrganizerAvatar organizer={organizer} size={compact ? 40 : 48} /> : <span aria-hidden="true">{Ico.user({ size: 22, c: T.action })}</span>}
+      </span>
+      <div className={styles.organizerIdentity}>
+        <span className={styles.organizerLabel}>{compact ? c("View organizer") : c("Example organizer")}</span>
+        <strong className={styles.organizerName}>{circle.organizer}</strong>
+        <div className={styles.organizerMeta}>
+          <span className={styles.organizerLocation}>{circle.organizerLocation}</span>
+          {organizer && <OrganizerVerification kind={organizer.kind} compact />}
+        </div>
       </div>
-      <span aria-hidden="true">{Ico.chev({ size: 16, c: T.action })}</span>
+      <span className={styles.organizerChevron} aria-hidden="true">{Ico.chev({ size: 16, c: T.action })}</span>
     </Link>;
   }
 
@@ -130,10 +144,7 @@ export default function CircleDetailScreen({ circle, initialTab = "story" }: {
 
     {tab === "story" ? <>
       <section className={styles.hero} aria-labelledby="circle-title">
-        <div className={styles.photo}><ExampleImage circle={circle} priority />
-          <span className={styles.photoLabel}>{circlesCategory(locale, circle.category)}</span>
-          <span className={styles.aiLabel}>{circle.coverImage ? c("AI illustration") : c("Example cover")}</span>
-        </div>
+        <CircleGallery key={circle.id} circle={circle} />
         <header className={styles.heroBody}>
           <span className={styles.eyebrow}>{completed ? c("Fictional completed history") : c("Circles concept")}</span>
           <h1 id="circle-title">{circle.title}</h1>
@@ -193,6 +204,8 @@ export default function CircleDetailScreen({ circle, initialTab = "story" }: {
       {completed && circle.completedOn && <p className={styles.localNotice}>{c("Example completed date: {date}. This is a synthetic history entry, not verified delivery.", { date: exampleDate(circle.completedOn, locale) })}</p>}
       <p className={styles.hint}>{c("Demo verification, not an identity check. Names, goals, ratings, dates and scenes are fictional.")}</p>
     </section>}
+
+    {tab === "story" && <CircleDonorExamples circle={circle} supports={currentSupports} />}
 
     {tab === "updates" && <section key="updates" id="circle-panel-updates" role="tabpanel" tabIndex={0} aria-labelledby="circle-tab-updates" className={`${styles.updatesPanel} sl-state-enter`}>
       <div className={styles.updatesHeading}><div><span className={styles.eyebrow}>{c("Example timeline")}</span><h2>{c("Follow the work")}</h2></div>

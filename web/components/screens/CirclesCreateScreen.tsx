@@ -16,7 +16,9 @@ import { CATEGORY_LABEL, type CircleCategory } from "@/lib/circles/types";
 import { isLocalPreview } from "@/lib/local-preview";
 import { useGoBack } from "@/lib/ui/useGoBack";
 import styles from "./CirclesPreview.module.css";
+import galleryStyles from "./CirclesDraftGallery.module.css";
 import { circlesCopy, circlesCategory } from "@/lib/i18n/revamp-circles";
+import { defaultDraftGallery, draftGalleryOptions, readDraftGallery, replaceDraftPhoto, type DraftGalleryPhoto } from "@/lib/ui/circle-draft-gallery";
 
 type Step = 0 | 1 | 2 | 3;
 type Draft = {
@@ -28,6 +30,7 @@ type Draft = {
   target: { localValue: string; currency: Locale; pesoEquivalent: number };
   durationDays: number;
   cover: string;
+  gallery?: DraftGalleryPhoto[];
   allowance: { percentage: number; conceptAcknowledged: boolean };
   organizerVerification: "not-performed";
   publication: "browser-draft-only";
@@ -35,13 +38,6 @@ type Draft = {
 const DRAFT_KEY = "salapi.circles.draft.v1";
 const stepLabels = ["The cause", "The goal", "The details", "Review"] as const;
 const categories = Object.keys(CATEGORY_LABEL) as CircleCategory[];
-const covers = [
-  { src: "/circles/disaster.jpg", label: "Community coast" },
-  { src: "/circles/medical.jpg", label: "Medical care" },
-  { src: "/circles/education.jpg", label: "Learning" },
-  { src: "/illustrations/giving.png", label: "Salapi giving doodle" },
-] as const;
-
 function readDraft(value: unknown): Draft | null {
   if (!value || typeof value !== "object") return null;
   const draft = value as Partial<Draft>;
@@ -56,14 +52,14 @@ function readDraft(value: unknown): Draft | null {
     !Number.isFinite(Number(draft.target.localValue)) ||
     Number(draft.target.localValue) <= 0 ||
     ![14, 30, 60, 90].includes(draft.durationDays as number) ||
-    !covers.some((cover) => cover.src === draft.cover) ||
     !draft.allowance ||
     !Number.isFinite(draft.allowance.percentage) ||
     draft.allowance.percentage < 0 ||
     draft.allowance.percentage > 10
   )
     return null;
-  return draft as Draft;
+  const gallery = readDraftGallery(draft.category as CircleCategory, draft.cover, draft.gallery);
+  return gallery ? { ...draft, gallery } as Draft : null;
 }
 
 export default function CirclesCreateScreen() {
@@ -79,7 +75,8 @@ export default function CirclesCreateScreen() {
     currency,
   });
   const [durationDays, setDurationDays] = useState(30);
-  const [cover, setCover] = useState<string>(covers[0].src);
+  const [gallery, setGallery] = useState<DraftGalleryPhoto[]>(defaultDraftGallery("community"));
+  const [failedPhotos, setFailedPhotos] = useState<string[]>([]);
   const [allowancePct, setAllowancePct] = useState(0);
   const [allowanceAck, setAllowanceAck] = useState(false);
   const [draftAck, setDraftAck] = useState(false);
@@ -107,6 +104,56 @@ export default function CirclesCreateScreen() {
     /^\d+(\.\d+)?$/.test(displayTarget) &&
     Number.isFinite(goal) &&
     goal > 0;
+  const galleryOptions = draftGalleryOptions(category);
+
+  function changeCategory(nextCategory: CircleCategory) {
+    if (!categories.includes(nextCategory) || nextCategory === category) return;
+    setCategory(nextCategory);
+    setGallery(defaultDraftGallery(nextCategory));
+    setFailedPhotos([]);
+  }
+
+  function choosePhoto(index: number, src: string) {
+    const nextGallery = replaceDraftPhoto(category, gallery, index, src);
+    if (nextGallery) setGallery(nextGallery);
+  }
+
+  function renderGallery(photos: readonly DraftGalleryPhoto[], editable = false) {
+    const content = <>
+      <p id="circle-draft-gallery-note" className={galleryStyles.notice}>
+        {c("Three distinct example images. The first is the cover. Added photos are AI concepts, not uploads or delivery proof; nothing is published.")}
+      </p>
+      <div className={galleryStyles.photos}>
+        {photos.map((photo, index) => <figure className={galleryStyles.photo} key={photo.src}>
+          {failedPhotos.includes(photo.src)
+            ? <div className={galleryStyles.failure} role="status">{c("Photo unavailable")}</div>
+            // eslint-disable-next-line @next/next/no-img-element
+            : <img className={galleryStyles.image} src={photo.src} alt={photo.alt} onError={() => setFailedPhotos(current => current.includes(photo.src) ? current : [...current, photo.src])} />}
+          <figcaption>
+            {editable ? <>
+              <label className={galleryStyles.label} htmlFor={`circle-draft-photo-${index}`}>
+                {index === 0 ? c("Photo 1 · cover") : c("Photo {index} of {count}", { index: index + 1, count: photos.length })}
+              </label>
+              <select id={`circle-draft-photo-${index}`} className={galleryStyles.select} value={photo.src}
+                aria-describedby="circle-draft-gallery-note" onChange={event => choosePhoto(index, event.target.value)}>
+                {!galleryOptions.some(option => option.src === photo.src) && <option value={photo.src}>{c("Restored legacy cover")}</option>}
+                {galleryOptions.map((option, optionIndex) => <option key={option.src} value={option.src}
+                  disabled={photos.some((selected, at) => at !== index && selected.src === option.src)}>
+                  {c("AI {index}", { index: optionIndex + 1 })}
+                </option>)}
+              </select>
+            </> : <strong>{index === 0 ? c("Photo 1 · cover") : c("Photo {index} of {count}", { index: index + 1, count: photos.length })}</strong>}
+            <span>{photo.src.startsWith("/circles/generated/") ? c("AI illustration") : c("Restored legacy cover")}</span>
+          </figcaption>
+        </figure>)}
+      </div>
+    </>;
+    return editable ? <fieldset className={galleryStyles.gallery}>
+      <legend className={galleryStyles.heading}>{c("Choose three example photos")}</legend>{content}
+    </fieldset> : <section className={galleryStyles.gallery} aria-label={c("Browser draft photo gallery")}>
+      <h3 className={galleryStyles.heading}>{c("Three-photo browser draft gallery")}</h3>{content}
+    </section>;
+  }
 
   function validate(atStep: Step): boolean {
     if (atStep === 0 && title.trim().length < 6) {
@@ -125,6 +172,10 @@ export default function CirclesCreateScreen() {
       setError(
         c("Acknowledge that the allowance is a concept before continuing."),
       );
+      return false;
+    }
+    if (atStep === 2 && !readDraftGallery(category, gallery[0]?.src, gallery)) {
+      setError(c("Choose three different example photos before continuing."));
       return false;
     }
     return true;
@@ -157,7 +208,8 @@ export default function CirclesCreateScreen() {
         pesoEquivalent: pesoFromLocal(goal, currency),
       },
       durationDays,
-      cover,
+      cover: gallery[0].src,
+      gallery,
       allowance: {
         percentage: allowancePct,
         conceptAcknowledged: allowanceAck,
@@ -217,7 +269,8 @@ export default function CirclesCreateScreen() {
         currency: draft.target.currency,
       });
       setDurationDays(draft.durationDays);
-      setCover(draft.cover);
+      setGallery(draft.gallery!);
+      setFailedPhotos([]);
       setAllowancePct(draft.allowance.percentage);
       setAllowanceAck(Boolean(draft.allowance.conceptAcknowledged));
       setStep(0);
@@ -353,7 +406,7 @@ export default function CirclesCreateScreen() {
                     className={styles.select}
                     value={category}
                     onChange={(event) =>
-                      setCategory(event.target.value as CircleCategory)
+                      changeCategory(event.target.value as CircleCategory)
                     }
                   >
                     {categories.map((item) => (
@@ -441,49 +494,14 @@ export default function CirclesCreateScreen() {
                       }
                     />{c("I understand this allowance is an illustration, not approved or withdrawable funds.")}</label>
                 )}
-                <div>
-                  <span className={styles.eyebrow}>{c("Example cover")}</span>
-                  <div className={styles.coverPicker}>
-                    {covers.map((option) => (
-                      <button
-                        key={option.src}
-                        type="button"
-                        className={styles.coverChoice}
-                        aria-label={c(option.label)}
-                        aria-pressed={cover === option.src}
-                        onClick={() => setCover(option.src)}
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={option.src}
-                          alt=""
-                          style={
-                            option.src.endsWith(".png")
-                              ? { objectFit: "contain" }
-                              : undefined
-                          }
-                        />
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                {renderGallery(gallery, true)}
                 <div className={styles.notice}>{c("Organizer verification, reputation and dispute handling are proposed tools. This flow does not perform KYC, create a verification badge or generate public proof.")}</div>
               </div>
             )}
             {step === 3 && (
               <>
                 <span className={styles.eyebrow}>{c("Review your browser draft")}</span>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  className={styles.previewImage}
-                  src={cover}
-                  alt={c("Selected example cover")}
-                  style={
-                    cover.endsWith(".png")
-                      ? { objectFit: "contain", background: "#edf3ff" }
-                      : undefined
-                  }
-                />
+                {renderGallery(gallery)}
                 <h2 style={{ marginTop: 15 }}>{title}</h2>
                 <p style={{ whiteSpace: "pre-wrap" }}>{story}</p>
                 <dl className={styles.summaryList}>
@@ -554,12 +572,13 @@ export default function CirclesCreateScreen() {
           <section className={styles.success} role="status">
             <strong>{draftPersisted ? c("Complete draft saved in this browser.") : c("Complete draft prepared, not saved.")}</strong>
             <p style={{ marginTop: 8 }}>
-              {draftPersisted ? c("Title, story, category, target, currency, duration, cover and allowance preferences are included. Clearing browser data will remove it. It has not been published or uploaded.") : c("All draft fields are ready in memory. Leaving this page will lose the unsaved draft. Download a copy before leaving. It has not been published or uploaded.")}
+              {draftPersisted ? c("Title, story, category, target, currency, duration, three-photo gallery, cover and allowance preferences are included. Clearing browser data will remove it. It has not been published or uploaded.") : c("All draft fields are ready in memory. Leaving this page will lose the unsaved draft. Download a copy before leaving. It has not been published or uploaded.")}
             </p>
           </section>
           {error && <div className={styles.error} role="alert">{error}</div>}
           <section className={styles.card}>
-            <h2>{savedDraft.title}</h2>
+            {renderGallery(savedDraft.gallery ?? [])}
+            <h2 style={{ marginTop: 15 }}>{savedDraft.title}</h2>
             <p>
               {formatLocalAmount(
                 Number(savedDraft.target.localValue),

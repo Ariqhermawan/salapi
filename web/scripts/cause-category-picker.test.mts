@@ -163,6 +163,7 @@ function discovery(locale: Locale, preview: boolean, campaignEntry: boolean) {
     "@/components/I18nProvider": { useT: () => ({ locale, t(key: string) { let value: unknown = DICTS[locale]; for (const part of key.split(".")) value = (value as Record<string, unknown>)[part]; assert.equal(typeof value, "string"); return value; } }) },
     "@/components/ui/kit": { Ico: new Proxy({}, { get: () => () => null }), T: {}, PoweredByStellar: "PoweredByStellar" },
     "@/components/ui/OrganizerVerification": { default: "OrganizerVerification" },
+    "@/components/ui/ExampleOrganizerAvatar": { default: "ExampleOrganizerAvatar" },
     "@/components/CauseCategoryPicker": picker,
     "@/lib/circles/seed": { SEED_CIRCLES }, "@/lib/circles/types": circleTypes,
     "@/lib/circles/organizers": fixture("../lib/circles/organizers.ts"),

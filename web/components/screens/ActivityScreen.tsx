@@ -10,6 +10,7 @@ import { Ico, IconButton, T, PoweredByStellar } from "@/components/ui/kit";
 import { useGoBack } from "@/lib/ui/useGoBack";
 import { useT } from "@/components/I18nProvider";
 import { moneyCopy, moneyMessage } from "@/lib/i18n/revamp-money";
+import { activityCopy } from "@/lib/i18n/wallet-activity";
 import { formatLocal } from "@/lib/ui/currency";
 import { isLocalPreview, PREVIEW_WALLET } from "@/lib/local-preview";
 import {
@@ -169,6 +170,7 @@ export default function ActivityScreen() {
   const goBack = useGoBack("/");
   const { currency, locale } = useT();
   const m = moneyCopy(locale);
+  const h = activityCopy(locale);
   const [tab, setTab] = useState<Tab>("personal");
   const [owner, setOwner] = useState<string | null | undefined>(isLocalPreview ? null : undefined);
   const [authError, setAuthError] = useState(false);
@@ -409,7 +411,7 @@ export default function ActivityScreen() {
                 <div className={styles.loadingState} role="status" aria-live="polite">
                   <span className={styles.loadingOrbit} aria-hidden="true">{Ico.sparkle({ size: 28, c: T.action })}</span>
                   <h2>{m("Loading your Testnet activity…")}</h2>
-                  <p>{m("Checking confirmed incoming and outgoing XLM.")}</p>
+                  <p>{h("checking")}</p>
                 </div>
               ) : authError ? (
                 <div className={styles.error} role="alert">
@@ -419,7 +421,7 @@ export default function ActivityScreen() {
               ) : !owner ? (
                 <div className={styles.emptyState}>
                   <h2>{m("Sign in to see your transfers.")}</h2>
-                  <p>{m("Incoming and outgoing confirmed Testnet XLM will appear here for your saved wallet.")}</p>
+                  <p>{h("signedOut")}</p>
                   <Link href="/signin?next=%2Factivity" className={styles.sendButton}>{m("Sign in")}</Link>
                 </div>
               ) : (
@@ -427,7 +429,7 @@ export default function ActivityScreen() {
                   <div className={styles.sectionHeading}>
                     <div>
                       <h2>{m("Your Testnet transfers")}</h2>
-                      <p>{m("Confirmed XLM only. Testnet tokens have no monetary value.")}</p>
+                      <p>{h("confirmed")}</p>
                     </div>
                     <button type="button" className={styles.refresh} disabled={loadingMore} aria-label={m("Refresh activity")} onClick={() => void refresh()}>
                       {Ico.refresh({ size: 18, c: T.action })}
@@ -447,7 +449,7 @@ export default function ActivityScreen() {
                     </div>
                   ) : personal.status === "ready" && !personal.items.length ? (
                     <div className={styles.emptyState}>
-                      <h2>{personal.nextCursor ? m("No XLM transfers on this page.") : m("No confirmed XLM transfers yet.")}</h2>
+                      <h2>{personal.nextCursor ? h("emptyPage") : h("empty")}</h2>
                       <p>{personal.nextCursor ? m("Other on-chain activity was found. Load earlier transfers to check older records.") : m("A new transfer may take a moment to be indexed. Refresh to check again, or open your wallet in the explorer.")}</p>
                     </div>
                   ) : null}
@@ -465,24 +467,35 @@ export default function ActivityScreen() {
                             <div className={styles.receiptBody}>
                               <button type="button" className={styles.receiptButton} aria-expanded={expanded === receipt.id} aria-controls={`activity-receipt-${receipt.id}`} onClick={() => setExpanded((current) => current === receipt.id ? null : receipt.id)}>
                                 <div>
-                                  <strong>{received ? m("Received XLM") : m("Sent XLM")}</strong>
+                                  <strong>{h(received ? "received" : "sent", { asset: receipt.asset.code })}</strong>
                                   {counterparty ? <span>{received ? m("From wallet") : m("To wallet")} {counterparty}</span> : <span>{m("On-chain wallet activity")}</span>}
                                   <time dateTime={receipt.createdAt}>{receiptDate(receipt.createdAt, false, locale)}</time>
                                 </div>
                                 <div className={`${styles.receiptAmount} ${received ? styles.incomingAmount : ""}`}>
                                   <strong>{received ? "+" : "−"}{exactNativeAmount(receipt.amountStroops)}</strong>
-                                  <small>Testnet XLM</small>
+                                  <small>Testnet {receipt.asset.code}</small>
                                 </div>
                               </button>
+                              <p className={styles.feeSummary}>
+                                {receipt.fee.status === "available" ? <>{h("fee")}: {exactNativeAmount(receipt.fee.amountStroops)} XLM · {h(receipt.fee.paidByWallet ? "paidByYou" : "paidByOther")}</> : h("feeUnavailable")}
+                              </p>
                               {expanded === receipt.id ? (
                                 <div id={`activity-receipt-${receipt.id}`} className={styles.receiptDetails}>
                                   <dl>
-                                    <dt>{m("Native amount")}</dt><dd>{nativeAmount(receipt.amountStroops)} Testnet XLM</dd>
-                                    <dt>{m("Exact native units")}</dt><dd>{receipt.amountStroops} stroops</dd>
+                                    <dt>{h("amount")}</dt><dd>{nativeAmount(receipt.amountStroops)} Testnet {receipt.asset.code}</dd>
+                                    <dt>{h("units")}</dt><dd>{receipt.amountStroops} units</dd>
+                                    {receipt.asset.issuer ? <><dt>{h("issuer")}</dt><dd className={styles.address}>{receipt.asset.issuer}</dd><dt>{h("contract")}</dt><dd className={styles.address}>{receipt.asset.contractId}</dd></> : null}
                                     <dt>{m("Recorded at")}</dt><dd>{receiptDate(receipt.createdAt, true, locale)}</dd>
                                     {counterparty ? <><dt>{received ? m("Sender wallet") : m("Recipient wallet")}</dt><dd className={styles.address}>{receipt.counterparty}</dd></> : null}
                                     <dt>{m("Transaction hash")}</dt><dd className={styles.address}>{receipt.hash}</dd>
+                                    {receipt.fee.status === "available" ? <>
+                                      <dt>{h("fee")}</dt><dd>{exactNativeAmount(receipt.fee.amountStroops)} Testnet XLM</dd>
+                                      <dt>{h("feePayer")}</dt><dd className={styles.address}>{receipt.fee.payer}<br />{h(receipt.fee.paidByWallet ? "paidByYou" : "paidByOther")}</dd>
+                                    </> : null}
                                   </dl>
+                                  <p>{receipt.fee.status === "available" ? h("feeScope") : h("feeMissing")}</p>
+                                  {receipt.fee.status === "available" && receipt.fee.feeBump ? <p>{h("feeBump")}</p> : null}
+                                  {receipt.fee.status === "available" && receipt.fee.transactionHash !== receipt.hash && transactionUrl(receipt.fee.transactionHash) ? <a className={styles.transactionLink} href={transactionUrl(receipt.fee.transactionHash)!} target="_blank" rel="noopener noreferrer">{h("feeReceipt")}</a> : null}
                                   {explorerReceipt ? <a className={styles.transactionLink} href={explorerReceipt} target="_blank" rel="noopener noreferrer">{m("View transaction on Stellar ↗")}</a> : null}
                                 </div>
                               ) : null}

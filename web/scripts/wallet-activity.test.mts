@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
-import { StrKey } from "@stellar/stellar-sdk";
+import { Asset, Networks, StrKey } from "@stellar/stellar-sdk";
 import { AuthSessionMissingError, isAuthSessionMissingError } from "@supabase/supabase-js";
 import * as activity from "../lib/wallet-activity.ts";
 import * as money from "../lib/money.ts";
@@ -47,7 +47,7 @@ test("bounded uint64 pagination accepts only canonical numeric tokens", () => {
 
 test("classic payments normalize both directions and retain receipt identity", () => {
   const sent = activity.normalizeWalletActivity([record()], address)[0];
-  assert.deepEqual(sent, { id: "100:payment", hash, createdAt, direction: "sent", amountStroops: "10000001", counterparty: other, kind: "payment" });
+  assert.deepEqual(sent, { id: "100:payment", hash, createdAt, direction: "sent", amountStroops: "10000001", counterparty: other, kind: "payment", asset: activity.XLM_ACTIVITY_ASSET, fee: { status: "unavailable" } });
   const received = activity.normalizeWalletActivity([record()], other)[0];
   assert.equal(received.direction, "received"); assert.equal(received.counterparty, address); assert.equal(received.amountStroops, sent.amountStroops);
 });
@@ -97,7 +97,7 @@ test("malformed provider receipts are errors, not an apparently empty wallet", (
 });
 
 type Options = { preview?: boolean; configured?: boolean; adminConfigured?: boolean; authResult?: unknown; authThrow?: unknown;
-  clientThrow?: unknown; dbResult?: unknown; dbThrow?: unknown; fetchThrow?: unknown; response?: Response; records?: unknown[] };
+  clientThrow?: unknown; dbResult?: unknown; dbThrow?: unknown; fetchThrow?: unknown; response?: Response; records?: unknown[]; feeReceipts?: Record<string, unknown> };
 const serverCode = code("../lib/server/walletActivity.ts");
 function setup(options: Options = {}) {
   const verifiedOwner = (options.authResult as { data?: { user?: { id?: string } } } | undefined)?.data?.user?.id ?? "authenticated-a";
@@ -116,6 +116,11 @@ function setup(options: Options = {}) {
       return { auth: guard({ async getUser() { calls.auth++; if ("authThrow" in options) throw options.authThrow; return "authResult" in options ? options.authResult : { data: { user: { id: "authenticated-a" } }, error: null }; } }, "auth") }; } },
     "@/lib/supabase/admin": { createSupabaseAdmin() { calls.admin++; return guard({ from(table: string) { calls.tables.push(table); return query; } }, "admin"); } },
   }, { fetch: async (url: URL, init: RequestInit) => { calls.network.push({ url, init }); if ("fetchThrow" in options) throw options.fetchThrow;
+    if (url.pathname.startsWith("/transactions/")) {
+      const receipt = options.feeReceipts?.[url.pathname.split("/").at(-1)!];
+      if (receipt instanceof Error) throw receipt;
+      return receipt === undefined ? new Response("{}", { status: 404 }) : new Response(JSON.stringify(receipt), { status: 200 });
+    }
     return options.response ?? new Response(JSON.stringify({ _embedded: { records: options.records ?? [sacRecord()] } }), { status: 200 }); } });
   async function invoke(cursor?: unknown) {
     const result = await api.currentWalletActivity(cursor);
@@ -133,6 +138,7 @@ test("actual current-wallet function authorizes verified getUser identity and se
   const { url, init } = screen.calls.network[0];
   assert.equal(url.origin, "https://horizon-testnet.stellar.org"); assert.equal(url.pathname, `/accounts/${address}/payments`);
   assert.equal(url.searchParams.get("limit"), "30"); assert.equal(url.searchParams.get("include_failed"), "false"); assert.equal(url.searchParams.get("order"), "desc");
+  assert.equal(url.searchParams.get("join"), "transactions");
   assert.equal(init.method, "GET"); assert.equal(init.redirect, "error"); assert.equal(init.cache, "no-store"); assert.ok(init.signal);
   assert.deepEqual({ ...init.headers }, { Accept: "application/json" });
 });
@@ -270,4 +276,94 @@ test("public provider reader has no session owner and performs no auth or custod
   const screen = setup({ configured: false }); const result = await screen.api.readWalletActivityPage(address);
   assert.equal(result.ok, true); assert.equal("ownerId" in result, false);
   assert.equal(screen.calls.auth, 0); assert.equal(screen.calls.admin, 0); assert.equal(screen.calls.network.length, 1);
+});
+
+test("Testnet USDC is a verified Circle issuer plus its network-derived SAC, not a USDC code alias", () => {
+  assert.equal(StrKey.isValidEd25519PublicKey(activity.USDC_TESTNET_ISSUER), true);
+  assert.equal(new Asset("USDC", activity.USDC_TESTNET_ISSUER).contractId(Networks.TESTNET), activity.USDC_TESTNET_SAC);
+  const usdc = record({ id: "99", asset_type: "credit_alphanum4", asset_code: "USDC", asset_issuer: activity.USDC_TESTNET_ISSUER, amount: "50.0000001" });
+  const spoof = record({ id: "98", asset_type: "credit_alphanum4", asset_code: "USDC", asset_issuer: other });
+  const mainnet = record({ id: "97", asset_type: "credit_alphanum4", asset_code: "USDC", asset_issuer: "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN" });
+  const result = activity.normalizeWalletActivity([record(), usdc, spoof, mainnet], address);
+  assert.deepEqual(result.map(item => [item.asset.code, item.amountStroops]), [["XLM", "10000001"], ["USDC", "500000001"]]);
+  const incoming = activity.normalizeWalletActivity([usdc], other)[0];
+  assert.equal(incoming.direction, "received"); assert.equal(incoming.asset.issuer, activity.USDC_TESTNET_ISSUER);
+});
+
+test("SAC USDC identity is issuer-bound or the verified contract, never a contradictory event", () => {
+  const transfer = { type: "transfer", from: address, to: other, amount: "2.0000001" };
+  const result = activity.normalizeWalletActivity([sacRecord([
+    { ...transfer, asset_type: "credit_alphanum4", asset_code: "USDC", asset_issuer: activity.USDC_TESTNET_ISSUER },
+    { ...transfer, contract_id: activity.USDC_TESTNET_SAC },
+    { ...transfer, asset_type: "credit_alphanum4", asset_code: "USDC", asset_issuer: other, contract_id: activity.USDC_TESTNET_SAC },
+    { ...transfer, asset_type: "credit_alphanum4", asset_code: "USDC", asset_issuer: activity.USDC_TESTNET_ISSUER, contract_id: contract },
+    { ...transfer, asset_type: "credit_alphanum4", asset_code: "USDC" },
+  ])], address);
+  assert.equal(result.length, 2); assert.ok(result.every(item => item.asset.code === "USDC" && item.amountStroops === "20000001"));
+});
+
+const transaction = (overrides: Record<string, unknown> = {}) => ({ hash, successful: true, fee_charged: "12345", fee_account: address, source_account: other, resource_fee: "99999", ...overrides });
+
+test("actual fees are transaction-wide in XLM, independent of sender/receiver and token amount", () => {
+  const joined = record({ transaction: transaction() });
+  const sent = activity.normalizeWalletActivity([joined], address)[0];
+  const received = activity.normalizeWalletActivity([joined], other)[0];
+  assert.deepEqual(sent.fee, { status: "available", amountStroops: "12345", payer: address, paidByWallet: true, transactionHash: hash, feeBump: false });
+  assert.equal(received.fee.status, "available"); if (received.fee.status === "available") assert.equal(received.fee.paidByWallet, false);
+  assert.equal(sent.amountStroops, "10000001"); assert.equal(received.amountStroops, "10000001");
+  const receiverPays = activity.normalizeWalletActivity([record({ transaction: transaction({ fee_account: other }) })], other)[0];
+  assert.equal(receiverPays.fee.status, "available"); if (receiverPays.fee.status === "available") assert.equal(receiverPays.fee.paidByWallet, true);
+});
+
+test("self payments do not invent transfers; a real self swap retains both distinct asset movements and one fee", () => {
+  assert.deepEqual(activity.normalizeWalletActivity([record({ to: address, transaction: transaction() })], address), []);
+  const result = activity.normalizeWalletActivity([record({ type: "path_payment_strict_send", to: address,
+    source_asset_type: "native", source_amount: "10.0000000", asset_type: "credit_alphanum4", asset_code: "USDC", asset_issuer: activity.USDC_TESTNET_ISSUER, amount: "1.0000000", transaction: transaction() })], address);
+  assert.deepEqual(result.map(item => [item.direction, item.asset.code, item.amountStroops]), [["sent", "XLM", "100000000"], ["received", "USDC", "10000000"]]);
+  const fees = new Map(result.filter(item => item.fee.status === "available").map(item => [item.hash, item.fee]));
+  assert.equal(fees.size, 1); assert.deepEqual(result[0].fee, result[1].fee);
+});
+
+test("inner zero fee is unavailable until an outer fee-bump receipt is read, never inner+outer+resource sum", () => {
+  const outer = "b".repeat(64);
+  assert.deepEqual(activity.normalizeWalletActivityFee(transaction({ fee_charged: "0", fee_bump_transaction: { hash: outer } }), hash, address), { status: "unavailable" });
+  const result = activity.normalizeWalletActivityFee(transaction({ hash: outer, fee_account: other, fee_charged: "321", inner_transaction: { hash, fee_charged: "999" }, resource_fee: "888" }), hash, address);
+  assert.deepEqual(result, { status: "available", amountStroops: "321", payer: other, paidByWallet: false, transactionHash: outer, feeBump: true });
+});
+
+test("missing, malformed, unrelated or unconfirmed fee receipts stay explicitly unavailable", () => {
+  for (const raw of [undefined, {}, transaction({ fee_account: undefined }), transaction({ fee_account: contract }), transaction({ successful: false }),
+    transaction({ hash: "c".repeat(64) }), transaction({ fee_charged: "1.5" }), transaction({ fee_charged: "-1" }), transaction({ fee_charged: Number.MAX_SAFE_INTEGER + 1 }),
+    transaction({ fee_bump_transaction: { hash: "malformed" } }), transaction({ inner_transaction: { hash: "malformed" } })])
+    assert.deepEqual(activity.normalizeWalletActivityFee(raw, hash, address), { status: "unavailable" });
+});
+
+test("joined fee reads avoid N+1 requests and missing fees never erase confirmed asset movements", async () => {
+  const joined = setup({ records: [record({ transaction: transaction() })] });
+  const result = await joined.invoke(); assert.equal(result.ok, true); if (result.ok) assert.equal(result.items[0].fee.status, "available");
+  assert.equal(joined.calls.network.length, 1);
+  const missing = await setup({ records: [record({ transaction: transaction({ fee_account: "G".repeat(56) }) })] }).invoke();
+  assert.equal(missing.ok, true); if (missing.ok) { assert.equal(missing.items.length, 1); assert.equal(missing.items[0].fee.status, "unavailable"); }
+});
+
+test("outer fee-bump lookup is fixed-host, read-only and deduplicated across SAC movements", async () => {
+  const outer = "b".repeat(64);
+  const joined = sacRecord([{ asset_type: "native", type: "transfer", from: address, to: other, amount: "1" }, { asset_type: "credit_alphanum4", asset_code: "USDC", asset_issuer: activity.USDC_TESTNET_ISSUER, type: "transfer", from: other, to: address, amount: "2" }],
+    { transaction: transaction({ fee_charged: "0", fee_bump_transaction: { hash: outer } }) });
+  const screen = setup({ records: [joined], feeReceipts: { [outer]: transaction({ hash: outer, fee_account: other, fee_charged: "321", inner_transaction: { hash } }) } });
+  const result = await screen.invoke(); assert.equal(result.ok, true);
+  if (result.ok) { assert.equal(result.items.length, 2); assert.ok(result.items.every(item => item.fee.status === "available" && item.fee.amountStroops === "321" && !item.fee.paidByWallet)); }
+  assert.equal(screen.calls.network.length, 2);
+  assert.equal(screen.calls.network[1].url.href, `https://horizon-testnet.stellar.org/transactions/${outer}`);
+  assert.equal(screen.calls.network[1].init.method, "GET"); assert.equal(screen.calls.network[1].init.redirect, "error");
+  const unavailable = await setup({ records: [joined], feeReceipts: { [outer]: Error("Isolated fee outage") } }).invoke();
+  assert.equal(unavailable.ok, true); if (unavailable.ok) assert.ok(unavailable.items.every(item => item.fee.status === "unavailable"));
+});
+
+test("fee-bump reads have a strict page request budget and never follow transaction links", async () => {
+  const records = Array.from({ length: 12 }, (_, index) => record({ id: String(100 - index), paging_token: String(100 - index), transaction_hash: String(index + 1).padStart(64, "a"),
+    transaction: transaction({ hash: String(index + 1).padStart(64, "a"), fee_charged: "0", fee_bump_transaction: { hash: String(index + 1).padStart(64, "b") }, _links: { self: { href: "https://evil.test" } } }) }));
+  const screen = setup({ records }); const result = await screen.invoke(); assert.equal(result.ok, true);
+  assert.equal(screen.calls.network.length, 9); assert.ok(screen.calls.network.every(call => call.url.origin === "https://horizon-testnet.stellar.org"));
+  if (result.ok) assert.ok(result.items.every(item => item.fee.status === "unavailable"));
 });

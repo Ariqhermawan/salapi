@@ -14,6 +14,10 @@ import {
   renameUsername,
 } from "@/app/actions";
 import { settingsHandle } from "@/app/account-actions";
+import AccountAvatar from "@/components/AccountAvatar";
+import AccountPhotoEditor from "@/components/AccountPhotoEditor";
+import { useAccountPhoto } from "@/components/useAccountPhoto";
+import { accountPhotoCopy } from "@/lib/i18n/account-photo";
 import { createSupabaseBrowser } from "@/lib/supabase/client";
 import { supabaseConfigured } from "@/lib/supabase/env";
 import { useT } from "@/components/I18nProvider";
@@ -24,7 +28,6 @@ import { isLocalPreview, PREVIEW_WALLET } from "@/lib/local-preview";
 import {
   T,
   Ico,
-  Avatar,
   Btn,
   PoweredByStellar,
   MakerLockup,
@@ -193,6 +196,8 @@ export default function SettingsScreen() {
   const [signOutPending, setSignOutPending] = useState(false);
   const [signOutError, setSignOutError] = useState(false);
   const signOutInFlight = useRef(false);
+  const photo = useAccountPhoto(() => signOutInFlight.current);
+  const photoCopy = accountPhotoCopy(locale);
 
   useEffect(() => {
     let active = true;
@@ -322,7 +327,7 @@ export default function SettingsScreen() {
       <button type="button" className={styles.profile} onClick={() => router.push("/you/kyc-tier")}
         disabled={profileStatus !== "ready"} aria-busy={profileStatus === "loading"} data-profile-state={profileStatus}
         aria-label={profileStatus === "loading" ? c.profileLoading : profileStatus === "error" ? c.profileUnavailable : undefined}>
-        {profileStatus === "ready" ? <Avatar name={name || supaEmail || "Salapi"} size={46} />
+        {profileStatus === "ready" ? <AccountAvatar name={name || supaEmail || "Salapi"} photoUrl={photo.profile?.photoUrl ?? null} size={46} alt={photoCopy.alt} loading={photo.status === "loading"} />
           : <span className={`${styles.profileAvatarPlaceholder} ${profileStatus === "loading" ? "sl-skel" : ""}`} aria-hidden="true" />}
         <span className={styles.profileCopy}>
           <span className={styles.profileName}>{profileStatus === "loading"
@@ -335,6 +340,8 @@ export default function SettingsScreen() {
           </span>
         </span>
       </button>
+
+      <AccountPhotoEditor photo={photo} disabled={signOutPending} />
 
       <section className={styles.sheet} aria-labelledby="account-title">
         <SectionLabel id="account-title">{t("settings.accounts")}</SectionLabel>

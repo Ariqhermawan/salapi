@@ -6,6 +6,8 @@ import ts from "typescript";
 import { CURRENCY, formatLocal, formatLocalAmount, localAmount, pesoFromLocal } from "../lib/ui/currency.ts";
 import { isLocale } from "../lib/i18n/config.ts";
 import * as revampCircles from "../lib/i18n/revamp-circles.ts";
+import * as draftGallery from "../lib/ui/circle-draft-gallery.ts";
+import { CATEGORY_LABEL } from "../lib/circles/types.ts";
 
 type Element = { type: string; props: Record<string, unknown> };
 const code = ts.transpileModule(readFileSync(new URL("../components/screens/CirclesCreateScreen.tsx", import.meta.url), "utf8"), {
@@ -70,9 +72,10 @@ function setup(options: { preview?: boolean; result?: { ok: boolean; error?: str
       if (name === "@/components/ui/kit") return { Ico: icons, T: {}, Btn: "Btn", PoweredByStellar: "PoweredByStellar" };
       if (name === "@/components/I18nProvider") return { useT: () => ({ currency: "en", locale: "en" }) };
       if (name === "@/lib/i18n/revamp-circles") return revampCircles;
+      if (name === "@/lib/ui/circle-draft-gallery") return draftGallery;
       if (name === "@/lib/ui/currency") return { CURRENCY, formatLocalAmount, localAmount, pesoFromLocal };
       if (name === "@/lib/i18n/config") return { isLocale };
-      if (name === "@/lib/circles/types") return { CATEGORY_LABEL: { community: "Community" } };
+      if (name === "@/lib/circles/types") return { CATEGORY_LABEL };
       if (name === "@/lib/local-preview") return { isLocalPreview: options.preview ?? true };
       if (name === "@/lib/ui/useGoBack") return { useGoBack: () => forbidden };
       if (name.endsWith(".module.css")) return { default: {} };
@@ -246,7 +249,9 @@ test("blocked or silently dropped draft storage retains complete memory draft an
     assert.equal(draft.title, "Our barangay library"); assert.match(draft.story, /fictional local library/);
     assert.equal(draft.category, "community"); assert.equal(draft.target.localValue, "10.00");
     assert.equal(draft.target.currency, "en"); assert.equal(draft.target.pesoEquivalent, 580);
-    assert.equal(draft.durationDays, 30); assert.equal(draft.cover, "/circles/disaster.jpg");
+    assert.equal(draft.durationDays, 30); assert.equal(draft.cover, draftGallery.defaultDraftGallery("community")[0].src);
+    assert.equal(draft.gallery.length, 3); assert.equal(new Set(draft.gallery.map((photo: { src: string }) => photo.src)).size, 3);
+    assert.equal(draft.cover, draft.gallery[0].src);
     assert.equal(draft.allowance.percentage, 0); assert.equal(draft.publication, "browser-draft-only");
     assert.equal("email" in draft, false);
     screen.input("circle-organizer-launch-email", "qa@example.invalid");
@@ -274,4 +279,106 @@ test("a prior compatible browser draft can be restored without mutation or autom
   assert.equal(nodes(screen.tree).find(node => node.props.id === "circle-draft-title")?.props.value, "Previous library draft");
   assert.equal(screen.payloads.length, 0);
   assert.match(text(screen.tree), /last browser draft is restored/);
+});
+
+function completeCause(screen: ReturnType<typeof setup>, category = "community") {
+  screen.input("circle-draft-title", "A fictional neighborhood cause");
+  screen.input("circle-draft-story", "A browser-only fictional idea with practical supplies and shared help, not a published campaign.");
+  screen.input("circle-draft-category", category);
+  screen.click("Continue"); screen.input("circle-draft-goal", "10.00"); screen.click("Continue");
+}
+
+test("each category shows and saves three distinct AI example images without a server submission", () => {
+  for (const category of Object.keys(CATEGORY_LABEL)) {
+    const screen = setup({ preview: false }); completeCause(screen, category);
+    assert.equal(nodes(screen.tree).filter(node => node.type === "select" && String(node.props.id).startsWith("circle-draft-photo-")).length, 3);
+    assert.match(text(screen.tree), /Added photos are AI concepts.*nothing is published/);
+    screen.click("Continue");
+    const gallery = nodes(screen.tree).find(node => node.props["aria-label"] === "Browser draft photo gallery");
+    assert.ok(gallery); assert.equal(nodes(gallery).filter(node => node.type === "img").length, 3);
+    screen.check("Save this concept on this device only"); screen.click("Save complete browser draft");
+    const draft = JSON.parse(screen.memory.get("salapi.circles.draft.v1")!);
+    assert.deepEqual(draft.gallery, draftGallery.defaultDraftGallery(category as keyof typeof CATEGORY_LABEL));
+    assert.equal(draft.cover, draft.gallery[0].src);
+    assert.equal(draft.publication, "browser-draft-only"); assert.equal(draft.organizerVerification, "not-performed");
+    assert.equal(screen.payloads.length, 0);
+  }
+});
+
+test("selectable gallery alternatives update the cover and persist exact ordering without duplicate photos", () => {
+  const screen = setup(); completeCause(screen, "animals");
+  const options = draftGallery.draftGalleryOptions("animals");
+  screen.input("circle-draft-photo-0", options[3].src);
+  screen.input("circle-draft-photo-1", options[4].src);
+  screen.input("circle-draft-photo-2", options[5].src);
+  screen.input("circle-draft-photo-1", options[3].src); // Forged duplicate value is rejected too.
+  assert.equal(nodes(screen.tree).find(node => node.props.id === "circle-draft-photo-1")?.props.value, options[4].src);
+  const selects = nodes(screen.tree).filter(node => node.type === "select" && String(node.props.id).startsWith("circle-draft-photo-"));
+  for (const [index, field] of selects.entries()) {
+    const duplicate = nodes(field).find(node => node.type === "option" && node.props.value === options[3].src);
+    assert.equal(duplicate?.props.disabled, index !== 0);
+  }
+  screen.click("Continue"); screen.check("Save this concept on this device only"); screen.click("Save complete browser draft");
+  const draft = JSON.parse(screen.memory.get("salapi.circles.draft.v1")!);
+  assert.deepEqual(draft.gallery, options.slice(3)); assert.equal(draft.cover, options[3].src);
+  screen.click("Download draft JSON"); assert.deepEqual(JSON.parse(screen.downloads[0]).gallery, draft.gallery);
+  assert.equal(screen.payloads.length, 0);
+});
+
+test("category changes reset the gallery to relevant defaults but selecting the same category preserves choices", () => {
+  const screen = setup(); completeCause(screen, "animals");
+  const customCover = draftGallery.draftGalleryOptions("animals")[3].src;
+  screen.input("circle-draft-photo-0", customCover);
+  screen.click("Back"); screen.click("Back");
+  screen.input("circle-draft-category", "animals"); screen.click("Continue"); screen.click("Continue");
+  assert.equal(nodes(screen.tree).find(node => node.props.id === "circle-draft-photo-0")?.props.value, customCover);
+  screen.click("Back"); screen.click("Back"); screen.input("circle-draft-category", "education");
+  screen.click("Continue"); screen.click("Continue");
+  const expected = draftGallery.defaultDraftGallery("education");
+  for (const [index, photo] of expected.entries()) assert.equal(nodes(screen.tree).find(node => node.props.id === `circle-draft-photo-${index}`)?.props.value, photo.src);
+  assert.equal(screen.memory.size, 0); assert.equal(screen.payloads.length, 0);
+});
+
+test("restoring a version-1 one-cover draft preserves its cover and expands three honest example scenes only in memory", () => {
+  const screen = setup({ previous: previousDraft }); screen.click("Restore last browser draft");
+  assert.equal(screen.memory.get("salapi.circles.draft.v1"), previousDraft);
+  screen.click("Continue"); screen.click("Continue");
+  assert.equal(nodes(screen.tree).find(node => node.props.id === "circle-draft-photo-0")?.props.value, "/circles/disaster.jpg");
+  assert.match(text(screen.tree), /Restored legacy cover/);
+  screen.click("Continue"); screen.check("Save this concept on this device only"); screen.click("Save complete browser draft");
+  const draft = JSON.parse(screen.memory.get("salapi.circles.draft.v1")!);
+  assert.equal(draft.version, 1); assert.equal(draft.cover, "/circles/disaster.jpg"); assert.equal(draft.gallery.length, 3);
+  assert.match(draft.gallery[0].caption, /Legacy example cover.*not a verified/);
+  assert.match(draft.gallery[1].caption, /not a photo of this draft/);
+  assert.equal(draft.target.localValue, "20.00"); assert.equal(draft.durationDays, 60);
+  assert.equal(screen.payloads.length, 0);
+});
+
+test("new gallery drafts restore chosen photos and cover without rewriting storage or auto-signup", () => {
+  const options = draftGallery.draftGalleryOptions("community").slice(3);
+  const previous = JSON.stringify({ ...JSON.parse(previousDraft), cover: options[0].src, gallery: options });
+  const screen = setup({ previous }); screen.click("Restore last browser draft");
+  screen.click("Continue"); screen.click("Continue");
+  for (const [index, photo] of options.entries()) assert.equal(nodes(screen.tree).find(node => node.props.id === `circle-draft-photo-${index}`)?.props.value, photo.src);
+  assert.equal(screen.memory.get("salapi.circles.draft.v1"), previous); assert.equal(screen.payloads.length, 0);
+});
+
+test("malformed gallery records do not partially restore or silently replace the last draft", () => {
+  const photos = draftGallery.defaultDraftGallery("community");
+  for (const gallery of [photos.slice(0, 1), [photos[0], photos[0], photos[2]], [{ src: "https://invalid.test/private-photo.png" }, ...photos.slice(1)]]) {
+    const previous = JSON.stringify({ ...JSON.parse(previousDraft), cover: photos[0].src, gallery });
+    const screen = setup({ previous }); screen.input("circle-draft-title", "Current untouched idea"); screen.click("Restore last browser draft");
+    assert.equal(nodes(screen.tree).find(node => node.props.id === "circle-draft-title")?.props.value, "Current untouched idea");
+    assert.match(text(screen.tree), /No compatible saved draft/);
+    assert.equal(screen.memory.get("salapi.circles.draft.v1"), previous); assert.equal(screen.payloads.length, 0);
+  }
+});
+
+test("a failed gallery image renders an honest unavailable state without deleting the selected draft source", () => {
+  const screen = setup(); completeCause(screen);
+  const photo = nodes(screen.tree).find(node => node.type === "img" && String(node.props.src).startsWith("/circles/generated/"));
+  assert.ok(photo); (photo.props.onError as () => void)();
+  screen.input("circle-draft-photo-1", draftGallery.draftGalleryOptions("community")[4].src); // Re-render.
+  assert.match(text(screen.tree), /Photo unavailable/);
+  assert.equal(nodes(screen.tree).find(node => node.props.id === "circle-draft-photo-0")?.props.value, photo.props.src);
 });

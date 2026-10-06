@@ -71,7 +71,14 @@ for (const { viewport, locale } of viewportCases) {
     await expect(page.locator("html")).toHaveAttribute("lang", locale);
     await page.evaluate(async () => { await document.fonts.ready; });
     const firstCard = catalog.locator("article[data-example-cause]").first();
-    await expect.poll(() => firstCard.locator("img").evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true);
+    const firstCauseTitle = await firstCard.getByRole("heading", { level: 2 }).innerText();
+    // The card now also has a decorative organizer portrait. Wait for the
+    // actual campaign cover through its named cause link, not an arbitrary img.
+    const cover = firstCard.getByRole("link", {
+      name: homeCatalogCopy(locale, "View example cause: {title}", { title: firstCauseTitle }), exact: true,
+    }).getByRole("img");
+    await expect(cover).toHaveCount(1);
+    await expect.poll(() => cover.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true);
 
     const bounds = await appScrollport(page);
     expect(bounds.width).toBeGreaterThan(0); expect(bounds.height).toBeGreaterThan(0);

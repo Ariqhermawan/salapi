@@ -119,43 +119,78 @@
 }
 
 .organizerProfile {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 28px;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid #e3eaf4;
+  border-radius: 14px;
+  background: #f7f9fd;
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.organizerAvatar {
   display: flex;
   align-items: center;
-  min-height: 44px;
-  gap: 8px;
-  margin-top: 8px;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
 }
 
-.organizerProfile > span {
-  display: flex;
-  flex: 0 0 auto;
-}
-
-.organizerProfile > div {
+.organizerIdentity {
+  display: grid;
   min-width: 0;
-  flex: 1;
+  gap: 3px;
 }
 
-.organizerProfile p {
-  font-size: 11px;
-}
-
-.organizerProfile strong {
-  color: #2563eb;
-  font-weight: 630;
-}
-
-.organizerProfile div > span {
-  display: block;
-  margin-top: 1px;
+.organizerLabel {
   color: #63728a;
-  font-size: 11px;
-  line-height: 1.5;
+  font-size: 10px;
+  line-height: 1.4;
 }
 
-.organizerProfile:hover strong {
+.organizerName {
+  color: #142440;
+  font-size: 14px;
+  font-weight: 680;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.organizerLocation {
+  color: #63728a;
+  font-size: 10px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.organizerChevron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  background: #e9f0ff;
+}
+
+.organizerProfile:hover {
+  border-color: #c6d7f6;
+  background: #eff4fd;
+}
+
+.organizerProfile:hover .organizerName {
+  color: #2563eb;
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .organizerProfile {
+    transition: none;
+  }
 }
 
 .progressCard {
@@ -655,18 +690,19 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 5px 7px;
-  margin-top: 3px;
-}
-
-.organizerMeta > span:first-child {
-  font-size: 10px;
-  color: #63728a;
+  gap: 5px 8px;
+  min-width: 0;
+  margin-top: 2px;
 }
 
 .organizerFooter {
-  padding: 12px 0;
+  padding: 10px 12px;
   margin-top: 10px;
+}
+
+.organizerFooter .organizerAvatar {
+  width: 40px;
+  height: 40px;
 }
 
 .feeLine {

@@ -10,6 +10,7 @@ import { isLocalPreview } from "@/lib/local-preview";
 import styles from "./CirclesDiscoverRevamp.module.css";
 import { getOrganizerForCircle } from "@/lib/circles/organizers";
 import OrganizerVerification from "@/components/ui/OrganizerVerification";
+import ExampleOrganizerAvatar from "@/components/ui/ExampleOrganizerAvatar";
 import { circlesCopy, circlesCategory } from "@/lib/i18n/revamp-circles";
 import { campaignDiscoveryCopy } from "@/lib/i18n/revamp-campaign-discovery";
 import CauseCategoryPicker from "@/components/CauseCategoryPicker";
@@ -96,7 +97,9 @@ export default function CirclesDiscoverScreen({ campaignEntry = false }: { campa
         </select>
       </label>
       <section key={`${filter}:${sort}`} className={`${styles.list} sl-state-enter`} aria-label={c("Example circles")}>
-        {visible.map((circle) => (
+        {visible.map((circle) => {
+          const organizer = getOrganizerForCircle(circle);
+          return (
           <article key={circle.id} className={styles.exampleCard}>
             <div className={styles.photo}>
               <Image
@@ -118,8 +121,8 @@ export default function CirclesDiscoverScreen({ campaignEntry = false }: { campa
             <div className={styles.cardBody}>
               <span className={styles.exampleLabel}>{c("Example cause")}</span>
               <h2>{circle.title}</h2>
-              <Link className={styles.organizerLink} href={`/circles/${circle.id}/organizer`}><strong>{circle.organizer}</strong>{Ico.chev({size:15,c:T.action})}</Link>
-              {getOrganizerForCircle(circle) ? <OrganizerVerification kind={getOrganizerForCircle(circle)!.kind} compact /> : null}
+              <Link className={styles.organizerLink} href={`/circles/${circle.id}/organizer`}>{organizer && <ExampleOrganizerAvatar organizer={organizer} size={36} />}<strong>{circle.organizer}</strong>{Ico.chev({size:15,c:T.action})}</Link>
+              {organizer ? <OrganizerVerification kind={organizer.kind} compact /> : null}
               <span className={styles.location}>{circle.organizerLocation}{" "}{c("· Example organizer")}</span>
               <p>{circle.summary ?? examplePurpose[circle.id] ?? c("A fictional cause for exploring the Circles prototype.")}</p>
               <div className={styles.feeLine}><span>{c("Beneficiary")}{" "}<strong>{100-(circle.allowance?.percentage ?? 0)}%</strong></span><span>{c("Organizer operations")}{" "}<strong>{circle.allowance?.percentage ?? 0}%</strong></span></div>
@@ -127,7 +130,7 @@ export default function CirclesDiscoverScreen({ campaignEntry = false }: { campa
               </Link>
             </div>
           </article>
-        ))}
+        );})}
       </section>
       {visible.length === 0 && (
         <div className={styles.empty}>

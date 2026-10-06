@@ -567,3 +567,10 @@
     gap: 10px;
   }
 }
+.feeSummary {
+  margin: 3px 0 8px;
+  color: #607799;
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}

@@ -21,6 +21,7 @@ import { recordLocalSupport, type LocalSupportRecord } from "@/lib/circles/local
 import { getOrganizerForCircle } from "@/lib/circles/organizers";
 import SuccessMotion from "@/components/ui/SuccessMotion";
 import OrganizerVerification from "@/components/ui/OrganizerVerification";
+import ExampleOrganizerAvatar from "@/components/ui/ExampleOrganizerAvatar";
 import styles from "./CirclesDonateRevamp.module.css";
 import { circlesCopy } from "@/lib/i18n/revamp-circles";
 
@@ -81,6 +82,7 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
     currency,
   });
   const [anonymous, setAnonymous] = useState(false);
+  const [comment, setComment] = useState("");
   const [marketingOk, setMarketingOk] = useState(false);
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
@@ -165,7 +167,7 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
     if (!validAmount) { setError(amountIssue || c("Enter a valid local demo amount.")); return; }
     if (circle.status === "completed") { setError(c("This example is complete. Choose an active cause for a local demo.")); return; }
     confirmingLocal.current = true;
-    const saved = recordLocalSupport({ circle, displayValue, currency });
+    const saved = recordLocalSupport({ circle, displayValue, currency, anonymous, comment });
     if (!saved) {
       confirmingLocal.current = false;
       setError(c("Browser session storage could not save this local demo. Nothing is recorded as saved, and no money moved. Try again or keep exploring."));
@@ -202,7 +204,7 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
           <h2>{circle.title}</h2>
           <p>{c("Example cause · AI image ·")}{" "}{circle.organizerLocation}</p>
           <Link href={`/circles/${circle.id}/organizer`} className={styles.organizerLink} aria-label={c("View example organizer profile: {name}", { name: circle.organizer })}>
-            <span>{circle.organizer}</span>{Ico.chev({ size: 15, c: T.action })}
+            {organizer && <ExampleOrganizerAvatar organizer={organizer} size={32} />}<span>{circle.organizer}</span>{Ico.chev({ size: 15, c: T.action })}
           </Link>
           {organizer ? <OrganizerVerification kind={organizer.kind} compact /> : null}
         </div>
@@ -288,6 +290,15 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
           </section>
           <AllocationTicket allocation={validAmount ? allocation : null} currency={currency} />
           <p className={styles.feeFact}>{c("Platform fee: not configured. No extra fee is added in this preview.")}</p>
+          <section className={`${styles.card} ${styles.demoPreferences}`} aria-labelledby="circle-demo-preferences">
+            <h3 id="circle-demo-preferences">{c("Demo display preferences")}</h3>
+            <label className={styles.checks}><input id="circle-demo-anonymous" type="checkbox" checked={anonymous} onChange={event => setAnonymous(event.target.checked)} />
+              <span>{c("Show as anonymous in this browser-only demo")}</span></label>
+            <label className={styles.field} htmlFor="circle-demo-comment">{c("Optional encouragement (local demo)")}
+              <textarea id="circle-demo-comment" className={styles.input} rows={3} maxLength={300} value={comment} aria-describedby="circle-demo-comment-note circle-demo-comment-count" onChange={event => setComment(event.target.value)} /></label>
+            <p id="circle-demo-comment-count" className={styles.commentCount}>{c("{count}/300 characters", { count: comment.length })}</p>
+            <p id="circle-demo-comment-note" className={styles.hint}>{c("Saved only on this browser session after confirmation. Not published, sent to an organizer or linked to a real payment. Do not include private information.")}</p>
+          </section>
           {error ? <p className={styles.error} role="alert">{error}</p> : null}
           <button type="button" className={styles.primaryButton} disabled={!validAmount || circle.status === "completed"} onClick={confirmLocalDemo}>{c("Confirm local demo")}{" "}{Ico.check({ size: 19, c: "#fff" })}</button>
           <button type="button" className={styles.optionalSignup} onClick={() => { setError(""); setPhase("amount"); }}>{c("Change amount")}</button>

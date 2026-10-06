@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import * as copy from "../lib/i18n/revamp-circles.ts";
+import * as draftGallery from "../lib/ui/circle-draft-gallery.ts";
 import * as discoveryCopy from "../lib/i18n/revamp-campaign-discovery.ts";
 import * as homeCircles from "../lib/home-circles.ts";
 import * as currency from "../lib/ui/currency.ts";
@@ -53,6 +54,7 @@ function categoryPicker(jsx: (type: unknown, props: Record<string, unknown>, key
     runInNewContext(transpile(path), { exports, require(module: string) {
       if (module === "react/jsx-runtime") return { jsx, jsxs: jsx, Fragment: "Fragment" };
       if (module === "@/lib/i18n/revamp-circles") return copy;
+      if (module === "@/lib/ui/circle-draft-gallery") return draftGallery;
       if (module === "@/components/ui/CauseCategoryDoodle") return load("../components/ui/CauseCategoryDoodle.tsx");
       if (module.endsWith(".module.css")) return { default: {} };
       throw Error(`Unexpected category component dependency: ${module}`);
@@ -67,7 +69,7 @@ const scripts = new Map(screenNames.map(name => [name, transpile(`../components/
 
 // This harness executes actual TSX handlers with deterministic isolated hooks.
 // No browser, provider, database, credential, navigation or live action exists.
-function setup(name: ScreenName, locale: Locale = "en", preview = true) {
+function setup(name: ScreenName, locale: Locale = "en", preview = true, circleId = "tino-relief") {
   const states: unknown[] = [];
   let cursor = 0;
   const pending: Promise<unknown>[] = [];
@@ -102,6 +104,7 @@ function setup(name: ScreenName, locale: Locale = "en", preview = true) {
       } }) };
       if (module === "@/lib/i18n/revamp-circles") return copy;
       if (module === "@/lib/i18n/revamp-campaign-discovery") return discoveryCopy;
+      if (module === "@/lib/ui/circle-draft-gallery") return draftGallery;
       if (module === "@/lib/home-circles") return homeCircles;
       if (module === "@/lib/ui/useNavigationViewState") return { useNavigationViewState: (key: string) => navigationViews.get(key) ?? "" };
       if (module === "@/lib/ui/app-navigation") return { writeNavigationViewState(key: string, value: Record<string, unknown>) {
@@ -121,6 +124,9 @@ function setup(name: ScreenName, locale: Locale = "en", preview = true) {
       if (module === "@/lib/ui/useGoBack") return { useGoBack: () => forbidden("network") };
       if (module === "@/components/ui/kit") return { Ico: icons, T: {}, Btn: "Btn", PoweredByStellar: "PoweredByStellar", Progress: "Progress" };
       if (module === "@/components/ui/OrganizerVerification") return { default: "OrganizerVerification" };
+      if (module === "@/components/ui/ExampleOrganizerAvatar") return { default: "ExampleOrganizerAvatar" };
+      if (module === "@/components/CircleGallery") return { default: "CircleGallery" };
+      if (module === "@/components/CircleDonorExamples") return { default: "CircleDonorExamples" };
       if (module === "@/components/ui/SuccessMotion") return { default: "SuccessMotion" };
       if (module === "@/components/CauseCategoryPicker") return categoryPicker(jsx);
       if (module === "@/app/actions") return { joinCirclesWaitlist: forbidden("action") };
@@ -128,7 +134,7 @@ function setup(name: ScreenName, locale: Locale = "en", preview = true) {
       throw Error(`Unexpected actual screen dependency: ${module}`);
     },
   });
-  const render = () => { cursor = 0; return exports.default({ circle: seed.getCircle("tino-relief") }); };
+  const render = () => { cursor = 0; return exports.default({ circle: seed.getCircle(circleId) }); };
   let tree = render();
   function input(id: string, value: string) {
     const node = nodes(tree).find(node => node.props.id === id); assert.ok(node, `Missing input ${id}`);
@@ -151,6 +157,46 @@ function setup(name: ScreenName, locale: Locale = "en", preview = true) {
   }
   return { exports, calls, input, click, check, submit, refresh() { tree = render(); }, get tree() { return tree; } };
 }
+
+test("organizer cards preserve localized identity, demo verification and profile destination on every detail tab", () => {
+  for (const locale of LOCALES) {
+    const c = copy.circlesCopy(locale);
+    for (const [id, kind] of [["cats-recovery", "ngo"], ["tino-relief", "individual"]] as const) {
+      const circle = seed.getCircle(id);
+      const screen = setup("CircleDetailScreen", locale, false, id);
+      for (const tab of ["Story", "Updates", "Public proof"] as const) {
+        if (tab !== "Story") {
+          const button = nodes(screen.tree).find(node => node.props.id === `circle-tab-${tab === "Updates" ? "updates" : "proof"}`);
+          assert.ok(button);
+          screen.click(text(button));
+        }
+        const cards = nodes(screen.tree).filter(node => node.props["data-testid"] === "circle-organizer-card");
+        assert.equal(cards.length, 1, `${locale}:${id}:${tab}`);
+        const card = cards[0];
+        assert.equal(card.type, "Link");
+        assert.equal(card.props.href, `/circles/${id}/organizer`);
+        assert.equal(card.props["aria-label"], c("View example organizer profile: {name}", { name: circle.organizer }));
+        assert.equal(card.props["data-organizer-kind"], kind);
+        assert.equal(text(nodes(card).find(node => node.type === "strong")), circle.organizer);
+        assert.ok(nodes(card).some(node => node.type === "span" && text(node) === circle.organizerLocation));
+        assert.ok(nodes(card).some(node => node.type === "span" && text(node) === c(tab === "Story" ? "Example organizer" : "View organizer")));
+        const badge = nodes(card).find(node => node.type === "OrganizerVerification");
+        assert.equal(badge?.props.kind, kind);
+        assert.equal(badge?.props.compact, true);
+        assert.equal(nodes(card).find(node => node.type === "ExampleOrganizerAvatar")?.props.size, tab === "Story" ? 48 : 40);
+      }
+      assert.deepEqual(screen.calls, { storage: 0, network: 0, action: 0 });
+    }
+  }
+});
+
+test("detail organizer styles do not override nested verification badge layout or colors", () => {
+  const css = source("../components/screens/CirclesDetailRevamp.module.css");
+  assert.doesNotMatch(css, /\.organizerProfile\s+div\s*>\s*span\s*\{/);
+  assert.match(css, /\.organizerProfile\s*\{[^}]*grid-template-columns:\s*auto minmax\(0, 1fr\) 28px;/);
+  assert.match(css, /\.organizerName\s*\{[^}]*overflow-wrap:\s*anywhere;/);
+  assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{\s*\.organizerProfile\s*\{\s*transition:\s*none;/);
+});
 
 test("all category and original sort combinations render membership and baseline comparators without seed mutation", () => {
   const original = JSON.stringify(seed.SEED_CIRCLES);

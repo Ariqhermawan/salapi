@@ -16,6 +16,7 @@ import { getNavigationEntrySnapshot, subscribeNavigationViewState, writeNavigati
 import { homeCopy } from "@/lib/i18n/revamp-home";
 import { circlesCopy, circlesCategory } from "@/lib/i18n/revamp-circles";
 import { homeCatalogCopy, type HomeCatalogKey } from "@/lib/i18n/revamp-home-catalog";
+import ExampleOrganizerAvatar from "@/components/ui/ExampleOrganizerAvatar";
 import styles from "./HomeCirclesCatalog.module.css";
 
 // Native selects can be changed before React attaches their handlers. Keep
@@ -121,7 +122,7 @@ export default function HomeCirclesCatalog() {
           <div className={styles.body}>
             <h2><Link href={`/circles/${circle.id}`} prefetch={false} title={circle.title}><span>{circle.title}</span></Link></h2>
             <Link href={`/circles/${circle.id}/organizer`} prefetch={false} className={styles.organizer} aria-label={c("View example organizer profile: {name}", { name: circle.organizer })}>
-              <span className={styles.avatar} aria-hidden="true">{organizer?.initials ?? circle.organizer.charAt(0)}</span>
+              {organizer ? <ExampleOrganizerAvatar organizer={organizer} size={34} /> : <span className={styles.avatar} aria-hidden="true">{circle.organizer.charAt(0)}</span>}
               <span className={styles.identity}><strong>{circle.organizer}</strong><small>{circle.organizerLocation}{" "}{c("· Example organizer")}</small></span>
               {Ico.chev({ size: 15 })}
             </Link>

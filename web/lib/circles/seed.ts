@@ -1,7 +1,7 @@
 // Synthetic Circles fixture catalog. Every cause, organizer, amount, review,
 // date and update is fictional demo data, not an appeal, payment or verification.
 // Generated photos illustrate scenes; they are not documentary proof.
-import type { Circle, CircleCategory, CircleUpdate } from "./types";
+import type { Circle, CircleCategory, CircleUpdate, CircleGalleryPhoto, CircleDonorExample } from "./types";
 import { getOrganizer } from "./organizers";
 
 type CauseSpec = {
@@ -31,23 +31,67 @@ function daysBefore(date: string, days: number): string {
   return new Date(Date.parse(date + "T00:00:00Z") - days * 86_400_000).toISOString().slice(0, 10);
 }
 
-function updatesFor(spec: CauseSpec, image: string): CircleUpdate[] {
+function galleryFor(spec: CauseSpec): CircleGalleryPhoto[] {
+  if (spec.id === "tino-relief") return [
+    { src: "/circles/generated/tino-relief.png",
+      alt: "AI-generated fishing families repairing boats in a fictional Cebu coastal village, not verified evidence",
+      caption: "AI concept cover. Fictional cause, not documentary evidence." },
+    { src: "/circles/generated/tino-relief-materials.png",
+      alt: "AI-generated adult volunteers checking nets, timber and tools at a fictional Cebu shoreline workspace, not verified evidence",
+      caption: "AI concept: repair materials and preparation. Not an actual campaign photo or receipt." },
+    { src: "/circles/generated/tino-relief-shore.png",
+      alt: "AI-generated volunteers testing a wooden boat near a fictional Cebu shore, not verified evidence",
+      caption: "AI concept: intended coastal livelihood support. Not verified delivery evidence." },
+  ];
+  const related = galleryScenes[spec.category]
+    .filter(id => id !== spec.id)
+    .slice(0, 2)
+    .map(id => allSpecs.find(item => item.id === id)!);
+  return [spec, ...related].map((scene, index) => ({
+    src: "/circles/generated/" + scene.id + ".png",
+    alt: "Generated illustrative scene of " + scene.scene + "; fictional demo, not verified evidence",
+    caption: index === 0
+      ? "AI concept cover. Fictional cause, not documentary evidence."
+      : "Related AI concept scene. Not a photo of this campaign or proof of delivery.",
+  }));
+}
+
+function donorExamplesFor(spec: CauseSpec): CircleDonorExample[] {
+  const date = spec.completedOn ?? "2026-10-05";
+  return [
+    { id: spec.id + "-donor-example-1", displayName: "Lina P. (example)", anonymous: false,
+      amountPesos: 500, comment: "Example comment: hoping this idea can bring practical support.",
+      createdAt: date + "T10:00:00Z", avatarSrc: "/circles/face-1.png" },
+    { id: spec.id + "-donor-example-2", anonymous: true, amountPesos: 250,
+      comment: "Example comment: a little kindness for the community.", createdAt: date + "T09:00:00Z" },
+    { id: spec.id + "-donor-example-3", displayName: "Ben R. (example)", anonymous: false,
+      amountPesos: 1000, comment: "Example comment: thank you for sharing a clear plan.",
+      createdAt: date + "T08:00:00Z", avatarSrc: "/circles/face-2.png" },
+    { id: spec.id + "-donor-example-4", anonymous: true, amountPesos: 750,
+      createdAt: date + "T07:00:00Z" },
+    { id: spec.id + "-donor-example-5", displayName: "Citra M. (example)", anonymous: false,
+      amountPesos: 400, comment: "Example comment: looking forward to seeing the proposed updates.",
+      createdAt: date + "T06:00:00Z", avatarSrc: "/circles/face-4.png" },
+  ];
+}
+
+function updatesFor(spec: CauseSpec, gallery: CircleGalleryPhoto[]): CircleUpdate[] {
   const lastDate = spec.completedOn ?? "2026-10-05";
   return [
     {
       id: spec.id + "-milestone", title: "Example planning milestone", date: daysBefore(lastDate, 12), kind: "milestone",
       body: "Fictional demo update: the sample organizer outlines a proposal for " + spec.purpose + ". Names, progress and consultation are invented; no actual project or payment is established.",
-      image, proofLabel: "Synthetic planning note, not verified proof",
+      image: gallery[0].src, proofLabel: "Synthetic planning note, not verified proof",
     },
     {
       id: spec.id + "-spend", title: "Example spending breakdown", date: daysBefore(lastDate, 6), kind: "spend",
       body: "Fictional demo update: an illustrative budget line shows how materials and practical support for " + spec.purpose + " could be recorded. The displayed expense is synthetic; no funds moved and no receipt was verified.",
-      amountPHP: Math.round(spec.raised * 0.08), image, proofLabel: "Synthetic expense example, not a payment receipt",
+      amountPHP: Math.round(spec.raised * 0.08), image: gallery[1].src, proofLabel: "Related AI illustration and synthetic expense, not a payment receipt",
     },
     {
       id: spec.id + "-delivery", title: spec.completedOn ? "Example completion and delivery" : "Example delivery progress", date: lastDate, kind: "delivery",
       body: "Fictional demo update: the generated scene illustrates the intended benefit of " + spec.purpose + ". " + (spec.completedOn ? "This completed status belongs only to the demo history." : "This sample cause remains open in the demo.") + " No real delivery, beneficiary or donation has been verified.",
-      image, proofLabel: "Generated illustration, not verified delivery evidence",
+      image: gallery[2].src, proofLabel: "Related generated illustration, not verified delivery evidence",
     },
   ];
 }
@@ -56,6 +100,7 @@ function cause(spec: CauseSpec): Circle {
   const organizer = getOrganizer(spec.organizerId);
   if (!organizer) throw new Error("Missing fictional organizer: " + spec.organizerId);
   const coverImage = "/circles/generated/" + spec.id + ".png";
+  const gallery = galleryFor(spec);
   return {
     id: spec.id, title: spec.title, organizerId: organizer.id,
     organizer: organizer.name, organizerLocation: organizer.location, category: spec.category,
@@ -75,7 +120,8 @@ function cause(spec: CauseSpec): Circle {
       organizerName: organizer.name, proofRequired: spec.pct > 0, escrowed: spec.pct > 0,
       pesoAccrued: Math.round(spec.raised * spec.pct / 100),
     },
-    updates: updatesFor(spec, coverImage),
+    gallery, donorExamples: donorExamplesFor(spec),
+    updates: updatesFor(spec, gallery),
   };
 }
 
@@ -142,6 +188,22 @@ const completedSpecs: CauseSpec[] = [
   { id: "flood-relief-delivery", title: "Example volunteer flood-relief delivery", organizerId: "lintas-alam", category: "volunteer", purpose: "volunteer relief-box logistics in a fictional flood scenario", scene: "volunteers handing relief boxes to neighbors outside a shelter", raised: 62_000, target: 62_000, pct: 5, donors: 124, days: 0, completedOn: "2026-08-02" },
   { id: "forest-fire-water-station", title: "Example forest-safety water station", organizerId: "lintas-alam", category: "volunteer", purpose: "water-station logistics in a fictional trained-volunteer forest-safety scenario", scene: "volunteers organizing water containers at a shaded forest-safety station", raised: 71_000, target: 71_000, pct: 0, donors: 132, days: 0, completedOn: "2026-09-02" },
 ];
+
+const allSpecs = [...activeSpecs, ...completedSpecs];
+
+// Supplementary photos are related category concepts, not re-used evidence from
+// another cause. Each gallery caption explicitly preserves that distinction.
+const galleryScenes: Record<CircleCategory, string[]> = {
+  disaster: ["cebu-boat-repairs", "jakarta-flood-meals", "tarlac-relief-boxes"],
+  medical: ["bohol-clinic-day", "quezon-medical-rides", "manila-clinic-transport"],
+  education: ["bohol-reading-shelves", "quezon-learning-corner", "tarlac-classroom-kits"],
+  community: ["cebu-water-tanks", "jakarta-river-tools", "manila-maker-tools"],
+  family: ["cebu-home-rebuild", "quezon-roof-repair", "tarlac-school-transport"],
+  creator: ["bohol-story-zines", "jakarta-lane-mural", "manila-baybayin-workshops"],
+  animals: ["cats-clinic-recovery", "dogs-foster-homes", "shelter-kennel-repairs"],
+  care: ["orphanage-book-shelves", "elder-care-visits", "free-meal-week"],
+  volunteer: ["river-cleanup-round", "flood-relief-delivery", "forest-fire-water-station"],
+};
 
 export const SEED_CIRCLES: Circle[] = activeSpecs.map(cause);
 export const COMPLETED_CIRCLES: Circle[] = completedSpecs.map(cause);
