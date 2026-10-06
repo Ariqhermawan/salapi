@@ -43,5 +43,14 @@ test("Activity sign-in preserves the intended destination without inventing pers
   const panel = main.getByRole("tabpanel");
   await panel.getByRole("link", { name: "Sign in", exact: true }).click();
   await expect(page).toHaveURL(/\/signin\?next=%2Factivity$/);
-  await expect(page.locator("#app-content").getByRole("button", { name: /Continue with Google/ })).toBeVisible();
+  const signin = page.locator("#app-content");
+  await expect(signin.getByRole("heading", { level: 1 })).toBeVisible();
+  // CI intentionally has no Supabase keys. Keep its honest unavailable state
+  // valid, but require the OAuth button on configured Preview/production.
+  if (new URL(page.url()).hostname === "localhost") {
+    await expect(signin.getByRole("button", { name: "Explore demo", exact: true })).toBeVisible();
+    await expect(signin.getByText(/Sandbox sign-in seam/)).toBeVisible();
+  } else {
+    await expect(signin.getByRole("button", { name: /Continue with Google/ })).toBeVisible();
+  }
 });
