@@ -96,14 +96,19 @@ export async function getNativeBalance(pub: string): Promise<bigint> {
   }
 }
 
-/** Read-only contract call (simulation, no submit, no signing). */
+// A valid, synthetic public address used only to build unsigned simulations.
+// This is not a user's wallet or the demo signer. Read-only calls must not
+// load custody secrets, provision accounts, or depend on signer configuration.
+const READ_ONLY_SIMULATION_SOURCE = "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF";
+
+/** Public read-only contract call (simulation, no submit, no signing). */
 export async function readContract(
   contractId: string,
   method: string,
   args: xdr.ScVal[] = []
 ): Promise<unknown> {
   const srv = server();
-  const acct = new Account(demoPublic(), "0");
+  const acct = new Account(READ_ONLY_SIMULATION_SOURCE, "0");
   const tx = new TransactionBuilder(acct, {
     fee: BASE_FEE,
     networkPassphrase: Networks.TESTNET,

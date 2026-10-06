@@ -16,6 +16,7 @@ import { CATEGORY_LABEL, type CircleCategory } from "@/lib/circles/types";
 import { isLocalPreview } from "@/lib/local-preview";
 import styles from "./CirclesPreview.module.css";
 import { circlesCopy, circlesCategory } from "@/lib/i18n/revamp-circles";
+import WorkspaceEntry from "@/components/circles/WorkspaceEntry";
 
 type Step = 0 | 1 | 2 | 3;
 type Draft = {
@@ -299,6 +300,7 @@ export default function CirclesCreateScreen() {
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/illustrations/giving.png" alt={c("People sharing a heart")} />
       </header>
+      <WorkspaceEntry create />
       <Link href="/campaigns?mode=testnet" className={styles.liveLink}>
         <div>
           <strong>{isLocalPreview ? c("Explore a D4 example campaign instead") : c("Create a current Testnet campaign instead")}</strong>

@@ -186,5 +186,8 @@ test("D4 live deployment identity and real on-chain reads (opt-in, no mocks)", a
   await page.goto("/campaigns?mode=testnet");
   await page.getByText("View the D4 Testnet contract", { exact: true }).click({ timeout: 30000 });
   await expect(page.getByRole("link", { name: expected!, exact: true })).toBeVisible();
-  await expect(page.getByRole("alert")).toHaveCount(0);
+  // Next's route announcer also uses role=alert outside main. It is not a
+  // contract error; keep the assertion scoped to the actual campaign screen.
+  await expect(page.getByRole("main").getByRole("alert")).toHaveCount(0);
+  await expect(page.getByText(/Explore campaign terms and proof publicly/)).toBeVisible();
 });

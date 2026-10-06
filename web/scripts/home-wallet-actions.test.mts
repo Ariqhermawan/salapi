@@ -70,6 +70,7 @@ function render(options: { preview?: boolean; locale?: Locale; currency?: Locale
       };
       if (name === "next/link") return { default: "Link" };
       if (name === "next/image") return { default: "Image" };
+      if (name === "@/components/circles/WorkspaceEntry") return { default: "WorkspaceEntry" };
       if (name.startsWith("@phosphor-icons/")) return { Heart: "Heart", Pause: "Pause", Play: "Play" };
       if (name === "@/components/I18nProvider") return { useT: () => ({ locale, currency }) };
       if (name === "@/components/ui/kit") return { Ico: new Proxy({}, { get: (_target, icon) => (props: Record<string, unknown>) => jsx("svg", { ...props, "data-icon": String(icon) }) }), Peso: "Peso" };

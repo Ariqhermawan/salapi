@@ -87,6 +87,7 @@ function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: bo
       };
       if (name === "next/link") return { default: "Link" };
       if (name === "next/image") return { default: "Image" };
+      if (name === "@/components/circles/WorkspaceEntry") return { default: "WorkspaceEntry" };
       if (name.startsWith("@phosphor-icons/")) return { Heart: "Heart", Pause: "Pause", Play: "Play" };
       if (name === "@/components/I18nProvider") return { useT: () => ({ locale, currency: "tl" }) };
       if (name === "@/components/ui/kit") return { Ico: icons, Peso: "Peso" };

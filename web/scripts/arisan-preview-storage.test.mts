@@ -17,7 +17,7 @@ function nodes(value: unknown): Element[] { if (Array.isArray(value)) return val
 function text(value: unknown): string { if (typeof value === "string" || typeof value === "number") return String(value); if (Array.isArray(value)) return value.map(text).join(""); return value && typeof value === "object" && "props" in value ? text((value as Element).props.children) : ""; }
 
 function setup(screen: typeof screens[number], options: { roomId?: number; mode?: "get" | "set" | "drop"; data?: Map<string, string>; failKey?: string } = {}) {
-  const data = options.data ?? new Map<string, string>(); let mode = options.mode; let failKey = options.failKey;
+  const data = options.data ?? new Map<string, string>(); let mode = options.mode; let failKey = options.failKey; let clock = Date.now();
   const state: unknown[] = []; let cursor = 0; let initial = true;
   const timers: (() => void)[] = []; const transitions: Promise<unknown>[] = [];
   const calls = { action: 0, network: 0, navigation: [] as string[], success: 0 };
@@ -37,7 +37,7 @@ function setup(screen: typeof screens[number], options: { roomId?: number; mode?
     useEffect(effect: () => void) { if (initial) effect(); }, useMemo: (fn: () => unknown) => fn(),
     useTransition: () => [false, (fn: () => Promise<unknown>) => transitions.push(fn())],
   };
-  runInNewContext(codes[screen], { module: component, exports: component.exports, sessionStorage: storage, window: {}, fetch: forbidden("network"),
+  runInNewContext(codes[screen], { module: component, exports: component.exports, sessionStorage: storage, window: {}, fetch: forbidden("network"), Date: class extends Date { static now() { return clock; } },
     setTimeout: (fn: () => void) => { timers.push(fn); return 1; }, clearTimeout: () => {}, setInterval: () => 1, clearInterval: () => {},
     require(name: string) {
       if (name === "react/jsx-runtime") return { jsx, jsxs: jsx, Fragment: "Fragment" };
@@ -64,7 +64,7 @@ function setup(screen: typeof screens[number], options: { roomId?: number; mode?
   let tree = render(); while (timers.length) timers.shift()!(); tree = render();
   const settle = async () => { while (transitions.length) await Promise.all(transitions.splice(0)); tree = render(); };
   const find = (predicate: (node: Element) => boolean) => { const node = nodes(tree).find(predicate); assert.ok(node, `Missing control in ${screen}: ${text(tree)}`); return node; };
-  return { data, calls, api: helper.exports, get tree() { return tree; }, mode(next: typeof mode) { mode = next; }, fail(key?: string) { failKey = key; },
+  return { data, calls, api: helper.exports, get tree() { return tree; }, mode(next: typeof mode) { mode = next; }, fail(key?: string) { failKey = key; }, advance(seconds: number) { clock += seconds * 1000; },
     change(label: string, value: string) { const node = find(node => node.type === "input" && node.props["aria-label"] === label); (node.props.onChange as (event: unknown) => void)({ target: { value } }); tree = render(); },
     code(value: string) { const node = find(node => node.type === "input"); (node.props.onChange as (event: unknown) => void)({ target: { value } }); tree = render(); },
     async click(label: string) { const node = find(node => ["Btn", "button"].includes(node.type) && text(node) === label); (node.props.onClick as () => void)(); await settle(); },
@@ -133,4 +133,68 @@ for (const mode of ["get", "set", "drop"] as const) test(`finalize ${mode}: stor
   const base = setup("ArisanRoomScreen"); await base.click("arisan.room.startCta");
   const snapshot = JSON.parse(base.data.get("salapi.preview.arisan-room.1")!); snapshot.room.drawPhase = "Finalizable"; snapshot.room.canFinalize = true; snapshot.room.canCommit = false; snapshot.room.commitCount = 5; snapshot.room.revealCount = 5; snapshot.room.seats = snapshot.room.seats.map((seat: object) => ({ ...seat, committed: true, revealed: true }));
   const data = new Map([["salapi.preview.arisan-room.1", JSON.stringify(snapshot)]]); const before = new Map(data); const ui = setup("ArisanRoomScreen", { data }); ui.mode(mode); await ui.click("arisan.draw.finalizeCta"); assert.deepEqual(data, before); errorOnly(ui); assert.doesNotMatch(text(ui.tree), /Example payout saved locally/);
+});
+
+test("unknown local room IDs do not fabricate a funded Family arisan", () => {
+  for (const roomId of [0, -1, 1.5, 999999, 9001]) {
+    const ui = setup("ArisanRoomScreen", { roomId });
+    assert.match(text(ui.tree), /arisan.room.notFound/, `Unknown ID ${roomId} must be not found`);
+    assert.doesNotMatch(text(ui.tree), /Everyone is funded/); assert.equal(ui.data.size, 0); noExternal(ui);
+  }
+});
+
+function inviteFixture() {
+  const base = setup("ArisanRoomScreen");
+  return base.click("arisan.room.startCta").then(() => {
+    const snapshot = JSON.parse(base.data.get("salapi.preview.arisan-room.1")!);
+    snapshot.room.status = "Open"; snapshot.room.round = 0; snapshot.room.drawPhase = null;
+    snapshot.room.isMember = false; snapshot.room.isHost = false; snapshot.room.readyToStart = false;
+    snapshot.room.seats = snapshot.room.seats.filter((seat: { isYou: boolean }) => !seat.isYou);
+    snapshot.room.memberCount = snapshot.room.seats.length;
+    return snapshot;
+  });
+}
+
+test("a local invitation closed after review cannot join or overwrite its latest state", async () => {
+  const snapshot = await inviteFixture();
+  const data = new Map([["salapi.preview.arisan-room.1", JSON.stringify(snapshot)]]);
+  const ui = setup("ArisanJoinScreen", { data }); ui.code("FAM234"); await ui.click("Review invitation");
+  snapshot.room.status = "Dissolved"; data.set("salapi.preview.arisan-room.1", JSON.stringify(snapshot));
+  const before = new Map(data); await ui.click("Join local example");
+  assert.deepEqual(data, before); assert.equal(ui.calls.navigation.length, 0); assert.equal(ui.calls.success, 0);
+  assert.ok(nodes(ui.tree).some(node => node.props.role === "alert")); noExternal(ui);
+});
+
+test("a local invitation expiring after review refuses confirmation without saving membership", async () => {
+  const ui = setup("ArisanJoinScreen"); ui.code("FAM234"); await ui.click("Review invitation"); ui.advance(86401);
+  await ui.click("Join local example"); assert.equal(ui.data.size, 0); assert.equal(ui.calls.navigation.length, 0); assert.equal(ui.calls.success, 0);
+  assert.ok(nodes(ui.tree).some(node => node.props.role === "alert")); noExternal(ui);
+});
+
+test("an actual local arisan cycle saves exactly one payout per member and restores completion", async () => {
+  const ui = setup("ArisanRoomScreen"); await ui.click("arisan.room.startCta");
+  for (let round = 1; round <= 5; round++) {
+    await ui.click("arisan.draw.friendsCommitCta"); await ui.click("arisan.draw.friendsRevealCta"); await ui.click("arisan.draw.finalizeCta");
+    const saved = JSON.parse(ui.data.get("salapi.preview.arisan-room.1")!).room;
+    assert.equal(saved.winners.length, round); assert.equal(new Set(saved.winners.map((winner: { addr: string }) => winner.addr)).size, round);
+    assert.equal(saved.seats.filter((seat: { won: boolean }) => seat.won).length, round); assert.equal(saved.eligibleCount, 5 - round);
+  }
+  assert.match(text(ui.tree), /arisan.room.doneTitle/); assert.match(text(ui.tree), /Every example member has received one payout/);
+  const restored = setup("ArisanRoomScreen", { data: ui.data }); assert.match(text(restored.tree), /arisan.room.doneTitle/); noExternal(ui); noExternal(restored);
+});
+
+test("actual create -> invite friends -> start -> three payouts restores the created room's exact terms", async () => {
+  const create = setup("ArisanCreateScreen"); create.change("arisan.create.nameLabel", "ANDROID5560 rotating pool"); create.change("arisan.create.shareLabel", "10.25");
+  await create.click("Review room terms"); await create.click("Create local example room");
+  const room = setup("ArisanRoomScreen", { roomId: 9001, data: create.data });
+  assert.ok(nodes(room.tree).some(node => node.type === "AppBar" && node.props.title === "ANDROID5560 rotating pool"));
+  await room.click("arisan.room.friendsJoinCta"); await room.click("arisan.room.startCta");
+  for (let round = 1; round <= 3; round++) {
+    await room.click("arisan.draw.friendsCommitCta"); await room.click("arisan.draw.friendsRevealCta"); await room.click("arisan.draw.finalizeCta");
+  }
+  const saved = JSON.parse(room.data.get("salapi.preview.arisan-room.9001")!).room;
+  assert.equal(saved.status, "Done"); assert.equal(saved.winners.length, 3); assert.equal(new Set(saved.winners.map((winner: { addr: string }) => winner.addr)).size, 3);
+  assert.equal(saved.sharePesos, pesoFromLocal(10.25, "en")); assert.equal(saved.potPesos, saved.sharePesos * 3);
+  const restored = setup("ArisanRoomScreen", { roomId: 9001, data: create.data }); assert.match(text(restored.tree), /arisan.room.doneTitle/);
+  noExternal(create); noExternal(room); noExternal(restored);
 });

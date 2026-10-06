@@ -14,6 +14,8 @@ import { Suspense } from "react";
 import AppScrollReset from "@/components/AppScrollReset";
 import RouteMotion from "@/components/RouteMotion";
 import SuccessFeedback from "@/components/SuccessFeedback";
+import { WorkspaceAvailabilityProvider } from "@/components/circles/WorkspaceAvailabilityProvider";
+import { workspaceEntryAvailable } from "@/lib/server/circleWorkspaceAvailability";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({
@@ -71,6 +73,7 @@ export default async function RootLayout({
   const observabilityEnabled =
     process.env.VERCEL === "1" &&
     process.env.VERCEL_OBSERVABILITY_ENABLED === "1";
+  const workspaceAvailable = await workspaceEntryAvailable();
   return (
     <html
       lang="en"
@@ -94,7 +97,9 @@ export default async function RootLayout({
               <InstallBanner />
               {isLocalPreview && <div className="sl-preview-banner"><span className="sl-preview-dot" />Local preview · sample data · no transactions</div>}
               <main id="app-content" tabIndex={-1} className="sl-main flex-1 overflow-y-auto pb-[calc(env(safe-area-inset-bottom,0px)+90px)]">
-                <RouteMotion>{children}</RouteMotion>
+                <WorkspaceAvailabilityProvider enabled={workspaceAvailable}>
+                  <RouteMotion>{children}</RouteMotion>
+                </WorkspaceAvailabilityProvider>
               </main>
               <SuccessFeedback />
               <BottomNav />

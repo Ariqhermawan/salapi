@@ -75,6 +75,12 @@ jobs:
       - name: D4 exact split, configuration and proof validation
         run: npm run test:campaign
 
+      - name: Public Stellar reads never provision or sign a wallet
+        run: npm run test:stellar-read-only
+
+      - name: Campaign workspace, upload, ownership and review policy guards
+        run: npm run test:workspace
+
       - name: Circles example fixtures, allocation and local support guards
         run: npm run test:circles
 
@@ -142,6 +148,7 @@ jobs:
       - name: Run Playwright E2E
         env:
           E2E_BASE_URL: http://localhost:4747
+          E2E_WORKSPACE_DISABLED: "1"
         run: npm run test:e2e
 
       - name: Upload E2E traces

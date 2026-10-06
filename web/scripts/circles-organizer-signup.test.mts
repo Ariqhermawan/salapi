@@ -67,6 +67,7 @@ function setup(options: { preview?: boolean; result?: { ok: boolean; error?: str
         useTransition: () => [false, (action: () => Promise<unknown>) => transitions.push(action())],
       };
       if (name === "next/link") return { default: "Link" };
+      if (name === "@/components/circles/WorkspaceEntry") return { default: "WorkspaceEntry" };
       if (name === "@/components/ui/kit") return { Ico: icons, T: {}, Btn: "Btn", PoweredByStellar: "PoweredByStellar" };
       if (name === "@/components/I18nProvider") return { useT: () => ({ currency: "en", locale: "en" }) };
       if (name === "@/lib/i18n/revamp-circles") return revampCircles;
@@ -184,6 +185,7 @@ test("organizer manage bridge describes simulated escrow in preview and preserve
       if (name === "react/jsx-runtime") return { jsx, jsxs: jsx, Fragment: "Fragment" };
       if (name === "react") return { useState: (initial: unknown) => [initial, () => {}] };
       if (name === "next/link") return { default: "Link" };
+      if (name === "@/components/circles/WorkspaceEntry") return { default: "WorkspaceEntry" };
       if (name === "@/components/ui/kit") return { Ico: icons, T: {}, Btn: "Btn", PoweredByStellar: "PoweredByStellar" };
       if (name === "@/components/I18nProvider") return { useT: () => ({ currency: "en" }) };
       if (name === "@/lib/i18n/revamp-circles") return revampCircles;

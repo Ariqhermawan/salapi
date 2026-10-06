@@ -19,6 +19,7 @@ import { progressPct } from "@/lib/circles/types";
 import { HOME_CAUSE_CATEGORIES, homeCircleExamples, isHomeCauseCategory, type HomeCauseCategory } from "@/lib/home-circles";
 import { circlesCopy, circlesCategory } from "@/lib/i18n/revamp-circles";
 import { homeCatalogCopy, type HomeCatalogKey } from "@/lib/i18n/revamp-home-catalog";
+import WorkspaceEntry from "@/components/circles/WorkspaceEntry";
 
 function scrollHomeCard(strip: HTMLDivElement | null, next: number, count: number, reduceMotion: boolean): number | null {
   if (!strip || !count) return null;
@@ -174,6 +175,7 @@ export default function Home() {
       <Image src="/illustrations/giving.png" alt="" width={38} height={38} />
       <span style={{ flex: 1, display: "grid", gap: 3 }}><strong style={{ maxWidth: "none", whiteSpace: "normal", textAlign: "left" }}>{copy("Circles · example causes")}</strong><small style={{ fontSize: 10, color: "#586985" }}>{copy("Explore the prototype. No payments.")}</small></span>{Ico.chev({ size: 17 })}
     </Link>}
+    <WorkspaceEntry />
     <section className={s.quick} aria-label={copy("QUICK ACTIONS")}><div className={s.sectionTitle}>{copy("QUICK ACTIONS")}<span /></div><div className={s.quickGrid}>
       {[
         { title: "Smart Savings", sub: isLocalPreview ? "Create a local saving goal" : "Lock toward a goal", art: "savings", demo: isLocalPreview, to: "/savings", tone: "mint" },

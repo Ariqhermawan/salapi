@@ -139,6 +139,7 @@ function catalog(preview = true, campaignEntry = true) {
       if (name === "@/components/I18nProvider") return { useT: () => ({ locale: "en", t(key: string) { let value: unknown = DICTS.en; for (const part of key.split(".")) value = (value as Record<string, unknown>)[part]; assert.equal(typeof value, "string"); return value; } }) };
       if (name === "@/components/ui/kit") return { Ico: new Proxy({}, { get: () => () => null }), T: {}, PoweredByStellar: "PoweredByStellar" };
       if (name === "@/components/ui/OrganizerVerification") return { default: "OrganizerVerification" };
+      if (name === "@/components/circles/WorkspaceEntry") return { default: "WorkspaceEntry" };
       if (name === "@/components/CauseCategoryPicker") return fixture("../components/CauseCategoryPicker.tsx");
       if (name === "@/lib/circles/seed") return seed;
       if (name === "@/lib/circles/types") return circleTypes;
