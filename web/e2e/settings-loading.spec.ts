@@ -3,15 +3,19 @@ import { test, expect } from "@playwright/test";
 test("You keeps a neutral identity while readonly account actions are pending", async ({ page }) => {
   let release!: () => void;
   const held = new Promise<void>((resolve) => { release = resolve; });
+  let heldRequests = 0;
   await page.route("**/*", async (route) => {
     const request = route.request();
-    if (request.method() === "POST" && request.headers()["next-action"])
+    if (request.method() === "POST" && request.headers()["next-action"]) {
+      heldRequests++;
       await held;
+    }
     await route.continue();
   });
   try {
     await page.goto("/settings", { waitUntil: "domcontentloaded", timeout: 45000 });
     const profile = page.locator('[data-profile-state="loading"]');
+    await expect.poll(() => heldRequests).toBeGreaterThan(0);
     await expect(profile).toBeVisible();
     await expect(profile).toBeDisabled();
     await expect(profile).toHaveAttribute("aria-busy", "true");
