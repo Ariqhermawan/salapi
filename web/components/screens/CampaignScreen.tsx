@@ -244,9 +244,10 @@ export default function CampaignScreen({ id, initialCreate = false }: { id: stri
   const state: State | null = isLocalPreview ? { ok: true, contractId: "Local example, no deployed contract", viewer: PREVIEW_WALLET, now: String(previewTime), campaigns: id ? previewCampaigns.filter(c => c.id === id) : previewCampaigns } : loadedState;
   const [confirm, setConfirm] = useState<{ label: string; action: () => Promise<Result>; created?: boolean; preview?: () => boolean } | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
+  const openerRef = useRef<HTMLElement | null>(null);
   useEffect(() => {
     if (!confirm) return;
-    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousFocus = openerRef.current;
     const dialog = dialogRef.current;
     dialog?.focus({ preventScroll: true });
     function handleKey(event: KeyboardEvent) {
@@ -267,7 +268,12 @@ export default function CampaignScreen({ id, initialCreate = false }: { id: stri
     catch { setState({ ok: false, error: "Could not read campaign state. Refresh to retry." }); }
   }, [id, before]);
   useEffect(() => { if (isLocalPreview) return; const initialLoad = setTimeout(() => void refresh(), 0); const interval = setInterval(() => { void refresh(); }, 15000); return () => { clearTimeout(initialLoad); clearInterval(interval); }; }, [refresh]);
-  const run: Run = (label, action, created, preview) => { if (submission.locked) return; setDone(null); setLocalDone(""); setError(""); setConfirm({ label, action, created, preview }); };
+  const run: Run = (label, action, created, preview) => {
+    if (submission.locked) return;
+    // The modal commit disables its opener and can blur it before the effect.
+    openerRef.current = typeof document !== "undefined" && document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setDone(null); setLocalDone(""); setError(""); setConfirm({ label, action, created, preview });
+  };
   async function execute() {
     if (!confirm || busy || submission.locked) return;
     if (isLocalPreview) {

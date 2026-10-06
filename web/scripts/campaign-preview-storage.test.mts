@@ -175,6 +175,72 @@ test("actual campaign review remains frame-fixed with a bounded scrollable card 
   assert.equal(ui.store.memory.get(CAMPAIGN_PREVIEW_KEY), JSON.stringify(PREVIEW_CAMPAIGNS));
 });
 
+test("actual opening handler captures its opener before a disabled commit and Escape restores it without scrolling", () => {
+  const source = readFileSync(new URL("../components/screens/CampaignScreen.tsx", import.meta.url), "utf8");
+  const file = ts.createSourceFile("CampaignScreen.tsx", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  let runSource = "", effectSource = "";
+  function visit(node: ts.Node) {
+    if (ts.isVariableDeclaration(node) && node.name.getText(file) === "run" && node.initializer) runSource = node.initializer.getText(file);
+    if (ts.isCallExpression(node) && node.expression.getText(file) === "useEffect" && node.arguments[0]?.getText(file).includes("function handleKey")) effectSource = node.arguments[0].getText(file);
+    ts.forEachChild(node, visit);
+  }
+  visit(file); assert.ok(runSource); assert.ok(effectSource);
+  const events: string[] = [], focusOptions: Record<string, unknown>[] = [];
+  const listeners = new Map<string, (event: unknown) => void>();
+  let active: FocusElement;
+  function setActive(element: FocusElement) { active = element; }
+  class FocusElement {
+    disabled = false;
+    readonly name: string;
+    constructor(name: string) { this.name = name; }
+    focus(options: Record<string, unknown>) {
+      events.push(`focus:${this.name}`);
+      if (this.disabled) return;
+      focusOptions.push(options); setActive(this);
+    }
+    querySelectorAll() { return []; }
+  }
+  const opener = new FocusElement("review"), body = new FocusElement("body"), dialog = new FocusElement("dialog");
+  active = opener;
+  const context = {
+    exports: {} as { open(...args: unknown[]): void; effect(): (() => void) | undefined },
+    HTMLElement: FocusElement, openerRef: { current: null as FocusElement | null }, dialogRef: { current: dialog },
+    confirm: null as unknown, busy: false, submission: { locked: false },
+    document: {
+      get activeElement() { events.push(`active:${active.name}`); return active; },
+      addEventListener(name: string, listener: (event: unknown) => void) { listeners.set(name, listener); },
+      removeEventListener(name: string) { listeners.delete(name); },
+    },
+    setDone() {}, setLocalDone() {}, setError() {},
+    setConfirm(value: unknown) {
+      context.confirm = value;
+      opener.disabled = value !== null;
+      if (opener.disabled) { events.push("disable:review"); active = body; }
+    },
+  };
+  const code = ts.transpileModule(`export const open = ${runSource}; export const effect = ${effectSource};`, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  runInNewContext(code, context);
+  const forbidden = () => { throw Error("Opening or cancelling a dialog must not submit"); };
+  context.exports.open("Review", forbidden, false, forbidden);
+  assert.equal(context.openerRef.current, opener);
+  assert.ok(events.indexOf("active:review") < events.indexOf("disable:review"));
+  assert.equal(active, body); assert.equal(opener.disabled, true);
+  const cleanup = context.exports.effect(); assert.ok(cleanup);
+  assert.equal(active, dialog);
+  listeners.get("keydown")!({ key: "Escape" });
+  assert.equal(context.confirm, null); assert.equal(opener.disabled, false);
+  cleanup();
+  assert.equal(active, opener); assert.equal(listeners.has("keydown"), false);
+  assert.deepEqual(focusOptions.map(options => options.preventScroll), [true, true]);
+  context.submission.locked = true;
+  context.openerRef.current = null;
+  const eventCount = events.length;
+  context.exports.open("Locked", forbidden, false, forbidden);
+  assert.equal(context.openerRef.current, null); assert.equal(events.length, eventCount);
+});
+
 test("actual campaign donation failure keeps amount/escrow/input and has no success animation", async () => {
   for (const mode of ["throw", "drop", "tamper", "partial", "read-blocked"] as const) {
     const ui = screen(mode); await ui.donate();
