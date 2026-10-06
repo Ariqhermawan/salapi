@@ -14,6 +14,7 @@
 .amount { display: flex; align-items: baseline; justify-content:center; white-space: nowrap; margin-top: 5px; }
 .amount > span { font-size: 19px; margin-right: 2px; }
 .walletContent p { color: #bdcce4; font-size: 10px; line-height: 1.5; margin: 8px 0 0; }
+.walletCaption { color: #bdcce4; font-size: 10px; line-height: 1.4; margin: 6px 0 0; text-align: center; }
 .walletActions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; min-width: 0; padding: 4px; border-radius: 18px; background: #ffffff0a; box-shadow: inset 0 0 0 1px #ffffff14; }
 .walletAction { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-width: 0; min-height: 48px; padding: 8px 4px; border-radius: 14px; color: #f2f6ff; transition: background .18s ease, transform .18s ease; }
 .walletAction + .walletAction::before { content: ""; position: absolute; left: -3px; top: 50%; width: 1px; height: 26px; background: #ffffff1f; transform: translateY(-50%); }
@@ -194,3 +195,19 @@
 @media (max-height: 820px) { .catalogCard .photo { height: 64px; } .catalogCard h2 { font-size: 17px; } }
 @media (max-height: 760px) { @container (min-width: 421px) { .catalogCard .photo { height: 100%; } .catalogAi { left: 5px; right: 5px; text-align: center; } } }
 @container (max-width: 350px) { .catalogTools { gap: 6px; } .catalogTools label { gap: 4px; } .catalogTools select { font-size: 11px; padding: 6px 3px; } .catalogCard h2 { font-size: 16px; } .catalogNotice { font-size: 9px; } }
+
+/* Home is a dashboard summary, not a second campaign detail screen. Keep the
+   wallet balance and its actions side by side where they have room, so the
+   complete Circles summary can sit above the raised Send navigation button. */
+@container (min-width: 351px) and (max-width: 420px) {
+  .walletContent { grid-template-columns: minmax(0, 1fr) 128px; gap: 8px; }
+  .walletAction { flex-direction: column; padding: 6px 3px; gap: 4px; }
+  .walletActionLabel { font-size: 11px; }
+  .walletActionIcon { width: 26px; height: 26px; }
+}
+@container (max-width: 350px) {
+  .avatar { width: 44px; height: 44px; }
+  .walletContent { gap: 6px; padding-top: 6px; }
+  .walletAction { min-height: 44px; padding-block: 4px; }
+  .walletActionIcon { width: 24px; height: 24px; }
+}

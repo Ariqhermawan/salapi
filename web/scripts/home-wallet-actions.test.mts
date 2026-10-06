@@ -41,6 +41,10 @@ function text(value: unknown): string {
   return value && typeof value === "object" && "props" in value ? text((value as Element).props.children) : "";
 }
 const hasClass = (node: Element, name: string) => String(node.props.className ?? "").split(" ").includes(name);
+function directChildren(value: unknown): Element[] {
+  if (Array.isArray(value)) return value.flatMap(directChildren);
+  return value && typeof value === "object" && "props" in value ? [value as Element] : [];
+}
 
 // Actual Home render with deterministic isolated hook state. Effects are not
 // run: no browser, auth, provisioning, navigation, storage or provider exists.
@@ -114,6 +118,24 @@ test("actual Home wallet rail retains exactly two native navigation links in bot
       assert.equal(nodes(icon).find(node => node.type === "svg")?.props["data-icon"], index === 0 ? "arrowDown" : "arrowUp");
     }
     assert.equal(nodes(ui.rail).some(node => node.type === "form" || node.type === "button"), false);
+    assert.deepEqual(ui.calls, { read: 0, write: 0, storage: 0, network: 0 });
+  }
+});
+
+test("wallet balance/actions stay a two-child grid with truthful currency caption after the grid", () => {
+  for (const preview of [true, false]) for (const locale of LOCALES) {
+    const ui = render({ preview, locale });
+    const walletChildren = directChildren(ui.wallet.props.children);
+    const gridIndex = walletChildren.findIndex(node => hasClass(node, "walletContent"));
+    assert.ok(gridIndex >= 0);
+    const grid = walletChildren[gridIndex], gridChildren = directChildren(grid.props.children);
+    assert.equal(gridChildren.length, 2, "A separate caption must not become a third implicit grid cell");
+    assert.equal(gridChildren[0].type, "div", "Balance stays in the first grid column");
+    assert.equal(gridChildren[1], ui.rail, "The complete connected action rail stays in the second grid column");
+    const caption = walletChildren[gridIndex + 1];
+    assert.ok(caption && caption.type === "p" && hasClass(caption, "walletCaption"), "Caption must be the following wallet sibling, not a grid child");
+    assert.ok(text(caption).includes(homeCopy(locale, preview ? "test XLM · no real money" : "Native Testnet XLM · indicative value · no real money")));
+    assert.equal(nodes(grid).includes(caption), false);
     assert.deepEqual(ui.calls, { read: 0, write: 0, storage: 0, network: 0 });
   }
 });

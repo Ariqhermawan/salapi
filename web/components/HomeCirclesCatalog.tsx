@@ -66,14 +66,13 @@ export default function HomeCirclesCatalog() {
       <div>
         <span className={styles.eyebrow}>{copy("CROWDFUNDING · PROTOTYPE")}</span>
         <h1 id="home-circles-title">{homeCopy(locale, "Give with clarity.")}</h1>
-        <p>{c("Ideas for giving together")}</p>
       </div>
       <Image src="/illustrations/giving.png" alt="" width={90} height={90} />
     </header>
     <p className={styles.notice}>{copy("Fictional causes · AI photos · example ratings · no payment.")}</p>
     <div className={styles.tools}>
       <label htmlFor="home-cause-category">
-        <span>{copy("Category")}</span>
+        <span className={styles.srOnly}>{copy("Category")}</span>
         <select id="home-cause-category" value={category} disabled={!ready} onChange={event => {
           if (!ready || !isHomeCauseCategory(event.target.value)) return;
           setCategory(event.target.value);
@@ -84,7 +83,9 @@ export default function HomeCirclesCatalog() {
       </label>
       <Link href="/campaigns?mode=examples" prefetch={false} aria-label={copy("Browse all example causes")}>{homeCopy(locale, "See all")}{Ico.chev({ size: 15 })}</Link>
     </div>
-    <div className={styles.count} role="status">{c(examples.length === 1 ? "{count} example" : "{count} examples", { count: examples.length })}</div>
+    {/* The visible carousel counter already gives the total. Announce filter
+        results without adding another full row to the first viewport. */}
+    <div className={styles.srOnly} role="status">{c(examples.length === 1 ? "{count} example" : "{count} examples", { count: examples.length })}</div>
     <div key={category} className={styles.strip} ref={strip} onScroll={syncScrollPosition} aria-label={copy("Example causes carousel")}>
       {examples.map((circle, position) => {
         const organizer = getOrganizerForCircle(circle);
@@ -93,11 +94,11 @@ export default function HomeCirclesCatalog() {
           <Link href={`/circles/${circle.id}`} prefetch={false} className={styles.photo} aria-label={copy("View example cause: {title}", { title: circle.title })}>
             <Image src={circle.coverImage ?? "/illustrations/giving.png"} alt={circle.imageAlt ?? c("AI-generated fictional campaign illustration")} width={600} height={340} sizes="(max-width: 500px) 82vw, 384px" loading={position === 0 ? "eager" : "lazy"} />
             <span className={styles.category}>{circlesCategory(locale, circle.category)}</span>
+            <span className={styles.example}>{c("Example cause")}</span>
             <small className={styles.ai}>{c("AI illustration")}</small>
           </Link>
           <div className={styles.body}>
-            <span className={styles.example}>{c("Example cause")}</span>
-            <h2><Link href={`/circles/${circle.id}`} prefetch={false}>{circle.title}</Link></h2>
+            <h2><Link href={`/circles/${circle.id}`} prefetch={false} title={circle.title}><span>{circle.title}</span></Link></h2>
             <Link href={`/circles/${circle.id}/organizer`} prefetch={false} className={styles.organizer} aria-label={c("View example organizer profile: {name}", { name: circle.organizer })}>
               <span className={styles.avatar} aria-hidden="true">{organizer?.initials ?? circle.organizer.charAt(0)}</span>
               <span className={styles.identity}><strong>{circle.organizer}</strong><small>{circle.organizerLocation}{" "}{c("· Example organizer")}</small></span>

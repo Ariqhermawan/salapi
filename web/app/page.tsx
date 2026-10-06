@@ -102,7 +102,6 @@ export default function Home() {
       </div>
       <div className={s.walletContent}><div><div className={s.balanceLabel}><span>{copy("TESTNET BALANCE")}</span></div>
         {wallet ? <div className={s.amount}><span>≈ </span><Peso value={wallet.pesos} size={balanceSize} color="#fff" /></div> : <div className="sl-skel" style={{ height: 40, width: "80%", marginTop: 12 }} />}
-        <p>{isLocalPreview ? `${PREVIEW_WALLET.xlm} ${copy("test XLM · no real money")}` : copy("Native Testnet XLM · indicative value · no real money")}</p>
         {walletError && <button className={s.walletRetry} onClick={loadWallet}>{copy(walletError)} {copy("Retry")}</button>}
       </div>
         <nav className={s.walletActions} aria-label={copy("Wallet actions")}>
@@ -116,6 +115,7 @@ export default function Home() {
           </Link>
         </nav>
       </div>
+      <p className={s.walletCaption}>{isLocalPreview ? `${PREVIEW_WALLET.xlm} ${copy("test XLM · no real money")}` : copy("Native Testnet XLM · indicative value · no real money")}</p>
     </section>
     <HomeCirclesCatalog />
     {!isLocalPreview && <section className={s.crowdfunding} aria-labelledby="testnet-campaign-title">
