@@ -8,11 +8,11 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import type { ReactNode } from "react";
 import {
-  myHandle,
   walletState,
   registerUsername,
   renameUsername,
 } from "@/app/actions";
+import { settingsHandle } from "@/app/account-actions";
 import { createSupabaseBrowser } from "@/lib/supabase/client";
 import { supabaseConfigured } from "@/lib/supabase/env";
 import { useT } from "@/components/I18nProvider";
@@ -182,6 +182,7 @@ export default function SettingsScreen() {
   const router = useRouter();
   const configured = !isLocalPreview && supabaseConfigured();
   const [name, setName] = useState<string | null>(isLocalPreview ? PREVIEW_WALLET.handle : null);
+  const [nameStatus, setNameStatus] = useState<"loading" | "ready" | "error">(isLocalPreview ? "ready" : "loading");
   const [addr, setAddr] = useState<string>(isLocalPreview ? PREVIEW_WALLET.address : "");
   const [supaEmail, setSupaEmail] = useState<string | null>(null);
   const [authChecked, setAuthChecked] = useState(!configured);
@@ -192,19 +193,34 @@ export default function SettingsScreen() {
   const signOutInFlight = useRef(false);
 
   useEffect(() => {
+    let active = true;
     if (!isLocalPreview) {
-      myHandle().then(setName).catch(() => setLoadError("usernameLoad"));
-      walletState().then((w) => setAddr(w.address)).catch(() => setLoadError("settingsWalletLoad"));
+      settingsHandle().then((result) => {
+        if (!active) return;
+        if (!result.ok) {
+          setNameStatus("error");
+          setLoadError("usernameLoad");
+          return;
+        }
+        setName(result.handle);
+        setNameStatus("ready");
+      }).catch(() => {
+        if (!active) return;
+        setNameStatus("error");
+        setLoadError("usernameLoad");
+      });
+      walletState().then((w) => { if (active) setAddr(w.address); }).catch(() => { if (active) setLoadError("settingsWalletLoad"); });
     }
     if (configured) {
       createSupabaseBrowser()
         .auth.getUser()
-        .then(({ data }) => setSupaEmail(data.user?.email ?? null))
+        .then(({ data }) => { if (active) setSupaEmail(data.user?.email ?? null); })
         .catch(() => {})
-        .finally(() => setAuthChecked(true));
+        .finally(() => { if (active) setAuthChecked(true); });
     }
-    try { Promise.resolve(localStorage.getItem(NOTIF_KEY) === "1").then(setNotif); }
+    try { Promise.resolve(localStorage.getItem(NOTIF_KEY) === "1").then((enabled) => { if (active) setNotif(enabled); }); }
     catch { /* Browser storage may be unavailable. Keep notifications off. */ }
+    return () => { active = false; };
   }, [configured]);
 
   function toggleNotif() {
@@ -271,14 +287,19 @@ export default function SettingsScreen() {
       </header>
       {loadError ? <p role="alert" className={styles.loadError}>{c[loadError]}</p> : null}
 
-      <button type="button" className={styles.profile} onClick={() => router.push("/you/kyc-tier")}>
-        <Avatar name={name || "Salapi"} size={46} />
+      <button type="button" className={styles.profile} onClick={() => router.push("/you/kyc-tier")}
+        disabled={nameStatus !== "ready"} aria-busy={nameStatus === "loading"} data-profile-state={nameStatus}
+        aria-label={nameStatus === "loading" ? c.profileLoading : nameStatus === "error" ? c.profileUnavailable : undefined}>
+        {nameStatus === "ready" ? <Avatar name={name || "Salapi"} size={46} />
+          : <span className={`${styles.profileAvatarPlaceholder} ${nameStatus === "loading" ? "sl-skel" : ""}`} aria-hidden="true" />}
         <span className={styles.profileCopy}>
-          <span className={styles.profileName}>{display}</span>
+          <span className={styles.profileName}>{nameStatus === "loading"
+            ? <span className={`${styles.profileNamePlaceholder} sl-skel`} aria-hidden="true" />
+            : nameStatus === "error" ? c.profileUnavailable : display}</span>
           <span className={styles.profileSub}>{isLocalPreview ? c.previewAccount : c.managedWallet}</span>
           <span className={styles.profileMeta}>
             <span className={styles.testnet}><span />Testnet</span>
-            <span className={styles.accountDetails}>{c.accountDetails}{Ico.chev({ size: 15, c: T.action })}</span>
+            <span className={styles.accountDetails}>{nameStatus === "loading" ? c.loading : nameStatus === "ready" ? <>{c.accountDetails}{Ico.chev({ size: 15, c: T.action })}</> : null}</span>
           </span>
         </span>
       </button>
@@ -286,7 +307,11 @@ export default function SettingsScreen() {
       <section className={styles.sheet} aria-labelledby="account-title">
         <SectionLabel id="account-title">{t("settings.accounts")}</SectionLabel>
         <div className={styles.rows}>
-          <UsernamePanel current={name} onChanged={setName} />
+          {nameStatus === "ready" ? <UsernamePanel current={name} onChanged={setName} /> : <SettingRow
+            icon={Ico.user({ size: 21, c: T.action })}
+            title={t("settings.username")}
+            sub={nameStatus === "loading" ? c.loading : c.profileUnavailable}
+          />}
           {supaEmail && (
             <SettingRow
               icon={Ico.user({ size: 21, c: T.action })}

@@ -13,6 +13,8 @@ const rows = {
   max: ["Max", "Lahat", "Maks", "Tối đa"],
   none: ["None", "Wala", "Tidak ada", "Không có"],
   loading: ["Loading…", "Naglo-load…", "Memuat…", "Đang tải…"],
+  profileLoading: ["Loading your profile", "Nilo-load ang iyong profile", "Memuat profil Anda", "Đang tải hồ sơ của bạn"],
+  profileUnavailable: ["Profile unavailable", "Hindi available ang profile", "Profil tidak tersedia", "Hồ sơ không khả dụng"],
   signingOut: ["Signing out…", "Nagsa-sign out…", "Sedang keluar…", "Đang đăng xuất…"],
   signOutError: ["We could not complete sign out. Please try again.", "Hindi matapos ang pag-sign out. Subukan muli.", "Tidak dapat menyelesaikan proses keluar. Silakan coba lagi.", "Không thể hoàn tất đăng xuất. Vui lòng thử lại."],
   demo: ["DEMO", "DEMO", "SIMULASI", "MÔ PHỎNG"],
