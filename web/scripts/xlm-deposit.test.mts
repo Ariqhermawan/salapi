@@ -73,6 +73,7 @@ function actionSetup(options: { preview?: boolean; value?: unknown; failure?: bo
     },
     "@/lib/money": money,
     "@/lib/server/xlmDeposit": { xlmDepositDetails: (value: unknown) => { calls.helper++; return xlmDepositDetails(value); } },
+    "@/lib/server/walletActivity": { currentWalletActivity: async () => { throw Error("Unexpected activity access in isolated deposit tests"); } },
     "@/lib/local-preview": { isLocalPreview: options.preview ?? false, PREVIEW_WALLET },
     "@/lib/arisan-list": {}, "./disaster-actions": denied, "@/lib/supabase/env": denied,
     "@/lib/supabase/admin": denied, "@/lib/recipient-review": {}, "@/lib/server/arisanCommitment": denied,

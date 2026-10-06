@@ -30,6 +30,8 @@ import { isLocalPreview, PREVIEW_RECIPIENT, PREVIEW_WALLET } from "@/lib/local-p
 import { arisanRoomPage } from "@/lib/arisan-list";
 import { recipientReviewError } from "@/lib/recipient-review";
 import { xlmDepositDetails } from "@/lib/server/xlmDeposit";
+import { currentWalletActivity } from "@/lib/server/walletActivity";
+import type { WalletActivityResult } from "@/lib/wallet-activity";
 import {
   createArisanCommitment,
   deriveArisanSecret,
@@ -69,6 +71,11 @@ export async function walletState() {
 export async function walletHistoryAddress(): Promise<{ address: string | null }> {
   if (isLocalPreview) return { address: PREVIEW_WALLET.address };
   return { address: await currentWalletPublicKey() };
+}
+
+/** Confirmed native-XLM movements for this request's saved wallet only. */
+export async function walletActivity(cursor?: string | null): Promise<WalletActivityResult> {
+  return currentWalletActivity(cursor ?? null);
 }
 
 /** Public deposit instructions only. Never provision, fund, or use a demo signer. */

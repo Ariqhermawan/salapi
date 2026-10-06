@@ -1,8 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import Link from "next/link";
-import { walletHistoryAddress } from "@/app/actions";
+import { walletActivity } from "@/app/actions";
+import type { WalletActivityItem } from "@/lib/wallet-activity";
+import { createSupabaseBrowser } from "@/lib/supabase/client";
+import { supabaseConfigured } from "@/lib/supabase/env";
 import { Ico, IconButton, T, PoweredByStellar } from "@/components/ui/kit";
 import { useGoBack } from "@/lib/ui/useGoBack";
 import { useT } from "@/components/I18nProvider";
@@ -140,50 +143,165 @@ function receiptDate(iso: string, full = false, locale = "en") {
   }).format(new Date(iso));
 }
 
+type PersonalHistory = {
+  owner: string | null;
+  address: string | null;
+  items: WalletActivityItem[];
+  nextCursor: string | null;
+  status: "loading" | "ready" | "error";
+  error: string;
+};
+const emptyHistory: PersonalHistory = {
+  owner: null, address: null, items: [], nextCursor: null, status: "loading", error: "",
+};
+const validAddress = (value: string | null) => value && /^G[A-Z2-7]{55}$/.test(value) ? value : null;
+const transactionUrl = (hash: string) => /^[a-f0-9]{64}$/i.test(hash) ? `${EXPLORER}/tx/${hash}` : null;
+const shortCounterparty = (address: string | null) => address && /^[GC][A-Z2-7]{55}$/.test(address)
+  ? `${address.slice(0, 6)}…${address.slice(-6)}` : null;
+
+// Keep amounts as integer stroops. Historical fiat conversion is deliberately
+// absent because today's illustrative rate is not a historical receipt value.
+function exactNativeAmount(stroops: string) {
+  return nativeAmount(stroops).replace(/\.0+$/, "").replace(/(\.\d*?[1-9])0+$/, "$1");
+}
+
 export default function ActivityScreen() {
   const goBack = useGoBack("/");
   const { currency, locale } = useT();
   const m = moneyCopy(locale);
   const [tab, setTab] = useState<Tab>("personal");
-  const [address, setAddress] = useState<string | null>(
-    isLocalPreview ? PREVIEW_WALLET.address : null,
-  );
-  const [loading, setLoading] = useState(!isLocalPreview);
-  const [error, setError] = useState("");
+  const [owner, setOwner] = useState<string | null | undefined>(isLocalPreview ? null : undefined);
+  const [authError, setAuthError] = useState(false);
+  const [authAttempt, setAuthAttempt] = useState(0);
+  const [history, setHistory] = useState<PersonalHistory>(emptyHistory);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [transfers, setTransfers] = useState<PreviewTransfer[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const ownerRef = useRef<string | null | undefined>(undefined);
+  const requestId = useRef(0);
+  const inFlight = useRef(false);
+  const mounted = useRef(false);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (cursor: string | null = null) => {
     if (isLocalPreview) {
       setTransfers(listPreviewTransfers());
       return;
     }
-    setLoading(true);
-    setError("");
+    const requestedOwner = ownerRef.current;
+    if (!requestedOwner || inFlight.current || !mounted.current) return;
+    inFlight.current = true;
+    const currentRequest = ++requestId.current;
+    setLoadingMore(Boolean(cursor));
+    setHistory((current) => ({
+      ...(!cursor || current.owner !== requestedOwner ? emptyHistory : current),
+      owner: requestedOwner,
+      status: cursor ? "ready" : "loading",
+      error: "",
+    }));
     try {
-      const wallet = await walletHistoryAddress();
-      setAddress(
-        wallet.address && /^G[A-Z2-7]{55}$/.test(wallet.address)
-          ? wallet.address
-          : null,
-      );
+      const result = await walletActivity(cursor);
+      if (!mounted.current || currentRequest !== requestId.current || ownerRef.current !== requestedOwner) return;
+      if (!result.ok && result.code === "unauthenticated") {
+        ownerRef.current = null;
+        setOwner(null);
+        setHistory(emptyHistory);
+        return;
+      }
+      // Cookies can change before the browser Auth event arrives. Bind every
+      // scoped result to the server-verified owner, not just this request's UI
+      // owner. A mismatch must not show even a wallet address from that result.
+      if (result.ownerId !== requestedOwner) {
+        ownerRef.current = undefined;
+        setOwner(undefined);
+        setAuthError(true);
+        setHistory(emptyHistory);
+        return;
+      }
+      if (!result.ok) {
+        setHistory((current) => ({ ...current, address: validAddress(result.address), status: "error", error: "Your Testnet history could not be loaded. Try again." }));
+        return;
+      }
+      setHistory((current) => {
+        const previous = cursor && current.owner === requestedOwner && current.address === result.address ? current.items : [];
+        const items = [...previous];
+        const seen = new Set(previous.map((item) => item.id));
+        for (const item of result.items) {
+          if (!seen.has(item.id)) { items.push(item); seen.add(item.id); }
+        }
+        return { owner: requestedOwner, address: validAddress(result.address), items, nextCursor: result.nextCursor, status: "ready", error: "" };
+      });
     } catch {
-      setError(
-        "Your saved wallet could not be identified. Try again to open its explorer history.",
-      );
+      if (mounted.current && currentRequest === requestId.current && ownerRef.current === requestedOwner)
+        setHistory((current) => ({ ...current, status: "error", error: "Your Testnet history could not be loaded. Try again." }));
     } finally {
-      setLoading(false);
+      if (mounted.current && currentRequest === requestId.current) {
+        inFlight.current = false;
+        setLoadingMore(false);
+      }
     }
   }, []);
+
+  useEffect(() => {
+    mounted.current = true;
+    if (isLocalPreview) return () => { mounted.current = false; };
+    let active = true;
+    let authRevision = 0;
+    const requests = requestId;
+    const applyOwner = (nextOwner: string | null) => {
+      if (!active) return;
+      if (ownerRef.current !== nextOwner) {
+        ++requestId.current;
+        inFlight.current = false;
+        ownerRef.current = nextOwner;
+        setExpanded(null);
+        setLoadingMore(false);
+        setHistory(emptyHistory);
+      }
+      setAuthError(false);
+      setOwner(nextOwner);
+    };
+    if (!supabaseConfigured()) {
+      applyOwner(null);
+      return () => { active = false; mounted.current = false; ++requests.current; };
+    }
+    const supabase = createSupabaseBrowser();
+    // Synchronous callback: do not make an Auth API call inside the SDK lock.
+    // Server action independently authenticates ownership before any lookup.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      ++authRevision;
+      applyOwner(session?.user.id ?? null);
+    });
+    const initialRevision = authRevision;
+    void supabase.auth.getUser().then(({ data, error }) => {
+      if (!active || initialRevision !== authRevision) return;
+      if (error && error.name !== "AuthSessionMissingError") { setAuthError(true); return; }
+      applyOwner(data.user?.id ?? null);
+    }).catch(() => {
+      if (active && initialRevision === authRevision) setAuthError(true);
+    });
+    return () => {
+      active = false;
+      mounted.current = false;
+      ++requests.current;
+      inFlight.current = false;
+      subscription.unsubscribe();
+    };
+  }, [authAttempt]);
+
   useEffect(() => {
     const initialLoad = setTimeout(() => void refresh(), 0);
     return () => clearTimeout(initialLoad);
-  }, [refresh]);
+  }, [owner, refresh]);
+  // A render after an Auth event never exposes the previous account's rows,
+  // including the frame before the new account request has started.
+  const personal = owner && history.owner === owner ? history : emptyHistory;
+  const address = isLocalPreview ? PREVIEW_WALLET.address : personal.address;
+  const loading = !isLocalPreview && !authError && (owner === undefined || Boolean(owner && personal.status === "loading"));
   const shortAddress = address
     ? `${address.slice(0, 6)}…${address.slice(-6)}`
     : loading
       ? m("Loading wallet…")
-      : m("No saved wallet");
+      : authError || personal.status === "error" ? m("Wallet unavailable") : m("No saved wallet");
   const account = address ? `${EXPLORER}/account/${address}` : null;
 
   function navigateTabs(
@@ -235,7 +353,7 @@ export default function ActivityScreen() {
                 ? m("Saved Testnet wallet")
                 : loading
                   ? m("Read-only lookup")
-                  : m("Sign in to view history")}
+                  : authError || personal.status === "error" ? m("Read-only lookup") : owner ? m("No saved wallet") : m("Sign in to view history")}
           </span>
         </div>
         {account ? (
@@ -248,7 +366,7 @@ export default function ActivityScreen() {
             {m("Open explorer")} {Ico.link({ size: 13, c: "#bdd8ff" })}
           </a>
         ) : (
-          !loading && (
+          !loading && !owner && !authError && (
             <Link
               className={styles.walletExplorer}
               href="/signin?next=%2Factivity"
@@ -258,14 +376,6 @@ export default function ActivityScreen() {
           )
         )}
       </section>
-      {error && (
-        <div className={styles.error} role="alert">
-          {moneyMessage(locale, error)}
-          <button type="button" onClick={() => void refresh()}>
-            {m("Try again")}
-          </button>
-        </div>
-      )}
       <div className={styles.tabs} role="tablist" aria-label={m("Activity source")}>
         {tabs.map((item, index) => (
           <button
@@ -293,7 +403,105 @@ export default function ActivityScreen() {
           aria-labelledby="activity-tab-personal"
           className={styles.creamPanel}
         >
-          {isLocalPreview && transfers.length > 0 ? (
+          {!isLocalPreview ? (
+            <div data-personal-history-state={authError ? "auth-error" : loading ? "loading" : !owner ? "signed-out" : personal.status === "error" ? "error" : !address ? "no-wallet" : personal.items.length ? "ready" : "empty"}>
+              {loading ? (
+                <div className={styles.loadingState} role="status" aria-live="polite">
+                  <span className={styles.loadingOrbit} aria-hidden="true">{Ico.sparkle({ size: 28, c: T.action })}</span>
+                  <h2>{m("Loading your Testnet activity…")}</h2>
+                  <p>{m("Checking confirmed incoming and outgoing XLM.")}</p>
+                </div>
+              ) : authError ? (
+                <div className={styles.error} role="alert">
+                  <strong>{m("Your account could not be checked. Try again.")}</strong>
+                  <button type="button" onClick={() => { setAuthError(false); setAuthAttempt((current) => current + 1); }}>{m("Try again")}</button>
+                </div>
+              ) : !owner ? (
+                <div className={styles.emptyState}>
+                  <h2>{m("Sign in to see your transfers.")}</h2>
+                  <p>{m("Incoming and outgoing confirmed Testnet XLM will appear here for your saved wallet.")}</p>
+                  <Link href="/signin?next=%2Factivity" className={styles.sendButton}>{m("Sign in")}</Link>
+                </div>
+              ) : (
+                <>
+                  <div className={styles.sectionHeading}>
+                    <div>
+                      <h2>{m("Your Testnet transfers")}</h2>
+                      <p>{m("Confirmed XLM only. Testnet tokens have no monetary value.")}</p>
+                    </div>
+                    <button type="button" className={styles.refresh} disabled={loadingMore} aria-label={m("Refresh activity")} onClick={() => void refresh()}>
+                      {Ico.refresh({ size: 18, c: T.action })}
+                    </button>
+                  </div>
+                  {personal.error ? (
+                    <div className={styles.error} role="alert">
+                      {moneyMessage(locale, personal.error)}
+                      <button type="button" disabled={loadingMore} onClick={() => void refresh()}>{m("Try again")}</button>
+                    </div>
+                  ) : null}
+                  {personal.status === "ready" && !address ? (
+                    <div className={styles.emptyState}>
+                      <h2>{m("No saved wallet yet.")}</h2>
+                      <p>{m("Open your account to set up your Testnet wallet. History is shown only for your saved address.")}</p>
+                      <Link href="/settings" className={styles.sendButton}>{m("Open your account")}</Link>
+                    </div>
+                  ) : personal.status === "ready" && !personal.items.length ? (
+                    <div className={styles.emptyState}>
+                      <h2>{personal.nextCursor ? m("No XLM transfers on this page.") : m("No confirmed XLM transfers yet.")}</h2>
+                      <p>{personal.nextCursor ? m("Other on-chain activity was found. Load earlier transfers to check older records.") : m("A new transfer may take a moment to be indexed. Refresh to check again, or open your wallet in the explorer.")}</p>
+                    </div>
+                  ) : null}
+                  {personal.items.length ? (
+                    <ol className={`${styles.timeline} ${styles.personalTimeline}`} aria-label={m("Confirmed wallet transfers")}>
+                      {personal.items.map((receipt) => {
+                        const received = receipt.direction === "received";
+                        const counterparty = shortCounterparty(receipt.counterparty);
+                        const explorerReceipt = transactionUrl(receipt.hash);
+                        return (
+                          <li key={receipt.id} className={styles.timelineItem}>
+                            <span className={`${styles.timelineIcon} ${received ? styles.incomingIcon : ""}`} aria-hidden="true">
+                              {received ? Ico.arrowDown({ size: 19, c: "#00866a" }) : Ico.arrowUp({ size: 19, c: T.action })}
+                            </span>
+                            <div className={styles.receiptBody}>
+                              <button type="button" className={styles.receiptButton} aria-expanded={expanded === receipt.id} aria-controls={`activity-receipt-${receipt.id}`} onClick={() => setExpanded((current) => current === receipt.id ? null : receipt.id)}>
+                                <div>
+                                  <strong>{received ? m("Received XLM") : m("Sent XLM")}</strong>
+                                  {counterparty ? <span>{received ? m("From wallet") : m("To wallet")} {counterparty}</span> : <span>{m("On-chain wallet activity")}</span>}
+                                  <time dateTime={receipt.createdAt}>{receiptDate(receipt.createdAt, false, locale)}</time>
+                                </div>
+                                <div className={`${styles.receiptAmount} ${received ? styles.incomingAmount : ""}`}>
+                                  <strong>{received ? "+" : "−"}{exactNativeAmount(receipt.amountStroops)}</strong>
+                                  <small>Testnet XLM</small>
+                                </div>
+                              </button>
+                              {expanded === receipt.id ? (
+                                <div id={`activity-receipt-${receipt.id}`} className={styles.receiptDetails}>
+                                  <dl>
+                                    <dt>{m("Native amount")}</dt><dd>{nativeAmount(receipt.amountStroops)} Testnet XLM</dd>
+                                    <dt>{m("Exact native units")}</dt><dd>{receipt.amountStroops} stroops</dd>
+                                    <dt>{m("Recorded at")}</dt><dd>{receiptDate(receipt.createdAt, true, locale)}</dd>
+                                    {counterparty ? <><dt>{received ? m("Sender wallet") : m("Recipient wallet")}</dt><dd className={styles.address}>{receipt.counterparty}</dd></> : null}
+                                    <dt>{m("Transaction hash")}</dt><dd className={styles.address}>{receipt.hash}</dd>
+                                  </dl>
+                                  {explorerReceipt ? <a className={styles.transactionLink} href={explorerReceipt} target="_blank" rel="noopener noreferrer">{m("View transaction on Stellar ↗")}</a> : null}
+                                </div>
+                              ) : null}
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ol>
+                  ) : null}
+                  {personal.nextCursor ? (
+                    <button type="button" className={styles.loadMore} disabled={loadingMore} aria-busy={loadingMore} onClick={() => void refresh(personal.nextCursor)}>
+                      {loadingMore ? m("Loading more activity…") : m("Load earlier transfers")}
+                    </button>
+                  ) : null}
+                  {address ? <Link href="/send" className={styles.sendButton}>{Ico.send({ size: 18, c: "#fff" })} {m("Send by @")}</Link> : null}
+                </>
+              )}
+            </div>
+          ) : transfers.length > 0 ? (
             <>
               <div className={styles.sectionHeading}>
                 <div>

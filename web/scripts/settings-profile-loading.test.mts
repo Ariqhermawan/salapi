@@ -6,6 +6,7 @@ import React from "react";
 import * as jsxRuntime from "react/jsx-runtime";
 import { renderToStaticMarkup } from "react-dom/server";
 import ts from "typescript";
+import { AuthSessionMissingError, isAuthSessionMissingError } from "@supabase/supabase-js";
 import { accountCopy, accountCurrencyName } from "../lib/i18n/revamp-account.ts";
 import { LOCALES, LOCALE_META, type Locale } from "../lib/i18n/config.ts";
 import { DICTS } from "../lib/i18n/dictionaries.ts";
@@ -31,7 +32,7 @@ const stateNames = screenFunction.body.statements.flatMap((statement) => {
 });
 
 type HandleResult = { ok: true; handle: string | null } | { ok: false };
-type AuthResult = { data: { user: { email: string } | null }; error?: unknown };
+type AuthResult = { data: { user: { email?: string | null } | null }; error?: unknown };
 type Effect = () => void | (() => void);
 
 function deferred<T>() {
@@ -54,12 +55,13 @@ function translate(locale: Locale, key: string): string {
 const forbidden = () => { throw new Error("Unexpected external or mutation boundary"); };
 
 function loadScreen({
-  locale = "en", preview = false, configured = true, hooks = React,
+  locale = "en", preview = false, configured = true, clientThrows = false, hooks = React,
   settingsHandle = forbidden, walletState = forbidden, getUser = forbidden,
 }: {
   locale?: Locale;
   preview?: boolean;
   configured?: boolean;
+  clientThrows?: boolean;
   hooks?: typeof React;
   settingsHandle?: () => Promise<HandleResult>;
   walletState?: () => Promise<{ address: string }>;
@@ -78,6 +80,7 @@ function loadScreen({
     require(dependency: string) {
       if (dependency === "react") return hooks;
       if (dependency === "react/jsx-runtime") return jsxRuntime;
+      if (dependency === "@supabase/supabase-js") return { isAuthSessionMissingError };
       if (dependency === "next/image") return { default: (props: { alt: string }) => React.createElement("span", null, props.alt) };
       if (dependency === "next/navigation") return { useRouter: () => ({ push: forbidden }) };
       if (dependency === "@/components/I18nProvider") return { useT: () => ({ locale, currency: "en", currencyPref: "en", t: (key: string) => translate(locale, key) }) };
@@ -87,7 +90,10 @@ function loadScreen({
       if (dependency === "@/lib/local-preview") return { isLocalPreview: preview, PREVIEW_WALLET };
       if (dependency === "@/components/ui/kit") return kit;
       if (dependency === "@/lib/supabase/env") return { supabaseConfigured: () => configured };
-      if (dependency === "@/lib/supabase/client") return { createSupabaseBrowser: () => ({ auth: { getUser, signOut: forbidden } }) };
+      if (dependency === "@/lib/supabase/client") return { createSupabaseBrowser: () => {
+        if (clientThrows) throw new AuthSessionMissingError();
+        return { auth: { getUser, signOut: forbidden } };
+      } };
       if (dependency === "@/app/actions") return { walletState, renameUsername: forbidden, registerUsername: forbidden };
       if (dependency === "@/app/account-actions") return { settingsHandle };
       if (dependency.endsWith(".module.css")) return { default: new Proxy({}, { get: (_, key) => key }) };
@@ -101,8 +107,8 @@ function loadScreen({
 // control root hook state cells and invoke the exact effect callback captured
 // from the actual screen, then SSR its actual JSX. These are unit fixtures,
 // not proof of real Supabase authentication or browser/Android E2E behavior.
-function harness({ locale = "en", preview = false, configured = true }:
-  { locale?: Locale; preview?: boolean; configured?: boolean } = {}) {
+function harness({ locale = "en", preview = false, configured = true, clientThrows = false }:
+  { locale?: Locale; preview?: boolean; configured?: boolean; clientThrows?: boolean } = {}) {
   const identity = deferred<HandleResult>();
   const wallet = deferred<{ address: string }>();
   const auth = deferred<AuthResult>();
@@ -140,7 +146,7 @@ function harness({ locale = "en", preview = false, configured = true }:
     },
   } as typeof React;
   const Screen = loadScreen({
-    locale, preview, configured, hooks,
+    locale, preview, configured, clientThrows, hooks,
     settingsHandle: () => { calls.handle++; return identity.promise; },
     walletState: () => { calls.wallet++; return wallet.promise; },
     getUser: () => { calls.auth++; return auth.promise; },
@@ -154,7 +160,8 @@ function harness({ locale = "en", preview = false, configured = true }:
   const render = () => renderToStaticMarkup(React.createElement(UnitRoot));
   const mount = () => { if (!capturedEffect) render(); return capturedEffect!(); };
   const snapshot = () => Object.fromEntries(stateNames.map((name, index) => [name, state[index]]));
-  return { identity, wallet, auth, render, mount, snapshot, calls, changes };
+  const beginSignOut = () => { refs[0].current = true; };
+  return { identity, wallet, auth, render, mount, snapshot, calls, changes, beginSignOut };
 }
 
 async function flush() { for (let step = 0; step < 6; step++) await Promise.resolve(); }
@@ -217,18 +224,155 @@ test("verified handle replaces the placeholder without ever offering Claim", asy
   assert.deepEqual(h.snapshot().name, "ariqhermawan");
 });
 
-test("Claim appears only after a confirmed successful no-handle result", async () => {
+test("a confirmed no-handle result waits for auth before showing identity or Claim", async () => {
   const h = harness();
   const pending = h.render();
   assertNoDefaultIdentity(pending);
   h.mount();
   h.identity.resolve({ ok: true, handle: null });
   await flush();
+  profileButton(h.render(), "loading");
+  assertNoDefaultIdentity(h.render());
+  h.auth.resolve({ data: { user: null } });
+  await flush();
   const html = h.render();
   profileButton(html, "ready");
   assert.ok(html.includes(translate("en", "settings.salapiUser")));
   assert.ok(html.includes(`>${translate("en", "settings.claim")}<`));
   assert.match(html, /data-avatar-name="Salapi"/);
+});
+
+for (const locale of LOCALES) {
+  test(`${locale}: a signed-in account without a handle displays its verified email and email avatar`, async () => {
+    const h = harness({ locale });
+    h.render();
+    h.mount();
+    h.identity.resolve({ ok: true, handle: null });
+    h.auth.resolve({ data: { user: { email: "fixture@example.invalid" } }, error: null });
+    await flush();
+    const html = h.render();
+    profileButton(html, "ready");
+    assert.match(html, /class="profileName">fixture@example\.invalid<\/span>/);
+    assert.match(html, /data-avatar-name="fixture@example\.invalid"/);
+    assert.ok(!html.includes(translate(locale, "settings.salapiUser")));
+    assert.ok(html.includes(`>${translate(locale, "settings.claim")}<`));
+    assert.ok(!html.includes(`>${translate(locale, "signin.signIn")}<`));
+  });
+}
+
+test("a verified handle takes precedence over a verified email", async () => {
+  const h = harness();
+  h.render();
+  h.mount();
+  h.identity.resolve({ ok: true, handle: "ariqhermawan" });
+  h.auth.resolve({ data: { user: { email: "fixture@example.invalid" } }, error: null });
+  await flush();
+  const html = h.render();
+  profileButton(html, "ready");
+  assert.match(html, /class="profileName">@ariqhermawan<\/span>/);
+  assert.match(html, /data-avatar-name="ariqhermawan"/);
+  assert.ok(html.includes("fixture@example.invalid"), "The accounts row still shows the verified email");
+});
+
+test("email arriving first remains neutral until the handle lookup completes", async () => {
+  const h = harness();
+  h.render();
+  h.mount();
+  h.auth.resolve({ data: { user: { email: "fixture@example.invalid" } } });
+  await flush();
+  profileButton(h.render(), "loading");
+  assertNoDefaultIdentity(h.render());
+  h.identity.resolve({ ok: true, handle: null });
+  await flush();
+  profileButton(h.render(), "ready");
+  assert.match(h.render(), /class="profileName">fixture@example\.invalid<\/span>/);
+});
+
+test("a long verified email is rendered completely and profile CSS permits wrapping", async () => {
+  const h = harness();
+  const email = `${"long.account.".repeat(5)}fixture@${"long-domain.".repeat(4)}example.invalid`;
+  h.render();
+  h.mount();
+  h.identity.resolve({ ok: true, handle: null });
+  h.auth.resolve({ data: { user: { email: ` ${email} ` } } });
+  await flush();
+  const html = h.render();
+  profileButton(html, "ready");
+  assert.ok(html.includes(`class="profileName">${email}</span>`));
+  assert.ok(html.includes(`data-avatar-name="${email}"`));
+  const css = readFileSync(new URL("../components/screens/SettingsRevamp.module.css", import.meta.url), "utf8");
+  assert.match(css, /\.profileCopy\s*\{[^}]*min-width:\s*0\s*;/);
+  assert.match(css, /\.profileName\s*\{[^}]*overflow-wrap:\s*anywhere\s*;/);
+});
+
+for (const failMode of ["error result", "rejected request"] as const) {
+  test(`${failMode}: failed auth without a handle stays unavailable, not generic or guest`, async () => {
+    const h = harness();
+    h.render();
+    h.mount();
+    h.identity.resolve({ ok: true, handle: null });
+    if (failMode === "error result") h.auth.resolve({ data: { user: { email: "untrusted@example.invalid" } }, error: { status: 503 } });
+    else h.auth.reject(new Error("Isolated Auth network failure"));
+    await flush();
+    const html = h.render();
+    profileButton(html, "error");
+    assertNoDefaultIdentity(html);
+    assert.ok(!html.includes("untrusted@example.invalid"));
+    assert.ok(!html.includes(`>${translate("en", "signin.signIn")}<`));
+    assert.equal(h.snapshot().authFailed, true);
+  });
+}
+
+for (const email of [undefined, null, "", " "]) {
+  test(`a signed-in user with ${JSON.stringify(email)} email stays neutral rather than claiming a generic identity`, async () => {
+    const h = harness();
+    h.render();
+    h.mount();
+    h.identity.resolve({ ok: true, handle: null });
+    h.auth.resolve({ data: { user: { email } }, error: null });
+    await flush();
+    profileButton(h.render(), "error");
+    assertNoDefaultIdentity(h.render());
+  });
+}
+
+test("a malformed Auth user result does not become a confirmed guest", async () => {
+  const h = harness();
+  h.render();
+  h.mount();
+  h.identity.resolve({ ok: true, handle: null });
+  h.auth.resolve({ data: { user: undefined } } as unknown as AuthResult);
+  await flush();
+  profileButton(h.render(), "error");
+  assertNoDefaultIdentity(h.render());
+  assert.equal(h.snapshot().authFailed, true);
+});
+
+for (const missingMode of ["error result", "rejected request"] as const) {
+  test(`${missingMode}: an explicit missing session is a confirmed guest`, async () => {
+    const h = harness();
+    h.render();
+    h.mount();
+    h.identity.resolve({ ok: true, handle: null });
+    if (missingMode === "error result") h.auth.resolve({ data: { user: null }, error: new AuthSessionMissingError() });
+    else h.auth.reject(new AuthSessionMissingError());
+    await flush();
+    profileButton(h.render(), "ready");
+    assert.ok(h.render().includes(translate("en", "settings.salapiUser")));
+    assert.ok(h.render().includes(`>${translate("en", "signin.signIn")}<`));
+    assert.equal(h.snapshot().authFailed, false);
+  });
+}
+
+test("client setup failure is unavailable even if the thrown class resembles a missing session", async () => {
+  const h = harness({ clientThrows: true });
+  h.render();
+  h.mount();
+  h.identity.resolve({ ok: true, handle: null });
+  await flush();
+  profileButton(h.render(), "error");
+  assertNoDefaultIdentity(h.render());
+  assert.equal(h.snapshot().authFailed, true);
 });
 
 for (const locale of LOCALES) {
@@ -299,6 +443,38 @@ test("unmount prevents all stale fulfilled callbacks from changing component sta
   h.identity.resolve({ ok: true, handle: "old_identity" });
   h.wallet.resolve({ address: "old_wallet" });
   h.auth.resolve({ data: { user: { email: "old@example.invalid" } } });
+  await flush();
+  assert.deepEqual(h.snapshot(), before);
+  assert.deepEqual(h.changes, []);
+});
+
+test("sign-out in flight suppresses late account, handle and wallet results before document unload", async () => {
+  const h = harness();
+  h.render();
+  h.mount();
+  await flush();
+  h.changes.length = 0;
+  h.beginSignOut();
+  const before = h.snapshot();
+  h.identity.resolve({ ok: true, handle: "stale_identity" });
+  h.wallet.resolve({ address: "stale_wallet" });
+  h.auth.resolve({ data: { user: { email: "stale@example.invalid" } } });
+  await flush();
+  assert.deepEqual(h.snapshot(), before);
+  assert.deepEqual(h.changes, []);
+});
+
+test("sign-out in flight suppresses late account failures", async () => {
+  const h = harness();
+  h.render();
+  h.mount();
+  await flush();
+  h.changes.length = 0;
+  h.beginSignOut();
+  const before = h.snapshot();
+  h.identity.reject(new Error("Old identity rejection"));
+  h.wallet.reject(new Error("Old wallet rejection"));
+  h.auth.reject(new Error("Old auth rejection"));
   await flush();
   assert.deepEqual(h.snapshot(), before);
   assert.deepEqual(h.changes, []);

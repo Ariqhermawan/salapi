@@ -84,6 +84,7 @@ function setup(options: { preview?: boolean; storageUnavailable?: boolean } = {}
       if (name === "@/components/I18nProvider") return { useT: () => ({ currency: "tl", t: (key: string) => key }) };
       if (name === "@/components/ui/kit") return { ...ui, T: {}, Ico: icons };
       if (name === "@/components/ui/SuccessMotion") return { default: "SuccessMotion" };
+      if (name === "@/components/ui/TransferMotion") return { default: "TransferMotion" };
       if (name === "@/lib/ui/useGoBack") return { useGoBack: () => () => {} };
       if (name === "@/lib/ui/currency") return { CURRENCY, formatLocalAmount, pesoFromLocal };
       if (name === "@/lib/money") return { localToStroops, pesosToStroopsExact };

@@ -6,6 +6,7 @@ import React from "react";
 import * as jsxRuntime from "react/jsx-runtime";
 import { renderToStaticMarkup } from "react-dom/server";
 import ts from "typescript";
+import { isAuthSessionMissingError } from "@supabase/supabase-js";
 import { ACCOUNT_COPY, accountCopy, accountText, accountCurrencyName, accountLanguageName, type AccountCopyKey } from "../lib/i18n/revamp-account.ts";
 import { xlmDepositCopy } from "../lib/i18n/xlm-deposit.ts";
 import { LOCALES, LOCALE_META, type Locale } from "../lib/i18n/config.ts";
@@ -43,6 +44,7 @@ function render(name: typeof files[number], locale: Locale, preview = true, prop
     require(dependency: string) {
       if (dependency === "react") return React;
       if (dependency === "react/jsx-runtime") return jsxRuntime;
+      if (dependency === "@supabase/supabase-js") return { isAuthSessionMissingError };
       if (dependency === "next/link") return { default: box };
       if (dependency === "next/image") return { default: (props: Record<string, unknown>) => React.createElement("span", null, props.alt as string) };
       if (dependency === "next/navigation") return { useRouter: () => ({ push: forbidden }) };

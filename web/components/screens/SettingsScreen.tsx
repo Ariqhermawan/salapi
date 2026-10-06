@@ -7,6 +7,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import type { ReactNode } from "react";
+import { isAuthSessionMissingError } from "@supabase/supabase-js";
 import {
   walletState,
   registerUsername,
@@ -186,6 +187,7 @@ export default function SettingsScreen() {
   const [addr, setAddr] = useState<string>(isLocalPreview ? PREVIEW_WALLET.address : "");
   const [supaEmail, setSupaEmail] = useState<string | null>(null);
   const [authChecked, setAuthChecked] = useState(!configured);
+  const [authFailed, setAuthFailed] = useState(false);
   const [notif, setNotif] = useState(false);
   const [loadError, setLoadError] = useState<AccountCopyKey | "">("");
   const [signOutPending, setSignOutPending] = useState(false);
@@ -196,7 +198,7 @@ export default function SettingsScreen() {
     let active = true;
     if (!isLocalPreview) {
       settingsHandle().then((result) => {
-        if (!active) return;
+        if (!active || signOutInFlight.current) return;
         if (!result.ok) {
           setNameStatus("error");
           setLoadError("usernameLoad");
@@ -205,18 +207,44 @@ export default function SettingsScreen() {
         setName(result.handle);
         setNameStatus("ready");
       }).catch(() => {
-        if (!active) return;
+        if (!active || signOutInFlight.current) return;
         setNameStatus("error");
         setLoadError("usernameLoad");
       });
-      walletState().then((w) => { if (active) setAddr(w.address); }).catch(() => { if (active) setLoadError("settingsWalletLoad"); });
+      walletState().then((w) => { if (active && !signOutInFlight.current) setAddr(w.address); }).catch(() => { if (active && !signOutInFlight.current) setLoadError("settingsWalletLoad"); });
     }
     if (configured) {
-      createSupabaseBrowser()
-        .auth.getUser()
-        .then(({ data }) => { if (active) setSupaEmail(data.user?.email ?? null); })
-        .catch(() => {})
-        .finally(() => { if (active) setAuthChecked(true); });
+      // Only use the Auth server's getUser response, not a cached session or
+      // user-editable metadata. A failed lookup is not evidence of a guest.
+      async function loadAccountEmail() {
+        let authRequestStarted = false;
+        try {
+          const supabase = createSupabaseBrowser();
+          authRequestStarted = true;
+          const { data, error } = await supabase.auth.getUser();
+          if (!active || signOutInFlight.current) return;
+          if (error && !(isAuthSessionMissingError(error) && data.user === null)) {
+            setSupaEmail(null);
+            setAuthFailed(true);
+            return;
+          }
+          const email = data.user?.email;
+          if (data.user !== null && (!data.user || typeof email !== "string" || !email.trim())) {
+            setSupaEmail(null);
+            setAuthFailed(true);
+            return;
+          }
+          setSupaEmail(email?.trim() ?? null);
+          setAuthFailed(false);
+        } catch (error) {
+          if (!active || signOutInFlight.current) return;
+          setSupaEmail(null);
+          setAuthFailed(!authRequestStarted || !isAuthSessionMissingError(error));
+        } finally {
+          if (active && !signOutInFlight.current) setAuthChecked(true);
+        }
+      }
+      void loadAccountEmail();
     }
     try { Promise.resolve(localStorage.getItem(NOTIF_KEY) === "1").then((enabled) => { if (active) setNotif(enabled); }); }
     catch { /* Browser storage may be unavailable. Keep notifications off. */ }
@@ -263,7 +291,11 @@ export default function SettingsScreen() {
     }
   }
 
-  const display = name ? `@${name}` : t("settings.salapiUser");
+  // A known registry handle has precedence. Without a handle, wait for the
+  // verified account email instead of briefly presenting a generic identity.
+  const profileStatus = nameStatus !== "ready" || name
+    ? nameStatus : !authChecked ? "loading" : authFailed ? "error" : "ready";
+  const display = name ? `@${name}` : supaEmail ?? t("settings.salapiUser");
   const shortAddr = addr ? `${addr.slice(0, 4)}…${addr.slice(-4)}` : "-";
   const explorer = addr
     ? `https://stellar.expert/explorer/testnet/account/${addr}`
@@ -288,18 +320,18 @@ export default function SettingsScreen() {
       {loadError ? <p role="alert" className={styles.loadError}>{c[loadError]}</p> : null}
 
       <button type="button" className={styles.profile} onClick={() => router.push("/you/kyc-tier")}
-        disabled={nameStatus !== "ready"} aria-busy={nameStatus === "loading"} data-profile-state={nameStatus}
-        aria-label={nameStatus === "loading" ? c.profileLoading : nameStatus === "error" ? c.profileUnavailable : undefined}>
-        {nameStatus === "ready" ? <Avatar name={name || "Salapi"} size={46} />
-          : <span className={`${styles.profileAvatarPlaceholder} ${nameStatus === "loading" ? "sl-skel" : ""}`} aria-hidden="true" />}
+        disabled={profileStatus !== "ready"} aria-busy={profileStatus === "loading"} data-profile-state={profileStatus}
+        aria-label={profileStatus === "loading" ? c.profileLoading : profileStatus === "error" ? c.profileUnavailable : undefined}>
+        {profileStatus === "ready" ? <Avatar name={name || supaEmail || "Salapi"} size={46} />
+          : <span className={`${styles.profileAvatarPlaceholder} ${profileStatus === "loading" ? "sl-skel" : ""}`} aria-hidden="true" />}
         <span className={styles.profileCopy}>
-          <span className={styles.profileName}>{nameStatus === "loading"
+          <span className={styles.profileName}>{profileStatus === "loading"
             ? <span className={`${styles.profileNamePlaceholder} sl-skel`} aria-hidden="true" />
-            : nameStatus === "error" ? c.profileUnavailable : display}</span>
+            : profileStatus === "error" ? c.profileUnavailable : display}</span>
           <span className={styles.profileSub}>{isLocalPreview ? c.previewAccount : c.managedWallet}</span>
           <span className={styles.profileMeta}>
             <span className={styles.testnet}><span />Testnet</span>
-            <span className={styles.accountDetails}>{nameStatus === "loading" ? c.loading : nameStatus === "ready" ? <>{c.accountDetails}{Ico.chev({ size: 15, c: T.action })}</> : null}</span>
+            <span className={styles.accountDetails}>{profileStatus === "loading" ? c.loading : profileStatus === "ready" ? <>{c.accountDetails}{Ico.chev({ size: 15, c: T.action })}</> : null}</span>
           </span>
         </span>
       </button>
@@ -307,10 +339,10 @@ export default function SettingsScreen() {
       <section className={styles.sheet} aria-labelledby="account-title">
         <SectionLabel id="account-title">{t("settings.accounts")}</SectionLabel>
         <div className={styles.rows}>
-          {nameStatus === "ready" ? <UsernamePanel current={name} onChanged={setName} /> : <SettingRow
+          {profileStatus === "ready" ? <UsernamePanel current={name} onChanged={setName} /> : <SettingRow
             icon={Ico.user({ size: 21, c: T.action })}
             title={t("settings.username")}
-            sub={nameStatus === "loading" ? c.loading : c.profileUnavailable}
+            sub={profileStatus === "loading" ? c.loading : c.profileUnavailable}
           />}
           {supaEmail && (
             <SettingRow
@@ -325,7 +357,7 @@ export default function SettingsScreen() {
             />
           )}
           {signOutError ? <p role="alert" className={styles.loadError}>{c.signOutError}</p> : null}
-          {authChecked && !supaEmail && (
+          {authChecked && !authFailed && !supaEmail && (
             <SettingRow
               icon={Ico.lock({ size: 21, c: T.action })}
               title={t("signin.signIn")}
@@ -334,6 +366,7 @@ export default function SettingsScreen() {
               trailing={Ico.chev({ size: 15, c: T.slate })}
             />
           )}
+          {authChecked && authFailed ? <p className={styles.loadError} role="alert">{c.profileUnavailable}</p> : null}
           {!authChecked ? <p className={styles.authLoading} role="status">{t("common.loading")}</p> : null}
           <SettingRow
             icon={Ico.sparkle({ size: 21, c: T.action })}

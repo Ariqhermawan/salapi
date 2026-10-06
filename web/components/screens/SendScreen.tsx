@@ -13,6 +13,7 @@ import { recordPreviewTransfer } from "@/lib/local-preview-history";
 import type { Locale } from "@/lib/i18n/config";
 import styles from "./SendRevamp.module.css";
 import SuccessMotion from "@/components/ui/SuccessMotion";
+import TransferMotion from "@/components/ui/TransferMotion";
 
 const QUICK: Record<Locale, string[]> = { en: ["2", "5", "10", "20"], tl: ["100", "500", "1000", "2000"], id: ["20000", "50000", "100000", "200000"], vi: ["50000", "100000", "200000", "500000"] };
 const MAX_TRANSFER_STROOPS = pesosToStroopsExact("1000000000")!;
@@ -39,6 +40,7 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
   const [amount, setAmount] = useState("");
   const [recipient, setRecipient] = useState<{ username: string; address: string } | null>(null);
   const [pending, start] = useTransition();
+  const [transferPhase, setTransferPhase] = useState<"send" | "check" | null>(null);
   const submitting = useRef(false);
   const [done, setDone] = useState<{ link?: string; address?: string; hash?: string; statusOnly?: boolean; localReceiptSaved?: boolean } | null>(null);
   const [err, setErr] = useState("");
@@ -116,6 +118,7 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
       return;
     }
     submitting.current = true;
+    setTransferPhase("send");
     start(async () => {
       setErr("");
       try {
@@ -136,7 +139,7 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
           setErr(r.error);
         } else { clearUnresolved(); setErr(r.error); }
       } catch { setErr(m("The response was lost. Do not submit again. Verify the transaction in your wallet history; its hash was not received by this browser.")); }
-      finally { submitting.current = false; }
+      finally { submitting.current = false; setTransferPhase(null); }
     });
   }
 
@@ -144,6 +147,7 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
     const hash = unresolvedRef.current?.hash;
     if (!hash || submitting.current || isLocalPreview) return;
     submitting.current = true;
+    setTransferPhase("check");
     start(async () => {
       try {
         const result = await checkSubmittedTransfer(hash);
@@ -154,25 +158,25 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
         } else if (result.pending) setErr(result.error);
         else { clearUnresolved(); setRecipient(null); setErr(result.error); }
       } catch { setErr(m("The status check is unavailable. The original transaction remains unresolved; do not submit again.")); }
-      finally { submitting.current = false; }
+      finally { submitting.current = false; setTransferPhase(null); }
     });
   }
 
   return (
     <div className={styles.screen}>
-      <AppBar leading={<IconButton ariaLabel={m("Back")} onClick={() => recipient && !done && !unresolved ? setRecipient(null) : goBack()}>{Ico.back({})}</IconButton>} title={done ? m("Transfer receipt") : unresolved ? m("Check submitted transaction") : recipient ? m("Review transfer") : t("send.title")} trailing={<IconButton ariaLabel={m("Receive")} onClick={() => router.push("/receive")}>{Ico.qr({})}</IconButton>} />
+      <AppBar leading={transferPhase ? undefined : <IconButton ariaLabel={m("Back")} onClick={() => recipient && !done && !unresolved ? setRecipient(null) : goBack()}>{Ico.back({})}</IconButton>} title={transferPhase ? m("Waiting for network confirmation") : done ? m("Transfer receipt") : unresolved ? m("Check submitted transaction") : recipient ? m("Review transfer") : t("send.title")} trailing={transferPhase ? undefined : <IconButton ariaLabel={m("Receive")} onClick={() => router.push("/receive")}>{Ico.qr({})}</IconButton>} />
       <div className={styles.content}>
         <section className={styles.intro} aria-labelledby="send-heading">
           <div>
             <span className={styles.eyebrow}>{isLocalPreview ? m("LOCAL PREVIEW") : m("STELLAR TESTNET")}</span>
-            <h1 id="send-heading">{done ? (isLocalPreview ? m("Demo complete.") : done.statusOnly ? m("Transaction confirmed.") : m("Sent with a receipt.")) : unresolved ? m("Confirmation pending.") : recipient ? m("One last look.") : m("Send by name.")}</h1>
-            <p>{done ? (isLocalPreview ? m("This local demonstration did not move any tokens.") : m("Open the transaction receipt to verify its details.")) : unresolved ? m("Check the original transaction. A new transfer is blocked while its outcome is unknown.") : m("A familiar @username. A clear amount. A public receipt.")}</p>
+            <h1 id="send-heading">{transferPhase ? (transferPhase === "check" ? m("Checking the original transaction…") : isLocalPreview ? m("LOCAL PREVIEW") : m("Sending Testnet XLM…")) : done ? (isLocalPreview ? m("Demo complete.") : done.statusOnly ? m("Transaction confirmed.") : m("Sent with a receipt.")) : unresolved ? m("Confirmation pending.") : recipient ? m("One last look.") : m("Send by name.")}</h1>
+            <p>{transferPhase ? (transferPhase === "check" ? m("This is a read-only check. No new transfer is being submitted.") : m("Keep this page open. Do not send again while this transfer is being checked.")) : done ? (isLocalPreview ? m("This local demonstration did not move any tokens.") : m("Open the transaction receipt to verify its details.")) : unresolved ? m("Check the original transaction. A new transfer is blocked while its outcome is unknown.") : m("A familiar @username. A clear amount. A public receipt.")}</p>
           </div>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img className={styles.doodle} src="/illustrations/send.png" alt="" width={102} height={102} />
         </section>
-        {done ? <>
-          <SuccessMotion title={isLocalPreview ? m("Local transfer demo complete") : m("Testnet transfer confirmed")}><p>{isLocalPreview ? m("No tokens moved. This is a local demonstration.") : m("Verify the transaction details using the receipt below.")}</p></SuccessMotion>
+        {transferPhase ? <TransferMotion title={transferPhase === "check" ? m("Checking the original transaction…") : isLocalPreview ? m("LOCAL PREVIEW") : m("Waiting for network confirmation")} description={transferPhase === "check" ? m("This is a read-only check. No new transfer is being submitted.") : isLocalPreview ? m("No tokens moved. This is a local demonstration.") : m("Keep this page open. Do not send again while this transfer is being checked.")} /> : done ? <>
+          <SuccessMotion variant="transfer" title={isLocalPreview ? m("Local transfer demo complete") : m("Testnet transfer confirmed")}><p>{isLocalPreview ? m("No tokens moved. This is a local demonstration.") : m("Verify the transaction details using the receipt below.")}</p></SuccessMotion>
           <article className={`${styles.ticket} ${styles.receipt}`} aria-label={m("Transfer receipt details")}>
             {done.statusOnly ? <>
               <p>{m("Stellar Testnet reports that the saved transaction succeeded. Check its public receipt for the sender, recipient and amount. No new transfer was submitted by this check.")}</p>
@@ -195,6 +199,7 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
           <div className={styles.actions}>
             <Btn kind="primary" onClick={() => { setDone(null); setRecipient(null); setAmount(""); setTo(""); setErr(""); }}>{m("Send again")}</Btn>
             {isLocalPreview && done.localReceiptSaved ? <Btn kind="ghost" size="md" onClick={() => router.push("/activity")}>{m("View local Activity")}</Btn> : null}
+            {!isLocalPreview ? <Btn kind="ghost" size="md" onClick={() => router.push("/activity")}>{m("View Activity")}</Btn> : null}
             <Btn kind="ghost" size="md" onClick={() => router.push("/")}>{m("Back to Home")}</Btn>
           </div>
         </> : unresolved ? <>

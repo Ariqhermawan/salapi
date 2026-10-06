@@ -90,6 +90,9 @@ jobs:
       - name: Profile loading, verified identity and stale response guards
         run: npm run test:profile
 
+      - name: Authenticated read-only wallet history and account-switch guards
+        run: npm run test:activity
+
       - name: Prevent local-review builds in Vercel production
         run: node --experimental-strip-types --test scripts/local-preview-deployment.test.mts
 

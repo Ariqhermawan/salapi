@@ -292,6 +292,7 @@ function actionsSetup(options: { result?: Result; preview?: boolean; reveal?: bo
     "@/lib/recipient-review": { recipientReviewError: (resolved: string, expected?: string) => expected !== undefined && resolved !== expected ? "Recipient changed" : null },
     "@/lib/server/arisanCommitment": { deriveArisanSecret: () => new Uint8Array(32), createArisanCommitment: () => new Uint8Array(32) },
     "@/lib/server/xlmDeposit": {},
+    "@/lib/server/walletActivity": { currentWalletActivity: async () => { throw Error("Unexpected activity access in isolated submission tests"); } },
   };
   const api = moduleFrom<Record<string, (...args: unknown[]) => Promise<Result>>>(actionsCode, dependencies, { crypto: { getRandomValues: (value: Uint8Array) => value.fill(2) } });
   return { api, calls };
@@ -353,7 +354,7 @@ function text(value: unknown): string {
   if (Array.isArray(value)) return value.map(text).join("");
   return value && typeof value === "object" && "props" in value ? text((value as Element).props.children) : "";
 }
-function sendSetup(options: { storage?: Map<string, string>; unavailable?: boolean; transfer?: Result | "throw"; status?: Result | "throw"; preview?: boolean } = {}) {
+function sendSetup(options: { storage?: Map<string, string>; unavailable?: boolean; transfer?: Result | "throw" | Promise<Result>; status?: Result | "throw" | Promise<Result>; preview?: boolean } = {}) {
   const storage = options.storage ?? new Map<string, string>(); const preview = options.preview ?? false;
   const calls = { transfers: 0, statuses: 0, writes: 0, localRecords: 0 }; const state: unknown[] = []; const effects: (() => void)[] = []; const transitions: Promise<unknown>[] = []; let cursor = 0;
   const jsx = (type: string, props: Record<string, unknown>) => ({ type, props });
@@ -370,6 +371,7 @@ function sendSetup(options: { storage?: Map<string, string>; unavailable?: boole
     "@/lib/i18n/revamp-money": revampMoney,
     "@/components/ui/kit": { ...Object.fromEntries(["AppBar", "IconButton", "Btn", "Avatar", "PoweredByStellar"].map(v => [v, v])), T: {}, Ico: new Proxy({}, { get: () => () => null }) },
     "@/components/ui/SuccessMotion": { default: "SuccessMotion" }, "./SendRevamp.module.css": { default: {} },
+    "@/components/ui/TransferMotion": { default: "TransferMotion" },
     "@/lib/ui/useGoBack": { useGoBack: () => () => {} }, "@/lib/ui/currency": { CURRENCY, formatLocalAmount, pesoFromLocal }, "@/lib/money": money,
     "@/lib/local-preview": { isLocalPreview: preview, PREVIEW_WALLET: { handle: "ariqhermawan", address: "preview-public" } },
     "@/lib/local-preview-history": { recordPreviewTransfer: () => { calls.localRecords++; return {}; } },
@@ -387,7 +389,8 @@ function sendSetup(options: { storage?: Map<string, string>; unavailable?: boole
   let tree = render(); for (const effect of effects.splice(0)) effect(); tree = render();
   async function settle() { while (transitions.length) await Promise.all(transitions.splice(0)); await Promise.resolve(); tree = render(); }
   function button(label: string) { return nodes(tree).find(n => n.type === "Btn" && text(n) === label); }
-  return { calls, storage, get tree() { return tree; }, button,
+  return { calls, storage, get tree() { return tree; }, button, settle,
+    begin(handler: () => void) { handler(); tree = render(); },
     async invoke(handler: () => void) { handler(); await settle(); },
     async click(label: string) { const current = button(label); assert.ok(current, `Missing button ${label}`); (current.props.onClick as () => void)(); await settle(); },
     amount(value: string) { const input = nodes(tree).find(n => n.props.id === "send-amount"); assert.ok(input); (input.props.onChange as (event: unknown) => void)({ target: { value } }); tree = render(); },
@@ -438,4 +441,69 @@ test("definitive Send failures clear the marker and remain retryable without sav
 test("local preview ignores real unresolved markers and performs no status lookup or marker write", async () => {
   const screen = sendSetup({ preview: true, storage: new Map([[unresolvedKey, otherHash]]) }); screen.amount("100"); await screen.click("Review transfer"); await screen.click("Confirm local demo");
   assert.equal(screen.calls.transfers, 0); assert.equal(screen.calls.statuses, 0); assert.equal(screen.calls.writes, 0); assert.equal(screen.calls.localRecords, 1); assert.equal(screen.storage.get(unresolvedKey), otherHash);
+});
+
+test("an in-flight transfer animates waiting, blocks a duplicate, and shows success only after confirmation", async () => {
+  let confirm!: (result: Result) => void;
+  const response = new Promise<Result>(resolve => { confirm = resolve; });
+  const screen = sendSetup({ transfer: response }); screen.amount("100"); await screen.click("Review transfer");
+  const submit = screen.button("Confirm Testnet transfer")!.props.onClick as () => void;
+  screen.begin(submit);
+  const wait = nodes(screen.tree).find(n => n.type === "TransferMotion");
+  assert.ok(wait); assert.equal(wait.props.title, "Waiting for network confirmation");
+  assert.equal(nodes(screen.tree).some(n => n.type === "SuccessMotion"), false);
+  assert.equal(screen.storage.get(unresolvedKey), "unknown");
+  assert.equal(screen.button("Confirm Testnet transfer"), undefined);
+  screen.begin(submit); assert.equal(screen.calls.transfers, 1);
+  confirm({ ok: true, link: `https://stellar.expert/explorer/testnet/tx/${hash}`, to: "recipient-public" } as Result);
+  await screen.settle();
+  assert.equal(nodes(screen.tree).some(n => n.type === "TransferMotion"), false);
+  const success = nodes(screen.tree).find(n => n.type === "SuccessMotion");
+  assert.ok(success); assert.equal(success.props.variant, "transfer");
+  assert.equal(screen.storage.has(unresolvedKey), false);
+  assert.ok(screen.button("View Activity")); assert.equal(screen.calls.transfers, 1);
+});
+
+test("a pending result or lost response stops waiting without ever showing a successful animation", async () => {
+  for (const outcome of [{ ok: false, pending: true, hash, error: "Still checking" }, "throw" as const]) {
+    let complete!: (result: Result) => void;
+    const response = new Promise<Result>(resolve => { complete = resolve; });
+    const screen = sendSetup({ transfer: outcome === "throw" ? outcome : response });
+    screen.amount("100"); await screen.click("Review transfer");
+    const submit = screen.button("Confirm Testnet transfer")!.props.onClick as () => void;
+    screen.begin(submit);
+    if (outcome !== "throw") complete(outcome);
+    await screen.settle();
+    assert.equal(nodes(screen.tree).some(n => n.type === "TransferMotion" || n.type === "SuccessMotion"), false);
+    assert.equal(screen.button("Confirm Testnet transfer"), undefined);
+    assert.equal(screen.storage.get(unresolvedKey), outcome === "throw" ? "unknown" : hash);
+    screen.begin(submit); assert.equal(screen.calls.transfers, 1);
+  }
+});
+
+test("status reconciliation animates a read-only check, not a new transfer", async () => {
+  let complete!: (result: Result) => void;
+  const response = new Promise<Result>(resolve => { complete = resolve; });
+  const screen = sendSetup({ storage: new Map([[unresolvedKey, hash]]), status: response });
+  const check = screen.button("Check submitted transaction")!.props.onClick as () => void;
+  screen.begin(check);
+  assert.equal(nodes(screen.tree).find(n => n.type === "TransferMotion")?.props.title, "Checking the original transaction…");
+  assert.equal(nodes(screen.tree).some(n => n.type === "SuccessMotion"), false);
+  screen.begin(check); assert.equal(screen.calls.statuses, 1); assert.equal(screen.calls.transfers, 0);
+  complete({ ok: true, link: `https://stellar.expert/explorer/testnet/tx/${hash}` } as Result);
+  await screen.settle();
+  assert.equal(nodes(screen.tree).some(n => n.type === "SuccessMotion"), true);
+  assert.ok(screen.button("View Activity")); assert.equal(screen.calls.transfers, 0);
+});
+
+test("transfer motion remains semantic and honors reduced motion without hiding confirmation", () => {
+  const pendingSource = readFileSync(new URL("../components/ui/TransferMotion.tsx", import.meta.url), "utf8");
+  const pendingCss = readFileSync(new URL("../components/ui/TransferMotion.module.css", import.meta.url), "utf8");
+  const successSource = readFileSync(new URL("../components/ui/SuccessMotion.tsx", import.meta.url), "utf8");
+  const successCss = readFileSync(new URL("../components/ui/SuccessMotion.module.css", import.meta.url), "utf8");
+  assert.match(pendingSource, /role="status" aria-live="polite"/);
+  assert.match(pendingCss, /prefers-reduced-motion:reduce/); assert.match(successCss, /prefers-reduced-motion:reduce/);
+  assert.match(successSource, /role="status"/); assert.match(successCss, /stroke-dashoffset:0/);
+  assert.doesNotMatch(pendingSource + successSource, /setTimeout|setInterval/);
+  assert.match(successSource, /span className={styles.markWrap}/);
 });
