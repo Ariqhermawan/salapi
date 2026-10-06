@@ -10,6 +10,7 @@
     "test:e2e": "playwright test",
     "test:signout": "node --experimental-strip-types --test scripts/settings-signout.test.mts",
     "test:profile": "node --experimental-strip-types --test scripts/settings-profile-loading.test.mts scripts/settings-handle.test.mts",
+    "test:activity": "node --experimental-strip-types --test scripts/wallet-activity.test.mts scripts/wallet-activity-ui.test.mts",
     "test:arisan": "node --experimental-strip-types --test scripts/arisan-commitment.test.mts",
     "test:money": "node --experimental-strip-types --test scripts/money.test.mts",
     "test:disaster": "node --experimental-strip-types --test scripts/disaster.test.mts",

@@ -82,6 +82,7 @@ function actionSetup(options: { count?: number; memberIds?: number[]; failId?: n
     "@/lib/server/userWallet": { currentArisanPublicKey: async () => { calls.identity++; return me; }, getSigner: () => { calls.signers++; throw new Error("Discovery must not obtain a signer"); } },
     "@/lib/money": money, "@/lib/arisan-list": { arisanRoomPage }, "@/lib/local-preview": { isLocalPreview: false },
     "./disaster-actions": {}, "@/lib/supabase/env": {}, "@/lib/supabase/admin": {}, "@/lib/recipient-review": {}, "@/lib/server/arisanCommitment": {}, "@/lib/server/xlmDeposit": {},
+    "@/lib/server/walletActivity": { currentWalletActivity: async () => { throw Error("Unexpected activity access in isolated discovery tests"); } },
   });
   return { api, calls };
 }

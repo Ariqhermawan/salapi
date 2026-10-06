@@ -1,0 +1,18 @@
+.wait{display:flex;align-items:center;flex-direction:column;min-width:0;padding:24px 18px;border:1px solid #d7e4f9;border-radius:24px;background:linear-gradient(155deg,#f8fbff,#eaf2ff);color:#112341;text-align:center}
+.wait strong{font-size:19px;line-height:1.4;overflow-wrap:anywhere}
+.wait p{max-width:340px;margin:8px 0 0;color:#50698e;font-size:14px;line-height:1.6}
+.scene{position:relative;display:grid;place-items:center;width:142px;height:142px;margin:0 0 16px}
+.orbit,.orbitOuter{position:absolute;border:1px dashed #b8cdf1;border-radius:50%;inset:17px}
+.orbitOuter{inset:2px;opacity:.65}
+.satellite{position:absolute;inset:17px;animation:orbit 2.4s linear infinite}
+.satellite::before{content:"";position:absolute;top:-4px;left:calc(50% - 4px);width:9px;height:9px;background:#2463f5;box-shadow:0 0 0 5px #dceaff;border-radius:50%}
+.plane{display:grid;place-items:center;width:74px;height:74px;border:1px solid #c9daf9;border-radius:25px;background:#fff;box-shadow:0 12px 26px #2463f51a;animation:float 2s ease-in-out infinite}
+.plane svg{width:42px;height:42px;stroke:#2463f5;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.spark{position:absolute;left:6px;bottom:26px;width:7px;height:7px;border-radius:50%;background:#09a580;animation:pulse 1.6s ease-in-out infinite}
+.dots{display:flex;gap:5px;margin-top:17px}
+.dots i{width:5px;height:5px;border-radius:50%;background:#2463f5;animation:pulse 1.2s ease-in-out infinite}
+.dots i:nth-child(2){animation-delay:.15s}.dots i:nth-child(3){animation-delay:.3s}
+@keyframes orbit{to{transform:rotate(360deg)}}
+@keyframes float{50%{transform:translateY(-5px)}}
+@keyframes pulse{50%{opacity:.3}}
+@media(prefers-reduced-motion:reduce){.satellite,.plane,.spark,.dots i{animation:none}}
