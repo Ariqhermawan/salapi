@@ -14,6 +14,7 @@ import { Suspense } from "react";
 import AppScrollReset from "@/components/AppScrollReset";
 import RouteMotion from "@/components/RouteMotion";
 import SuccessFeedback from "@/components/SuccessFeedback";
+import { MarketPricesProvider } from "@/components/MarketPricesProvider";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({
@@ -80,6 +81,7 @@ export default async function RootLayout({
         <a className="sl-skip" href="#app-content">Skip to content</a>
         <PwaRegister />
         <I18nProvider>
+          <MarketPricesProvider>
           <Suspense fallback={null}><AppScrollReset /></Suspense>
           {/* Mobile: full-screen app. Desktop (≥1024px): the same app shown as
               a phone on a calm dark backdrop with a marketing column, so the
@@ -100,6 +102,7 @@ export default async function RootLayout({
               <BottomNav />
             </div>
           </div>
+          </MarketPricesProvider>
         </I18nProvider>
         {/* Vercel Web Analytics (traffic) + Speed Insights (Core Web Vitals).
             Same-origin (/_vercel/insights/*), so the nonce CSP + strict-dynamic

@@ -246,7 +246,7 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
             <Btn kind="primary" disabled={pending || !valid} loading={pending} onClick={doSend}>{isLocalPreview ? m("Confirm local demo") : m("Confirm Testnet transfer")}</Btn>
             <Btn kind="ghost" size="md" disabled={pending} onClick={() => setRecipient(null)}>{m("Edit transfer")}</Btn>
           </div>
-          <p className={styles.notice}>{m("Currency figures use an illustrative rate. Testnet XLM has no monetary value.")}</p>
+          <p className={styles.notice}>{m("Testnet forms use fixed demo conversion, not the CoinGecko market estimate. Review the exact XLM before confirming.")}</p>
         </> : <>
           <section className={styles.composer} aria-label={m("Transfer details")}>
             <label className={styles.fieldLabel} htmlFor="send-amount">{m("Amount ·")} {CURRENCY[currency].code}</label>
@@ -270,7 +270,7 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
           </section>
           {!withinAmountLimit ? <p role="alert" className={styles.inlineError}>{m("The amount exceeds the supported safety limit.")}</p> : null}
           <div className={styles.actions}><Btn kind="primary" disabled={pending || !valid} loading={pending} trailing={Ico.chev({ c: "#fff" })} onClick={reviewTransfer}>{m("Review transfer")}</Btn></div>
-          <p className={styles.notice}>{m("Send valueless Testnet XLM. Review the amount and username before confirming.")}</p>
+          <p className={styles.notice}>{m("Send valueless Testnet XLM. Review the amount and username before confirming.")} {m("Testnet forms use fixed demo conversion, not the CoinGecko market estimate. Review the exact XLM before confirming.")}</p>
         </>}
         {err ? <p role="alert" className={styles.error}>{moneyMessage(locale, err)}</p> : null}
         <footer className={styles.footer}><PoweredByStellar /></footer>

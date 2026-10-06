@@ -153,6 +153,7 @@ for (const locale of LOCALES) {
     assert.ok(nodes(ui.tree).some(item => item.props.id === "send-recipient" && item.props.placeholder === m("e.g. jamamam")));
     ui.change("send-amount", "100.25"); ui.click(m("Review transfer")); await ui.flush();
     ui.find(m("Confirm local demo")); assert.ok(text(ui.tree).includes("₱100.25"));
+    assert.ok(text(ui.tree).includes(m("Testnet forms use fixed demo conversion, not the CoinGecko market estimate. Review the exact XLM before confirming.")));
     ui.click(m("Confirm local demo")); await ui.flush(); ui.find(m("Local transfer demo complete"));
     assert.equal(ui.calls.serverWrites, 0); assert.equal(ui.calls.auth, 0);
     const records = (ui.local.history.listPreviewTransfers as () => { amountStroops: string }[])();

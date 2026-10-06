@@ -52,6 +52,7 @@ function render(name: typeof files[number], locale: Locale, preview = true, prop
       if (dependency === "next/navigation") return { useRouter: () => ({ push: forbidden }) };
       if (dependency === "@/components/I18nProvider") return { useT: () => ({ locale, currency: "en", currencyPref: "en", t: (key: string) => translate(locale, key), setLocale: forbidden, setCurrency: forbidden }) };
       if (dependency === "@/components/AccountAvatar") return { default: box };
+      if (dependency === "@/components/MarketValue") return { default: box };
       if (dependency === "@/components/AccountPhotoEditor") return { default: () => null };
       if (dependency === "@/components/useAccountPhoto") return { useAccountPhoto: () => ({ profile: null, status: "ready" }) };
       if (dependency === "@/lib/i18n/account-photo") return { accountPhotoCopy };

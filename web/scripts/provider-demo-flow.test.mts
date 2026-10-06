@@ -34,7 +34,7 @@ function text(value: unknown): string {
 
 // Actual screen handlers run with isolated hooks. All action, storage and
 // network boundaries fail closed; no browser or provider is contacted.
-function setup(options: { payout?: boolean; currency?: Locale; locale?: Locale; preview?: boolean; screen?: typeof files[number]; walletState?: () => Promise<{ ok: false; error: string }> } = {}) {
+function setup(options: { payout?: boolean; currency?: Locale; locale?: Locale; preview?: boolean; screen?: typeof files[number]; walletState?: () => Promise<{ ok: false; error: string } | { address: string; pesos: number; nativeStroops: string }> } = {}) {
   let currency = options.currency ?? "tl";
   const preview = options.preview ?? true;
   const state: unknown[] = [];
@@ -82,6 +82,7 @@ function setup(options: { payout?: boolean; currency?: Locale; locale?: Locale; 
       if (name === "./XlmDepositPanel") return { default: "DepositPanel" };
       if (name === "@/components/ui/kit") return { T: {}, Ico: icons, AppBar: "AppBar", IconButton: "IconButton", Card: "Card", Row: "Row", Btn: "Btn", Chip: "Chip", Money: "Money", PoweredByStellar: "PoweredByStellar" };
       if (name === "@/components/ui/SuccessMotion") return { default: (props: Record<string, unknown>) => jsx("SuccessMotion", { ...props, children: [props.title, props.children] }) };
+      if (name === "@/components/MarketValue") return { default: "MarketValue" };
       if (name === "./PaymentProviderDemo") return { default: "ProviderDemo" };
       if (name === "@/lib/ui/useGoBack") return { useGoBack: () => forbidden("navigation") };
       if (name === "@/lib/local-preview") return { isLocalPreview: preview, PREVIEW_WALLET: wallet };
@@ -324,6 +325,24 @@ test("Withdraw local integration selects the provider demo without loading or mu
   const ui = setup({ screen: "WithdrawScreen" });
   assert.equal(ui.find(node => node.type === "ProviderDemo").props.payout, true);
   noWrites(ui);
+});
+
+for (const locale of ["en", "tl", "id", "vi"] as const) test(`${locale}: withdrawal market estimate does not alter the separate fixed sandbox limit`, async () => {
+  const c = accountCopy(locale);
+  const ui = setup({ screen: "WithdrawScreen", preview: false, locale, currency: "tl", walletState: async () => ({ address: PREVIEW_WALLET.address, pesos: 65, nativeStroops: "100000000" }) });
+  await ui.settle();
+  assert.equal(ui.find(node => node.type === "MarketValue").props.nativeStroops, "100000000");
+  assert.equal(ui.find(node => node.type === "Money").props.value, 65);
+  assert.ok(text(ui.tree).includes(c.demoFormLimit));
+  assert.ok(text(ui.tree).includes(c.demoConversion));
+  await ui.click(c.max);
+  assert.equal(ui.find(node => node.props.id === "withdraw-amount").props.value, "65.00");
+  assert.equal(ui.button(c.reviewSandbox).props.disabled, false);
+  const input = ui.find(node => node.props.id === "withdraw-amount");
+  (input.props.onChange as (event: unknown) => void)({ target: { value: "66" } });
+  await ui.settle();
+  assert.equal(ui.button(c.reviewSandbox).props.disabled, true);
+  assert.deepEqual(ui.calls, { action: 0, network: 0, storage: 0, navigation: 0, walletReads: 1 });
 });
 
 for (const locale of ["en", "tl", "id", "vi"] as const) test(`${locale}: non-preview withdrawal returned wallet failure leaves review and balance chips disabled`, async () => {

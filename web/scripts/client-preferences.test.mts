@@ -28,7 +28,8 @@ type Options = {
   pathname?: string;
   canInstall?: boolean;
   currency?: string;
-  walletState?: () => Promise<{ pesos: number; address: string } | { ok: false; error: string }>;
+  preview?: boolean;
+  walletState?: () => Promise<{ pesos: number; address: string; nativeStroops?: string } | { ok: false; error: string }>;
   topUp?: () => Promise<{ note: string }>;
 };
 
@@ -164,10 +165,12 @@ function setup(module: keyof typeof files, options: Options = {}) {
       if (name === "@/components/I18nProvider") return { useT: () => ({ t: (key: string) => key, locale: "en", currency: options.currency ?? "tl" }) };
       if (name === "next/link") return { default: "Link" };
       if (name === "@/components/ui/motion") return { CountUp: "CountUp" };
+      if (name === "@/components/MarketValue") return { default: "MarketValue" };
+      if (name === "@/lib/local-preview") return { isLocalPreview: options.preview ?? false };
       if (name === "@/lib/ui/currency") return { CURRENCY, localAmount, formatUsdc };
       if (name === "@/lib/wallet-state") return { requireWalletState };
       if (name === "@/app/actions") return {
-        walletState() { calls.wallet++; return options.walletState?.() ?? Promise.resolve({ pesos: 123, address: "G-ISOLATED-WALLET" }); },
+        walletState() { calls.wallet++; return options.walletState?.() ?? Promise.resolve({ pesos: 123, address: "G-ISOLATED-WALLET", nativeStroops: "189230769" }); },
         topUpSandbox() { calls.topUp++; return options.topUp?.() ?? Promise.resolve({ note: "Isolated sandbox result" }); },
       };
       throw new Error(`Unexpected dependency: ${name}`);
@@ -413,6 +416,7 @@ test("structured wallet failure reaches the existing error UI without an address
   assert.match(text(runtime.tree), /wallet could not be loaded/);
   assert.equal(text(runtime.tree).includes("G-ISOLATED"), false);
   assert.equal(nodes(runtime.tree).some(node => node.type === "CountUp"), false);
+  assert.equal(nodes(runtime.tree).some(node => node.type === "MarketValue"), false);
   assert.equal(text(runtime.tree).includes("≈"), false);
   assert.equal(runtime.calls.wallet, 1); assert.equal(runtime.calls.topUp, 0);
   assert.equal(runtime.calls.synchronousEffectUpdates, 0);
@@ -421,14 +425,14 @@ test("structured wallet failure reaches the existing error UI without an address
 test("structured refresh failure preserves the last confirmed balance instead of installing a fake zero", async () => {
   let reads = 0;
   const runtime = setup("wallet", { walletState: async () => ++reads === 1
-    ? { pesos: 123, address: "G-ISOLATED-WALLET" }
+    ? { pesos: 123, address: "G-ISOLATED-WALLET", nativeStroops: "189230769" }
     : { ok: false, error: "Isolated unavailable refresh" } });
   runtime.mount(() => runtime.exports.default()); runtime.flushEffects(); await runtime.settle();
-  assert.equal(nodes(runtime.tree).find(node => node.type === "CountUp")!.props.value, 123);
+  assert.equal(nodes(runtime.tree).find(node => node.type === "MarketValue")!.props.nativeStroops, "189230769");
   const topUp = nodes(runtime.tree).find(node => node.type === "button" && typeof node.props.onClick === "function")!;
   assert.ok(topUp); (topUp.props.onClick as Fn)(); await runtime.settle();
   assert.match(text(runtime.tree), /wallet could not be refreshed/);
-  assert.equal(nodes(runtime.tree).find(node => node.type === "CountUp")!.props.value, 123);
+  assert.equal(nodes(runtime.tree).find(node => node.type === "MarketValue")!.props.nativeStroops, "189230769");
   assert.ok(text(runtime.tree).includes("wallet G-ISOL"));
   assert.equal(runtime.calls.wallet, 2); assert.equal(runtime.calls.topUp, 1);
 });
@@ -443,7 +447,7 @@ test("wallet ignores late unmounted loads and uses the explicit display currency
   resolveWallet({ pesos: 500, address: "G-LATE" }); await runtime.settle();
   assert.equal(nodes(runtime.tree).some(node => node.type === "CountUp"), false);
   assert.equal(text(runtime.tree).includes("≈"), false);
-  const loaded = setup("wallet", { currency: "id" }); loaded.mount(() => loaded.exports.default()); loaded.flushEffects(); await loaded.settle();
+  const loaded = setup("wallet", { currency: "id", preview: true }); loaded.mount(() => loaded.exports.default()); loaded.flushEffects(); await loaded.settle();
   const count = nodes(loaded.tree).find(node => node.type === "CountUp")!;
   assert.equal(count.props.value, localAmount(123, "id")); assert.equal(count.props.prefix, CURRENCY.id.symbol);
 });
@@ -454,5 +458,5 @@ test("wallet sandbox rejection is caught and preserves the previously loaded bal
   const button = nodes(runtime.tree).find(node => node.type === "button")!; (button.props.onClick as () => void)(); await runtime.settle();
   assert.equal(runtime.calls.topUp, 1);
   assert.match(text(runtime.tree), /wallet could not be refreshed/);
-  assert.equal(nodes(runtime.tree).find(node => node.type === "CountUp")!.props.value, 123);
+  assert.equal(nodes(runtime.tree).find(node => node.type === "MarketValue")!.props.nativeStroops, "189230769");
 });

@@ -281,13 +281,15 @@ test("custody read/save/key mismatches stop before network readiness", async () 
   }
 });
 
-type WalletState = { address: string; pesos: number; pesoLabel: string } | { ok: false; error: string };
+type WalletState = { address: string; pesos: number; pesoLabel: string; nativeStroops?: string } | { ok: false; error: string };
 function walletStateFixture(options: { wallet?: ReturnType<typeof walletFixture>; preview?: boolean;
   signerError?: Error; balanceError?: Error; formatError?: Error; balance?: bigint } = {}) {
   const previewWallet = { address: "isolated-preview", pesos: 500, pesoLabel: "₱500", handle: "preview" };
   const calls = { signers: 0, balances: 0, submissions: 0, db: 0 };
   function prohibited() { calls.submissions++; throw new Error("No unrelated action, signer transaction or DB write is authorized"); }
-  const api = load<{ walletState(): Promise<WalletState> }>("../app/actions.ts", {
+  const api = load<{ walletState(): Promise<WalletState>;
+    topUpSandbox(): Promise<{ nativeStroops: string }>;
+    withdrawSandbox(requested: number): Promise<{ nativeStroops: string }> }>("../app/actions.ts", {
     "@/lib/server/stellar": {
       getNativeBalance: async (address: string) => {
         calls.balances++; if (options.balanceError) throw options.balanceError;
@@ -316,13 +318,26 @@ test("actual walletState action keeps preview shape and performs no signer, bala
   assert.deepEqual(fixture.calls, { signers: 0, balances: 0, submissions: 0, db: 0 });
 });
 
-test("actual walletState action preserves canonical successful zero balance and old success shape", async () => {
+test("actual walletState action preserves canonical successful zero balance and exposes exact raw stroops", async () => {
   const wallet = walletFixture({ responses: [account(saved.publicKey(), "0.0000000"), account(saved.publicKey(), "0.0000000")] });
   const fixture = walletStateFixture({ wallet });
   const result = await fixture.api.walletState();
-  assert.deepEqual(JSON.parse(JSON.stringify(result)), { address: saved.publicKey(), pesos: 0, pesoLabel: "₱0" });
+  assert.deepEqual(JSON.parse(JSON.stringify(result)), { address: saved.publicKey(), pesos: 0, pesoLabel: "₱0", nativeStroops: "0" });
   assert.equal(fixture.calls.signers, 1); assert.equal(fixture.calls.balances, 1); assert.equal(fixture.calls.submissions, 0);
   assert.equal(wallet.calls.mints, 0); assert.equal(wallet.calls.upserts, 0);
+});
+
+test("wallet reads and sandbox result DTOs preserve bigint precision for market display without changing transaction math", async () => {
+  const raw = 9_223_372_036_854_775_807n;
+  const fixture = walletStateFixture({ balance: raw });
+  const wallet = await fixture.api.walletState();
+  assert.ok("nativeStroops" in wallet);
+  assert.equal(wallet.nativeStroops, raw.toString());
+  // Isolated top-up's fetch is prohibited and caught by its sandbox path.
+  // These assertions cannot fund any account or move a token.
+  assert.equal((await fixture.api.topUpSandbox()).nativeStroops, raw.toString());
+  assert.equal((await fixture.api.withdrawSandbox(50)).nativeStroops, raw.toString());
+  assert.equal(fixture.calls.submissions, 0); assert.equal(fixture.calls.db, 0);
 });
 
 test("actual walletState action returns expected fault envelope without rejecting, exposing diagnostics or fake zero", async () => {

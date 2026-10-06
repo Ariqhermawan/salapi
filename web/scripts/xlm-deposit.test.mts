@@ -154,6 +154,7 @@ function componentSetup(options: { preview?: boolean; locale?: Locale; screen?: 
     "@/components/I18nProvider": { useT: () => ({ locale, currency: locale, t: (key: string) => key }) },
     "@/components/ui/kit": { Ico: icon, T: {}, ...Object.fromEntries(["AppBar", "IconButton", "Card", "Btn", "Chip", "Money", "PoweredByStellar"].map(name => [name, name])) },
     "@/components/ui/SuccessMotion": { default: "SuccessMotion" },
+    "@/components/MarketValue": { default: "MarketValue" },
     "@/lib/i18n/revamp-account": { accountCopy }, "@/lib/i18n/xlm-deposit": { xlmDepositCopy },
     "@/lib/local-preview": { isLocalPreview: preview, PREVIEW_WALLET }, "@/lib/xlm-deposit": deposit,
     "@/lib/wallet-state": { requireWalletState },

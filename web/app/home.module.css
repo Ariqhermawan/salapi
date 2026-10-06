@@ -211,3 +211,13 @@
   .walletAction { min-height: 44px; padding-block: 4px; }
   .walletActionIcon { width: 24px; height: 24px; }
 }
+/* Preserve the complete first card in short windows after adding the visible
+   market source and quote timestamp. Keep navigation touch targets unchanged. */
+@media (max-height: 760px) {
+  .wallet { padding-top: 8px; padding-bottom: 8px; }
+  .identity { padding-bottom: 4px; }
+  .walletContent { padding-top: 4px; }
+  .balanceLabel > span:first-child { padding-top: 1px; padding-bottom: 1px; }
+  .amount { margin-top: 1px; }
+  .walletCaption { margin-top: 2px; }
+}
