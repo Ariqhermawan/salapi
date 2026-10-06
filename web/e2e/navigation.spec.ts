@@ -153,7 +153,7 @@ test("Vaults discovery and D4 header Back return to Vaults rather than Home", as
   await headerBack(page);
   await expectRoute(page, "/vaults");
 
-  await page.locator('a[href="/campaigns"]').first().click();
+  await page.locator("#app-content").getByRole("link", { name: /^Donation campaigns/ }).click();
   await expectRoute(page, "/campaigns");
   await expect(page.getByRole("heading", { name: "Give with clarity.", exact: true })).toBeVisible();
   await headerBack(page);
