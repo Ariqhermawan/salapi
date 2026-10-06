@@ -6,6 +6,7 @@ import ts from "typescript";
 import { parse, type AnyNode, type Declaration, type Rule } from "postcss";
 import { homeCopy } from "../lib/i18n/revamp-home.ts";
 import { accountPhotoCopy } from "../lib/i18n/account-photo.ts";
+import { requireWalletState } from "../lib/wallet-state.ts";
 import * as catalogCopy from "../lib/i18n/revamp-home-catalog.ts";
 import * as circlesCopy from "../lib/i18n/revamp-circles.ts";
 import * as homeCircles from "../lib/home-circles.ts";
@@ -90,6 +91,7 @@ function render(options: { preview?: boolean; locale?: Locale; currency?: Locale
       if (name === "@/lib/i18n/revamp-home-catalog") return catalogCopy;
       if (name === "@/lib/i18n/revamp-circles") return circlesCopy;
       if (name === "@/lib/disaster") return { formatStroops: forbidden("read") };
+      if (name === "@/lib/wallet-state") return { requireWalletState };
       if (name === "@/app/actions") return { walletState: forbidden("read"), myHandle: forbidden("read") };
       if (name === "@/app/campaign-actions") return { campaignState: forbidden("read") };
       if (name.endsWith(".module.css")) return { default: new Proxy({}, { get: (_target, key) => String(key) }) };
@@ -163,9 +165,13 @@ test("unknown, failed and zero balances keep wallet navigation without fabricati
     const failed = render({ preview, wallet: null, walletError: "Your wallet balance is unavailable." });
     assert.ok(text(failed.wallet).includes("Your wallet balance is unavailable."));
     assert.equal(nodes(failed.wallet).some(node => node.type === "Peso"), false);
+    assert.equal(nodes(failed.wallet).some(node => hasClass(node, "sl-skel")), false, "Failure replaces pending geometry instead of stacking another row");
+    const stale = render({ preview, wallet: { pesos: 123, address: "Readonly old-balance fixture" }, walletError: "Your wallet balance is unavailable." });
+    assert.equal(nodes(stale.wallet).some(node => node.type === "Peso"), false, "A failed refresh must not keep displaying the old balance");
+    assert.ok(text(stale.wallet).includes("Your wallet balance is unavailable."));
     const zero = render({ preview, wallet: { pesos: 0, address: "Readonly zero-balance fixture" } });
     assert.equal(nodes(zero.wallet).find(node => node.type === "Peso")?.props.value, 0);
-    for (const ui of [unknown, failed, zero]) assert.deepEqual(ui.calls, { read: 0, write: 0, storage: 0, network: 0 });
+    for (const ui of [unknown, failed, stale, zero]) assert.deepEqual(ui.calls, { read: 0, write: 0, storage: 0, network: 0 });
   }
 });
 

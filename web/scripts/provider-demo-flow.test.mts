@@ -11,6 +11,7 @@ import { accountCopy, accountText } from "../lib/i18n/revamp-account.ts";
 import { xlmDepositCopy } from "../lib/i18n/xlm-deposit.ts";
 import * as channels from "../lib/payment-channels.ts";
 import { paymentChannelText } from "../lib/i18n/payment-channels.ts";
+import { requireWalletState } from "../lib/wallet-state.ts";
 
 type Element = { type: string; props: Record<string, unknown> };
 type Component = { default(props: Record<string, unknown>): Element | null };
@@ -33,13 +34,14 @@ function text(value: unknown): string {
 
 // Actual screen handlers run with isolated hooks. All action, storage and
 // network boundaries fail closed; no browser or provider is contacted.
-function setup(options: { payout?: boolean; currency?: Locale; locale?: Locale; preview?: boolean; screen?: typeof files[number] } = {}) {
+function setup(options: { payout?: boolean; currency?: Locale; locale?: Locale; preview?: boolean; screen?: typeof files[number]; walletState?: () => Promise<{ ok: false; error: string }> } = {}) {
   let currency = options.currency ?? "tl";
   const preview = options.preview ?? true;
   const state: unknown[] = [];
   let cursor = 0;
+  let effectsRan = false;
   const transitions: Promise<unknown>[] = [];
-  const calls = { action: 0, network: 0, storage: 0, navigation: 0 };
+  const calls = { action: 0, network: 0, storage: 0, navigation: 0, walletReads: 0 };
   function forbidden(kind: keyof typeof calls) { return () => { calls[kind]++; throw new Error(`Unexpected ${kind} boundary`); }; }
   const storage = { getItem: forbidden("storage"), setItem: forbidden("storage"), removeItem: forbidden("storage"), clear: forbidden("storage") };
   const jsx = (type: unknown, props: Record<string, unknown>): Element => typeof type === "function" ? type(props) : { type: String(type), props };
@@ -54,7 +56,7 @@ function setup(options: { payout?: boolean; currency?: Locale; locale?: Locale; 
       if (name === "react") return {
         useState(initial: unknown) { const index = cursor++; if (!(index in state)) state[index] = typeof initial === "function" ? initial() : initial; return [state[index], (value: unknown) => { state[index] = typeof value === "function" ? value(state[index]) : value; }]; },
         useRef(initial: unknown) { const index = cursor++; if (!(index in state)) state[index] = { current: initial }; return state[index]; },
-        useEffect(effect: () => void) { effect(); },
+        useEffect(effect: () => void) { if (!effectsRan) effect(); },
         useTransition: () => [false, (callback: () => Promise<unknown>) => transitions.push(callback())],
       };
       if (name === "next/link") return { default: "Link" };
@@ -84,19 +86,21 @@ function setup(options: { payout?: boolean; currency?: Locale; locale?: Locale; 
       if (name === "@/lib/ui/useGoBack") return { useGoBack: () => forbidden("navigation") };
       if (name === "@/lib/local-preview") return { isLocalPreview: preview, PREVIEW_WALLET: wallet };
       if (name === "@/lib/ui/currency") return { CURRENCY, formatLocalAmount, localAmount, pesoFromLocal };
+      if (name === "@/lib/wallet-state") return { requireWalletState };
       if (name === "@/lib/provider-demo") return { demoAmountMinor, nextDemoPaymentStatus };
-      if (name === "@/app/actions") return { walletState: forbidden("action"), topUpSandbox: forbidden("action"), withdrawSandbox: forbidden("action") };
+      if (name === "@/app/actions") return { walletState: options.walletState ? () => { calls.walletReads++; return options.walletState!(); } : forbidden("action"), topUpSandbox: forbidden("action"), withdrawSandbox: forbidden("action") };
       if (name.endsWith(".module.css")) return { default: {} };
       throw new Error(`Unexpected dependency ${name}`);
     },
   });
   const render = () => { cursor = 0; return component.default({ payout: options.payout ?? false }); };
   let tree = render();
-  const settle = async () => { while (transitions.length) await Promise.all(transitions.splice(0)); tree = render(); };
+  effectsRan = true;
+  const settle = async () => { while (transitions.length) await Promise.all(transitions.splice(0)); await new Promise(resolve => setImmediate(resolve)); tree = render(); };
   const find = (predicate: (node: Element) => boolean) => { const node = nodes(tree).find(predicate); assert.ok(node, "Missing expected component control"); return node; };
   const button = (label: string) => find(node => ["button", "Btn"].includes(node.type) && text(node) === label);
   return {
-    calls, wallet, get tree() { return tree; }, find, button,
+    calls, wallet, get tree() { return tree; }, find, button, settle,
     amount(value: string) { const node = find(node => node.type === "input" && node.props.id === "provider-demo-amount"); (node.props.onChange as (event: unknown) => void)({ target: { value } }); tree = render(); },
     currency(value: Locale) { currency = value; tree = render(); },
     async click(label: string) { (button(label).props.onClick as () => void)(); await settle(); },
@@ -106,7 +110,7 @@ function setup(options: { payout?: boolean; currency?: Locale; locale?: Locale; 
   };
 }
 
-function noWrites(ui: ReturnType<typeof setup>) { assert.deepEqual(ui.calls, { action: 0, network: 0, storage: 0, navigation: 0 }); assert.deepEqual(ui.wallet, PREVIEW_WALLET); }
+function noWrites(ui: ReturnType<typeof setup>) { assert.deepEqual(ui.calls, { action: 0, network: 0, storage: 0, navigation: 0, walletReads: 0 }); assert.deepEqual(ui.wallet, PREVIEW_WALLET); }
 const currencyValues: Record<Locale, string> = { en: "0.50", tl: "5.01", id: "25000", vi: "50000" };
 
 test("helper validates exact positive minor units without silent rounding", () => {
@@ -320,6 +324,19 @@ test("Withdraw local integration selects the provider demo without loading or mu
   const ui = setup({ screen: "WithdrawScreen" });
   assert.equal(ui.find(node => node.type === "ProviderDemo").props.payout, true);
   noWrites(ui);
+});
+
+for (const locale of ["en", "tl", "id", "vi"] as const) test(`${locale}: non-preview withdrawal returned wallet failure leaves review and balance chips disabled`, async () => {
+  const c = accountCopy(locale);
+  const ui = setup({ screen: "WithdrawScreen", preview: false, locale, walletState: async () => ({ ok: false, error: "Isolated unavailable wallet" }) });
+  await ui.settle();
+  assert.ok(nodes(ui.tree).some(node => node.props.role === "alert" && text(node) === c.balanceLoad));
+  assert.equal(text(ui.tree).includes(c.loading), false);
+  assert.equal(nodes(ui.tree).some(node => node.type === "Money" || node.type === "SuccessMotion" || node.type === "ProviderDemo"), false);
+  assert.equal(ui.button(c.reviewSandbox).props.disabled, true);
+  for (const label of ["25%", "50%", "75%", c.max]) assert.equal(ui.button(label).props.disabled, true);
+  assert.deepEqual(ui.calls, { action: 0, network: 0, storage: 0, navigation: 0, walletReads: 1 });
+  assert.deepEqual(ui.wallet, PREVIEW_WALLET);
 });
 
 test("provider UI cannot collect actual payment or identity credentials", () => {

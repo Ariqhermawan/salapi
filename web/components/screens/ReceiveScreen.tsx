@@ -9,6 +9,7 @@
 import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { myHandle, walletState } from "@/app/actions";
+import { requireWalletState } from "@/lib/wallet-state";
 import { useT } from "@/components/I18nProvider";
 import { moneyCopy, moneyMessage } from "@/lib/i18n/revamp-money";
 import {
@@ -57,7 +58,7 @@ export default function ReceiveScreen() {
 
   useEffect(() => {
     if (isLocalPreview) { Promise.resolve(window.location.origin).then(setBase); return; }
-    walletState().then((s) => setAddress(s.address)).catch(() => setShareError("Your wallet could not be loaded. Reload this page before sharing a receive link."));
+    walletState().then(requireWalletState).then((s) => setAddress(s.address)).catch(() => setShareError("Your wallet could not be loaded. Reload this page before sharing a receive link."));
     myHandle().then((u) => u && setUsername(u)).catch(() => {});
   }, []);
 

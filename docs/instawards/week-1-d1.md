@@ -31,6 +31,7 @@ does not move pooled value on-chain.
 | `contracts/username-registry/src/lib.rs` | OUT | Resolves names to addresses and never holds a money amount. |
 | `web/lib/money.ts` | IN | Single exact boundary: decimal string + currency → deterministic integer stroops. |
 | `web/lib/server/stellar.ts#getNativeBalance` | IN | Parses Horizon’s decimal XLM string into stroops without floating point before balance use. |
+| `web/lib/server/walletReadiness.ts` | IN | Shared strict Horizon balance parsing delegates decimal text to `nativeBalanceToStroops`; account setup never fabricates a zero or converts token amounts through floating point. |
 | `web/lib/server/stellar.ts#stroopsToPesos`, `fmtPeso` | OUT | Reverse conversion is presentation-only; it never becomes a contract argument. |
 | `web/app/actions.ts` (`sendByUsername`, `disasterContribute`, `smartSavingsOpen`, `smartSavingsDeposit`, `arisanCreate`) | IN | Validates the shared money payload and passes only `sc.i128(integer_stroops)` to contracts. |
 | `web/components/SendForm.tsx`, `SendScreen.tsx` | IN | Sends the raw input string and selected currency to the server boundary. |

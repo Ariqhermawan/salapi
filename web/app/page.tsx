@@ -6,6 +6,7 @@ import { Heart } from "@phosphor-icons/react/dist/csr/Heart";
 import { Pause } from "@phosphor-icons/react/dist/csr/Pause";
 import { Play } from "@phosphor-icons/react/dist/csr/Play";
 import { myHandle, walletState } from "@/app/actions";
+import { requireWalletState } from "@/lib/wallet-state";
 import { campaignState } from "@/app/campaign-actions";
 import { Ico, Peso } from "@/components/ui/kit";
 import { useT } from "@/components/I18nProvider";
@@ -50,7 +51,7 @@ export default function Home() {
   const loadWallet = useCallback(async () => {
     if (isLocalPreview) return;
     setWalletError("");
-    try { const [state, name] = await Promise.all([walletState(), myHandle()]); setWallet(state); setHandle(name); }
+    try { const [state, name] = await Promise.all([walletState(), myHandle()]); setWallet(requireWalletState(state)); setHandle(name); }
     catch { setWalletError("Your wallet balance is unavailable."); }
   }, []);
   const loadCampaigns = useCallback(async () => {
@@ -106,8 +107,9 @@ export default function Home() {
         <Link href="/receive" className={s.round} aria-label={copy("Receive by QR")}>{Ico.qr({ size: 20, c: "#fff" })}</Link>
       </div>
       <div className={s.walletContent}><div><div className={s.balanceLabel}><span>{copy("TESTNET BALANCE")}</span></div>
-        {wallet ? <div className={s.amount}><span>≈ </span><Peso value={wallet.pesos} size={balanceSize} color="#fff" /></div> : <div className="sl-skel" style={{ height: balanceSize, width: "80%", margin: "5px auto 0" }} />}
-        {walletError && <button className={s.walletRetry} onClick={loadWallet}>{copy(walletError)} {copy("Retry")}</button>}
+        {walletError ? <button className={s.walletRetry} onClick={loadWallet}>{copy(walletError)} {copy("Retry")}</button>
+          : wallet ? <div className={s.amount}><span>≈ </span><Peso value={wallet.pesos} size={balanceSize} color="#fff" /></div>
+          : <div className="sl-skel" style={{ height: balanceSize, width: "80%", margin: "5px auto 0" }} />}
       </div>
         <nav className={s.walletActions} aria-label={copy("Wallet actions")}>
           <Link href="/topup" className={s.walletAction} aria-label={copy("Top up")}>

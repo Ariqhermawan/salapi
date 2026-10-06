@@ -16,11 +16,9 @@ import {
   xdr,
   StrKey,
 } from "@stellar/stellar-sdk";
-import {
-  nativeBalanceToStroops,
-  pesosToStroopsExact,
-} from "@/lib/money";
+import { pesosToStroopsExact } from "@/lib/money";
 import { isLocalPreview } from "@/lib/local-preview";
+import { getTestnetNativeBalance } from "@/lib/server/walletReadiness";
 
 export const RPC_URL =
   process.env.STELLAR_RPC_URL ?? "https://soroban-testnet.stellar.org";
@@ -78,22 +76,9 @@ export const sc = {
     xdr.ScVal.scvVec([xdr.ScVal.scvSymbol(variant)]),
 };
 
-/** Native XLM balance of an account, via Horizon (simple + reliable). */
+/** Actual native XLM balance. Provider failures and absent accounts are errors. */
 export async function getNativeBalance(pub: string): Promise<bigint> {
-  try {
-    const r = await fetch(`${HORIZON}/accounts/${pub}`, {
-      cache: "no-store",
-    });
-    if (!r.ok) return 0n;
-    const j = await r.json();
-    const native = (j.balances ?? []).find(
-      (b: { asset_type: string }) => b.asset_type === "native"
-    );
-    if (!native) return 0n;
-    return nativeBalanceToStroops(native.balance) ?? 0n;
-  } catch {
-    return 0n;
-  }
+  return getTestnetNativeBalance(pub);
 }
 
 /** Read-only contract call (simulation, no submit, no signing). */

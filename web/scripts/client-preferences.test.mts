@@ -7,6 +7,7 @@ import * as jsxRuntime from "react/jsx-runtime";
 import { renderToStaticMarkup } from "react-dom/server";
 import ts from "typescript";
 import { CURRENCY, localAmount, formatUsdc } from "../lib/ui/currency.ts";
+import { requireWalletState } from "../lib/wallet-state.ts";
 
 type Element = { type: unknown; props: Record<string, unknown> };
 type Fn = (...args: unknown[]) => unknown;
@@ -27,7 +28,7 @@ type Options = {
   pathname?: string;
   canInstall?: boolean;
   currency?: string;
-  walletState?: () => Promise<{ pesos: number; address: string }>;
+  walletState?: () => Promise<{ pesos: number; address: string } | { ok: false; error: string }>;
   topUp?: () => Promise<{ note: string }>;
 };
 
@@ -164,6 +165,7 @@ function setup(module: keyof typeof files, options: Options = {}) {
       if (name === "next/link") return { default: "Link" };
       if (name === "@/components/ui/motion") return { CountUp: "CountUp" };
       if (name === "@/lib/ui/currency") return { CURRENCY, localAmount, formatUsdc };
+      if (name === "@/lib/wallet-state") return { requireWalletState };
       if (name === "@/app/actions") return {
         walletState() { calls.wallet++; return options.walletState?.() ?? Promise.resolve({ pesos: 123, address: "G-ISOLATED-WALLET" }); },
         topUpSandbox() { calls.topUp++; return options.topUp?.() ?? Promise.resolve({ note: "Isolated sandbox result" }); },
@@ -194,7 +196,7 @@ function setup(module: keyof typeof files, options: Options = {}) {
         try { callback(); } finally { inEffect = false; }
       }
     },
-    async settle() { await Promise.resolve(); await Promise.resolve(); while (transitions.length) await Promise.all(transitions.splice(0)); return render(); },
+    async settle() { await Promise.resolve(); await Promise.resolve(); while (transitions.length) await Promise.all(transitions.splice(0)); await new Promise(resolve => setImmediate(resolve)); return render(); },
     event(name: string, event: unknown = {}) { for (const fn of [...events.get(name) ?? []]) fn(event); },
     changeMedia(query: string, matches: boolean) { const value = media.get(query)!; value.matches = matches; for (const fn of [...value.listeners]) fn(); },
     frame(time: number) { now = time; const callbacks = [...raf.values()]; raf.clear(); for (const callback of callbacks) callback(time); return render(); },
@@ -405,15 +407,45 @@ test("wallet load failure is handled and never triggers a top-up", async () => {
   assert.equal(runtime.calls.topUp, 0); assert.equal(runtime.calls.synchronousEffectUpdates, 0);
 });
 
+test("structured wallet failure reaches the existing error UI without an address or top-up", async () => {
+  const runtime = setup("wallet", { walletState: async () => ({ ok: false, error: "Isolated unavailable wallet" }) });
+  runtime.mount(() => runtime.exports.default()); runtime.flushEffects(); await runtime.settle();
+  assert.match(text(runtime.tree), /wallet could not be loaded/);
+  assert.equal(text(runtime.tree).includes("G-ISOLATED"), false);
+  assert.equal(nodes(runtime.tree).some(node => node.type === "CountUp"), false);
+  assert.equal(text(runtime.tree).includes("≈"), false);
+  assert.equal(runtime.calls.wallet, 1); assert.equal(runtime.calls.topUp, 0);
+  assert.equal(runtime.calls.synchronousEffectUpdates, 0);
+});
+
+test("structured refresh failure preserves the last confirmed balance instead of installing a fake zero", async () => {
+  let reads = 0;
+  const runtime = setup("wallet", { walletState: async () => ++reads === 1
+    ? { pesos: 123, address: "G-ISOLATED-WALLET" }
+    : { ok: false, error: "Isolated unavailable refresh" } });
+  runtime.mount(() => runtime.exports.default()); runtime.flushEffects(); await runtime.settle();
+  assert.equal(nodes(runtime.tree).find(node => node.type === "CountUp")!.props.value, 123);
+  const topUp = nodes(runtime.tree).find(node => node.type === "button" && typeof node.props.onClick === "function")!;
+  assert.ok(topUp); (topUp.props.onClick as Fn)(); await runtime.settle();
+  assert.match(text(runtime.tree), /wallet could not be refreshed/);
+  assert.equal(nodes(runtime.tree).find(node => node.type === "CountUp")!.props.value, 123);
+  assert.ok(text(runtime.tree).includes("wallet G-ISOL"));
+  assert.equal(runtime.calls.wallet, 2); assert.equal(runtime.calls.topUp, 1);
+});
+
 test("wallet ignores late unmounted loads and uses the explicit display currency", async () => {
   let resolveWallet!: (value: { pesos: number; address: string }) => void;
   const runtime = setup("wallet", { currency: "id", walletState: () => new Promise(resolve => { resolveWallet = resolve; }) });
-  runtime.mount(() => runtime.exports.default()); runtime.flushEffects(); runtime.unmount();
+  runtime.mount(() => runtime.exports.default());
+  assert.equal(nodes(runtime.tree).some(node => node.type === "CountUp"), false);
+  assert.equal(text(runtime.tree).includes("≈"), false);
+  runtime.flushEffects(); runtime.unmount();
   resolveWallet({ pesos: 500, address: "G-LATE" }); await runtime.settle();
-  const count = nodes(runtime.tree).find(node => node.type === "CountUp")!;
-  assert.equal(count.props.value, 0); assert.equal(count.props.prefix, CURRENCY.id.symbol);
+  assert.equal(nodes(runtime.tree).some(node => node.type === "CountUp"), false);
+  assert.equal(text(runtime.tree).includes("≈"), false);
   const loaded = setup("wallet", { currency: "id" }); loaded.mount(() => loaded.exports.default()); loaded.flushEffects(); await loaded.settle();
-  assert.equal(nodes(loaded.tree).find(node => node.type === "CountUp")!.props.value, localAmount(123, "id"));
+  const count = nodes(loaded.tree).find(node => node.type === "CountUp")!;
+  assert.equal(count.props.value, localAmount(123, "id")); assert.equal(count.props.prefix, CURRENCY.id.symbol);
 });
 
 test("wallet sandbox rejection is caught and preserves the previously loaded balance", async () => {

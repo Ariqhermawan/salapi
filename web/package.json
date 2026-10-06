@@ -12,6 +12,7 @@
     "test:profile": "node --experimental-strip-types --test scripts/settings-profile-loading.test.mts scripts/settings-handle.test.mts",
     "test:photo": "node --experimental-strip-types --test scripts/account-photo.test.mts scripts/account-photo-ui.test.mts scripts/account-photo-csp.test.mts",
     "test:activity": "node --experimental-strip-types --test scripts/wallet-activity.test.mts scripts/wallet-activity-ui.test.mts",
+    "test:wallet": "node --experimental-strip-types --test scripts/wallet-readiness.test.mts scripts/wallet-setup-flow.test.mts scripts/server-action-safety.test.mts",
     "test:arisan": "node --experimental-strip-types --test scripts/arisan-commitment.test.mts",
     "test:money": "node --experimental-strip-types --test scripts/money.test.mts",
     "test:disaster": "node --experimental-strip-types --test scripts/disaster.test.mts",

@@ -13,6 +13,7 @@ import { DICTS } from "../lib/i18n/dictionaries.ts";
 import { CURRENCY } from "../lib/ui/currency.ts";
 import { PREVIEW_WALLET } from "../lib/local-preview.ts";
 import { accountPhotoCopy } from "../lib/i18n/account-photo.ts";
+import { requireWalletState } from "../lib/wallet-state.ts";
 
 const source = readFileSync(new URL("../components/screens/SettingsScreen.tsx", import.meta.url), "utf8");
 const compiled = ts.transpileModule(source, {
@@ -34,6 +35,7 @@ const stateNames = screenFunction.body.statements.flatMap((statement) => {
 
 type HandleResult = { ok: true; handle: string | null } | { ok: false };
 type AuthResult = { data: { user: { email?: string | null } | null }; error?: unknown };
+type WalletResult = { address: string } | { ok: false; error: string };
 type Effect = () => void | (() => void);
 
 function deferred<T>() {
@@ -65,7 +67,7 @@ function loadScreen({
   clientThrows?: boolean;
   hooks?: typeof React;
   settingsHandle?: () => Promise<HandleResult>;
-  walletState?: () => Promise<{ address: string }>;
+  walletState?: () => Promise<WalletResult>;
   getUser?: () => Promise<AuthResult>;
 } = {}) {
   const screen = {} as { default: React.ComponentType };
@@ -92,6 +94,7 @@ function loadScreen({
       if (dependency === "@/lib/i18n/revamp-account") return { accountCopy, accountCurrencyName };
       if (dependency === "@/lib/i18n/config") return { LOCALE_META };
       if (dependency === "@/lib/ui/currency") return { CURRENCY };
+      if (dependency === "@/lib/wallet-state") return { requireWalletState };
       if (dependency === "@/lib/local-preview") return { isLocalPreview: preview, PREVIEW_WALLET };
       if (dependency === "@/components/ui/kit") return kit;
       if (dependency === "@/lib/supabase/env") return { supabaseConfigured: () => configured };
@@ -115,7 +118,7 @@ function loadScreen({
 function harness({ locale = "en", preview = false, configured = true, clientThrows = false }:
   { locale?: Locale; preview?: boolean; configured?: boolean; clientThrows?: boolean } = {}) {
   const identity = deferred<HandleResult>();
-  const wallet = deferred<{ address: string }>();
+  const wallet = deferred<WalletResult>();
   const auth = deferred<AuthResult>();
   const state: unknown[] = [];
   const refs: { current: unknown }[] = [];
@@ -170,6 +173,20 @@ function harness({ locale = "en", preview = false, configured = true, clientThro
 }
 
 async function flush() { for (let step = 0; step < 6; step++) await Promise.resolve(); }
+
+for (const locale of LOCALES) test(`${locale}: structured wallet failure retains the verified identity and offers no fabricated wallet link`, async () => {
+  const h = harness({ locale }); h.render(); h.mount();
+  h.identity.resolve({ ok: true, handle: "ariqhermawan" });
+  h.auth.resolve({ data: { user: { email: "fixture@example.invalid" } } });
+  h.wallet.resolve({ ok: false, error: "Isolated unavailable wallet" });
+  await flush(); const html = h.render();
+  profileButton(html, "ready"); assert.ok(html.includes("@ariqhermawan"));
+  assert.equal(h.snapshot().addr, ""); assert.equal(h.snapshot().loadError, "settingsWalletLoad");
+  assert.ok(html.includes(accountCopy(locale).settingsWalletLoad)); assert.match(html, /role="alert"/);
+  assert.doesNotMatch(html, /href="https:\/\/stellar\.expert\/explorer\/testnet\/account\//);
+  assert.equal(html.includes(translate(locale, "settings.salapiUser")), false);
+  assert.deepEqual(h.calls, { handle: 1, wallet: 1, auth: 1 });
+});
 
 function profileButton(html: string, status: "loading" | "ready" | "error") {
   const button = html.match(new RegExp(`<button\\b[^>]*data-profile-state="${status}"[^>]*>`))?.[0];

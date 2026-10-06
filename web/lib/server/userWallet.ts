@@ -7,7 +7,8 @@
 import { Keypair } from "@stellar/stellar-sdk";
 import { isAuthSessionMissingError } from "@supabase/supabase-js";
 import { isLocalPreview } from "@/lib/local-preview";
-import { FRIENDBOT, demoPublic } from "@/lib/server/stellar";
+import { demoPublic } from "@/lib/server/stellar";
+import { ensureTestnetAccount } from "@/lib/server/walletReadiness";
 import {
   supabaseConfigured,
   supabaseAdminConfigured,
@@ -35,28 +36,40 @@ function savedSigner(row: { public_key?: unknown; secret_cipher?: unknown }): Si
   return { publicKey: row.public_key, secret, demo: false };
 }
 
-/** The signer to use for on-chain actions this request. */
-export async function getSigner(): Promise<Signer> {
+/** Resolve only a verified owner, never infer a guest from client setup errors. */
+async function walletOwner(authenticatedOnly: boolean): Promise<string | null> {
   if (isLocalPreview) throw new Error("Local preview cannot submit transactions or provision wallets.");
-  if (!supabaseConfigured()) return demoSigner();
+  function guest() {
+    if (authenticatedOnly) throw new Error("Sign in to prepare your personal Testnet wallet.");
+    return null;
+  }
+  if (!supabaseConfigured()) return guest();
 
   // Only a confirmed missing session may use the shared demo identity. An
   // unreachable auth service does not prove that this request is anonymous.
-  let userId: string | null = null;
+  let supabase: Awaited<ReturnType<typeof createSupabaseServer>>;
+  try { supabase = await createSupabaseServer(); }
+  catch { throw new Error("Authentication is unavailable. No transaction was submitted."); }
+  let result: Awaited<ReturnType<typeof supabase.auth.getUser>>;
   try {
-    const supabase = await createSupabaseServer();
-    const {
-      data: { user }, error: authError,
-    } = await supabase.auth.getUser();
-    if (authError) {
-      if (isAuthSessionMissingError(authError)) return demoSigner();
-      throw new Error("Authentication is unavailable. No transaction was submitted.");
-    }
-    userId = user?.id ?? null;
+    result = await supabase.auth.getUser();
   } catch (error) {
-    if (isAuthSessionMissingError(error)) return demoSigner();
+    if (isAuthSessionMissingError(error)) return guest();
     throw new Error("Authentication is unavailable. No transaction was submitted.");
   }
+  const { data: { user }, error } = result;
+  if (error) {
+    if (user === null && isAuthSessionMissingError(error)) return guest();
+    throw new Error("Authentication is unavailable. No transaction was submitted.");
+  }
+  if (user === null) return guest();
+  if (typeof user?.id !== "string" || !user.id)
+    throw new Error("Authentication is unavailable. No transaction was submitted.");
+  return user.id;
+}
+
+async function resolveSigner(authenticatedOnly: boolean): Promise<Signer> {
+  const userId = await walletOwner(authenticatedOnly);
   if (!userId) return demoSigner();
   if (!supabaseAdminConfigured())
     throw new Error("Wallet service is unavailable. No transaction was submitted.");
@@ -74,7 +87,11 @@ export async function getSigner(): Promise<Signer> {
     .maybeSingle();
 
   if (error) throw new Error("Your saved wallet could not be loaded. No transaction was submitted.");
-  if (data != null) return savedSigner(data);
+  if (data != null) {
+    const signer = savedSigner(data);
+    await ensureTestnetAccount(signer.publicKey);
+    return signer;
+  }
 
   // First sign-in for this user → mint + fund + persist an encrypted wallet.
   // Concurrency: `wallets.user_id` is the PRIMARY KEY, so two parallel
@@ -101,17 +118,17 @@ export async function getSigner(): Promise<Signer> {
   if (readError || row == null)
     throw new Error("Your saved wallet could not be confirmed. No transaction was submitted.");
   const signer = savedSigner(row);
-  // Only fund the persisted winner, never a discarded key from a failed insert
-  // or concurrent first-use request. Funding remains best-effort.
-  if (signer.publicKey === kp.publicKey()) {
-    try {
-      await fetch(`${FRIENDBOT}/?addr=${signer.publicKey}`, { cache: "no-store" });
-    } catch {
-      /* balance can be topped up later */
-    }
-  }
+  // Verify/fund only the persisted winner. A retry after failed funding reuses
+  // this same canonical row, never a replacement keypair or encryption blob.
+  await ensureTestnetAccount(signer.publicKey);
   return signer;
 }
+
+/** Existing guest demo behavior is retained; real users must be Testnet-ready. */
+export async function getSigner(): Promise<Signer> { return resolveSigner(false); }
+
+/** OAuth/setup/D4 may provision the signed-in owner's canonical wallet only. */
+export async function prepareAuthenticatedWallet(): Promise<Signer> { return resolveSigner(true); }
 
 /** Current Supabase user id, or null when unauthenticated / not configured. */
 export async function currentUserId(): Promise<string | null> {

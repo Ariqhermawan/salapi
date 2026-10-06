@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { walletState, topUpSandbox } from "@/app/actions";
+import { requireWalletState } from "@/lib/wallet-state";
 import { useT } from "@/components/I18nProvider";
 import { T, Ico, AppBar, IconButton, Card, Btn, Chip, Money, PoweredByStellar } from "@/components/ui/kit";
 import { useGoBack } from "@/lib/ui/useGoBack";
@@ -30,7 +31,7 @@ export default function TopUpScreen() {
   useEffect(() => {
     if (isLocalPreview || method !== "topup") return;
     let cancelled = false;
-    walletState().then(value => { if (!cancelled) setWallet(value); }).catch(() => { if (!cancelled) setError("walletLoad"); });
+    walletState().then(requireWalletState).then(value => { if (!cancelled) setWallet(value); }).catch(() => { if (!cancelled) setError("walletLoad"); });
     return () => { cancelled = true; };
   }, [method]);
   function fund() {
@@ -80,7 +81,7 @@ export default function TopUpScreen() {
     <div style={{ padding: "4px 20px" }}>
       {result?.funded ? <SuccessMotion title={isLocalPreview ? c.fundingDemoSuccess : c.friendbotAccepted}><p>{isLocalPreview ? c.noNetworkBalance : c.refreshedBalance}</p></SuccessMotion> : null}
       <div style={{ borderRadius: 24, background: "#F2EFE7", padding: 22, marginBottom: 18 }}><Chip kind="warn">{isLocalPreview ? c.localPreview : c.testnetFaucet}</Chip><h1 style={{ margin: "14px 0 8px", fontSize: 30, fontWeight: 800, lineHeight: 1.12, letterSpacing: "-.04em" }}>{result ? c.readyExplore : c.fuelExplore}</h1><p style={{ margin: 0, color: T.slate, lineHeight: 1.55, fontSize: 14 }}>{isLocalPreview ? c.fundingDemoIntro : c.friendbotIntro}</p></div>
-      <Card p={22} elevation><div style={{ fontSize: 12, color: T.slate }}>{c.testnetBalance}</div>{wallet ? <div style={{ marginTop: 8 }}><Money value={result?.pesos ?? wallet.pesos} size={36} usdc={false} /><p style={{ fontSize: 12, color: T.slate }}>{c.illustrativeValue}</p></div> : <p>{c.loadingWallet}</p>}{wallet && <div style={{ fontFamily: T.fontMono, fontSize: 11, wordBreak: "break-all", color: T.slate, marginTop: 18 }}>{wallet.address}</div>}</Card>
+      <Card p={22} elevation><div style={{ fontSize: 12, color: T.slate }}>{c.testnetBalance}</div>{wallet ? <div style={{ marginTop: 8 }}><Money value={result?.pesos ?? wallet.pesos} size={36} usdc={false} /><p style={{ fontSize: 12, color: T.slate }}>{c.illustrativeValue}</p></div> : <p>{error === "walletLoad" ? c.walletLoad : c.loadingWallet}</p>}{wallet && <div style={{ fontFamily: T.fontMono, fontSize: 11, wordBreak: "break-all", color: T.slate, marginTop: 18 }}>{wallet.address}</div>}</Card>
       {result ? <Card p={18} style={{ marginTop: 18, background: T.moneyInTint }}><strong style={{ color: T.moneyIn }}>{isLocalPreview ? c.localFundingDone : result.funded ? c.friendbotRequestAccepted : c.noFundingConfirmed}</strong><p style={{ margin: "8px 0 0", fontSize: 13, color: T.slate, lineHeight: 1.5 }}>{isLocalPreview ? c.noNetworkWallet : result.funded ? c.friendbotResult : c.friendbotNoResult}</p></Card> : <Card p={18} style={{ marginTop: 18 }}><strong>{c.howTopup}</strong><p style={{ margin: "8px 0 0", color: T.slate, lineHeight: 1.55, fontSize: 13 }}>{c.topupPlanned}</p></Card>}
       {error && <p role="alert" style={{ color: T.danger, fontSize: 13, lineHeight: 1.5 }}>{c[error]}</p>}
       <div style={{ marginTop: 20 }}><Btn kind="primary" disabled={pending || !wallet} loading={pending} onClick={result ? () => router.push("/") : fund}>{result ? c.home : isLocalPreview ? c.tryFunding : c.requestXlm}</Btn>{result && !isLocalPreview && wallet && <a href={"https://stellar.expert/explorer/testnet/account/" + wallet.address} target="_blank" rel="noopener noreferrer" style={{ display: "block", textAlign: "center", color: T.action, fontWeight: 700, fontSize: 13, padding: 18 }}>{c.walletHistory}</a>}</div>

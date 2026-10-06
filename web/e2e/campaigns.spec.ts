@@ -175,7 +175,7 @@ test.describe("D4 isolated local UI and HTTP authorization", () => {
       const id = [...actions()].find(([, n]) => n === name)?.[0]; expect(id).toBeTruthy();
       const response = await request.post("/campaigns", { headers: { "Next-Action": id!, "Content-Type": "text/plain;charset=UTF-8", Origin: baseURL! }, data: '["1"]' });
       expect(response.ok()).toBeTruthy(); const body = await response.text();
-      expect(body).toContain('"ok":false'); expect(body).toContain("Sign in to use signer controls");
+      expect(body).toContain('"ok":false'); expect(body).toContain("Sign in to prepare your personal Testnet wallet.");
     });
   }
 });

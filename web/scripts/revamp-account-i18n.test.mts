@@ -18,6 +18,7 @@ import { demoAmountMinor, nextDemoPaymentStatus } from "../lib/provider-demo.ts"
 import * as paymentChannels from "../lib/payment-channels.ts";
 import { paymentChannelText } from "../lib/i18n/payment-channels.ts";
 import { createSumsubDemoState, canPrepareSumsubDemo, canChooseSumsubDemoResult, transitionSumsubDemo, SUMSUB_CHECKLIST } from "../lib/verification/sumsub-demo.ts";
+import { requireWalletState } from "../lib/wallet-state.ts";
 
 const files = ["PaymentProviderDemo", "TopUpScreen", "WithdrawScreen", "KycTierScreen", "SettingsScreen", "LanguagePickerScreen", "CurrencyPickerScreen"] as const;
 const sources = Object.fromEntries(files.map(name => [name, readFileSync(new URL(`../components/screens/${name}.tsx`, import.meta.url), "utf8")])) as Record<typeof files[number], string>;
@@ -35,15 +36,15 @@ function translate(locale: Locale, key: string): string {
 
 // Render the actual screens with real React SSR. No server action, browser,
 // provider, storage, camera or auth boundary is permitted in this harness.
-function render(name: typeof files[number], locale: Locale, preview = true, props: Record<string, unknown> = {}): string {
+function render(name: typeof files[number], locale: Locale, preview = true, props: Record<string, unknown> = {}, mounted?: { hooks: typeof React; walletState: () => Promise<{ ok: false; error: string }> }): string {
   const screen = {} as { default: React.ComponentType<Record<string, unknown>> };
   const forbidden = () => { throw new Error("Unexpected external boundary"); };
   const box = (props: Record<string, unknown>) => React.createElement("div", null, props.leading as React.ReactNode, props.title as React.ReactNode, props.sub as React.ReactNode, props.children as React.ReactNode, props.trailing as React.ReactNode);
-  const kit = new Proxy({ T: {}, Ico: new Proxy({}, { get: () => () => null }) }, { get(target, key) { return Reflect.get(target, key) ?? box; } });
+  const kit = new Proxy({ T: {}, Ico: new Proxy({}, { get: () => () => null }), Money: (props: Record<string, unknown>) => React.createElement("span", { "data-money-value": String(props.value) }) }, { get(target, key) { return Reflect.get(target, key) ?? box; } });
   runInNewContext(codes[name], {
     exports: screen, fetch: forbidden, window: { location: {}, sessionStorage: { getItem: forbidden, setItem: forbidden } },
     require(dependency: string) {
-      if (dependency === "react") return React;
+      if (dependency === "react") return mounted?.hooks ?? React;
       if (dependency === "react/jsx-runtime") return jsxRuntime;
       if (dependency === "@supabase/supabase-js") return { isAuthSessionMissingError };
       if (dependency === "next/link") return { default: box };
@@ -59,6 +60,7 @@ function render(name: typeof files[number], locale: Locale, preview = true, prop
       if (dependency === "./XlmDepositPanel") return { default: () => React.createElement("span", null, xlmDepositCopy(locale).warning) };
       if (dependency === "@/lib/i18n/config") return { LOCALES, LOCALE_META };
       if (dependency === "@/lib/ui/currency") return { CURRENCY, localAmount, formatLocalAmount, pesoFromLocal };
+      if (dependency === "@/lib/wallet-state") return { requireWalletState };
       if (dependency === "@/lib/ui/useGoBack") return { useGoBack: () => forbidden };
       if (dependency === "@/components/ui/kit") return kit;
       if (dependency === "@/components/ui/flags") return { Flag: () => null };
@@ -75,7 +77,7 @@ function render(name: typeof files[number], locale: Locale, preview = true, prop
       if (dependency === "@/components/ui/OrganizerVerification") return { default: () => null };
       if (dependency === "@/lib/supabase/env") return { supabaseConfigured: () => false };
       if (dependency === "@/lib/supabase/client") return { createSupabaseBrowser: forbidden };
-      if (dependency === "@/app/actions") return { walletState: forbidden, myHandle: forbidden, topUpSandbox: forbidden, withdrawSandbox: forbidden, renameUsername: forbidden, registerUsername: forbidden };
+      if (dependency === "@/app/actions") return { walletState: mounted?.walletState ?? forbidden, myHandle: forbidden, topUpSandbox: forbidden, withdrawSandbox: forbidden, renameUsername: forbidden, registerUsername: forbidden };
       if (dependency === "@/app/account-actions") return { settingsHandle: forbidden };
       if (dependency.endsWith(".module.css")) return { default: new Proxy({}, { get: (_, key) => key }) };
       throw new Error(`Unexpected dependency: ${dependency}`);
@@ -141,6 +143,24 @@ for (const locale of LOCALES) {
     assert.ok(topup.includes(xlmDepositCopy(locale).warning));
     const withdraw = render("WithdrawScreen", locale, false);
     for (const key of ["noCashOut", "withdrawalIntro", "withdrawalsPlanned", "reviewSandbox"] as const) assert.ok(withdraw.includes(c[key]), key);
+  });
+  test(`${locale}: mounted withdrawal reports a returned wallet failure without a zero balance or perpetual loading`, async () => {
+    const slots: unknown[] = [], effects: (() => void)[] = [];
+    let cursor = 0, mountedOnce = false, reads = 0;
+    const forbidden = () => { throw Error("Wallet localization failure fixture forbids writes"); };
+    const hooks = { ...React,
+      useState(initial: unknown) { const index = cursor++; if (!(index in slots)) slots[index] = typeof initial === "function" ? initial() : initial; return [slots[index], (value: unknown) => { slots[index] = typeof value === "function" ? value(slots[index]) : value; }]; },
+      useRef(initial: unknown) { const index = cursor++; return slots[index] ?? (slots[index] = { current: initial }); },
+      useEffect(callback: () => void) { if (!mountedOnce) effects.push(callback); },
+      useTransition: () => [false, forbidden],
+    } as unknown as typeof React;
+    const runtime = { hooks, walletState: async () => { reads++; return { ok: false as const, error: "Isolated unavailable wallet" }; } };
+    const draw = () => { cursor = 0; return render("WithdrawScreen", locale, false, {}, runtime); };
+    assert.ok(draw().includes(c.loading)); mountedOnce = true;
+    for (const effect of effects) effect(); await new Promise(resolve => setImmediate(resolve));
+    const html = draw(); assert.ok(html.includes(c.balanceLoad)); assert.match(html, /role="alert"/);
+    assert.equal(html.includes(c.loading), false); assert.doesNotMatch(html, /data-money-value=/);
+    assert.ok(html.includes(c.withdrawalsPlanned)); assert.match(html, /disabled=""/); assert.equal(reads, 1);
   });
   test(`${locale}: actual KYC surface localizes checklist and preserves no-verification/proposed-tier warnings`, () => {
     const kyc = render("KycTierScreen", locale);
