@@ -2,7 +2,7 @@
 import SuccessMotion from "@/components/ui/SuccessMotion";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useGoBack } from "@/lib/ui/useGoBack";
 import Image from "next/image";
 import {
   arisanRoomState,
@@ -33,6 +33,7 @@ import { isLocalPreview, PREVIEW_WALLET as PREVIEW_ACCOUNT } from "@/lib/local-p
 import { useUnresolvedSubmission } from "@/lib/ui/useUnresolvedSubmission";
 import SubmissionStatusPanel from "@/components/ui/SubmissionStatusPanel";
 import styles from "./ArisanRoomRevamp.module.css";
+import { accountCopy } from "@/lib/i18n/revamp-account";
 import { readPreviewArisanRoom, savePreviewArisanRoom, type PreviewArisanChange } from "./arisan-preview";
 const PREVIEW_WALLET = PREVIEW_ACCOUNT.address;
 
@@ -216,8 +217,8 @@ function Roulette({
 // ─────────────────────────────────────────────────────────────
 export default function ArisanRoomScreen({ roomId }: { roomId: number }) {
   const submission = useUnresolvedSubmission("arisan:rooms");
-  const { t, currency } = useT();
-  const router = useRouter();
+  const { t, currency, locale } = useT();
+  const goBack = useGoBack("/arisan");
   const [st, setSt] = useState<State | null>(null);
   const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
   const [msg, setMsg] = useState<{ tone: "ok" | "err"; text: string; link?: string } | null>(null);
@@ -350,10 +351,10 @@ export default function ArisanRoomScreen({ roomId }: { roomId: number }) {
   }
 
   if (st === null) {
-    return <div className={styles.screen}><SubmissionStatusPanel guard={submission} onRefresh={refresh} /><AppBar leading={<IconButton ariaLabel="Back to arisan rooms" onClick={() => router.push("/arisan")}>{Ico.back({})}</IconButton>} title={t("arisan.room.title")} /><div className={styles.content}><div className={styles.skeleton} aria-label={t("common.loading")} /></div></div>;
+    return <div className={styles.screen}><SubmissionStatusPanel guard={submission} onRefresh={refresh} /><AppBar leading={<IconButton ariaLabel={accountCopy(locale).back} onClick={goBack}>{Ico.back({})}</IconButton>} title={t("arisan.room.title")} /><div className={styles.content}><div className={styles.skeleton} aria-label={t("common.loading")} /></div></div>;
   }
   if (!st.ready) {
-    return <div className={styles.screen}><SubmissionStatusPanel guard={submission} onRefresh={refresh} /><AppBar leading={<IconButton ariaLabel="Back to arisan rooms" onClick={() => router.push("/arisan")}>{Ico.back({})}</IconButton>} title={t("arisan.room.title")} /><section className={styles.errorState}><h1>{t("arisan.room.notFound")}</h1>{st.error ? <p role="alert">{st.error}</p> : null}<Btn kind="secondary" onClick={() => void refresh()}>Try again</Btn></section></div>;
+    return <div className={styles.screen}><SubmissionStatusPanel guard={submission} onRefresh={refresh} /><AppBar leading={<IconButton ariaLabel={accountCopy(locale).back} onClick={goBack}>{Ico.back({})}</IconButton>} title={t("arisan.room.title")} /><section className={styles.errorState}><h1>{t("arisan.room.notFound")}</h1>{st.error ? <p role="alert">{st.error}</p> : null}<Btn kind="secondary" onClick={() => void refresh()}>Try again</Btn></section></div>;
   }
   const viewerSeat = st.seats.find(seat => seat.isYou);
   const viewerAlreadyPaid = !!viewerSeat?.won;
@@ -394,7 +395,7 @@ export default function ArisanRoomScreen({ roomId }: { roomId: number }) {
       setMsg({ tone: "ok", text: t("arisan.kocok.wonText", { who: roulette.winnerLabel, pot: formatLocal(st.potPesos, currency) }), link: roulette.link });
       setRoulette(null); refresh();
     }} /> : null}
-    <AppBar leading={<IconButton ariaLabel="Back to arisan rooms" onClick={() => router.push("/arisan")}>{Ico.back({})}</IconButton>} title={st.name} />
+    <AppBar leading={<IconButton ariaLabel={accountCopy(locale).back} onClick={goBack}>{Ico.back({})}</IconButton>} title={st.name} />
     <div className={styles.content}>
       <section className={styles.summary} aria-label="Room overview">
         <div className={styles.badges}>

@@ -5,7 +5,7 @@
 // specific pick overrides it. The choice drives every amount the
 // currency-aware Money component renders across the app.
 
-import { useRouter } from "next/navigation";
+import { useGoBack } from "@/lib/ui/useGoBack";
 import { LOCALES, LOCALE_META, type Locale } from "@/lib/i18n/config";
 import { CURRENCY } from "@/lib/ui/currency";
 import { useT } from "@/components/I18nProvider";
@@ -29,7 +29,7 @@ type Opt = {
 export default function CurrencyPickerScreen() {
   const { t, locale, currencyPref, setCurrency } = useT();
   const c = accountCopy(locale);
-  const router = useRouter();
+  const goBack = useGoBack("/settings");
 
   const opts: Opt[] = [
     {
@@ -61,7 +61,7 @@ export default function CurrencyPickerScreen() {
     <div style={{ fontFamily: T.fontSans, color: T.ink, minHeight: "100%" }}>
       <AppBar
         leading={
-          <IconButton ariaLabel={c.backSettings} onClick={() => router.push("/settings")}>
+          <IconButton ariaLabel={c.back} onClick={goBack}>
             {Ico.back({})}
           </IconButton>
         }

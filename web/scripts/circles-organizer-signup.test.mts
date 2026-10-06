@@ -74,6 +74,7 @@ function setup(options: { preview?: boolean; result?: { ok: boolean; error?: str
       if (name === "@/lib/i18n/config") return { isLocale };
       if (name === "@/lib/circles/types") return { CATEGORY_LABEL: { community: "Community" } };
       if (name === "@/lib/local-preview") return { isLocalPreview: options.preview ?? true };
+      if (name === "@/lib/ui/useGoBack") return { useGoBack: () => forbidden };
       if (name.endsWith(".module.css")) return { default: {} };
       if (name === "@/app/actions") return { async joinCirclesWaitlist(payload: unknown) { payloads.push(payload); if (options.throws) throw Error("Isolated interrupted request"); return options.result ?? { ok: true }; } };
       throw Error(`Unexpected component dependency: ${name}`);
@@ -189,6 +190,7 @@ test("organizer manage bridge describes simulated escrow in preview and preserve
       if (name === "@/lib/i18n/revamp-circles") return revampCircles;
       if (name === "@/lib/ui/currency") return { formatLocal };
       if (name === "@/lib/local-preview") return { isLocalPreview: preview };
+      if (name === "@/lib/ui/useGoBack") return { useGoBack: () => () => { throw Error("Navigation is outside isolated manage rendering"); } };
       if (name.endsWith(".module.css")) return { default: {} };
       throw Error(`Unexpected manage dependency: ${name}`);
     } });
@@ -200,13 +202,27 @@ test("organizer manage bridge describes simulated escrow in preview and preserve
   }
 });
 
-test("the Circles detail breadcrumb targets the catalog without changing donor Back history", () => {
+test("Circles headers use actual-entry Back with canonical destinations only as cold-entry fallbacks", () => {
   const detail = readFileSync(new URL("../components/screens/CircleDetailScreen.tsx", import.meta.url), "utf8");
-  assert.match(detail, /onClick=\{\(\) => router\.push\("\/circles"\)\}[^\n]*c\("Circles"\)/);
-  assert.doesNotMatch(detail, /useGoBack/);
+  assert.match(detail, /const goBack = useGoBack\("\/circles"\)/);
+  assert.match(detail, /onClick=\{goBack\}[^\n]*c\("Back"\)/);
+  assert.doesNotMatch(detail, /onClick=\{\(\) => router\.push\("\/circles"\)\}/);
   const donate = readFileSync(new URL("../components/screens/CirclesDonateScreen.tsx", import.meta.url), "utf8");
   assert.match(donate, /const goBack = useGoBack\(`\/circles\/\$\{circle\.id\}`\)/);
-  assert.match(donate, /onClick=\{goBack\}/);
+  assert.match(donate, /onClick=\{backFromPhase\}/);
+  assert.match(donate, /phase === "review" \|\| phase === "waitlist"/);
+  assert.match(donate, /setPhase\("amount"\)/);
+  const organizer = readFileSync(new URL("../components/screens/CirclesOrganizerScreen.tsx", import.meta.url), "utf8");
+  assert.match(organizer, /const goBack = useGoBack\(causePath\)/);
+  assert.match(organizer, /onClick=\{goBack\}/);
+  assert.match(organizer, /href=\{causePath\}>View example cause/);
+  assert.match(organizer, /href="\/circles">Browse Circles/);
+  const create = readFileSync(new URL("../components/screens/CirclesCreateScreen.tsx", import.meta.url), "utf8");
+  assert.match(create, /const goBack = useGoBack\("\/circles"\)/);
+  assert.match(create, /onClick=\{goBack\}/);
+  const manage = readFileSync(new URL("../components/screens/CircleManageScreen.tsx", import.meta.url), "utf8");
+  assert.match(manage, /const goBack = useGoBack\(`\/circles\/\$\{circle\.id\}`\)/);
+  assert.match(manage, /onClick=\{goBack\}/);
 });
 
 const previousDraft = JSON.stringify({

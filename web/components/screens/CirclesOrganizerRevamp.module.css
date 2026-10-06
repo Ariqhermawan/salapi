@@ -39,9 +39,16 @@
   display: inline-flex;
   align-items: center;
   min-height: 44px;
+  min-width: 44px;
   gap: 5px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font: inherit;
   font-size: 13px;
   font-weight: 620;
+  cursor: pointer;
 }
 
 .back > span,

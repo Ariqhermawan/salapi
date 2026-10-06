@@ -22,6 +22,8 @@ import { useT } from "@/components/I18nProvider";
 import type { Locale } from "@/lib/i18n/config";
 import { vaultCampaignMedia } from "@/lib/vault-campaign-media";
 import { campaignDiscoveryCopy } from "@/lib/i18n/revamp-campaign-discovery";
+import { accountCopy } from "@/lib/i18n/revamp-account";
+import { useGoBack } from "@/lib/ui/useGoBack";
 const styles = { ...baseStyles, ...detailStyles };
 const PREVIEW_WALLET = PREVIEW_ACCOUNT.address;
 const previewCopy: Record<Locale, { failed: string; unavailable: string; saved: string; title: string }> = {
@@ -218,6 +220,7 @@ export function CampaignEvidence() {
 }
 
 export default function CampaignScreen({ id, initialCreate = false }: { id: string; initialCreate?: boolean }) {
+  const goBack = useGoBack(id || initialCreate ? "/campaigns?mode=testnet" : "/vaults");
   const { locale } = useT();
   const copy = previewCopy[locale] ?? previewCopy.en;
   const submission = useUnresolvedSubmission("campaign:d4");
@@ -309,7 +312,7 @@ export default function CampaignScreen({ id, initialCreate = false }: { id: stri
   const visibleCampaigns = state?.ok ? state.campaigns.filter(c => filter === "All" || filter === "My campaigns" && c.config.creator === state.viewer || filter === "Funding" && c.state === "Funding" && BigInt(state.now) < BigInt(c.config.funding_deadline) || filter === "In review" && (c.state === "PendingProof" || c.state === "Funding" && BigInt(state.now) >= BigInt(c.config.funding_deadline)) || filter === "Completed" && (c.state === "Released" || c.state === "Closed")) : [];
   return <div className={styles.screen} style={{ fontFamily: T.fontSans }}>
     <SubmissionStatusPanel guard={submission} onRefresh={refresh} />
-    <header className={styles.appBar}><Link href="/" aria-label="Home">{Ico.back({ size: 20 })}</Link><strong>Donation campaigns</strong><span>Testnet</span></header>
+    <header className={styles.appBar}><button type="button" onClick={goBack} aria-label={accountCopy(locale).back}>{Ico.back({ size: 20 })}</button><strong>Donation campaigns</strong><span>Testnet</span></header>
     <div className={styles.body}>
       <header className={`${styles.hero} ${id ? styles.detailHero : ""}`}><div><span className={styles.eyebrow}>Crowdfunding · Testnet</span><h1>Give with clarity.</h1><p>{id ? "Funds stay in escrow until proof receives two wallet approvals." : "Choose a cause. See the terms before you give. Funds stay in escrow until proof receives two wallet approvals."}</p></div><Image className={styles.doodle} width={112} height={112} src="/illustrations/giving.png" alt="Two people sharing a heart" /></header>
       <p className={styles.previewNote}>{isLocalPreview ? "Example data · Local preview · No real donations" : "Valueless Testnet XLM · Managed Salapi wallets"}</p>

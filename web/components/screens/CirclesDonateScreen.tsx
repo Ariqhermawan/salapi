@@ -175,10 +175,21 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
     setPhase("done");
   }
 
+  function backFromPhase() {
+    if (phase === "review" || phase === "waitlist") {
+      setError("");
+      setPhase("amount");
+      return;
+    }
+    // Initial entry and completed outcomes leave the flow. Going back never
+    // repeats a saved demo, a signup request or a payment confirmation.
+    goBack();
+  }
+
   return (
     <div className={styles.screen}>
       <div className={styles.top}>
-        <button type="button" className={styles.back} onClick={goBack}>
+        <button type="button" className={styles.back} onClick={backFromPhase}>
           {Ico.back({ size: 18, c: T.action })}{c("Back")}</button>
         <div>
           <h1>{c("Donate")}</h1>

@@ -11,6 +11,7 @@ import { isLocalPreview } from "@/lib/local-preview";
 import { createSumsubDemoState, canPrepareSumsubDemo, canChooseSumsubDemoResult, transitionSumsubDemo, SUMSUB_CHECKLIST, type SumsubDemoEvent, type SumsubDemoResult } from "@/lib/verification/sumsub-demo";
 import styles from "./KycTierRevamp.module.css";
 import { accountCopy, accountText, type AccountCopyKey } from "@/lib/i18n/revamp-account";
+import { useGoBack } from "@/lib/ui/useGoBack";
 
 const checkCopy: Record<string, { title: AccountCopyKey; body: AccountCopyKey }> = {
   identity: { title: "identityDocument", body: "identityDocumentBody" },
@@ -36,6 +37,7 @@ function OutcomeIcon({ value }: { value: SumsubDemoResult }) {
 }
 
 export default function KycTierScreen() {
+  const goBack = useGoBack("/settings");
   const { t, locale } = useT();
   const c = accountCopy(locale);
   const [demo, setDemo] = useState(createSumsubDemoState);
@@ -50,7 +52,7 @@ export default function KycTierScreen() {
   }
 
   return <div className={styles.screen}>
-    <div className={styles.top}><Link href="/settings" className={styles.back}>{Ico.back({ size: 17, c: T.action })} {c.settings}</Link><span className={styles.demoLabel}>{c.demo}</span></div>
+    <div className={styles.top}><button type="button" onClick={goBack} className={styles.back}>{Ico.back({ size: 17, c: T.action })} {c.back}</button><span className={styles.demoLabel}>{c.demo}</span></div>
     <header className={styles.header}><h1>{c.verifyIdentity}</h1><p>{c.sumsubDemo}</p></header>
     <div className={styles.kindPicker} role="group" aria-label={c.applicantType}>
       <button type="button" className={styles.individual} disabled={!isLocalPreview} aria-pressed={demo.kind === "individual"} onClick={() => send({ type: "select-kind", kind: "individual" })}>{Ico.user({ size: 24, c: "#2563eb" })}<span><strong>{c.individual}</strong><small>{c.verifyPerson}</small></span></button>

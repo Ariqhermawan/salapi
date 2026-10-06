@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useSyncExternalStore } from "react";
+import { useLayoutEffect, useRef, useSyncExternalStore } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Heart } from "@phosphor-icons/react/dist/csr/Heart";
@@ -10,7 +10,9 @@ import { Ico } from "@/components/ui/icons";
 import { SEED_CIRCLES } from "@/lib/circles/seed";
 import { getOrganizerForCircle } from "@/lib/circles/organizers";
 import { progressPct } from "@/lib/circles/types";
-import { HOME_CAUSE_CATEGORIES, homeCircleExamples, isHomeCauseCategory, type HomeCauseCategory } from "@/lib/home-circles";
+import { HOME_CAUSE_CATEGORIES, homeCircleExamples, isHomeCauseCategory, parseCauseViewState } from "@/lib/home-circles";
+import { useNavigationViewState } from "@/lib/ui/useNavigationViewState";
+import { getNavigationEntrySnapshot, subscribeNavigationViewState, writeNavigationViewState } from "@/lib/ui/app-navigation";
 import { homeCopy } from "@/lib/i18n/revamp-home";
 import { circlesCopy, circlesCategory } from "@/lib/i18n/revamp-circles";
 import { homeCatalogCopy, type HomeCatalogKey } from "@/lib/i18n/revamp-home-catalog";
@@ -22,6 +24,7 @@ import styles from "./HomeCirclesCatalog.module.css";
 function subscribeCatalogReady() { return () => {}; }
 function catalogReadySnapshot() { return true; }
 function catalogServerReadySnapshot() { return false; }
+function catalogServerEntrySnapshot() { return ""; }
 
 // Discovery fixtures are independent of wallet state and D4 escrow. These
 // routes preview the existing Circles concept; this component cannot pay.
@@ -29,11 +32,30 @@ export default function HomeCirclesCatalog() {
   const { locale } = useT();
   const c = circlesCopy(locale);
   const copy = (key: HomeCatalogKey, vars?: Record<string, string | number>) => homeCatalogCopy(locale, key, vars);
-  const ready = useSyncExternalStore(subscribeCatalogReady, catalogReadySnapshot, catalogServerReadySnapshot);
-  const [category, setCategory] = useState<HomeCauseCategory>("all");
-  const [index, setIndex] = useState(0);
+  const hydrated = useSyncExternalStore(subscribeCatalogReady, catalogReadySnapshot, catalogServerReadySnapshot);
+  const entry = useSyncExternalStore(subscribeNavigationViewState, getNavigationEntrySnapshot, catalogServerEntrySnapshot);
+  const ready = hydrated && entry !== "";
+  const { category, index: savedIndex } = parseCauseViewState(useNavigationViewState("home-circles"));
   const strip = useRef<HTMLDivElement>(null);
+  const restoredView = useRef<{ entry: string; category: string } | null>(null);
   const examples = homeCircleExamples(SEED_CIRCLES, category);
+  const index = Math.min(savedIndex, Math.max(0, examples.length - 1));
+
+  useLayoutEffect(() => {
+    const element = strip.current;
+    if (!ready || !element || (restoredView.current?.entry === entry && restoredView.current.category === category)) return;
+    const card = element.children[index] as HTMLElement | undefined;
+    const first = element.children[0] as HTMLElement | undefined;
+    if (!card || !first) return;
+    element.scrollTo({ left: card.offsetLeft - first.offsetLeft, behavior: "instant" });
+    // A same-path history traversal can retain this component and DOM. Restore
+    // the new entry/category once, not on index writes from manual scrolling.
+    restoredView.current = { entry, category };
+  }, [ready, entry, category, index]);
+
+  function setIndex(next: number) {
+    writeNavigationViewState("home-circles", { category, index: next });
+  }
 
   function move(next: number) {
     const element = strip.current;
@@ -50,7 +72,7 @@ export default function HomeCirclesCatalog() {
   function syncScrollPosition() {
     const element = strip.current;
     const first = element?.children[0] as HTMLElement | undefined;
-    if (!element || !first) return;
+    if (!ready || !element || !first) return;
     let nearest = 0;
     let distance = Infinity;
     for (let current = 0; current < element.children.length; current++) {
@@ -58,7 +80,7 @@ export default function HomeCirclesCatalog() {
       const delta = Math.abs(card.offsetLeft - first.offsetLeft - element.scrollLeft);
       if (delta < distance) { distance = delta; nearest = current; }
     }
-    setIndex(nearest);
+    if (nearest !== index) setIndex(nearest);
   }
 
   return <section className={styles.catalog} aria-labelledby="home-circles-title" data-testid="home-circles-catalog" data-catalog-ready={ready}>
@@ -75,8 +97,7 @@ export default function HomeCirclesCatalog() {
         <span className={styles.srOnly}>{copy("Category")}</span>
         <select id="home-cause-category" value={category} disabled={!ready} onChange={event => {
           if (!ready || !isHomeCauseCategory(event.target.value)) return;
-          setCategory(event.target.value);
-          setIndex(0);
+          writeNavigationViewState("home-circles", { category: event.target.value, index: 0 });
         }}>
           {HOME_CAUSE_CATEGORIES.map(value => <option key={value} value={value}>{value === "all" ? c("All examples") : circlesCategory(locale, value)}</option>)}
         </select>

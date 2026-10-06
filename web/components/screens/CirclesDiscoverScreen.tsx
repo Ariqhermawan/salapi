@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Ico, T, PoweredByStellar } from "@/components/ui/kit";
@@ -14,6 +13,10 @@ import OrganizerVerification from "@/components/ui/OrganizerVerification";
 import { circlesCopy, circlesCategory } from "@/lib/i18n/revamp-circles";
 import { campaignDiscoveryCopy } from "@/lib/i18n/revamp-campaign-discovery";
 import CauseCategoryPicker from "@/components/CauseCategoryPicker";
+import { parseCauseViewState } from "@/lib/home-circles";
+import { useNavigationViewState } from "@/lib/ui/useNavigationViewState";
+import { writeNavigationViewState } from "@/lib/ui/app-navigation";
+import { useGoBack } from "@/lib/ui/useGoBack";
 
 const photos: Partial<Record<CircleCategory, string>> = {
   disaster: "/circles/disaster.jpg",
@@ -42,17 +45,19 @@ export function selectCircleExamples(circles: readonly Circle[], category: Circl
 }
 
 export default function CirclesDiscoverScreen({ campaignEntry = false }: { campaignEntry?: boolean } = {}) {
+  const goBack = useGoBack(campaignEntry ? "/" : "/vaults");
   const { t, locale } = useT();
   const c = circlesCopy(locale);
   const discovery = campaignDiscoveryCopy(locale);
-  const [filter, setFilter] = useState<CircleCategory | "all">("all");
-  const [sort, setSort] = useState<Sort>("all");
+  const { category: filter, sort } = parseCauseViewState(useNavigationViewState("circles-discovery"));
+  const setFilter = (category: CircleCategory | "all") => writeNavigationViewState("circles-discovery", { category, sort });
+  const setSort = (nextSort: Sort) => writeNavigationViewState("circles-discovery", { category: filter, sort: nextSort });
   const visible = selectCircleExamples(SEED_CIRCLES, filter, sort);
   return (
     <div className={styles.screen}>
       <div className={styles.top}>
-        <Link href={campaignEntry ? "/" : "/vaults"} className={styles.back}>
-          {Ico.back({ size: 17, c: T.action })}{campaignEntry ? discovery("Home") : c("Vaults")}</Link>
+        <button type="button" onClick={goBack} className={styles.back}>
+          {Ico.back({ size: 17, c: T.action })}{c("Back")}</button>
         {campaignEntry ? <strong>{discovery("Donation campaigns")}</strong> : null}
         <span className={styles.badge}>{c("Circles prototype")}</span>
       </div>

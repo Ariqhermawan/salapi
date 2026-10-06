@@ -2,7 +2,7 @@
 .screen h1, .screen h2, .screen h3, .screen p { margin: 0; }
 .screen a { text-decoration: none; }
 .top { display: flex; align-items: center; justify-content: space-between; min-height: 44px; gap: 10px; }
-.back { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; gap: 3px; padding: 0 4px; border-radius: 8px; font-size: 12px; font-weight: 650; color: #2563eb; }
+.back { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; gap: 3px; padding: 0 4px; border: 0; border-radius: 8px; background: transparent; font: inherit; font-size: 12px; font-weight: 650; color: #2563eb; cursor: pointer; }
 .back:hover { background: #e7effd; }
 .demoLabel { padding: 5px 10px; background: #e3edff; border-radius: 7px; color: #255baf; font-size: 10px; font-weight: 700; }
 .header { text-align: center; margin: 1px 0 17px; }

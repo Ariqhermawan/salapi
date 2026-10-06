@@ -7,6 +7,7 @@ import { test, expect } from "@playwright/test";
 test("Home example pledge opens a no-payment preview before any submission", async ({ page }) => {
   await page.goto("/", { waitUntil: "domcontentloaded", timeout: 45000 });
   const catalog = page.getByTestId("home-circles-catalog");
+  await expect(catalog).toHaveAttribute("data-catalog-ready", "true", { timeout: 20000 });
   const campaignLink = catalog.getByRole("link", { name: "Preview a pledge", exact: true }).first();
   await expect(campaignLink).toHaveAttribute("href", /^\/circles\/[a-z0-9-]+\/donate$/);
   await campaignLink.click();
@@ -20,6 +21,7 @@ test("Home example pledge opens a no-payment preview before any submission", asy
 test("Home exposes example discovery and keeps D4 as a distinct route", async ({ page }) => {
   await page.goto("/", { waitUntil: "domcontentloaded", timeout: 45000 });
   const catalogSection = page.getByTestId("home-circles-catalog");
+  await expect(catalogSection).toHaveAttribute("data-catalog-ready", "true", { timeout: 20000 });
   const catalog = catalogSection.getByRole("link", { name: "Browse all example causes", exact: true });
   await expect(catalog).toHaveAttribute("href", "/campaigns?mode=examples");
   await expect(page.locator("#home-cause-category option")).toHaveCount(10);
@@ -46,7 +48,7 @@ test("Home categories show three examples per sector and clickable organizer rat
   const catalog = page.getByTestId("home-circles-catalog");
   const category = catalog.locator("#home-cause-category");
   await expect(catalog.getByText("Fictional causes · AI photos · example ratings · no payment.", { exact: true })).toBeVisible();
-  await expect(catalog).toHaveAttribute("data-catalog-ready", "true");
+  await expect(catalog).toHaveAttribute("data-catalog-ready", "true", { timeout: 20000 });
   await expect(category).toBeEnabled();
   for (const sector of ["disaster", "medical", "education", "community", "family", "creator", "animals", "care", "volunteer"]) {
     await category.selectOption(sector);
@@ -83,6 +85,9 @@ test("live Home D4 cards retain direct contract IDs separately from examples", a
   await expect(page).toHaveURL(/\/campaigns\?id=\d+$/);
   await expect(page.getByRole("heading", { name: "Give with clarity.", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: /Explore this concept/ })).toHaveCount(0);
+  await page.getByRole("button", { name: "Back", exact: true }).first().click();
+  await expect(page).toHaveURL(new URL("/", page.url()).href);
+  await expect(page.getByTestId("home-circles-catalog")).toBeVisible();
 });
 
 test("explicit examples and testnet mode switches retain separate catalogs and direct D4 IDs", async ({ page }) => {
@@ -104,32 +109,41 @@ test("Vaults preserves discovery of Circles and the original Paluwagan pool", as
   await expect(page.getByRole("link", { name: /Original Paluwagan pool/ })).toHaveAttribute("href", "/paluwagan");
 });
 
-test("donor Back retains history while the Circles breadcrumb always opens the catalog", async ({ page }) => {
+test("donor and detail Back unwind the actual Home to cause to pledge path", async ({ page }) => {
   await page.goto("/", { waitUntil: "domcontentloaded", timeout: 45000 });
-  await page.waitForTimeout(300);
-  await page.goto("/circles/tino-relief", { waitUntil: "domcontentloaded", timeout: 45000 });
-  await page.waitForTimeout(300);
-  await page.goto("/circles/tino-relief/donate", { waitUntil: "domcontentloaded", timeout: 45000 });
-
-  const back = page.getByRole("button", { name: "Back" }).first();
-  await back.waitFor({ state: "visible", timeout: 12000 });
-  await page.waitForTimeout(500);
-  await back.click();
-  await page.waitForTimeout(1000);
-  expect(new URL(page.url()).pathname).toBe("/circles/tino-relief");
-
-  const back2 = page.getByRole("button", { name: "Circles", exact: true });
-  await back2.waitFor({ state: "visible", timeout: 12000 });
-  await back2.click();
-  await page.waitForTimeout(1000);
-  expect(new URL(page.url()).pathname).toBe("/circles");
+  const catalog = page.getByTestId("home-circles-catalog");
+  await expect(catalog).toHaveAttribute("data-catalog-ready", "true");
+  await catalog.locator('a[href="/circles/tino-relief"]').first().click();
+  await expect(page).toHaveURL(/\/circles\/tino-relief$/);
+  await page.getByRole("link", { name: "Preview a pledge", exact: true }).click();
+  await expect(page).toHaveURL(/\/circles\/tino-relief\/donate$/);
+  await expect(page.getByRole("heading", { name: "Donate", exact: true, level: 1 })).toBeVisible({ timeout: 20000 });
+  await expect.poll(() => page.evaluate(() => Boolean(window.history.state?.__salapiNavigation)), { timeout: 20000 }).toBe(true);
+  await page.getByRole("button", { name: "Back", exact: true }).first().click();
+  await expect(page).toHaveURL(/\/circles\/tino-relief$/);
+  await expect(page.locator("h1#circle-title")).toHaveText("Tino survivors, Cebu - rebuild a fishing barangay", { timeout: 20000 });
+  await page.getByRole("button", { name: "Back", exact: true }).first().click();
+  await expect(page).toHaveURL(new URL("/", page.url()).href);
+  await expect(page.getByTestId("home-circles-catalog")).toBeVisible();
 });
 
-test("Circles breadcrumb does not return a visitor to organizer tools", async ({ page }) => {
-  await page.goto("/circles/cats-recovery/manage", { waitUntil: "domcontentloaded", timeout: 45000 });
-  await page.getByRole("link", { name: "Example cause", exact: true }).click();
+test("organizer tools Back returns to the actual detail entry while organizer body links remain canonical", async ({ page }) => {
+  await page.goto("/circles/cats-recovery", { waitUntil: "domcontentloaded", timeout: 45000 });
+  await expect.poll(() => page.evaluate(() => Boolean(window.history.state?.__salapiNavigation)), { timeout: 20000 }).toBe(true);
+  await expect(page.locator("h1#circle-title")).toHaveText("Clinic recovery for injured cats", { timeout: 20000 });
+  await page.getByRole("link", { name: "Explore organizer tools", exact: true }).click();
+  await expect(page).toHaveURL(/\/circles\/cats-recovery\/manage$/);
+  await expect(page.getByRole("heading", { name: "Care for the cause.", exact: true, level: 1 })).toBeVisible({ timeout: 20000 });
+  await page.getByRole("button", { name: "Back", exact: true }).first().click();
   await expect(page).toHaveURL(/\/circles\/cats-recovery$/);
-  await page.getByRole("button", { name: "Circles", exact: true }).click();
+  await expect(page.locator("h1#circle-title")).toHaveText("Clinic recovery for injured cats", { timeout: 20000 });
+
+  await page.getByRole("link", { name: /^View example organizer profile:/ }).click();
+  await expect(page).toHaveURL(/\/circles\/cats-recovery\/organizer$/);
+  await expect(page.locator("h1#organizer-name")).toBeVisible({ timeout: 20000 });
+  await expect(page.getByRole("link", { name: "View example cause", exact: true })).toHaveAttribute("href", "/circles/cats-recovery");
+  await expect(page.getByRole("link", { name: "Browse Circles", exact: true })).toHaveAttribute("href", "/circles");
+  await page.getByRole("link", { name: "Browse Circles", exact: true }).click();
   await expect(page).toHaveURL(/\/circles$/);
   await expect(page.getByRole("heading", { name: "A cause can bring us closer.", exact: true })).toBeVisible();
 });

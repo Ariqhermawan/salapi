@@ -3,7 +3,7 @@
 import { useEffect, useState, type KeyboardEvent } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useGoBack } from "@/lib/ui/useGoBack";
 import { Ico, T, Progress, PoweredByStellar } from "@/components/ui/kit";
 import OrganizerVerification from "@/components/ui/OrganizerVerification";
 import { CURRENCY, formatLocal } from "@/lib/ui/currency";
@@ -61,7 +61,7 @@ function ExampleImage({ circle, src, className, priority = false }: {
 export default function CircleDetailScreen({ circle, initialTab = "story" }: {
   circle: Circle; initialTab?: Tab;
 }) {
-  const router = useRouter();
+  const goBack = useGoBack("/circles");
   const { currency, locale } = useT();
   const c = circlesCopy(locale);
   const [tab, setTab] = useState<Tab>(initialTab);
@@ -124,7 +124,7 @@ export default function CircleDetailScreen({ circle, initialTab = "story" }: {
 
   return <div className={styles.screen}>
     <div className={styles.top}>
-      <button type="button" className={styles.back} onClick={() => router.push("/circles")}>{Ico.back({ size: 18, c: T.action })}{" "}{c("Circles")}</button>
+      <button type="button" className={styles.back} onClick={goBack}>{Ico.back({ size: 18, c: T.action })}{" "}{c("Back")}</button>
       <span className={styles.badge}>{completed ? c("Example completed cause") : c("Prototype · example cause")}</span>
     </div>
 

@@ -49,11 +49,19 @@ const hasClass = (node: Element, name: string) => String(node.props.className ??
 // Actual Home and HomeCirclesCatalog TSX, with separate hook state for each
 // component and isolated effects/DOM-shaped refs. No browser, auth, provider,
 // ledger, actual navigation or network requests are available.
-function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: boolean; deniedStorage?: boolean; failCampaigns?: boolean; liveCampaigns?: Campaign[] } = {}) {
+function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: boolean; deniedStorage?: boolean; failCampaigns?: boolean; liveCampaigns?: Campaign[]; savedCatalogView?: unknown; navigationEntryReady?: boolean } = {}) {
   const preview = options.preview ?? true;
   const locale = options.locale ?? "en";
   const liveCampaigns = options.liveCampaigns ?? Array.from({ length: 12 }, (_, index) => ({ ...PREVIEW_CAMPAIGNS[0], id: String(800 + index), title: `Isolated Testnet campaign ${index + 1}` }));
-  const calls = { wallet: 0, handle: 0, campaigns: [] as string[], network: 0, writes: 0, storageReads: 0 };
+  const calls = { wallet: 0, handle: 0, campaigns: [] as string[], network: 0, writes: 0, storageReads: 0, viewStateWrites: 0 };
+  const initialEntry = "isolated-home-entry:1";
+  let navigationEntry = options.navigationEntryReady === false ? "" : initialEntry;
+  const navigationViewsByEntry = new Map<string, Map<string, string>>([[initialEntry.split(":")[0], new Map()]]);
+  const emptyViews = new Map<string, string>();
+  const navigationListeners = new Set<() => void>();
+  const navigationViews = () => navigationViewsByEntry.get(navigationEntry.split(":")[0]) ?? emptyViews;
+  if (options.savedCatalogView !== undefined) navigationViewsByEntry.get(initialEntry.split(":")[0])!.set("home-circles", JSON.stringify(options.savedCatalogView));
+  const notifyNavigation = () => { for (const listener of navigationListeners) listener(); };
   let campaignFailure = options.failCampaigns ?? false;
   const homeStates: unknown[] = [], catalogStates: unknown[] = [];
   let states = homeStates;
@@ -71,6 +79,7 @@ function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: bo
   const dependenciesEqual = (a: readonly unknown[], b: readonly unknown[]) => a.length === b.length && a.every((value, index) => Object.is(value, b[index]));
   const component = {} as { default(): Element };
   const catalog = {} as { default(): Element };
+  const navigationViewHook = {} as { useNavigationViewState(key: string): string };
   const jsx = (type: unknown, props: Record<string, unknown>, key?: string): Element => {
     if (type !== catalog.default) return { type, props, key };
     const parentStates = states, parentCursor = cursor;
@@ -90,9 +99,21 @@ function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: bo
       if (name === "react") return {
         useState(initial: unknown) { const index = cursor++, hookStates = states; if (!(index in hookStates)) hookStates[index] = typeof initial === "function" ? initial() : initial; return [hookStates[index], (value: unknown) => { hookStates[index] = typeof value === "function" ? value(hookStates[index]) : value; }]; },
         useRef(initial: unknown) { const index = cursor++; if (!(index in states)) states[index] = { current: initial }; return states[index]; },
-        useSyncExternalStore(_subscribe: unknown, getSnapshot: () => unknown, getServerSnapshot: () => unknown) { cursor++; return hydrated ? getSnapshot() : getServerSnapshot(); },
+        useSyncExternalStore(subscribe: (listener: () => void) => () => void, getSnapshot: () => unknown, getServerSnapshot: () => unknown) {
+          const index = cursor++, hookStates = states;
+          const previous = hookStates[index] as { subscribe: typeof subscribe; unsubscribe?: () => void } | undefined;
+          if (hydrated && (!previous || previous.subscribe !== subscribe)) {
+            const next = { subscribe, unsubscribe: undefined as (() => void) | undefined }; hookStates[index] = next;
+            effects.push(() => { previous?.unsubscribe?.(); next.unsubscribe = subscribe(() => {}); });
+          }
+          return hydrated ? getSnapshot() : getServerSnapshot();
+        },
         useCallback(callback: Callback, dependencies: readonly unknown[]) { const index = cursor++; const previous = states[index] as { callback: Callback; dependencies: readonly unknown[] } | undefined; if (!previous || !dependenciesEqual(previous.dependencies, dependencies)) states[index] = { callback, dependencies }; return (states[index] as { callback: Callback }).callback; },
         useEffect(callback: () => (() => void) | void, dependencies: readonly unknown[]) { const index = cursor++, hookStates = states; const previous = hookStates[index] as { dependencies: readonly unknown[]; cleanup?: () => void } | undefined; if (!previous || !dependenciesEqual(previous.dependencies, dependencies)) {
+          const next = { dependencies, cleanup: undefined as (() => void) | void }; hookStates[index] = next;
+          effects.push(() => { previous?.cleanup?.(); next.cleanup = callback(); });
+        } },
+        useLayoutEffect(callback: () => (() => void) | void, dependencies: readonly unknown[]) { const index = cursor++, hookStates = states; const previous = hookStates[index] as { dependencies: readonly unknown[]; cleanup?: () => void } | undefined; if (!previous || !dependenciesEqual(previous.dependencies, dependencies)) {
           const next = { dependencies, cleanup: undefined as (() => void) | void }; hookStates[index] = next;
           effects.push(() => { previous?.cleanup?.(); next.cleanup = callback(); });
         } },
@@ -109,6 +130,17 @@ function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: bo
       if (name === "@/lib/circles/types") return circleTypes;
       if (name === "@/lib/circles/organizers") return fixture("../lib/circles/organizers.ts");
       if (name === "@/lib/home-circles") return homeCircles;
+      if (name === "@/lib/ui/useNavigationViewState") return navigationViewHook;
+      if (name === "@/lib/ui/app-navigation" || name === "./app-navigation") return {
+        getNavigationEntrySnapshot: () => navigationEntry,
+        getNavigationViewStateSnapshot: (key: string) => navigationViews().get(key) ?? "",
+        subscribeNavigationViewState(listener: () => void) { navigationListeners.add(listener); return () => { navigationListeners.delete(listener); }; },
+        writeNavigationViewState(key: string, value: Record<string, unknown>) {
+          assert.ok(navigationEntry, "Catalog interaction must wait for a valid navigation entry");
+          assert.equal(key, "home-circles"); assert.deepEqual(Object.keys(value).sort(), ["category", "index"]);
+          calls.viewStateWrites++; navigationViews().set(key, JSON.stringify(value)); notifyNavigation();
+        },
+      };
       if (name === "@/lib/i18n/revamp-home") return { homeCopy };
       if (name === "@/lib/i18n/revamp-home-catalog") return catalogCopy;
       if (name === "@/lib/i18n/revamp-circles") return circlesCopy;
@@ -119,6 +151,7 @@ function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: bo
       throw Error(`Unexpected actual Home dependency: ${name}`);
     },
   };
+  runInNewContext(compile("../lib/ui/useNavigationViewState.ts"), { ...context, exports: navigationViewHook });
   runInNewContext(compile("../components/HomeCirclesCatalog.tsx"), { ...context, exports: catalog });
   runInNewContext(code, { ...context, exports: component });
   function render() {
@@ -143,8 +176,96 @@ function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: bo
   }
   function select(category: string) { const field = nodes(tree).find(node => node.props.id === "home-cause-category"); assert.ok(field); assert.notEqual(field.props.disabled, true, "The native category control must hydrate before accepting a choice"); (field.props.onChange as (event: unknown) => void)({ target: { value: category } }); render(); }
   function click(ariaLabel: string) { const button = nodes(tree).find(node => node.type === "button" && node.props["aria-label"] === ariaLabel); assert.ok(button, `Missing Home control ${ariaLabel}`); assert.notEqual(button.props.disabled, true); (button.props.onClick as () => void)(); render(); }
-  return { calls, render, flush, select, click, scrolls, intervals, document, set campaignFailure(value: boolean) { campaignFailure = value; }, get tree() { return tree!; }, get catalog() { return nodes(tree).find(node => node.props["data-testid"] === "home-circles-catalog")!; }, get cards() { return nodes(tree).filter(node => node.type === "article" && "data-example-cause" in node.props); }, get d4Cards() { const strip = nodes(tree).find(node => node.props["aria-label"] === homeCopy(locale, "Campaign carousel")); return nodes(strip).filter(node => node.type === "article"); }, changeReducedMotion(value: boolean) { mediaReduced = value; for (const listener of mediaListeners) listener(); render(); } };
+  return { calls, render, flush, select, click, scrolls, intervals, document, get navigationViews() { return navigationViews(); },
+    changeNavigationEntry(snapshot: string, savedView?: unknown) {
+      navigationEntry = snapshot;
+      const id = snapshot.split(":")[0];
+      if (id && !navigationViewsByEntry.has(id)) navigationViewsByEntry.set(id, new Map());
+      if (savedView !== undefined) navigationViews().set("home-circles", JSON.stringify(savedView));
+      assert.ok(navigationListeners.size >= 2, "Both entry and view snapshots must subscribe to navigation changes");
+      notifyNavigation(); render();
+    },
+    remountCatalog() {
+      for (const state of catalogStates) (state as { unsubscribe?: () => void } | undefined)?.unsubscribe?.();
+      catalogStates.length = 0; render();
+    }, set campaignFailure(value: boolean) { campaignFailure = value; }, get tree() { return tree!; }, get catalog() { return nodes(tree).find(node => node.props["data-testid"] === "home-circles-catalog")!; }, get cards() { return nodes(tree).filter(node => node.type === "article" && "data-example-cause" in node.props); }, get d4Cards() { const strip = nodes(tree).find(node => node.props["aria-label"] === homeCopy(locale, "Campaign carousel")); return nodes(strip).filter(node => node.type === "article"); }, changeReducedMotion(value: boolean) { mediaReduced = value; for (const listener of mediaListeners) listener(); render(); } };
 }
+
+test("history view state accepts only bounded discovery fields and ignores corrupt or financial values", () => {
+  const neutral = { category: "all", index: 0, sort: "all" };
+  for (const snapshot of ["", "{", "null", "[]", JSON.stringify("animals"), " ".repeat(2049)]) assert.deepEqual(homeCircles.parseCauseViewState(snapshot), neutral);
+  assert.deepEqual(homeCircles.parseCauseViewState(JSON.stringify({ category: "animals", index: 1, sort: "closeToGoal", balance: 999, kyc: true })), { category: "animals", index: 1, sort: "closeToGoal" });
+  assert.deepEqual(homeCircles.parseCauseViewState(JSON.stringify({ category: "__proto__", index: -1, sort: "<script>" })), neutral);
+  assert.deepEqual(homeCircles.parseCauseViewState(JSON.stringify({ category: "medical", index: 1.5 })), { category: "medical", index: 0, sort: "all" });
+});
+
+test("Home restores category, selected card and horizontal position after a route remount without financial storage writes", async () => {
+  const ui = mount({ savedCatalogView: { category: "animals", index: 1 } });
+  assert.equal(ui.cards.length, 27, "SSR stays neutral and hydration-safe");
+  await ui.flush();
+  assert.equal(ui.cards.length, 3); assert.ok(text(ui.catalog).includes("02 / 03"));
+  assert.equal(ui.scrolls.at(-1)?.left, 264); assert.equal(ui.scrolls.at(-1)?.behavior, "instant");
+  ui.click(catalogCopy.homeCatalogCopy("en", "Next example cause"));
+  assert.ok(text(ui.catalog).includes("03 / 03"));
+  ui.remountCatalog(); await ui.flush();
+  assert.equal(ui.cards.length, 3); assert.ok(text(ui.catalog).includes("03 / 03"));
+  assert.equal(ui.scrolls.at(-1)?.left, 528);
+  assert.deepEqual(JSON.parse(ui.navigationViews.get("home-circles")!), { category: "animals", index: 2 });
+  assert.equal(ui.calls.network, 0); assert.equal(ui.calls.writes, 0); assert.equal(ui.calls.wallet, 0);
+});
+
+test("same-path Home entry switches restore each saved index without remounting or cancelling manual smooth scroll", async () => {
+  const ui = mount({ reducedMotion: false, savedCatalogView: { category: "animals", index: 1 } });
+  await ui.flush(); assert.equal(ui.scrolls.at(-1)?.left, 264);
+  let before = ui.scrolls.length;
+  ui.click(catalogCopy.homeCatalogCopy("en", "Next example cause")); await ui.flush();
+  assert.equal(ui.scrolls.length, before + 1); assert.equal(ui.scrolls.at(-1)?.behavior, "smooth");
+  assert.equal(ui.scrolls.at(-1)?.left, 528); assert.ok(text(ui.catalog).includes("03 / 03"));
+
+  // Only the history entry changes. Home/catalog hook state and the same
+  // category strip remain mounted, as for / -> /?source=other -> Back.
+  ui.changeNavigationEntry("isolated-home-query-entry:2", { category: "animals", index: 0 });
+  before = ui.scrolls.length; await ui.flush();
+  assert.equal(ui.scrolls.length, before + 1); assert.equal(ui.scrolls.at(-1)?.left, 0);
+  assert.equal(ui.scrolls.at(-1)?.behavior, "instant"); assert.ok(text(ui.catalog).includes("01 / 03"));
+  before = ui.scrolls.length;
+  ui.click(catalogCopy.homeCatalogCopy("en", "Next example cause")); await ui.flush();
+  assert.equal(ui.scrolls.length, before + 1); assert.equal(ui.scrolls.at(-1)?.behavior, "smooth");
+  assert.equal(ui.scrolls.at(-1)?.left, 264);
+
+  ui.changeNavigationEntry("isolated-home-entry:3"); await ui.flush();
+  assert.equal(ui.scrolls.at(-1)?.left, 528); assert.ok(text(ui.catalog).includes("03 / 03"));
+  ui.changeNavigationEntry("isolated-home-query-entry:4"); await ui.flush();
+  assert.equal(ui.scrolls.at(-1)?.left, 264); assert.ok(text(ui.catalog).includes("02 / 03"));
+  assert.deepEqual(JSON.parse(ui.navigationViews.get("home-circles")!), { category: "animals", index: 1 });
+  assert.equal(ui.calls.network, 0); assert.equal(ui.calls.writes, 0); assert.equal(ui.calls.wallet, 0);
+  assert.deepEqual(ui.calls.campaigns, []);
+});
+
+test("Home waits for a valid navigation entry after hydration and restores the saved strip on reload", async () => {
+  const ui = mount({ navigationEntryReady: false, savedCatalogView: { category: "medical", index: 2 } });
+  assert.equal(ui.cards.length, 27); await ui.flush();
+  assert.equal(String(ui.catalog.props["data-catalog-ready"]), "false");
+  assert.equal(ui.scrolls.length, 0); assert.throws(() => ui.select("animals"), /hydrate before accepting/);
+  const select = nodes(ui.catalog).find(node => node.props.id === "home-cause-category")!;
+  (select.props.onChange as (event: unknown) => void)({ target: { value: "animals" } });
+  const arrow = nodes(ui.catalog).find(node => node.type === "button")!;
+  (arrow.props.onClick as () => void)(); assert.equal(ui.calls.viewStateWrites, 0);
+  ui.changeNavigationEntry("isolated-home-entry:1"); await ui.flush();
+  assert.equal(String(ui.catalog.props["data-catalog-ready"]), "true");
+  assert.equal(ui.cards.length, 3); assert.ok(text(ui.catalog).includes("03 / 03"));
+  assert.equal(ui.scrolls.at(-1)?.left, 528); assert.equal(ui.scrolls.at(-1)?.behavior, "instant");
+  assert.equal(ui.calls.viewStateWrites, 0, "Restoration must not overwrite the saved entry with its neutral SSR state");
+
+  const reload = mount({ savedCatalogView: JSON.parse(ui.navigationViews.get("home-circles")!) });
+  assert.equal(reload.cards.length, 27); assert.equal(String(reload.catalog.props["data-catalog-ready"]), "false");
+  await reload.flush(); assert.equal(reload.cards.length, 3); assert.ok(text(reload.catalog).includes("03 / 03"));
+  assert.equal(reload.scrolls.at(-1)?.left, 528); assert.equal(reload.scrolls.at(-1)?.behavior, "instant");
+  for (const screen of [ui, reload]) {
+    assert.equal(screen.calls.network, 0); assert.equal(screen.calls.writes, 0); assert.equal(screen.calls.wallet, 0);
+    assert.deepEqual(screen.calls.campaigns, []); assert.equal(screen.calls.viewStateWrites, 0);
+  }
+});
 
 test("Home fixture selection keeps all 27 active examples and all nine categories without altering seeds", () => {
   const before = JSON.stringify(seed);
