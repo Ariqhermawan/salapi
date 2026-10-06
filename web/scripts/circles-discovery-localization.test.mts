@@ -91,6 +91,7 @@ function setup(name: ScreenName, locale: Locale = "en", preview = true) {
       };
       if (module === "next/link") return { default: "Link" };
       if (module === "next/image") return { default: "Image" };
+      if (module === "@/components/circles/WorkspaceEntry") return { default: "WorkspaceEntry" };
       if (module === "next/navigation") return { useRouter: () => ({ push: forbidden("network") }) };
       if (module === "@/components/I18nProvider") return { useT: () => ({ locale, currency: "en", t(key: string) {
         let value: unknown = DICTS[locale];

@@ -44,16 +44,23 @@ export default function ArisanJoinScreen() {
   function submit() {
     if (pending) return;
     setError(null);
+    if (!canSubmit || !room || room.isMember || room.status !== "Open" || room.memberCount >= room.memberTarget || room.joinDeadline <= Math.floor(Date.now()/1000)) {
+      setError("This invitation is no longer joinable. Review the room again."); return;
+    }
     start(async () => {
       if (isLocalPreview) {
         try {
-        const saved = readPreviewArisanRoom(room?.id ?? 1, true);
+        const saved = readPreviewArisanRoom(room.id, true);
+        if (saved && (saved.isMember || saved.status !== "Open" || saved.memberCount >= saved.memberTarget || saved.joinDeadline <= Math.floor(Date.now()/1000)
+          || saved.memberTarget !== room.memberTarget || saved.sharePesos !== room.sharePesos || saved.cadence !== room.cadence || saved.name !== room.name)) {
+          setRoom(saved); setError("This invitation changed or is no longer joinable. Review the room again."); return;
+        }
         const changes = [{ key: "salapi.preview.arisan-left", value: null }, { key: "salapi.preview.arisan-joined", value: "1" }];
         if (saved && !saved.isMember) {
           const seats = [...saved.seats.filter(seat => !seat.isYou), { addr: PREVIEW_WALLET.address, label: "Ariqhermawan", won: false, committed: false, revealed: false, isYou: true }];
           if (!savePreviewArisanRoom({ ...saved, seats, memberCount: seats.length, isMember: true, isHost: false, readyToStart: false, code: "FAM234" }, changes)) throw new Error("Preview membership could not be saved.");
         } else if (!commitPreviewArisanSession(changes)) throw new Error("Preview membership could not be saved.");
-        announceSuccessMotion("Arisan funding demo complete. No tokens moved."); router.replace(`/arisan/${room?.id ?? 1}`);
+        announceSuccessMotion("Arisan funding demo complete. No tokens moved."); router.replace(`/arisan/${room.id}`);
         } catch { setError("Browser storage could not confirm the local membership save. No room was opened and no tokens moved. Check the local room before retrying."); }
         return;
       }

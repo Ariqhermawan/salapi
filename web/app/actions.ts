@@ -550,8 +550,8 @@ function arisanShortAddr(a: string) {
 }
 
 /** Friendly label for an address (You / Teman A / Teman B / short). */
-function arisanLabelOf(addr: string, me: string): string {
-  if (addr === me) return "You";
+function arisanLabelOf(addr: string, me: string | null): string {
+  if (me !== null && addr === me) return "You";
   const fi = FRIENDS.findIndex((f) => f.pub() === addr);
   if (fi >= 0) return FRIENDS[fi].label;
   return arisanShortAddr(addr);
@@ -1118,11 +1118,13 @@ export async function arisanContractBalance() {
 }
 
 export async function arisanRoomState(roomId: number) {
+  if (typeof roomId !== "number" || !Number.isSafeInteger(roomId) || roomId < 1 || roomId > 0xffff_ffff)
+    return { ready: false as const, error: "Invalid room" };
   const id = arisanRoomsId();
   if (!id) return { ready: false as const };
   try {
-    const me = (await getSigner()).publicKey;
-    const rid = Number(roomId);
+    const me = await currentArisanPublicKey();
+    const rid = roomId;
     const room = await readArisanRoom(id, rid);
     const members =
       ((await readContract(id, "get_members", [sc.u32(rid)])) as string[]) ||
@@ -1174,7 +1176,7 @@ export async function arisanRoomState(roomId: number) {
           won,
           committed,
           revealed,
-          isYou: addr === me,
+          isYou: me !== null && addr === me,
         };
       })
     );
@@ -1211,8 +1213,8 @@ export async function arisanRoomState(roomId: number) {
 
     const cadenceSecs = ARISAN_CADENCE_SECS[room.cadence];
     const pot = room.shareStroops * BigInt(room.memberTarget);
-    const isMember = members.includes(me);
-    const isHost = room.host === me;
+    const isMember = me !== null && members.includes(me);
+    const isHost = me !== null && room.host === me;
     const seatsFull = seats.length >= room.memberTarget;
     const startWindowOpen = Math.floor(Date.now() / 1000) < room.firstKocok;
     const mySeat = seats.find((seat) => seat.isYou);

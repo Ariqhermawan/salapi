@@ -9,6 +9,7 @@ import type { Circle } from "@/lib/circles/types";
 import { isLocalPreview } from "@/lib/local-preview";
 import styles from "./CirclesPreview.module.css";
 import { circlesCopy } from "@/lib/i18n/revamp-circles";
+import WorkspaceEntry from "@/components/circles/WorkspaceEntry";
 
 export default function CircleManageScreen({ circle }: { circle: Circle }) {
   const { currency, locale } = useT();
@@ -30,6 +31,7 @@ export default function CircleManageScreen({ circle }: { circle: Circle }) {
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/illustrations/giving.png" alt={c("People sharing a heart")} />
       </header>
+      <WorkspaceEntry create />
       <Link href="/campaigns?mode=testnet" className={styles.liveLink}>
         <div>
           <strong>{isLocalPreview ? c("Explore D4 example campaigns") : c("Manage live Testnet campaigns")}</strong>

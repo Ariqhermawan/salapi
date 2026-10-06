@@ -14,6 +14,7 @@ import OrganizerVerification from "@/components/ui/OrganizerVerification";
 import { circlesCopy, circlesCategory } from "@/lib/i18n/revamp-circles";
 import { campaignDiscoveryCopy } from "@/lib/i18n/revamp-campaign-discovery";
 import CauseCategoryPicker from "@/components/CauseCategoryPicker";
+import WorkspaceEntry from "@/components/circles/WorkspaceEntry";
 
 const photos: Partial<Record<CircleCategory, string>> = {
   disaster: "/circles/disaster.jpg",
@@ -77,6 +78,7 @@ export default function CirclesDiscoverScreen({ campaignEntry = false }: { campa
         {Ico.chev({ size: 19, c: "#a8c8ff" })}
       </Link>}
       <p className={styles.notice}>{c("Fictional causes, AI photos and example ratings. Verification badges are simulated. No live donations or on-chain receipts.")}</p>
+      <WorkspaceEntry />
       {isLocalPreview ? <Link href="/circles/supported" className={styles.supportedLink}><span>{Ico.vault({size:18,c:T.action})}{" "}{c("My supported causes")}</span><span>{c("Follow local demo updates")}{" "}{Ico.chev({size:16,c:T.action})}</span></Link> : null}
       <div className={styles.sectionHeading}>
         <h2>{c("Explore causes")}</h2>

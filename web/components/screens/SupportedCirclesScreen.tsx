@@ -10,6 +10,7 @@ import { getCircle } from "@/lib/circles/seed";
 import type { Circle, CircleCategory } from "@/lib/circles/types";
 import { readLocalSupports, markCircleUpdatesSeen, unreadSupportUpdates, type LocalSupportRecord } from "@/lib/circles/local-support";
 import styles from "./SupportedCirclesRevamp.module.css";
+import WorkspaceEntry from "@/components/circles/WorkspaceEntry";
 
 const photos: Partial<Record<CircleCategory, string>> = { disaster: "/circles/disaster.jpg", medical: "/circles/medical.jpg", education: "/circles/education.jpg" };
 
@@ -55,6 +56,7 @@ export default function SupportedCirclesScreen() {
         <Image src="/illustrations/giving.png" width={95} height={85} alt="Two people sharing a blue heart" />
       </header>
       <p className={styles.notice}>Browser-tab donation demos only. No payment, verified delivery or on-chain receipt. Closing this session can remove its local history.</p>
+      <WorkspaceEntry />
       {!loading && isLocalPreview ? <div className={styles.summary}><span><strong>{causes.length}</strong> followed {causes.length === 1 ? "cause" : "causes"}</span><span><strong>{unreadTotal}</strong> unread example updates</span><button type="button" onClick={() => setSupports(readLocalSupports())} aria-label="Refresh local supported causes">{Ico.refresh({ size: 17, c: T.action })}</button></div> : null}
       {loading ? <p className={styles.loading} role="status">Loading local demos for this browser tab...</p> : causes.length === 0 ? <section className={styles.empty}>
         <span className={styles.emptyIcon}>{Ico.vault({ size: 29, c: T.action })}</span>

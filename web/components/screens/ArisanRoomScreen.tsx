@@ -40,13 +40,15 @@ type State = Awaited<ReturnType<typeof arisanRoomState>>;
 type FinalizeResult = Awaited<ReturnType<typeof arisanFinalize>>;
 type ReadyRoom = Extract<State, { ready: true }>;
 type PreviewAction = "join" | "start" | "cancel" | "leave" | "commit" | "friendsCommit" | "reveal" | "friendsReveal" | "postpone";
-function loadLocalRoom(roomId: number): ReadyRoom {
+function loadLocalRoom(roomId: number): State {
+  if (![1, 2, 9001].includes(roomId)) return { ready: false };
   const saved = readPreviewArisanRoom(roomId);
   if (saved) return saved;
   const time = Math.floor(Date.now()/1000);
   let draft: { id: number; name: string; members: number; share: number; sharePesos?: number; cadence: "Weekly" | "Biweekly" | "Monthly" } | null = null;
   try { draft = JSON.parse(sessionStorage.getItem("salapi.preview.arisan-draft") || "null"); } catch { /* A previous browser session may have stored an invalid draft. */ }
   const created = roomId === 9001 && draft?.id === 9001;
+  if (roomId === 9001 && !created) return { ready: false };
   let joined = false; let left = false; let cancelled = false;
   try {
     joined = roomId === 1 && sessionStorage.getItem("salapi.preview.arisan-joined") === "1";

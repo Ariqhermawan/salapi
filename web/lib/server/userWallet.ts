@@ -4,7 +4,7 @@
 //  - no Supabase env / no session → the shared demo signer (unchanged behaviour)
 // SERVER ONLY.
 
-import { Keypair } from "@stellar/stellar-sdk";
+import { Keypair, StrKey } from "@stellar/stellar-sdk";
 import { isAuthSessionMissingError } from "@supabase/supabase-js";
 import { isLocalPreview } from "@/lib/local-preview";
 import { FRIENDBOT, demoPublic } from "@/lib/server/stellar";
@@ -119,9 +119,12 @@ export async function currentUserId(): Promise<string | null> {
   try {
     const supabase = await createSupabaseServer();
     const {
-      data: { user },
+      data: { user }, error,
     } = await supabase.auth.getUser();
-    return user?.id ?? null;
+    // Privileged signer callers must never use an identity from a failed Auth
+    // response, an anonymous session, or malformed user data.
+    if (error || user?.is_anonymous || typeof user?.id !== "string" || !user.id.trim()) return null;
+    return user.id;
   } catch {
     return null;
   }
@@ -167,10 +170,19 @@ export async function currentWalletPublicKey(): Promise<string | null> {
   }
 }
 
+function configuredArisanDemoPublic(): string | null {
+  // Missing optional demo configuration is not a public-read failure. Never
+  // invent a viewer wallet, and never hide an invalid provided configuration.
+  if (process.env.SALAPI_DEMO_PUBLIC === undefined && process.env.SALAPI_DEMO_SECRET === undefined) return null;
+  const publicKey = demoPublic();
+  if (!StrKey.isValidEd25519PublicKey(publicKey)) throw new Error("Configured demo public key is invalid.");
+  return publicKey;
+}
+
 /** Read-only shared-demo identity for unconfigured auth or confirmed guests. */
 export async function currentArisanPublicKey(): Promise<string | null> {
   if (isLocalPreview) return null;
-  if (!supabaseConfigured()) return demoPublic();
+  if (!supabaseConfigured()) return configuredArisanDemoPublic();
 
   let supabase: Awaited<ReturnType<typeof createSupabaseServer>>;
   try {
@@ -178,19 +190,21 @@ export async function currentArisanPublicKey(): Promise<string | null> {
   } catch {
     return null;
   }
-  let userId: string;
+  let userId: string | null = null;
+  let guest = false;
   try {
     const { data: { user }, error } = await supabase.auth.getUser();
-    if (error) return user === null && isAuthSessionMissingError(error) ? demoPublic() : null;
-    if (user === null) return demoPublic();
-    if (typeof user?.id !== "string" || user.id.length === 0) return null;
-    userId = user.id;
+    if (error) { if (user === null && isAuthSessionMissingError(error)) guest = true; else return null; }
+    else if (user === null) guest = true;
+    else { if (typeof user?.id !== "string" || user.id.length === 0) return null; userId = user.id; }
   } catch (error) {
     // An outage cannot establish that this request belongs to a guest.
-    return isAuthSessionMissingError(error) ? demoPublic() : null;
+    if (isAuthSessionMissingError(error)) guest = true; else return null;
   }
+  // Keep configuration errors outside the Auth-error catch above.
+  if (guest) return configuredArisanDemoPublic();
 
-  if (!supabaseAdminConfigured()) return null;
+  if (!userId || !supabaseAdminConfigured()) return null;
   try {
     const { data, error } = await createSupabaseAdmin()
       .from("wallets")

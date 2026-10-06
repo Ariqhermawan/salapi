@@ -39,7 +39,7 @@ const stellarCode = compile("../lib/server/stellar.ts");
 const actionsCode = compile("../app/actions.ts");
 const sendCode = compile("../components/screens/SendScreen.tsx", true);
 
-function walletSetup(options: { reads?: Read[]; readThrows?: Error; saveError?: boolean; configured?: boolean; admin?: boolean; signedIn?: boolean; user?: unknown; preview?: boolean; authError?: Error; authThrows?: boolean; clientThrows?: Error } = {}) {
+function walletSetup(options: { reads?: Read[]; readThrows?: Error; saveError?: boolean; configured?: boolean; admin?: boolean; signedIn?: boolean; user?: unknown; preview?: boolean; authError?: Error; authThrows?: boolean; clientThrows?: Error; demoConfigured?: boolean; demoPublicValue?: string; demoError?: Error } = {}) {
   const reads = [...(options.reads ?? [{ data: { public_key: "saved-public", secret_cipher: "saved-secret" } }])];
   const calls = { reads: 0, mints: 0, upserts: 0, funding: 0, demo: 0, auth: 0, decrypts: 0, keyLoads: 0, columns: [] as string[], owners: [] as unknown[] };
   const keys: Record<string, string> = { "saved-secret": "saved-public", "new-secret": "new-public", "winner-secret": "winner-public" };
@@ -60,14 +60,14 @@ function walletSetup(options: { reads?: Read[]; readThrows?: Error; saveError?: 
       upsert: async () => { calls.upserts++; return { error: options.saveError ? { message: "Isolated persistence failure" } : null }; },
     };
   } };
-  const api = moduleFrom<{ getSigner(): Promise<Signer>; getAuthenticatedSigner(): Promise<Signer>; currentArisanPublicKey(): Promise<string | null> }>(walletCode, {
-    "@stellar/stellar-sdk": { Keypair: {
+  const api = moduleFrom<{ getSigner(): Promise<Signer>; getAuthenticatedSigner(): Promise<Signer>; currentArisanPublicKey(): Promise<string | null>; currentUserId(): Promise<string | null>; currentWalletPublicKey(): Promise<string | null> }>(walletCode, {
+    "@stellar/stellar-sdk": { StrKey: { isValidEd25519PublicKey: (value: string) => value === "demo-public" }, Keypair: {
       random: () => { calls.mints++; return { publicKey: () => "new-public", secret: () => "new-secret" }; },
       fromSecret: (secret: string) => { calls.keyLoads++; return { publicKey: () => keys[secret] ?? "mismatch-public" }; },
     } },
     "@supabase/supabase-js": { isAuthSessionMissingError },
     "@/lib/local-preview": { isLocalPreview: options.preview ?? false },
-    "@/lib/server/stellar": { FRIENDBOT: "https://isolated.invalid", demoPublic: () => { calls.demo++; return "demo-public"; } },
+    "@/lib/server/stellar": { FRIENDBOT: "https://isolated.invalid", demoPublic: () => { calls.demo++; if (options.demoError) throw options.demoError; return options.demoPublicValue ?? "demo-public"; } },
     "@/lib/supabase/env": { supabaseConfigured: () => options.configured ?? true, supabaseAdminConfigured: () => options.admin ?? true },
     "@/lib/supabase/server": { createSupabaseServer: async () => {
       if (options.clientThrows) throw options.clientThrows;
@@ -77,7 +77,7 @@ function walletSetup(options: { reads?: Read[]; readThrows?: Error; saveError?: 
     } } }; } },
     "@/lib/supabase/admin": { createSupabaseAdmin: () => admin },
     "@/lib/server/walletCrypto": { encryptSecret: (secret: string) => secret, decryptSecret: (cipher: string) => { calls.decrypts++; return cipher; } },
-  }, { fetch: async () => { calls.funding++; return { ok: true }; } });
+  }, { process: { env: options.demoConfigured === false ? {} : { SALAPI_DEMO_PUBLIC: options.demoPublicValue ?? "demo-public" } }, fetch: async () => { calls.funding++; return { ok: true }; } });
   return { api, calls };
 }
 
@@ -135,6 +135,33 @@ test("a first-use winner is funded only after its canonical persisted identity i
   const { api, calls } = walletSetup({ reads: [{ data: null }, { data: { public_key: "new-public", secret_cipher: "new-secret" } }] });
   assert.equal((await api.getSigner()).publicKey, "new-public"); assert.equal(calls.reads, 2); assert.equal(calls.funding, 1);
 });
+test("privileged identity lookup denies failed auth, anonymous or malformed users before wallet reads and decrypts", async () => {
+  for (const options of [
+    { authError: new Error("Isolated auth outage with stale user") },
+    { authError: new AuthSessionMissingError() },
+    { authThrows: true },
+    { clientThrows: new Error("Isolated unavailable client") },
+    { user: { id: "isolated-user", is_anonymous: true } },
+    { user: { id: "" } },
+    { user: { id: "   " } },
+    { user: { id: 123 } },
+    { user: null },
+  ]) {
+    const { api, calls } = walletSetup(options);
+    assert.equal(await api.currentUserId(), null);
+    assert.equal(await api.currentWalletPublicKey(), null);
+    await assert.rejects(api.getAuthenticatedSigner(), /Sign in to use signer controls/);
+    assert.equal(calls.reads, 0); assert.equal(calls.decrypts, 0); assert.equal(calls.keyLoads, 0);
+    assert.equal(calls.demo, 0); assert.equal(calls.mints, 0); assert.equal(calls.funding, 0);
+  }
+});
+test("valid authenticated users retain their canonical privileged signer without provisioning", async () => {
+  const { api, calls } = walletSetup();
+  assert.equal(await api.currentUserId(), "isolated-user");
+  assert.equal((await api.getAuthenticatedSigner()).publicKey, "saved-public");
+  assert.equal(calls.reads, 1); assert.equal(calls.decrypts, 1); assert.equal(calls.keyLoads, 1);
+  assert.equal(calls.demo, 0); assert.equal(calls.mints, 0); assert.equal(calls.funding, 0);
+});
 test("Arisan readonly demo fallback exists for unconfigured auth, never signed-in missing wallets", async () => {
   const demo = walletSetup({ configured: false, admin: false });
   assert.equal(await demo.api.currentArisanPublicKey(), "demo-public"); assert.equal(demo.calls.auth, 0);
@@ -155,6 +182,23 @@ test("Arisan guests use the shared public identity only after confirmed missing 
     assert.equal(await api.currentArisanPublicKey(), "demo-public");
     assert.equal(calls.auth, 1); assert.equal(calls.demo, 1); assert.equal(calls.reads, 0);
     assert.equal(calls.mints, 0); assert.equal(calls.upserts, 0); assert.equal(calls.decrypts, 0); assert.equal(calls.keyLoads, 0); assert.equal(calls.funding, 0);
+  }
+});
+test("Arisan guests with absent demo configuration have no fabricated identity or wallet side effects", async () => {
+  for (const options of [{ configured: false }, { signedIn: false }, { signedIn: false, authError: new AuthSessionMissingError() }, { authThrows: true, authError: new AuthSessionMissingError() }]) {
+    const { api, calls } = walletSetup({ ...options, demoConfigured: false });
+    assert.equal(await api.currentArisanPublicKey(), null);
+    assert.equal(calls.demo, 0); assert.equal(calls.reads, 0); assert.equal(calls.mints, 0); assert.equal(calls.decrypts, 0); assert.equal(calls.funding, 0);
+  }
+});
+test("Arisan public identity surfaces invalid provided demo config instead of borrowing or hiding it", async () => {
+  for (const options of [{ configured: false }, { signedIn: false }, { signedIn: false, authError: new AuthSessionMissingError() }, { authThrows: true, authError: new AuthSessionMissingError() }]) {
+    const invalid = walletSetup({ ...options, demoPublicValue: "invalid-provided-public" });
+    await assert.rejects(invalid.api.currentArisanPublicKey(), /Configured demo public key is invalid/);
+    assert.equal(invalid.calls.reads, 0); assert.equal(invalid.calls.mints, 0); assert.equal(invalid.calls.funding, 0);
+    const broken = walletSetup({ ...options, demoError: new Error("Invalid provided secret") });
+    await assert.rejects(broken.api.currentArisanPublicKey(), /Invalid provided secret/);
+    assert.equal(broken.calls.reads, 0); assert.equal(broken.calls.mints, 0); assert.equal(broken.calls.funding, 0);
   }
 });
 
@@ -267,13 +311,14 @@ test("reconciliation rejects malformed hashes and cannot poll real RPC in local 
 });
 
 function actionsSetup(options: { result?: Result; preview?: boolean; reveal?: boolean; viewer?: string | null; viewerResolver?: () => Promise<string | null>; members?: string[]; roomByCode?: number } = {}) {
-  const calls = { signers: 0, sends: 0, status: 0 };
+  const calls = { signers: 0, sends: 0, status: 0, reads: [] as string[], identities: 0 };
   const dependencies = {
     "@/lib/server/stellar": { CONTRACTS: { usernameRegistry: "registry", tokenXlmSac: "token" },
       FRIENDS: ["one", "two"].map(name => ({ label: name, pub: () => `friend-${name}`, secret: () => `isolated-${name}` })),
       paluwaganId: () => "isolated-paluwagan", smartSavingsId: () => "isolated-savings", arisanRoomsId: () => "isolated-arisan",
       sc: Object.fromEntries(["str", "addr", "i128", "u32", "u64", "sym", "unitVariant", "bytes"].map(name => [name, (v: unknown) => v])),
       readContract: async (_id: string, method: string) => {
+        calls.reads.push(method);
         if (method === "resolve") return "recipient-public";
         if (method === "get_room") return { host: "sender-public", name: "Isolated room", code: "234567", member_target: 3, share: 10000000n, cadence: "Weekly", first_kocok: 1, join_deadline: 1, status: "Open", member_count: 3, round: 0 };
         if (method === "get_members") return options.members ?? ["sender-public", "friend-one", "friend-two"];
@@ -286,7 +331,7 @@ function actionsSetup(options: { result?: Result; preview?: boolean; reveal?: bo
       txLink: (v: string) => `https://stellar.expert/explorer/testnet/tx/${v}`,
       invokeAs: async () => { calls.sends++; return options.result ?? { ok: false, pending: true, hash, error: "Isolated unknown" }; },
       submittedTransactionStatus: async () => { calls.status++; return options.result ?? { ok: false, pending: true, hash, error: "Isolated unknown" }; } },
-    "@/lib/server/userWallet": { getSigner: async () => { calls.signers++; return { publicKey: "sender-public", secret: "isolated-secret", demo: false }; }, currentArisanPublicKey: options.viewerResolver ?? (async () => options.viewer === undefined ? "sender-public" : options.viewer) },
+    "@/lib/server/userWallet": { getSigner: async () => { calls.signers++; return { publicKey: "sender-public", secret: "isolated-secret", demo: false }; }, currentArisanPublicKey: async () => { calls.identities++; return options.viewerResolver ? options.viewerResolver() : options.viewer === undefined ? "sender-public" : options.viewer; } },
     "@/lib/money": money, "./disaster-actions": {}, "@/lib/supabase/env": {}, "@/lib/supabase/admin": {},
     "@/lib/local-preview": { isLocalPreview: options.preview ?? false }, "@/lib/arisan-list": { arisanRoomPage },
     "@/lib/recipient-review": { recipientReviewError: (resolved: string, expected?: string) => expected !== undefined && resolved !== expected ? "Recipient changed" : null },
@@ -322,6 +367,25 @@ test("Arisan list retains matching readonly identity and never obtains a signer 
     const result = await api.arisanList() as unknown as { ready: boolean; mine: unknown[] };
     assert.equal(result.ready, true); assert.equal(result.mine.length, expected); assert.equal(calls.signers, 0); assert.equal(calls.sends, 0);
   }
+});
+test("real Arisan room reads use canonical public identity without requesting a signer or provisioning", async () => {
+  for (const signedIn of [true, false]) {
+    const wallet = walletSetup({ signedIn, demoConfigured: false, reads: [{ data: { public_key: "sender-public" } }] });
+    const { api, calls } = actionsSetup({ viewerResolver: wallet.api.currentArisanPublicKey });
+    const room = await api.arisanRoomState(1) as unknown as { ready: boolean; isMember: boolean; isHost: boolean; code: string | null; seats: { isYou: boolean }[]; hostLabel: string };
+    assert.equal(room.ready, true); assert.equal(room.isMember, signedIn); assert.equal(room.isHost, signedIn);
+    assert.equal(room.code, signedIn ? "234567" : null); assert.equal(room.seats.some(seat => seat.isYou), signedIn);
+    assert.equal(room.hostLabel === "You", signedIn); assert.equal(calls.identities, 1); assert.equal(calls.signers, 0); assert.equal(calls.sends, 0);
+    assert.equal(wallet.calls.reads, signedIn ? 1 : 0); assert.equal(wallet.calls.decrypts, 0); assert.equal(wallet.calls.keyLoads, 0); assert.equal(wallet.calls.mints, 0); assert.equal(wallet.calls.funding, 0);
+  }
+});
+test("Arisan room ID validation runs before identity, contract reads or signer requests", async () => {
+  const { api, calls } = actionsSetup();
+  for (const roomId of [0, -1, 1.5, NaN, Infinity, "1", null, 0x1_0000_0000, Number.MAX_SAFE_INTEGER + 1]) {
+    const room = await api.arisanRoomState(roomId) as unknown as { ready: boolean; error: string };
+    assert.equal(room.ready, false); assert.match(room.error, /Invalid room/);
+  }
+  assert.equal(calls.identities, 0); assert.equal(calls.reads.length, 0); assert.equal(calls.signers, 0); assert.equal(calls.sends, 0);
 });
 
 test("real Arisan discovery retains confirmed guest memberships but not auth-outage demo memberships", async () => {

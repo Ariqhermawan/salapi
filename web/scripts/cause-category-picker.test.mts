@@ -157,6 +157,7 @@ function discovery(locale: Locale, preview: boolean, campaignEntry: boolean) {
     "react/jsx-runtime": jsxRuntime,
     "react": { useState(initial: unknown) { const index = cursor++; if (!(index in values)) values[index] = initial; return [values[index], (next: unknown) => { values[index] = typeof next === "function" ? next(values[index]) : next; }]; } },
     "next/link": { default: "Link" }, "next/image": { default: "Image" },
+    "@/components/circles/WorkspaceEntry": { default: "WorkspaceEntry" },
     "@/components/I18nProvider": { useT: () => ({ locale, t(key: string) { let value: unknown = DICTS[locale]; for (const part of key.split(".")) value = (value as Record<string, unknown>)[part]; assert.equal(typeof value, "string"); return value; } }) },
     "@/components/ui/kit": { Ico: new Proxy({}, { get: () => () => null }), T: {}, PoweredByStellar: "PoweredByStellar" },
     "@/components/ui/OrganizerVerification": { default: "OrganizerVerification" },
