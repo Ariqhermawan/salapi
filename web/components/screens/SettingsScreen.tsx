@@ -3,7 +3,7 @@
 // Profile and settings share one compact account sheet. Unavailable features
 // remain explicitly labelled instead of resembling enabled security controls.
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import type { ReactNode } from "react";
@@ -187,6 +187,9 @@ export default function SettingsScreen() {
   const [authChecked, setAuthChecked] = useState(!configured);
   const [notif, setNotif] = useState(false);
   const [loadError, setLoadError] = useState<AccountCopyKey | "">("");
+  const [signOutPending, setSignOutPending] = useState(false);
+  const [signOutError, setSignOutError] = useState(false);
+  const signOutInFlight = useRef(false);
 
   useEffect(() => {
     if (!isLocalPreview) {
@@ -218,12 +221,30 @@ export default function SettingsScreen() {
 
   async function signOut() {
     if (isLocalPreview) { router.push("/signin"); return; }
+    if (signOutInFlight.current) return;
+    signOutInFlight.current = true;
+    setSignOutPending(true);
+    setSignOutError(false);
+    let redirecting = false;
     try {
-      await createSupabaseBrowser().auth.signOut();
+      const { error } = await createSupabaseBrowser().auth.signOut();
+      if (error) {
+        setSignOutError(true);
+        return;
+      }
+      // Reload the document after auth cookies are cleared, discarding private
+      // client-router state. The destination is bound to the current origin.
+      window.location.href = new URL("/signin", window.location.origin).href;
+      redirecting = true;
     } catch {
-      /* ignore */
+      setSignOutError(true);
+    } finally {
+      // Allow a retry after failure, but keep the guard until navigation on success.
+      if (!redirecting) {
+        signOutInFlight.current = false;
+        setSignOutPending(false);
+      }
     }
-    window.location.href = "/signin";
   }
 
   const display = name ? `@${name}` : t("settings.salapiUser");
@@ -272,12 +293,13 @@ export default function SettingsScreen() {
               title={t("settings.googleSignedIn")}
               sub={supaEmail}
               trailing={
-                <button type="button" className={styles.textAction} onClick={signOut}>
-                  {t("settings.signOut")}
+                <button type="button" className={styles.textAction} onClick={signOut} disabled={signOutPending} aria-busy={signOutPending}>
+                  {signOutPending ? c.signingOut : t("settings.signOut")}
                 </button>
               }
             />
           )}
+          {signOutError ? <p role="alert" className={styles.loadError}>{c.signOutError}</p> : null}
           {authChecked && !supaEmail && (
             <SettingRow
               icon={Ico.lock({ size: 21, c: T.action })}
