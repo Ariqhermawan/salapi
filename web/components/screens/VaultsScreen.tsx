@@ -151,6 +151,7 @@ export default function VaultsScreen() {
   const [legacyCircle, setLegacyCircle] = useState<LegacyCircle | null>(null);
   const [loading, setLoading] = useState(!PREVIEW);
   const [tab, setTab] = useState<VaultTab>("arisan");
+  const [tabsReady, setTabsReady] = useState(false);
   const selectTab = (next: VaultTab) => {
     setTab(next);
     try { sessionStorage.setItem(VAULT_TAB_KEY, next); } catch { /* Switching still works without browser storage. */ }
@@ -245,6 +246,9 @@ export default function VaultsScreen() {
         const saved = sessionStorage.getItem(VAULT_TAB_KEY);
         if (saved === "arisan" || saved === "crowdfund") setTab(saved);
       } catch { /* Arisan is the safe default when storage is unavailable. */ }
+      // SSR must not offer a clickable tab before handlers and the saved
+      // preference are ready. Ledger reads do not block category switching.
+      setTabsReady(true);
       void refresh();
     }, 0);
     return () => clearTimeout(initialLoad);
@@ -289,6 +293,7 @@ export default function VaultsScreen() {
       <div className={styles.vaultTabs} role="tablist" aria-label={vaultCopy.tabs}>
         {(["arisan", "crowdfund"] as const).map((item) => <button
           key={item} id={`vault-tab-${item}`} type="button" role="tab"
+          disabled={!tabsReady}
           aria-selected={tab === item} aria-controls={`vault-panel-${item}`}
           tabIndex={tab === item ? 0 : -1} onClick={() => selectTab(item)}
           onKeyDown={(event) => {

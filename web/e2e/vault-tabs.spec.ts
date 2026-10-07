@@ -1,6 +1,32 @@
 import { test, expect } from "@playwright/test";
 
 // Read-only discovery checks. No join, deposit, donation or payout is submitted.
+test("Vault tabs wait for hydration, then the first Crowdfund click works with delayed JavaScript", async ({ page }) => {
+  let release!: () => void;
+  const scriptsReady = new Promise<void>(resolve => { release = resolve; });
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  await page.route("**/_next/static/**/*.js", async route => {
+    await scriptsReady;
+    await route.continue();
+  });
+  await page.goto("/vaults", { waitUntil: "commit", timeout: 45000 });
+  const arisan = page.getByRole("tab", { name: "Arisan", exact: true });
+  const crowdfund = page.getByRole("tab", { name: "Crowdfund", exact: true });
+  try {
+    await expect(arisan).toBeVisible();
+    await expect(arisan).toBeDisabled();
+    await expect(crowdfund).toBeDisabled();
+  } finally { release(); }
+  await expect(crowdfund).toBeEnabled();
+  await crowdfund.click();
+  await expect(crowdfund).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("link", { name: /Salapi Circles · prototype/ })).toHaveAttribute("href", "/circles");
+  await expect(page.locator("#vault-panel-arisan")).toBeHidden();
+  await expect(page.locator("nextjs-portal")).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
 for (const width of [320, 390, 1280]) {
   test(`Vaults separates Arisan and Crowdfund without clipping at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 844 });

@@ -261,6 +261,23 @@ function tab(tree: Element, id: "arisan" | "crowdfund") {
   return result;
 }
 
+test("SSR tabs cannot accept clicks before initialization, but pending ledger reads do not block switching", () => {
+  const pending = deferred<Overview>();
+  const ui = screenSetup(() => pending.promise, false, { saved: "crowdfund" });
+  const initial = ui.render();
+  assert.equal(tab(initial, "arisan").props.disabled, true);
+  assert.equal(tab(initial, "crowdfund").props.disabled, true);
+  ui.mount();
+  const mounted = ui.render();
+  assert.equal(tab(mounted, "arisan").props.disabled, false);
+  assert.equal(tab(mounted, "crowdfund").props.disabled, false);
+  assert.equal(tab(mounted, "crowdfund").props["aria-selected"], true);
+  assert.equal(ui.states[4], true, "The ledger is still loading");
+  (tab(mounted, "arisan").props.onClick as () => void)();
+  assert.equal(tab(ui.render(), "arisan").props["aria-selected"], true);
+  assert.equal(ui.calls, 1);
+});
+
 test("Arisan and Crowdfund keep their own cards, empty states, actions and legacy discovery", async () => {
   const ui = screenSetup(async () => ({ ...unavailable, campaigns: campaignResult() }));
   ui.render(); ui.mount(); await flush();
