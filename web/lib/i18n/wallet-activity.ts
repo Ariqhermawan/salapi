@@ -34,6 +34,10 @@ const copy = {
   quoteStale: ["Older price {time}", "Lumang presyo {time}", "Harga sebelumnya {time}", "Giá cũ {time}"],
   equivalentScope: ["Current XLM/USDC market estimate, not a historical receipt value or token conversion. The actual transferred asset remains XLM. Testnet tokens have no monetary value.", "Kasalukuyang XLM/USDC market estimate, hindi dating halaga ng receipt o token conversion. XLM pa rin ang aktuwal na nailipat. Walang halagang pera ang Testnet tokens.", "Estimasi pasar XLM/USDC saat ini, bukan nilai historis bukti atau konversi token. Aset yang benar-benar ditransfer tetap XLM. Token Testnet tidak bernilai uang.", "Ước tính thị trường XLM/USDC hiện tại, không phải giá trị lịch sử hoặc chuyển đổi token. Tài sản thực chuyển vẫn là XLM. Token Testnet không có giá trị tiền tệ."],
   attribution: ["Price data by", "Data ng presyo mula sa", "Data harga dari", "Dữ liệu giá từ"],
+  historyDetails: ["About prices, photos and receipts", "Tungkol sa presyo, larawan at receipt", "Tentang harga, foto, dan bukti", "Về giá, ảnh và biên nhận"],
+  viewDetails: ["Transaction details", "Detalye ng transaksyon", "Detail transaksi", "Chi tiết giao dịch"],
+  hideDetails: ["Hide details", "Itago ang detalye", "Tutup detail", "Ẩn chi tiết"],
+  quoteStaleShort: ["Older price", "Lumang presyo", "Harga sebelumnya", "Giá cũ"],
   identityScope: ["Handles are verified on Stellar. Photos appear only with the account owner's receipt-photo consent; other wallets use initials or a wallet icon.", "Verified sa Stellar ang mga handle. Larawan lang na may pahintulot ng may-ari ang ipinapakita; initials o wallet icon para sa iba.", "Handle diverifikasi di Stellar. Foto hanya tampil dengan persetujuan pemilik untuk receipt; wallet lain memakai inisial atau ikon wallet.", "Tên được xác minh trên Stellar. Ảnh chỉ hiển thị khi chủ tài khoản đồng ý cho biên nhận; ví khác dùng chữ cái hoặc biểu tượng ví."],
 } as const;
 

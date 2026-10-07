@@ -452,10 +452,15 @@ export default function ActivityScreen() {
                       {Ico.refresh({ size: 18, c: T.action })}
                     </button>
                   </div>
-                  {personal.items.length ? <p className={styles.identityNote}>{h("identityScope")}</p> : null}
-                  {personal.items.some(item => item.asset.code === "XLM") ? <p className={styles.marketNote}>
-                    {h("equivalentScope")} {h("attribution")} <a href="https://www.coingecko.com" target="_blank" rel="noopener noreferrer">CoinGecko</a>.
-                  </p> : null}
+                  {personal.items.length ? (
+                    <details className={styles.historyNotes}>
+                      <summary>{h("historyDetails")}</summary>
+                      <p>{h("identityScope")}</p>
+                      {personal.items.some(item => item.asset.code === "XLM") ? <p>
+                        {h("equivalentScope")} {h("attribution")} <a href="https://www.coingecko.com" target="_blank" rel="noopener noreferrer">CoinGecko</a>.
+                      </p> : null}
+                    </details>
+                  ) : null}
                   {personal.error ? (
                     <div className={styles.error} role="alert">
                       {moneyMessage(locale, personal.error)}
@@ -499,31 +504,36 @@ export default function ActivityScreen() {
                               {received ? Ico.arrowDown({ size: 19, c: "#00866a" }) : Ico.arrowUp({ size: 19, c: T.action })}
                             </span>
                             <div className={styles.receiptBody}>
-                              <button type="button" className={styles.receiptButton} aria-expanded={expanded === receipt.id} aria-controls={`activity-receipt-${receipt.id}`} onClick={() => setExpanded((current) => current === receipt.id ? null : receipt.id)}>
-                                <div>
+                              <button type="button" className={`${styles.receiptButton} ${styles.transferButton}`} aria-expanded={expanded === receipt.id} aria-controls={`activity-receipt-${receipt.id}`} onClick={() => setExpanded((current) => current === receipt.id ? null : receipt.id)}>
+                                <div className={styles.transferHeading}>
                                   <strong>{h(received ? "received" : "sent", { asset: receipt.asset.code })}</strong>
+                                  <time dateTime={receipt.createdAt}>{receiptDate(receipt.createdAt, false, locale)}</time>
+                                </div>
+                                <div className={styles.transferIdentity}>
                                   {counterparty ? <span className={styles.counterparty}>
                                     <AccountAvatar name={nameFor(receipt.counterparty).replace(/^@/, "")} photoUrl={counterpartIdentity?.photoUrl ?? null} size={28} alt={h("photo", { name: nameFor(receipt.counterparty) })} />
                                     <span><strong>{h(received ? "from" : "to", { name: nameFor(receipt.counterparty) })}</strong><span>{counterparty}</span></span>
                                   </span> : <span>{m("On-chain wallet activity")}</span>}
-                                  <time dateTime={receipt.createdAt}>{receiptDate(receipt.createdAt, false, locale)}</time>
                                 </div>
                                 <div className={`${styles.receiptAmount} ${received ? styles.incomingAmount : ""}`}>
-                                  <strong>{received ? "+" : "−"}{exactNativeAmount(receipt.amountStroops)}</strong>
-                                  <small>Testnet {receipt.asset.code}</small>
+                                  <div className={styles.nativeLine}>
+                                    <strong data-activity-native-amount>{received ? "+" : "−"}{exactNativeAmount(receipt.amountStroops)}</strong>
+                                    <small>Testnet {receipt.asset.code}</small>
+                                  </div>
                                   {receipt.asset.code === "XLM" ? <span className={styles.equivalent} data-activity-equivalent={equivalent?.status ?? "unavailable"}>
-                                    {equivalent ? <>{h("equivalent")}: ≈ {new Intl.NumberFormat(locale, { maximumSignificantDigits: 8 }).format(equivalent.amount)} USDC<br /><small>{h(equivalent.status === "stale" ? "quoteStale" : "quoteFresh", { time: receiptDate(new Date(equivalent.updatedAt * 1000).toISOString(), false, locale) })}</small></> : h("quoteUnavailable")}
+                                    {equivalent ? <><span className={styles.equivalentValue}>{h("equivalent")}: ≈ {new Intl.NumberFormat(locale, { maximumSignificantDigits: 8 }).format(equivalent.amount)} USDC</span>{equivalent.status === "stale" ? <span className={styles.staleQuote}>{h("quoteStaleShort")}</span> : null}</> : h("quoteUnavailable")}
                                   </span> : null}
                                 </div>
+                                <span className={styles.receiptToggle}>{h(expanded === receipt.id ? "hideDetails" : "viewDetails")} {Ico.chev({ size: 12, c: T.action })}</span>
                               </button>
-                              <p className={styles.feeSummary}>
-                                {receipt.fee.status === "available" ? <>{h("fee")}: {exactNativeAmount(receipt.fee.amountStroops)} XLM · {h(receipt.fee.paidByWallet ? "paidByYou" : "paidByOther")} {nameFor(receipt.fee.payer)}</> : h("feeUnavailable")}
-                              </p>
                               {expanded === receipt.id ? (
                                 <div id={`activity-receipt-${receipt.id}`} className={styles.receiptDetails}>
                                   <dl>
                                     <dt>{h("amount")}</dt><dd>{nativeAmount(receipt.amountStroops)} Testnet {receipt.asset.code}</dd>
                                     <dt>{h("units")}</dt><dd>{receipt.amountStroops} units</dd>
+                                    {receipt.asset.code === "XLM" ? <>
+                                      <dt>{h("equivalent")}</dt><dd>{equivalent ? <>≈ {new Intl.NumberFormat(locale, { maximumSignificantDigits: 8 }).format(equivalent.amount)} USDC<br />{h(equivalent.status === "stale" ? "quoteStale" : "quoteFresh", { time: receiptDate(new Date(equivalent.updatedAt * 1000).toISOString(), true, locale) })}</> : h("quoteUnavailable")}</dd>
+                                    </> : null}
                                     {receipt.asset.issuer ? <><dt>{h("issuer")}</dt><dd className={styles.address}>{receipt.asset.issuer}</dd><dt>{h("contract")}</dt><dd className={styles.address}>{receipt.asset.contractId}</dd></> : null}
                                     <dt>{m("Recorded at")}</dt><dd>{receiptDate(receipt.createdAt, true, locale)}</dd>
                                     <dt>{h("sender")}</dt><dd>{participant(sender)}</dd>
@@ -532,7 +542,7 @@ export default function ActivityScreen() {
                                     {receipt.fee.status === "available" ? <>
                                       <dt>{h("fee")}</dt><dd>{exactNativeAmount(receipt.fee.amountStroops)} Testnet XLM</dd>
                                       <dt>{h("feePayer")}</dt><dd>{participant(receipt.fee.payer)}{h(receipt.fee.paidByWallet ? "paidByYou" : "paidByOther")}</dd>
-                                    </> : null}
+                                    </> : <><dt>{h("fee")}</dt><dd>{h("feeUnavailable")}</dd></>}
                                   </dl>
                                   <p>{receipt.fee.status === "available" ? h("feeScope") : h("feeMissing")}</p>
                                   {receipt.fee.status === "available" && receipt.fee.feeBump ? <p>{h("feeBump")}</p> : null}

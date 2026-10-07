@@ -325,9 +325,10 @@ test("network fee is separately stated in XLM with its actual payer, not deducte
     fee: { status: "available" as const, amountStroops: "321", payer: counterparty, paidByWallet: false, transactionHash: "b".repeat(64), feeBump: true } };
   h.historyRequests[0].deferred.resolve(pageResult([receipt])); await h.flush();
   assert.match(text(h.tree), /Sent USDC.*−50.*Testnet USDC/);
-  assert.match(text(h.tree), /Network fee: 0\.0000321 XLM.*Paid by another wallet/);
+  assert.doesNotMatch(text(h.tree), /Network fee|Paid by another wallet/);
   const button = nodes(h.tree).find(node => node.props["aria-controls"] === "activity-receipt-99:payment")!;
   (button.props.onClick as () => void)(); h.render();
+  assert.match(text(h.tree), /Network fee0\.0000321 Testnet XLM.*Paid by another wallet/);
   assert.match(text(h.tree), /Fee payer.*GCBKRBB/);
   assert.match(text(h.tree), /total fee for the transaction, not a fee per movement/);
   assert.match(text(h.tree), /Fee-bump transaction/);
@@ -339,9 +340,10 @@ test("network fee is separately stated in XLM with its actual payer, not deducte
 test("unknown fees are never displayed as zero or incorrectly assigned to an incoming receiver", async () => {
   const h = mount({ locale: "id" }); h.emitAuth("owner-a"); await h.flush();
   h.historyRequests[0].deferred.resolve(pageResult([item()])); await h.flush();
-  assert.match(text(h.tree), /Biaya jaringan belum tersedia/);
+  assert.doesNotMatch(text(h.tree), /Biaya jaringan belum tersedia/);
   const button = nodes(h.tree).find(node => node.props["aria-controls"] === "activity-receipt-101:sac-0")!;
   (button.props.onClick as () => void)(); h.render();
+  assert.match(text(h.tree), /Biaya jaringan belum tersedia/);
   assert.match(text(h.tree), /Tidak diasumsikan biaya nol atau siapa pembayarnya/);
   assert.doesNotMatch(text(h.tree), /Biaya jaringan: 0 XLM|Dibayar wallet kamu/);
   h.unmount();
@@ -443,4 +445,44 @@ test("optional identity enrichment applies a twelve-entry budget without alterin
   const h = mount(); h.emitAuth("owner-a"); await h.flush(); h.historyRequests[0].deferred.resolve(result); await h.flush();
   assert.equal(state(h.tree), "ready"); assert.match(text(h.tree), /\+446\.1538462Testnet XLM/);
   assert.doesNotMatch(text(h.tree), /over_budget/); h.unmount();
+});
+
+test("compact receipts preserve every native digit, keep the estimate separate and visibly advertise details", async () => {
+  const h = mount({ prices: marketQuote() }); h.emitAuth("owner-a"); await h.flush();
+  h.historyRequests[0].deferred.resolve(pageResult([item("long", "received", "66923076924"), item("fifty", "sent", "500000000"), item("tiny", "sent", "1")])); await h.flush();
+  const amounts = nodes(h.tree).filter(node => "data-activity-native-amount" in node.props);
+  assert.deepEqual(amounts.map(text), ["+6692.3076924", "−50", "−0.0000001"]);
+  assert.ok(amounts.every(node => node.type === "strong" && !text(node).includes("USDC")));
+  assert.equal(nodes(h.tree).filter(node => node.props.className === "receiptToggle" && text(node).includes("Transaction details")).length, 3);
+  const button = nodes(h.tree).find(node => node.props["aria-controls"] === "activity-receipt-fifty")!;
+  (button.props.onClick as () => void)(); h.render();
+  assert.equal(nodes(h.tree).find(node => node.props["aria-controls"] === "activity-receipt-fifty")?.props["aria-expanded"], true);
+  assert.match(text(h.tree), /Hide details.*Token amount50\.0000000 Testnet XLM/);
+  (nodes(h.tree).find(node => node.props["aria-controls"] === "activity-receipt-fifty")!.props.onClick as () => void)(); h.render();
+  assert.equal(nodes(h.tree).filter(node => node.props.id === "activity-receipt-fifty").length, 0);
+  h.unmount();
+});
+
+test("price and photo disclosure starts collapsed while Testnet risk and stale-price label stay in the summary", async () => {
+  const h = mount({ prices: marketQuote(0, "stale") }); h.emitAuth("owner-a"); await h.flush();
+  h.historyRequests[0].deferred.resolve(pageResult([item()])); await h.flush();
+  const details = nodes(h.tree).find(node => node.type === "details" && node.props.className === "historyNotes")!;
+  assert.ok(details); assert.notEqual(details.props.open, true);
+  assert.match(text(details), /About prices, photos and receipts.*not a historical receipt value or token conversion/);
+  assert.match(text(h.tree), /Testnet tokens have no monetary value/);
+  assert.match(text(nodes(h.tree).find(node => node.props["data-activity-equivalent"])), /Older price/);
+  const button = nodes(h.tree).find(node => node.props["aria-controls"] === "activity-receipt-101:sac-0")!;
+  (button.props.onClick as () => void)(); h.render();
+  assert.match(text(nodes(h.tree).find(node => node.props.id === "activity-receipt-101:sac-0")), /Older price.*Network fee/);
+  h.unmount();
+});
+
+test("native receipt layout reserves a full-width line and never wraps digits into fragments", () => {
+  const css = readFileSync(new URL("../components/screens/ActivityRevamp.module.css", import.meta.url), "utf8");
+  const native = css.match(/\.personalTimeline \.nativeLine > strong\s*\{([^}]+)\}/)?.[1] ?? "";
+  assert.match(native, /white-space:\s*nowrap/);
+  assert.match(native, /overflow-wrap:\s*normal/);
+  assert.match(native, /overflow-x:\s*auto/);
+  assert.match(css, /\.personalTimeline \.transferButton\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/);
+  assert.doesNotMatch(css, /\.receiptAmount\s*\{[^}]*max-width:\s*55%/);
 });
