@@ -223,3 +223,19 @@
   .amount { margin-top: 1px; }
   .walletCaption { margin-top: 1px; }
 }
+
+/* Keep one amount hierarchy and one metadata row. Actions occupy the empty
+   right-hand grid area, never the price disclosure or the native balance. */
+.walletMinimal { --wallet-actions-width: 128px; grid-template-columns: minmax(0, 1fr) var(--wallet-actions-width); align-items: start; gap: 8px; padding-top: 8px; }
+.walletMinimal > div:first-child { grid-column: 1 / -1; grid-row: 1; text-align: left; }
+.walletMinimal .balanceLabel { justify-content: flex-start; margin-bottom: 4px; }
+.walletMinimal .balanceLabel > span:first-child { padding: 0; border: 0; border-radius: 0; background: none; color: #ffe1ad; font-size: 10px; font-weight: 600; }
+.walletMinimal .amount { display: block; text-align: left; }
+.walletMinimal .amount[data-preview-balance], .walletMinimal .walletRetry { max-width: calc(100% - var(--wallet-actions-width) - 8px); }
+.walletMinimal .walletRetry { text-align: left; }
+.walletMinimal .walletActions { grid-column: 2; grid-row: 1; align-self: start; margin-top: 16px; padding: 0; border-radius: 0; background: none; box-shadow: none; }
+.walletMinimal .walletAction { flex-direction: column; padding: 4px 3px; gap: 4px; font-size: 11px; }
+.walletMinimal .walletActionLabel { font-size: 11px; }
+.walletMinimal .walletActionIcon { width: 26px; height: 26px; border-radius: 9px; }
+.walletMinimal + .walletCaption { margin-top: 0; text-align: left; font-size: 10px; }
+@container (max-width: 350px) { .walletMinimal { --wallet-actions-width: 112px; } }

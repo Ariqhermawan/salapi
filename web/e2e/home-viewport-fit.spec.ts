@@ -118,7 +118,7 @@ for (const { viewport, locale } of viewportCases) {
     const walletCaption = wallet.locator("p");
     await expectFullyInside(walletCaption, bounds, "Persistent no-real-money wallet caption");
     const captionText = await walletCaption.textContent();
-    expect([homeCopy(locale, "Native Testnet XLM · indicative value · no real money"), homeCopy(locale, "test XLM · no real money")].some(copy => captionText?.includes(copy)), "Locale-specific Testnet/no-real-money framing must stay visible").toBe(true);
+    expect([homeCopy(locale, "Testnet · no real money"), homeCopy(locale, "test XLM · no real money")].some(copy => captionText?.includes(copy)), "Locale-specific Testnet/no-real-money framing must stay visible").toBe(true);
     await expectFullyInside(catalog.getByText(homeCatalogCopy(locale, nativeQa
       ? "Fictional causes · Testnet XLM only."
       : "Fictional causes · no payment."), { exact: true }), bounds, "Persistent fictional/Testnet framing");

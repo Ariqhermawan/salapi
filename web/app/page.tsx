@@ -94,10 +94,10 @@ export default function Home() {
         <Link href="/learn" className={s.round} aria-label={copy("Help and learning")}>{Ico.bulb({ size: 20, c: "#fff" })}</Link>
         <Link href="/receive" className={s.round} aria-label={copy("Receive by QR")}>{Ico.qr({ size: 20, c: "#fff" })}</Link>
       </div>
-      <div className={s.walletContent}><div><div className={s.balanceLabel}><span>{copy("TESTNET BALANCE")}</span></div>
+      <div className={`${s.walletContent} ${s.walletMinimal}`}><div><div className={s.balanceLabel}><span>{copy("TESTNET BALANCE")}</span></div>
         {walletError ? <button className={s.walletRetry} onClick={loadWallet}>{copy(walletError)} {copy("Retry")}</button>
-          : wallet ? <div className={s.amount}>{isLocalPreview ? <><span>≈ </span><Peso value={wallet.pesos} size={balanceSize} color="#fff" /></> : <MarketValue nativeStroops={wallet.nativeStroops} size={balanceSize} color="#fff" compact showNative />}</div>
-          : <div className="sl-skel" style={{ height: balanceSize, width: "80%", margin: "5px auto 0" }} />}
+          : wallet ? <div className={s.amount} data-preview-balance={isLocalPreview || undefined}>{isLocalPreview ? <><span>≈ </span><Peso value={wallet.pesos} size={balanceSize} color="#fff" /></> : <MarketValue nativeStroops={wallet.nativeStroops} size={balanceSize} color="#fff" compact showNative dashboard />}</div>
+          : <div className="sl-skel" style={{ height: balanceSize, width: "calc(100% - var(--wallet-actions-width) - 8px)", marginTop: 5 }} />}
       </div>
         <nav className={s.walletActions} aria-label={copy("Wallet actions")}>
           <Link href="/topup" className={s.walletAction} aria-label={copy("Top up")}>
@@ -110,7 +110,7 @@ export default function Home() {
           </Link>
         </nav>
       </div>
-      <p className={s.walletCaption}>{isLocalPreview ? `${PREVIEW_WALLET.xlm} ${copy("test XLM · no real money")}` : copy("Native Testnet XLM · indicative value · no real money")}</p>
+      <p className={s.walletCaption}>{isLocalPreview ? `${PREVIEW_WALLET.xlm} ${copy("test XLM · no real money")}` : copy("Testnet · no real money")}</p>
     </section>
     <HomeCirclesCatalog campaigns={campaigns} circleLinks={circleLinks} loading={loading} error={error} onRetry={loadCampaigns} />
     <section className={s.quick} aria-label={copy("QUICK ACTIONS")}><div className={s.quickGrid}>

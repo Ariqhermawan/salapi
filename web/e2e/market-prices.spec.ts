@@ -117,7 +117,7 @@ test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () =>
     await expect(market.locator("[data-native-balance]")).toHaveText("10000 XLM");
     const attribution = market.getByRole("link", { name: "CoinGecko", exact: true });
     await expect(attribution).toBeVisible(); await expect(attribution).toHaveAttribute("href", "https://www.coingecko.com");
-    await expect(market.locator('[data-price-attribution="coingecko"]').getByText("Data powered by", { exact: true })).toBeVisible();
+    await expect(market.locator('[data-price-attribution="coingecko"]').getByText("Powered by", { exact: true })).toBeVisible();
     await expect(attribution.getByRole("img", { name: "CoinGecko", exact: true })).toBeVisible();
     await page.evaluate(async () => { await document.fonts.ready; });
     const catalog = page.getByTestId("home-circles-catalog");
@@ -134,13 +134,24 @@ test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () =>
     expect(await page.locator("#app-content").evaluate(node => node.scrollTop)).toBe(0);
     await page.screenshot({ path: testInfo.outputPath("market-mobile-fresh-fit.png"), fullPage: false });
     const summary = market.getByLabel("CoinGecko prices", { exact: true });
-    expect((await summary.boundingBox())!.height).toBeGreaterThanOrEqual(24);
+    expect((await summary.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    await expect(market).toHaveAttribute("data-market-layout", "dashboard");
+    const walletActions = page.getByRole("navigation", { name: "Wallet actions", exact: true });
+    const actionRect = (await walletActions.boundingBox())!;
+    for (const amount of [market.locator("[data-market-estimate]"), market.locator("[data-native-balance]")]) {
+      const rect = (await amount.boundingBox())!;
+      expect(rect.x + rect.width, "Amounts must not overlap the wallet action column").toBeLessThanOrEqual(actionRect.x + 1);
+    }
+    const attributionRect = (await attribution.boundingBox())!, summaryRect = (await summary.boundingBox())!;
+    expect(attributionRect.y + attributionRect.height, "Source and disclosure share one compact row").toBeLessThanOrEqual(summaryRect.y + summaryRect.height + 1);
+    expect(attributionRect.x + attributionRect.width, "Source cannot overlap the price-details control").toBeLessThanOrEqual(summaryRect.x + 1);
     await summary.click();
     await expect(market.locator("[data-native-balance]")).toHaveText("10000 XLM");
     await expect(market).toContainText("XLM $0.25 · USDC $0.9998");
     await expect(market.getByText("USDC price reference only. This wallet holds Testnet XLM, not USDC.", { exact: true })).toBeVisible();
     await expect(market.getByText("Testnet tokens have no monetary value.", { exact: true })).toBeVisible();
     const timestamp = await market.locator("time").getAttribute("datetime"); expect(timestamp).toMatch(/T/);
+    expect(await market.locator("summary").innerText()).not.toMatch(/\d{2}:\d{2}/);
     price = .3;
     await market.getByRole("button", { name: "Refresh prices", exact: true }).click();
     await expect(market.getByRole("status")).toHaveText("≈ $3,000.00");

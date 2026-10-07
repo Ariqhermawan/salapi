@@ -142,7 +142,7 @@ test("wallet balance/actions stay a two-child grid with truthful currency captio
     assert.equal(gridChildren[1], ui.rail, "The complete connected action rail stays in the second grid column");
     const caption = walletChildren[gridIndex + 1];
     assert.ok(caption && caption.type === "p" && hasClass(caption, "walletCaption"), "Caption must be the following wallet sibling, not a grid child");
-    assert.ok(text(caption).includes(homeCopy(locale, preview ? "test XLM · no real money" : "Native Testnet XLM · indicative value · no real money")));
+    assert.ok(text(caption).includes(homeCopy(locale, preview ? "test XLM · no real money" : "Testnet · no real money")));
     assert.equal(nodes(grid).includes(caption), false);
     assert.deepEqual(ui.calls, { read: 0, write: 0, storage: 0, network: 0 });
   }
@@ -156,10 +156,11 @@ test("action labels follow language independently of currency and retain exact b
     else {
       assert.equal(nodes(ui.wallet).find(node => node.type === "MarketValue")?.props.nativeStroops, balance.nativeStroops);
       assert.equal(nodes(ui.wallet).find(node => node.type === "MarketValue")?.props.showNative, true, "Home exposes the native quantity without opening market details");
+      assert.equal(nodes(ui.wallet).find(node => node.type === "MarketValue")?.props.dashboard, true, "Minimal metadata is scoped to Home, not transaction/review screens");
       assert.equal(nodes(ui.wallet).some(node => node.type === "Peso"), false, "Real wallet market display must not retain a static peso valuation");
     }
     assert.ok(text(ui.wallet).includes(homeCopy(locale, "TESTNET BALANCE")));
-    assert.ok(text(ui.wallet).includes(homeCopy(locale, preview ? "test XLM · no real money" : "Native Testnet XLM · indicative value · no real money")));
+    assert.ok(text(ui.wallet).includes(homeCopy(locale, preview ? "test XLM · no real money" : "Testnet · no real money")));
     assert.deepEqual(ui.calls, { read: 0, write: 0, storage: 0, network: 0 });
   }
 });
@@ -193,7 +194,8 @@ test("pending balance reserves the real currency amount height without an oversi
     assert.ok(skeleton);
     const size = currency === "id" || currency === "vi" ? 23 : currency === "tl" ? 29 : 32;
     assert.equal((skeleton.props.style as { height: number }).height, size);
-    assert.equal((skeleton.props.style as { margin: string }).margin, "5px auto 0");
+    assert.equal((skeleton.props.style as { marginTop: number }).marginTop, 5);
+    assert.equal((skeleton.props.style as { width: string }).width, "calc(100% - var(--wallet-actions-width) - 8px)", "Loading cannot occupy the action column");
     assert.equal(nodes(ui.wallet).some(node => node.type === "Peso"), false, "Pending state must not fabricate a balance");
     assert.deepEqual(ui.calls, { read: 0, write: 0, storage: 0, network: 0 });
   }

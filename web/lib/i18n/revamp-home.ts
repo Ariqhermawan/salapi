@@ -10,6 +10,7 @@ export const HOME_COPY = {
   "Help and learning": ["Tulong at pag-aaral", "Bantuan dan panduan", "Trợ giúp và hướng dẫn"],
   "Receive by QR": ["Tumanggap gamit ang QR", "Terima lewat QR", "Nhận bằng QR"],
   "TESTNET BALANCE": ["BALANSE SA TESTNET", "SALDO TESTNET", "SỐ DƯ TESTNET"],
+  "Testnet · no real money": ["Testnet · walang tunay na pera", "Testnet · bukan uang nyata", "Testnet · không phải tiền thật"],
   "test XLM · no real money": ["test XLM · walang tunay na pera", "XLM uji · bukan uang nyata", "XLM thử nghiệm · không phải tiền thật"],
   "Native Testnet XLM · indicative value · no real money": ["Testnet XLM · halagang halimbawa · walang tunay na pera", "XLM Testnet · nilai indikatif · bukan uang nyata", "XLM Testnet · giá trị minh họa · không phải tiền thật"],
   "Your wallet balance is unavailable.": ["Hindi makuha ang balanse ng wallet mo.", "Saldo wallet kamu belum dapat dimuat.", "Không thể tải số dư ví của bạn."],

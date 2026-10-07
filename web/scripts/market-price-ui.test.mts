@@ -124,8 +124,8 @@ test("unavailable provider never produces a fake zero and aborted unmount discar
   assert.equal(h.value().prices.status, "unavailable"); assert.equal(h.requests[1].options.signal?.aborted, true);
 });
 
-function widget(options: { prices?: MarketPriceResult; locale?: "en" | "tl" | "id" | "vi"; currency?: "en" | "tl" | "id" | "vi"; nativeStroops?: string; loading?: boolean; showNative?: boolean; compact?: boolean; size?: number; color?: string } = {}) {
-  const exported = {} as { default(props: { nativeStroops?: string; compact: boolean; showNative?: boolean; size?: number; color?: string }): Element };
+function widget(options: { prices?: MarketPriceResult; locale?: "en" | "tl" | "id" | "vi"; currency?: "en" | "tl" | "id" | "vi"; nativeStroops?: string; loading?: boolean; showNative?: boolean; compact?: boolean; size?: number; color?: string; dashboard?: boolean } = {}) {
+  const exported = {} as { default(props: { nativeStroops?: string; compact: boolean; showNative?: boolean; size?: number; color?: string; dashboard?: boolean }): Element };
   let refreshed = 0;
   runInNewContext(widgetCode, { exports: exported, Intl, Date, BigInt,
     require(name: string) {
@@ -133,10 +133,11 @@ function widget(options: { prices?: MarketPriceResult; locale?: "en" | "tl" | "i
       if (name === "@/components/I18nProvider") return { useT: () => ({ locale: options.locale ?? "en", currency: options.currency ?? "en" }) };
       if (name === "@/components/MarketPricesProvider") return { useMarketPrices: () => ({ prices: options.prices ?? unavailable, loading: options.loading ?? false, refresh: () => { refreshed++; return Promise.resolve(); } }) };
       if (name === "@/lib/market-prices") return { formatMarketValue };
+      if (name === "./MarketValue.module.css") return { default: new Proxy({}, { get: (_target, key) => String(key) }) };
       throw Error(`Unexpected dependency ${name}`);
     },
   });
-  const tree = exported.default({ nativeStroops: options.nativeStroops, compact: options.compact ?? true, showNative: options.showNative, size: options.size, color: options.color });
+  const tree = exported.default({ nativeStroops: options.nativeStroops, compact: options.compact ?? true, showNative: options.showNative, size: options.size, color: options.color, dashboard: options.dashboard });
   return { tree, text: text(tree), refreshCount: () => refreshed };
 }
 
@@ -230,5 +231,29 @@ test("linked official CoinGecko logo and required short attribution remain visib
     assert.equal(logo.props.src, color === "currentColor" ? "/brands/coingecko-white.svg" : "/brands/coingecko.svg");
     assert.equal(logo.props.height, 16); assert.equal(logo.props.alt, "CoinGecko");
     assert.equal(nodes(nodes(h.tree).find(node => node.type === "details")).includes(attribution), false);
+  }
+});
+
+test("Home dashboard uses one metadata row without hiding stale status, exact XLM or attribution", () => {
+  for (const locale of ["en", "tl", "id", "vi"] as const) for (const status of ["fresh", "stale", "unavailable"] as const) {
+    const prices: MarketPriceResult = status === "unavailable" ? unavailable : { ...quote(Date.now()), status } as MarketPriceResult;
+    const h = widget({ prices, locale, nativeStroops: "81864865461", dashboard: true });
+    assert.equal(h.tree.props["data-market-layout"], "dashboard");
+    const native = nodes(h.tree).find(node => node.props["data-native-balance"] !== undefined)!;
+    assert.equal(text(native), "8186.4865461 XLM");
+    assert.equal(native.props.className, "native");
+    const details = nodes(h.tree).find(node => node.type === "details")!;
+    assert.equal(details.props.className, "details");
+    const summary = nodes(details).find(node => node.type === "summary")!;
+    assert.doesNotMatch(text(summary), /\d{2}:\d{2}/, "Timestamp lives inside price details, not another persistent row");
+    assert.equal(summary.props["aria-label"], nodes(widget({ locale }).tree).find(node => node.type === "summary")!.props["aria-label"]);
+    if (status === "stale") assert.equal(text(summary), text(nodes(widget({ prices, locale }).tree).find(node => node.type === "summary")!).split(" · ")[0]);
+    if (status !== "unavailable") assert.ok(nodes(details).some(node => node.type === "time"));
+    const attribution = nodes(h.tree).find(node => node.props["data-price-attribution"] === "coingecko")!;
+    assert.equal(text(attribution), "Powered by");
+    assert.equal(nodes(details).includes(attribution), false);
+    assert.equal(nodes(attribution).find(node => node.type === "a")!.props.href, "https://www.coingecko.com");
+    const refresh = nodes(details).find(node => node.type === "button")!;
+    (refresh.props.onClick as () => void)(); assert.equal(h.refreshCount(), 1);
   }
 });

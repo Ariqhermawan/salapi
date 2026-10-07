@@ -4,6 +4,7 @@ import { useT } from "@/components/I18nProvider";
 import { useMarketPrices } from "@/components/MarketPricesProvider";
 import { formatMarketValue } from "@/lib/market-prices";
 import type { Locale } from "@/lib/i18n/config";
+import styles from "./MarketValue.module.css";
 
 const COPY = {
   en: { loading: "Loading market price", unavailable: "Market price unavailable", details: "CoinGecko prices", fresh: "Market estimate", stale: "Last known price", updated: "Updated", refresh: "Refresh prices", refreshWait: "Refreshing", reference: "USDC price reference only. This wallet holds Testnet XLM, not USDC.", testnet: "Testnet tokens have no monetary value.", balance: "Native Testnet XLM", noBalance: "Exact XLM balance unavailable", cadence: "Refreshes every 60 seconds while this app is visible. Not a live tick feed." },
@@ -12,6 +13,7 @@ const COPY = {
   vi: { loading: "Đang tải giá thị trường", unavailable: "Không có giá thị trường", details: "Giá CoinGecko", fresh: "Ước tính giá thị trường", stale: "Giá gần nhất", updated: "Cập nhật", refresh: "Làm mới giá", refreshWait: "Đang làm mới", reference: "Giá USDC chỉ để tham khảo. Ví này giữ XLM Testnet, không phải USDC.", testnet: "Token Testnet không có giá trị tiền thật.", balance: "XLM Testnet gốc", noBalance: "Không có số dư XLM chính xác", cadence: "Làm mới mỗi 60 giây khi ứng dụng hiển thị. Không phải nguồn giá cập nhật từng tick." },
 } satisfies Record<Locale, Record<string, string>>;
 const TIME_LOCALES: Record<Locale, string> = { en: "en-US", tl: "fil-PH", id: "id-ID", vi: "vi-VN" };
+const DETAIL_LABEL: Record<Locale, string> = { en: "Price details", tl: "Detalye ng presyo", id: "Detail harga", vi: "Chi tiết giá" };
 
 function nativeAmount(stroops: string | undefined): string | null {
   if (!stroops || !/^(?:0|[1-9]\d{0,18})$/.test(stroops)) return null;
@@ -22,7 +24,7 @@ function nativeAmount(stroops: string | undefined): string | null {
 }
 
 /** This is a current market reference, never an asset balance or transaction quote. */
-export default function MarketValue({ nativeStroops, size = 32, color = "currentColor", compact = false, showNative = true }: { nativeStroops?: string; size?: number; color?: string; compact?: boolean; showNative?: boolean }) {
+export default function MarketValue({ nativeStroops, size = 32, color = "currentColor", compact = false, showNative = true, dashboard = false }: { nativeStroops?: string; size?: number; color?: string; compact?: boolean; showNative?: boolean; dashboard?: boolean }) {
   const { locale, currency } = useT();
   const { prices, loading, refresh } = useMarketPrices();
   const c = COPY[locale];
@@ -33,26 +35,26 @@ export default function MarketValue({ nativeStroops, size = 32, color = "current
   const timestamp = updated === null ? null : new Intl.DateTimeFormat(TIME_LOCALES[locale], { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(updated);
   const usdPrice = (number: number) => new Intl.NumberFormat(TIME_LOCALES[locale], { style: "currency", currency: "USD", maximumFractionDigits: 6 }).format(number);
   const onDark = /255\s*,\s*255\s*,\s*255|#fff/i.test(color);
-  return <div data-market-value={value === null ? "unavailable" : prices.status} style={{ color, minWidth: 0, width: "100%", whiteSpace: "normal" }}>
-    <div data-market-estimate aria-live="polite" role="status" style={{ fontWeight: 800, letterSpacing: "-.04em", lineHeight: 1.1, fontSize: value === null ? compact ? 12 : 16 : compact ? Math.max(20, size - 4) : size, fontVariantNumeric: "tabular-nums", overflowWrap: "anywhere" }}>
+  return <div data-market-value={value === null ? "unavailable" : prices.status} data-market-layout={dashboard ? "dashboard" : undefined} className={dashboard ? styles.dashboard : undefined} style={{ color, minWidth: 0, width: "100%", whiteSpace: "normal", ...(dashboard ? { fontSize: Math.max(20, size - 4) } : {}) }}>
+    <div data-market-estimate aria-live="polite" role="status" className={dashboard ? styles.estimate : undefined} style={dashboard ? undefined : { fontWeight: 800, letterSpacing: "-.04em", lineHeight: 1.1, fontSize: value === null ? compact ? 12 : 16 : compact ? Math.max(20, size - 4) : size, fontVariantNumeric: "tabular-nums", overflowWrap: "anywhere" }}>
       {value === null ? !quantity ? c.noBalance : loading ? c.loading : c.unavailable : `≈ ${value}`}
     </div>
-    {showNative && quantity !== null && <div data-native-balance={nativeStroops} aria-label={`${quantity} ${c.balance}`} style={{ fontWeight: 500, fontSize: compact ? 14 : 16, lineHeight: 1.3, marginTop: compact ? 4 : 6, fontVariantNumeric: "tabular-nums", overflowWrap: "anywhere", letterSpacing: "normal" }}>{quantity} <span style={{ fontSize: compact ? 11 : 12, opacity: .88 }}>XLM</span></div>}
-    <div data-price-attribution="coingecko" style={{ display: "flex", flexWrap: "wrap", justifyContent: compact ? "center" : "flex-start", alignItems: "center", gap: 5, fontSize: 10, lineHeight: "16px", marginTop: 5, letterSpacing: "normal", fontWeight: 400 }}>
-      <span>Data powered by</span>
+    {showNative && quantity !== null && <div data-native-balance={nativeStroops} aria-label={`${quantity} ${c.balance}`} className={dashboard ? styles.native : undefined} style={dashboard ? undefined : { fontWeight: 500, fontSize: compact ? 14 : 16, lineHeight: 1.3, marginTop: compact ? 4 : 6, fontVariantNumeric: "tabular-nums", overflowWrap: "anywhere", letterSpacing: "normal" }}>{quantity} <span style={{ fontSize: compact ? 11 : 12, opacity: .88 }}>XLM</span></div>}
+    <div data-price-attribution="coingecko" className={dashboard ? styles.attribution : undefined} style={dashboard ? undefined : { display: "flex", flexWrap: "wrap", justifyContent: compact ? "center" : "flex-start", alignItems: "center", gap: 5, fontSize: 10, lineHeight: "16px", marginTop: 5, letterSpacing: "normal", fontWeight: 400 }}>
+      <span>{dashboard ? "Powered by" : "Data powered by"}</span>
       <a href="https://www.coingecko.com" target="_blank" rel="noopener noreferrer" aria-label="CoinGecko" style={{ display: "inline-flex", alignItems: "center", minHeight: 24 }}>
         {/* Official unmodified Brand Kit lockup, not an attribution sample. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={onDark ? "/brands/coingecko.svg" : "/brands/coingecko-white.svg"} width={73} height={16} alt="CoinGecko" style={{ display: "block", width: "auto", height: 16 }} />
       </a>
     </div>
-    <details style={{ marginTop: compact ? 0 : 8, fontSize: compact ? 9 : 12, lineHeight: 1.45, letterSpacing: "normal", fontWeight: 400, textAlign: compact ? "center" : "left" }}>
-      <summary aria-label={c.details} style={{ cursor: "pointer", opacity: .88, minHeight: 24 }}>{prices.status === "stale" ? c.stale : quote ? c.updated : c.details}{timestamp ? ` · ${timestamp}` : ""}</summary>
-      <div style={{ padding: "8px 0 2px", display: "grid", gap: 5 }}>
+    <details className={dashboard ? styles.details : undefined} style={dashboard ? undefined : { marginTop: compact ? 0 : 8, fontSize: compact ? 9 : 12, lineHeight: 1.45, letterSpacing: "normal", fontWeight: 400, textAlign: compact ? "center" : "left" }}>
+      <summary aria-label={c.details} style={dashboard ? undefined : { cursor: "pointer", opacity: .88, minHeight: 24 }}>{prices.status === "stale" ? c.stale : dashboard ? DETAIL_LABEL[locale] : quote ? c.updated : c.details}{!dashboard && timestamp ? ` · ${timestamp}` : ""}</summary>
+      <div className={dashboard ? styles.reference : undefined} style={dashboard ? undefined : { padding: "8px 0 2px", display: "grid", gap: 5 }}>
         {!showNative && quantity !== null && <span>{quantity} {c.balance}</span>}
         {quote && <><span>{c.fresh}: XLM {usdPrice(quote.assets.xlm.prices.usd)} · USDC {usdPrice(quote.assets.usdc.prices.usd)}</span><time dateTime={new Date(updated!).toISOString()}>{c.updated}: {new Intl.DateTimeFormat(TIME_LOCALES[locale], { dateStyle: "medium", timeStyle: "medium" }).format(updated!)}</time></>}
         <span>{c.reference}</span><span>{c.testnet}</span><span>{c.cadence}</span>
-        <button type="button" disabled={loading} onClick={() => { void refresh(); }} style={{ cursor: loading ? "wait" : "pointer", textDecoration: "underline", fontWeight: 650, color: "inherit", textAlign: "inherit", padding: "6px 0" }}>{loading ? c.refreshWait : c.refresh}</button>
+        <button type="button" disabled={loading} onClick={() => { void refresh(); }} className={dashboard ? styles.refresh : undefined} style={dashboard ? undefined : { cursor: loading ? "wait" : "pointer", textDecoration: "underline", fontWeight: 650, color: "inherit", textAlign: "inherit", padding: "6px 0" }}>{loading ? c.refreshWait : c.refresh}</button>
       </div>
     </details>
   </div>;
