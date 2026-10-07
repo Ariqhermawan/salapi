@@ -68,7 +68,11 @@ export default function BottomNav() {
       items={items}
       active={active}
       onPrefetch={prefetch}
-      onNav={(id) => { if (id !== path) router.push(id); }}
+      onNav={(id) => {
+        // A tab's base URL must still clear query/hash state on its section.
+        // Read browser location only in the click handler, not during SSR.
+        if (id !== path || window.location.search || window.location.hash) router.push(id);
+      }}
     />
   );
 }

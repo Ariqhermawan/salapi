@@ -106,6 +106,22 @@ test.afterEach(async ({ page }) => {
   expect(health?.console, "No relevant browser console errors or warnings").toEqual([]);
 });
 
+test("hard Home load hydrates one catalog without hidden duplicates or React hydration errors", async ({ page }) => {
+  await page.goto("/", { waitUntil: "domcontentloaded", timeout: 45000 });
+  await appReady(page);
+  // getByTestId includes hidden DOM. A second streamed/stale catalog must not
+  // pass merely because only one copy is visible or by selecting .first().
+  const catalog = page.getByTestId("home-circles-catalog");
+  await expect(catalog).toHaveCount(1, { timeout: 20000 });
+  await expect(catalog).toHaveAttribute("data-catalog-ready", "true", { timeout: 20000 });
+  await expect(catalog.locator("#home-cause-category")).toBeEnabled();
+  await expect(catalog).toHaveCount(1);
+  const health = browserHealth.get(page);
+  expect(health, "Browser health listeners are installed before the hard load").toBeDefined();
+  const hydrationError = /hydration|hydrating|Minified React error #418\b|react\.dev\/errors\/418\b|error-decoder\.html\?invariant=418\b/i;
+  expect([...(health?.errors ?? []), ...(health?.console ?? [])].filter(message => hydrationError.test(message)), "No React hydration failure, including production minified error 418").toEqual([]);
+});
+
 test("Home organizer, cause and create headers return to their actual Home entry", async ({ page }) => {
   const homeRoute = "/?entry=back-regression-home";
   let catalog = await home(page, homeRoute);
