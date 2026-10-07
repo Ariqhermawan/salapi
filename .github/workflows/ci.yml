@@ -15,7 +15,7 @@ jobs:
         run: |
           rustup toolchain install stable --profile minimal
           rustup default stable
-          rustup target add wasm32-unknown-unknown
+          rustup target add wasm32v1-none
           rustc --version
           cargo --version
 
@@ -32,13 +32,14 @@ jobs:
         run: cargo test -p donation-campaign --locked --verbose
 
       - name: Build contract WASM
-        run: cargo build --workspace --target wasm32-unknown-unknown --release --locked
+        # Soroban rejects reference-types emitted by recent Rust's generic WASM target.
+        run: cargo build --workspace --target wasm32v1-none --release --locked
 
       - name: Upload WASM artifacts
         uses: actions/upload-artifact@v4
         with:
           name: contract-wasm
-          path: target/wasm32-unknown-unknown/release/*.wasm
+          path: target/wasm32v1-none/release/*.wasm
           if-no-files-found: error
 
   web:
