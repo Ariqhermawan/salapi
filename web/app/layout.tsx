@@ -15,6 +15,7 @@ import AppScrollReset from "@/components/AppScrollReset";
 import RouteMotion from "@/components/RouteMotion";
 import SuccessFeedback from "@/components/SuccessFeedback";
 import { MarketPricesProvider } from "@/components/MarketPricesProvider";
+import UsernameOnboarding from "@/components/UsernameOnboarding";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({
@@ -82,6 +83,7 @@ export default async function RootLayout({
         <PwaRegister />
         <I18nProvider>
           <MarketPricesProvider>
+          <Suspense fallback={null}><UsernameOnboarding /></Suspense>
           <Suspense fallback={null}><AppScrollReset /></Suspense>
           {/* Mobile: full-screen app. Desktop (≥1024px): the same app shown as
               a phone on a calm dark backdrop with a marketing column, so the

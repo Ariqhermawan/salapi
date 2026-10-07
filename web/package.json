@@ -14,6 +14,7 @@
     "test:performance": "node --experimental-strip-types --test scripts/navigation-performance.test.mts scripts/read-transport.test.mts scripts/vault-read-performance.test.mts scripts/public-campaign-read.test.mts scripts/circles-identity-read.test.mts",
     "test:receive": "node --experimental-strip-types --test scripts/receive-sharing.test.mts",
     "test:account-details": "node --experimental-strip-types --test scripts/account-details.test.mts scripts/account-details-ui.test.mts",
+    "test:username": "node --experimental-strip-types --test scripts/username-onboarding.test.mts scripts/username-onboarding-ui.test.mts",
     "test:activity": "node --experimental-strip-types --test scripts/wallet-activity.test.mts scripts/wallet-activity-ui.test.mts scripts/wallet-activity-identity.test.mts",
     "test:wallet": "node --experimental-strip-types --test scripts/wallet-readiness.test.mts scripts/wallet-setup-flow.test.mts scripts/server-action-safety.test.mts",
     "test:market": "node --experimental-strip-types --test scripts/market-prices.test.mts scripts/market-price-ui.test.mts scripts/market-usdc-display.test.mts scripts/brand-attribution.test.mts",

@@ -115,6 +115,9 @@ jobs:
       - name: Account details privacy opt-in and authenticated owner guards
         run: npm run test:account-details
 
+      - name: Mandatory username onboarding and authenticated registry ownership
+        run: npm run test:username
+
       - name: Authenticated read-only wallet history and account-switch guards
         run: npm run test:activity
 
