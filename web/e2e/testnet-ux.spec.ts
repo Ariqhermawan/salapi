@@ -151,6 +151,7 @@ test("unverified user cannot review or submit an open QA campaign; privacy defau
   const review = page.getByRole("button", { name: "Review Testnet donation", exact: true });
   await expect(review).toBeDisabled();
   await page.locator("#circle-testnet-amount").fill("2.5");
+  await page.getByText("Privacy and comment (optional)", { exact: true }).click();
   await expect(page.getByRole("checkbox", { name: "Display anonymously in the donor feed", exact: true })).toBeChecked();
   await expect(page.getByRole("checkbox", { name: "Also publish my available @username and permitted profile photo for this donation", exact: true })).toHaveCount(0);
   await review.evaluate(element => (element as HTMLButtonElement).click());

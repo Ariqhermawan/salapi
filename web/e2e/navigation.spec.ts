@@ -3,7 +3,7 @@ import { LOCALE_COOKIE } from "../lib/i18n/config";
 import { getCircle } from "../lib/circles/seed";
 
 const browserHealth = new WeakMap<Page, { errors: string[]; console: string[] }>();
-const donationEntry = /^(Preview a pledge|Review QA Testnet donation)$/;
+const donationEntry = /^(Preview a pledge|Donate Testnet XLM)$/;
 
 // Exercise real visitor links and header controls. Never sign in, save a draft,
 // submit a signup, or authorize a financial transaction. Compare full routes so
@@ -109,9 +109,13 @@ test.afterEach(async ({ page }) => {
 test("Home organizer, cause and create headers return to their actual Home entry", async ({ page }) => {
   const homeRoute = "/?entry=back-regression-home";
   let catalog = await home(page, homeRoute);
-  await catalog.locator('article[data-example-cause="tino-relief"]').getByRole("link", { name: "View example organizer profile: Maria S.", exact: true }).click();
+  await catalog.locator('article[data-example-cause="tino-relief"]').getByRole("link", { name: "View campaign", exact: true }).click();
+  await expectRoute(page, "/circles/tino-relief");
+  await page.getByRole("link", { name: "View example organizer profile: Maria S.", exact: true }).click();
   await expectRoute(page, "/circles/tino-relief/organizer");
   await expect(page.getByRole("heading", { name: "Maria S.", exact: true })).toBeVisible();
+  await headerBack(page);
+  await expectRoute(page, "/circles/tino-relief");
   await headerBack(page);
   await expectRoute(page, homeRoute);
 
@@ -236,8 +240,8 @@ test("untrusted external predecessor is not used by app Back and fallback replac
 test("two rapid header clicks queue only one Back and cannot skip Home into external history", async ({ page }) => {
   await page.goto("about:blank#qa-rapid-back-origin");
   const catalog = await home(page, "/?entry=back-regression-rapid");
-  await catalog.locator('article[data-example-cause="tino-relief"]').getByRole("link", { name: "View example organizer profile: Maria S.", exact: true }).click();
-  await expectRoute(page, "/circles/tino-relief/organizer");
+  await catalog.locator('article[data-example-cause="tino-relief"]').getByRole("link", { name: "View campaign", exact: true }).click();
+  await expectRoute(page, "/circles/tino-relief");
   await appReady(page);
   const back = page.locator("#app-content").getByRole("button", { name: "Back", exact: true }).first();
   await expect(back).toBeVisible();
@@ -317,9 +321,9 @@ test("Home animals second-card pledge Back restores category, carousel and main 
   await category.selectOption("animals");
   await catalog.getByRole("button", { name: "Next example cause", exact: true }).click();
   await expect(catalog.getByLabel("2 of 3 example causes", { exact: true })).toHaveText("02 / 03");
-  const pledge = catalog.locator("article[data-example-cause]").nth(1).getByRole("link", { name: donationEntry });
+  const pledge = catalog.locator("article[data-example-cause]").nth(1).getByRole("link", { name: "View campaign", exact: true });
   const href = await pledge.getAttribute("href");
-  expect(href).toMatch(/^\/circles\/[a-z0-9-]+\/donate$/);
+  expect(href).toMatch(/^\/circles\/[a-z0-9-]+$/);
   await pledge.scrollIntoViewIfNeeded();
   const main = page.locator("#app-content");
   const scrollTop = await main.evaluate(element => {
@@ -331,6 +335,10 @@ test("Home animals second-card pledge Back restores category, carousel and main 
   const scrollLeft = await strip.evaluate(element => element.scrollLeft);
   expect(scrollLeft).toBeGreaterThan(0);
   await pledge.click();
+  await expectRoute(page, href!);
+  await page.getByRole("link", { name: donationEntry }).click();
+  await expectRoute(page, `${href}/donate`);
+  await headerBack(page);
   await expectRoute(page, href!);
   await headerBack(page);
   await expectRoute(page, "/");
@@ -368,7 +376,9 @@ test("same-path Home query entries restore their separate category and carousel 
 
 test("donation Back edits local preview review or exits unverified native QA to the actual parent", async ({ page }) => {
   const catalog = await home(page);
-  const entry = catalog.locator('article[data-example-cause="tino-relief"]').getByRole("link", { name: donationEntry });
+  await catalog.locator('article[data-example-cause="tino-relief"]').getByRole("link", { name: "View campaign", exact: true }).click();
+  await expectRoute(page, "/circles/tino-relief");
+  const entry = page.getByRole("link", { name: donationEntry });
   const preview = (await entry.innerText()).trim() === "Preview a pledge";
   await entry.click();
   await expectRoute(page, "/circles/tino-relief/donate");
@@ -391,6 +401,8 @@ test("donation Back edits local preview review or exits unverified native QA to 
     await expect(page.getByRole("button", { name: "Confirm Testnet donation", exact: true })).toHaveCount(0);
     await expect(page.getByText("Testnet donation confirmed", { exact: true })).toHaveCount(0);
   }
+  await headerBack(page);
+  await expectRoute(page, "/circles/tino-relief");
   await headerBack(page);
   await expectRoute(page, "/");
 });

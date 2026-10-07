@@ -74,9 +74,9 @@ for (const { viewport, locale } of viewportCases) {
     const firstCauseTitle = await firstCard.getByRole("heading", { level: 2 }).innerText();
     // The card now also has a decorative organizer portrait. Wait for the
     // actual campaign cover through its named cause link, not an arbitrary img.
-    const cover = firstCard.getByRole("link", {
+    const cover = firstCard.locator(":scope > a").and(firstCard.getByRole("link", {
       name: homeCatalogCopy(locale, "View example cause: {title}", { title: firstCauseTitle }), exact: true,
-    }).getByRole("img");
+    })).getByRole("img");
     await expect(cover).toHaveCount(1);
     await expect.poll(() => cover.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true);
 
@@ -87,8 +87,8 @@ for (const { viewport, locale } of viewportCases) {
     await expect(catalog.locator("article[data-example-cause]")).toHaveCount(27);
     const wallet = page.getByRole("region", { name: homeCopy(locale, "Your Testnet wallet"), exact: true });
     const category = catalog.locator("#home-cause-category");
-    const nativeQa = await firstCard.getByRole("link", { name: c("Review QA Testnet donation"), exact: true }).count() > 0;
-    const pledge = firstCard.getByRole("link", { name: c(nativeQa ? "Review QA Testnet donation" : "Preview a pledge"), exact: true });
+    const nativeQa = await catalog.getByText(homeCatalogCopy(locale, "Fictional causes · AI photos · QA Testnet donations when linked."), { exact: true }).count() > 0;
+    const pledge = firstCard.getByRole("link", { name: c("View campaign"), exact: true });
     const create = catalog.getByRole("link", { name: c("Sketch your own cause"), exact: true });
     const previous = catalog.getByRole("button", { name: homeCatalogCopy(locale, "Previous example cause"), exact: true });
     const next = catalog.getByRole("button", { name: homeCatalogCopy(locale, "Next example cause"), exact: true });
@@ -101,7 +101,7 @@ for (const { viewport, locale } of viewportCases) {
     await expectFullyInside(catalog.getByText(homeCatalogCopy(locale, nativeQa
       ? "Fictional causes · AI photos · QA Testnet donations when linked."
       : "Fictional causes · AI photos · example ratings · no payment."), { exact: true }), bounds, "Persistent fictional/AI/Testnet framing");
-    await expectFullyInside(firstCard.locator('a[href$="/organizer"]'), bounds, "Clickable example organizer");
+    await expectFullyInside(firstCard.locator("a").filter({ has: page.getByText("Maria S.", { exact: true }) }), bounds, "Clickable organizer row opens its campaign");
     await expectFullyInside(firstCard.getByText(homeCatalogCopy(locale, "Example rating"), { exact: true }), bounds, "Example rating label");
     await expectFullyInside(pledge, bounds, "Preview pledge CTA");
     await expectFullyInside(create, bounds, "Example creation footer");

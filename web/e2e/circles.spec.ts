@@ -3,7 +3,7 @@ import { test, expect, type Page } from "@playwright/test";
 // Home exposes fictional Circles fixtures in both modes, with real D4 campaigns
 // kept in a separate live-only section. Explicit D4 links keep their mode.
 // These are read-only navigation checks, never a payment/chain acceptance test.
-const donationEntry = /^(Preview a pledge|Review QA Testnet donation)$/;
+const donationEntry = /^(Preview a pledge|Donate Testnet XLM)$/;
 type DonationMode = "preview" | "testnet";
 
 async function donationScreen(page: Page, expected: DonationMode) {
@@ -37,10 +37,13 @@ test("Home cause donation entry shows the explicit preview or unverified QA boun
   await page.goto("/", { waitUntil: "domcontentloaded", timeout: 45000 });
   const catalog = page.getByTestId("home-circles-catalog");
   await expect(catalog).toHaveAttribute("data-catalog-ready", "true", { timeout: 20000 });
-  const campaignLink = catalog.getByRole("link", { name: donationEntry }).first();
-  const mode: DonationMode = (await campaignLink.innerText()).trim() === "Preview a pledge" ? "preview" : "testnet";
-  await expect(campaignLink).toHaveAttribute("href", /^\/circles\/[a-z0-9-]+\/donate$/);
+  const campaignLink = catalog.getByRole("link", { name: "View campaign", exact: true }).first();
+  await expect(campaignLink).toHaveAttribute("href", /^\/circles\/[a-z0-9-]+$/);
   await campaignLink.click();
+  await expect(page).toHaveURL(/\/circles\/[a-z0-9-]+$/);
+  const donate = page.getByRole("link", { name: donationEntry });
+  const mode: DonationMode = (await donate.innerText()).trim() === "Preview a pledge" ? "preview" : "testnet";
+  await donate.click();
   await expect(page).toHaveURL(/\/circles\/[a-z0-9-]+\/donate$/);
   await expect(page).toHaveTitle(/Salapi/);
   await donationScreen(page, mode);
@@ -76,7 +79,7 @@ test("Home categories show three examples per sector and clickable organizer rat
   await page.goto("/", { waitUntil: "domcontentloaded", timeout: 45000 });
   const catalog = page.getByTestId("home-circles-catalog");
   const category = catalog.locator("#home-cause-category");
-  const liveMode = await catalog.getByRole("link", { name: "Review QA Testnet donation", exact: true }).count() > 0;
+  const liveMode = await catalog.getByText("Fictional causes · AI photos · QA Testnet donations when linked.", { exact: true }).count() > 0;
   await expect(catalog.getByText(liveMode ? "Fictional causes · AI photos · QA Testnet donations when linked." : "Fictional causes · AI photos · example ratings · no payment.", { exact: true })).toBeVisible();
   await expect(catalog).toHaveAttribute("data-catalog-ready", "true", { timeout: 20000 });
   await expect(category).toBeEnabled();
@@ -95,7 +98,9 @@ test("Home categories show three examples per sector and clickable organizer rat
   await catalog.getByRole("button", { name: "Next example cause", exact: true }).click();
   await expect(catalog.getByLabel("2 of 27 example causes", { exact: true })).toHaveText("02 / 27");
   await category.selectOption("animals");
-  const organizerLink = catalog.getByRole("link", { name: /^View example organizer profile:/ }).first();
+  await catalog.getByRole("link", { name: "View campaign", exact: true }).first().click();
+  await expect(page).toHaveURL(/\/circles\/[a-z0-9-]+$/);
+  const organizerLink = page.getByRole("link", { name: /^View example organizer profile:/ });
   await expect(organizerLink).toHaveAttribute("href", /^\/circles\/[a-z0-9-]+\/organizer$/);
   await organizerLink.click();
   await expect(page).toHaveURL(/\/circles\/[a-z0-9-]+\/organizer$/);

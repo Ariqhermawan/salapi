@@ -40,6 +40,12 @@ for (const width of [320, 390, 1280]) test(`gallery and fictional donor feed are
   await expect.poll(() => activePhoto.evaluate(image => (image as HTMLImageElement).complete && (image as HTMLImageElement).naturalWidth > 0)).toBe(true);
   await expect(activePhoto).toHaveAttribute("alt", /AI-generated|Generated illustrative/);
   await expect(gallery.getByText("AI illustration", { exact: true })).toBeVisible();
+  // Blocked mapping reads are unknown, not proof this cause is unlinked.
+  if (await page.getByTestId("circle-testnet-summary").count()) {
+    await expect(page.getByRole("region", { name: "Example donor activity", exact: true })).toHaveCount(0);
+  }
+  // Completed fictional history is definitively an example in either mode.
+  await page.goto("/circles/cebu-boat-repairs", { waitUntil: "domcontentloaded" });
   const feed = page.getByRole("region", { name: "Example donor activity", exact: true });
   await expect(feed.getByText("5 sample entries", { exact: true })).toBeVisible();
   await expect(feed.locator("li")).toHaveCount(5);
@@ -71,7 +77,8 @@ test("Home retains its compact carousel with actual example avatar images", asyn
   const catalog = page.getByTestId("home-circles-catalog");
   await expect(catalog).toHaveAttribute("data-catalog-ready", "true", { timeout: 20000 });
   const first = catalog.locator("article[data-example-cause]").first();
-  const organizer = first.getByRole("link", { name: /^View example organizer profile:/ });
+  const organizer = first.locator("a").filter({ has: page.getByText("Maria S.", { exact: true }) });
+  await expect(organizer).toHaveAttribute("href", "/circles/tino-relief");
   await expect(organizer.locator("img")).toHaveCount(1);
   const bounds = await organizer.locator("img").boundingBox();
   expect(bounds?.height).toBe(30); // 34px avatar includes its existing 2px border.
