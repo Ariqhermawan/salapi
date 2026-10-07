@@ -48,11 +48,13 @@ function safeSignedPhoto(value: unknown, path: string): string | null {
   } catch { return null; }
 }
 
-/** Called only after verified auth + saved-wallet lookup + confirmed Horizon
- * normalization. No caller-selected address or arbitrary profile endpoint.
+/** Called only for confirmed receipt participants. Donation photo grants must
+ * come from validated, persisted nonanonymous public-profile opt-ins, never
+ * request input. Each grant binds the wallet to its consenting account owner.
+ * Without donation grants, the private receipt photo preference still applies.
  * Optional identity failure cannot hide a confirmed financial movement.
  */
-export async function readActivityIdentities(viewer: string, items: WalletActivityItem[]): Promise<WalletActivityIdentity[]> {
+export async function readActivityIdentities(viewer: string, items: WalletActivityItem[], donationPhotoOwners?: ReadonlyMap<string, string>): Promise<WalletActivityIdentity[]> {
   if (!validAddress(viewer)) return [];
   const addresses = [...new Set([viewer, ...items.flatMap(item => [item.counterparty, item.fee.status === "available" ? item.fee.payer : null])].filter(validAddress))].slice(0, MAX_IDENTITIES);
   const result = addresses.map(address => ({ address, handle: null, photoUrl: null } as WalletActivityIdentity));
@@ -86,8 +88,12 @@ export async function readActivityIdentities(viewer: string, items: WalletActivi
         // Bounded, confirmed receipt participants only. Never list auth users.
         const { data, error } = await beforeDeadline(admin.auth.admin.getUserById(ownerId), deadline);
         const user = data.user;
-        if (error || !user || user.id !== ownerId || user.user_metadata?.salapi_receipt_photo_consent !== true) continue;
-        const path = ownedAccountPhotoPath(user.user_metadata[ACCOUNT_AVATAR_METADATA_KEY], ownerId);
+        if (error || !user || user.id !== ownerId) continue;
+        const photoAllowed = donationPhotoOwners !== undefined
+          ? donationPhotoOwners.get(identity.address) === ownerId
+          : user.user_metadata?.salapi_receipt_photo_consent === true;
+        if (!photoAllowed) continue;
+        const path = ownedAccountPhotoPath(user.user_metadata?.[ACCOUNT_AVATAR_METADATA_KEY], ownerId);
         if (path) {
           const signed = await beforeDeadline(admin.storage.from(ACCOUNT_AVATAR_BUCKET).createSignedUrl(path, 300), deadline);
           if (!signed.error) identity.photoUrl = safeSignedPhoto(signed.data?.signedUrl, path);

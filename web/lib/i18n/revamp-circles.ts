@@ -6,6 +6,8 @@ import type { CircleCategory } from "../circles/types";
 // Tuple order is Tagalog, Indonesian, Vietnamese. English keys preserve the
 // existing English UI and provide a compile-time complete translation contract.
 export const CIRCLES_COPY = {
+  "View campaign": ["Tingnan ang campaign", "Lihat campaign", "Xem chiến dịch"],
+  "Donate Testnet XLM": ["Mag-donate ng Testnet XLM", "Donasi Testnet XLM", "Quyên góp Testnet XLM"],
   "On-chain linkage is not verified right now. Check the QA status above; no proof or balance is assumed.": ["Hindi ma-verify ang on-chain link ngayon. Suriin ang QA status sa itaas; walang ipinapalagay na proof o balanse.", "Hubungan on-chain belum dapat diverifikasi. Periksa status QA di atas; bukti dan saldo tidak diasumsikan.", "Chưa xác minh được liên kết on-chain. Kiểm tra trạng thái QA phía trên; không giả định bằng chứng hay số dư."],
   "Review QA Testnet donation": ["Suriin ang QA Testnet donation", "Tinjau donasi QA Testnet", "Xem quyên góp QA Testnet"],
   "Fictional cause. Test-token donations require a linked, open QA campaign.": ["Kathang-isip na layunin. Kailangan ng naka-link at bukas na QA campaign para mag-donate ng test token.", "Tujuan fiktif. Donasi token uji memerlukan campaign QA terhubung dan terbuka.", "Mục tiêu hư cấu. Quyên góp token thử nghiệm cần chiến dịch QA đã liên kết và đang mở."],

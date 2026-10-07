@@ -34,7 +34,7 @@ const compile = (path: string) => ts.transpileModule(readFileSync(new URL(path, 
 const summaryCode = compile("../components/CircleTestnetSummary.tsx");
 function summary(locale: Locale = "en", ownResult: CircleTestnetCampaignResult | null = null) {
   const calls = { hooks: [] as [string, boolean][], refresh: 0 };
-  const exports = {} as { default: React.ComponentType<{ circleId: string; result?: CircleTestnetCampaignResult | null; loading?: boolean; onRefresh?: () => void; hideDonate?: boolean }> };
+  const exports = {} as { default: React.ComponentType<{ circleId: string; result?: CircleTestnetCampaignResult | null; loading?: boolean; onRefresh?: () => void; hideDonate?: boolean; hideDetailsLink?: boolean; compact?: boolean }> };
   runInNewContext(summaryCode, { exports, require(name: string) {
     if (name === "react/jsx-runtime") return jsxRuntime;
     if (name === "@/components/I18nProvider") return { useT: () => ({ locale }) };
@@ -106,6 +106,15 @@ test("native donation screen can hide redundant donate CTA while retaining exact
   const h = summary();
   const html = renderToStaticMarkup(React.createElement(h.component, { circleId: "tino-relief", result: ready(), hideDonate: true }));
   assert.doesNotMatch(html, /href="\/circles\/tino-relief\/donate"/); assert.match(html, /href="\/campaigns\?id=9"/);
+});
+
+test("compact campaign summary keeps exact totals but removes cross-flow links and collapses technical proof", () => {
+  const h = summary();
+  const html = renderToStaticMarkup(React.createElement(h.component, { circleId: "tino-relief", result: ready(), hideDonate: true, hideDetailsLink: true, compact: true }));
+  assert.match(html, /12.3456789 XLM/);
+  assert.doesNotMatch(html, /href=|<details[^>]*open/);
+  assert.ok(html.indexOf("On-chain proof reference") > html.indexOf("<details"));
+  assert.ok(html.indexOf("On-chain proof reference") < html.indexOf("</details>"));
 });
 
 test("every actual donation UI copy call has complete four-locale translation, no bilingual inline fallback", () => {

@@ -158,7 +158,8 @@ export default function CircleDetailScreen({ circle, initialTab = "story" }: {
           {organizerLink()}
         </header>
       </section>
-      <section className={styles.progressCard} aria-label={c("Illustrative progress")}>
+      {!isLocalPreview && !completed && <CircleTestnetSummary circleId={circle.id} result={qa.result} loading={qa.loading} onRefresh={qa.refresh} hideDonate hideDetailsLink compact />}
+      {knownUnlinked && <section className={styles.progressCard} aria-label={c("Illustrative progress")}>
         <div className={styles.metrics}>
           <div><small>{c("Example raised")}</small><strong>{formatLocal(circle.pesoRaised, currency)}</strong></div>
           <div><small>{c("Example goal")}</small><strong>{formatLocal(circle.pesoTarget, currency)}</strong></div>
@@ -169,22 +170,23 @@ export default function CircleDetailScreen({ circle, initialTab = "story" }: {
         </div>
         <div className={styles.feeLine}><span>{c("Proposed organizer allowance")}</span><strong>{allowance}%</strong></div>
         <p className={styles.progressNotice}><span aria-hidden="true">{Ico.bulb({ size: 16, c: T.slate })}</span>{c("Illustrative only. No real donations collected.")}</p>
-      </section>
+      </section>}
       <div className={styles.action}>
         <Link className={styles.primaryLink} href={completed ? `/circles/${circle.id}/organizer` : `/circles/${circle.id}/donate`}>
           <span aria-hidden="true">{completed ? Ico.user({ size: 20, c: "#fff" }) : Ico.plus({ size: 20, c: "#fff" })}</span>
-          {completed ? c("View organizer") : c(!isLocalPreview ? "Review QA Testnet donation" : "Preview a pledge")}
+          {completed ? c("View organizer") : c(!isLocalPreview ? "Donate Testnet XLM" : "Preview a pledge")}
         </Link>
         <p className={styles.actionNotice}>{completed ? c("Completed only in the fictional example. No pledge is available.") : isLocalPreview ? c("No payment. Confirm a browser-only donation demo.") : c("Fictional cause. Test-token donations require a linked, open QA campaign.")}
           {isLocalPreview && !completed && <span>{c("Saved only after your explicit local confirmation.")}</span>}
         </p>
       </div>
-      <Link href="/campaigns?mode=testnet" className={styles.campaignLink}>
+      {qa.result?.ok && <CampaignDonorActivity campaignId={qa.result.mapping.campaignId} />}
+      {knownUnlinked && <Link href="/campaigns?mode=testnet" className={styles.campaignLink}>
         <span className={styles.linkIcon} aria-hidden="true">{Ico.link({ size: 20, c: T.action })}</span>
         <div><strong>{isLocalPreview ? c("Explore D4 example campaigns") : c("Explore Testnet campaigns")}</strong>
           <span>{isLocalPreview ? c("Try the separate funding flow in local example mode.") : c("Separate D4 escrow and proof-approval flow on Stellar Testnet.")}</span></div>
         <span aria-hidden="true">{Ico.chev({ size: 18, c: T.slate })}</span>
-      </Link>
+      </Link>}
     </> : <header className={styles.compactHero}>
       <h1>{circle.title}</h1><p>{c("Prototype · All updates, scenes and proof notes are fictional examples.")}</p>
     </header>}
@@ -212,10 +214,10 @@ export default function CircleDetailScreen({ circle, initialTab = "story" }: {
       <p className={styles.hint}>{c("Demo verification, not an identity check. Names, goals, ratings, dates and scenes are fictional.")}</p>
     </section>}
 
-    {!isLocalPreview && !completed && <CircleTestnetSummary circleId={circle.id} result={qa.result} loading={qa.loading} onRefresh={qa.refresh} />}
-    {tab === "story" && qa.result?.ok && <><CampaignDonorActivity campaignId={qa.result.mapping.campaignId} /><CampaignUpdateSubscription campaignId={qa.result.mapping.campaignId} /></>}
+    {tab !== "story" && !isLocalPreview && !completed && <CircleTestnetSummary circleId={circle.id} result={qa.result} loading={qa.loading} onRefresh={qa.refresh} hideDetailsLink />}
+    {tab === "story" && qa.result?.ok && <details className={styles.exampleProof}><summary>{c("Updates")}</summary><CampaignUpdateSubscription campaignId={qa.result.mapping.campaignId} /></details>}
     {tab === "updates" && qa.result?.ok && <CampaignOrganizerUpdates campaignId={qa.result.mapping.campaignId} />}
-    {tab === "story" && <CircleDonorExamples circle={circle} supports={currentSupports} />}
+    {tab === "story" && knownUnlinked && <CircleDonorExamples circle={circle} supports={currentSupports} />}
 
     {tab === "updates" && <section key="updates" id="circle-panel-updates" role="tabpanel" tabIndex={0} aria-labelledby="circle-tab-updates" className={`${styles.updatesPanel} sl-state-enter`}>
       <div className={styles.updatesHeading}><div><span className={styles.eyebrow}>{c("Example timeline")}</span><h2>{c("Follow the work")}</h2></div>
@@ -272,14 +274,14 @@ export default function CircleDetailScreen({ circle, initialTab = "story" }: {
         <div><strong>{c("D3 Disaster Vault public proof")}</strong><span>{c("Shared-pool approvals and payout controls.")}</span></div><span aria-hidden="true">{Ico.chev({ size: 16, c: T.slate })}</span></Link>
     </section>}
 
-    <details className={styles.allowance}><summary><span className={styles.allowanceIcon} aria-hidden="true">{Ico.vault({ size: 23, c: "#8b6c36" })}</span>
+    {knownUnlinked && <details className={styles.allowance}><summary><span className={styles.allowanceIcon} aria-hidden="true">{Ico.vault({ size: 23, c: "#8b6c36" })}</span>
       <div><strong>{c("Proposed organizer allowance")}</strong><span>{c("{percent}% in this concept. Not an enforced contract.", { percent: allowance })}</span></div><span className={styles.expandIcon} aria-hidden="true">{Ico.chev({ size: 17, c: T.ink })}</span></summary>
       <div className={styles.allowanceBody}><p>{c("Illustrative split from {amount}:", { amount: split.fmtSample })}</p><dl className={styles.split}>
         <div><dt>{c("Beneficiary")}</dt><dd>{split.fmtBeneficiary}</dd></div><div><dt>{c("Operations ({percent}%)", { percent: allowance })}</dt><dd>{split.fmtAllowance}</dd></div></dl>
         <p className={styles.hint}>{c("Proposed Circles allocation only. No payment or allocation contract, and no platform fee is established. D4 campaigns separately lock a creator share of 0 to 10% at creation.")}</p></div>
-    </details>
+    </details>}
     {tab !== "story" && organizerLink(true)}
     <Link href={`/circles/${circle.id}/manage`} className={styles.organizerLink}>{c("Explore organizer tools")}<span aria-hidden="true">{Ico.chev({ size: 15, c: T.action })}</span></Link>
-    <footer className={styles.footer}><PoweredByStellar /><span>{c("Circles prototype · No real donations.")}</span></footer>
+    <footer className={styles.footer}><PoweredByStellar /><span>{c(knownUnlinked ? "Circles prototype · No real donations." : "Fictional cause. Test-token donations require a linked, open QA campaign.")}</span></footer>
   </div>;
 }

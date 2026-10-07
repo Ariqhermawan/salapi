@@ -239,14 +239,23 @@ export async function readCampaignDonors(inputId: unknown, before: unknown = "")
     const page = data.slice(0, CAMPAIGN_DONOR_PAGE_SIZE);
     // Receipt-party photo permission is not permission to publish a donor
     // profile. A separate per-donation checkbox is persisted before any public
-    // identity lookup. The existing helper adds further photo consent checks.
+    // identity lookup. This donation consent, not the unrelated private-receipt
+    // preference, grants account-photo access for the bound donor owner only.
     const visible = page.filter(row => row.anonymous === false && row.public_profile_ok === true);
+    const photoOwners = new Map<string, string>();
+    const conflictingOwners = new Set<string>();
+    for (const row of visible) {
+      if (!row.owner_id) continue;
+      if (photoOwners.has(row.donor_wallet) && photoOwners.get(row.donor_wallet) !== row.owner_id) conflictingOwners.add(row.donor_wallet);
+      photoOwners.set(row.donor_wallet, row.owner_id);
+    }
+    for (const wallet of conflictingOwners) photoOwners.delete(wallet);
     let identities: Awaited<ReturnType<typeof readActivityIdentities>> = [];
     if (visible.length) {
       try { identities = await readActivityIdentities(visible[0].donor_wallet, visible.map(row => ({
         id: String(row.id), hash: row.transaction_hash, createdAt: row.created_at, direction: "received", amountStroops: row.amount_stroops,
         asset: XLM_ACTIVITY_ASSET, fee: { status: "unavailable" }, counterparty: row.donor_wallet, kind: "soroban-transfer",
-      } as WalletActivityItem))); } catch { /* Optional profile failure never hides a confirmed receipt. */ }
+      } as WalletActivityItem)), photoOwners); } catch { /* Optional profile failure never hides a confirmed receipt. */ }
     }
     const entries: CampaignDonorEntry[] = page.map(row => {
       const anonymous = row.anonymous === true;

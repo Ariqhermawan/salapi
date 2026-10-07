@@ -49,12 +49,14 @@ function exactXlm(stroops: string, locale: Locale): string {
   return `${whole}${fraction ? (locale === "id" || locale === "vi" ? "," : ".") + fraction : ""} XLM`;
 }
 
-export default function CircleTestnetSummary({ circleId, result: supplied, loading: suppliedLoading, onRefresh, hideDonate = false }: {
+export default function CircleTestnetSummary({ circleId, result: supplied, loading: suppliedLoading, onRefresh, hideDonate = false, hideDetailsLink = false, compact = false }: {
   circleId: string;
   result?: CircleTestnetCampaignResult | null;
   loading?: boolean;
   onRefresh?: () => void;
   hideDonate?: boolean;
+  hideDetailsLink?: boolean;
+  compact?: boolean;
 }) {
   const { locale } = useT();
   const copy = COPY[locale];
@@ -83,7 +85,7 @@ export default function CircleTestnetSummary({ circleId, result: supplied, loadi
           <div><small>{copy.raised}</small><strong>{exactXlm(result.campaign.total, locale)}</strong></div>
           <div><small>{copy.escrow}</small><strong>{exactXlm(result.campaign.escrow, locale)}</strong></div>
         </div>
-        <p className={styles.separation}>{copy.separation}</p>
+        {!compact && <p className={styles.separation}>{copy.separation}</p>}
         <div className={styles.phase}>
           <strong className={result.donationOpen ? styles.open : styles.closed}>{result.status === "ready" ? copy.open : result.status === "expired" ? copy.expired : copy.closed}</strong>
           <span>{result.campaign.state} · #{result.mapping.campaignId}</span>
@@ -97,16 +99,16 @@ export default function CircleTestnetSummary({ circleId, result: supplied, loadi
             <dt>{copy.beneficiary}</dt><dd><code>{result.mapping.beneficiaryWallet}</code></dd>
             <dt>{copy.reviewers}</dt><dd><ol>{result.mapping.approverWallets.map(wallet => <li key={wallet}><code>{wallet}</code></li>)}</ol></dd>
           </dl>
-        </details>
         <div className={styles.proof}>
           <h3>{copy.proof}</h3>
           {result.campaign.proofHash ? <code>{result.campaign.proofHash}</code> : <p>{copy.proofEmpty}</p>}
           <span>{copy.approvals}: {result.campaign.approvals.length} / 3</span>
           <p>{copy.proofNotice}</p>
         </div>
+        </details>
         <div className={styles.actions}>
           {result.donationOpen && !hideDonate ? <Link className={styles.primary} href={`/circles/${circleId}/donate`}>{copy.donate}</Link> : null}
-          <Link className={styles.secondary} href={`/campaigns?id=${result.mapping.campaignId}`}>{copy.details}</Link>
+          {!hideDetailsLink && <Link className={styles.secondary} href={`/campaigns?id=${result.mapping.campaignId}`}>{copy.details}</Link>}
         </div>
       </> : <div className={styles.unavailable}>
         <p role="status">{explanation}</p>

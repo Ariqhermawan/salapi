@@ -553,6 +553,25 @@ test("Back exits review without sending; outer Back follows campaign fallback", 
   const h = setup(); review(h); h.click("Back"); assert.doesNotMatch(h.html(), /Review before sending/); assert.equal(h.calls.backs, 0);
   h.click("Back"); assert.equal(h.calls.backs, 1); assert.equal(h.donations.length, 0);
 });
+
+test("amount form precedes collapsed technical details and optional controls", () => {
+  const h = setup(); const html = h.html();
+  assert.ok(html.indexOf('id="circle-testnet-amount"') < html.indexOf('data-fixture="mapping-summary"'));
+  assert.match(html, /<details class="options"><summary>Privacy and comment \(optional\)/);
+  assert.match(html, /<details class="options"><summary>Campaign details/);
+  assert.match(html, /1 · Amount/);
+  assert.doesNotMatch(html, /data-fixture="donor-feed"|data-fixture="updates-subscription"/);
+});
+
+test("confirmed receipt displays the exact reviewed XLM amount without another transfer", async () => {
+  const h = setup(); h.change(h.field("circle-testnet-amount"), "50.1234567");
+  h.click("Review Testnet donation"); h.click("Confirm Testnet donation"); h.donations[0].response.resolve(confirmed()); await flush();
+  assert.match(h.html(), /class="amount">50.1234567 XLM/);
+  assert.match(h.html(), /3 · Receipt/);
+  h.metadata[0].response.resolve(saved()); await settle(h);
+  h.click("Back to campaign"); assert.equal(h.calls.backs, 1, "Receipt return must pop, not push a duplicate campaign entry");
+  assert.equal(h.donations.length, 1);
+});
 test("all used native donation strings have explicit translation output in four locales", () => {
   const messages = [...source.matchAll(/text\("([^"]+)"\)/g)].map(match => match[1] as CircleTestnetDonateMessage);
   assert.ok(messages.length > 35);

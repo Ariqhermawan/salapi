@@ -1,6 +1,14 @@
 .screen { padding:24px 18px 40px; display:grid; gap:18px; color:var(--ink, #12213a); }
 .header { display:flex; align-items:center; justify-content:space-between; gap:12px; }
 .header button { border:0; background:none; color:#2457cc; padding:12px 0; font:inherit; cursor:pointer; }
+.steps { color:#2457cc; font-weight:700; }
+.presets { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; }
+.presets button { min-height:44px; border:1px solid #cddcf2; border-radius:12px; background:white; color:inherit; font:inherit; font-size:14px; cursor:pointer; }
+.presets button[aria-pressed="true"] { color:#2457cc; border-color:#2460ee; background:#eaf1ff; }
+.options { min-width:0; border-top:1px solid #dbe4f0; padding-top:14px; }
+.options summary { color:#2457cc; font-weight:600; cursor:pointer; padding:10px 0; }
+.options summary:focus-visible { outline:3px solid #70a1ff; outline-offset:3px; }
+.optionFields { display:grid; gap:14px; padding-top:14px; }
 .header span { font-size:12px; border-radius:20px; padding:8px 12px; background:#e8efff; color:#2457cc; }
 .screen h1 { font-size:30px; margin:0; letter-spacing:-.8px; }
 .screen h2 { font-size:22px; margin:0; overflow-wrap:anywhere; }

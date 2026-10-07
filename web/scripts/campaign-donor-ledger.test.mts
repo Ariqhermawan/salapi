@@ -80,7 +80,7 @@ function harness(options: Options = {}) {
   const receipt = fixture(options.status);
   let stored: unknown = options.current ?? null;
   const calls = { auth: 0, wallet: 0, receiptReads: 0, inserts: [] as Record<string, unknown>[], rpc: 0, network: 0,
-    deployment: [] as string[], profiles: [] as { viewer: string; items: unknown[] }[], columns: [] as string[], filters: [] as [string, unknown][], cursors: [] as string[] };
+    deployment: [] as string[], profiles: [] as { viewer: string; items: unknown[]; photoOwners: [string, string][] }[], columns: [] as string[], filters: [] as [string, unknown][], cursors: [] as string[] };
   const admin = {
     from(table: string) {
       let inserted: Record<string, unknown> | null = null;
@@ -130,8 +130,8 @@ function harness(options: Options = {}) {
       if (name === "@/lib/local-preview") return { isLocalPreview: options.preview ?? false };
       if (name === "@/lib/server/stellar") return { CONTRACTS: { tokenXlmSac: token }, RPC_URL: "https://rpc.fixture.invalid", donationCampaignId: () => options.contractId === undefined ? contract : options.contractId,
         txLink: (hash: string) => `https://stellar.expert/explorer/testnet/tx/${hash}`, readContract: async (_contract: string, method: string) => { calls.deployment.push(method); return method === "version" ? options.version ?? 4 : options.token ?? token; } };
-      if (name === "@/lib/server/walletActivityIdentity") return { readActivityIdentities: async (viewer: string, items: unknown[]) => {
-        calls.profiles.push({ viewer, items: structuredClone(items) }); if (options.identityThrows) throw Error("Optional identity unavailable");
+      if (name === "@/lib/server/walletActivityIdentity") return { readActivityIdentities: async (viewer: string, items: unknown[], photoOwners: ReadonlyMap<string, string>) => {
+        calls.profiles.push({ viewer, items: structuredClone(items), photoOwners: structuredClone(Array.from(photoOwners)) }); if (options.identityThrows) throw Error("Optional identity unavailable");
         return [{ address: wallet, handle: "confirmed_handle", photoUrl: "https://lh3.googleusercontent.com/fixture-photo" }];
       } };
       if (name === "@/lib/wallet-activity") return { XLM_ACTIVITY_ASSET };
@@ -290,6 +290,16 @@ test("explicit public-profile opt-in only enriches confirmed nonanonymous partic
   const h = harness({ rows: [{ ...defaultRow(), id: 2, public_profile_ok: true }, { ...defaultRow(), id: 1, donor_wallet: otherWallet, anonymous: true }] });
   const result = await h.readCampaignDonors("1"); assert.ok(result.ok); assert.equal(result.entries[0].donor?.handle, "confirmed_handle");
   assert.equal(result.entries[1].donor, null); assert.equal(h.calls.profiles.length, 1); assert.ok(!JSON.stringify(h.calls.profiles).includes(otherWallet));
+  assert.deepEqual(h.calls.profiles[0].photoOwners, [[wallet, owner]]);
+  assert.match(result.entries[0].donor!.photoUrl!, /googleusercontent/);
+});
+
+test("missing or conflicting persisted donor owners cannot grant account-photo access", async () => {
+  for (const rows of [[{ ...defaultRow(), public_profile_ok: true, owner_id: null }],
+    [{ ...defaultRow(), id: 2, public_profile_ok: true }, { ...defaultRow(), id: 1, public_profile_ok: true, owner_id: other }]]) {
+    const h = harness({ rows }); const result = await h.readCampaignDonors("1"); assert.ok(result.ok);
+    assert.deepEqual(h.calls.profiles[0].photoOwners, []);
+  }
 });
 test("feed is scoped and bounded by a validated data cursor", async () => {
   const rows = Array.from({ length: 11 }, (_, index) => ({ ...defaultRow(), id: 20 - index, transaction_hash: (20 - index).toString(16).padStart(64, "0") }));

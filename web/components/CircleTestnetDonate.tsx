@@ -23,7 +23,7 @@ import { useT } from "@/components/I18nProvider";
 import { circleTestnetDonateCopy } from "@/lib/i18n/circle-testnet-donate";
 import styles from "./CircleTestnetDonate.module.css";
 
-type Receipt = { campaignId: string; ownerId: string; ownerRevision: number; hash: string; comment: string; anonymous: boolean; publicProfileOk: boolean };
+type Receipt = { campaignId: string; ownerId: string; ownerRevision: number; hash: string; amountStroops?: bigint; comment: string; anonymous: boolean; publicProfileOk: boolean };
 type Review = { terms: Extract<CircleTestnetCampaignResult, { ok: true }>; amount: string; ownerId: string; ownerRevision: number; comment: string; anonymous: boolean; publicProfileOk: boolean };
 
 export default function CircleTestnetDonate({ circle }: { circle: Circle }) {
@@ -96,11 +96,11 @@ export default function CircleTestnetDonate({ circle }: { circle: Circle }) {
         if (!result.ok) {
           setError(result.error);
           if (result.pending && result.hash) setReceipt({ campaignId: entry.terms.mapping.campaignId, ownerId: entry.ownerId,
-            ownerRevision: revision, hash: result.hash, comment: entry.comment, anonymous: entry.anonymous, publicProfileOk: entry.publicProfileOk });
+            ownerRevision: revision, hash: result.hash, amountStroops: circleDonationAmount(entry.amount)!, comment: entry.comment, anonymous: entry.anonymous, publicProfileOk: entry.publicProfileOk });
           return;
         }
         const saved = { campaignId: result.campaignId, ownerId: result.ownerId, ownerRevision: revision, hash: result.hash,
-          comment: entry.comment, anonymous: entry.anonymous, publicProfileOk: entry.publicProfileOk };
+          amountStroops: circleDonationAmount(entry.amount)!, comment: entry.comment, anonymous: entry.anonymous, publicProfileOk: entry.publicProfileOk };
         setReceipt(saved); setConfirmed(true); setReview(null);
         await attach(saved, revision);
         if (isCurrentOwner(revision)) await mapping.refresh();
@@ -139,9 +139,9 @@ export default function CircleTestnetDonate({ circle }: { circle: Circle }) {
     <header className={styles.header}><button type="button" onClick={() => review && !receipt ? setReview(null) : goBack()} disabled={busy}>{text("Back")}</button>
       <span>QA · Stellar Testnet</span></header>
     <h1>{text("Test a donation")}</h1><h2>{circle.title}</h2>
+    <p className={styles.steps} aria-live="polite">{receipt ? text("3 · Receipt") : review ? text("2 · Review") : text("1 · Amount")}</p>
     <aside className={styles.boundary}><strong>{text("Fictional cause, real Testnet transaction")}</strong>
       <p>{text("QA wallets receive test tokens, not the pictured organizer or NGO. Testnet XLM has no monetary value. This D4 contract does not send USDC.")}</p></aside>
-    <CircleTestnetSummary circleId={circle.id} result={mapping.result} loading={mapping.loading} hideDonate />
     <SubmissionStatusPanel guard={guard} onRefresh={refreshSubmission} confirmedHash={confirmed ? receipt?.hash : undefined} />
     {guard.state.kind === "locked" && !receipt && <p className={styles.hint}>{text("After reload, a recovered donor record defaults to anonymous with no comment or profile permission. Existing saved records are not changed. Recovery never resends funds.")}</p>}
     {identity.status === "guest" ? <Link className={styles.primary} href={signIn}>{text("Sign in with Google")}</Link>
@@ -149,9 +149,10 @@ export default function CircleTestnetDonate({ circle }: { circle: Circle }) {
     {receipt ? <section className={styles.card}>
       {confirmed ? <SuccessMotion title={text("Testnet donation confirmed")}><p>{text("Confirmed Testnet donor. Not a fiat donation or proof of delivery.")}</p></SuccessMotion>
         : <p role="status">{text("A hash was returned. Confirmation is not established yet.")}</p>}
+      {confirmed && receipt.amountStroops && <strong className={styles.amount}>{formatStroops(receipt.amountStroops)} XLM</strong>}
       <a className={styles.address} href={`https://stellar.expert/explorer/testnet/tx/${receipt.hash}`} target="_blank" rel="noopener noreferrer">{text("View Testnet receipt")}: {receipt.hash}</a>
       {recorded ? <p role="status">{text("Your donor record is saved.")}</p> : <button type="button" className={styles.secondary} disabled={busy || !metadataRetry || identity.status !== "verified" || identity.ownerId !== receipt.ownerId} onClick={retryMetadata}>{text("Verify and retry donor record only")}</button>}
-      <Link href={`/circles/${circle.id}`}>{text("Back to campaign")}</Link>
+      <button type="button" className={styles.secondary} onClick={goBack} disabled={busy}>{text("Back to campaign")}</button>
     </section> : review ? <section className={styles.card} aria-label={text("Review Testnet donation")}>
       <h2>{text("Review before sending")}</h2>
       <strong className={styles.amount}>{formatStroops(circleDonationAmount(review.amount)!)} XLM</strong>
@@ -168,20 +169,26 @@ export default function CircleTestnetDonate({ circle }: { circle: Circle }) {
       <label htmlFor="circle-testnet-amount">{text("Amount in native Testnet XLM")}</label>
       <div className={styles.amountInput}><input id="circle-testnet-amount" inputMode="decimal" autoComplete="off" value={amount} disabled={busy || guard.locked}
         onChange={event => { setAmount(event.target.value); setError(""); }} aria-invalid={native === null} /><strong>XLM</strong></div>
+      <div className={styles.presets}>{[1, 5, 10, 50].map(value => <button key={value} type="button" aria-pressed={amount === String(value)} disabled={busy || guard.locked} onClick={() => { setAmount(String(value)); setError(""); }}>{value} XLM</button>)}</div>
       <p>{text("Positive amounts, up to 7 decimal places. No dollar-to-XLM simulation.")}</p>
       {native && mapping.result?.ok ? <dl><div><dt>{text("Beneficiary share")}</dt><dd>{formatStroops(campaignSplit(native, BigInt(mapping.result.mapping.creatorCutBps)).beneficiary)} XLM</dd></div>
         <div><dt>{text("Creator share")}</dt><dd>{formatStroops(campaignSplit(native, BigInt(mapping.result.mapping.creatorCutBps)).creator)} XLM</dd></div></dl> : null}
+      <details className={styles.options}><summary>{text("Privacy and comment (optional)")}</summary><div className={styles.optionFields}>
       <label className={styles.check}><input type="checkbox" checked={anonymous} disabled={busy} onChange={event => { setAnonymous(event.target.checked); setPublicProfileOk(false); }} />{text("Display anonymously in the donor feed")}</label>
       <p className={styles.hint}>{text("Anonymous hides your wallet, name, photo and receipt link here. Transactions remain public on Stellar and timing or amounts can still identify you.")}</p>
       {!anonymous && <label className={styles.check}><input type="checkbox" checked={publicProfileOk} disabled={busy} onChange={event => setPublicProfileOk(event.target.checked)} />{text("Also publish my available @username and permitted profile photo for this donation")}</label>}
       <label htmlFor="circle-testnet-comment">{text("Optional public comment")}</label><textarea id="circle-testnet-comment" rows={3} maxLength={500} value={comment} disabled={busy} onChange={event => setComment(event.target.value)} aria-invalid={!commentValid} />
       <p className={styles.hint}>{text("Maximum 500 UTF-8 bytes. Do not include private information; anonymous comments are still public.")}</p>
+      </div></details>
       <button type="button" className={styles.primary} disabled={!native || !commentValid || busy || guard.locked || identity.status !== "verified"} onClick={() => {
         if (identity.status !== "verified" || !mapping.result?.ok || !mapping.result.donationOpen || !native || !commentValid) return;
         setError(""); setReview({ terms: mapping.result, amount, ownerId: identity.ownerId, ownerRevision: captureOwnerRevision(), comment: campaignDonorComment(comment)!, anonymous, publicProfileOk });
       }}>{text("Review Testnet donation")}</button>
     </section> : !mapping.loading ? <button type="button" className={styles.secondary} disabled={busy} onClick={() => void mapping.refresh()}>{text("Check campaign availability")}</button> : null}
     {error && <p className={styles.error} role="alert">{error}</p>}
-    {mapping.result?.ok && <><CampaignUpdateSubscription campaignId={mapping.result.mapping.campaignId} /><CampaignDonorActivity campaignId={mapping.result.mapping.campaignId} refreshKey={feedRevision} /></>}
+    <details className={styles.options} open={!available && !receipt && !review}><summary>{text("Campaign details")}</summary>
+      <CircleTestnetSummary circleId={circle.id} result={mapping.result} loading={mapping.loading} onRefresh={mapping.refresh} hideDonate hideDetailsLink />
+    </details>
+    {receipt && mapping.result?.ok && <><CampaignDonorActivity campaignId={mapping.result.mapping.campaignId} refreshKey={feedRevision} /><CampaignUpdateSubscription campaignId={mapping.result.mapping.campaignId} /></>}
   </div>;
 }

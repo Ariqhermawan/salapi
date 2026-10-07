@@ -64,7 +64,7 @@ function harness(options: { rows?: { public_key: string; user_id: string }[]; us
       return { result: { retval: sdk.nativeToScVal(method === "username_of" ? handles[argument] ?? "" : resolves[argument] ?? "") } };
     }
   }
-  const exports = {} as { readActivityIdentities(viewer: string, items: WalletActivityItem[]): Promise<WalletActivityIdentity[]> };
+  const exports = {} as { readActivityIdentities(viewer: string, items: WalletActivityItem[], donationPhotoOwners?: ReadonlyMap<string, string>): Promise<WalletActivityIdentity[]> };
   runInNewContext(compiled, { exports, URL, AbortSignal, setTimeout, clearTimeout, Date: class extends Date { static now() { return now; } },
     require(dependency: string) {
       if (dependency === "server-only") return {};
@@ -115,6 +115,34 @@ test("private custom photo must be owned by the mapped user and signed by config
   for (const signUrl of ["https://evil.invalid/photo.jpg", `https://project.supabase.co/storage/v1/object/sign/account-avatars/${uid(2)}/${uid(10)}.jpg`, "javascript:alert(1)"]) {
     const bad = harness({ users: { [uid(1)]: user(uid(1), true, { salapi_avatar_path: path }) }, signUrl });
     assert.equal((await bad.readActivityIdentities(address, [item()]))[1].photoUrl, googleUrl);
+  }
+});
+
+test("persisted donor photo consent shows Google photo independently of private receipt preference", async () => {
+  const h = harness();
+  const identities = await h.readActivityIdentities(address, [item()], new Map([[other, uid(1)]]));
+  assert.equal(identities[1].photoUrl, googleUrl);
+  assert.doesNotMatch(JSON.stringify(identities), /email|user_metadata|user_id|nonimaharani/);
+});
+
+test("donor photo grants bind the exact account owner and cannot fall back to receipt consent", async () => {
+  for (const grants of [new Map<string, string>(), new Map([[other, uid(2)]]), new Map([[unrelated, uid(1)]])]) {
+    const h = harness({ users: { [uid(1)]: user(uid(1), true) } });
+    const identities = await h.readActivityIdentities(address, [item()], grants);
+    assert.ok(identities.every(identity => identity.photoUrl === null));
+    assert.deepEqual(h.calls.sign, []);
+    assert.ok(!h.calls.targets[0].includes(unrelated));
+  }
+});
+
+test("consenting donor uses their custom account photo first and Google when Storage is unavailable", async () => {
+  const path = `${uid(1)}/${uid(10)}.jpg`;
+  for (const signError of [false, true]) {
+    const h = harness({ users: { [uid(1)]: user(uid(1), false, { salapi_avatar_path: path }) }, signError });
+    const identities = await h.readActivityIdentities(address, [item()], new Map([[other, uid(1)]]));
+    if (signError) assert.equal(identities[1].photoUrl, googleUrl);
+    else assert.match(identities[1].photoUrl!, /\/storage\/v1\/object\/sign\/account-avatars\//);
+    assert.deepEqual(h.calls.sign, [path]);
   }
 });
 

@@ -122,7 +122,7 @@ export default function HomeCirclesCatalog() {
           </Link>
           <div className={styles.body}>
             <h2><Link href={`/circles/${circle.id}`} prefetch={false} title={circle.title}><span>{circle.title}</span></Link></h2>
-            <Link href={`/circles/${circle.id}/organizer`} prefetch={false} className={styles.organizer} aria-label={c("View example organizer profile: {name}", { name: circle.organizer })}>
+            <Link href={`/circles/${circle.id}`} prefetch={false} className={styles.organizer} aria-label={copy("View example cause: {title}", { title: circle.title })}>
               {organizer ? <ExampleOrganizerAvatar organizer={organizer} size={34} /> : <span className={styles.avatar} aria-hidden="true">{circle.organizer.charAt(0)}</span>}
               <span className={styles.identity}><strong>{circle.organizer}</strong><small>{circle.organizerLocation}{" "}{c("· Example organizer")}</small></span>
               {Ico.chev({ size: 15 })}
@@ -135,7 +135,7 @@ export default function HomeCirclesCatalog() {
               <span>{copy("Example progress")}<strong>{percent}%</strong></span>
               <progress value={percent} max={100} aria-hidden="true" />
             </div>
-            <Link href={`/circles/${circle.id}/donate`} prefetch={false} className={styles.pledge}><Heart size={18} aria-hidden="true" />{c(isLocalPreview ? "Preview a pledge" : "Review QA Testnet donation")}</Link>
+            <Link href={`/circles/${circle.id}`} prefetch={false} className={styles.pledge}><Heart size={18} aria-hidden="true" />{c("View campaign")}</Link>
           </div>
         </article>;
       })}

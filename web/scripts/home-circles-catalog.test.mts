@@ -314,8 +314,8 @@ for (const preview of [true, false]) for (const locale of LOCALES) test(`${local
     assert.equal(image.props.alt, circle.imageAlt ?? c("AI-generated fictional campaign illustration"));
     assert.equal(image.props.loading, index === 0 ? "eager" : "lazy");
     assert.ok(nodes(card).some(node => node.props.href === `/circles/${circle.id}`));
-    assert.ok(nodes(card).some(node => node.props.href === `/circles/${circle.id}/organizer` && node.props["aria-label"] === c("View example organizer profile: {name}", { name: circle.organizer })));
-    assert.ok(nodes(card).some(node => node.props.href === `/circles/${circle.id}/donate` && text(node).trim() === c(preview ? "Preview a pledge" : "Review QA Testnet donation")));
+    assert.ok(nodes(card).filter(node => node.props.href).every(node => node.props.href === `/circles/${circle.id}`), "All card targets must open the same campaign, not an organizer or another donation flow");
+    assert.ok(nodes(card).some(node => node.props.href === `/circles/${circle.id}` && text(node).trim() === c("View campaign")));
     assert.ok(nodes(card).filter(node => node.type === "Link").every(node => node.props.prefetch === false));
     assert.ok(text(card).includes(circle.title)); assert.ok(text(card).includes(circle.organizer));
     assert.ok(text(card).includes(c("Example cause")));

@@ -88,7 +88,7 @@ test("all 27 concept proof flows expose photos, missing documents, missing hash 
 
 // This harness executes actual TSX handlers with deterministic isolated hooks.
 // No browser, provider, database, credential, navigation or live action exists.
-function setup(name: ScreenName, locale: Locale = "en", preview = true, circleId = "tino-relief") {
+function setup(name: ScreenName, locale: Locale = "en", preview = true, circleId = "tino-relief", qaState: "unmapped" | "ready" | "loading" | "unavailable" = "unmapped") {
   const states: unknown[] = [];
   let cursor = 0;
   const pending: Promise<unknown>[] = [];
@@ -133,7 +133,7 @@ function setup(name: ScreenName, locale: Locale = "en", preview = true, circleId
       if (module === "@/lib/i18n/revamp-circles") return copy;
       if (module === "@/components/CirclesSignupEmail") return signupEmail;
       if (module === "@/lib/ui/useCirclesSignupIdentity") return { useCirclesSignupIdentity: () => ({ identity: { status: "guest" }, refresh: () => {}, captureOwnerRevision: () => 0, isCurrentOwner: () => true }) };
-      if (module === "@/lib/ui/useCircleTestnet") return { useCircleTestnet: () => ({ result: { ok: false, code: "unmapped", circleId }, loading: false, refresh: forbidden("action") }) };
+      if (module === "@/lib/ui/useCircleTestnet") return { useCircleTestnet: () => ({ result: qaState === "loading" ? null : qaState === "ready" ? { ok: true, circleId, mapping: { campaignId: "6" } } : { ok: false, code: qaState, circleId }, loading: qaState === "loading", refresh: forbidden("action") }) };
       if (["@/components/CircleTestnetSummary", "@/components/CampaignDonorActivity", "@/components/CampaignUpdateSubscription", "@/components/CampaignOrganizerUpdates", "@/components/CircleTestnetDonate"].includes(module)) return { default: module };
       if (module === "@/lib/i18n/revamp-campaign-discovery") return discoveryCopy;
       if (module === "@/lib/ui/circle-draft-gallery") return draftGallery;
@@ -189,6 +189,29 @@ function setup(name: ScreenName, locale: Locale = "en", preview = true, circleId
   }
   return { exports, calls, input, click, check, submit, refresh() { tree = render(); }, get tree() { return tree; } };
 }
+
+test("linked campaign history precedes story and never mixes with fictional donors or example totals", () => {
+  for (const circle of seed.SEED_CIRCLES.filter(circle => circle.status !== "completed")) {
+    const screen = setup("CircleDetailScreen", "en", false, circle.id, "ready");
+    const all = nodes(screen.tree);
+    const feedIndex = all.findIndex(node => node.type === "@/components/CampaignDonorActivity");
+    assert.ok(feedIndex > 0);
+    assert.equal(all[feedIndex].props.campaignId, "6");
+    assert.ok(feedIndex < all.findIndex(node => node.props.id === "circle-details-tabs"));
+    assert.equal(all.filter(node => node.type === "CircleDonorExamples").length, 0);
+    assert.doesNotMatch(text(screen.tree), /Example raised|Example goal|Proposed organizer allowance/);
+    assert.equal(all.filter(node => node.props.href === `/circles/${circle.id}/donate`).length, 1);
+    assert.equal(all.filter(node => node.props.href === "/campaigns?mode=testnet").length, 0);
+  }
+});
+
+test("unresolved mapping never flashes fictional donors as if they were live records", () => {
+  for (const status of ["loading", "unavailable"] as const) {
+    const screen = setup("CircleDetailScreen", "en", false, "tino-relief", status);
+    assert.equal(nodes(screen.tree).filter(node => node.type === "CircleDonorExamples" || node.type === "@/components/CampaignDonorActivity").length, 0);
+    assert.doesNotMatch(text(screen.tree), /Example raised|Example goal/);
+  }
+});
 
 test("organizer cards preserve localized identity, demo verification and profile destination on every detail tab", () => {
   for (const locale of LOCALES) {
@@ -297,7 +320,7 @@ test("four locales render translated catalog, detail, donor, manager and creator
     const detail = setup("CircleDetailScreen", locale, preview);
     const tabs = nodes(detail.tree).filter(node => node.props.role === "tab");
     assert.deepEqual(tabs.map(text), [c("Story"), c("Updates") + "3", c("Public proof")]);
-    assert.ok(text(detail.tree).includes(c(preview ? "Preview a pledge" : "Review QA Testnet donation")));
+    assert.ok(text(detail.tree).includes(c(preview ? "Preview a pledge" : "Donate Testnet XLM")));
     assert.ok(text(detail.tree).includes(seed.getCircle("tino-relief").story.split("\n\n")[0]), "Authored fictional fixture text is retained");
     const donate = setup("CirclesDonateScreen", locale, preview);
     assert.ok(text(donate.tree).includes(c("Where your pledge would go")));

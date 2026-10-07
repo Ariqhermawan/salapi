@@ -2,6 +2,11 @@ import type { Locale } from "./config";
 
 // Copy only. No conversion, signing, receipt or authorization behavior here.
 const messages = {
+  "1 · Amount": { id: "1 · Nominal", tl: "1 · Halaga", vi: "1 · Số lượng" },
+  "2 · Review": { id: "2 · Tinjau", tl: "2 · Suriin", vi: "2 · Kiểm tra" },
+  "3 · Receipt": { id: "3 · Bukti transaksi", tl: "3 · Resibo", vi: "3 · Biên nhận" },
+  "Privacy and comment (optional)": { id: "Privasi dan komentar (opsional)", tl: "Privacy at komento (opsyonal)", vi: "Quyền riêng tư và bình luận (tùy chọn)" },
+  "Campaign details": { id: "Detail campaign", tl: "Mga detalye ng campaign", vi: "Chi tiết chiến dịch" },
   "After reload, a recovered donor record defaults to anonymous with no comment or profile permission. Existing saved records are not changed. Recovery never resends funds.": {
     id: "Setelah reload, catatan donor yang dipulihkan otomatis anonim tanpa komentar atau izin profil. Catatan yang sudah tersimpan tidak diubah. Pemulihan tidak mengirim ulang dana.",
     tl: "Pagkatapos mag-reload, anonymous ang recovered donor record, walang komento o pahintulot sa profile. Hindi binabago ang naka-save na record. Hindi muling ipinapadala ang pondo.",
