@@ -160,8 +160,9 @@ test("explicit examples and testnet mode switches retain separate catalogs and d
 
 test("Vaults preserves discovery of Circles and the original Paluwagan pool", async ({ page }) => {
   await page.goto("/vaults", { waitUntil: "domcontentloaded", timeout: 45000 });
-  await expect(page.getByRole("link", { name: /Salapi Circles · prototype/ })).toHaveAttribute("href", "/circles");
   await expect(page.getByRole("link", { name: /Original Paluwagan pool/ })).toHaveAttribute("href", "/paluwagan");
+  await page.getByRole("tab", { name: "Crowdfund", exact: true }).click();
+  await expect(page.getByRole("link", { name: /Salapi Circles · prototype/ })).toHaveAttribute("href", "/circles");
 });
 
 test("donor and detail Back unwind the actual Home to cause to pledge path", async ({ page }) => {

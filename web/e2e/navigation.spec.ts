@@ -168,6 +168,7 @@ test("Vaults discovery and D4 header Back return to Vaults rather than Home", as
   await home(page);
   await page.getByRole("navigation", { name: "Main navigation", exact: true }).getByRole("button", { name: "Vaults", exact: true }).click();
   await expectRoute(page, "/vaults");
+  await page.getByRole("tab", { name: "Crowdfund", exact: true }).click();
   await page.getByRole("link", { name: /^Salapi Circles · prototype/ }).click();
   await expectRoute(page, "/circles");
   await page.getByRole("link", { name: "Explore this concept", exact: true }).first().click();
@@ -176,6 +177,7 @@ test("Vaults discovery and D4 header Back return to Vaults rather than Home", as
   await expectRoute(page, "/circles");
   await headerBack(page);
   await expectRoute(page, "/vaults");
+  await expect(page.getByRole("tab", { name: "Crowdfund", exact: true })).toHaveAttribute("aria-selected", "true");
 
   await page.locator("#app-content").getByRole("link", { name: /^Donation campaigns/ }).click();
   await expectRoute(page, "/campaigns");

@@ -144,8 +144,9 @@ function text(value: unknown): string {
   if (Array.isArray(value)) return value.map(text).join("");
   return value && typeof value === "object" && "props" in value ? text((value as Element).props.children) : "";
 }
-function screenSetup(read: () => Promise<Overview>, preview = false) {
+function screenSetup(read: () => Promise<Overview>, preview = false, storage: { saved?: string; blocked?: boolean } = {}) {
   const states: unknown[] = [], effects: (() => void)[] = [], timers: (() => void)[] = [];
+  const savedPreferences: [string, string][] = [];
   let index = 0, mounted = false, calls = 0;
   const jsx = (type: string, props: Record<string, unknown>) => ({ type, props });
   const api = load<{ default(): Element }>(screenCode, {
@@ -171,10 +172,14 @@ function screenSetup(read: () => Promise<Overview>, preview = false) {
   }, {
     process: { env: { NEXT_PUBLIC_LOCAL_PREVIEW: preview ? "1" : "0" } },
     setTimeout: (callback: () => void) => { timers.push(callback); return timers.length; }, clearTimeout() {},
-    sessionStorage: { getItem: () => null },
+    sessionStorage: {
+      getItem: (key: string) => { if (storage.blocked) throw Error("Storage denied"); return key === "salapi.vaults.tab.v1" ? storage.saved ?? null : null; },
+      setItem: (key: string, value: string) => { if (storage.blocked) throw Error("Storage denied"); savedPreferences.push([key, value]); },
+    },
   });
   return {
     states,
+    savedPreferences,
     get calls() { return calls; },
     render() { index = 0; const tree = api.default(); mounted = true; return tree; },
     mount() { effects.splice(0).forEach(effect => effect()); timers.splice(0).forEach(timer => timer()); },
@@ -189,12 +194,13 @@ test("actual Vaults UI requests one overview and preserves campaign cards beside
   const overview = { ...unavailable, campaigns: campaignResult(), pool: { ok: true, active: true } };
   const ui = screenSetup(async () => overview);
   const loading = ui.render();
-  assert.ok(nodes(loading).some(node => node.props.role === "status" && node.props["aria-label"] === "Loading rooms and campaigns"));
+  assert.ok(nodes(loading).some(node => node.props.role === "status" && node.props["aria-label"] === "Loading arisan rooms"));
+  assert.ok(nodes(loading).some(node => node.props.role === "status" && node.props["aria-label"] === "Loading crowdfunding campaigns"));
   ui.mount(); await flush();
   assert.equal(ui.calls, 1); assert.equal(ui.states[0], overview.rooms); assert.equal(ui.states[1], overview.campaigns);
   assert.equal(ui.states[2], overview.pool); assert.equal(ui.states[3], null); assert.equal(ui.states[4], false);
   const tree = ui.render();
-  assert.match(text(tree), /Some vaults could not be loaded/);
+  assert.match(text(tree), /Your rooms could not be loaded/);
   assert.ok(nodes(tree).some(node => node.type === "article" && node.props["aria-labelledby"] === "vault-campaign-101"));
   assert.ok(nodes(tree).some(node => node.type === "Link" && node.props.href === "/campaigns?id=101"));
   assert.doesNotMatch(text(tree), /A shared goal starts here\./);
@@ -209,7 +215,7 @@ test("actual Vaults UI keeps room data visible when only campaigns and pool fail
   };
   const ui = screenSetup(async () => overview); ui.render(); ui.mount(); await flush();
   const tree = ui.render();
-  assert.equal(ui.calls, 1); assert.match(text(tree), /Some vaults could not be loaded/);
+  assert.equal(ui.calls, 1); assert.match(text(tree), /Your campaigns could not be loaded/);
   assert.match(text(tree), /Isolated room 7/);
   assert.ok(nodes(tree).some(node => node.type === "Link" && node.props.href === "/arisan/7"));
   assert.ok(nodes(tree).some(node => node.props.className === "communityStatus" && text(node) === "Unavailable"));
@@ -240,4 +246,74 @@ test("actual preview Vaults keeps local fixtures and never dispatches the server
   const tree = ui.render();
   assert.ok(nodes(tree).some(node => node.type === "Link" && node.props.href === "/arisan/1"));
   assert.ok(nodes(tree).some(node => node.props["aria-labelledby"] === "vault-campaign-101"));
+});
+
+function panel(tree: Element, id: "arisan" | "crowdfund") {
+  const result = nodes(tree).find(node => node.props.id === `vault-panel-${id}`)!;
+  assert.ok(result); assert.equal(result.props.role, "tabpanel");
+  assert.equal(result.props["aria-labelledby"], `vault-tab-${id}`);
+  return result;
+}
+function tab(tree: Element, id: "arisan" | "crowdfund") {
+  const result = nodes(tree).find(node => node.props.id === `vault-tab-${id}`)!;
+  assert.ok(result); assert.equal(result.props.role, "tab");
+  assert.equal(result.props["aria-controls"], `vault-panel-${id}`);
+  return result;
+}
+
+test("Arisan and Crowdfund keep their own cards, empty states, actions and legacy discovery", async () => {
+  const ui = screenSetup(async () => ({ ...unavailable, campaigns: campaignResult() }));
+  ui.render(); ui.mount(); await flush();
+  const tree = ui.render(), arisan = panel(tree, "arisan"), crowdfunding = panel(tree, "crowdfund");
+  assert.equal(arisan.props.hidden, false); assert.equal(crowdfunding.props.hidden, true);
+  assert.equal(tab(tree, "arisan").props["aria-selected"], true);
+  assert.equal(tab(tree, "arisan").props.tabIndex, 0); assert.equal(tab(tree, "crowdfund").props.tabIndex, -1);
+  assert.equal(nodes(arisan).some(node => String(node.props["aria-labelledby"] ?? "").startsWith("vault-campaign-")), false);
+  assert.equal(nodes(crowdfunding).some(node => String(node.props.className).includes("arisanVault")), false);
+  for (const href of ["/arisan/new", "/arisan/join", "/paluwagan"]) assert.ok(nodes(arisan).some(node => node.props.href === href));
+  for (const href of ["/campaigns?mode=examples", "/campaigns?create=1", "/campaigns?id=101", "/transparency", "/circles"]) assert.ok(nodes(crowdfunding).some(node => node.props.href === href));
+  assert.ok(nodes(tree).some(node => node.props.href === "/savings"));
+  assert.match(text(arisan), /Your rooms could not be loaded/);
+  assert.doesNotMatch(text(crowdfunding), /Your rooms could not be loaded/);
+  const before = JSON.stringify(ui.states.slice(0, 4));
+  (tab(tree, "crowdfund").props.onClick as () => void)();
+  const after = ui.render();
+  assert.equal(panel(after, "arisan").props.hidden, true); assert.equal(panel(after, "crowdfund").props.hidden, false);
+  assert.equal(tab(after, "crowdfund").props["aria-selected"], true);
+  assert.equal(JSON.stringify(ui.states.slice(0, 4)), before); assert.equal(ui.calls, 1, "Switching must reuse the read-only overview, not issue another server request");
+  assert.deepEqual(ui.savedPreferences, [["salapi.vaults.tab.v1", "crowdfund"]]);
+});
+
+test("each successful empty category gets its own empty state even when the other category has data", async () => {
+  const ui = screenSetup(async () => ({ ...unavailable, rooms: { ready: true, total: 0, nextCursor: null, mine: [] }, campaigns: campaignResult() }));
+  ui.render(); ui.mount(); await flush();
+  const tree = ui.render();
+  assert.match(text(panel(tree, "arisan")), /Your next room starts here/);
+  assert.doesNotMatch(text(panel(tree, "crowdfund")), /No campaigns linked/);
+});
+
+test("tab restoration accepts only known names, and denied preference storage cannot block switching", async () => {
+  for (const [saved, expected] of [["crowdfund", "crowdfund"], ["arisan", "arisan"], ["wallet-secret", "arisan"]] as const) {
+    const ui = screenSetup(async () => unavailable, false, { saved });
+    ui.render(); ui.mount(); await flush();
+    assert.equal(tab(ui.render(), expected).props["aria-selected"], true);
+  }
+  const ui = screenSetup(async () => unavailable, false, { saved: "crowdfund", blocked: true });
+  ui.render(); ui.mount(); await flush();
+  const initial = ui.render(); assert.equal(tab(initial, "arisan").props["aria-selected"], true);
+  (tab(initial, "crowdfund").props.onClick as () => void)();
+  assert.equal(tab(ui.render(), "crowdfund").props["aria-selected"], true);
+  assert.equal(ui.calls, 1); assert.equal(ui.savedPreferences.length, 0);
+});
+
+test("arrow and Home/End keys change the selected tab and move focus without a ledger read", async () => {
+  const ui = screenSetup(async () => unavailable); ui.render(); ui.mount(); await flush();
+  let prevented = 0; const focused: string[] = [];
+  for (const [current, key, next] of [["arisan", "ArrowRight", "crowdfund"], ["crowdfund", "ArrowLeft", "arisan"], ["arisan", "End", "crowdfund"], ["crowdfund", "Home", "arisan"]] as const) {
+    const event = { key, preventDefault: () => { prevented++; }, currentTarget: { parentElement: { querySelector: (selector: string) => ({ focus: () => focused.push(selector) }) } } };
+    (tab(ui.render(), current).props.onKeyDown as (event: unknown) => void)(event);
+    assert.equal(tab(ui.render(), next).props["aria-selected"], true);
+    assert.equal(focused.at(-1), `#vault-tab-${next}`);
+  }
+  assert.equal(prevented, 4); assert.equal(ui.calls, 1);
 });

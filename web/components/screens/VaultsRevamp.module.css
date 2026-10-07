@@ -898,15 +898,7 @@
   background: #f2efe7;
 }
 .vaultsScreen .warmSection::before {
-  content: "";
-  position: absolute;
-  left: -4px;
-  top: 55px;
-  bottom: 16px;
-  width: 15px;
-  background: radial-gradient(circle at 50% 6px, #d2cbbc 3px, transparent 3.5px);
-  background-size: 15px 27px;
-  pointer-events: none;
+  content: none;
 }
 .vaultsScreen .warmSection h2 {
   font-size: 21px;
@@ -1488,5 +1480,159 @@
   .screen button,
   .screen a {
     transition: none;
+  }
+}
+
+/* Vaults has two independent shelves, not a mixed timeline. */
+.vaultTabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+  padding: 5px;
+  margin-bottom: 16px;
+  border: 1px solid #dbe5f5;
+  border-radius: 16px;
+  background: #edf2fb;
+}
+.vaultTabs button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  color: #667993;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.vaultTabs button[aria-selected="true"] {
+  background: #2563eb;
+  color: #fff;
+  box-shadow: 0 3px 7px #1b4eaa1a;
+}
+.vaultTabs button > span {
+  min-width: 22px;
+  padding: 2px 5px;
+  border-radius: 6px;
+  background: #172f5b0d;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.vaultTabs button[aria-selected="true"] > span {
+  background: #ffffff24;
+}
+.vaultTabs button:focus-visible,
+.vaultsScreen a:focus-visible,
+.vaultsScreen button:focus-visible {
+  outline: 3px solid #6395ed;
+  outline-offset: 3px;
+}
+.vaultPanel[hidden] {
+  display: none;
+}
+.vaultActions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+.vaultActions a {
+  min-height: 44px;
+  padding: 11px 8px;
+  line-height: 1.4;
+  text-align: center;
+  border-radius: 11px;
+}
+.vaultsScreen .warmSection {
+  padding: 17px 14px 14px;
+}
+.vaultsScreen .sectionCopy {
+  font-size: 12px;
+  line-height: 1.55;
+}
+.vaultsScreen .textButton,
+.vaultsScreen .cardAction,
+.vaultsScreen .campaignVault .cardAction,
+.vaultsScreen .vaultBottomRow .cardAction,
+.vaultsScreen .inlineNotice button {
+  min-height: 44px;
+}
+.vaultsScreen .textButton {
+  flex-shrink: 0;
+}
+.resourceLink {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 68px;
+  padding: 13px 10px;
+  margin-top: 14px;
+  border-top: 1px solid #dfe6f0;
+  color: #172844;
+}
+.resourceLink > div {
+  flex: 1;
+  min-width: 0;
+}
+.resourceLink h3 {
+  font-size: 14px;
+  line-height: 1.4;
+}
+.resourceLink p {
+  margin-top: 3px;
+  color: #758099;
+  font-size: 11px;
+  line-height: 1.45;
+}
+.resourceLink svg {
+  flex-shrink: 0;
+}
+.vaultDiscovery {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+.vaultsScreen .vaultDiscovery .exploreLink {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 8px;
+  min-height: 82px;
+  min-width: 0;
+  border: 1px solid #dfe6f0;
+  border-radius: 13px;
+}
+.vaultsScreen .vaultDiscovery .exploreLink img {
+  width: 30px;
+  height: 32px;
+  margin: 0;
+}
+.vaultsScreen .vaultDiscovery .exploreLink > div {
+  min-width: 0;
+}
+.vaultsScreen .vaultDiscovery .exploreLink h3 {
+  font-size: 12px;
+  line-height: 1.4;
+}
+.vaultsScreen .vaultDiscovery .exploreLink p {
+  font-size: 10px;
+  line-height: 1.4;
+}
+.vaultsScreen .vaultDiscovery .exploreLink > svg {
+  margin: 0;
+  flex-shrink: 0;
+}
+.vaultsScreen .exploreSection h2 {
+  font-size: 20px;
+}
+@media (max-width: 370px) {
+  .vaultDiscovery {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

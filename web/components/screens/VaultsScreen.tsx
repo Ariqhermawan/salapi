@@ -26,7 +26,15 @@ type Rooms = Awaited<ReturnType<typeof arisanList>>;
 type Campaigns = Awaited<ReturnType<typeof campaignState>>;
 type Pool = Awaited<ReturnType<typeof disasterState>>;
 type LegacyCircle = Awaited<ReturnType<typeof paluwaganState>>;
+type VaultTab = "arisan" | "crowdfund";
+const VAULT_TAB_KEY = "salapi.vaults.tab.v1";
 const PREVIEW = process.env.NEXT_PUBLIC_LOCAL_PREVIEW === "1";
+const vaultContentCopy = {
+  en: { tabs: "Vault categories", arisan: "Arisan", crowdfund: "Crowdfund", roomTitle: "Arisan rooms", campaignTitle: "Crowdfunding", roomSub: "Rooms linked to your active wallet. Demo wallets use shared data.", campaignSub: "Campaigns you organize, review or support. Testnet tokens only.", roomLoading: "Loading arisan rooms", campaignLoading: "Loading crowdfunding campaigns", roomError: "Your rooms could not be loaded.", campaignError: "Your campaigns could not be loaded.", refresh: "Refresh", retry: "Try again", create: "Create a room", join: "Join a room", explore: "Explore causes", start: "Start a campaign", emptyRoom: "Your next room starts here.", emptyRoomSub: "Create a room with people you know, or join with an invite.", emptyCampaign: "No campaigns linked to this wallet yet.", emptyCampaignSub: "Explore a cause or start a Testnet campaign.", more: "More ways to give", moreSub: "Campaign discovery and shared community pools" },
+  tl: { tabs: "Mga kategorya ng vault", arisan: "Arisan", crowdfund: "Crowdfund", roomTitle: "Mga room ng Arisan", campaignTitle: "Crowdfunding", roomSub: "Mga room na naka-link sa aktibong wallet mo. Shared data ang gamit ng demo wallets.", campaignSub: "Mga kampanyang inorganisa, nire-review o sinusuportahan mo. Testnet tokens lamang.", roomLoading: "Nilo-load ang mga room ng Arisan", campaignLoading: "Nilo-load ang mga crowdfunding campaign", roomError: "Hindi ma-load ang mga room mo.", campaignError: "Hindi ma-load ang mga kampanya mo.", refresh: "I-refresh", retry: "Subukan muli", create: "Gumawa ng room", join: "Sumali sa room", explore: "Tuklasin ang mga layunin", start: "Magsimula ng kampanya", emptyRoom: "Dito magsisimula ang susunod mong room.", emptyRoomSub: "Gumawa ng room kasama ang mga kakilala mo, o sumali gamit ang imbitasyon.", emptyCampaign: "Wala pang kampanyang naka-link sa wallet na ito.", emptyCampaignSub: "Tuklasin ang isang layunin o magsimula ng Testnet campaign.", more: "Iba pang paraan ng pagbibigay", moreSub: "Mga kampanya at shared community pool" },
+  id: { tabs: "Kategori vault", arisan: "Arisan", crowdfund: "Crowdfund", roomTitle: "Room Arisan", campaignTitle: "Crowdfunding", roomSub: "Room yang terhubung ke wallet aktifmu. Wallet demo memakai data bersama.", campaignSub: "Campaign yang kamu kelola, tinjau, atau dukung. Hanya token Testnet.", roomLoading: "Memuat room Arisan", campaignLoading: "Memuat campaign crowdfunding", roomError: "Room kamu belum dapat dimuat.", campaignError: "Campaign kamu belum dapat dimuat.", refresh: "Muat ulang", retry: "Coba lagi", create: "Buat room", join: "Gabung room", explore: "Jelajahi campaign", start: "Buat campaign", emptyRoom: "Mulai room berikutnya di sini.", emptyRoomSub: "Buat room bersama orang yang kamu kenal, atau gabung melalui undangan.", emptyCampaign: "Belum ada campaign yang terhubung ke wallet ini.", emptyCampaignSub: "Jelajahi sebuah campaign atau buat campaign Testnet.", more: "Pilihan crowdfunding lainnya", moreSub: "Jelajahi campaign dan pool komunitas" },
+  vi: { tabs: "Danh mục kho quỹ", arisan: "Arisan", crowdfund: "Crowdfund", roomTitle: "Phòng Arisan", campaignTitle: "Gây quỹ cộng đồng", roomSub: "Phòng liên kết với ví đang dùng. Ví demo dùng dữ liệu chung.", campaignSub: "Chiến dịch bạn tổ chức, xem xét hoặc hỗ trợ. Chỉ token Testnet.", roomLoading: "Đang tải phòng Arisan", campaignLoading: "Đang tải chiến dịch gây quỹ", roomError: "Không thể tải phòng của bạn.", campaignError: "Không thể tải chiến dịch của bạn.", refresh: "Tải lại", retry: "Thử lại", create: "Tạo phòng", join: "Tham gia phòng", explore: "Khám phá chiến dịch", start: "Tạo chiến dịch", emptyRoom: "Phòng tiếp theo bắt đầu tại đây.", emptyRoomSub: "Tạo phòng với người quen hoặc tham gia bằng lời mời.", emptyCampaign: "Chưa có chiến dịch liên kết với ví này.", emptyCampaignSub: "Khám phá một chiến dịch hoặc tạo chiến dịch Testnet.", more: "Các cách đóng góp khác", moreSub: "Khám phá chiến dịch và quỹ cộng đồng" },
+};
 const campaignCardCopy: Record<Locale, {
   campaign: string; organizer: string; beneficiary: string; approver: string; donor: string;
   exampleOrganizer: string; organizerWallet: string; photo: string; portrait: string;
@@ -114,25 +122,11 @@ function isPreviewCampaign(value: unknown): value is Campaign {
 }
 const choices = [
   {
-    href: "/arisan",
-    art: "arisan",
-    name: "Arisan / Paluwagan",
-    copy: "Fund together before the first draw.",
-    action: "Create or join",
-  },
-  {
     href: "/campaigns",
     art: "giving",
     name: "Donation campaigns",
     copy: "Proof and two approvals before payout.",
     action: "Explore causes",
-  },
-  {
-    href: "/transparency",
-    art: "disaster",
-    name: "Disaster Vault",
-    copy: "A community pool with shared controls.",
-    action: "View public pool",
   },
   {
     href: "/circles",
@@ -146,12 +140,7 @@ const choices = [
 export default function VaultsScreen() {
   const { currency, locale } = useT();
   const cardCopy = campaignCardCopy[locale] ?? campaignCardCopy.en;
-  const vaultCopy = {
-    en: { title: "Rooms and campaigns", sub: "Rooms, campaigns and public pools. Shared demo data is not a personal account.", loading: "Loading rooms and campaigns" },
-    tl: { title: "Mga room at kampanya", sub: "Mga room, kampanya at pampublikong pool. Ang shared demo data ay hindi personal na account.", loading: "Nilo-load ang mga room at kampanya" },
-    id: { title: "Room dan campaign", sub: "Room, campaign dan pool publik. Data demo bersama bukan akun pribadi.", loading: "Memuat room dan campaign" },
-    vi: { title: "Phòng và chiến dịch", sub: "Phòng, chiến dịch và quỹ công khai. Dữ liệu demo dùng chung không phải tài khoản cá nhân.", loading: "Đang tải phòng và chiến dịch" },
-  }[locale];
+  const vaultCopy = vaultContentCopy[locale];
   const [rooms, setRooms] = useState<Rooms | null>(
     PREVIEW ? previewRooms : null,
   );
@@ -161,6 +150,11 @@ export default function VaultsScreen() {
   const [pool, setPool] = useState<Pool | null>(null);
   const [legacyCircle, setLegacyCircle] = useState<LegacyCircle | null>(null);
   const [loading, setLoading] = useState(!PREVIEW);
+  const [tab, setTab] = useState<VaultTab>("arisan");
+  const selectTab = (next: VaultTab) => {
+    setTab(next);
+    try { sessionStorage.setItem(VAULT_TAB_KEY, next); } catch { /* Switching still works without browser storage. */ }
+  };
   const refresh = useCallback(async () => {
     if (PREVIEW) {
       let list = PREVIEW_CAMPAIGNS;
@@ -246,7 +240,13 @@ export default function VaultsScreen() {
     }
   }, []);
   useEffect(() => {
-    const initialLoad = setTimeout(() => void refresh(), 0);
+    const initialLoad = setTimeout(() => {
+      try {
+        const saved = sessionStorage.getItem(VAULT_TAB_KEY);
+        if (saved === "arisan" || saved === "crowdfund") setTab(saved);
+      } catch { /* Arisan is the safe default when storage is unavailable. */ }
+      void refresh();
+    }, 0);
     return () => clearTimeout(initialLoad);
   }, [refresh]);
   const mine =
@@ -263,12 +263,11 @@ export default function VaultsScreen() {
   const hasLegacyCircle = Boolean(
     legacyCircle?.ready && legacyCircle.potPesos > 0,
   );
-  const hasVaults = myRooms.length > 0 || mine.length > 0;
-  const incomplete =
-    !PREVIEW && ((rooms && !rooms.ready) || (campaigns && !campaigns.ok));
+  const roomsIncomplete = !PREVIEW && rooms !== null && !rooms.ready;
+  const campaignsIncomplete = !PREVIEW && campaigns !== null && !campaigns.ok;
 
   return (
-    <div className={`${styles.screen} ${styles.vaultsScreen}`}>
+    <div className={`${styles.screen} ${styles.vaultsScreen}`} data-testid="vaults-dashboard">
       <header className={styles.vaultHeader}>
         <div>
           <span className={styles.eyebrow}>Your community money</span>
@@ -277,7 +276,7 @@ export default function VaultsScreen() {
         </div>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/illustrations/arisan.png"
+          src={`/illustrations/${tab === "arisan" ? "arisan" : "giving"}.png`}
           alt="Friends pooling their contributions"
           className={styles.headerArt}
         />
@@ -287,54 +286,64 @@ export default function VaultsScreen() {
         <span>No real money</span>
         {PREVIEW && <strong>Example data</strong>}
       </div>
-      <section className={styles.warmSection} aria-label={vaultCopy.title} aria-busy={loading}>
+      <div className={styles.vaultTabs} role="tablist" aria-label={vaultCopy.tabs}>
+        {(["arisan", "crowdfund"] as const).map((item) => <button
+          key={item} id={`vault-tab-${item}`} type="button" role="tab"
+          aria-selected={tab === item} aria-controls={`vault-panel-${item}`}
+          tabIndex={tab === item ? 0 : -1} onClick={() => selectTab(item)}
+          onKeyDown={(event) => {
+            if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+            event.preventDefault();
+            const next: VaultTab = event.key === "Home" ? "arisan" : event.key === "End" ? "crowdfund" : item === "arisan" ? "crowdfund" : "arisan";
+            selectTab(next);
+            event.currentTarget.parentElement?.querySelector<HTMLButtonElement>(`#vault-tab-${next}`)?.focus();
+          }}>
+          {vaultCopy[item]}
+          {(item === "arisan" ? rooms?.ready : campaigns?.ok) && <span aria-hidden="true">{item === "arisan" ? myRooms.length : mine.length}</span>}
+        </button>)}
+      </div>
+      <div id="vault-panel-arisan" role="tabpanel" aria-labelledby="vault-tab-arisan" hidden={tab !== "arisan"} className={styles.vaultPanel}>
+      <section className={styles.warmSection} aria-label={vaultCopy.roomTitle} aria-busy={loading}>
         <div className={styles.sectionHeading}>
-          <h2>{vaultCopy.title}</h2>
+          <h2>{vaultCopy.roomTitle}</h2>
           <button
             type="button"
             className={styles.textButton}
             onClick={() => void refresh()}
             disabled={loading}
           >
-            Refresh {Ico.refresh({ size: 13, c: T.action })}
+            {vaultCopy.refresh} {Ico.refresh({ size: 13, c: T.action })}
           </button>
         </div>
         <p className={styles.sectionCopy}>
-          {vaultCopy.sub}
+          {vaultCopy.roomSub}
         </p>
-        {loading && !hasVaults ? (
+        <div className={styles.vaultActions}>
+          <Link href="/arisan/new" className={styles.primaryLink}>{vaultCopy.create}</Link>
+          <Link href="/arisan/join" className={styles.secondaryLink}>{vaultCopy.join}</Link>
+        </div>
+        {loading && myRooms.length === 0 ? (
           <div
             role="status"
-            aria-label={vaultCopy.loading}
+            aria-label={vaultCopy.roomLoading}
             className={styles.loadingGrid}
           >
             <div className={styles.skeleton} />
             <div className={styles.skeleton} />
           </div>
         ) : null}
-        {incomplete && (
+        {roomsIncomplete && (
           <div className={styles.inlineNotice} role="alert">
-            Some vaults could not be loaded.{" "}
+            {vaultCopy.roomError}{" "}
             <button type="button" onClick={() => void refresh()}>
-              Try again
+              {vaultCopy.retry}
             </button>
           </div>
         )}
-        {!loading && !incomplete && !hasVaults && (
+        {!loading && !roomsIncomplete && myRooms.length === 0 && (
           <div className={styles.emptyState}>
-            <h3>A shared goal starts here.</h3>
-            <p>
-              Create a room with people you know, join with an invite, or
-              support a campaign.
-            </p>
-            <div className={styles.actionPair}>
-              <Link href="/arisan/new" className={styles.primaryLink}>
-                Create a room
-              </Link>
-              <Link href="/arisan/join" className={styles.secondaryLink}>
-                Join a room
-              </Link>
-            </div>
+            <h3>{vaultCopy.emptyRoom}</h3>
+            <p>{vaultCopy.emptyRoomSub}</p>
           </div>
         )}
         {rooms?.ready && rooms.nextCursor !== null ? <Link href="/arisan" className={styles.secondaryLink} style={{ minHeight: 44 }}>Find older rooms</Link> : null}
@@ -394,6 +403,39 @@ export default function VaultsScreen() {
               </div>
             </article>
           ))}
+        </div>
+        {myRooms.length > 0 && <p className={styles.fundNote}>Room funds are separate from your available wallet balance.</p>}
+      </section>
+      <Link href="/paluwagan" className={styles.resourceLink}>
+        <span className={styles.legacyIcon}>{Ico.refresh({ size: 22, c: T.action })}</span>
+        <div>
+          <h3>Original Paluwagan pool</h3>
+          <p>{hasLegacyCircle && legacyCircle?.ready ? `Shared pool · round ${legacyCircle.cycleRound}` : PREVIEW ? "Original shared-pool example" : "Original shared pool · Stellar Testnet"}</p>
+        </div>
+        {Ico.chev({ size: 15, c: T.action })}
+      </Link>
+      </div>
+      <div id="vault-panel-crowdfund" role="tabpanel" aria-labelledby="vault-tab-crowdfund" hidden={tab !== "crowdfund"} className={styles.vaultPanel}>
+      <section className={styles.warmSection} aria-label={vaultCopy.campaignTitle} aria-busy={loading}>
+        <div className={styles.sectionHeading}>
+          <h2>{vaultCopy.campaignTitle}</h2>
+          <button type="button" className={styles.textButton} onClick={() => void refresh()} disabled={loading}>
+            {vaultCopy.refresh} {Ico.refresh({ size: 13, c: T.action })}
+          </button>
+        </div>
+        <p className={styles.sectionCopy}>{vaultCopy.campaignSub}</p>
+        <div className={styles.vaultActions}>
+          <Link href="/campaigns?mode=examples" className={styles.primaryLink}>{vaultCopy.explore}</Link>
+          <Link href="/campaigns?create=1" className={styles.secondaryLink}>{vaultCopy.start}</Link>
+        </div>
+        {loading && mine.length === 0 && <div role="status" aria-label={vaultCopy.campaignLoading} className={styles.loadingGrid}><div className={styles.skeleton} /><div className={styles.skeleton} /></div>}
+        {campaignsIncomplete && <div className={styles.inlineNotice} role="alert">
+          {vaultCopy.campaignError} <button type="button" onClick={() => void refresh()}>{vaultCopy.retry}</button>
+        </div>}
+        {!loading && !campaignsIncomplete && mine.length === 0 && <div className={styles.emptyState}>
+          <h3>{vaultCopy.emptyCampaign}</h3><p>{vaultCopy.emptyCampaignSub}</p>
+        </div>}
+        <div className={styles.vaultStack}>
           {mine.map((campaign) => {
             const media = vaultCampaignMedia(campaign, PREVIEW);
             const creator = campaign.config.creator;
@@ -459,10 +501,9 @@ export default function VaultsScreen() {
             </article>;
           })}
         </div>
-        {hasVaults && (
+        {mine.length > 0 && (
           <p className={styles.fundNote}>
-            Shared pots and campaign escrow are separate from your available
-            wallet balance.
+            Campaign escrow is separate from your available wallet balance.
           </p>
         )}
         {!PREVIEW &&
@@ -505,10 +546,10 @@ export default function VaultsScreen() {
       </section>
       <section className={styles.exploreSection}>
         <div className={styles.sectionHeading}>
-          <h2>{hasVaults ? "Make room for more" : "Explore vaults"}</h2>
-          <span className={styles.smallMuted}>Choose how you pool or give</span>
+          <h2>{vaultCopy.more}</h2>
+          <span className={styles.smallMuted}>{vaultCopy.moreSub}</span>
         </div>
-        <div className={hasVaults ? styles.compactExplore : styles.fullExplore}>
+        <div className={styles.vaultDiscovery}>
           {choices.map((choice) => (
             <Link
               key={choice.href}
@@ -519,23 +560,15 @@ export default function VaultsScreen() {
               <img src={`/illustrations/${choice.art}.png`} alt="" />
               <div>
                 <h3>{choice.name}</h3>
-                <p>{hasVaults ? choice.action : choice.copy}</p>
+                <p>{choice.action}</p>
               </div>
               {Ico.chev({ size: 15, c: T.action })}
             </Link>
           ))}
         </div>
-          <Link href="/paluwagan" className={styles.exploreLink}>
-            <span className={styles.legacyIcon}>
-              {Ico.refresh({ size: 22, c: T.action })}
-            </span>
-            <div>
-              <h3>Original Paluwagan pool</h3>
-              <p>{hasLegacyCircle && legacyCircle?.ready ? `Shared pool · round ${legacyCircle.cycleRound}` : PREVIEW ? "Original shared-pool example" : "Original shared pool · Stellar Testnet"}</p>
-            </div>
-            {Ico.chev({ size: 15, c: T.action })}
-          </Link>
-        <Link href="/savings" className={styles.exploreLink}>
+      </section>
+      </div>
+        <Link href="/savings" className={styles.resourceLink}>
           <span className={styles.legacyIcon}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/illustrations/savings.png" alt="" width={32} height={34} />
@@ -543,7 +576,6 @@ export default function VaultsScreen() {
           <div><h3>Smart Savings</h3><p>{PREVIEW ? "Personal saving goals · local demo" : "Personal saving goals · Stellar Testnet"}</p></div>
           {Ico.chev({ size: 15, c: T.action })}
         </Link>
-      </section>
       <footer className={styles.footer}>
         <PoweredByStellar />
         <span>Public proof on Stellar Testnet.</span>
