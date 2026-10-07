@@ -281,7 +281,8 @@ test("feed fails explicitly when schema is missing", async () => {
 });
 test("schema recipe denies client reads, no public view, immutable unique receipt", () => {
   const sql = readFileSync(new URL("../supabase/campaign_donors.sql", import.meta.url), "utf8");
-  assert.match(sql, /enable row level security/i); assert.match(sql, /revoke all on public\.campaign_donors from public, anon, authenticated/i);
+  assert.match(sql, /enable row level security/i); assert.match(sql, /revoke all on public\.campaign_donors from public, anon, authenticated, service_role;/i);
+  assert.match(sql, /revoke all on sequence public\.campaign_donors_id_seq from public, anon, authenticated, service_role;/i);
   assert.match(sql, /unique \(network, contract_id, transaction_hash\)/i); assert.match(sql, /grant select, insert on public\.campaign_donors to service_role/i);
   assert.match(sql, /revoke update, delete on public\.campaign_donors from service_role/i); assert.doesNotMatch(sql, /create (?:or replace )?(?:view|function)/i);
   assert.match(sql, /public_profile_ok boolean not null default false/i);

@@ -58,11 +58,15 @@ create table if not exists public.campaign_update_outbox (
 create index if not exists campaign_update_subscriptions_scope_idx on public.campaign_update_subscriptions(network,contract_id,campaign_id) where active;
 create index if not exists campaign_updates_scope_idx on public.campaign_updates(network,contract_id,campaign_id,published_at desc);
 create index if not exists campaign_update_outbox_retry_idx on public.campaign_update_outbox(update_id,status,retry_after);
+create index if not exists campaign_update_subscriptions_user_idx on public.campaign_update_subscriptions(user_id);
+create index if not exists campaign_updates_publisher_idx on public.campaign_updates(published_by);
+create index if not exists campaign_update_outbox_subscription_idx on public.campaign_update_outbox(subscription_id);
+create index if not exists campaign_update_outbox_user_idx on public.campaign_update_outbox(user_id);
 
 alter table public.campaign_update_subscriptions enable row level security;
 alter table public.campaign_updates enable row level security;
 alter table public.campaign_update_outbox enable row level security;
-revoke all on public.campaign_update_subscriptions, public.campaign_updates, public.campaign_update_outbox from public, anon, authenticated;
+revoke all on public.campaign_update_subscriptions, public.campaign_updates, public.campaign_update_outbox from public, anon, authenticated, service_role;
 grant select, insert, update on public.campaign_update_subscriptions, public.campaign_updates, public.campaign_update_outbox to service_role;
 
 drop policy if exists campaign_update_subscriptions_no_client on public.campaign_update_subscriptions;
@@ -174,11 +178,11 @@ begin
   return changed = 1;
 end $$;
 
-revoke all on function public.campaign_updates_subscribe(text,text,text,uuid,text,text,boolean) from public,anon,authenticated;
-revoke all on function public.campaign_updates_unsubscribe(text,text,text,uuid) from public,anon,authenticated;
-revoke all on function public.campaign_updates_publish(text,text,text,uuid,uuid,text,text,text,text) from public,anon,authenticated;
-revoke all on function public.campaign_updates_claim(text,text,text,uuid,text,integer) from public,anon,authenticated;
-revoke all on function public.campaign_updates_finish(uuid,uuid,text,uuid,timestamptz) from public,anon,authenticated;
+revoke all on function public.campaign_updates_subscribe(text,text,text,uuid,text,text,boolean) from public,anon,authenticated,service_role;
+revoke all on function public.campaign_updates_unsubscribe(text,text,text,uuid) from public,anon,authenticated,service_role;
+revoke all on function public.campaign_updates_publish(text,text,text,uuid,uuid,text,text,text,text) from public,anon,authenticated,service_role;
+revoke all on function public.campaign_updates_claim(text,text,text,uuid,text,integer) from public,anon,authenticated,service_role;
+revoke all on function public.campaign_updates_finish(uuid,uuid,text,uuid,timestamptz) from public,anon,authenticated,service_role;
 grant execute on function public.campaign_updates_subscribe(text,text,text,uuid,text,text,boolean) to service_role;
 grant execute on function public.campaign_updates_unsubscribe(text,text,text,uuid) to service_role;
 grant execute on function public.campaign_updates_publish(text,text,text,uuid,uuid,text,text,text,text) to service_role;

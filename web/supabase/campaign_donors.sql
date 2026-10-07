@@ -28,13 +28,13 @@ create index if not exists campaign_donors_feed_idx on public.campaign_donors (n
 create index if not exists campaign_donors_owner_idx on public.campaign_donors (owner_id);
 
 alter table public.campaign_donors enable row level security;
-revoke all on public.campaign_donors from public, anon, authenticated;
+revoke all on public.campaign_donors from public, anon, authenticated, service_role;
 -- Immutable receipt rows: no client read and no UPDATE/DELETE privilege, not
 -- even for the app service role. Anonymous-safe projection is server-only.
 grant select, insert on public.campaign_donors to service_role;
 revoke update, delete on public.campaign_donors from service_role;
+revoke all on sequence public.campaign_donors_id_seq from public, anon, authenticated, service_role;
 grant usage, select on sequence public.campaign_donors_id_seq to service_role;
-revoke all on sequence public.campaign_donors_id_seq from public, anon, authenticated;
 drop policy if exists "campaign_donors_no_client_access" on public.campaign_donors;
 create policy "campaign_donors_no_client_access" on public.campaign_donors as restrictive
 for all to anon, authenticated using (false) with check (false);

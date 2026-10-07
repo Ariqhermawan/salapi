@@ -286,7 +286,11 @@ test("SQL recipe keeps private service-only RLS tables and atomic lease/idempote
   for (const table of ["campaign_update_subscriptions", "campaign_updates", "campaign_update_outbox"]) {
     assert.match(sql, new RegExp(`alter table public\\.${table} enable row level security`));
   }
-  assert.match(sql, /revoke all on public\.campaign_update_subscriptions, public\.campaign_updates, public\.campaign_update_outbox from public, anon, authenticated/);
+  assert.match(sql, /revoke all on public\.campaign_update_subscriptions, public\.campaign_updates, public\.campaign_update_outbox from public, anon, authenticated, service_role;/);
+  assert.equal((sql.match(/revoke all on function public\.campaign_updates_\w+\([^;]+from public,anon,authenticated,service_role;/g) ?? []).length, 5);
+  for (const index of ["campaign_update_subscriptions_user_idx", "campaign_updates_publisher_idx", "campaign_update_outbox_subscription_idx", "campaign_update_outbox_user_idx"]) {
+    assert.match(sql, new RegExp(`create index if not exists ${index} `));
+  }
   assert.match(sql, /as restrictive for all to anon, authenticated using \(false\) with check \(false\)/);
   assert.equal((sql.match(/language plpgsql security invoker set search_path = ''/g) ?? []).length, 5);
   assert.doesNotMatch(sql, /security definer/i);
