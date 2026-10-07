@@ -15,7 +15,9 @@ import {
   Account,
   xdr,
   StrKey,
+  SorobanDataBuilder,
 } from "@stellar/stellar-sdk";
+import { bufferedFundingResourceFee, FUNDING_FEE_LIMIT_ERROR, transactionFeeWithinCap, validTransactionFee } from "@/lib/arisan-funding-fees";
 import { pesosToStroopsExact } from "@/lib/money";
 import { isLocalPreview } from "@/lib/local-preview";
 import { getTestnetNativeBalance } from "@/lib/server/walletReadiness";
@@ -235,9 +237,13 @@ export async function invokeAs(
   secret: string,
   contractId: string,
   method: string,
-  args: xdr.ScVal[] = []
+  args: xdr.ScVal[] = [],
+  options?: { maxFeeStroops: string; bufferRefundableResourceFee?: boolean },
 ): Promise<TxResult> {
   if (isLocalPreview) return { ok: false, error: "Local preview cannot submit transactions." };
+  if (options && (!validTransactionFee(options.maxFeeStroops)
+    || (options.bufferRefundableResourceFee !== undefined && typeof options.bufferRefundableResourceFee !== "boolean")))
+    return { ok: false, error: "Invalid server transaction fee policy. Nothing was signed or submitted." };
   try {
     const srv = server();
     const kp = Keypair.fromSecret(secret);
@@ -249,7 +255,25 @@ export async function invokeAs(
       .addOperation(new Contract(contractId).call(method, ...args))
       .setTimeout(60)
       .build();
-    const prepared = await srv.prepareTransaction(built);
+    let prepared = await srv.prepareTransaction(built);
+    if (options) {
+      if (!transactionFeeWithinCap(prepared.fee, options.maxFeeStroops))
+        return { ok: false, error: FUNDING_FEE_LIMIT_ERROR };
+      if (options.bufferRefundableResourceFee) {
+        const data = prepared.toEnvelope().v1().tx().ext().sorobanData();
+        const buffered = bufferedFundingResourceFee(data.resourceFee().toString());
+        if (!buffered) return { ok: false, error: FUNDING_FEE_LIMIT_ERROR };
+        const sorobanData = new SorobanDataBuilder(data).setResourceFee(buffered).build();
+        // cloneFrom preserves sequence, operation auth and time bounds. Use
+        // inclusion BASE_FEE, not prepared.fee, or resources get counted twice.
+        prepared = TransactionBuilder.cloneFrom(prepared, {
+          fee: BASE_FEE, sorobanData, networkPassphrase: Networks.TESTNET,
+        }).build();
+      }
+      if (!transactionFeeWithinCap(prepared.fee, options.maxFeeStroops))
+        return { ok: false, error: FUNDING_FEE_LIMIT_ERROR };
+      prepared.toXDR(); // Validate the entire unsigned envelope before signing.
+    }
     prepared.sign(kp);
     return await submitAndConfirm(srv, prepared);
   } catch (e) {

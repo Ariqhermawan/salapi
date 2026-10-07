@@ -5,6 +5,7 @@ import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import * as sdk from "@stellar/stellar-sdk";
 import * as domain from "../lib/arisan-funding.ts";
+import * as feePolicy from "../lib/arisan-funding-fees.ts";
 import { arisanRoomPage } from "../lib/arisan-list.ts";
 
 const pair = sdk.Keypair.fromRawEd25519Seed(Buffer.alloc(32, 71));
@@ -81,6 +82,7 @@ function setup(options: Options = {}) {
   });
   const api = load<{ fundingRecoverCreate(hash: string): Promise<Record<string, unknown>> }>(actionsCode, {
     "@stellar/stellar-sdk": sdk, "node:crypto": {}, "@/lib/arisan-funding": domain,
+    "@/lib/arisan-funding-fees": feePolicy,
     "@/lib/arisan-list": { arisanRoomPage }, "@/lib/local-preview": { isLocalPreview: options.preview ?? false },
     "@/lib/server/arisanCommitment": {}, "@/lib/server/arisanFundingReceipt": decoder,
     "@/lib/server/arisanAuthorization": { authenticatedArisanWallet: async () => {

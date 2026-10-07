@@ -7,6 +7,7 @@ import * as stellarSdk from "@stellar/stellar-sdk";
 import { Keypair, StrKey } from "@stellar/stellar-sdk";
 import { AuthSessionMissingError, isAuthSessionMissingError } from "@supabase/supabase-js";
 import * as money from "../lib/money.ts";
+import * as feePolicy from "../lib/arisan-funding-fees.ts";
 
 // Deterministic isolated fixtures only. No request below may use the network.
 const saved = Keypair.fromRawEd25519Seed(Buffer.alloc(32, 1));
@@ -122,6 +123,7 @@ test("stellar native-balance wrapper preserves true zero and propagates missing/
     const fixture = network([response]);
     const stellar = load<{ getNativeBalance(address: string): Promise<bigint> }>("../lib/server/stellar.ts", {
       "@stellar/stellar-sdk": stellarSdk, "@/lib/money": money, "@/lib/local-preview": { isLocalPreview: false },
+      "@/lib/arisan-funding-fees": feePolicy,
       "@/lib/server/walletReadiness": fixture.readiness,
     });
     if (error) await assert.rejects(stellar.getNativeBalance(saved.publicKey()), error);

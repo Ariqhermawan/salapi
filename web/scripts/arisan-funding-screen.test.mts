@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import * as domain from "../lib/arisan-funding.ts";
+import * as feePolicy from "../lib/arisan-funding-fees.ts";
 
 // These tests execute the actual screen, status panel, hook and storage helper.
 // React scheduling, browser storage and server action transports are isolated
@@ -142,6 +143,7 @@ function setup({ lockedHash, storageRemovalDenied = false }: { lockedHash?: stri
     "@/lib/ui/useUnresolvedSubmission": hook,
     "@/components/ui/SubmissionStatusPanel": panel,
     "@/lib/local-preview": localPreview, "@/lib/arisan-funding": domain,
+    "@/lib/arisan-funding-fees": feePolicy,
     "@/app/arisan-funding-actions": actions,
     "./ArisanFundingReminder": { default: () => null },
     "./arisan-funding-preview": { FUNDING_PREVIEW_ACTORS: [viewer, otherViewer], FUNDING_PREVIEW_CONTRACT: contractId },

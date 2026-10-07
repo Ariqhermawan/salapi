@@ -9,6 +9,7 @@ import { createArisanCommitment, deriveArisanSecret } from "@/lib/server/arisanC
 import { readArisanFundingReceipt, verifyArisanFundingCreateReceipt } from "@/lib/server/arisanFundingReceipt";
 import { isLocalPreview } from "@/lib/local-preview";
 import { arisanRoomPage } from "@/lib/arisan-list";
+import { FUNDING_FEE_LIMIT_ERROR, FUNDING_INVOKE_OPTIONS } from "@/lib/arisan-funding-fees";
 import {
   FUNDING_DAYS, MAX_FUNDING_SHARE_STROOPS, fundingReview, fundingReviewMatches,
   parseFundingXlm, validFundingAmount, validFundingDepositReview, validFundingReview, validFundingRoomId,
@@ -119,6 +120,8 @@ async function readCore(id: string, roomId: number): Promise<Core> {
 
 function txResult(result: TxResult): FundingMutation {
   if (result.ok) return { ok: true, hash: result.hash, link: txLink(result.hash) };
+  if (!result.pending && !result.hash && result.error === FUNDING_FEE_LIMIT_ERROR)
+    return failure(FUNDING_FEE_LIMIT_ERROR);
   return result.pending
     ? { ok: false, pending: true, hash: result.hash, link: txLink(result.hash),
       error: "Transaction confirmation is pending. Check the original transaction before retrying." }
@@ -275,7 +278,7 @@ export async function fundingCreate(input: FundingCreateReview): Promise<({ ok: 
     const deadline = Math.floor(Date.now() / 1000) + input.fundingDays * 86400;
     const result = await invokeAs(resolved.signer.secret, id, "create_installment_room", [sc.addr(owner.publicKey),
       sc.sym(code), sc.str(input.name.trim()), sc.u32(input.memberTarget), sc.i128(BigInt(share)),
-      sc.unitVariant(input.cadence), sc.u64(deadline)]);
+      sc.unitVariant(input.cadence), sc.u64(deadline)], FUNDING_INVOKE_OPTIONS);
     if (!result.ok) return { ...txResult(result), code } as FundingFailure;
     let roomId: number;
     try { roomId = integer(result.value, 1); }
@@ -357,7 +360,7 @@ async function reviewedMutation(review: FundingJoinReview, purpose: "join" | "de
     if ("ok" in current) return current;
     const result = txResult(await invokeAs(resolved.signer.secret, id, purpose === "join" ? "join_room" : "deposit_room",
       purpose === "join" ? [sc.u32(review.roomId), sc.sym(review.code), sc.addr(review.viewer)]
-        : [sc.u32(review.roomId), sc.addr(review.viewer), sc.i128(BigInt((review as FundingDepositReview).amountStroops))]));
+        : [sc.u32(review.roomId), sc.addr(review.viewer), sc.i128(BigInt((review as FundingDepositReview).amountStroops))], FUNDING_INVOKE_OPTIONS));
     return result.ok && purpose === "join" ? { ...result, id: review.roomId } : result;
   } catch { return failure(); }
 }
@@ -441,7 +444,7 @@ async function roomMutation(review: FundingOperationReview, operation: RoomOpera
         round: current.round, participant: signer.publicKey, secret }) : secret));
     }
     if (operation === "postpone") args.push(sc.u64(delaySeconds!));
-    return txResult(await invokeAs(signer.secret, id, method[operation], args));
+    return txResult(await invokeAs(signer.secret, id, method[operation], args, FUNDING_INVOKE_OPTIONS));
   } catch { return failure(); }
 }
 export async function fundingStart(review: FundingOperationReview): Promise<FundingMutation> { return roomMutation(review, "start"); }

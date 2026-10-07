@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
+import * as feePolicy from "../lib/arisan-funding-fees.ts";
 
 // Execute the real server-module exports with imports isolated. Any attempted
 // access to SDK/network/keys fails the test instead of reaching external state.
@@ -15,6 +16,7 @@ function loadServerModule(file: string) {
     require: (path: string) => path === "@/lib/local-preview" ? { isLocalPreview: true }
       : path === "@stellar/stellar-sdk" ? { rpc: guarded, Keypair: guarded, StrKey: guarded }
       : path === "@/lib/money" ? { nativeBalanceToStroops: guarded, pesosToStroopsExact: guarded }
+      : path === "@/lib/arisan-funding-fees" ? feePolicy
       : {},
   });
   return sandboxModule.exports;

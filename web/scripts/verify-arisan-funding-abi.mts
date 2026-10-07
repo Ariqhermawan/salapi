@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import ts from "typescript";
 import * as sdk from "@stellar/stellar-sdk";
 import * as domain from "../lib/arisan-funding.ts";
+import * as feePolicy from "../lib/arisan-funding-fees.ts";
 import * as money from "../lib/money.ts";
 import { arisanRoomPage } from "../lib/arisan-list.ts";
 
@@ -44,6 +45,7 @@ function load<T>(code: string, dependencies: Record<string, unknown>): T {
 type ScBuilders = Record<string, (value: never) => sdk.xdr.ScVal>;
 const stellar = load<{ sc: ScBuilders; CONTRACTS: { tokenXlmSac: string } }>(compile("../lib/server/stellar.ts"), {
   "@stellar/stellar-sdk": sdk, "@/lib/money": money, "@/lib/local-preview": { isLocalPreview: false },
+  "@/lib/arisan-funding-fees": feePolicy,
   "@/lib/server/walletReadiness": {},
 });
 const decodedSamples: { name: string; decoded: unknown }[] = [];
@@ -62,6 +64,7 @@ const captured: { method: string; args: sdk.xdr.ScVal[] }[] = [];
 const api = load<Record<string, (...args: unknown[]) => Promise<Record<string, unknown>>>>(compile("../app/arisan-funding-actions.ts"), {
   "@stellar/stellar-sdk": sdk, "node:crypto": { randomBytes: () => Buffer.alloc(6, 2) },
   "@/lib/local-preview": { isLocalPreview: false }, "@/lib/arisan-funding": domain,
+  "@/lib/arisan-funding-fees": feePolicy,
   "@/lib/arisan-list": { arisanRoomPage },
   "@/lib/server/arisanAuthorization": { authenticatedArisanWallet: async () => ({ ok: true, publicKey: caller }) },
   "@/lib/server/userWallet": { getAuthenticatedSigner: async () => ({ publicKey: caller, demo: false, secret: "ISOLATED_UNSIGNED_TEST_ONLY" }) },

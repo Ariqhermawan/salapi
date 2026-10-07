@@ -5,6 +5,7 @@ import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import * as revampMoney from "../lib/i18n/revamp-money.ts";
 import * as money from "../lib/money.ts";
+import * as feePolicy from "../lib/arisan-funding-fees.ts";
 import { CURRENCY, formatLocalAmount, pesoFromLocal } from "../lib/ui/currency.ts";
 import { AuthSessionMissingError, isAuthSessionMissingError } from "@supabase/supabase-js";
 import { arisanRoomPage } from "../lib/arisan-list.ts";
@@ -237,6 +238,7 @@ function stellarSetup(options: { status?: "SUCCESS" | "FAILED" | "NOT_FOUND"; se
     "@stellar/stellar-sdk": { rpc: { Server }, Keypair: { fromSecret: () => ({ publicKey: () => "isolated-public" }) },
       Contract, TransactionBuilder: Builder, Networks: { TESTNET: "isolated-network" }, BASE_FEE: "100", scValToNative: (value: unknown) => value },
     "@/lib/money": money, "@/lib/local-preview": { isLocalPreview: options.preview ?? false },
+    "@/lib/arisan-funding-fees": feePolicy,
     "@/lib/server/walletReadiness": { getTestnetNativeBalance: async () => { throw Error("Unexpected balance access in isolated submission tests"); } },
   }, { process: { env: { SALAPI_DEMO_SECRET: "isolated-demo-secret", SALAPI_SPONSOR_SECRET: "isolated-sponsor-secret" } } });
   return { api, calls };

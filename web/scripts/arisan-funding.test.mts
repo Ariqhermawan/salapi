@@ -5,6 +5,7 @@ import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import { Keypair, StrKey } from "@stellar/stellar-sdk";
 import * as domain from "../lib/arisan-funding.ts";
+import * as feePolicy from "../lib/arisan-funding-fees.ts";
 import { arisanRoomPage } from "../lib/arisan-list.ts";
 
 const contract = StrKey.encodeContract(Buffer.alloc(32, 51));
@@ -41,6 +42,7 @@ function setup(options: Options = {}) {
     "@stellar/stellar-sdk": { StrKey },
     "node:crypto": { randomBytes: () => Buffer.alloc(6, 2) },
     "@/lib/arisan-funding": domain,
+    "@/lib/arisan-funding-fees": feePolicy,
     "@/lib/arisan-list": { arisanRoomPage },
     "@/lib/local-preview": { isLocalPreview: options.preview ?? false },
     "@/lib/server/arisanAuthorization": { authenticatedArisanWallet: async () => {
@@ -95,7 +97,8 @@ function setup(options: Options = {}) {
         if (method === "winner_of") return caller;
         throw new Error(`Unexpected readonly method ${method}`);
       },
-      invokeAs: async (_secret: string, id: string, method: string, args: unknown[]) => {
+      invokeAs: async (_secret: string, id: string, method: string, args: unknown[], policy: unknown) => {
+        assert.deepEqual(policy, feePolicy.FUNDING_INVOKE_OPTIONS, `${method} must use the fixed server fee policy`);
         assert.equal(id, contract); calls.sends.push({ method, args });
         return options.result ?? { ok: true, hash, value: 1 };
       },
