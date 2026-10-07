@@ -131,7 +131,7 @@ export default function HomeCirclesCatalog() {
               <small>{copy("{count} example reviews", { count: organizer.reviewCount })}</small>
             </div> : null}
             <HomeCircleFundingProgress circle={circle} active={ready && position === index} />
-            <Link href={`/circles/${circle.id}`} prefetch={false} className={styles.pledge}><Heart size={18} aria-hidden="true" />{c("View campaign")}</Link>
+            <Link href={`/circles/${circle.id}`} prefetch={ready && position === index} className={styles.pledge}><Heart size={18} aria-hidden="true" />{c("View campaign")}</Link>
           </div>
         </article>;
       })}

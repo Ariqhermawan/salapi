@@ -5,7 +5,7 @@ import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import { PREVIEW_CAMPAIGNS, PREVIEW_TIME, PREVIEW_WALLET } from "../lib/local-preview.ts";
 import { formatLocal } from "../lib/ui/currency.ts";
-import { formatStroops } from "../lib/disaster.ts";
+import { formatStroops } from "../lib/format-stroops.ts";
 import type { Campaign } from "../lib/campaign.ts";
 import type { Locale } from "../lib/i18n/config.ts";
 
@@ -77,13 +77,12 @@ function screen(options: { preview?: boolean; campaigns?: Campaign[]; locale?: L
       if (name === "@/components/I18nProvider") return { useT: () => ({ currency: "en", locale }) };
       if (name === "@/components/ui/kit") return { Ico: icons, T: {}, PoweredByStellar: "PoweredByStellar" };
       if (name === "@/lib/ui/currency") return { formatLocal };
-      if (name === "@/lib/disaster") return { formatStroops };
+      if (name === "@/lib/format-stroops") return { formatStroops };
       if (name === "@/lib/vault-campaign-media") return media;
       if (name === "@/lib/local-preview") return { PREVIEW_CAMPAIGNS, PREVIEW_TIME, PREVIEW_WALLET, normalizePreviewCampaigns: (values: Campaign[]) => values };
       if (name === "./arisan-preview") return { readPreviewArisanRoom: forbidden("storage") };
       if (name.endsWith(".module.css")) return { default: styles };
-      if (name === "@/app/actions") return { arisanList: forbidden("actions"), disasterState: forbidden("actions"), paluwaganState: forbidden("actions") };
-      if (name === "@/app/campaign-actions") return { campaignState: forbidden("actions") };
+      if (name === "@/app/vault-read-actions") return { vaultOverview: forbidden("actions") };
       throw Error(`Unexpected actual Vaults dependency: ${name}`);
     },
   });

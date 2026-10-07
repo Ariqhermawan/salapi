@@ -50,6 +50,10 @@ async function setup(page: Page, priceBody: () => object, currency = "en", local
       expect(request.method()).toBe("GET"); calls.quotes++;
       return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(priceBody()) });
     }
+    if (linkedFunding && request.method() === "GET" && url.pathname === "/api/public/circles-testnet"
+      && url.searchParams.size === 1 && url.searchParams.get("circleId") === "tino-relief") {
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(linkedFundingFixture()) });
+    }
     if (!["POST", "PUT", "PATCH", "DELETE"].includes(request.method())) return route.continue();
     const name = names.get(request.headers()["next-action"]);
     if (name === "readCircleTestnetCampaign" && linkedFunding) {

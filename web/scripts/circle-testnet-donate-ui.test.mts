@@ -9,7 +9,7 @@ import ts from "typescript";
 import { circleDonationAmount, circleDonationTerms, type CircleDonationInput, type CircleDonationResult } from "../lib/circles/donation.ts";
 import { campaignDonorComment, type CampaignDonorInput, type CampaignDonorRecordResult } from "../lib/campaign-donor.ts";
 import { campaignSplit } from "../lib/campaign-money.ts";
-import { formatStroops } from "../lib/disaster.ts";
+import { formatStroops } from "../lib/format-stroops.ts";
 import { circleTestnetDonateCopy, type CircleTestnetDonateMessage } from "../lib/i18n/circle-testnet-donate.ts";
 import type { Circle } from "../lib/circles/types.ts";
 import type { CircleTestnetCampaignResult } from "../lib/circles/testnet.ts";
@@ -135,7 +135,7 @@ function setup(options: Options = {}) {
         };
       } };
       if (name === "@/lib/ui/useGoBack") return { useGoBack(fallback: string) { assert.equal(fallback, `/circles/${circle.id}`); return () => { calls.backs++; }; } };
-      if (name === "@/lib/disaster") return { formatStroops };
+      if (name === "@/lib/format-stroops") return { formatStroops };
       if (name === "@/lib/campaign-money") return { campaignSplit };
       if (name === "@/components/CircleTestnetSummary") return { __esModule: true, default: dummy("mapping-summary") };
       if (name === "@/components/CampaignDonorActivity") return { __esModule: true, default: dummy("donor-feed") };

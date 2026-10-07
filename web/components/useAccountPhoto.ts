@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { accountPhoto, saveAccountPhoto, restoreGooglePhoto } from "@/app/account-photo-actions";
+import { saveAccountPhoto, restoreGooglePhoto } from "@/app/account-photo-actions";
+import { readAccountPhotoClient } from "@/lib/ui/account-photo-read";
 import { createSupabaseBrowser } from "@/lib/supabase/client";
 import { supabaseConfigured } from "@/lib/supabase/env";
 import { isLocalPreview } from "@/lib/local-preview";
@@ -19,8 +20,8 @@ export function useAccountPhoto(isSignOutPending?: () => boolean) {
   const active = useRef(false);
   const inFlight = useRef(false);
   const mutationOwner = useRef<string | null>(null);
-  // A browser session is only a response-correlation hint. The server action
-  // still authenticates every read and write with getUser.
+  // A browser session is only a response-correlation hint. The server still
+  // authenticates every GET read and Server Action write with getUser.
   const authOwner = useRef<string | null | undefined>(undefined);
   const owner = useRef<string | null>(null);
   const ownerTransitionPending = useRef(false);
@@ -34,7 +35,7 @@ export function useAccountPhoto(isSignOutPending?: () => boolean) {
       || (inFlight.current && mutationOwner.current === requestedOwner)) return;
     const request = ++version.current;
     try {
-      const result = await accountPhoto();
+      const result = await readAccountPhotoClient();
       if (!active.current || request !== version.current || authOwner.current !== requestedOwner) return;
       if (result.ok) {
         // Cookies may switch accounts before the browser Auth event arrives.

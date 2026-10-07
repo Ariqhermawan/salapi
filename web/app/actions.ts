@@ -23,7 +23,7 @@ import {
   pesosToStroopsExact,
   type MoneyInput,
 } from "@/lib/money";
-import { getSigner, getAuthenticatedSigner, currentWalletPublicKey, currentArisanPublicKey } from "@/lib/server/userWallet";
+import { getSigner, getAuthenticatedSigner, currentWalletPublicKey, currentArisanPublicKey, walletBalanceSnapshot } from "@/lib/server/userWallet";
 import { authenticatedArisanWallet } from "@/lib/server/arisanAuthorization";
 import type { ArisanReviewedInvitation } from "@/lib/arisan-invitation";
 import { disasterContribute as contributeToDisaster, disasterState as readDisasterState } from "./disaster-actions";
@@ -63,8 +63,7 @@ function failedTransaction(result: Extract<TxResult, { ok: false }>) {
 export async function walletState() {
   if (isLocalPreview) return PREVIEW_WALLET;
   try {
-    const { publicKey: address } = await getSigner();
-    const bal = await getNativeBalance(address);
+    const { publicKey: address, nativeBalance: bal } = await walletBalanceSnapshot();
     const pesos = stroopsToPesos(bal);
     return { address, pesos, pesoLabel: fmtPeso(pesos), nativeStroops: bal.toString() };
   } catch {
@@ -311,7 +310,8 @@ export async function paluwaganState() {
     const recipient = (await readContract(id, "recipient_of", [
       sc.u32(round),
     ])) as string;
-    const me = (await getSigner()).publicKey;
+    const me = await currentArisanPublicKey();
+    if (!me) throw new Error("Your wallet identity is unavailable. No account was prepared.");
     const fpub = FRIENDS.map((f) => f.pub());
     const seats = await Promise.all(
       members.map(async (addr, i) => {

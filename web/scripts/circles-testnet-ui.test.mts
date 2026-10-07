@@ -203,7 +203,7 @@ function hookHarness() {
   let cursor = 0;
   const exports = {} as { useCircleTestnet(slug: string, enabled?: boolean): { result: CircleTestnetCampaignResult | null; loading: boolean; refresh(): Promise<CircleTestnetCampaignResult | null> } };
   runInNewContext(compile("../lib/ui/useCircleTestnet.ts"), { exports, queueMicrotask, require(name: string) {
-    if (name === "@/app/circles-testnet-actions") return { readCircleTestnetCampaign(slug: string) {
+    if (name === "@/lib/ui/public-read") return { readPublicCircleTestnet(slug: string) {
       const result = deferred<CircleTestnetCampaignResult>(); reads.push({ slug, result }); return result.promise;
     } };
     if (name === "react") return {

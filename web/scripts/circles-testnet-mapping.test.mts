@@ -54,7 +54,7 @@ const compile = ts.transpileModule(readFileSync(new URL("../lib/server/circlesTe
 type Options = {
   rows?: unknown; tableError?: unknown; configured?: boolean; preview?: boolean; url?: string;
   contractId?: string | null; version?: number; token?: string; clock?: unknown;
-  raw?: (id: string) => unknown; failureId?: string; delay?: number;
+  raw?: (id: string) => unknown; failureId?: string; delay?: number; rpcGate?: Promise<void>;
 };
 function harness(options: Options = {}) {
   const rows = options.rows === undefined ? [row()] : options.rows;
@@ -91,13 +91,14 @@ function harness(options: Options = {}) {
         donationCampaignId: () => options.contractId === undefined ? contract : options.contractId,
         sc: { u64: (value: bigint) => value }, readContract: async (id: string, method: string, args: bigint[] = []) => {
           assert.equal(id, contract); calls.rpc.push(method);
-          if (method === "version") return options.version ?? 4;
-          if (method === "token") return options.token ?? token;
-          if (method === "clock") return options.clock === undefined ? now : options.clock;
-          assert.equal(method, "campaign"); const campaignId = args[0].toString();
           calls.active++; calls.peak = Math.max(calls.peak, calls.active);
           try {
+            if (options.rpcGate) await options.rpcGate;
             if (options.delay) await new Promise(resolve => setTimeout(resolve, options.delay));
+            if (method === "version") return options.version ?? 4;
+            if (method === "token") return options.token ?? token;
+            if (method === "clock") return options.clock === undefined ? now : options.clock;
+            assert.equal(method, "campaign"); const campaignId = args[0].toString();
             if (options.failureId === campaignId) throw new Error("Read unavailable");
             if (options.raw) return options.raw(campaignId);
             const selected = Array.isArray(rows) ? rows.find(value => value.campaign_id === campaignId) : undefined;
@@ -221,6 +222,25 @@ test("single read verifies server-selected contract, no viewer secrets and no cu
   assert.equal("contribution" in result.campaign!, false); assert.equal("ownerId" in result, false);
   assert.deepEqual(h.calls.filters, [["eq", "network", "testnet"], ["eq", "contract_id", contract], ["is", "archived_at", null]]);
   assert.deepEqual(h.calls.rpc, ["version", "token", "clock", "campaign"]);
+});
+
+test("single mapping starts all four public RPC reads together but publishes only after validation", async () => {
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const h = harness({ rpcGate: gate });
+  let settled = false;
+  const pending = h.readCircleTestnetCampaign("tino-relief").then(value => { settled = true; return value; });
+  for (let index = 0; index < 15; index++) await Promise.resolve();
+  assert.deepEqual(h.calls.rpc, ["version", "token", "clock", "campaign"]);
+  assert.equal(h.calls.peak, 4); assert.equal(settled, false);
+  release(); const result = await pending; assert.equal(result.ok, true);
+});
+
+test("parallel single read cannot enable donations when deployment validation fails", async () => {
+  const h = harness({ version: 3, delay: 1 });
+  const result = await h.readCircleTestnetCampaign("tino-relief");
+  assert.equal(h.calls.peak, 4); assert.equal(result.ok, false); assert.equal(result.donationOpen, false);
+  assert.equal(result.mapping, null); assert.equal(result.campaign, null);
 });
 
 test("batch reads 27 QA causes with one DB query, one deployment check and bounded parallel RPC", async () => {

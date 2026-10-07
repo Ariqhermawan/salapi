@@ -1,5 +1,6 @@
 import { StrKey } from "@stellar/stellar-sdk";
 import { moneyInputToStroops, pesosToStroopsExact } from "./money.ts";
+export { formatStroops } from "./format-stroops.ts";
 
 export type DisasterAction = ["Disburse", string, bigint] | ["Pause"] | ["Unpause"];
 const MAX_AMOUNT = pesosToStroopsExact("1000000000")!;
@@ -26,12 +27,6 @@ export function disasterProposalId(input: unknown, allowZero = false): bigint {
 
 export function requireDisasterMembership(publicKey: string, signers: string[], demo: boolean) {
   if (demo || !signers.includes(publicKey)) throw new Error("Only a configured signer can perform this action");
-}
-
-export function formatStroops(amount: string | bigint): string {
-  const n = BigInt(amount);
-  const fraction = (n % 10_000_000n).toString().padStart(7, "0").replace(/0+$/, "");
-  return `${n / 10_000_000n}${fraction ? `.${fraction}` : ""}`;
 }
 
 export const DISASTER_ERRORS: Record<string, string> = {

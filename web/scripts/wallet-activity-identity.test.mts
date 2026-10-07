@@ -22,7 +22,7 @@ const source = readFileSync(new URL("../lib/server/walletActivityIdentity.ts", i
 const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
 
 function harness(options: { rows?: { public_key: string; user_id: string }[]; users?: Record<string, ReturnType<typeof user>>;
-  handles?: Record<string, string>; resolves?: Record<string, string>; dbError?: boolean; authError?: boolean; authThrows?: boolean; signUrl?: string; signError?: boolean; deadline?: boolean } = {}) {
+  handles?: Record<string, string>; resolves?: Record<string, string>; dbError?: boolean; authError?: boolean; authThrows?: boolean; signUrl?: string; signError?: boolean; deadline?: boolean; registryGate?: Promise<void> } = {}) {
   const calls = { columns: [] as string[], targets: [] as string[][], limit: 0, auth: [] as string[], sign: [] as string[],
     registry: [] as { method: string; argument: unknown }[], active: 0, maxActive: 0 };
   let now = Date.now();
@@ -60,7 +60,8 @@ function harness(options: { rows?: { public_key: string; user_id: string }[]; us
       const method = invoke.functionName().toString(), argument = sdk.scValToNative(invoke.args()[0]);
       assert.ok(method === "username_of" || method === "resolve");
       calls.registry.push({ method, argument }); calls.active++; calls.maxActive = Math.max(calls.maxActive, calls.active);
-      await Promise.resolve(); calls.active--;
+      if (options.registryGate) await options.registryGate;
+      else await Promise.resolve(); calls.active--;
       return { result: { retval: sdk.nativeToScVal(method === "username_of" ? handles[argument] ?? "" : resolves[argument] ?? "") } };
     }
   }
@@ -102,6 +103,21 @@ test("consented verified Google account returns only the allowlisted actual phot
   assert.equal(result.find(identity => identity.address === other)?.photoUrl, googleUrl);
   assert.deepEqual(h.calls.auth, [uid(1)]); assert.deepEqual(h.calls.sign, []);
   assert.deepEqual(Object.keys(result[1]).sort(), ["address", "handle", "photoUrl"]);
+});
+
+test("consent-bound photo lookup starts without waiting for the optional two-step registry handle", async () => {
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const path = `${uid(1)}/${uid(10)}.jpg`;
+  const h = harness({ users: { [uid(1)]: user(uid(1), true, { salapi_avatar_path: path }) }, registryGate: gate });
+  const pending = h.readActivityIdentities(address, [item()]);
+  for (let index = 0; index < 18; index++) await Promise.resolve();
+  assert.deepEqual(h.calls.auth, [uid(1)]);
+  assert.deepEqual(h.calls.sign, [path]);
+  assert.equal(h.calls.registry.some(call => call.method === "resolve"), false, "Registry work is still pending");
+  release(); const identities = await pending;
+  assert.equal(identities[1].handle, "verified_handle");
+  assert.match(identities[1].photoUrl!, /\/storage\/v1\/object\/sign\/account-avatars\//);
 });
 
 test("private custom photo must be owned by the mapped user and signed by configured Supabase origin", async () => {

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useId, useRef, useState } from "react";
-import { campaignDonorActivity } from "@/app/campaign-donor-actions";
+import { readPublicCampaignDonors } from "@/lib/ui/public-read";
 import { useT } from "@/components/I18nProvider";
 import { useMarketPrices } from "@/components/MarketPricesProvider";
 import { activityStroopsToXlm } from "@/lib/wallet-activity";
@@ -44,7 +44,7 @@ export default function CampaignDonorActivity({ campaignId, refreshKey = "" }: {
   useEffect(() => {
     let alive = true;
     activeScope.current = scope; moreLock.current = false;
-    campaignDonorActivity(campaignId).then(result => {
+    readPublicCampaignDonors(campaignId).then(result => {
       if (!alive || activeScope.current !== scope) return;
       const valid = result.campaignId === campaignId;
       setState({ scope, entries: valid && result.ok ? result.entries : [], cursor: valid && result.ok ? result.nextCursor : null,
@@ -61,7 +61,7 @@ export default function CampaignDonorActivity({ campaignId, refreshKey = "" }: {
     moreLock.current = true;
     setState(value => value?.scope === requestedScope ? { ...value, loadingMore: true, error: null } : value);
     let result: CampaignDonorFeedResult;
-    try { result = await campaignDonorActivity(campaignId, cursor); }
+    try { result = await readPublicCampaignDonors(campaignId, cursor); }
     catch { result = { ok: false, campaignId, code: "unavailable" }; }
     if (activeScope.current !== requestedScope) return;
     moreLock.current = false;

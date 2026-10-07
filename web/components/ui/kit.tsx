@@ -117,7 +117,7 @@ export function Row({ leading, title, sub, trailing, onClick, divider = true, st
 }
 
 export type Tab = { id: string; label: string; icon: (p?: { size?: number; c?: string }) => ReactNode; fab?: boolean };
-export function TabBar({ active = "home", items, onNav }: { active?: string; items: Tab[]; onNav?: (id: string) => void }) {
+export function TabBar({ active = "home", items, onNav, onPrefetch }: { active?: string; items: Tab[]; onNav?: (id: string) => void; onPrefetch?: (id: string) => void }) {
   return (
     <nav aria-label="Main navigation" className="sl-tabbar" style={{ position: "absolute", bottom: 0, left: 0, right: 0, paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 8px)", paddingTop: 10, background: T.surface, borderTop: "1px solid " + T.hairline, display: "grid", gridTemplateColumns: `repeat(${items.length},1fr)`, alignItems: "end", zIndex: 20 }}>
       {items.map((it) => {
@@ -127,7 +127,7 @@ export function TabBar({ active = "home", items, onNav }: { active?: string; ite
         const labelStyle: CSSProperties = { gridRow: 2, fontSize: 10, lineHeight: "14px", fontWeight: isActive || it.fab ? 600 : 500, letterSpacing: "0.02em", whiteSpace: "nowrap" };
         if (it.fab) {
           return (
-            <button type="button" aria-label={it.label} aria-current={isActive ? "page" : undefined} key={it.id} onClick={() => onNav?.(it.id)} style={tabStyle}>
+            <button type="button" aria-label={it.label} aria-current={isActive ? "page" : undefined} key={it.id} onPointerEnter={() => onPrefetch?.(it.id)} onFocus={() => onPrefetch?.(it.id)} onPointerDown={() => onPrefetch?.(it.id)} onClick={() => onNav?.(it.id)} style={tabStyle}>
               <span style={{ width: 54, height: 54, borderRadius: 19, position: "absolute", top: -20, left: "50%", transform: "translateX(-50%)", background: T.action, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 10px 22px -6px rgba(37,99,235,.4), 0 2px 6px rgba(11,18,32,.06)" }}>
                 {it.icon({ size: 23, c: "#fff" })}
               </span>
@@ -136,7 +136,7 @@ export function TabBar({ active = "home", items, onNav }: { active?: string; ite
           );
         }
         return (
-          <button type="button" aria-current={isActive ? "page" : undefined} key={it.id} onClick={() => onNav?.(it.id)} style={tabStyle}>
+          <button type="button" aria-current={isActive ? "page" : undefined} key={it.id} onPointerEnter={() => onPrefetch?.(it.id)} onFocus={() => onPrefetch?.(it.id)} onPointerDown={() => onPrefetch?.(it.id)} onClick={() => onNav?.(it.id)} style={tabStyle}>
             <span style={{ display: "grid", placeItems: "center", width: 24, height: 24 }}>{it.icon({ size: 21, c: col })}</span>
             <span style={labelStyle}>{it.label}</span>
           </button>

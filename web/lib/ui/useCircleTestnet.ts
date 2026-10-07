@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { readCircleTestnetCampaign } from "@/app/circles-testnet-actions";
+import { readPublicCircleTestnet } from "@/lib/ui/public-read";
 import type { CircleTestnetCampaignResult } from "@/lib/circles/testnet";
 
 function unavailable(circleId: string): CircleTestnetCampaignResult {
@@ -22,7 +22,7 @@ export function useCircleTestnet(circleId: string, enabled = true) {
     setState({ circleId, result: null, loading: true });
     let result: CircleTestnetCampaignResult;
     try {
-      const read = await readCircleTestnetCampaign(circleId);
+      const read = await readPublicCircleTestnet(circleId);
       result = read.circleId === circleId ? read : unavailable(circleId);
     } catch { result = unavailable(circleId); }
     if (!effect.alive || active.current !== effect || request !== revision.current) return null;

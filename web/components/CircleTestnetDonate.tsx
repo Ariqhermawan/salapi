@@ -12,7 +12,7 @@ import { useCircleTestnet } from "@/lib/ui/useCircleTestnet";
 import { useCirclesSignupIdentity } from "@/lib/ui/useCirclesSignupIdentity";
 import { useUnresolvedSubmission } from "@/lib/ui/useUnresolvedSubmission";
 import { useGoBack } from "@/lib/ui/useGoBack";
-import { formatStroops } from "@/lib/disaster";
+import { formatStroops } from "@/lib/format-stroops";
 import { campaignSplit } from "@/lib/campaign-money";
 import CircleTestnetSummary from "@/components/CircleTestnetSummary";
 import CampaignDonorActivity from "@/components/CampaignDonorActivity";

@@ -13,7 +13,7 @@ import { Btn, Card, Ico, PoweredByStellar, T } from "@/components/ui/kit";
 import { campaignApprove, campaignCloseEmpty, campaignCreate, campaignDonate, campaignEvents, campaignRefund,
   campaignRelease, campaignState, campaignSubmitProof } from "@/app/campaign-actions";
 import { campaignAmount, campaignSplit, creatorCutBps } from "@/lib/campaign-money";
-import { formatStroops } from "@/lib/disaster";
+import { formatStroops } from "@/lib/format-stroops";
 import { publicProofUrl, type Campaign } from "@/lib/campaign";
 import { campaignEvidence } from "@/lib/campaign-evidence";
 import { isLocalPreview, normalizePreviewCampaigns, previewEvidenceUrl, PREVIEW_CAMPAIGNS, PREVIEW_WALLET as PREVIEW_ACCOUNT } from "@/lib/local-preview";

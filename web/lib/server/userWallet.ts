@@ -8,7 +8,7 @@ import { Keypair } from "@stellar/stellar-sdk";
 import { isAuthSessionMissingError } from "@supabase/supabase-js";
 import { isLocalPreview } from "@/lib/local-preview";
 import { demoPublic } from "@/lib/server/stellar";
-import { ensureTestnetAccount } from "@/lib/server/walletReadiness";
+import { ensureTestnetAccount, getTestnetNativeBalance } from "@/lib/server/walletReadiness";
 import {
   supabaseConfigured,
   supabaseAdminConfigured,
@@ -72,9 +72,9 @@ async function walletOwner(authenticatedOnly: boolean, privileged = false): Prom
   return user.id;
 }
 
-async function resolveSigner(authenticatedOnly: boolean): Promise<Signer> {
+async function resolveReadySigner(authenticatedOnly: boolean): Promise<{ signer: Signer; nativeBalance: bigint | null }> {
   const userId = await walletOwner(authenticatedOnly);
-  if (!userId) return demoSigner();
+  if (!userId) return { signer: demoSigner(), nativeBalance: null };
   if (!supabaseAdminConfigured())
     throw new Error("Wallet service is unavailable. No transaction was submitted.");
 
@@ -93,8 +93,8 @@ async function resolveSigner(authenticatedOnly: boolean): Promise<Signer> {
   if (error) throw new Error("Your saved wallet could not be loaded. No transaction was submitted.");
   if (data != null) {
     const signer = savedSigner(data);
-    await ensureTestnetAccount(signer.publicKey);
-    return signer;
+    const nativeBalance = await ensureTestnetAccount(signer.publicKey);
+    return { signer, nativeBalance };
   }
 
   // First sign-in for this user → mint + fund + persist an encrypted wallet.
@@ -124,15 +124,27 @@ async function resolveSigner(authenticatedOnly: boolean): Promise<Signer> {
   const signer = savedSigner(row);
   // Verify/fund only the persisted winner. A retry after failed funding reuses
   // this same canonical row, never a replacement keypair or encryption blob.
-  await ensureTestnetAccount(signer.publicKey);
-  return signer;
+  const nativeBalance = await ensureTestnetAccount(signer.publicKey);
+  return { signer, nativeBalance };
 }
 
 /** Existing guest demo behavior is retained; real users must be Testnet-ready. */
-export async function getSigner(): Promise<Signer> { return resolveSigner(false); }
+export async function getSigner(): Promise<Signer> { return (await resolveReadySigner(false)).signer; }
 
 /** OAuth/setup/D4 may provision the signed-in owner's canonical wallet only. */
-export async function prepareAuthenticatedWallet(): Promise<Signer> { return resolveSigner(true); }
+export async function prepareAuthenticatedWallet(): Promise<Signer> { return (await resolveReadySigner(true)).signer; }
+
+/**
+ * The legacy wallet action retains its canonical setup/readiness semantics,
+ * but uses the balance already confirmed by readiness instead of repeating
+ * that same Horizon read. This helper is not a read-only GET entry point.
+ * Only public display fields leave this server helper, never custody keys.
+ */
+export async function walletBalanceSnapshot(): Promise<{ publicKey: string; nativeBalance: bigint }> {
+  const ready = await resolveReadySigner(false);
+  const publicKey = ready.signer.publicKey;
+  return { publicKey, nativeBalance: ready.nativeBalance ?? await getTestnetNativeBalance(publicKey) };
+}
 
 /** Current Supabase user id, or null when unauthenticated / not configured. */
 export async function currentUserId(): Promise<string | null> {

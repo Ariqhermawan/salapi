@@ -292,7 +292,8 @@ function actionsSetup(options: { result?: Result; preview?: boolean; reveal?: bo
         if (method === "resolve") return "recipient-public";
         if (method === "get_room") return { host: arisanSender, name: "Isolated room", code: "234567", member_target: 3, share: 10000000n, cadence: "Weekly", first_kocok: Math.floor(Date.now() / 1000) + 720, join_deadline: Math.floor(Date.now() / 1000) + 600, status: "Open", member_count: 1, round: 0 };
         if (method === "get_members") return options.members ?? ["sender-public", arisanSender, "friend-one", "friend-two"];
-        if (method === "members") return [arisanSender, "friend-one", "friend-two"];
+        if (method === "members") return options.members ?? [arisanSender, "friend-one", "friend-two"];
+        if (method === "recipient_of") return arisanSender;
         if (method === "has_committed") return options.reveal ?? false;
         if (["has_paid", "has_won", "has_revealed"].includes(method)) return false;
         if (method === "locked_of") return 0n;
@@ -372,6 +373,46 @@ test("room reads use the actual readonly wallet resolver without minting, custod
     assert.ok(identity.calls.columns.every(column => column === "public_key"));
     if (room.viewer === null) assert.equal(room.code, null);
     assert.equal(room.canFinalize, false);
+  }
+});
+
+test("legacy Paluwagan read preserves confirmed guest and saved-owner identities without signer or funding", async () => {
+  const cases: [Parameters<typeof walletSetup>[0], string][] = [
+    [{ reads: [{ data: { public_key: "sender-public" } }] }, "sender-public"],
+    [{ signedIn: false, authError: new AuthSessionMissingError() }, "demo-public"],
+    [{ configured: false }, "demo-public"],
+  ];
+  for (const [options, expected] of cases) {
+    const identity = walletSetup(options);
+    const { api, calls } = actionsSetup({ viewerResolver: identity.api.currentArisanPublicKey, members: ["sender-public", "demo-public", arisanSender] });
+    const result = await api.paluwaganState() as unknown as { ready: boolean; seats: { addr: string; label: string }[] };
+    assert.equal(result.ready, true);
+    assert.equal(result.seats.find(seat => seat.addr === expected)?.label, "Ikaw (You)");
+    assert.equal(calls.signers, 0); assert.equal(calls.sends, 0);
+    assert.equal(identity.calls.mints, 0); assert.equal(identity.calls.upserts, 0); assert.equal(identity.calls.funding, 0);
+    assert.equal(identity.calls.decrypts, 0); assert.equal(identity.calls.keyLoads, 0);
+    assert.deepEqual(identity.calls.readiness, []);
+    assert.ok(identity.calls.columns.every(column => column === "public_key"));
+  }
+});
+
+test("legacy Paluwagan read fails closed for missing owner wallet and auth errors without provisioning", async () => {
+  for (const options of [
+    { reads: [{ data: null }] },
+    { admin: false },
+    { reads: [{ data: null, error: { message: "Isolated wallet read error" } }] },
+    { signedIn: false, authError: new Error("Isolated auth outage") },
+    { authThrows: true },
+    { clientThrows: new AuthSessionMissingError() },
+  ]) {
+    const identity = walletSetup(options);
+    const { api, calls } = actionsSetup({ viewerResolver: identity.api.currentArisanPublicKey });
+    const result = await api.paluwaganState() as unknown as { ready: boolean; error: string };
+    assert.equal(result.ready, false); assert.match(result.error, /wallet identity is unavailable/);
+    assert.equal(calls.signers, 0); assert.equal(calls.sends, 0); assert.equal(identity.calls.demo, 0);
+    assert.equal(identity.calls.mints, 0); assert.equal(identity.calls.upserts, 0); assert.equal(identity.calls.funding, 0);
+    assert.equal(identity.calls.decrypts, 0); assert.equal(identity.calls.keyLoads, 0);
+    assert.deepEqual(identity.calls.readiness, []);
   }
 });
 test("friend batches stop at the first unresolved envelope and preserve that hash", async () => {

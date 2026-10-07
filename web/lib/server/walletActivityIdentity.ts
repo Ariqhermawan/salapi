@@ -81,25 +81,30 @@ export async function readActivityIdentities(viewer: string, items: WalletActivi
       const index = next++;
       if (index >= result.length || Date.now() >= deadline) return;
       const identity = result[index];
-      identity.handle = await publicHandle(identity.address, deadline);
-      const ownerId = owners.get(identity.address);
-      if (!ownerId || Date.now() >= deadline) continue;
-      try {
-        // Bounded, confirmed receipt participants only. Never list auth users.
-        const { data, error } = await beforeDeadline(admin.auth.admin.getUserById(ownerId), deadline);
-        const user = data.user;
-        if (error || !user || user.id !== ownerId) continue;
-        const photoAllowed = donationPhotoOwners !== undefined
-          ? donationPhotoOwners.get(identity.address) === ownerId
-          : user.user_metadata?.salapi_receipt_photo_consent === true;
-        if (!photoAllowed) continue;
-        const path = ownedAccountPhotoPath(user.user_metadata?.[ACCOUNT_AVATAR_METADATA_KEY], ownerId);
-        if (path) {
-          const signed = await beforeDeadline(admin.storage.from(ACCOUNT_AVATAR_BUCKET).createSignedUrl(path, 300), deadline);
-          if (!signed.error) identity.photoUrl = safeSignedPhoto(signed.data?.signedUrl, path);
-        }
-        identity.photoUrl ??= googleAccountPhoto(user);
-      } catch { /* No consent/readable photo means initials, never a fake face. */ }
+      const handleRead = publicHandle(identity.address, deadline).then(handle => { identity.handle = handle; });
+      const photoRead = (async () => {
+        const ownerId = owners.get(identity.address);
+        if (!ownerId || Date.now() >= deadline) return;
+        try {
+          // Bounded, confirmed receipt participants only. Never list auth users.
+          const { data, error } = await beforeDeadline(admin.auth.admin.getUserById(ownerId), deadline);
+          const user = data.user;
+          if (error || !user || user.id !== ownerId || Date.now() >= deadline) return;
+          const photoAllowed = donationPhotoOwners !== undefined
+            ? donationPhotoOwners.get(identity.address) === ownerId
+            : user.user_metadata?.salapi_receipt_photo_consent === true;
+          if (!photoAllowed) return;
+          const path = ownedAccountPhotoPath(user.user_metadata?.[ACCOUNT_AVATAR_METADATA_KEY], ownerId);
+          if (path) {
+            const signed = await beforeDeadline(admin.storage.from(ACCOUNT_AVATAR_BUCKET).createSignedUrl(path, 300), deadline);
+            if (!signed.error) identity.photoUrl = safeSignedPhoto(signed.data?.signedUrl, path);
+          }
+          identity.photoUrl ??= googleAccountPhoto(user);
+        } catch { /* No consent/readable photo means initials, never a fake face. */ }
+      })();
+      // The registry handle and consent-bound photo are independent optional
+      // projections. Neither can weaken the other's verification or deadline.
+      await Promise.all([handleRead, photoRead]);
     }
   }));
   return result;

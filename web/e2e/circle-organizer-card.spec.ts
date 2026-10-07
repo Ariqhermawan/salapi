@@ -10,7 +10,6 @@ test.beforeEach(async ({ page, baseURL }) => {
   test.skip(!["localhost", "127.0.0.1", "[::1]"].includes(new URL(baseURL!).hostname), "Organizer candidate QA runs locally only");
   const manifest = JSON.parse(readFileSync(".next/server/server-reference-manifest.json", "utf8"));
   const actionNames = new Map(Object.entries(manifest.node as Record<string, { exportedName: string }>).map(([id, value]) => [id, value.exportedName]));
-  expect([...actionNames.values()]).toContain("readCircleTestnetCampaign");
   const state = { errors: [] as string[], console: [] as string[], blocked: [] as string[] };
   health.set(page, state);
   page.on("pageerror", error => state.errors.push(error.message));
@@ -22,9 +21,9 @@ test.beforeEach(async ({ page, baseURL }) => {
   await page.route("**/*", async route => {
     const request = route.request();
     if (["POST", "PUT", "PATCH", "DELETE"].includes(request.method())) {
-      // Next Server Actions use POST even for harmless public reads. Only the
-      // exact mapping read is allowed; metadata, auth and money writes remain
-      // blocked and make the afterEach assertions fail if attempted.
+      // Mapping GET reads retain their real response. The legacy mapping POST,
+      // if registered, remains the only permitted readonly action; metadata,
+      // auth and money writes still fail the afterEach assertions if attempted.
       const action = actionNames.get(request.headers()["next-action"]);
       if (request.method() === "POST" && action === "readCircleTestnetCampaign") return route.continue();
       state.blocked.push(`${request.method()} ${new URL(request.url()).pathname}: ${action ?? "unknown"}`);

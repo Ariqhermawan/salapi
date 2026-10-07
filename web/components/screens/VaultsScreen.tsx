@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { arisanList, disasterState, paluwaganState } from "@/app/actions";
-import { campaignState } from "@/app/campaign-actions";
+import type { arisanList, disasterState, paluwaganState } from "@/app/actions";
+import type { campaignState } from "@/app/campaign-actions";
+import { vaultOverview } from "@/app/vault-read-actions";
 import { useT } from "@/components/I18nProvider";
 import { Ico, T, PoweredByStellar } from "@/components/ui/kit";
 import { formatLocal } from "@/lib/ui/currency";
-import { formatStroops } from "@/lib/disaster";
+import { formatStroops } from "@/lib/format-stroops";
 import type { Campaign } from "@/lib/campaign";
 import type { Locale } from "@/lib/i18n/config";
 import { vaultCampaignMedia } from "@/lib/vault-campaign-media";
@@ -227,33 +228,22 @@ export default function VaultsScreen() {
       return;
     }
     setLoading(true);
-    await Promise.allSettled([
-      arisanList()
-        .then(setRooms)
-        .catch(() =>
-          setRooms({ ready: false, error: "We couldn't load your rooms." }),
-        ),
-      campaignState()
-        .then(setCampaigns)
-        .catch(() =>
-          setCampaigns({
-            ok: false,
-            error: "We couldn't load your campaigns.",
-          }),
-        ),
-      disasterState()
-        .then(setPool)
-        .catch(() =>
-          setPool({
-            ok: false,
-            error: "The community pool is temporarily unavailable.",
-          }),
-        ),
-      paluwaganState()
-        .then(setLegacyCircle)
-        .catch(() => setLegacyCircle(null)),
-    ]);
-    setLoading(false);
+    try {
+      // Client Server Actions dispatch sequentially. Overlap these independent
+      // reads inside one server request instead of queueing four round trips.
+      const overview = await vaultOverview();
+      setRooms(overview.rooms);
+      setCampaigns(overview.campaigns);
+      setPool(overview.pool);
+      setLegacyCircle(overview.legacyCircle);
+    } catch {
+      setRooms({ ready: false, error: "We couldn't load your rooms." });
+      setCampaigns({ ok: false, error: "We couldn't load your campaigns." });
+      setPool({ ok: false, error: "The community pool is temporarily unavailable." });
+      setLegacyCircle(null);
+    } finally {
+      setLoading(false);
+    }
   }, []);
   useEffect(() => {
     const initialLoad = setTimeout(() => void refresh(), 0);

@@ -97,6 +97,9 @@ jobs:
       - name: Revamp parity, four-language UI, storage failures and submission guards
         run: npm run test:revamp
 
+      - name: Parallel display reads, fresh transport and lightweight navigation
+        run: npm run test:performance
+
       - name: Sign-out failure, retry and duplicate-request guards
         run: npm run test:signout
 

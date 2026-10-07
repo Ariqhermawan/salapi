@@ -7,10 +7,10 @@ import { Pause } from "@phosphor-icons/react/dist/csr/Pause";
 import { Play } from "@phosphor-icons/react/dist/csr/Play";
 import { myHandle, walletState } from "@/app/actions";
 import { requireWalletState } from "@/lib/wallet-state";
-import { campaignState } from "@/app/campaign-actions";
+import { readPublicCampaigns } from "@/lib/ui/public-read";
 import { Ico, Peso } from "@/components/ui/kit";
 import { useT } from "@/components/I18nProvider";
-import { formatStroops } from "@/lib/disaster";
+import { formatStroops } from "@/lib/format-stroops";
 import type { Campaign } from "@/lib/campaign";
 import { isLocalPreview, normalizePreviewCampaigns, PREVIEW_CAMPAIGNS, PREVIEW_WALLET, PREVIEW_TIME } from "@/lib/local-preview";
 import s from "./home.module.css";
@@ -40,7 +40,7 @@ export default function Home() {
   const photoCopy = accountPhotoCopy(locale);
   const [wallet, setWallet] = useState<{ pesos: number; address: string; nativeStroops?: string } | null>(isLocalPreview ? PREVIEW_WALLET : null);
   const [handle, setHandle] = useState<string | null>(isLocalPreview ? PREVIEW_WALLET.handle : null);
-  const [campaigns, setCampaigns] = useState<Campaign[]>(isLocalPreview ? PREVIEW_CAMPAIGNS : []);
+  const [campaigns, setCampaigns] = useState<Omit<Campaign, "contribution">[]>(isLocalPreview ? PREVIEW_CAMPAIGNS : []);
   const [loading, setLoading] = useState(!isLocalPreview);
   const [clock, setClock] = useState(isLocalPreview ? PREVIEW_TIME : 0);
   const [walletError, setWalletError] = useState("");
@@ -49,35 +49,63 @@ export default function Home() {
   const [paused, setPaused] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(true);
   const strip = useRef<HTMLDivElement>(null);
+  const walletRequest = useRef(0);
+  const campaignLoadRevision = useRef(0);
   const loadWallet = useCallback(async () => {
     if (isLocalPreview) return;
+    const request = ++walletRequest.current;
     setWalletError("");
-    try { const [state, name] = await Promise.all([walletState(), myHandle()]); setWallet(requireWalletState(state)); setHandle(name); }
-    catch { setWalletError("Your wallet balance is unavailable."); }
+    // Client Server Actions dispatch sequentially. Update each independent
+    // display as soon as its own result settles, not after the slower reader.
+    const balance = async () => {
+      try {
+        const state = requireWalletState(await walletState());
+        if (request === walletRequest.current) setWallet(state);
+      } catch {
+        if (request === walletRequest.current) setWalletError("Your wallet balance is unavailable.");
+      }
+    };
+    const identity = async () => {
+      try {
+        const name = await myHandle();
+        if (request === walletRequest.current) setHandle(name);
+      } catch {
+        if (request === walletRequest.current) setHandle(null);
+      }
+    };
+    await Promise.all([balance(), identity()]);
   }, []);
   const loadCampaigns = useCallback(async () => {
     if (isLocalPreview) {
       try { const saved = JSON.parse(sessionStorage.getItem("salapi.preview.campaigns") || "null"); if (Array.isArray(saved) && saved.length) setCampaigns(normalizePreviewCampaigns(saved)); } catch { /* Keep the labeled sample when browser storage is unavailable. */ }
       return;
     }
+    const request = ++campaignLoadRevision.current;
     setLoading(true); setError("");
     try {
-      let before = "0"; const rows: Campaign[] = [];
+      let before = "0"; const rows: Omit<Campaign, "contribution">[] = [];
       for (let page = 0; page < 100; page++) {
-        const state = await campaignState("", before);
+        const state = await readPublicCampaigns(before);
+        if (request !== campaignLoadRevision.current) return;
         if (!state.ok) throw new Error(state.error);
         setClock(Number(state.now));
         rows.push(...state.campaigns);
+        // Show usable discovery after page one, not after the whole catalog.
+        setCampaigns([...rows]); setLoading(false);
         if (state.campaigns.length < 10) break;
         const next = state.campaigns.at(-1)?.id;
         if (!next || next === before) break;
         before = next;
       }
-      setCampaigns(rows);
-    } catch { setError("Campaigns could not be loaded. Please try again."); }
-    finally { setLoading(false); }
+    } catch { if (request === campaignLoadRevision.current) setError("Campaigns could not be loaded. Please try again."); }
+    finally { if (request === campaignLoadRevision.current) setLoading(false); }
   }, []);
-  useEffect(() => { const task = setTimeout(() => { void loadWallet(); void loadCampaigns(); }, 0); return () => clearTimeout(task); }, [loadWallet, loadCampaigns]);
+  useEffect(() => {
+    const requestVersion = walletRequest;
+    const campaignVersion = campaignLoadRevision;
+    const task = setTimeout(() => { void loadWallet(); void loadCampaigns(); }, 0);
+    return () => { clearTimeout(task); requestVersion.current++; campaignVersion.current++; };
+  }, [loadWallet, loadCampaigns]);
   useEffect(() => {
     const q = matchMedia("(prefers-reduced-motion: reduce)");
     const update = () => setReduceMotion(q.matches); update();
@@ -130,7 +158,7 @@ export default function Home() {
       <header className={s.giveHeader}><div><span className={s.eyebrow}>{copy("CROWDFUNDING · TESTNET")}</span><h2 id="testnet-campaign-title">{catalogCopy("D4 Testnet campaigns")}</h2><p>{catalogCopy("Separate on-chain escrow and proof-review flow. Not the fictional examples above.")}</p></div></header>
       <div className={s.stripLabel}><span>{copy(open.length ? "Open campaigns" : "Recent campaigns")}</span><Link href="/campaigns?mode=testnet">{copy("See all")} {Ico.chev({ size: 12 })}</Link></div>
       {loading ? <div className={s.skeletonCards}><div className="sl-skel" /><div className="sl-skel" /></div>
-        : error ? <div className={s.empty} role="alert"><p>{copy(error)}</p><button onClick={loadCampaigns}>{copy("Try again")}</button></div>
+        : error && !cardCount ? <div className={s.empty} role="alert"><p>{copy(error)}</p><button onClick={loadCampaigns}>{copy("Try again")}</button></div>
         : !cardCount ? <div className={s.empty}><strong>{copy("Every cause starts with someone.")}</strong><p>{copy("No campaigns yet. Start one and invite your community.")}</p></div>
         : <div className={s.strip} ref={strip} onPointerDown={() => setPaused(true)} onFocusCapture={() => setPaused(true)} onScroll={() => {
           if (!strip.current) return; const first = strip.current.children[0] as HTMLElement;
@@ -145,6 +173,7 @@ export default function Home() {
               <Link className={s.donate} href={`/campaigns?id=${c.id}`}><Heart size={18} weight="fill" />{copy(c.state === "Funding" ? "Donate" : "View campaign")}</Link>
             </div></article>)}
         </div>}
+      {error && cardCount > 0 ? <div className={s.empty} role="alert"><p>{copy(error)}</p><button onClick={loadCampaigns}>{copy("Try again")}</button></div> : null}
       <div className={s.carouselFooter}>
         <Link href="/campaigns?create=1" className={s.start}><span className={s.plus}>{Ico.plus({ size: 18 })}</span><strong>{copy("Start a campaign")}</strong></Link>
         <div className={s.controls}><button aria-label={copy("Previous campaign")} onClick={() => move(index - 1)} disabled={cardCount < 2}>{Ico.back({ size: 16 })}</button><span>{String(Math.min(index + 1, cardCount)).padStart(2, "0")} / {String(cardCount).padStart(2, "0")}</span><button aria-label={copy("Next campaign")} onClick={() => move(index + 1)} disabled={cardCount < 2}>{Ico.chev({ size: 16 })}</button></div>

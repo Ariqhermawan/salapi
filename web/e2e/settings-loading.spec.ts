@@ -1,12 +1,13 @@
 import { test, expect } from "@playwright/test";
 
-test("You keeps a neutral identity while readonly account actions are pending", async ({ page }) => {
+test("You keeps a neutral identity while readonly account reads are pending", async ({ page }) => {
   let release!: () => void;
   const held = new Promise<void>((resolve) => { release = resolve; });
   let heldRequests = 0;
   await page.route("**/*", async (route) => {
-    const request = route.request();
-    if (request.method() === "POST" && request.headers()["next-action"]) {
+    const request = route.request(), url = new URL(request.url());
+    const photoRead = request.method() === "GET" && url.pathname === "/api/account/photo" && !url.search;
+    if (photoRead || (request.method() === "POST" && request.headers()["next-action"])) {
       heldRequests++;
       await held;
     }

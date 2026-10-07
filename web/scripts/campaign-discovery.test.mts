@@ -11,7 +11,7 @@ import * as currency from "../lib/ui/currency.ts";
 import * as accountCopy from "../lib/i18n/revamp-account.ts";
 import * as homeCircles from "../lib/home-circles.ts";
 import { publicProofUrl, type Campaign } from "../lib/campaign.ts";
-import { formatStroops } from "../lib/disaster.ts";
+import { formatStroops } from "../lib/format-stroops.ts";
 import { DICTS } from "../lib/i18n/dictionaries.ts";
 import { LOCALES, type Locale } from "../lib/i18n/config.ts";
 import type { Circle, CircleCategory } from "../lib/circles/types.ts";
@@ -246,7 +246,7 @@ function campaignCard(campaign: Campaign, preview: boolean, locale: Locale = "en
       if (name === "@/components/I18nProvider") return { useT: () => ({ locale }) };
       if (name === "@/components/ui/kit") return { Ico: new Proxy({}, { get: () => () => null }), T: {}, Btn: "Btn", Card: "Card", PoweredByStellar: "PoweredByStellar" };
       if (name === "@/lib/campaign-money") return money;
-      if (name === "@/lib/disaster") return { formatStroops };
+      if (name === "@/lib/format-stroops") return { formatStroops };
       if (name === "@/lib/campaign") return { publicProofUrl };
       if (name === "@/lib/campaign-evidence") return {};
       if (name === "@/lib/local-preview") return local;

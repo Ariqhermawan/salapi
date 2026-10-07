@@ -70,6 +70,21 @@ export async function readCirclesTestnetCampaigns(input: unknown = undefined): P
     if (mappings.some(mapping => !mapping || !slugs.includes(mapping.circleId)) ||
       new Set(mappings.map(mapping => mapping!.circleId)).size !== mappings.length ||
       new Set(mappings.map(mapping => mapping!.campaignId)).size !== mappings.length) return failAll("unavailable");
+    // The common selected-card/detail read uses one RPC wave after validating
+    // the immutable DB mapping. A result is never published before all four
+    // checks pass. Batch reads retain their four-worker bound below.
+    if (mappings.length === 1) {
+      const mapping = mappings[0]!;
+      const [version, token, clock, raw] = await bounded(Promise.all([
+        readContract(contractId, "version"), readContract(contractId, "token"), readContract(contractId, "clock"),
+        readContract(contractId, "campaign", [sc.u64(BigInt(mapping.campaignId))]),
+      ]));
+      if (version !== 4 || token !== CONTRACTS.tokenXlmSac || typeof clock !== "bigint" || clock <= 0n || clock > (1n << 64n) - 1n) return failAll("unavailable");
+      const campaign = validatedCircleTestnetCampaign(raw, mapping, CONTRACTS.tokenXlmSac);
+      campaigns[mapping.circleId] = campaign ? circleTestnetReady(mapping, campaign, contractId, clock)
+        : circleTestnetFailure(mapping.circleId, contractId, "unavailable");
+      return { ...envelope, ok: true };
+    }
     const [version, token, clock] = await bounded(Promise.all([
       readContract(contractId, "version"), readContract(contractId, "token"), readContract(contractId, "clock"),
     ]));

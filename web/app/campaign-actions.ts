@@ -1,6 +1,6 @@
 "use server";
 
-import { rpc, scValToNative, type xdr } from "@stellar/stellar-sdk";
+import { rpc, scValToNative, StrKey, type xdr } from "@stellar/stellar-sdk";
 import { CONTRACTS, RPC_URL, readContract, invokeAs, sc, txLink, donationCampaignId } from "@/lib/server/stellar";
 import { currentWalletPublicKey, getAuthenticatedSigner } from "@/lib/server/userWallet";
 import { campaignAmount } from "@/lib/campaign-money";
@@ -23,6 +23,52 @@ function serialize(c: RawCampaign, contribution = { amount: "0", refunded: false
     config: { ...c.config, funding_deadline: c.config.funding_deadline.toString(), review_deadline: c.config.review_deadline.toString() },
     total: c.total.toString(), escrow: c.escrow.toString(), proofHash: c.proof_hash ? Buffer.from(c.proof_hash).toString("hex") : null,
     proofUrl: c.proof_url, approvals: c.approvals, contribution };
+}
+/** Discovery is a public projection, never a viewer's contribution or wallet. */
+function publicCampaign(value: unknown): Omit<Campaign, "contribution"> {
+  const c = value as RawCampaign;
+  const config = c?.config;
+  const validTime = (value: unknown): value is bigint => typeof value === "bigint" && value > 0n && value <= (1n << 64n) - 1n;
+  const validAmount = (value: unknown): value is bigint => typeof value === "bigint" && value >= 0n && value < (1n << 127n);
+  const address = (value: unknown): value is string => typeof value === "string" && StrKey.isValidEd25519PublicKey(value);
+  if (!c || !validTime(c.id) || typeof c.title !== "string" || !c.title.trim() || new TextEncoder().encode(c.title).length > 120
+    || !Array.isArray(c.state) || c.state.length !== 1 || !["Funding", "PendingProof", "Refundable", "Released", "Closed"].includes(c.state[0])
+    || !validAmount(c.total) || !validAmount(c.escrow) || c.escrow > c.total
+    || !config || !address(config.creator) || !address(config.beneficiary) || config.token !== CONTRACTS.tokenXlmSac
+    || !Number.isInteger(config.creator_cut_bps) || config.creator_cut_bps < 0 || config.creator_cut_bps > 1000
+    || !validTime(config.funding_deadline) || !validTime(config.review_deadline) || config.review_deadline <= config.funding_deadline
+    || !Array.isArray(config.approvers) || config.approvers.length !== 3 || !config.approvers.every(address) || new Set(config.approvers).size !== 3
+    || !Array.isArray(c.approvals) || c.approvals.length > 3 || c.approvals.some(value => !config.approvers.includes(value)) || new Set(c.approvals).size !== c.approvals.length
+    || !(c.proof_hash === null || c.proof_hash instanceof Uint8Array && c.proof_hash.length === 32)
+    || typeof c.proof_url !== "string") throw new Error("Campaign discovery data is unavailable");
+  const proofUrl = c.proof_url === "" ? "" : publicProofUrl(c.proof_url);
+  return { id: c.id.toString(), title: c.title, state: c.state[0],
+    config: { creator: config.creator, beneficiary: config.beneficiary, token: config.token, creator_cut_bps: config.creator_cut_bps,
+      funding_deadline: config.funding_deadline.toString(), review_deadline: config.review_deadline.toString(), approvers: [...config.approvers] },
+    total: c.total.toString(), escrow: c.escrow.toString(), proofHash: c.proof_hash ? Buffer.from(c.proof_hash).toString("hex") : null,
+    proofUrl, approvals: [...c.approvals] };
+}
+/** Public Home pagination. Four bounded-size reads start together; no auth,
+ * provisioning, signing, personalized contributions or shared data cache. */
+export async function publicCampaignState(before: unknown = "0") {
+  if (isLocalPreview) return { ok: false as const, error: "Local preview does not read live campaign state." };
+  try {
+    if (typeof before !== "string" || !/^(?:0|[1-9]\d{0,19})$/.test(before)) throw new Error("Invalid campaign ID");
+    const cursor = campaignId(before, true);
+    const contractId = donationCampaignId();
+    if (!contractId || !StrKey.isValidContract(contractId)) throw new Error("D4 campaign deployment configuration is invalid");
+    const [version, token, now, raw] = await Promise.all([
+      readContract(contractId, "version"), readContract(contractId, "token"), readContract(contractId, "clock"),
+      readContract(contractId, "campaigns", [sc.u64(cursor), sc.u32(10)]),
+    ]);
+    if (version !== 4 || token !== CONTRACTS.tokenXlmSac || typeof now !== "bigint" || now <= 0n || now > (1n << 64n) - 1n
+      || !Array.isArray(raw) || raw.length > 10) throw new Error("Campaign discovery data is unavailable");
+    const campaigns = raw.map(publicCampaign);
+    // Contract paging is descending. Reject stale, duplicate or escaped cursors.
+    if (campaigns.some((campaign, index) => (cursor > 0n && BigInt(campaign.id) >= cursor)
+      || index > 0 && BigInt(campaign.id) >= BigInt(campaigns[index - 1].id))) throw new Error("Campaign discovery data is unavailable");
+    return { ok: true as const, contractId, now: now.toString(), campaigns };
+  } catch (error) { return { ok: false as const, error: campaignError(error) }; }
 }
 export async function campaignState(id = "", before = "0") {
   if (isLocalPreview) return { ok: false as const, error: "Local preview does not read live campaign state." };

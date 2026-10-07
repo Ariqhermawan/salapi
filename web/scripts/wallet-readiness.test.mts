@@ -15,7 +15,8 @@ const generated = Keypair.fromRawEd25519Seed(Buffer.alloc(32, 2));
 const winner = Keypair.fromRawEd25519Seed(Buffer.alloc(32, 3));
 type Signer = { publicKey: string; secret: string; demo: boolean };
 type Row = { public_key: string; secret_cipher: string };
-type WalletApi = { getSigner(): Promise<Signer>; prepareAuthenticatedWallet(): Promise<Signer>; getAuthenticatedSigner(): Promise<Signer> };
+type WalletApi = { getSigner(): Promise<Signer>; prepareAuthenticatedWallet(): Promise<Signer>; getAuthenticatedSigner(): Promise<Signer>;
+  walletBalanceSnapshot(): Promise<{ publicKey: string; nativeBalance: bigint }> };
 type ReadinessApi = { ensureTestnetAccount(address: string): Promise<bigint>; getTestnetNativeBalance(address: string): Promise<bigint> };
 type FixtureResponse = Response | Error | "hang";
 
@@ -166,7 +167,7 @@ test("network timeout is bounded and cannot be interpreted as missing/zero", asy
 
 function walletFixture(options: { initial?: Row | null; raceWinner?: Row; responses?: FixtureResponse[];
   user?: unknown; authError?: Error; authThrows?: Error; clientThrows?: Error;
-  configured?: boolean; adminConfigured?: boolean; preview?: boolean; readError?: boolean; saveError?: boolean } = {}) {
+  configured?: boolean; adminConfigured?: boolean; preview?: boolean; readError?: boolean; saveError?: boolean; demoPublicKey?: string } = {}) {
   let row = options.initial === undefined ? { public_key: saved.publicKey(), secret_cipher: `cipher:${saved.secret()}` } : options.initial;
   const net = network(options.responses ?? [account(row?.public_key ?? generated.publicKey())]);
   const calls = { mints: 0, upserts: 0, decrypts: 0, reads: 0, demos: 0, auth: 0, encrypted: 0,
@@ -175,7 +176,7 @@ function walletFixture(options: { initial?: Row | null; raceWinner?: Row; respon
     "@stellar/stellar-sdk": { Keypair: { fromSecret: (secret: string) => Keypair.fromSecret(secret), random: () => { calls.mints++; return calls.mints === 1 ? generated : winner; } } },
     "@supabase/supabase-js": { isAuthSessionMissingError },
     "@/lib/local-preview": { isLocalPreview: options.preview ?? false },
-    "@/lib/server/stellar": { demoPublic: () => { calls.demos++; return "isolated-demo"; } },
+    "@/lib/server/stellar": { demoPublic: () => { calls.demos++; return options.demoPublicKey ?? "isolated-demo"; } },
     "@/lib/server/walletReadiness": net.readiness,
     "@/lib/supabase/env": { supabaseConfigured: () => options.configured ?? true, supabaseAdminConfigured: () => options.adminConfigured ?? true },
     "@/lib/supabase/server": { createSupabaseServer: async () => {
@@ -264,6 +265,43 @@ test("signed-in getSigner verifies readiness, no false wallet success on Horizon
   assert.equal(fixture.calls.demos, 0); assert.equal(fixture.calls.mints, 0); assert.equal(fixture.calls.upserts, 0);
 });
 
+test("wallet balance snapshot reuses canonical readiness with exactly one Horizon read and no custody fields", async () => {
+  const fixture = walletFixture({ responses: [account(saved.publicKey(), "123.4567890")] });
+  const result = await fixture.api.walletBalanceSnapshot();
+  assert.equal(result.publicKey, saved.publicKey()); assert.equal(result.nativeBalance, 1_234_567_890n);
+  assert.deepEqual(Object.keys(result).sort(), ["nativeBalance", "publicKey"]);
+  assert.equal(fixture.net.calls.length, 1); assert.equal(fixture.net.remaining, 0);
+  assert.equal(fixture.calls.mints, 0); assert.equal(fixture.calls.upserts, 0); assert.equal(fixture.calls.demos, 0);
+});
+
+test("confirmed guest balance uses one Horizon read without provisioning a wallet", async () => {
+  const fixture = walletFixture({ user: null, demoPublicKey: saved.publicKey(), responses: [account(saved.publicKey(), "0.0000001")] });
+  const result = await fixture.api.walletBalanceSnapshot();
+  assert.equal(result.publicKey, saved.publicKey()); assert.equal(result.nativeBalance, 1n);
+  assert.equal(fixture.net.calls.length, 1); assert.equal(fixture.calls.demos, 1);
+  assert.equal(fixture.calls.reads, 0); assert.equal(fixture.calls.mints, 0); assert.equal(fixture.calls.upserts, 0);
+});
+
+test("wallet balance snapshot preserves first-use canonical winner and confirmed post-faucet balance", async () => {
+  const fixture = walletFixture({ initial: null, raceWinner: { public_key: winner.publicKey(), secret_cipher: `cipher:${winner.secret()}` },
+    responses: [http(404), http(200), account(winner.publicKey(), "987.6543210")] });
+  const result = await fixture.api.walletBalanceSnapshot();
+  assert.equal(result.publicKey, winner.publicKey()); assert.equal(result.nativeBalance, 9_876_543_210n);
+  assert.equal(fixture.net.calls.length, 3); assert.ok(fixture.net.calls.every(call => call.url.includes(winner.publicKey())));
+  assert.equal(fixture.calls.reads, 2); assert.equal(fixture.calls.upserts, 1); assert.equal(fixture.calls.mints, 1);
+});
+
+test("wallet balance snapshot cannot use demo identity or Horizon on auth or custody failures", async () => {
+  for (const options of [{ authError: new Error("Auth unavailable") }, { authThrows: new Error("Auth unavailable") },
+    { readError: true }, { adminConfigured: false }, { preview: true },
+    { initial: { public_key: winner.publicKey(), secret_cipher: `cipher:${saved.secret()}` } }]) {
+    const fixture = walletFixture({ ...options, responses: [] });
+    await assert.rejects(fixture.api.walletBalanceSnapshot());
+    assert.equal(fixture.net.calls.length, 0); assert.equal(fixture.calls.demos, 0);
+    assert.equal(fixture.calls.mints, 0); assert.equal(fixture.calls.upserts, 0);
+  }
+});
+
 test("D3 authenticated signer remains read-only and never triggers readiness/funding/provisioning", async () => {
   const user = { id: "11111111-1111-4111-8111-111111111111", is_anonymous: false };
   const fixture = walletFixture({ responses: [], user });
@@ -302,10 +340,21 @@ function walletStateFixture(options: { wallet?: ReturnType<typeof walletFixture>
       fmtPeso: (amount: number) => { if (options.formatError) throw options.formatError; return `₱${amount}`; },
       invokeAs: prohibited, readContract: prohibited,
     },
-    "@/lib/server/userWallet": { getSigner: async () => {
-      calls.signers++; if (options.signerError) throw options.signerError;
-      return options.wallet ? options.wallet.api.getSigner() : { publicKey: saved.publicKey(), secret: "isolated-secret-not-public", demo: false };
-    } },
+    "@/lib/server/userWallet": {
+      getSigner: async () => {
+        calls.signers++; if (options.signerError) throw options.signerError;
+        return options.wallet ? options.wallet.api.getSigner() : { publicKey: saved.publicKey(), secret: "isolated-secret-not-public", demo: false };
+      },
+      walletBalanceSnapshot: async () => {
+        calls.signers++; if (options.signerError) throw options.signerError;
+        if (options.wallet) {
+          const result = await options.wallet.api.walletBalanceSnapshot();
+          calls.balances++; return result;
+        }
+        calls.balances++; if (options.balanceError) throw options.balanceError;
+        return { publicKey: saved.publicKey(), nativeBalance: options.balance ?? 1_000_000_000n };
+      },
+    },
     "@/lib/money": money, "./disaster-actions": {}, "@/lib/supabase/env": {},
     "@/lib/supabase/admin": { createSupabaseAdmin: () => { calls.db++; throw new Error("Unexpected DB access"); } },
     "@/lib/local-preview": { isLocalPreview: options.preview ?? false, PREVIEW_WALLET: previewWallet },
@@ -323,12 +372,13 @@ test("actual walletState action keeps preview shape and performs no signer, bala
 });
 
 test("actual walletState action preserves canonical successful zero balance and exposes exact raw stroops", async () => {
-  const wallet = walletFixture({ responses: [account(saved.publicKey(), "0.0000000"), account(saved.publicKey(), "0.0000000")] });
+  const wallet = walletFixture({ responses: [account(saved.publicKey(), "0.0000000")] });
   const fixture = walletStateFixture({ wallet });
   const result = await fixture.api.walletState();
   assert.deepEqual(JSON.parse(JSON.stringify(result)), { address: saved.publicKey(), pesos: 0, pesoLabel: "₱0", nativeStroops: "0" });
   assert.equal(fixture.calls.signers, 1); assert.equal(fixture.calls.balances, 1); assert.equal(fixture.calls.submissions, 0);
   assert.equal(wallet.calls.mints, 0); assert.equal(wallet.calls.upserts, 0);
+  assert.equal(wallet.net.calls.length, 1); assert.equal(wallet.net.remaining, 0);
 });
 
 test("wallet reads and sandbox result DTOs preserve bigint precision for market display without changing transaction math", async () => {

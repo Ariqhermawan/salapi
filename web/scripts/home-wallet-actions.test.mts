@@ -91,10 +91,10 @@ function render(options: { preview?: boolean; locale?: Locale; currency?: Locale
       if (name === "@/lib/i18n/revamp-home") return { homeCopy };
       if (name === "@/lib/i18n/revamp-home-catalog") return catalogCopy;
       if (name === "@/lib/i18n/revamp-circles") return circlesCopy;
-      if (name === "@/lib/disaster") return { formatStroops: forbidden("read") };
+      if (name === "@/lib/format-stroops") return { formatStroops: forbidden("read") };
       if (name === "@/lib/wallet-state") return { requireWalletState };
       if (name === "@/app/actions") return { walletState: forbidden("read"), myHandle: forbidden("read") };
-      if (name === "@/app/campaign-actions") return { campaignState: forbidden("read") };
+      if (name === "@/lib/ui/public-read") return { readPublicCampaigns: forbidden("read") };
       if (name.endsWith(".module.css")) return { default: new Proxy({}, { get: (_target, key) => String(key) }) };
       throw Error(`Unexpected Home render dependency: ${name}`);
     },

@@ -7,7 +7,7 @@ import { disasterState, disasterContribute } from "@/app/actions";
 import { useT } from "@/components/I18nProvider";
 import { T, Ico, Btn, PoweredByStellar } from "@/components/ui/kit";
 import { CURRENCY, formatLocalAmount } from "@/lib/ui/currency";
-import { formatStroops } from "@/lib/disaster";
+import { formatStroops } from "@/lib/format-stroops";
 import DisasterControls from "@/components/DisasterControls";
 import { CampaignEvidence } from "@/components/screens/CampaignScreen";
 import type { Locale } from "@/lib/i18n/config";

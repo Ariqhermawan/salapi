@@ -25,7 +25,7 @@ function deferred<T>() {
 }
 async function flush() { for (let turn = 0; turn < 12; turn++) await Promise.resolve(); }
 
-// Execute the actual hook with isolated React hooks and auth/action boundaries.
+// Execute the actual hook with isolated React hooks and auth/read/action boundaries.
 // These fixtures prove lifecycle/state behavior, not real Supabase or browser E2E.
 type AuthSession = { user: { id: string } } | null;
 function hookHarness({ preview = false, configured = true, initialOwner = ownerId as string | null, signOutPending = undefined as (() => boolean) | undefined } = {}) {
@@ -68,8 +68,10 @@ function hookHarness({ preview = false, configured = true, initialOwner = ownerI
         queueMicrotask(() => callback("INITIAL_SESSION", initialOwner ? { user: { id: initialOwner } } : null));
         return { data: { subscription: { unsubscribe() { calls.unsubscribed++; } } } };
       } } }) };
+      if (dependency === "@/lib/ui/account-photo-read") return {
+        readAccountPhotoClient() { const request = deferred<photoHelpers.AccountPhotoResult>(); reads.push(request); return request.promise; },
+      };
       if (dependency === "@/app/account-photo-actions") return {
-        accountPhoto() { const request = deferred<photoHelpers.AccountPhotoResult>(); reads.push(request); return request.promise; },
         saveAccountPhoto(owner: string, data: FormData) { calls.uploads.push({ owner, data }); return upload.promise; },
         restoreGooglePhoto(owner: string) { calls.restores.push(owner); return restore.promise; },
       };

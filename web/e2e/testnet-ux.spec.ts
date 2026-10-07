@@ -16,9 +16,26 @@ function mappingFailure(code: "not_configured" | "unmapped"): CircleTestnetCampa
 
 async function readFixture(page: Page, values: Record<string, unknown>) {
   const state = health.get(page)!;
-  for (const name of Object.keys(values)) expect(allowedReads.has(name), `Fixture ${name} must be a read-only action`).toBe(true);
+  for (const name of Object.keys(values)) expect(allowedReads.has(name), `Fixture ${name} must be a read-only response`).toBe(true);
   await page.route("**/*", async route => {
-    const request = route.request(), name = state.names.get(request.headers()["next-action"]);
+    const request = route.request(), url = new URL(request.url());
+    if (request.method() === "GET") {
+      // Match only the migrated read endpoint and reviewed fixture identifier.
+      // Other public reads, pagination and private reads retain their real path.
+      let fixtureName: string | undefined;
+      const mapping = values.readCircleTestnetCampaign;
+      const donors = values.campaignDonorActivity;
+      if (url.pathname === "/api/public/circles-testnet" && url.searchParams.size === 1
+        && typeof mapping === "object" && mapping !== null && "circleId" in mapping
+        && url.searchParams.get("circleId") === mapping.circleId) fixtureName = "readCircleTestnetCampaign";
+      else if (url.pathname === "/api/public/campaign-donors" && url.searchParams.size === 1
+        && typeof donors === "object" && donors !== null && "campaignId" in donors
+        && url.searchParams.get("campaignId") === donors.campaignId) fixtureName = "campaignDonorActivity";
+      else if (url.pathname === "/api/account/photo" && !url.search && "accountPhoto" in values) fixtureName = "accountPhoto";
+      if (fixtureName) return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(values[fixtureName]) });
+      return route.fallback();
+    }
+    const name = state.names.get(request.headers()["next-action"]);
     if (request.method() !== "POST" || !name || !(name in values)) return route.fallback();
     await route.fulfill({ status: 200, contentType: "text/x-component; charset=utf-8",
       body: `0:{"a":"$@1","f":"","i":false}\n1:${JSON.stringify(values[name])}\n` });

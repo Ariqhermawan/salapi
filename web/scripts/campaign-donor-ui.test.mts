@@ -58,7 +58,7 @@ function setup(locale: Locale = "en", initialPrices: MarketPriceResult = unavail
       if (name === "@/components/MarketPricesProvider") return { useMarketPrices: () => ({ prices: marketPrices }) };
       if (name === "@/lib/market-prices") return { estimateUsdc, validateMarketPrices };
       if (name === "@/lib/wallet-activity") return { activityStroopsToXlm };
-      if (name === "@/app/campaign-donor-actions") return { campaignDonorActivity(id: string, cursor?: string) { const result = deferred<CampaignDonorFeedResult>(); calls.push({ id, cursor, result }); return result.promise; } };
+      if (name === "@/lib/ui/public-read") return { readPublicCampaignDonors(id: string, cursor?: string) { const result = deferred<CampaignDonorFeedResult>(); calls.push({ id, cursor, result }); return result.promise; } };
       if (name.endsWith(".module.css")) return { __esModule: true, default: new Proxy({}, { get: (_, key) => key }) };
       throw Error(`Unexpected import ${name}`);
     },

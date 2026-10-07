@@ -46,11 +46,19 @@ function text(value: unknown): string {
   return value && typeof value === "object" && "props" in value ? text((value as Element).props.children) : "";
 }
 const hasClass = (node: Element, name: string) => String(node.props.className ?? "").split(" ").includes(name);
+function deferred<T>() {
+  let resolve!: (value: T) => void, reject!: (error: Error) => void;
+  const promise = new Promise<T>((done, fail) => { resolve = done; reject = fail; });
+  return { promise, resolve, reject };
+}
+type HomeWallet = { pesos: number; address: string; nativeStroops: string } | { ok: false; error: string };
+type PublicCampaignPage = { ok: true; now: string; campaigns: Omit<Campaign, "contribution">[] } | { ok: false; error: string };
 
 // Actual Home and HomeCirclesCatalog TSX, with separate hook state for each
 // component and isolated effects/DOM-shaped refs. No browser, auth, provider,
 // ledger, actual navigation or network requests are available.
-function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: boolean; deniedStorage?: boolean; failCampaigns?: boolean; failWallet?: boolean; liveCampaigns?: Campaign[]; savedCatalogView?: unknown; navigationEntryReady?: boolean } = {}) {
+function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: boolean; deniedStorage?: boolean; failCampaigns?: boolean; failWallet?: boolean; liveCampaigns?: Campaign[]; savedCatalogView?: unknown; navigationEntryReady?: boolean;
+  walletReader?: () => Promise<HomeWallet>; handleReader?: () => Promise<string | null>; campaignReader?: (before: string) => Promise<PublicCampaignPage> } = {}) {
   const preview = options.preview ?? true;
   const locale = options.locale ?? "en";
   const liveCampaigns = options.liveCampaigns ?? Array.from({ length: 12 }, (_, index) => ({ ...PREVIEW_CAMPAIGNS[0], id: String(800 + index), title: `Isolated Testnet campaign ${index + 1}` }));
@@ -151,10 +159,10 @@ function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: bo
       if (name === "@/lib/i18n/revamp-home-catalog") return catalogCopy;
       if (name === "@/lib/i18n/revamp-circles") return circlesCopy;
       if (name === "@/lib/i18n/account-photo") return { accountPhotoCopy };
-      if (name === "@/lib/disaster") return { formatStroops: (value: string) => `exact-source-units:${value}` };
+      if (name === "@/lib/format-stroops") return { formatStroops: (value: string) => `exact-source-units:${value}` };
       if (name === "@/lib/wallet-state") return { requireWalletState };
-      if (name === "@/app/actions") return { async walletState() { calls.wallet++; assert.equal(preview, false); return options.failWallet ? { ok: false, error: "Your wallet balance is unavailable." } : { pesos: 123.45, address: "Readonly isolated Testnet wallet", nativeStroops: "189923077" }; }, async myHandle() { calls.handle++; assert.equal(preview, false); return "isolated"; } };
-      if (name === "@/app/campaign-actions") return { async campaignState(_ids: string, before: string) { calls.campaigns.push(before); assert.equal(preview, false); if (campaignFailure) return { ok: false, error: "Isolated readonly failure" }; const offset = before === "0" ? 0 : liveCampaigns.findIndex(campaign => campaign.id === before) + 1; return { ok: true, now: String(PREVIEW_TIME), campaigns: liveCampaigns.slice(offset, offset + 10) }; } };
+      if (name === "@/app/actions") return { async walletState() { calls.wallet++; assert.equal(preview, false); return options.walletReader ? options.walletReader() : options.failWallet ? { ok: false, error: "Your wallet balance is unavailable." } : { pesos: 123.45, address: "Readonly isolated Testnet wallet", nativeStroops: "189923077" }; }, async myHandle() { calls.handle++; assert.equal(preview, false); return options.handleReader ? options.handleReader() : "isolated"; } };
+      if (name === "@/lib/ui/public-read") return { async readPublicCampaigns(before: string) { calls.campaigns.push(before); assert.equal(preview, false); if (options.campaignReader) return options.campaignReader(before); if (campaignFailure) return { ok: false, error: "Isolated readonly failure" }; const offset = before === "0" ? 0 : liveCampaigns.findIndex(campaign => campaign.id === before) + 1; return { ok: true, now: String(PREVIEW_TIME), campaigns: liveCampaigns.slice(offset, offset + 10) }; } };
       if (name.endsWith(".module.css")) return { default: new Proxy({}, { get: (_target, key) => String(key) }) };
       throw Error(`Unexpected actual Home dependency: ${name}`);
     },
@@ -184,7 +192,9 @@ function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: bo
   }
   function select(category: string) { const field = nodes(tree).find(node => node.props.id === "home-cause-category"); assert.ok(field); assert.notEqual(field.props.disabled, true, "The native category control must hydrate before accepting a choice"); (field.props.onChange as (event: unknown) => void)({ target: { value: category } }); render(); }
   function click(ariaLabel: string) { const button = nodes(tree).find(node => node.type === "button" && node.props["aria-label"] === ariaLabel); assert.ok(button, `Missing Home control ${ariaLabel}`); assert.notEqual(button.props.disabled, true); (button.props.onClick as () => void)(); render(); }
-  return { calls, render, flush, select, click, scrolls, intervals, document, get navigationViews() { return navigationViews(); },
+  return { calls, render, flush, select, click, scrolls, intervals, document,
+    cleanup() { for (const state of [...homeStates, ...catalogStates]) (state as { cleanup?: () => void; unsubscribe?: () => void } | undefined)?.cleanup?.(); },
+    get navigationViews() { return navigationViews(); },
     changeNavigationEntry(snapshot: string, savedView?: unknown) {
       navigationEntry = snapshot;
       const id = snapshot.split(":")[0];
@@ -316,7 +326,9 @@ for (const preview of [true, false]) for (const locale of LOCALES) test(`${local
     assert.ok(nodes(card).some(node => node.props.href === `/circles/${circle.id}`));
     assert.ok(nodes(card).filter(node => node.props.href).every(node => node.props.href === `/circles/${circle.id}`), "All card targets must open the same campaign, not an organizer or another donation flow");
     assert.ok(nodes(card).some(node => node.props.href === `/circles/${circle.id}` && text(node).trim() === c("View campaign")));
-    assert.ok(nodes(card).filter(node => node.type === "Link").every(node => node.props.prefetch === false));
+    const cardLinks = nodes(card).filter(node => node.type === "Link");
+    assert.equal(cardLinks.filter(node => node.props.prefetch === true).length, index === 0 ? 1 : 0, "Only the active card CTA may prefetch its route");
+    assert.ok(cardLinks.filter(node => text(node).trim() !== c("View campaign")).every(node => node.props.prefetch === false));
     assert.ok(text(card).includes(circle.title)); assert.ok(text(card).includes(circle.organizer));
     assert.ok(text(card).includes(c("Example cause")));
     assert.ok(text(card).includes(catalogCopy.homeCatalogCopy(locale, "Example rating")));
@@ -354,6 +366,25 @@ test("catalog funding reads are enabled for only the hydrated selected card, inc
   assert.equal(readers().length, 27);
   assert.equal(readers().filter(node => node.props.active).length, 1, "All 27 cards still request only the selected public total");
   assert.equal(readers()[0].props.active, true);
+});
+
+test("catalog prefetch warms one hydrated selected route, never all 27 cards", async () => {
+  const ui = mount({ preview: false, savedCatalogView: { category: "animals", index: 2 } });
+  const prefetchLinks = () => nodes(ui.catalog).filter(node => node.type === "Link" && node.props.prefetch === true);
+  assert.equal(prefetchLinks().length, 0, "SSR must not start speculative route requests");
+  await ui.flush();
+  assert.equal(prefetchLinks().length, 1);
+  assert.equal(prefetchLinks()[0].props.href, nodes(ui.cards[2]).find(node => node.type === "Link")?.props.href);
+  ui.click(catalogCopy.homeCatalogCopy("en", "Next example cause")); await ui.flush();
+  assert.equal(prefetchLinks().length, 1);
+  assert.equal(prefetchLinks()[0].props.href, nodes(ui.cards[0]).find(node => node.type === "Link")?.props.href);
+  ui.select("all"); await ui.flush();
+  assert.equal(ui.cards.length, 27);
+  assert.equal(prefetchLinks().length, 1);
+  assert.equal(prefetchLinks()[0].props.href, "/circles/tino-relief");
+  ui.select("medical"); await ui.flush();
+  assert.equal(prefetchLinks().length, 1);
+  assert.equal(ui.calls.network, 0); assert.equal(ui.calls.writes, 0);
 });
 
 test("actual category changes reset the manual catalog and expose three causes in every sector without financial reads", async () => {
@@ -428,6 +459,40 @@ test("flag0 D4 campaign failure remains honest and retryable while the independe
   assert.equal(ui.calls.network, 0); assert.equal(ui.calls.writes, 0);
 });
 
+test("public D4 first page is visible while later pages are still pending and all records remain after completion", async () => {
+  const later = deferred<PublicCampaignPage>();
+  const campaigns = Array.from({ length: 12 }, (_, index) => ({ ...PREVIEW_CAMPAIGNS[0], id: String(800 + index), title: `Public funding ${index + 1}` }));
+  const ui = mount({ preview: false, campaignReader: async before => before === "0"
+    ? { ok: true, now: String(PREVIEW_TIME), campaigns: campaigns.slice(0, 10) } : later.promise });
+  await ui.flush();
+  assert.deepEqual(ui.calls.campaigns, ["0", "809"]);
+  assert.equal(ui.d4Cards.length, 10, "Do not hide the completed page behind later ledger reads");
+  assert.ok(text(ui.d4Cards[0]).includes("Public funding 1"));
+  assert.equal(nodes(ui.tree).some(node => hasClass(node, "skeletonCards")), false);
+  later.resolve({ ok: true, now: String(PREVIEW_TIME), campaigns: campaigns.slice(10) });
+  await ui.flush(); assert.equal(ui.d4Cards.length, 12);
+});
+
+test("failed later discovery page preserves verified first-page cards and offers an honest retry", async () => {
+  const later = deferred<PublicCampaignPage>();
+  const campaigns = Array.from({ length: 10 }, (_, index) => ({ ...PREVIEW_CAMPAIGNS[0], id: String(800 + index) }));
+  const ui = mount({ preview: false, campaignReader: async before => before === "0"
+    ? { ok: true, now: String(PREVIEW_TIME), campaigns } : later.promise });
+  await ui.flush(); assert.equal(ui.d4Cards.length, 10);
+  later.resolve({ ok: false, error: "Isolated later-page failure" });
+  await ui.flush(); assert.equal(ui.d4Cards.length, 10);
+  assert.ok(text(ui.tree).includes("Campaigns could not be loaded. Please try again."));
+  assert.ok(nodes(ui.tree).some(node => node.type === "button" && text(node) === "Try again"));
+});
+
+test("unmount invalidates pending public discovery instead of appending a stale route page", async () => {
+  const later = deferred<PublicCampaignPage>();
+  const ui = mount({ preview: false, campaignReader: async () => later.promise });
+  await ui.flush(); assert.equal(ui.d4Cards.length, 0); ui.cleanup();
+  later.resolve({ ok: true, now: String(PREVIEW_TIME), campaigns: [PREVIEW_CAMPAIGNS[0]] });
+  await ui.flush(); assert.equal(ui.d4Cards.length, 0);
+});
+
 test("structured wallet failure enters Home retry UI while both independent campaign catalogs remain available", async () => {
   const options = { preview: false, failWallet: true };
   const ui = mount(options); await ui.flush();
@@ -439,6 +504,48 @@ test("structured wallet failure enters Home retry UI while both independent camp
   options.failWallet = false; (retry.props.onClick as () => void)(); await ui.flush();
   assert.equal(nodes(ui.tree).find(node => node.type === "MarketValue")?.props.nativeStroops, "189923077");
   assert.equal(ui.calls.wallet, 2); assert.equal(ui.calls.network, 0); assert.equal(ui.calls.writes, 0);
+});
+
+test("Home renders the exact balance while its independent username lookup is still pending", async () => {
+  const handle = deferred<string | null>();
+  const ui = mount({ preview: false, handleReader: () => handle.promise }); await ui.flush();
+  assert.equal(nodes(ui.tree).find(node => node.type === "MarketValue")?.props.nativeStroops, "189923077");
+  assert.doesNotMatch(text(ui.tree), /Your wallet balance is unavailable\./);
+  handle.resolve("later_handle"); await ui.flush();
+  assert.match(text(ui.tree), /@later_handle/);
+  assert.equal(ui.calls.wallet, 1); assert.equal(ui.calls.handle, 1);
+  assert.equal(ui.calls.network, 0); assert.equal(ui.calls.writes, 0);
+});
+
+test("an unavailable username never hides a successfully read Home balance or invents a handle", async () => {
+  const ui = mount({ preview: false, handleReader: async () => { throw Error("Isolated username read outage"); } }); await ui.flush();
+  assert.equal(nodes(ui.tree).find(node => node.type === "MarketValue")?.props.nativeStroops, "189923077");
+  assert.doesNotMatch(text(ui.tree), /Your wallet balance is unavailable\.|@isolated/);
+  assert.match(text(ui.tree), /Welcome to Salapi/);
+});
+
+test("Home ignores pending wallet and handle results after its mount is disposed", async () => {
+  const balance = deferred<HomeWallet>(), handle = deferred<string | null>();
+  const ui = mount({ preview: false, walletReader: () => balance.promise, handleReader: () => handle.promise }); await ui.flush();
+  ui.cleanup();
+  balance.resolve({ pesos: 99, address: "Disposed wallet", nativeStroops: "999999999" }); handle.resolve("disposed_owner"); await ui.flush();
+  assert.equal(nodes(ui.tree).find(node => node.type === "MarketValue"), undefined);
+  assert.doesNotMatch(text(ui.tree), /@disposed_owner|Your wallet balance is unavailable\./);
+});
+
+test("a superseded Home retry cannot replace a newer wallet balance or username", async () => {
+  const balances = [deferred<HomeWallet>(), deferred<HomeWallet>()], handles = [deferred<string | null>(), deferred<string | null>()];
+  let walletReads = 0, handleReads = 0;
+  const ui = mount({ preview: false,
+    walletReader: () => ++walletReads === 1 ? Promise.resolve({ ok: false, error: "Your wallet balance is unavailable." }) : balances[walletReads - 2].promise,
+    handleReader: () => ++handleReads === 1 ? Promise.resolve(null) : handles[handleReads - 2].promise });
+  await ui.flush();
+  const retry = nodes(ui.tree).find(node => node.type === "button" && hasClass(node, "walletRetry"))!.props.onClick as () => void;
+  retry(); retry(); await ui.flush();
+  balances[1].resolve({ pesos: 20, address: "Newest wallet", nativeStroops: "200000000" }); handles[1].resolve("newest_owner"); await ui.flush();
+  balances[0].resolve({ pesos: 10, address: "Superseded wallet", nativeStroops: "100000000" }); handles[0].resolve("superseded_owner"); await ui.flush();
+  assert.equal(nodes(ui.tree).find(node => node.type === "MarketValue")?.props.nativeStroops, "200000000");
+  assert.match(text(ui.tree), /@newest_owner/); assert.doesNotMatch(text(ui.tree), /@superseded_owner/);
 });
 
 test("examples render before wallet/D4 readers settle and remain present when the real D4 collection is empty", async () => {

@@ -10,7 +10,8 @@ import {
   disasterPropose,
   type disasterState,
 } from "@/app/disaster-actions";
-import { formatStroops, parseDisasterAction } from "@/lib/disaster";
+import { formatStroops } from "@/lib/format-stroops";
+import { parseDisasterAction } from "@/lib/disaster";
 import { useT } from "@/components/I18nProvider";
 import { CURRENCY } from "@/lib/ui/currency";
 import { Btn, Ico, T } from "@/components/ui/kit";
