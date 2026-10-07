@@ -22,6 +22,9 @@ jobs:
       - name: Unit tests
         run: cargo test --workspace --locked --verbose
 
+      - name: Arisan deadline and long-cadence regressions
+        run: cargo test -p arisan-rooms --features production-cadences --locked --verbose
+
       - name: D3 threshold, cap, timelock and pause controls
         run: cargo test -p disaster --locked --verbose
 

@@ -70,6 +70,68 @@ fn active_room(
     (contract_id, token_id, room_id, first_commit_at)
 }
 
+fn open_room_for_join_test(
+    env: &Env,
+    host: &Address,
+    member: &Address,
+) -> (Address, Address, u32, u64) {
+    let admin = Address::generate(env);
+    let (token_id, token_admin, _) = setup(env, &admin);
+    token_admin.mint(host, &1_000);
+    token_admin.mint(member, &1_000);
+    let contract_id = env.register(ArisanRooms, ());
+    let client = ArisanRoomsClient::new(env, &contract_id);
+    client.initialize(&token_id);
+    let first = env.ledger().timestamp() + 4 * DAY;
+    let join_deadline = first - DAY;
+    let room_id = client.create_room(
+        host,
+        &Symbol::new(env, "JOIN01"),
+        &SorobanString::from_str(env, "Join deadline"),
+        &3,
+        &100,
+        &Cadence::Weekly,
+        &first,
+        &join_deadline,
+    );
+    (contract_id, token_id, room_id, join_deadline)
+}
+
+fn assert_join_rejected_without_mutations(deadline_offset: u64) {
+    let env = fresh_env();
+    let host = Address::generate(&env);
+    let member = Address::generate(&env);
+    let (contract_id, token_id, room_id, join_deadline) =
+        open_room_for_join_test(&env, &host, &member);
+    let client = ArisanRoomsClient::new(&env, &contract_id);
+    let token = TokenClient::new(&env, &token_id);
+    let room_before = client.get_room(&room_id);
+    let members_before = client.get_members(&room_id);
+    let host_balance_before = token.balance(&host);
+    let member_balance_before = token.balance(&member);
+    let contract_balance_before = token.balance(&contract_id);
+    let host_locked_before = client.locked_of(&room_id, &host);
+    let member_locked_before = client.locked_of(&room_id, &member);
+    assert_eq!(room_before.status, RoomStatus::Open);
+    set_ts(&env, join_deadline + deadline_offset);
+
+    assert_eq!(
+        client.try_join_room(&room_id, &room_before.code, &member),
+        Err(Ok(Error::WrongStatus))
+    );
+
+    assert_eq!(
+        client.get_room(&room_id).to_xdr(&env),
+        room_before.to_xdr(&env)
+    );
+    assert_eq!(client.get_members(&room_id), members_before);
+    assert_eq!(token.balance(&host), host_balance_before);
+    assert_eq!(token.balance(&member), member_balance_before);
+    assert_eq!(token.balance(&contract_id), contract_balance_before);
+    assert_eq!(client.locked_of(&room_id, &host), host_locked_before);
+    assert_eq!(client.locked_of(&room_id, &member), member_locked_before);
+}
+
 fn round_secret(env: &Env, round: u32, index: usize, salt: u8) -> BytesN<32> {
     let marker = salt
         .wrapping_add((round as u8).wrapping_mul(17))
@@ -132,6 +194,147 @@ fn complete_round(
     set_ts(env, client.reveal_at(&room_id, &round));
     assert_eq!(client.draw_phase(&room_id), DrawPhase::Finalizable);
     client.finalize_draw(&room_id, caller)
+}
+
+#[test]
+fn join_before_deadline_locks_full_commitment() {
+    let env = fresh_env();
+    let host = Address::generate(&env);
+    let member = Address::generate(&env);
+    let (contract_id, token_id, room_id, join_deadline) =
+        open_room_for_join_test(&env, &host, &member);
+    let client = ArisanRoomsClient::new(&env, &contract_id);
+    let token = TokenClient::new(&env, &token_id);
+    let code = client.get_room(&room_id).code;
+    set_ts(&env, join_deadline - 1);
+
+    client.join_room(&room_id, &code, &member);
+
+    assert_eq!(client.get_room(&room_id).status, RoomStatus::Open);
+    assert_eq!(client.get_room(&room_id).member_count, 2);
+    assert_eq!(
+        client.get_members(&room_id),
+        Vec::from_array(&env, [host.clone(), member.clone()])
+    );
+    assert_eq!(client.locked_of(&room_id, &member), 300);
+    assert_eq!(token.balance(&host), 700);
+    assert_eq!(token.balance(&member), 700);
+    assert_eq!(token.balance(&contract_id), 600);
+}
+
+#[test]
+fn join_at_deadline_does_not_mutate_funds_or_members() {
+    assert_join_rejected_without_mutations(0);
+}
+
+#[test]
+fn join_after_deadline_does_not_mutate_funds_or_members() {
+    assert_join_rejected_without_mutations(1);
+}
+
+#[test]
+fn full_room_can_start_at_join_deadline_and_complete_normal_reveals() {
+    let env = fresh_env();
+    let host = Address::generate(&env);
+    let m1 = Address::generate(&env);
+    let m2 = Address::generate(&env);
+    let members = [&host, &m1, &m2];
+    let (contract_id, token_id, room_id, join_deadline) = open_room_for_join_test(&env, &host, &m1);
+    let client = ArisanRoomsClient::new(&env, &contract_id);
+    let token = TokenClient::new(&env, &token_id);
+    StellarAssetClient::new(&env, &token_id).mint(&m2, &1_000);
+    let code = client.get_room(&room_id).code;
+    set_ts(&env, join_deadline - 1);
+    client.join_room(&room_id, &code, &m1);
+    client.join_room(&room_id, &code, &m2);
+
+    set_ts(&env, join_deadline);
+    client.start_room(&room_id, &host);
+    assert_eq!(client.get_room(&room_id).status, RoomStatus::Active);
+    assert_eq!(token.balance(&contract_id), 900);
+
+    let w1 = complete_round(&env, &client, &contract_id, room_id, &host, &members, 10);
+    assert_eq!(client.commit_count(&room_id, &1), 3);
+    assert_eq!(client.reveal_count(&room_id, &1), 3);
+    let w2 = complete_round(&env, &client, &contract_id, room_id, &m1, &members, 20);
+    assert_eq!(client.reveal_count(&room_id, &2), 2);
+    let w3 = complete_round(&env, &client, &contract_id, room_id, &m2, &members, 30);
+    assert_eq!(client.reveal_count(&room_id, &3), 1);
+
+    assert_ne!(w1, w2);
+    assert_ne!(w2, w3);
+    assert_ne!(w1, w3);
+    assert_eq!(client.get_room(&room_id).status, RoomStatus::Done);
+    assert_eq!(token.balance(&contract_id), 0);
+    for member in members {
+        assert_eq!(token.balance(member), 1_000);
+    }
+}
+
+#[test]
+fn member_can_leave_at_join_deadline_with_full_refund() {
+    let env = fresh_env();
+    let host = Address::generate(&env);
+    let member = Address::generate(&env);
+    let (contract_id, token_id, room_id, join_deadline) =
+        open_room_for_join_test(&env, &host, &member);
+    let client = ArisanRoomsClient::new(&env, &contract_id);
+    let token = TokenClient::new(&env, &token_id);
+    let code = client.get_room(&room_id).code;
+    set_ts(&env, join_deadline - 1);
+    client.join_room(&room_id, &code, &member);
+
+    set_ts(&env, join_deadline);
+    client.leave_room(&room_id, &member);
+
+    assert_eq!(client.get_room(&room_id).status, RoomStatus::Open);
+    assert_eq!(client.get_room(&room_id).member_count, 1);
+    assert_eq!(
+        client.get_members(&room_id),
+        Vec::from_array(&env, [host.clone()])
+    );
+    assert_eq!(client.locked_of(&room_id, &member), 0);
+    assert_eq!(token.balance(&member), 1_000);
+    assert_eq!(token.balance(&host), 700);
+    assert_eq!(token.balance(&contract_id), 300);
+
+    client.cancel_room(&room_id, &host);
+    assert_eq!(token.balance(&host), 1_000);
+    assert_eq!(token.balance(&contract_id), 0);
+}
+
+#[test]
+fn incomplete_room_can_cancel_after_join_deadline_and_refund_every_member() {
+    let env = fresh_env();
+    let host = Address::generate(&env);
+    let member = Address::generate(&env);
+    let outsider = Address::generate(&env);
+    let (contract_id, token_id, room_id, join_deadline) =
+        open_room_for_join_test(&env, &host, &member);
+    let client = ArisanRoomsClient::new(&env, &contract_id);
+    let token = TokenClient::new(&env, &token_id);
+    let code = client.get_room(&room_id).code;
+    set_ts(&env, join_deadline - 1);
+    client.join_room(&room_id, &code, &member);
+
+    set_ts(&env, join_deadline);
+    assert_eq!(
+        client.try_cancel_room(&room_id, &outsider),
+        Err(Ok(Error::NotHost))
+    );
+    assert_eq!(token.balance(&contract_id), 600);
+    assert_eq!(client.locked_of(&room_id, &host), 300);
+    assert_eq!(client.locked_of(&room_id, &member), 300);
+
+    set_ts(&env, join_deadline + 1);
+    client.cancel_room(&room_id, &outsider);
+
+    assert_eq!(client.get_room(&room_id).status, RoomStatus::Dissolved);
+    assert_eq!(client.locked_of(&room_id, &host), 0);
+    assert_eq!(client.locked_of(&room_id, &member), 0);
+    assert_eq!(token.balance(&host), 1_000);
+    assert_eq!(token.balance(&member), 1_000);
+    assert_eq!(token.balance(&contract_id), 0);
 }
 
 #[test]

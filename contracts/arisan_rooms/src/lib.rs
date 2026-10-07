@@ -248,7 +248,7 @@ impl ArisanRooms {
         Ok(room_id)
     }
 
-    /// Join a room by its code, locking N × share.
+    /// Join a room by its code before the join deadline, locking N × share.
     pub fn join_room(env: Env, room_id: u32, code: Symbol, member: Address) -> Result<(), Error> {
         member.require_auth();
         let mut room: Room = env
@@ -261,6 +261,10 @@ impl ArisanRooms {
         }
         if room.code != code {
             return Err(Error::NotFound);
+        }
+        // The join window closes at the deadline even if the room stays Open.
+        if env.ledger().timestamp() >= room.join_deadline {
+            return Err(Error::WrongStatus);
         }
         let mut members: Vec<Address> = env
             .storage()
