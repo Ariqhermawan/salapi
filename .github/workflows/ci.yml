@@ -73,6 +73,9 @@ jobs:
       - name: Arisan invitation binding, authenticated signer controls and commit-reveal encoding
         run: npm run test:arisan
 
+      - name: Isolated installment prefunding and opt-in reminder guards
+        run: npm run test:arisan-funding
+
       - name: D3 exact amounts and signer guards
         run: npm run test:disaster
 

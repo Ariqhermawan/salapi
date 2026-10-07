@@ -20,6 +20,11 @@
 //! One contract holds many rooms keyed by `room_id`. Each room has a unique
 //! 6-char invite code — that is the only way to find or join a room. There
 //! is NO discovery mechanism by design.
+//!
+//! The separate installment mode reserves seats without a token transfer.
+//! Members may contribute in several payments while Open, but the SAME full
+//! cycle commitment must be funded by every member before the host starts.
+//! Legacy rooms keep their original pay-in-full-at-join behavior and storage.
 
 use soroban_sdk::{
     contract, contracterror, contractimpl, contracttype, symbol_short, token, xdr::ToXdr, Address,
@@ -59,9 +64,17 @@ const REVEAL_WINDOW: u64 = 30; // demo: 30s
 #[cfg(feature = "production-cadences")]
 const REVEAL_WINDOW: u64 = 24 * 60 * 60; // long cadence: 1 day
 
+// Installment rooms start the first commitment clock only after all deposits
+// are funded. Funding can take days without consuming the first draw window.
+#[cfg(not(feature = "production-cadences"))]
+const FIRST_COMMIT_WINDOW: u64 = 300;
+#[cfg(feature = "production-cadences")]
+const FIRST_COMMIT_WINDOW: u64 = 24 * 60 * 60;
+
 // Contract-level bounds. The UI enforces stricter display-currency bounds.
 const MIN_MEMBERS: u32 = 3;
 const MAX_MEMBERS: u32 = 20;
+const MAX_FUNDING_WINDOW: u64 = 30 * 24 * 60 * 60;
 
 #[contracttype]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -105,6 +118,38 @@ pub struct Room {
 }
 
 #[contracttype]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum FundingMode {
+    LegacyFull,
+    Installments,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FundingState {
+    pub mode: FundingMode,
+    /// Full cycle obligation per member, not a flexible final contribution.
+    pub obligation: i128,
+    /// Unspent room-attributed pool. Never the aggregate contract balance.
+    pub pooled: i128,
+    pub fully_funded_count: u32,
+    pub deadline: u64,
+}
+
+#[contracttype]
+#[derive(Clone)]
+pub struct InstallmentContractInfo {
+    pub version: u32,
+    pub token: Address,
+    pub cadence_weekly: u64,
+    pub cadence_biweekly: u64,
+    pub cadence_monthly: u64,
+    pub max_postpone: u64,
+    pub first_commit_window: u64,
+    pub max_funding_window: u64,
+}
+
+#[contracttype]
 pub enum DataKey {
     Token,
     RoomCount,
@@ -120,6 +165,8 @@ pub enum DataKey {
     Reveal(u32, u32, Address),
     CommitCount(u32, u32),
     RevealCount(u32, u32),
+    Installment(u32),
+    RoomPool(u32),
 }
 
 #[contracterror]
@@ -143,6 +190,7 @@ pub enum Error {
     InvalidReveal = 17,
     NotEligible = 18,
     CommitStarted = 19,
+    NotFullyFunded = 20,
 }
 
 #[contract]
@@ -150,6 +198,37 @@ pub struct ArisanRooms;
 
 #[contractimpl]
 impl ArisanRooms {
+    /// Capability probe for servers before preparing or signing a new-mode
+    /// operation. A legacy deployment does not expose this entry point.
+    pub fn installments_version(_env: Env) -> u32 {
+        1
+    }
+
+    pub fn token_address(env: Env) -> Result<Address, Error> {
+        env.storage()
+            .instance()
+            .get(&DataKey::Token)
+            .ok_or(Error::NotInitialized)
+    }
+
+    pub fn installment_contract_info(env: Env) -> Result<InstallmentContractInfo, Error> {
+        let token = env
+            .storage()
+            .instance()
+            .get(&DataKey::Token)
+            .ok_or(Error::NotInitialized)?;
+        Ok(InstallmentContractInfo {
+            version: 1,
+            token,
+            cadence_weekly: cadence_seconds(Cadence::Weekly),
+            cadence_biweekly: cadence_seconds(Cadence::Biweekly),
+            cadence_monthly: cadence_seconds(Cadence::Monthly),
+            max_postpone: MAX_POSTPONE_SECONDS,
+            first_commit_window: FIRST_COMMIT_WINDOW,
+            max_funding_window: MAX_FUNDING_WINDOW,
+        })
+    }
+
     pub fn initialize(env: Env, token: Address) -> Result<(), Error> {
         let inst = env.storage().instance();
         if inst.has(&DataKey::Token) {
@@ -248,6 +327,162 @@ impl ArisanRooms {
         Ok(room_id)
     }
 
+    /// Reserve the host's seat without charging tokens. Each member may fund
+    /// their fixed N × share obligation in installments until funding_deadline.
+    /// This distinct entry point cannot change the mode of an existing room.
+    pub fn create_installment_room(
+        env: Env,
+        host: Address,
+        code: Symbol,
+        name: String,
+        member_target: u32,
+        share: i128,
+        cadence: Cadence,
+        funding_deadline: u64,
+    ) -> Result<u32, Error> {
+        host.require_auth();
+        let now = env.ledger().timestamp();
+        if member_target < MIN_MEMBERS
+            || member_target > MAX_MEMBERS
+            || share <= 0
+            || funding_deadline <= now
+            || funding_deadline - now > MAX_FUNDING_WINDOW
+            || funding_deadline.checked_add(FIRST_COMMIT_WINDOW).is_none()
+        {
+            return Err(Error::InvalidParams);
+        }
+        // TTL is measured in ledgers, not wall-clock seconds. Reserve at least
+        // one ledger per funding second plus the first commitment window and
+        // extend all funding state to the network maximum. Networks unable to
+        // retain that conservative funding horizon reject this room instead.
+        let retention_horizon = (funding_deadline - now)
+            .checked_add(FIRST_COMMIT_WINDOW)
+            .ok_or(Error::InvalidParams)?;
+        if retention_horizon > env.storage().max_ttl() as u64 {
+            return Err(Error::InvalidParams);
+        }
+        // Validate both one member's obligation and the entire prefunded pool.
+        // Every later addition is bounded by this checked maximum.
+        let obligation = share
+            .checked_mul(member_target as i128)
+            .ok_or(Error::InvalidParams)?;
+        obligation
+            .checked_mul(member_target as i128)
+            .ok_or(Error::InvalidParams)?;
+        if env
+            .storage()
+            .persistent()
+            .has(&DataKey::RoomByCode(code.clone()))
+        {
+            return Err(Error::InvalidParams);
+        }
+        if !env.storage().instance().has(&DataKey::Token) {
+            return Err(Error::NotInitialized);
+        }
+        let prev: u32 = env
+            .storage()
+            .instance()
+            .get(&DataKey::RoomCount)
+            .unwrap_or(0);
+        let room_id = prev.checked_add(1).ok_or(Error::InvalidParams)?;
+        let room = Room {
+            host: host.clone(),
+            name,
+            code: code.clone(),
+            member_target,
+            share,
+            cadence,
+            // There is no draw clock before Start in installment mode.
+            first_kocok: 0,
+            join_deadline: funding_deadline,
+            status: RoomStatus::Open,
+            member_count: 1,
+            round: 0,
+        };
+        env.storage()
+            .persistent()
+            .set(&DataKey::Room(room_id), &room);
+        env.storage()
+            .persistent()
+            .set(&DataKey::RoomByCode(code), &room_id);
+        env.storage().persistent().set(
+            &DataKey::Members(room_id),
+            &Vec::from_array(&env, [host.clone()]),
+        );
+        env.storage()
+            .persistent()
+            .set(&DataKey::Installment(room_id), &true);
+        env.storage()
+            .persistent()
+            .set(&DataKey::RoomPool(room_id), &0i128);
+        env.storage().instance().set(&DataKey::RoomCount, &room_id);
+        refresh_installment_state(&env, room_id, &room);
+        env.events()
+            .publish((symbol_short!("create"), host), room_id);
+        Ok(room_id)
+    }
+
+    /// Contribute a positive installment from the authenticated member's own
+    /// wallet. A failed token transfer rolls back both accounting and payment.
+    pub fn deposit_room(
+        env: Env,
+        room_id: u32,
+        member: Address,
+        amount: i128,
+    ) -> Result<(), Error> {
+        member.require_auth();
+        let room: Room = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Room(room_id))
+            .ok_or(Error::NotFound)?;
+        if !is_installment(&env, room_id)
+            || room.status != RoomStatus::Open
+            || env.ledger().timestamp() >= room.join_deadline
+        {
+            return Err(Error::WrongStatus);
+        }
+        let members: Vec<Address> = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Members(room_id))
+            .unwrap_or_else(|| Vec::new(&env));
+        if !members.iter().any(|m| m == member) {
+            return Err(Error::NotMember);
+        }
+        let obligation = room
+            .share
+            .checked_mul(room.member_target as i128)
+            .ok_or(Error::InvalidParams)?;
+        let key = DataKey::Locked(room_id, member.clone());
+        let paid: i128 = env.storage().persistent().get(&key).unwrap_or(0);
+        let remaining = obligation.checked_sub(paid).ok_or(Error::InvalidParams)?;
+        if amount <= 0 || amount > remaining {
+            return Err(Error::InvalidParams);
+        }
+        let next_paid = paid.checked_add(amount).ok_or(Error::InvalidParams)?;
+        let pool = room_pool(&env, room_id);
+        let next_pool = pool.checked_add(amount).ok_or(Error::InvalidParams)?;
+        let token: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Token)
+            .ok_or(Error::NotInitialized)?;
+        token::Client::new(&env, &token).transfer(
+            &member,
+            &env.current_contract_address(),
+            &amount,
+        );
+        env.storage().persistent().set(&key, &next_paid);
+        env.storage()
+            .persistent()
+            .set(&DataKey::RoomPool(room_id), &next_pool);
+        refresh_installment_state(&env, room_id, &room);
+        env.events()
+            .publish((symbol_short!("deposit"), room_id, member), amount);
+        Ok(())
+    }
+
     /// Join a room by its code before the join deadline, locking N × share.
     pub fn join_room(env: Env, room_id: u32, code: Symbol, member: Address) -> Result<(), Error> {
         member.require_auth();
@@ -277,13 +512,22 @@ impl ArisanRooms {
         if members.len() >= room.member_target {
             return Err(Error::RoomFull);
         }
-        let token: Address = env
-            .storage()
-            .instance()
-            .get(&DataKey::Token)
-            .ok_or(Error::NotInitialized)?;
-        let total = room.share * (room.member_target as i128);
-        token::Client::new(&env, &token).transfer(&member, &env.current_contract_address(), &total);
+        let total = if is_installment(&env, room_id) {
+            0
+        } else {
+            let token: Address = env
+                .storage()
+                .instance()
+                .get(&DataKey::Token)
+                .ok_or(Error::NotInitialized)?;
+            let total = room.share * (room.member_target as i128);
+            token::Client::new(&env, &token).transfer(
+                &member,
+                &env.current_contract_address(),
+                &total,
+            );
+            total
+        };
         members.push_back(member.clone());
         env.storage()
             .persistent()
@@ -297,6 +541,8 @@ impl ArisanRooms {
         env.storage()
             .persistent()
             .set(&DataKey::Room(room_id), &room);
+
+        refresh_installment_state(&env, room_id, &room);
 
         env.events()
             .publish((symbol_short!("join"), member), room_id);
@@ -345,6 +591,8 @@ impl ArisanRooms {
             .persistent()
             .set(&DataKey::Room(room_id), &room);
 
+        refresh_installment_state(&env, room_id, &room);
+
         env.events()
             .publish((symbol_short!("leave"), member), room_id);
         Ok(())
@@ -367,7 +615,15 @@ impl ArisanRooms {
         // Starting after the first commit deadline would create an Active room
         // with no opportunity for commitments. The still-Open room can be
         // cancelled and fully refunded instead.
-        if env.ledger().timestamp() >= room.first_kocok {
+        let installment = is_installment(&env, room_id);
+        let now = env.ledger().timestamp();
+        if now
+            >= if installment {
+                room.join_deadline
+            } else {
+                room.first_kocok
+            }
+        {
             return Err(Error::WrongStatus);
         }
         let members: Vec<Address> = env
@@ -378,6 +634,32 @@ impl ArisanRooms {
         if members.len() != room.member_target {
             return Err(Error::InvalidParams);
         }
+        if installment {
+            let obligation = room
+                .share
+                .checked_mul(room.member_target as i128)
+                .ok_or(Error::InvalidParams)?;
+            let expected_pool = obligation
+                .checked_mul(room.member_target as i128)
+                .ok_or(Error::InvalidParams)?;
+            for member in members.iter() {
+                let paid: i128 = env
+                    .storage()
+                    .persistent()
+                    .get(&DataKey::Locked(room_id, member))
+                    .unwrap_or(0);
+                if paid != obligation {
+                    return Err(Error::NotFullyFunded);
+                }
+            }
+            // A balance belonging to another room cannot satisfy this gate.
+            if room_pool(&env, room_id) != expected_pool {
+                return Err(Error::NotFullyFunded);
+            }
+            room.first_kocok = now
+                .checked_add(FIRST_COMMIT_WINDOW)
+                .ok_or(Error::InvalidParams)?;
+        }
         room.status = RoomStatus::Active;
         room.member_count = room.member_target;
         room.round = 1;
@@ -387,6 +669,8 @@ impl ArisanRooms {
         env.storage()
             .persistent()
             .set(&DataKey::KocokAt(room_id, 1u32), &room.first_kocok);
+
+        refresh_installment_state(&env, room_id, &room);
 
         env.events()
             .publish((symbol_short!("start"), host), room_id);
@@ -407,7 +691,13 @@ impl ArisanRooms {
             return Err(Error::WrongStatus);
         }
         let now = env.ledger().timestamp();
-        if caller != room.host && now <= room.join_deadline {
+        let not_expired = if is_installment(&env, room_id) {
+            now < room.join_deadline
+        } else {
+            // Preserve the historical boundary for legacy rooms.
+            now <= room.join_deadline
+        };
+        if caller != room.host && not_expired {
             return Err(Error::NotHost);
         }
         let members: Vec<Address> = env
@@ -422,6 +712,8 @@ impl ArisanRooms {
         env.storage()
             .persistent()
             .set(&DataKey::Room(room_id), &room);
+
+        refresh_installment_state(&env, room_id, &room);
 
         env.events()
             .publish((symbol_short!("dissolve"), caller), room_id);
@@ -453,6 +745,7 @@ impl ArisanRooms {
         let count_key = DataKey::CommitCount(room_id, room.round);
         let count: u32 = env.storage().persistent().get(&count_key).unwrap_or(0);
         env.storage().persistent().set(&count_key, &(count + 1));
+        refresh_installment_state(&env, room_id, &room);
         env.events().publish(
             (symbol_short!("commit"), room_id, room.round, member),
             commitment,
@@ -503,6 +796,7 @@ impl ArisanRooms {
         let count_key = DataKey::RevealCount(room_id, room.round);
         let count: u32 = env.storage().persistent().get(&count_key).unwrap_or(0);
         env.storage().persistent().set(&count_key, &(count + 1));
+        refresh_installment_state(&env, room_id, &room);
         env.events().publish(
             (symbol_short!("reveal"), room_id, room.round, member),
             expected,
@@ -579,12 +873,27 @@ impl ArisanRooms {
         let winner_idx: u32 = (ticket % (pool.len() as u64)) as u32;
         let winner: Address = pool.get(winner_idx).unwrap();
         let pot = room.share * (room.member_count as i128);
+        let next_pool = if is_installment(&env, room_id) {
+            Some(
+                room_pool(&env, room_id)
+                    .checked_sub(pot)
+                    .filter(|balance| *balance >= 0)
+                    .ok_or(Error::NotFullyFunded)?,
+            )
+        } else {
+            None
+        };
         let token: Address = env
             .storage()
             .instance()
             .get(&DataKey::Token)
             .ok_or(Error::NotInitialized)?;
         token::Client::new(&env, &token).transfer(&env.current_contract_address(), &winner, &pot);
+        if let Some(pool) = next_pool {
+            env.storage()
+                .persistent()
+                .set(&DataKey::RoomPool(room_id), &pool);
+        }
         env.storage()
             .persistent()
             .set(&DataKey::Won(room_id, winner.clone()), &true);
@@ -620,6 +929,7 @@ impl ArisanRooms {
         env.storage()
             .persistent()
             .set(&DataKey::Room(room_id), &room);
+        refresh_installment_state(&env, room_id, &room);
         Ok(winner)
     }
 
@@ -675,6 +985,7 @@ impl ArisanRooms {
         env.storage()
             .persistent()
             .set(&DataKey::Postponed(room_id, room.round), &true);
+        refresh_installment_state(&env, room_id, &room);
         Ok(())
     }
 
@@ -723,6 +1034,15 @@ impl ArisanRooms {
                 .get(&DataKey::Won(room_id, m.clone()))
                 .unwrap_or(false);
             if !won {
+                if is_installment(&env, room_id) {
+                    let next_pool = room_pool(&env, room_id)
+                        .checked_sub(refund_each)
+                        .filter(|balance| *balance >= 0)
+                        .ok_or(Error::NotFullyFunded)?;
+                    env.storage()
+                        .persistent()
+                        .set(&DataKey::RoomPool(room_id), &next_pool);
+                }
                 client.transfer(&env.current_contract_address(), &m, &refund_each);
             }
         }
@@ -731,12 +1051,31 @@ impl ArisanRooms {
             .persistent()
             .set(&DataKey::Room(room_id), &room);
 
+        refresh_installment_state(&env, room_id, &room);
+
         env.events()
             .publish((symbol_short!("emerg"), caller), room_id);
         Ok(())
     }
 
     // ───────── read-only getters ─────────
+
+    /// Permissionless rent maintenance for installment rooms. This renews
+    /// existing live entries; it cannot restore already archived entries.
+    /// Multi-month production cycles must keep invoking this or restore state
+    /// before expiration. It does not move tokens or change room terms.
+    pub fn keepalive_room(env: Env, room_id: u32) -> Result<(), Error> {
+        let room: Room = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Room(room_id))
+            .ok_or(Error::NotFound)?;
+        if !is_installment(&env, room_id) {
+            return Err(Error::WrongStatus);
+        }
+        refresh_installment_state(&env, room_id, &room);
+        Ok(())
+    }
 
     pub fn get_room(env: Env, room_id: u32) -> Result<Room, Error> {
         env.storage()
@@ -761,6 +1100,62 @@ impl ArisanRooms {
             .persistent()
             .get(&DataKey::Locked(room_id, member))
             .unwrap_or(0)
+    }
+    pub fn funding_state(env: Env, room_id: u32) -> Result<FundingState, Error> {
+        let room: Room = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Room(room_id))
+            .ok_or(Error::NotFound)?;
+        let obligation = room
+            .share
+            .checked_mul(room.member_target as i128)
+            .ok_or(Error::InvalidParams)?;
+        let installment = is_installment(&env, room_id);
+        let members: Vec<Address> = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Members(room_id))
+            .unwrap_or_else(|| Vec::new(&env));
+        let mut fully_funded_count = 0;
+        let mut legacy_pool = 0i128;
+        for member in members.iter() {
+            let paid: i128 = env
+                .storage()
+                .persistent()
+                .get(&DataKey::Locked(room_id, member.clone()))
+                .unwrap_or(0);
+            if paid == obligation {
+                fully_funded_count += 1;
+            }
+            if !installment {
+                // Old active rooms retain historical Locked values after each
+                // payout. Derive their unspent allocation from winners instead.
+                let won: bool = env
+                    .storage()
+                    .persistent()
+                    .get(&DataKey::Won(room_id, member))
+                    .unwrap_or(false);
+                if room.status == RoomStatus::Open || (room.status == RoomStatus::Active && !won) {
+                    legacy_pool = legacy_pool.checked_add(paid).ok_or(Error::InvalidParams)?;
+                }
+            }
+        }
+        Ok(FundingState {
+            mode: if installment {
+                FundingMode::Installments
+            } else {
+                FundingMode::LegacyFull
+            },
+            obligation,
+            pooled: if installment {
+                room_pool(&env, room_id)
+            } else {
+                legacy_pool
+            },
+            fully_funded_count,
+            deadline: room.join_deadline,
+        })
     }
     pub fn has_won(env: Env, room_id: u32, member: Address) -> bool {
         env.storage()
@@ -824,6 +1219,76 @@ impl ArisanRooms {
             .get(&DataKey::RoomCount)
             .unwrap_or(0)
     }
+}
+
+fn is_installment(env: &Env, room_id: u32) -> bool {
+    env.storage()
+        .persistent()
+        .get(&DataKey::Installment(room_id))
+        .unwrap_or(false)
+}
+
+fn room_pool(env: &Env, room_id: u32) -> i128 {
+    env.storage()
+        .persistent()
+        .get(&DataKey::RoomPool(room_id))
+        .unwrap_or(0)
+}
+
+fn extend_entry(env: &Env, key: DataKey, max_ttl: u32) {
+    if env.storage().persistent().has(&key) {
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, max_ttl, max_ttl);
+    }
+}
+
+fn refresh_installment_state(env: &Env, room_id: u32, room: &Room) {
+    if !is_installment(env, room_id) {
+        return;
+    }
+    let max_ttl = env.storage().max_ttl();
+    env.storage().instance().extend_ttl(max_ttl, max_ttl);
+    let token: Address = env
+        .storage()
+        .instance()
+        .get(&DataKey::Token)
+        .expect("initialized");
+    env.deployer().extend_ttl(token.clone(), max_ttl, max_ttl);
+    if room_pool(env, room_id) > 0 {
+        // The native SAC owns the contract's token-balance entry. Its balance
+        // getter renews that entry to its own 30-day ledger TTL; we cannot
+        // directly mutate another contract's storage. Keepalive must run before
+        // that entry expires, or the caller must restore it first.
+        token::Client::new(env, &token).balance(&env.current_contract_address());
+    }
+    extend_entry(env, DataKey::Room(room_id), max_ttl);
+    extend_entry(env, DataKey::Members(room_id), max_ttl);
+    extend_entry(env, DataKey::RoomByCode(room.code.clone()), max_ttl);
+    extend_entry(env, DataKey::Installment(room_id), max_ttl);
+    extend_entry(env, DataKey::RoomPool(room_id), max_ttl);
+    let members: Vec<Address> = env
+        .storage()
+        .persistent()
+        .get(&DataKey::Members(room_id))
+        .unwrap_or_else(|| Vec::new(env));
+    for member in members.iter() {
+        extend_entry(env, DataKey::Locked(room_id, member.clone()), max_ttl);
+        extend_entry(env, DataKey::Won(room_id, member.clone()), max_ttl);
+        extend_entry(
+            env,
+            DataKey::Commitment(room_id, room.round, member.clone()),
+            max_ttl,
+        );
+        extend_entry(env, DataKey::Reveal(room_id, room.round, member), max_ttl);
+    }
+    for round in 1..=room.member_target {
+        extend_entry(env, DataKey::Winner(room_id, round), max_ttl);
+        extend_entry(env, DataKey::KocokAt(room_id, round), max_ttl);
+    }
+    extend_entry(env, DataKey::Postponed(room_id, room.round), max_ttl);
+    extend_entry(env, DataKey::CommitCount(room_id, room.round), max_ttl);
+    extend_entry(env, DataKey::RevealCount(room_id, room.round), max_ttl);
 }
 
 fn draw_phase_for(env: &Env, room_id: u32, room: &Room) -> Result<DrawPhase, Error> {
@@ -924,6 +1389,15 @@ fn refund_member(env: &Env, room_id: u32, member: &Address) {
         .get(&DataKey::Token)
         .expect("initialized");
     token::Client::new(env, &token).transfer(&env.current_contract_address(), member, &locked);
+    if is_installment(env, room_id) {
+        let next_pool = room_pool(env, room_id)
+            .checked_sub(locked)
+            .filter(|balance| *balance >= 0)
+            .expect("room pool covers refund");
+        env.storage()
+            .persistent()
+            .set(&DataKey::RoomPool(room_id), &next_pool);
+    }
     env.storage()
         .persistent()
         .remove(&DataKey::Locked(room_id, member.clone()));

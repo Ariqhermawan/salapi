@@ -114,6 +114,8 @@ export default function ArisanListScreen() {
         title={t("arisan.title")}
       />
 
+      {(isLocalPreview || process.env.NEXT_PUBLIC_ARISAN_INSTALLMENTS === "1") && <div className={styles.body}><Link href="/arisan/funding" className={styles.roomLink}><span className={styles.eyebrow}>Separate installment candidate · Testnet</span><h2>Join first. Pay in steps.</h2><p className={styles.muted}>No deposit at join. Fund in smaller amounts before the deadline. Start only after every member is fully funded. Existing rooms below keep their original terms.</p></Link></div>}
+
       <div className={styles.body} style={{ paddingTop: 20, paddingBottom: 20, gap: 12 }}>
         <header className={`${styles.hero} ${styles.compactHero}`}><div><span className={styles.eyebrow}>Arisan / Paluwagan · Testnet</span><h1>Save together.</h1><p>Each member deposits N × their share upfront. One payout per member across the circle.</p></div><Image className={styles.doodle} width={95} height={95} src="/illustrations/arisan.png" alt="Friends contributing to a shared money pool" /></header>
         <p className={styles.muted}>{isLocalPreview ? "Example data · Local preview · No transactions" : "Valueless Testnet XLM. Display amounts are illustrative."}</p>

@@ -1,0 +1,15 @@
+.panel { padding: 14px; border: 1px solid #dce6f5; border-radius: 18px; background: #fff; color: #172b47; }
+.panel h2 { margin: 0 0 8px; font-size: 14px; line-height: 1.4; font-weight: 700; letter-spacing: -.02em; }
+.panel p { margin: 6px 0; color: #60718b; font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
+.toggle { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; min-height: 44px; }
+.toggle input { width: 20px; height: 20px; flex: 0 0 20px; margin: 2px 0 0; accent-color: #2563eb; }
+.toggle span { font-size: 12px; line-height: 1.6; font-weight: 600; }
+.notice { padding: 10px 12px; margin-top: 10px; border-radius: 12px; background: #eaf2ff; }
+.notice p { color: #355680; margin: 0; }
+.overdue { background: #fff1e8; }
+.overdue p { color: #944725; }
+.error { color: #a33c38 !important; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.actions button { min-height: 44px; padding: 9px 12px; border: 1px solid #d5e2f8; border-radius: 12px; background: #eff5ff; color: #2055b7; font-size: 11px; font-weight: 650; cursor: pointer; }
+.actions button:disabled { color: #77879f; background: #edf1f7; cursor: not-allowed; }
+.panel :is(button,input):focus-visible { outline: 3px solid #2563eb66; outline-offset: 3px; }
