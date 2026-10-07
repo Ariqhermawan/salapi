@@ -6,6 +6,17 @@
 .metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 14px; background: #f2f6fc; border-radius: 13px; }
 .metrics small { display: block; color: #60718b; font-size: 10px; line-height: 1.5; }
 .metrics strong { display: block; margin-top: 4px; font-size: 17px; line-height: 1.4; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.estimate { display: block; margin-top: 3px; color: #3a5b84; font-size: 11px; line-height: 1.5; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.goal { margin-top: 13px; }
+.goalRow { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; color: #60718b; font-size: 10px; line-height: 1.5; }
+.goalRow > span { min-width: 0; overflow-wrap: anywhere; }
+.goalRow strong { display: block; margin-top: 3px; color: #142440; font-size: 15px; font-variant-numeric: tabular-nums; }
+.percentage { text-align: right; }
+.goalRow .percentage strong { color: #2563eb; }
+.progress { height: 7px; margin-top: 10px; overflow: hidden; border-radius: 999px; background: #e3eaf4; }
+.progress span { display: block; height: 100%; background: #2563eb; border-radius: inherit; }
+.card .marketNote, .card .progressUnavailable { margin: 9px 0 13px; color: #65748c; font-size: 10px; line-height: 1.65; }
+.stale { color: #8e601f; font-weight: 650; }
 .card .separation { margin: 9px 0 14px; color: #65748c; font-size: 10px; line-height: 1.65; }
 .phase { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
 .phase strong { font-size: 11px; padding: 5px 8px; border-radius: 7px; }

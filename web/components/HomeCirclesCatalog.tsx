@@ -9,7 +9,6 @@ import { useT } from "@/components/I18nProvider";
 import { Ico } from "@/components/ui/icons";
 import { SEED_CIRCLES } from "@/lib/circles/seed";
 import { getOrganizerForCircle } from "@/lib/circles/organizers";
-import { progressPct } from "@/lib/circles/types";
 import { HOME_CAUSE_CATEGORIES, homeCircleExamples, isHomeCauseCategory, parseCauseViewState } from "@/lib/home-circles";
 import { useNavigationViewState } from "@/lib/ui/useNavigationViewState";
 import { getNavigationEntrySnapshot, subscribeNavigationViewState, writeNavigationViewState } from "@/lib/ui/app-navigation";
@@ -19,6 +18,7 @@ import { homeCatalogCopy, type HomeCatalogKey } from "@/lib/i18n/revamp-home-cat
 import ExampleOrganizerAvatar from "@/components/ui/ExampleOrganizerAvatar";
 import styles from "./HomeCirclesCatalog.module.css";
 import { isLocalPreview } from "@/lib/local-preview";
+import HomeCircleFundingProgress from "@/components/HomeCircleFundingProgress";
 
 // Native selects can be changed before React attaches their handlers. Keep
 // interactive controls disabled in SSR/hydration, then enable at client commit.
@@ -28,8 +28,8 @@ function catalogReadySnapshot() { return true; }
 function catalogServerReadySnapshot() { return false; }
 function catalogServerEntrySnapshot() { return ""; }
 
-// Discovery fixtures are independent of wallet state and D4 escrow. These
-// routes preview the existing Circles concept; this component cannot pay.
+// Discovery never signs or pays. Only the selected card reads its public QA
+// funding total; the rest of the catalog does not fan out ledger requests.
 export default function HomeCirclesCatalog() {
   const { locale } = useT();
   const c = circlesCopy(locale);
@@ -112,7 +112,6 @@ export default function HomeCirclesCatalog() {
     <div key={category} className={styles.strip} ref={strip} onScroll={syncScrollPosition} aria-label={copy("Example causes carousel")}>
       {examples.map((circle, position) => {
         const organizer = getOrganizerForCircle(circle);
-        const percent = progressPct(circle);
         return <article key={circle.id} className={styles.card} data-example-cause={circle.id}>
           <Link href={`/circles/${circle.id}`} prefetch={false} className={styles.photo} aria-label={copy("View example cause: {title}", { title: circle.title })}>
             <Image src={circle.coverImage ?? "/illustrations/giving.png"} alt={circle.imageAlt ?? c("AI-generated fictional campaign illustration")} width={600} height={340} sizes="(max-width: 500px) 82vw, 384px" loading={position === 0 ? "eager" : "lazy"} />
@@ -131,10 +130,7 @@ export default function HomeCirclesCatalog() {
               <span><span>{copy("Example rating")}</span><Star size={13} weight="fill" aria-hidden="true" /><strong>{organizer.rating.toFixed(1)}/5</strong></span>
               <small>{copy("{count} example reviews", { count: organizer.reviewCount })}</small>
             </div> : null}
-            <div className={styles.progress} aria-label={copy("{percent}% example progress. No donations collected.", { percent })}>
-              <span>{copy("Example progress")}<strong>{percent}%</strong></span>
-              <progress value={percent} max={100} aria-hidden="true" />
-            </div>
+            <HomeCircleFundingProgress circle={circle} active={ready && position === index} />
             <Link href={`/circles/${circle.id}`} prefetch={false} className={styles.pledge}><Heart size={18} aria-hidden="true" />{c("View campaign")}</Link>
           </div>
         </article>;

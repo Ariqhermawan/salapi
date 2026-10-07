@@ -34,13 +34,6 @@
 .rating svg { color: #966321; flex-shrink: 0; }
 .rating strong { color: #13233d; font-size: 12px; font-variant-numeric: tabular-nums; }
 .rating small { font-size: 10px; }
-.progress { display: grid; gap: 4px; margin-top: auto; }
-.progress > span { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; color: #586985; font-size: 10px; }
-.progress strong { color: #13233d; font-variant-numeric: tabular-nums; }
-.progress progress { display: block; width: 100%; height: 6px; appearance: none; border: none; border-radius: 10px; background: #e1e7ef; overflow: hidden; }
-.progress progress::-webkit-progress-bar { background: #e1e7ef; border-radius: 10px; }
-.progress progress::-webkit-progress-value { background: #00ad84; border-radius: 10px; }
-.progress progress::-moz-progress-bar { background: #00ad84; border-radius: 10px; }
 .pledge { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 6px 10px; border-radius: 13px; color: #fff; background: #2563eb; font-size: 13px; font-weight: 650; text-align: center; transition: background .18s ease, transform .18s ease; }
 .footer { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 2px 4px 0; }
 .explore { display: inline-flex; align-items: center; gap: 3px; min-height: 44px; color: #164cbc; font-size: 12px; line-height: 1.4; font-weight: 650; text-wrap: pretty; }

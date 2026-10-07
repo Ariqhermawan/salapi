@@ -49,7 +49,7 @@ async function setup(page: Page, priceBody: () => object, currency = "en", local
     }
     // These existing read-only actions retain their actual response, including
     // myHandle:null. No identity is invented or account switched by these tests.
-    if (name === "myHandle" || name === "campaignState") return route.continue();
+    if (name === "myHandle" || name === "campaignState" || name === "readCircleTestnetCampaign") return route.continue();
     calls.forbidden.push(name ?? `${request.method()} ${url.pathname}`);
     return route.fulfill({ status: 403, body: "Isolated market-price QA: mutation blocked" });
   });
@@ -77,6 +77,8 @@ test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () =>
     const market = await openHome(page);
     await expect(market).toHaveAttribute("data-market-value", "fresh");
     await expect(market.getByRole("status")).toHaveText("≈ $2,500.00");
+    await expect(market.locator("[data-native-balance]")).toBeVisible();
+    await expect(market.locator("[data-native-balance]")).toHaveText("10000 XLM");
     const attribution = market.getByRole("link", { name: "CoinGecko", exact: true });
     await expect(attribution).toBeVisible(); await expect(attribution).toHaveAttribute("href", "https://www.coingecko.com");
     await expect(market.getByText("Price data by", { exact: false })).toBeVisible();
@@ -95,7 +97,7 @@ test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () =>
     const summary = market.getByLabel("CoinGecko prices", { exact: true });
     expect((await summary.boundingBox())!.height).toBeGreaterThanOrEqual(24);
     await summary.click();
-    await expect(market.getByText("10000 Native Testnet XLM", { exact: true })).toBeVisible();
+    await expect(market.locator("[data-native-balance]")).toHaveText("10000 XLM");
     await expect(market).toContainText("XLM $0.25 · USDC $0.9998");
     await expect(market.getByText("USDC price reference only. This wallet holds Testnet XLM, not USDC.", { exact: true })).toBeVisible();
     await expect(market.getByText("Testnet tokens have no monetary value.", { exact: true })).toBeVisible();
@@ -140,7 +142,8 @@ test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () =>
     await expect(market).toHaveAttribute("data-market-value", "unavailable");
     await expect(market.getByRole("status")).toHaveText("Market price unavailable");
     await expect(market.getByRole("status")).not.toContainText("$0");
-    await expect(market.getByText("10000 Native Testnet XLM", { exact: true })).toBeVisible();
+    await expect(market.locator("[data-native-balance]")).toBeVisible();
+    await expect(market.locator("[data-native-balance]")).toHaveText("10000 XLM");
     expect(fixture.calls.forbidden).toEqual([]); expect(fixture.errors).toEqual([]);
     await page.screenshot({ path: testInfo.outputPath("market-unavailable-expired.png"), fullPage: false });
   });

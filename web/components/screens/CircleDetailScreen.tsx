@@ -9,7 +9,7 @@ import OrganizerVerification from "@/components/ui/OrganizerVerification";
 import ExampleOrganizerAvatar from "@/components/ui/ExampleOrganizerAvatar";
 import CircleGallery from "@/components/CircleGallery";
 import CircleDonorExamples from "@/components/CircleDonorExamples";
-import { CURRENCY, formatLocal } from "@/lib/ui/currency";
+import { CURRENCY, formatLocal, pesoToUsdc } from "@/lib/ui/currency";
 import { useT } from "@/components/I18nProvider";
 import { progressPct, type CircleCategory, type Circle, type CircleUpdate } from "@/lib/circles/types";
 import { localePreviewSplit } from "@/lib/circles/allowance";
@@ -86,6 +86,12 @@ export default function CircleDetailScreen({ circle, initialTab = "story" }: {
   const split = localePreviewSplit(currency, allowance);
   const percent = progressPct(circle);
   const updates = circle.updates ?? [];
+  const storyText = circle.story.trim();
+  const storyLimit = 360;
+  const storyBoundary = storyText.length > storyLimit ? storyText.lastIndexOf(" ", storyLimit) : storyText.length;
+  const storyCut = storyBoundary > storyLimit / 2 ? storyBoundary : Math.min(storyText.length, storyLimit);
+  const storyPreview = storyText.slice(0, storyCut).trimEnd();
+  const storyRemainder = storyText.slice(storyCut).trimStart();
   const currentSupports = supports.filter(record => record.circleId === circle.id);
   const totals = supportTotals(currentSupports);
   const unseen = updates.filter(update => currentSupports.some(record => unreadSupportUpdates(record, [update]) > 0)).length;
@@ -158,7 +164,40 @@ export default function CircleDetailScreen({ circle, initialTab = "story" }: {
           {organizerLink()}
         </header>
       </section>
-      {!isLocalPreview && !completed && <CircleTestnetSummary circleId={circle.id} result={qa.result} loading={qa.loading} onRefresh={qa.refresh} hideDonate hideDetailsLink compact />}
+    </> : <header className={styles.compactHero}>
+      <h1>{circle.title}</h1><p>{c("Prototype · All updates, scenes and proof notes are fictional examples.")}</p>
+    </header>}
+
+    {currentSupports.length > 0 && <section className={styles.supportBanner} aria-label={c("Your local demo support")}>
+      <div><strong>{c("Your local demo support")}</strong><p>{c(currentSupports.length === 1 ? "No money moved · {count} local confirmation" : "No money moved · {count} local confirmations", { count: currentSupports.length })}</p>
+        {unseen > 0 && <span>{c(unseen === 1 ? "{count} unseen example update" : "{count} unseen example updates", { count: unseen })}</span>}</div>
+      <div className={styles.supportAmounts}>{totals.map(total => <strong key={total}>{total}</strong>)}</div>
+    </section>}
+
+    <div id="circle-details-tabs" role="tablist" aria-label={c("Circle prototype details")} className={styles.tabs}>
+      {tabs.map((item, index) => <button key={item.id} id={`circle-tab-${item.id}`} type="button" role="tab"
+        aria-selected={tab === item.id} aria-controls={`circle-panel-${item.id}`} tabIndex={tab === item.id ? 0 : -1}
+        className={styles.tab} onClick={() => selectTab(item.id)} onKeyDown={event => navigateTabs(event, index)}>
+        {item.label}{item.id === "updates" && updates.length > 0 && <span className={styles.tabCount}>{updates.length}</span>}
+      </button>)}
+    </div>
+
+    {tab === "story" && <section key="story" id="circle-panel-story" role="tabpanel" tabIndex={0} aria-labelledby="circle-tab-story" className={`${styles.panel} sl-state-enter`}>
+      <div className={styles.storyHeading}><div><span className={styles.eyebrow}>{c("People helping people")}</span><h2>{c("About this example")}</h2></div>
+        <Image src="/illustrations/giving.png" width={86} height={78} alt="" className={styles.storyDoodle} /></div>
+      {circle.summary && <p className={styles.storySummary}>{circle.summary}</p>}
+      <p className={styles.storyPreview} data-testid="circle-story-preview">{storyPreview}{storyRemainder ? "…" : ""}</p>
+      {storyRemainder && <details className={styles.storyMore} data-testid="circle-story-more">
+        <summary>{c("Read more")}</summary>
+        {storyRemainder.split("\n\n").filter(Boolean).map((paragraph, index) => <p key={index}>{paragraph}</p>)}
+      </details>}
+      {completed && circle.completedOn && <p className={styles.localNotice}>{c("Example completed date: {date}. This is a synthetic history entry, not verified delivery.", { date: exampleDate(circle.completedOn, locale) })}</p>}
+      <p className={styles.hint}>{c("Demo verification, not an identity check. Names, goals, ratings, dates and scenes are fictional.")}</p>
+    </section>}
+
+    {!isLocalPreview && !completed && <CircleTestnetSummary circleId={circle.id} result={qa.result} loading={qa.loading} onRefresh={qa.refresh}
+      hideDonate={tab === "story"} hideDetailsLink compact={tab === "story"} goalUsdc={pesoToUsdc(circle.pesoTarget)} />}
+    {tab === "story" && <>
       {knownUnlinked && <section className={styles.progressCard} aria-label={c("Illustrative progress")}>
         <div className={styles.metrics}>
           <div><small>{c("Example raised")}</small><strong>{formatLocal(circle.pesoRaised, currency)}</strong></div>
@@ -187,34 +226,7 @@ export default function CircleDetailScreen({ circle, initialTab = "story" }: {
           <span>{isLocalPreview ? c("Try the separate funding flow in local example mode.") : c("Separate D4 escrow and proof-approval flow on Stellar Testnet.")}</span></div>
         <span aria-hidden="true">{Ico.chev({ size: 18, c: T.slate })}</span>
       </Link>}
-    </> : <header className={styles.compactHero}>
-      <h1>{circle.title}</h1><p>{c("Prototype · All updates, scenes and proof notes are fictional examples.")}</p>
-    </header>}
-
-    {currentSupports.length > 0 && <section className={styles.supportBanner} aria-label={c("Your local demo support")}>
-      <div><strong>{c("Your local demo support")}</strong><p>{c(currentSupports.length === 1 ? "No money moved · {count} local confirmation" : "No money moved · {count} local confirmations", { count: currentSupports.length })}</p>
-        {unseen > 0 && <span>{c(unseen === 1 ? "{count} unseen example update" : "{count} unseen example updates", { count: unseen })}</span>}</div>
-      <div className={styles.supportAmounts}>{totals.map(total => <strong key={total}>{total}</strong>)}</div>
-    </section>}
-
-    <div id="circle-details-tabs" role="tablist" aria-label={c("Circle prototype details")} className={styles.tabs}>
-      {tabs.map((item, index) => <button key={item.id} id={`circle-tab-${item.id}`} type="button" role="tab"
-        aria-selected={tab === item.id} aria-controls={`circle-panel-${item.id}`} tabIndex={tab === item.id ? 0 : -1}
-        className={styles.tab} onClick={() => selectTab(item.id)} onKeyDown={event => navigateTabs(event, index)}>
-        {item.label}{item.id === "updates" && updates.length > 0 && <span className={styles.tabCount}>{updates.length}</span>}
-      </button>)}
-    </div>
-
-    {tab === "story" && <section key="story" id="circle-panel-story" role="tabpanel" tabIndex={0} aria-labelledby="circle-tab-story" className={`${styles.panel} sl-state-enter`}>
-      <div className={styles.storyHeading}><div><span className={styles.eyebrow}>{c("People helping people")}</span><h2>{c("About this example")}</h2></div>
-        <Image src="/illustrations/giving.png" width={86} height={78} alt="" className={styles.storyDoodle} /></div>
-      {circle.summary && <p className={styles.storySummary}>{circle.summary}</p>}
-      {circle.story.split("\n\n").filter(Boolean).map((paragraph, index) => <p key={index}>{paragraph}</p>)}
-      {completed && circle.completedOn && <p className={styles.localNotice}>{c("Example completed date: {date}. This is a synthetic history entry, not verified delivery.", { date: exampleDate(circle.completedOn, locale) })}</p>}
-      <p className={styles.hint}>{c("Demo verification, not an identity check. Names, goals, ratings, dates and scenes are fictional.")}</p>
-    </section>}
-
-    {tab !== "story" && !isLocalPreview && !completed && <CircleTestnetSummary circleId={circle.id} result={qa.result} loading={qa.loading} onRefresh={qa.refresh} hideDetailsLink />}
+    </>}
     {tab === "story" && qa.result?.ok && <details className={styles.exampleProof}><summary>{c("Updates")}</summary><CampaignUpdateSubscription campaignId={qa.result.mapping.campaignId} /></details>}
     {tab === "updates" && qa.result?.ok && <CampaignOrganizerUpdates campaignId={qa.result.mapping.campaignId} />}
     {tab === "story" && knownUnlinked && <CircleDonorExamples circle={circle} supports={currentSupports} />}

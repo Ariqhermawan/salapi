@@ -15,6 +15,12 @@
   margin: 0;
 }
 
+.storyPreview { white-space: pre-line; }
+.storyMore { margin-top: 10px; }
+.storyMore summary { display: inline-flex; align-items: center; min-height: 44px; color: #2563eb; font-size: 12px; font-weight: 650; cursor: pointer; }
+.storyMore summary:focus-visible { outline: 2px solid #2563eb; outline-offset: 3px; border-radius: 4px; }
+.storyMore[open] summary { margin-bottom: 5px; }
+
 .screen a {
   color: #2563eb;
   text-decoration: none;

@@ -109,7 +109,7 @@ export default function Home() {
       </div>
       <div className={s.walletContent}><div><div className={s.balanceLabel}><span>{copy("TESTNET BALANCE")}</span></div>
         {walletError ? <button className={s.walletRetry} onClick={loadWallet}>{copy(walletError)} {copy("Retry")}</button>
-          : wallet ? <div className={s.amount}>{isLocalPreview ? <><span>≈ </span><Peso value={wallet.pesos} size={balanceSize} color="#fff" /></> : <MarketValue nativeStroops={wallet.nativeStroops} size={balanceSize} color="#fff" compact />}</div>
+          : wallet ? <div className={s.amount}>{isLocalPreview ? <><span>≈ </span><Peso value={wallet.pesos} size={balanceSize} color="#fff" /></> : <MarketValue nativeStroops={wallet.nativeStroops} size={balanceSize} color="#fff" compact showNative />}</div>
           : <div className="sl-skel" style={{ height: balanceSize, width: "80%", margin: "5px auto 0" }} />}
       </div>
         <nav className={s.walletActions} aria-label={copy("Wallet actions")}>

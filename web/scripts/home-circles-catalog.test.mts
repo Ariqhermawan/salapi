@@ -33,7 +33,6 @@ function fixture(path: string): Record<string, unknown> {
   return exports;
 }
 const seed = fixture("../lib/circles/seed.ts") as { SEED_CIRCLES: Circle[]; COMPLETED_CIRCLES: Circle[] };
-const circleTypes = fixture("../lib/circles/types.ts") as { progressPct(circle: Circle): number };
 const code = compile("../app/page.tsx");
 function nodes(value: unknown): Element[] {
   if (Array.isArray(value)) return value.flatMap(nodes);
@@ -126,6 +125,7 @@ function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: bo
       if (name.startsWith("@phosphor-icons/")) return new Proxy({}, { get: (_target, key) => String(key) });
       if (name === "@/components/I18nProvider") return { useT: () => ({ locale, currency: "tl" }) };
       if (name === "@/components/HomeCirclesCatalog") return { default: catalog.default };
+      if (name === "@/components/HomeCircleFundingProgress") return { default: "HomeCircleFundingProgress" };
       if (name === "@/components/AccountAvatar") return { default: "AccountAvatar" };
       if (name === "@/components/MarketValue") return { default: "MarketValue" };
       if (name === "@/components/useAccountPhoto") return { useAccountPhoto: () => ({ status: "ready", profile: null }) };
@@ -133,7 +133,7 @@ function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: bo
       if (name === "@/components/ui/icons") return { Ico: icons };
       if (name === "@/lib/local-preview") return { isLocalPreview: preview, PREVIEW_WALLET, PREVIEW_TIME, PREVIEW_CAMPAIGNS, normalizePreviewCampaigns: (rows: Campaign[]) => rows };
       if (name === "@/lib/circles/seed") return seed;
-      if (name === "@/lib/circles/types") return circleTypes;
+      if (name === "@/lib/circles/types") return fixture("../lib/circles/types.ts");
       if (name === "@/lib/circles/organizers") return fixture("../lib/circles/organizers.ts");
       if (name === "@/lib/home-circles") return homeCircles;
       if (name === "@/lib/ui/useNavigationViewState") return navigationViewHook;
@@ -323,7 +323,9 @@ for (const preview of [true, false]) for (const locale of LOCALES) test(`${local
     assert.ok(nodes(card).some(node => node.type === "span" && text(node) === catalogCopy.homeCatalogCopy(locale, "Example rating")), "The visible rating label must remain independently identifiable");
     assert.ok(text(card).includes(organizer.rating.toFixed(1)));
     assert.ok(text(card).includes(catalogCopy.homeCatalogCopy(locale, "{count} example reviews", { count: organizer.reviewCount })));
-    assert.ok(nodes(card).some(node => node.props["aria-label"] === catalogCopy.homeCatalogCopy(locale, "{percent}% example progress. No donations collected.", { percent: circleTypes.progressPct(circle) })));
+    const funding = nodes(card).find(node => node.type === "HomeCircleFundingProgress"); assert.ok(funding);
+    assert.equal(funding.props.circle, circle);
+    assert.equal(funding.props.active, index === 0, "Only the selected card may read Testnet funding");
     assert.doesNotMatch(text(card), /\bXLM\b|\bPHP\b|₱|exact-source-units|already KYC|Verified/);
     assert.equal(nodes(card).some(node => String(node.props.href ?? "").startsWith("/campaigns?id=")), false);
   }
@@ -335,6 +337,23 @@ for (const preview of [true, false]) for (const locale of LOCALES) test(`${local
   assert.equal(ui.calls.wallet, preview ? 0 : 1); assert.equal(ui.calls.handle, preview ? 0 : 1);
   assert.deepEqual(ui.calls.campaigns, preview ? [] : ["0", "809"]);
   assert.equal(ui.calls.network, 0); assert.equal(ui.calls.writes, 0);
+});
+
+test("catalog funding reads are enabled for only the hydrated selected card, including restored and filtered views", async () => {
+  const ui = mount({ preview: false, savedCatalogView: { category: "animals", index: 2 } });
+  const readers = () => nodes(ui.catalog).filter(node => node.type === "HomeCircleFundingProgress");
+  assert.equal(readers().filter(node => node.props.active).length, 0, "SSR cannot fan out public funding reads");
+  await ui.flush();
+  assert.equal(readers().length, 3);
+  assert.equal(readers().filter(node => node.props.active).length, 1);
+  assert.equal(readers()[2].props.active, true);
+  ui.click(catalogCopy.homeCatalogCopy("en", "Next example cause")); await ui.flush();
+  assert.equal(readers()[0].props.active, true);
+  assert.equal(readers().filter(node => node.props.active).length, 1);
+  ui.select("all"); await ui.flush();
+  assert.equal(readers().length, 27);
+  assert.equal(readers().filter(node => node.props.active).length, 1, "All 27 cards still request only the selected public total");
+  assert.equal(readers()[0].props.active, true);
 });
 
 test("actual category changes reset the manual catalog and expose three causes in every sector without financial reads", async () => {

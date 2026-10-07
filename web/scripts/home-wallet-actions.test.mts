@@ -154,6 +154,7 @@ test("action labels follow language independently of currency and retain exact b
     if (preview) assert.equal(nodes(ui.wallet).find(node => node.type === "Peso")?.props.value, balance.pesos);
     else {
       assert.equal(nodes(ui.wallet).find(node => node.type === "MarketValue")?.props.nativeStroops, balance.nativeStroops);
+      assert.equal(nodes(ui.wallet).find(node => node.type === "MarketValue")?.props.showNative, true, "Home exposes the native quantity without opening market details");
       assert.equal(nodes(ui.wallet).some(node => node.type === "Peso"), false, "Real wallet market display must not retain a static peso valuation");
     }
     assert.ok(text(ui.wallet).includes(homeCopy(locale, "TESTNET BALANCE")));

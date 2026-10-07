@@ -9,6 +9,16 @@ import ts from "typescript";
 import { activityStroopsToXlm } from "../lib/wallet-activity.ts";
 import type { CampaignDonorEntry, CampaignDonorFeedResult } from "../lib/campaign-donor.ts";
 import type { Locale } from "../lib/i18n/config.ts";
+import { estimateUsdc, validateMarketPrices, type MarketPriceResult } from "../lib/market-prices.ts";
+
+const unavailablePrices: MarketPriceResult = { status: "unavailable", source: "CoinGecko", reason: "provider-unavailable" };
+function prices(xlmUsd = .25, status: "fresh" | "stale" = "fresh", age = 0): MarketPriceResult {
+  const timestamp = Math.floor((Date.now() - age) / 1000);
+  return { status, source: "CoinGecko", fetchedAt: timestamp, assets: {
+    xlm: { prices: { usd: xlmUsd, php: 14, idr: 4000, vnd: 6250 }, updatedAt: timestamp },
+    usdc: { prices: { usd: .5, php: 28, idr: 8000, vnd: 12500 }, updatedAt: timestamp },
+  } };
+}
 
 const wallet = "GDWYDMY2WDL4MCKMYQ6CWZJP526K6YHLRK3EG6IF2IJTX3EHZU3RRB72";
 const hash = "a".repeat(64);
@@ -28,10 +38,11 @@ const compiled = ts.transpileModule(readFileSync(new URL("../components/Campaign
 }).outputText;
 // Executes the real component's hooks, handlers and JSX with isolated server
 // actions. This is not browser/Gmail/Supabase E2E evidence.
-function setup(locale: Locale = "en") {
+function setup(locale: Locale = "en", initialPrices: MarketPriceResult = unavailablePrices) {
   const cells: unknown[] = [], effects = new Map<number, Effect>(), waiting = new Map<number, Effect>();
   const calls: { id: string; cursor: string | undefined; result: ReturnType<typeof deferred<CampaignDonorFeedResult>> }[] = [];
   let index = 0, props: FeedProps = { campaignId: "1" };
+  let marketPrices = initialPrices;
   const exports = {} as { default: (props: FeedProps) => React.ReactElement };
   runInNewContext(compiled, { exports, Date, Set, JSON,
     require(name: string) {
@@ -44,6 +55,8 @@ function setup(locale: Locale = "en") {
       if (name === "react/jsx-runtime") return jsxRuntime;
       if (name === "next/image") return { __esModule: true, default: (props: { src: string; alt: string; width: number; height: number }) => React.createElement("img", props) };
       if (name === "@/components/I18nProvider") return { useT: () => ({ locale }) };
+      if (name === "@/components/MarketPricesProvider") return { useMarketPrices: () => ({ prices: marketPrices }) };
+      if (name === "@/lib/market-prices") return { estimateUsdc, validateMarketPrices };
       if (name === "@/lib/wallet-activity") return { activityStroopsToXlm };
       if (name === "@/app/campaign-donor-actions") return { campaignDonorActivity(id: string, cursor?: string) { const result = deferred<CampaignDonorFeedResult>(); calls.push({ id, cursor, result }); return result.promise; } };
       if (name.endsWith(".module.css")) return { __esModule: true, default: new Proxy({}, { get: (_, key) => key }) };
@@ -64,7 +77,7 @@ function setup(locale: Locale = "en") {
     const button = nodes(render()).find(item => item.type === "button" && (item.props.children === text || item.props["aria-label"] === text));
     assert.ok(button, `Button ${text} must be rendered`); return (button.props.onClick as () => unknown)();
   }
-  return { render, calls, nodes, click, html: () => renderToStaticMarkup(render()), cleanup() { for (const effect of effects.values()) effect.cleanup?.(); } };
+  return { render, calls, nodes, click, setPrices(value: MarketPriceResult) { marketPrices = value; }, html: () => renderToStaticMarkup(render()), cleanup() { for (const effect of effects.values()) effect.cleanup?.(); } };
 }
 async function ready(h: ReturnType<typeof setup>, value = response()) { h.render(); h.calls.at(-1)!.result.resolve(value); await flush(); h.render(); }
 
@@ -76,9 +89,34 @@ test("real component renders exact XLM, safe username/address and confirmed badg
   assert.ok(html.includes(wallet)); assert.ok(html.includes(`href="https://stellar.expert/explorer/testnet/tx/${hash}"`)); assert.match(html, /rel="noopener noreferrer"/);
   assert.match(html, /&lt;script&gt;never executes&lt;\/script&gt;/); assert.doesNotMatch(html, /<script>/);
 });
+test("wallet is shortened by default and the exact address stays accessible in a collapsed disclosure", async () => {
+  const h = setup(); await ready(h); const html = h.html();
+  assert.match(html, /<details class="address"><summary/);
+  assert.ok(html.includes(`${wallet.slice(0, 6)}…${wallet.slice(-6)}`));
+  assert.ok(html.includes(`<code class="fullAddress">${wallet}</code>`));
+  assert.doesNotMatch(html, /<details class="address" open/);
+});
+for (const locale of ["en", "id", "tl", "vi"] as const) test(`${locale}: donor estimates use current USDC market prices without losing exact XLM`, async () => {
+  const h = setup(locale, prices()); await ready(h); const html = h.html();
+  assert.match(html, /1\.0000001/);
+  assert.ok(html.includes(locale === "id" || locale === "vi" ? "≈ 0,50 USDC" : "≈ 0.50 USDC"));
+  assert.match(html, /CoinGecko/);
+});
+test("quote refresh changes only the donor estimate and never reloads or mutates donor records", async () => {
+  const h = setup("en", prices()); await ready(h); assert.match(h.html(), /≈ 0\.50 USDC/);
+  h.setPrices(prices(.5)); const html = h.html();
+  assert.match(html, /≈ 1\.00 USDC/); assert.match(html, /1\.0000001/); assert.equal(h.calls.length, 1);
+});
+test("stale donor estimate is labelled and expired quote disappears while XLM remains", async () => {
+  const h = setup("en", prices(.25, "stale", 180_000)); await ready(h);
+  assert.match(h.html(), /Last known price/); assert.match(h.html(), /≈ 0\.50 USDC/);
+  h.setPrices(prices(.25, "fresh", 301_000)); const html = h.html();
+  assert.match(html, /USDC estimate unavailable/); assert.match(html, /1\.0000001/); assert.doesNotMatch(html, /≈|Last known price/);
+});
 test("anonymous component presentation discards even contradictory response identities", async () => {
-  const h = setup(); const malicious = { ...entry(), anonymous: true }; await ready(h, response([malicious]));
+  const h = setup("en", prices()); const malicious = { ...entry(), anonymous: true, donor: { address: wallet, handle: "confirmed_user", photoUrl: "https://lh3.googleusercontent.com/hidden-photo" } }; await ready(h, response([malicious]));
   const html = h.html(); assert.match(html, /Anonymous/); for (const privateField of [wallet, hash, "confirmed_user", "View receipt"]) assert.ok(!html.includes(privateField));
+  assert.match(html, /≈ 0\.50 USDC/); assert.match(html, /1\.0000001/); assert.doesNotMatch(html, /hidden-photo|class="address"/);
 });
 test("empty app log explains incomplete history instead of claiming no donations", async () => {
   const h = setup(); await ready(h, response([])); const html = h.html(); assert.match(html, /No confirmed app donor records yet/); assert.match(html, /does not mean the campaign received no funds/);

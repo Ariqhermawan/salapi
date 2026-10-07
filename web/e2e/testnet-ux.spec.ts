@@ -162,3 +162,61 @@ test("unverified user cannot review or submit an open QA campaign; privacy defau
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath("native-qa-identity-denied-320.png") });
 });
+
+for (const width of [320, 390, 1280]) test(`Story precedes confirmed donor amounts and market progress updates at ${width}px`, async ({ page }, testInfo) => {
+  // Isolated public read fixtures, not a donation, real donor or wallet balance.
+  let now = Date.now(), price = .25;
+  await page.clock.install({ time: new Date(now) });
+  await page.setViewportSize({ width, height: width === 1280 ? 800 : 844 });
+  const mapping = openMappingFixture();
+  mapping.campaign.total = "1000000000";
+  mapping.campaign.escrow = "1000000000";
+  await readFixture(page, { readCircleTestnetCampaign: mapping, campaignDonorActivity: {
+    ok: true, campaignId: "100", nextCursor: null, anonymityNotice: "Isolated UI fixture",
+    entries: [{ id: "1", network: "testnet", campaignId: "100", createdAt: "2026-10-07T12:00:00.000Z",
+      amountStroops: "500000000", asset: "XLM", badge: "confirmed_testnet", anonymous: false, comment: "Isolated donor fixture",
+      donor: { address: mapping.mapping.creatorWallet, handle: "qa-fixture", photoUrl: "/illustrations/giving.png" }, hash: null, link: null }],
+  } });
+  await page.route("**/api/market-prices", route => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({
+    status: "fresh", source: "CoinGecko", fetchedAt: Math.floor(now / 1000), assets: {
+      xlm: { prices: { usd: price, php: price * 58, idr: price * 16000, vnd: price * 25000 }, updatedAt: Math.floor(now / 1000) },
+      usdc: { prices: { usd: 1, php: 58, idr: 16000, vnd: 25000 }, updatedAt: Math.floor(now / 1000) },
+    },
+  }) }));
+  await page.goto("/circles/tino-relief", { waitUntil: "domcontentloaded" });
+  const story = page.getByRole("tabpanel", { name: "Story", exact: true });
+  const summary = page.getByTestId("circle-testnet-summary");
+  const donors = page.getByRole("region", { name: "Testnet donor activity", exact: true });
+  await expect(summary.getByText("100 XLM", { exact: true })).toHaveCount(2);
+  await expect(summary.getByText("≈ 25.00 USDC", { exact: true })).toHaveCount(2);
+  await expect(summary.getByRole("progressbar")).toHaveAttribute("aria-valuetext", "0.58% of QA goal");
+  await expect(donors).toContainText("50 XLM");
+  await expect(donors).toContainText("≈ 12.50 USDC");
+  const preview = story.getByTestId("circle-story-preview"), more = story.getByTestId("circle-story-more");
+  expect((await preview.innerText()).length).toBeLessThanOrEqual(361);
+  await expect(more).not.toHaveAttribute("open");
+  const order = await page.evaluate(() => {
+    const sections = [...document.querySelectorAll("section")];
+    return { story: sections.findIndex(s => s.id === "circle-panel-story"),
+      summary: sections.findIndex(s => s.getAttribute("data-testid") === "circle-testnet-summary"),
+      donors: sections.findIndex(s => s.querySelector("h3")?.textContent === "Testnet donor activity") };
+  });
+  expect(order.story).toBeGreaterThanOrEqual(0);
+  expect(order.story).toBeLessThan(order.summary); expect(order.summary).toBeLessThan(order.donors);
+  await more.locator("summary").click(); await expect(more).toHaveAttribute("open");
+  await expect(more).toContainText("identity or delivered aid.");
+  await more.locator("summary").click(); await expect(more).not.toHaveAttribute("open");
+  const address = donors.getByLabel(/^Full wallet address:/);
+  await address.click();
+  await expect(donors.getByText(mapping.mapping.creatorWallet, { exact: true })).toBeVisible();
+  await address.click();
+  now += 61_000; price = .5; await page.clock.fastForward(61_000);
+  await expect(summary.getByText("100 XLM", { exact: true })).toHaveCount(2);
+  await expect(summary.getByText("≈ 50.00 USDC", { exact: true })).toHaveCount(2);
+  await expect(summary.getByRole("progressbar")).toHaveAttribute("aria-valuetext", "1.16% of QA goal");
+  await expect(donors).toContainText("≈ 25.00 USDC");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+  expect(await donors.evaluate(node => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
+  await donors.getByRole("heading").scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath(`story-market-donors-${width}.png`) });
+});

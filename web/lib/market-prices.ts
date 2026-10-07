@@ -68,6 +68,32 @@ export function marketCurrency(locale: Locale): MarketCurrency {
   return { en: "usd", tl: "php", id: "idr", vi: "vnd" }[locale] as MarketCurrency;
 }
 
+/** Display-only estimate. USDC can deviate from USD; never assume a 1:1 rate. */
+export function estimateUsdc(nativeStroops: string, result: MarketPriceResult, nowMs = Date.now()): number | null {
+  const checked = validateMarketPrices(result, nowMs);
+  if (checked.status === "unavailable" || typeof nativeStroops !== "string"
+    || !/^(?:0|[1-9]\d{0,38})$/.test(nativeStroops)) return null;
+  const raw = BigInt(nativeStroops);
+  // Campaign totals use the contract's nonnegative i128 range, unlike wallet i64 balances.
+  if (raw.toString() !== nativeStroops || raw > 170_141_183_460_469_231_731_687_303_715_884_105_727n) return null;
+  const xlm = Number(raw / 10_000_000n) + Number(raw % 10_000_000n) / 10_000_000;
+  const usdc = xlm * checked.assets.xlm.prices.usd / checked.assets.usdc.prices.usd;
+  if (!Number.isFinite(usdc) || (raw > 0n && usdc <= 0)) return null;
+  return usdc;
+}
+
+/** A fixed USDC goal makes displayed progress follow the current market quote. */
+export function marketGoalProgress(nativeStroops: string, result: MarketPriceResult, goalUsdc: number,
+  nowMs = Date.now()): { usdc: number; percentage: number } | null {
+  if (typeof goalUsdc !== "number" || !Number.isFinite(goalUsdc) || goalUsdc <= 0) return null;
+  const usdc = estimateUsdc(nativeStroops, result, nowMs);
+  if (usdc === null) return null;
+  const percentage = usdc / goalUsdc * 100;
+  if (!Number.isFinite(percentage)) return null;
+  // Keep genuine overfunding. The rendering component can cap its visual progress bar.
+  return { usdc, percentage };
+}
+
 const DISPLAY: Record<Locale, { symbol: string; intl: string; decimals: number }> = {
   en: { symbol: "$", intl: "en-US", decimals: 2 },
   tl: { symbol: "₱", intl: "en-PH", decimals: 2 },

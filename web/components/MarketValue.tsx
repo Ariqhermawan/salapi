@@ -22,7 +22,7 @@ function nativeAmount(stroops: string | undefined): string | null {
 }
 
 /** This is a current market reference, never an asset balance or transaction quote. */
-export default function MarketValue({ nativeStroops, size = 32, color = "currentColor", compact = false }: { nativeStroops?: string; size?: number; color?: string; compact?: boolean }) {
+export default function MarketValue({ nativeStroops, size = 32, color = "currentColor", compact = false, showNative = false }: { nativeStroops?: string; size?: number; color?: string; compact?: boolean; showNative?: boolean }) {
   const { locale, currency } = useT();
   const { prices, loading, refresh } = useMarketPrices();
   const c = COPY[locale];
@@ -33,6 +33,7 @@ export default function MarketValue({ nativeStroops, size = 32, color = "current
   const timestamp = updated === null ? null : new Intl.DateTimeFormat(TIME_LOCALES[locale], { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(updated);
   const usdPrice = (number: number) => new Intl.NumberFormat(TIME_LOCALES[locale], { style: "currency", currency: "USD", maximumFractionDigits: 6 }).format(number);
   return <div data-market-value={value === null ? "unavailable" : prices.status} style={{ color, minWidth: 0, width: "100%", whiteSpace: "normal" }}>
+    {showNative && quantity !== null && <div data-native-balance={nativeStroops} aria-label={`${quantity} ${c.balance}`} style={{ fontWeight: 700, fontSize: compact ? 14 : 18, lineHeight: 1.3, marginBottom: compact ? 2 : 4, fontVariantNumeric: "tabular-nums", overflowWrap: "anywhere", letterSpacing: "normal" }}>{quantity} <span style={{ fontSize: compact ? 11 : 13, opacity: .88 }}>XLM</span></div>}
     <div aria-live="polite" role="status" style={{ fontWeight: 800, letterSpacing: "-.04em", lineHeight: 1.1, fontSize: value === null ? compact ? 12 : 16 : compact ? Math.max(20, size - 4) : size, fontVariantNumeric: "tabular-nums", overflowWrap: "anywhere" }}>
       {value === null ? !quantity ? c.noBalance : loading ? c.loading : c.unavailable : `≈ ${value}`}
     </div>
@@ -40,7 +41,7 @@ export default function MarketValue({ nativeStroops, size = 32, color = "current
     <details style={{ marginTop: compact ? 0 : 8, fontSize: compact ? 9 : 12, lineHeight: 1.45, letterSpacing: "normal", fontWeight: 400, textAlign: compact ? "center" : "left" }}>
       <summary aria-label={c.details} style={{ cursor: "pointer", opacity: .88, minHeight: 24 }}>{prices.status === "stale" ? c.stale : quote ? c.updated : c.details}{timestamp ? ` · ${timestamp}` : ""}</summary>
       <div style={{ padding: "8px 0 2px", display: "grid", gap: 5 }}>
-        {quantity !== null && <span>{quantity} {c.balance}</span>}
+        {!showNative && quantity !== null && <span>{quantity} {c.balance}</span>}
         {quote && <><span>{c.fresh}: XLM {usdPrice(quote.assets.xlm.prices.usd)} · USDC {usdPrice(quote.assets.usdc.prices.usd)}</span><time dateTime={new Date(updated!).toISOString()}>{c.updated}: {new Intl.DateTimeFormat(TIME_LOCALES[locale], { dateStyle: "medium", timeStyle: "medium" }).format(updated!)}</time></>}
         <span>{c.reference}</span><span>{c.testnet}</span><span>{c.cadence}</span>
         <button type="button" disabled={loading} onClick={() => { void refresh(); }} style={{ cursor: loading ? "wait" : "pointer", textDecoration: "underline", fontWeight: 650, color: "inherit", textAlign: "inherit", padding: "6px 0" }}>{loading ? c.refreshWait : c.refresh}</button>

@@ -6,6 +6,7 @@ import type { CircleCategory } from "../circles/types";
 // Tuple order is Tagalog, Indonesian, Vietnamese. English keys preserve the
 // existing English UI and provide a compile-time complete translation contract.
 export const CIRCLES_COPY = {
+  "Read more": ["Basahin pa", "Lihat lebih banyak", "Đọc thêm"],
   "View campaign": ["Tingnan ang campaign", "Lihat campaign", "Xem chiến dịch"],
   "Donate Testnet XLM": ["Mag-donate ng Testnet XLM", "Donasi Testnet XLM", "Quyên góp Testnet XLM"],
   "On-chain linkage is not verified right now. Check the QA status above; no proof or balance is assumed.": ["Hindi ma-verify ang on-chain link ngayon. Suriin ang QA status sa itaas; walang ipinapalagay na proof o balanse.", "Hubungan on-chain belum dapat diverifikasi. Periksa status QA di atas; bukti dan saldo tidak diasumsikan.", "Chưa xác minh được liên kết on-chain. Kiểm tra trạng thái QA phía trên; không giả định bằng chứng hay số dư."],

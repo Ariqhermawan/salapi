@@ -124,8 +124,8 @@ test("unavailable provider never produces a fake zero and aborted unmount discar
   assert.equal(h.value().prices.status, "unavailable"); assert.equal(h.requests[1].options.signal?.aborted, true);
 });
 
-function widget(options: { prices?: MarketPriceResult; locale?: "en" | "tl" | "id" | "vi"; currency?: "en" | "tl" | "id" | "vi"; nativeStroops?: string; loading?: boolean } = {}) {
-  const exported = {} as { default(props: { nativeStroops?: string; compact: boolean }): Element };
+function widget(options: { prices?: MarketPriceResult; locale?: "en" | "tl" | "id" | "vi"; currency?: "en" | "tl" | "id" | "vi"; nativeStroops?: string; loading?: boolean; showNative?: boolean } = {}) {
+  const exported = {} as { default(props: { nativeStroops?: string; compact: boolean; showNative?: boolean }): Element };
   let refreshed = 0;
   runInNewContext(widgetCode, { exports: exported, Intl, Date, BigInt,
     require(name: string) {
@@ -136,7 +136,7 @@ function widget(options: { prices?: MarketPriceResult; locale?: "en" | "tl" | "i
       throw Error(`Unexpected dependency ${name}`);
     },
   });
-  const tree = exported.default({ nativeStroops: options.nativeStroops, compact: true });
+  const tree = exported.default({ nativeStroops: options.nativeStroops, compact: true, showNative: options.showNative });
   return { tree, text: text(tree), refreshCount: () => refreshed };
 }
 
@@ -172,5 +172,31 @@ test("all supported languages explain automatic cadence and Testnet-only valuati
   for (const locale of ["en", "tl", "id", "vi"] as const) {
     const h = widget({ prices: quote(Date.now()), nativeStroops: "10000000", locale });
     assert.match(h.text, /60/); assert.match(h.text, /USDC/); assert.match(h.text, /Testnet/);
+  }
+});
+
+test("Home can show exact XLM outside collapsed price details even while prices are unavailable", () => {
+  for (const locale of ["en", "tl", "id", "vi"] as const) for (const loading of [false, true]) {
+    const h = widget({ nativeStroops: "95538290085", showNative: true, locale, loading });
+    const balance = nodes(h.tree).find(node => node.props["data-native-balance"] === "95538290085");
+    assert.ok(balance);
+    assert.equal(text(balance), "9553.8290085 XLM", "All seven fractional digits remain exact without floating-point rounding");
+    const details = nodes(h.tree).find(node => node.type === "details")!;
+    assert.equal(nodes(details).includes(balance), false);
+    assert.equal(text(details).includes("9553.8290085"), false, "Expanded details do not duplicate the visible balance");
+    assert.equal(nodes(h.tree).filter(node => text(node) === "9553.8290085 XLM").length, 1);
+    assert.equal(h.tree.props["data-market-value"], "unavailable");
+    assert.doesNotMatch(h.text, /≈ \$0/);
+  }
+});
+
+test("visible native amount distinguishes real zero from absent or invalid wallet data", () => {
+  const zero = widget({ nativeStroops: "0", showNative: true });
+  assert.equal(text(nodes(zero.tree).find(node => node.props["data-native-balance"] === "0")), "0 XLM");
+  for (const nativeStroops of [undefined, "", "-1", "1.5", "9223372036854775808"]) {
+    const h = widget({ nativeStroops, prices: quote(Date.now()), showNative: true });
+    assert.equal(nodes(h.tree).some(node => node.props["data-native-balance"] !== undefined), false);
+    assert.match(h.text, /Exact XLM balance unavailable/);
+    assert.doesNotMatch(h.text, /0 XLM/);
   }
 });

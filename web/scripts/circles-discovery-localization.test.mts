@@ -190,14 +190,23 @@ function setup(name: ScreenName, locale: Locale = "en", preview = true, circleId
   return { exports, calls, input, click, check, submit, refresh() { tree = render(); }, get tree() { return tree; } };
 }
 
-test("linked campaign history precedes story and never mixes with fictional donors or example totals", () => {
+test("every linked campaign presents a short expandable story before its actual funding and donor history", () => {
   for (const circle of seed.SEED_CIRCLES.filter(circle => circle.status !== "completed")) {
     const screen = setup("CircleDetailScreen", "en", false, circle.id, "ready");
     const all = nodes(screen.tree);
     const feedIndex = all.findIndex(node => node.type === "@/components/CampaignDonorActivity");
     assert.ok(feedIndex > 0);
     assert.equal(all[feedIndex].props.campaignId, "6");
-    assert.ok(feedIndex < all.findIndex(node => node.props.id === "circle-details-tabs"));
+    const storyIndex = all.findIndex(node => node.props.id === "circle-panel-story");
+    const summaryIndex = all.findIndex(node => node.type === "@/components/CircleTestnetSummary");
+    assert.ok(all.findIndex(node => node.props.id === "circle-details-tabs") < storyIndex);
+    assert.ok(storyIndex < summaryIndex && summaryIndex < feedIndex);
+    const preview = all.find(node => node.props["data-testid"] === "circle-story-preview");
+    const more = all.find(node => node.props["data-testid"] === "circle-story-more");
+    assert.ok(preview);
+    assert.ok(text(preview).length <= 361);
+    assert.ok(more && more.type === "details" && !more.props.open);
+    assert.equal(all[summaryIndex].props.goalUsdc, currency.pesoToUsdc(circle.pesoTarget));
     assert.equal(all.filter(node => node.type === "CircleDonorExamples").length, 0);
     assert.doesNotMatch(text(screen.tree), /Example raised|Example goal|Proposed organizer allowance/);
     assert.equal(all.filter(node => node.props.href === `/circles/${circle.id}/donate`).length, 1);
