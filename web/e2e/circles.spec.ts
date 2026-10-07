@@ -86,7 +86,7 @@ test("Home categories show three examples per sector and clickable organizer rat
   for (const sector of ["disaster", "medical", "education", "community", "family", "creator", "animals", "care", "volunteer"]) {
     await category.selectOption(sector);
     await expect(catalog.locator("article[data-example-cause]")).toHaveCount(3);
-    await expect(catalog.getByRole("status")).toHaveText("3 examples");
+    await expect(catalog.getByRole("status").filter({ hasText: /^3 examples$/ })).toHaveText("3 examples");
     await expect(catalog.getByText("Example rating", { exact: true })).toHaveCount(3);
     await expect(catalog.getByText("3 example reviews", { exact: true })).toHaveCount(3);
     const covers = catalog.locator("article[data-example-cause] > a img");

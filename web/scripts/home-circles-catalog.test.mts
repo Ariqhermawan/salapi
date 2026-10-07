@@ -473,6 +473,23 @@ test("Home catalog responsive styles retain compact controls and persistent trut
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
 });
 
+test("short Home windows reclaim decorative space without shrinking or hiding interactive controls", () => {
+  const sheet = parse(source("../components/HomeCirclesCatalog.module.css"));
+  const compact = sheet.nodes.find(node => node.type === "atrule" && node.name === "media" && node.params === "(max-height: 900px)");
+  assert.ok(compact && compact.type === "atrule");
+  const touched: string[] = [];
+  compact.walkRules(rule => {
+    touched.push(...rule.selectors);
+    for (const node of rule.nodes) if (node.type === "decl") {
+      assert.ok(["margin-top", "padding-bottom", "margin-bottom", "height", "padding-top", "gap"].includes(node.prop));
+      assert.ok(Number.parseFloat(node.value) >= 0);
+      assert.notEqual(node.prop, "font-size");
+    }
+  });
+  assert.deepEqual(touched, [".catalog", ".header", ".notice", ".tools", ".strip", ".photo", ".body", ".rating", ".footer"]);
+  assert.equal(touched.some(selector => /pledge|button|select|organizer|explore/.test(selector)), false);
+});
+
 test("Home always renders the example component before the separately gated D4 section", () => {
   const home = source("../app/page.tsx"), catalog = source("../components/HomeCirclesCatalog.tsx");
   assert.match(home, /<HomeCirclesCatalog\s*\/>\s*\{!isLocalPreview\s*&&\s*<section/);

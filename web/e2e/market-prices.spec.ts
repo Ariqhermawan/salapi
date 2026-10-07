@@ -1,14 +1,28 @@
 import { readFileSync } from "node:fs";
 import { test, expect, type Page } from "@playwright/test";
+import { Keypair } from "@stellar/stellar-sdk";
 import { circlesCopy } from "../lib/i18n/revamp-circles";
 import { homeCatalogCopy } from "../lib/i18n/revamp-home-catalog";
 import type { Locale } from "../lib/i18n/config";
+import type { CircleTestnetCampaignResult } from "../lib/circles/testnet";
 
 // Repository automated browser QA, localhost only. Not native Android or
 // live-user transaction proof. Main's actual API verification is separate.
 // Quotes and native balances below are clearly isolated UI test doubles. The
 // actual walletState failure is verified first; no login, funding or transfer.
 const fixtureWallet = { address: "GAKZLTZFGSSM372XUKW2ZIJ5GSHVVIW5BYZIKIXRW2BW4MM6TUI5536Y", pesos: 65000, pesoLabel: "Isolated legacy nominal", nativeStroops: "100000000000" };
+
+function linkedFundingFixture(): Extract<CircleTestnetCampaignResult, { ok: true }> {
+  // Public read-only UI fixture, not a provisioned campaign or a donation.
+  const wallets = [1, 2, 3, 4, 5].map(value => Keypair.fromRawEd25519Seed(Buffer.alloc(32, value)).publicKey());
+  const mapping = { campaignId: "100", creatorWallet: wallets[0], beneficiaryWallet: wallets[1],
+    approverWallets: wallets.slice(2), creatorCutBps: 0, fundingDeadline: "1793000000", reviewDeadline: "1794000000" };
+  return { ok: true, available: true, network: "testnet", circleId: "tino-relief", contractId: "CC6D7P35SVCNZLOKTHKDNH4S2ZELYHBP5UO3IWADFORKEF7BCSBY37FU",
+    qaLabel: "QA Testnet · fictional cause", donationOpen: true, status: "ready", mapping, now: "1791000000",
+    campaign: { id: "100", title: "Isolated Home funding fixture", state: "Funding", total: "1000000000", escrow: "1000000000", proofHash: null, proofUrl: "", approvals: [],
+      config: { creator: mapping.creatorWallet, beneficiary: mapping.beneficiaryWallet, approvers: mapping.approverWallets, creator_cut_bps: 0,
+        funding_deadline: mapping.fundingDeadline, review_deadline: mapping.reviewDeadline, token: "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC" } } };
+}
 
 function quote(now: number, price = .25, status: "fresh" | "stale" = "fresh", ageMs = 0) {
   const updatedAt = Math.floor((now - ageMs) / 1000);
@@ -18,7 +32,7 @@ function quote(now: number, price = .25, status: "fresh" | "stale" = "fresh", ag
   } };
 }
 
-async function setup(page: Page, priceBody: () => object, currency = "en", locale: Locale = "en") {
+async function setup(page: Page, priceBody: () => object, currency = "en", locale: Locale = "en", linkedFunding = false) {
   const manifest = JSON.parse(readFileSync(".next/server/server-reference-manifest.json", "utf8"));
   const names = new Map(Object.entries(manifest.node as Record<string, { exportedName: string }>).map(([id, value]) => [id, value.exportedName]));
   expect([...names.values()]).toContain("walletState");
@@ -38,6 +52,10 @@ async function setup(page: Page, priceBody: () => object, currency = "en", local
     }
     if (!["POST", "PUT", "PATCH", "DELETE"].includes(request.method())) return route.continue();
     const name = names.get(request.headers()["next-action"]);
+    if (name === "readCircleTestnetCampaign" && linkedFunding) {
+      return route.fulfill({ status: 200, contentType: "text/x-component; charset=utf-8",
+        body: `0:{"a":"$@1","f":"","i":false}\n1:${JSON.stringify(linkedFundingFixture())}\n` });
+    }
     if (name === "walletState") {
       const response = await route.fetch();
       expect(response.ok()).toBe(true);
@@ -122,6 +140,34 @@ test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () =>
     await expect(market.getByRole("status")).toHaveText("≈ $4,000.00");
     expect(fixture.calls.quotes).toBe(2); expect(fixture.calls.walletFailuresVerified).toBe(1);
     expect(fixture.calls.forbidden).toEqual([]); expect(fixture.errors).toEqual([]);
+  });
+
+  for (const viewport of [{ width: 390, height: 740 }, { width: 1280, height: 800 }, { width: 1280, height: 821 }, { width: 1280, height: 901 }]) test(`linked campaign funding fits above Send at ${viewport.width}x${viewport.height}`, async ({ page }, testInfo) => {
+    await page.setViewportSize(viewport);
+    const fixture = await setup(page, () => quote(Date.now(), .25, "stale", 121_000), "en", "en", true);
+    const market = await openHome(page);
+    await expect(market.locator("[data-native-balance]")).toHaveText("10000 XLM");
+    const catalog = page.getByTestId("home-circles-catalog");
+    const funding = catalog.locator('[data-funding-kind="testnet"]');
+    await expect(funding).toHaveCount(1);
+    await expect(funding).toContainText("100 XLM");
+    await expect(funding).toContainText("≈ 25.01 USDC");
+    await expect(funding).toContainText("Last known price");
+    await expect(funding).toContainText("QA goal: 4,310.34 USDC");
+    await expect(funding.locator("progress")).toHaveAttribute("aria-valuetext", "0.58%");
+    await page.evaluate(async () => { await document.fonts.ready; });
+    const geometry = await page.evaluate(() => {
+      const main = document.querySelector<HTMLElement>("#app-content")!, nav = document.querySelector<HTMLElement>(".sl-tabbar")!;
+      const controls = [...nav.querySelectorAll("button,button span")].map(node => node.getBoundingClientRect()).filter(rect => rect.height > 0 && rect.width > 0);
+      return { bottom: Math.min(innerHeight, main.getBoundingClientRect().bottom, nav.getBoundingClientRect().top, ...controls.map(rect => rect.top)), scrollTop: main.scrollTop };
+    });
+    const footer = catalog.getByRole("link", { name: "Sketch your own cause", exact: true });
+    const rect = await footer.boundingBox(); expect(rect).not.toBeNull();
+    expect(rect!.y + rect!.height).toBeLessThanOrEqual(geometry.bottom + 1);
+    expect(rect!.height).toBeGreaterThanOrEqual(43.5);
+    expect(geometry.scrollTop).toBe(0);
+    expect(fixture.calls.forbidden).toEqual([]); expect(fixture.errors).toEqual([]);
+    await page.screenshot({ path: testInfo.outputPath(`market-linked-home-${viewport.width}.png`), fullPage: false });
   });
 
   test("stale last price is explicit, expired quotes disappear and unavailable never becomes zero", async ({ page }, testInfo) => {

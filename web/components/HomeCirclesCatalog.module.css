@@ -49,4 +49,17 @@
 /* Natural height stays scrollable on tiny/landscape screens and at zoom.
    Only decorative space is reduced; identity, truth labels and actions stay. */
 @container (max-width: 350px) { .header h1 { font-size: 23px; } .header > img { width: 36px; } .tools { gap: 7px; } .body h2 { font-size: 17px; } .body { padding-inline: 10px; } .controls span { min-width: 38px; } .footer { gap: 4px; } .explore { font-size: 11px; } }
+/* Reserve the visible native balance line in short dashboard windows. Reduce
+   image/padding space while keeping labels and every 44px control intact. */
+@media (max-height: 900px) {
+  .catalog { margin-top: 8px; padding-top: 6px; padding-bottom: 4px; }
+  .header { padding-bottom: 4px; }
+  .notice { margin-bottom: 4px; }
+  .tools { margin-bottom: 3px; }
+  .strip { padding-top: 0; padding-bottom: 1px; }
+  .photo { height: 64px; }
+  .body { gap: 1px; padding-top: 6px; padding-bottom: 7px; }
+  .rating { padding-top: 3px; }
+  .footer { padding-top: 0; }
+}
 @media (prefers-reduced-motion: reduce) { .strip { scroll-behavior: auto; } .photo img, .pledge, .controls button { transition: none; } .photo:hover img, .pledge:active { transform: none; } }
