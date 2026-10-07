@@ -25,6 +25,8 @@ import { vaultCampaignMedia } from "@/lib/vault-campaign-media";
 import { campaignDiscoveryCopy } from "@/lib/i18n/revamp-campaign-discovery";
 import { accountCopy } from "@/lib/i18n/revamp-account";
 import { useGoBack } from "@/lib/ui/useGoBack";
+import { campaignDonorBadge } from "@/lib/ui/testnet-donor";
+import { circlesCopy } from "@/lib/i18n/revamp-circles";
 const styles = { ...baseStyles, ...detailStyles };
 const PREVIEW_WALLET = PREVIEW_ACCOUNT.address;
 const previewCopy: Record<Locale, { failed: string; unavailable: string; saved: string; title: string }> = {
@@ -111,6 +113,8 @@ function CreateCampaign({ run, busy, onPreviewCreate, initialCreate = false }: {
 
 function CampaignCard({ c, viewer, now, run, busy, detail, onPreviewUpdate }: { c: Campaign; viewer: string | null; now: bigint; run: Run; busy: boolean; detail: boolean; onPreviewUpdate: (campaign: Campaign) => boolean }) {
   const { locale } = useT();
+  const donorCopy = circlesCopy(locale);
+  const donorBadge = campaignDonorBadge(c, viewer, isLocalPreview);
   const photoCopy = campaignDiscoveryCopy(locale);
   const media = vaultCampaignMedia(c, isLocalPreview);
   const [amount, setAmount] = useState("");
@@ -173,7 +177,12 @@ function CampaignCard({ c, viewer, now, run, busy, detail, onPreviewUpdate }: { 
     <div><strong style={{ fontSize: 13 }}>{c.approvals.length}/3 wallet approvals</strong><p className={styles.muted}>Two configured wallets must approve the same proof before review closes. Approval does not prove real-world delivery.</p></div>
     {c.proofHash && <div><h3>{isLocalPreview ? "Example proof" : "Submitted proof"}</h3>{safeProof(c.proofUrl) && <a href={safeProof(c.proofUrl)!} target="_blank" rel="noreferrer">{isLocalPreview ? "Open example document" : "Open public proof document"}</a>}
       <p style={wordBreak}>SHA-256: {c.proofHash}</p><small>A hash identifies the document; it does not verify that its claims are true.</small></div>}
-    {viewer && <p style={{ fontSize: 13 }}>Your recorded donation: {formatStroops(c.contribution.amount)} XLM{c.contribution.refunded ? " · Refunded" : ""}</p>}
+    {viewer && <div className={styles.donorRecord}>
+      {donorBadge && <span className={donorBadge === "testnet" ? styles.testnetDonor : styles.exampleDonor} data-testid="campaign-donor-badge" data-evidence={donorBadge}>{donorCopy(donorBadge === "testnet" ? "Testnet donor" : "Example donor")}</span>}
+      <p>{isLocalPreview ? donorCopy("Your example contribution") : donorCopy("Your wallet's recorded contribution")}: {formatStroops(c.contribution.amount)} XLM{c.contribution.refunded ? " · Refunded" : ""}</p>
+      {donorBadge === "testnet" && <small>{donorCopy("Confirmed by this wallet's D4 contract record. Not a fiat donation, KYC check or proof of delivery.")}</small>}
+      {donorBadge === "example" && <small>{donorCopy("Browser-only example. No confirmed Testnet donation or donor badge.")}</small>}
+    </div>}
     {viewer === c.config.creator && c.state === "Funding" && reviewOpen && <div style={group}>
       <h3>Submit proof once</h3>
       <Field label="Public proof URL"><input style={field} type="url" value={url} onChange={e => setUrl(e.target.value)} disabled={busy} /></Field>

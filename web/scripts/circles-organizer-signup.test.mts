@@ -8,6 +8,7 @@ import { isLocale } from "../lib/i18n/config.ts";
 import * as revampCircles from "../lib/i18n/revamp-circles.ts";
 import * as draftGallery from "../lib/ui/circle-draft-gallery.ts";
 import { CATEGORY_LABEL } from "../lib/circles/types.ts";
+import type { SignupIdentityState } from "../lib/ui/useCirclesSignupIdentity.ts";
 
 type Element = { type: string; props: Record<string, unknown> };
 const code = ts.transpileModule(readFileSync(new URL("../components/screens/CirclesCreateScreen.tsx", import.meta.url), "utf8"), {
@@ -28,7 +29,7 @@ function text(value: unknown): string {
 
 // The real component and handlers execute with isolated hooks and in-memory
 // draft storage. No browser, credential, Supabase SDK or network can run here.
-function setup(options: { preview?: boolean; result?: { ok: boolean; error?: string }; throws?: boolean; storageMode?: "normal" | "blocked" | "drop" | "tamper" | "readback-error"; previous?: string; phase?: "server" | "hydrate" | "client" } = {}) {
+function setup(options: { preview?: boolean; identity?: SignupIdentityState; result?: { ok: boolean; error?: string; kind?: string; persisted?: boolean }; throws?: boolean; storageMode?: "normal" | "blocked" | "drop" | "tamper" | "readback-error"; previous?: string; phase?: "server" | "hydrate" | "client" } = {}) {
   const states: unknown[] = [];
   let phase = options.phase ?? "client";
   let cursor = 0;
@@ -41,7 +42,17 @@ function setup(options: { preview?: boolean; result?: { ok: boolean; error?: str
   const downloads: string[] = [];
   const component = {} as { default(): Element };
   const icons = new Proxy({}, { get: () => () => null });
-  const jsx = (type: unknown, props: Record<string, unknown>) => ({ type: String(type), props });
+  const jsx = (type: unknown, props: Record<string, unknown>) => typeof type === "function" ? type(props) : ({ type: String(type), props });
+  const signupEmail = {} as { default(props: unknown): Element };
+  runInNewContext(ts.transpileModule(readFileSync(new URL("../components/CirclesSignupEmail.tsx", import.meta.url), "utf8"), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
+  }).outputText, { exports: signupEmail, require(name: string) {
+    if (name === "react/jsx-runtime") return { jsx, jsxs: jsx, Fragment: "Fragment" };
+    if (name === "@/components/I18nProvider") return { useT: () => ({ locale: "en" }) };
+    if (name === "@/lib/i18n/revamp-circles") return revampCircles;
+    if (name.endsWith(".module.css")) return { default: {} };
+    throw Error(`Unexpected signup field dependency: ${name}`);
+  } });
   const forbidden = () => { throw new Error("External side effects are forbidden in isolated signup tests"); };
   runInNewContext(code, {
     exports: component, fetch: forbidden,
@@ -74,6 +85,8 @@ function setup(options: { preview?: boolean; result?: { ok: boolean; error?: str
       if (name === "@/components/ui/kit") return { Ico: icons, T: {}, Btn: "Btn", PoweredByStellar: "PoweredByStellar" };
       if (name === "@/components/I18nProvider") return { useT: () => ({ currency: "en", locale: "en" }) };
       if (name === "@/lib/i18n/revamp-circles") return revampCircles;
+      if (name === "@/components/CirclesSignupEmail") return signupEmail;
+      if (name === "@/lib/ui/useCirclesSignupIdentity") return { useCirclesSignupIdentity: () => ({ identity: options.identity ?? { status: "guest" }, refresh: () => {}, captureOwnerRevision: () => 0, isCurrentOwner: () => true }) };
       if (name === "@/lib/ui/circle-draft-gallery") return draftGallery;
       if (name === "@/lib/ui/currency") return { CURRENCY, formatLocalAmount, localAmount, pesoFromLocal };
       if (name === "@/lib/i18n/config") return { isLocale };
@@ -81,7 +94,7 @@ function setup(options: { preview?: boolean; result?: { ok: boolean; error?: str
       if (name === "@/lib/local-preview") return { isLocalPreview: options.preview ?? true };
       if (name === "@/lib/ui/useGoBack") return { useGoBack: () => forbidden };
       if (name.endsWith(".module.css")) return { default: {} };
-      if (name === "@/app/actions") return { async joinCirclesWaitlist(payload: unknown) { payloads.push(payload); if (options.throws) throw Error("Isolated interrupted request"); return options.result ?? { ok: true }; } };
+      if (name === "@/app/actions") return { async joinCirclesWaitlist(payload: unknown) { payloads.push(payload); if (options.throws) throw Error("Isolated interrupted request"); return options.result ?? { ok: true, kind: "launch-subscription", persisted: true }; } };
       throw Error(`Unexpected component dependency: ${name}`);
     },
   });
@@ -175,9 +188,9 @@ test("live optional signup preserves the baseline lead payload after explicit co
   screen.check("Send my email and the draft title"); await screen.submit(2);
   assert.equal(screen.payloads.length, 1, "Guard duplicate handler invocations, not only disabled UI");
   assert.deepEqual(JSON.parse(JSON.stringify(screen.payloads[0])), {
-    email: "organizer@example.com", circleId: "draft:our-barangay-library", locale: "en", pesoPledge: 580, anonymous: false, marketingOk: true,
+    email: "organizer@example.com", circleId: "draft:our-barangay-library", locale: "en", pesoPledge: 580, anonymous: false, notifyOk: true, marketingOk: false,
   });
-  assert.match(text(screen.tree), /signup request processed/);
+  assert.match(text(screen.tree), /organizer launch subscription is saved/);
 });
 
 test("invalid email and missing consent fail before any server invocation", async () => {
@@ -194,7 +207,7 @@ test("rejected or interrupted signup keeps the draft and does not claim success"
     screen.input("circle-organizer-launch-email", "organizer@example.com"); screen.check("Send my email and the draft title"); await screen.submit();
     assert.equal(screen.memory.size, 1); assert.equal(screen.payloads.length, 1);
     assert.ok(nodes(screen.tree).some(node => node.props.role === "alert"));
-    assert.doesNotMatch(text(screen.tree), /signup request processed/);
+    assert.doesNotMatch(text(screen.tree), /organizer launch subscription is saved/);
   }
 });
 
@@ -281,7 +294,7 @@ test("blocked or silently dropped draft storage retains complete memory draft an
     screen.check(preview ? "Try the signup example locally" : "Send my email and the draft title"); await screen.submit();
     assert.equal(screen.payloads.length, preview ? 0 : 1);
     assert.equal(screen.memory.get("salapi.circles.draft.v1"), previousDraft, "Optional signup must not replace the preserved draft");
-    assert.match(text(screen.tree), preview ? /No email was submitted or saved/ : /signup request processed/);
+    assert.match(text(screen.tree), preview ? /No email was submitted or saved/ : /organizer launch subscription is saved/);
   }
 });
 
@@ -403,4 +416,33 @@ test("a failed gallery image renders an honest unavailable state without deletin
   screen.input("circle-draft-photo-1", draftGallery.draftGalleryOptions("community")[4].src); // Re-render.
   assert.match(text(screen.tree), /Photo unavailable/);
   assert.equal(nodes(screen.tree).find(node => node.props.id === "circle-draft-photo-0")?.props.value, photo.props.src);
+});
+
+test("verified Google organizers subscribe with their server-checked account and no manual email or implicit marketing", async () => {
+  const ownerId = "00000000-0000-4000-8000-000000000001";
+  const screen = setup({ preview: false, identity: { status: "verified", ownerId, email: "organizer@example.invalid", source: "google" } }); screen.save();
+  assert.equal(nodes(screen.tree).some(node => node.props.id === "circle-organizer-launch-email"), false);
+  assert.match(text(screen.tree), /Your verified Google emailorganizer@example.invalid/);
+  const checkboxes = nodes(screen.tree).filter(node => node.type === "input" && node.props.type === "checkbox");
+  assert.equal(checkboxes.length, 1); assert.equal(checkboxes[0].props.checked, false);
+  await screen.submit(); assert.equal(screen.payloads.length, 0);
+  screen.check("Send my email and the draft title"); await screen.submit(2);
+  assert.equal(screen.payloads.length, 1);
+  assert.deepEqual(JSON.parse(JSON.stringify(screen.payloads[0])), { expectedOwnerId: ownerId, circleId: "draft:our-barangay-library", locale: "en", pesoPledge: 580, anonymous: false, notifyOk: true, marketingOk: false });
+  assert.match(text(screen.tree), /organizer launch subscription is saved/);
+  assert.match(text(screen.tree), /no campaign, donor badge or payment was created/);
+  assert.equal(screen.memory.size, 1);
+});
+
+test("organizer identity errors and unconfirmed action results cannot claim saved signup or publish the draft", async () => {
+  for (const status of ["loading", "unavailable", "unverified"] as const) {
+    const screen = setup({ preview: false, identity: { status } }); screen.save();
+    screen.check("Send my email and the draft title"); await screen.submit();
+    assert.equal(screen.payloads.length, 0); assert.doesNotMatch(text(screen.tree), /organizer launch subscription is saved/);
+    assert.equal(screen.memory.size, 1);
+  }
+  const screen = setup({ preview: false, result: { ok: true } }); screen.save();
+  screen.input("circle-organizer-launch-email", "qa@example.invalid"); screen.check("Send my email and the draft title"); await screen.submit();
+  assert.equal(screen.payloads.length, 1); assert.doesNotMatch(text(screen.tree), /organizer launch subscription is saved/);
+  assert.match(text(screen.tree), /signup result could not be confirmed/);
 });

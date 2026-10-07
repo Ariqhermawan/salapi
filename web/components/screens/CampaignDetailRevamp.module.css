@@ -71,3 +71,9 @@
 .footer { display:grid; justify-items:center; gap:7px; border-top:1px solid #dce5f2; padding-top:16px; margin-top:4px; }
 .footer small { color:#8593aa; font-size:10px; }
 @media (max-width:380px) { .body { padding-inline:14px; } .hero { padding:14px; grid-template-columns:minmax(0,1fr) 60px; gap:8px; } .hero h1 { font-size:26px; } .doodle { width:60px; height:70px; } .card { padding:14px; } .toolbar a,.toolbar button { font-size:10px; padding:6px 4px; } .presets button { font-size:10px; } }
+.donorRecord { padding: 13px; border-radius: 12px; background: #f2f6fc; }
+.donorRecord p { margin: 7px 0 0; font-size: 12px; line-height: 1.6; font-variant-numeric: tabular-nums; }
+.donorRecord small { display: block; margin-top: 6px; color: #63728a; font-size: 10px; line-height: 1.6; }
+.testnetDonor, .exampleDonor { display: inline-block; padding: 5px 8px; border-radius: 7px; font-size: 10px; font-weight: 650; line-height: 1.5; }
+.testnetDonor { background: #e2f1ec; color: #28694f; }
+.exampleDonor { background: #f2efe7; color: #725937; }

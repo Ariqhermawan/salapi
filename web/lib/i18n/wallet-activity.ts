@@ -21,6 +21,20 @@ const copy = {
   feeMissing: ["The fee receipt could not be loaded. No zero fee or payer is assumed.", "Hindi mabasa ang fee receipt. Walang ipinapalagay na zero fee o nagbayad.", "Bukti biaya belum dapat dimuat. Tidak diasumsikan biaya nol atau siapa pembayarnya.", "Không tải được biên nhận phí. Không giả định phí bằng 0 hoặc người trả."],
   feeBump: ["Fee-bump transaction", "Fee-bump transaction", "Transaksi fee-bump", "Giao dịch fee-bump"],
   feeReceipt: ["View network fee receipt", "Tingnan ang network fee receipt", "Lihat bukti biaya jaringan", "Xem biên nhận phí mạng"],
+  sender: ["Sender", "Nagpadala", "Pengirim", "Người gửi"],
+  recipient: ["Recipient", "Tatanggap", "Penerima", "Người nhận"],
+  you: ["You", "Ikaw", "Kamu", "Bạn"],
+  wallet: ["Stellar wallet", "Stellar wallet", "Wallet Stellar", "Ví Stellar"],
+  from: ["From {name}", "Mula kay {name}", "Dari {name}", "Từ {name}"],
+  to: ["To {name}", "Para kay {name}", "Ke {name}", "Đến {name}"],
+  photo: ["Consented receipt photo for {name}", "Pinayagang larawan sa receipt ni {name}", "Foto receipt yang diizinkan oleh {name}", "Ảnh biên nhận được {name} cho phép"],
+  equivalent: ["Current equivalent", "Kasalukuyang katumbas", "Setara saat ini", "Giá trị tương đương hiện tại"],
+  quoteUnavailable: ["USDC equivalent unavailable", "Hindi available ang katumbas na USDC", "Nilai setara USDC belum tersedia", "Chưa có giá trị tương đương USDC"],
+  quoteFresh: ["Price updated {time}", "Na-update ang presyo {time}", "Harga diperbarui {time}", "Giá cập nhật {time}"],
+  quoteStale: ["Older price {time}", "Lumang presyo {time}", "Harga sebelumnya {time}", "Giá cũ {time}"],
+  equivalentScope: ["Current XLM/USDC market estimate, not a historical receipt value or token conversion. The actual transferred asset remains XLM. Testnet tokens have no monetary value.", "Kasalukuyang XLM/USDC market estimate, hindi dating halaga ng receipt o token conversion. XLM pa rin ang aktuwal na nailipat. Walang halagang pera ang Testnet tokens.", "Estimasi pasar XLM/USDC saat ini, bukan nilai historis bukti atau konversi token. Aset yang benar-benar ditransfer tetap XLM. Token Testnet tidak bernilai uang.", "Ước tính thị trường XLM/USDC hiện tại, không phải giá trị lịch sử hoặc chuyển đổi token. Tài sản thực chuyển vẫn là XLM. Token Testnet không có giá trị tiền tệ."],
+  attribution: ["Price data by", "Data ng presyo mula sa", "Data harga dari", "Dữ liệu giá từ"],
+  identityScope: ["Handles are verified on Stellar. Photos appear only with the account owner's receipt-photo consent; other wallets use initials or a wallet icon.", "Verified sa Stellar ang mga handle. Larawan lang na may pahintulot ng may-ari ang ipinapakita; initials o wallet icon para sa iba.", "Handle diverifikasi di Stellar. Foto hanya tampil dengan persetujuan pemilik untuk receipt; wallet lain memakai inisial atau ikon wallet.", "Tên được xác minh trên Stellar. Ảnh chỉ hiển thị khi chủ tài khoản đồng ý cho biên nhận; ví khác dùng chữ cái hoặc biểu tượng ví."],
 } as const;
 
 export function activityCopy(locale: Locale | undefined) {

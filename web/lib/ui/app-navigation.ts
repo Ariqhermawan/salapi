@@ -77,7 +77,21 @@ export function createAppNavigationTracker(win: Window) {
   let claimedBack: string | null = null;
   let owners = 0;
   let detach: (() => void) | undefined;
-  const notify = () => { for (const listener of listeners) listener(); };
+  let notificationQueued = false;
+  let notificationGeneration = 0;
+  const notify = () => {
+    if (notificationQueued) return;
+    notificationQueued = true;
+    const generation = notificationGeneration;
+    // Next updates history from useInsertionEffect. Keep the registry and Back
+    // claim synchronous, but notify React subscribers after that commit exits.
+    // Several history/view writes in one turn publish only their latest state.
+    queueMicrotask(() => {
+      if (generation !== notificationGeneration) return;
+      notificationQueued = false;
+      for (const listener of [...listeners]) if (listeners.has(listener)) listener();
+    });
+  };
   const persist = () => { try { win.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(registry)); } catch { /* Memory-only when storage is denied. */ } };
   const marker = (entry: Entry) => ({ version: 1, session: registry.session, entry: entry.id });
   function trusted(state: unknown = win.history.state): Entry | null {
@@ -158,6 +172,8 @@ export function createAppNavigationTracker(win: Window) {
       win.document.addEventListener("scroll", onScroll, { capture: true, passive: true });
       win.document.addEventListener("click", onClick, true);
       detach = () => {
+        notificationGeneration++;
+        notificationQueued = false;
         claimedBack = null;
         rememberScroll(); persist(); attached = false;
         // Do not remove a newer wrapper installed by Next or another owner.

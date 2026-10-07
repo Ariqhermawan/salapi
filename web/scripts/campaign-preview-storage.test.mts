@@ -9,6 +9,8 @@ import { campaignAmount, campaignSplit } from "../lib/campaign-money.ts";
 import { formatStroops } from "../lib/disaster.ts";
 import * as discoveryCopy from "../lib/i18n/revamp-campaign-discovery.ts";
 import * as accountCopy from "../lib/i18n/revamp-account.ts";
+import { campaignDonorBadge } from "../lib/ui/testnet-donor.ts";
+import * as circlesCopy from "../lib/i18n/revamp-circles.ts";
 
 type Mode = "normal" | "throw" | "drop" | "tamper" | "partial" | "read-blocked";
 function storage(mode: Mode, seed = "previous-draft") {
@@ -99,6 +101,8 @@ function screen(mode: Mode) {
     if (name === "@/lib/ui/useUnresolvedSubmission") return { useUnresolvedSubmission: () => ({ locked: false, run: forbidden }) };
     if (name === "@/components/I18nProvider") return { useT: () => ({ locale: "en" }) };
     if (name === "@/lib/i18n/revamp-account") return accountCopy;
+    if (name === "@/lib/i18n/revamp-circles") return circlesCopy;
+    if (name === "@/lib/ui/testnet-donor") return { campaignDonorBadge };
     if (name === "@/lib/ui/useGoBack") return { useGoBack: () => () => { throw Error("Navigation forbidden in isolated campaign storage tests"); } };
     if (name === "@/lib/local-preview") return { isLocalPreview: true, PREVIEW_WALLET, PREVIEW_CAMPAIGNS };
     if (name === "@/lib/campaign-preview-storage") return { saveCampaignPreview };

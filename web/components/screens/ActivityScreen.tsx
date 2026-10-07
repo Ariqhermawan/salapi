@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import Link from "next/link";
 import { walletActivity } from "@/app/actions";
-import type { WalletActivityItem } from "@/lib/wallet-activity";
+import { activityUsdcEquivalent, type WalletActivityIdentity, type WalletActivityItem } from "@/lib/wallet-activity";
+import AccountAvatar from "@/components/AccountAvatar";
+import { useMarketPrices } from "@/components/MarketPricesProvider";
 import { createSupabaseBrowser } from "@/lib/supabase/client";
 import { supabaseConfigured } from "@/lib/supabase/env";
 import { Ico, IconButton, T, PoweredByStellar } from "@/components/ui/kit";
@@ -148,20 +150,21 @@ type PersonalHistory = {
   owner: string | null;
   address: string | null;
   items: WalletActivityItem[];
+  identities: WalletActivityIdentity[];
   nextCursor: string | null;
   status: "loading" | "ready" | "error";
   error: string;
 };
 const emptyHistory: PersonalHistory = {
-  owner: null, address: null, items: [], nextCursor: null, status: "loading", error: "",
+  owner: null, address: null, items: [], identities: [], nextCursor: null, status: "loading", error: "",
 };
 const validAddress = (value: string | null) => value && /^G[A-Z2-7]{55}$/.test(value) ? value : null;
 const transactionUrl = (hash: string) => /^[a-f0-9]{64}$/i.test(hash) ? `${EXPLORER}/tx/${hash}` : null;
 const shortCounterparty = (address: string | null) => address && /^[GC][A-Z2-7]{55}$/.test(address)
   ? `${address.slice(0, 6)}…${address.slice(-6)}` : null;
 
-// Keep amounts as integer stroops. Historical fiat conversion is deliberately
-// absent because today's illustrative rate is not a historical receipt value.
+// Keep actual amounts as integer stroops. Today's market equivalent is separate
+// from the historical receipt and never becomes an actual USDC movement.
 function exactNativeAmount(stroops: string) {
   return nativeAmount(stroops).replace(/\.0+$/, "").replace(/(\.\d*?[1-9])0+$/, "$1");
 }
@@ -171,6 +174,7 @@ export default function ActivityScreen() {
   const { currency, locale } = useT();
   const m = moneyCopy(locale);
   const h = activityCopy(locale);
+  const { prices } = useMarketPrices();
   const [tab, setTab] = useState<Tab>("personal");
   const [owner, setOwner] = useState<string | null | undefined>(isLocalPreview ? null : undefined);
   const [authError, setAuthError] = useState(false);
@@ -230,7 +234,20 @@ export default function ActivityScreen() {
         for (const item of result.items) {
           if (!seen.has(item.id)) { items.push(item); seen.add(item.id); }
         }
-        return { owner: requestedOwner, address: validAddress(result.address), items, nextCursor: result.nextCursor, status: "ready", error: "" };
+        const identities = new Map((cursor && current.address === result.address ? current.identities : []).map(identity => [identity.address, identity]));
+        const participants = new Set([result.address, ...items.flatMap(item => [item.counterparty, item.fee.status === "available" ? item.fee.payer : null])]);
+        const enrichment: unknown[] = Array.isArray(result.identities) ? result.identities.slice(0, 12) : [];
+        for (const entry of enrichment) {
+          if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+          const identity = entry as Partial<WalletActivityIdentity>;
+          if (typeof identity.address !== "string" || !validAddress(identity.address) || !participants.has(identity.address)) continue;
+          identities.set(identity.address, {
+            address: identity.address,
+            handle: typeof identity.handle === "string" && /^[a-z0-9_]{3,32}$/.test(identity.handle) ? identity.handle : null,
+            photoUrl: typeof identity.photoUrl === "string" && identity.photoUrl.length <= 4096 ? identity.photoUrl : null,
+          });
+        }
+        return { owner: requestedOwner, address: validAddress(result.address), items, identities: [...identities.values()], nextCursor: result.nextCursor, status: "ready", error: "" };
       });
     } catch {
       if (mounted.current && currentRequest === requestId.current && ownerRef.current === requestedOwner)
@@ -435,6 +452,10 @@ export default function ActivityScreen() {
                       {Ico.refresh({ size: 18, c: T.action })}
                     </button>
                   </div>
+                  {personal.items.length ? <p className={styles.identityNote}>{h("identityScope")}</p> : null}
+                  {personal.items.some(item => item.asset.code === "XLM") ? <p className={styles.marketNote}>
+                    {h("equivalentScope")} {h("attribution")} <a href="https://www.coingecko.com" target="_blank" rel="noopener noreferrer">CoinGecko</a>.
+                  </p> : null}
                   {personal.error ? (
                     <div className={styles.error} role="alert">
                       {moneyMessage(locale, personal.error)}
@@ -459,6 +480,19 @@ export default function ActivityScreen() {
                         const received = receipt.direction === "received";
                         const counterparty = shortCounterparty(receipt.counterparty);
                         const explorerReceipt = transactionUrl(receipt.hash);
+                        const identityFor = (wallet: string | null) => personal.identities.find(identity => identity.address === wallet);
+                        const nameFor = (wallet: string | null) => {
+                          const handle = identityFor(wallet)?.handle;
+                          return handle && /^[a-z0-9_]{3,32}$/.test(handle) ? `@${handle}` : wallet === address ? h("you") : h("wallet");
+                        };
+                        const counterpartIdentity = identityFor(receipt.counterparty);
+                        const equivalent = activityUsdcEquivalent(receipt.amountStroops, receipt.asset, prices);
+                        const sender = received ? receipt.counterparty : address;
+                        const recipient = received ? address : receipt.counterparty;
+                        const participant = (wallet: string | null) => <span className={styles.participant}>
+                          <AccountAvatar name={nameFor(wallet).replace(/^@/, "")} photoUrl={identityFor(wallet)?.photoUrl ?? null} size={32} alt={h("photo", { name: nameFor(wallet) })} />
+                          <span><strong>{nameFor(wallet)}</strong><span className={styles.address}>{wallet ?? h("wallet")}</span></span>
+                        </span>;
                         return (
                           <li key={receipt.id} className={styles.timelineItem}>
                             <span className={`${styles.timelineIcon} ${received ? styles.incomingIcon : ""}`} aria-hidden="true">
@@ -468,16 +502,22 @@ export default function ActivityScreen() {
                               <button type="button" className={styles.receiptButton} aria-expanded={expanded === receipt.id} aria-controls={`activity-receipt-${receipt.id}`} onClick={() => setExpanded((current) => current === receipt.id ? null : receipt.id)}>
                                 <div>
                                   <strong>{h(received ? "received" : "sent", { asset: receipt.asset.code })}</strong>
-                                  {counterparty ? <span>{received ? m("From wallet") : m("To wallet")} {counterparty}</span> : <span>{m("On-chain wallet activity")}</span>}
+                                  {counterparty ? <span className={styles.counterparty}>
+                                    <AccountAvatar name={nameFor(receipt.counterparty).replace(/^@/, "")} photoUrl={counterpartIdentity?.photoUrl ?? null} size={28} alt={h("photo", { name: nameFor(receipt.counterparty) })} />
+                                    <span><strong>{h(received ? "from" : "to", { name: nameFor(receipt.counterparty) })}</strong><span>{counterparty}</span></span>
+                                  </span> : <span>{m("On-chain wallet activity")}</span>}
                                   <time dateTime={receipt.createdAt}>{receiptDate(receipt.createdAt, false, locale)}</time>
                                 </div>
                                 <div className={`${styles.receiptAmount} ${received ? styles.incomingAmount : ""}`}>
                                   <strong>{received ? "+" : "−"}{exactNativeAmount(receipt.amountStroops)}</strong>
                                   <small>Testnet {receipt.asset.code}</small>
+                                  {receipt.asset.code === "XLM" ? <span className={styles.equivalent} data-activity-equivalent={equivalent?.status ?? "unavailable"}>
+                                    {equivalent ? <>{h("equivalent")}: ≈ {new Intl.NumberFormat(locale, { maximumSignificantDigits: 8 }).format(equivalent.amount)} USDC<br /><small>{h(equivalent.status === "stale" ? "quoteStale" : "quoteFresh", { time: receiptDate(new Date(equivalent.updatedAt * 1000).toISOString(), false, locale) })}</small></> : h("quoteUnavailable")}
+                                  </span> : null}
                                 </div>
                               </button>
                               <p className={styles.feeSummary}>
-                                {receipt.fee.status === "available" ? <>{h("fee")}: {exactNativeAmount(receipt.fee.amountStroops)} XLM · {h(receipt.fee.paidByWallet ? "paidByYou" : "paidByOther")}</> : h("feeUnavailable")}
+                                {receipt.fee.status === "available" ? <>{h("fee")}: {exactNativeAmount(receipt.fee.amountStroops)} XLM · {h(receipt.fee.paidByWallet ? "paidByYou" : "paidByOther")} {nameFor(receipt.fee.payer)}</> : h("feeUnavailable")}
                               </p>
                               {expanded === receipt.id ? (
                                 <div id={`activity-receipt-${receipt.id}`} className={styles.receiptDetails}>
@@ -486,11 +526,12 @@ export default function ActivityScreen() {
                                     <dt>{h("units")}</dt><dd>{receipt.amountStroops} units</dd>
                                     {receipt.asset.issuer ? <><dt>{h("issuer")}</dt><dd className={styles.address}>{receipt.asset.issuer}</dd><dt>{h("contract")}</dt><dd className={styles.address}>{receipt.asset.contractId}</dd></> : null}
                                     <dt>{m("Recorded at")}</dt><dd>{receiptDate(receipt.createdAt, true, locale)}</dd>
-                                    {counterparty ? <><dt>{received ? m("Sender wallet") : m("Recipient wallet")}</dt><dd className={styles.address}>{receipt.counterparty}</dd></> : null}
+                                    <dt>{h("sender")}</dt><dd>{participant(sender)}</dd>
+                                    <dt>{h("recipient")}</dt><dd>{participant(recipient)}</dd>
                                     <dt>{m("Transaction hash")}</dt><dd className={styles.address}>{receipt.hash}</dd>
                                     {receipt.fee.status === "available" ? <>
                                       <dt>{h("fee")}</dt><dd>{exactNativeAmount(receipt.fee.amountStroops)} Testnet XLM</dd>
-                                      <dt>{h("feePayer")}</dt><dd className={styles.address}>{receipt.fee.payer}<br />{h(receipt.fee.paidByWallet ? "paidByYou" : "paidByOther")}</dd>
+                                      <dt>{h("feePayer")}</dt><dd>{participant(receipt.fee.payer)}{h(receipt.fee.paidByWallet ? "paidByYou" : "paidByOther")}</dd>
                                     </> : null}
                                   </dl>
                                   <p>{receipt.fee.status === "available" ? h("feeScope") : h("feeMissing")}</p>

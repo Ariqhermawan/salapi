@@ -5,6 +5,7 @@ import { isLocalPreview } from "@/lib/local-preview";
 import { supabaseConfigured, supabaseAdminConfigured } from "@/lib/supabase/env";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
+import { readActivityIdentities } from "./walletActivityIdentity";
 import { isWalletActivityCursor, normalizeWalletActivity, normalizeWalletActivityFee, WALLET_ACTIVITY_PAGE_SIZE, type WalletActivityItem, type WalletActivityPageResult, type WalletActivityResult } from "../wallet-activity";
 
 const HORIZON_ACTIVITY = "https://horizon-testnet.stellar.org";
@@ -117,6 +118,9 @@ export async function currentWalletActivity(cursor: unknown = null): Promise<Wal
     if (error) return sessionUnavailable(userId);
     if (data === null) return { ok: true, ownerId: userId, address: null, items: [], nextCursor: null };
     if (typeof data?.public_key !== "string" || !StrKey.isValidEd25519PublicKey(data.public_key)) return { ok: false, ownerId: userId, address: null, code: "invalid-wallet", error: "Your saved wallet address is invalid." };
-    return { ...await readWalletActivityPage(data.public_key, cursor as string | null ?? null), ownerId: userId };
+    const page = await readWalletActivityPage(data.public_key, cursor as string | null ?? null);
+    if (!page.ok) return { ...page, ownerId: userId };
+    const identities = await readActivityIdentities(page.address, page.items).catch(() => []);
+    return { ...page, ownerId: userId, identities };
   } catch { return sessionUnavailable(userId); }
 }

@@ -17,8 +17,10 @@ import { isLocalPreview } from "@/lib/local-preview";
 import { useGoBack } from "@/lib/ui/useGoBack";
 import styles from "./CirclesPreview.module.css";
 import galleryStyles from "./CirclesDraftGallery.module.css";
-import { circlesCopy, circlesCategory } from "@/lib/i18n/revamp-circles";
+import { circlesCopy, circlesCategory, circlesSignupError } from "@/lib/i18n/revamp-circles";
 import { defaultDraftGallery, draftGalleryOptions, readDraftGallery, replaceDraftPhoto, type DraftGalleryPhoto } from "@/lib/ui/circle-draft-gallery";
+import CirclesSignupEmail from "@/components/CirclesSignupEmail";
+import { useCirclesSignupIdentity } from "@/lib/ui/useCirclesSignupIdentity";
 
 type Step = 0 | 1 | 2 | 3;
 type Draft = {
@@ -96,6 +98,9 @@ export default function CirclesCreateScreen() {
   const [waitlistError, setWaitlistError] = useState("");
   const [waitlistPending, startWaitlist] = useTransition();
   const waitlistSubmitting = useRef(false);
+  const { identity, refresh: refreshIdentity, captureOwnerRevision, isCurrentOwner } = useCirclesSignupIdentity(() => {
+    setEmail(""); setWaitlistAck(false); setWaitlisted(false); setWaitlistError("");
+  });
 
   const displayTarget =
     target.currency === currency
@@ -307,7 +312,11 @@ export default function CirclesCreateScreen() {
     if (waitlistSubmitting.current || waitlisted || !savedDraft) return;
     setWaitlistError("");
     const trimmed = email.trim();
-    if (trimmed.length > 200 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+    if (identity.status !== "guest" && identity.status !== "verified") {
+      setWaitlistError(c("Your account could not be verified. Nothing was saved. Try again."));
+      return;
+    }
+    if (identity.status === "guest" && (trimmed.length > 200 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed))) {
       setWaitlistError(c("Enter a valid email address of up to 200 characters."));
       return;
     }
@@ -316,6 +325,7 @@ export default function CirclesCreateScreen() {
       return;
     }
     waitlistSubmitting.current = true;
+    const requestedOwnerRevision = captureOwnerRevision();
     startWaitlist(async () => {
       try {
         // A browser draft never submits automatically. In local review mode,
@@ -323,16 +333,19 @@ export default function CirclesCreateScreen() {
         if (isLocalPreview) { setWaitlisted(true); return; }
         const slug = savedDraft.title.toLowerCase().trim().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-").slice(0, 40) || "your-circle";
         const result = await joinCirclesWaitlist({
-          email: trimmed,
+          ...(identity.status === "verified" ? { expectedOwnerId: identity.ownerId } : { email: trimmed }),
           circleId: `draft:${slug}`,
           locale,
           pesoPledge: savedDraft.target.pesoEquivalent,
           anonymous: false,
-          marketingOk: true,
+          notifyOk: waitlistAck,
+          marketingOk: false,
         });
-        if (result.ok) setWaitlisted(true);
-        else setWaitlistError(result.error || c("The signup request could not be processed. Your browser draft is unchanged."));
+        if (!isCurrentOwner(requestedOwnerRevision)) return;
+        if (result.ok && result.kind === "launch-subscription" && result.persisted === true) setWaitlisted(true);
+        else setWaitlistError(!result.ok ? circlesSignupError(locale, result.error) : c("The signup result could not be confirmed. No payment was made."));
       } catch {
+        if (!isCurrentOwner(requestedOwnerRevision)) return;
         setWaitlistError(c("The signup was interrupted. Your browser draft is unchanged. Check the request before retrying."));
       } finally { waitlistSubmitting.current = false; }
     });
@@ -616,16 +629,14 @@ export default function CirclesCreateScreen() {
             <h2>{c("Hear when Circles is ready.")}</h2>
             <p>{c("Separate from your browser draft. This does not publish the cause, perform verification, or move money.")}</p>
             {waitlisted ? <div className={styles.notice} role="status" style={{ marginTop: 14 }}>
-              {isLocalPreview ? c("Local organizer signup example complete. No email was submitted or saved.") : c("Organizer launch signup request processed. The draft has not been published; its browser save status is shown above.")}
+              {isLocalPreview ? c("Local organizer signup example complete. No email was submitted or saved.") : c("Your organizer launch subscription is saved. Your draft is not published, and no campaign, donor badge or payment was created.")}
             </div> : <form className={styles.form} style={{ marginTop: 16 }} onSubmit={event => { event.preventDefault(); submitWaitlist(); }}>
-              <label htmlFor="circle-organizer-launch-email" className={styles.field}>{c("Organizer email")}<input id="circle-organizer-launch-email" className={styles.input} type="email" autoComplete="email" maxLength={200} value={email} disabled={waitlistPending}
-                  onChange={event => setEmail(event.target.value)} placeholder="you@example.com" />
-              </label>
+              <CirclesSignupEmail identity={identity} email={email} onChange={setEmail} refresh={refreshIdentity} pending={waitlistPending} id="circle-organizer-launch-email" />
               <label className={styles.checks}><input type="checkbox" checked={waitlistAck} disabled={waitlistPending} onChange={event => setWaitlistAck(event.target.checked)} />
                 {isLocalPreview ? c("Try the signup example locally. Do not send or save my email.") : c("Send my email and the draft title, goal and locale to Salapi for organizer launch updates.")}
               </label>
               {waitlistError && <div className={styles.error} role="alert">{waitlistError}</div>}
-              <Btn type="submit" disabled={waitlistPending || !email.trim() || !waitlistAck} loading={waitlistPending}>
+              <Btn type="submit" disabled={waitlistPending || !waitlistAck || (identity.status !== "verified" && (identity.status !== "guest" || !email.trim()))} loading={waitlistPending}>
                 {isLocalPreview ? c("Try organizer signup locally") : c("Request organizer launch updates")}
               </Btn>
             </form>}

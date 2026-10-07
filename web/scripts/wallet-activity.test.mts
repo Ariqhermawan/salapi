@@ -110,6 +110,7 @@ function setup(options: Options = {}) {
     async maybeSingle() { if ("dbThrow" in options) throw options.dbThrow; return "dbResult" in options ? options.dbResult : { data: { public_key: address }, error: null }; } }, "query");
   const api = isolated<{ currentWalletActivity(cursor?: unknown): Promise<WalletActivityResult>; readWalletActivityPage(address: string, cursor?: string | null): Promise<WalletActivityPageResult> }>(serverCode, {
     "server-only": {}, "@stellar/stellar-sdk": { StrKey }, "@supabase/supabase-js": { isAuthSessionMissingError }, "../wallet-activity": activity,
+    "./walletActivityIdentity": { readActivityIdentities: async () => [] },
     "@/lib/local-preview": { isLocalPreview: options.preview ?? false },
     "@/lib/supabase/env": { supabaseConfigured: () => options.configured ?? true, supabaseAdminConfigured: () => options.adminConfigured ?? true },
     "@/lib/supabase/server": { async createSupabaseServer() { if ("clientThrow" in options) throw options.clientThrow;
@@ -227,6 +228,7 @@ test("exported Server Action accepts only the cursor and delegates to the curren
     "./disaster-actions": forbidden, "@/lib/supabase/env": forbidden, "@/lib/supabase/admin": forbidden,
     "@/lib/local-preview": { isLocalPreview: false }, "@/lib/arisan-list": forbidden, "@/lib/recipient-review": forbidden,
     "@/lib/server/xlmDeposit": forbidden, "@/lib/server/arisanCommitment": forbidden,
+    "@stellar/stellar-sdk": { StrKey }, "@/lib/server/arisanAuthorization": forbidden,
   });
   assert.equal(await api.walletActivity(undefined, other), result); assert.equal(await api.walletActivity("99", other), result);
   assert.deepEqual(calls, [null, "99"]);
@@ -241,6 +243,7 @@ test("direct unauthenticated exported Server Action reaches actual authorization
       "./disaster-actions": forbidden, "@/lib/supabase/env": forbidden, "@/lib/supabase/admin": forbidden,
       "@/lib/local-preview": { isLocalPreview: false }, "@/lib/arisan-list": forbidden, "@/lib/recipient-review": forbidden,
       "@/lib/server/xlmDeposit": forbidden, "@/lib/server/arisanCommitment": forbidden,
+      "@stellar/stellar-sdk": { StrKey }, "@/lib/server/arisanAuthorization": forbidden,
     });
     const result = await api.walletActivity("99"); assert.equal(result.ok, false);
     if (!result.ok) assert.equal(result.code, "unauthenticated");
@@ -256,6 +259,7 @@ test("cookie-switch race binds returned history to server-verified owner B, neve
     "./disaster-actions": forbidden, "@/lib/supabase/env": forbidden, "@/lib/supabase/admin": forbidden,
     "@/lib/local-preview": { isLocalPreview: false }, "@/lib/arisan-list": forbidden, "@/lib/recipient-review": forbidden,
     "@/lib/server/xlmDeposit": forbidden, "@/lib/server/arisanCommitment": forbidden,
+    "@stellar/stellar-sdk": { StrKey }, "@/lib/server/arisanAuthorization": forbidden,
   });
   const result = await api.walletActivity(null, "authenticated-a");
   assert.equal(result.ok, true); assert.equal(result.ownerId, "authenticated-b"); assert.equal(result.address, other);

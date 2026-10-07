@@ -76,6 +76,7 @@ test("Home categories show three examples per sector and clickable organizer rat
 });
 
 test("live Home D4 cards retain direct contract IDs separately from examples", async ({ page }) => {
+  test.skip(!process.env.D4_E2E_CONTRACT, "Set D4_E2E_CONTRACT to require configured live Testnet campaign reads; unconfigured local builds have no on-chain cards");
   await page.goto("/", { waitUntil: "domcontentloaded", timeout: 45000 });
   const d4Section = page.locator('section[aria-labelledby="testnet-campaign-title"]');
   test.skip(await d4Section.count() === 0, "Local preview deliberately exposes the separate D4 route without live on-chain readers");

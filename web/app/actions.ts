@@ -1,5 +1,6 @@
 ﻿"use server";
 
+import { StrKey } from "@stellar/stellar-sdk";
 import {
   CONTRACTS,
   fmtPeso,
@@ -22,10 +23,10 @@ import {
   pesosToStroopsExact,
   type MoneyInput,
 } from "@/lib/money";
-import { getSigner, currentWalletPublicKey, currentArisanPublicKey } from "@/lib/server/userWallet";
+import { getSigner, getAuthenticatedSigner, currentWalletPublicKey, currentArisanPublicKey } from "@/lib/server/userWallet";
+import { authenticatedArisanWallet } from "@/lib/server/arisanAuthorization";
+import type { ArisanReviewedInvitation } from "@/lib/arisan-invitation";
 import { disasterContribute as contributeToDisaster, disasterState as readDisasterState } from "./disaster-actions";
-import { supabaseAdminConfigured } from "@/lib/supabase/env";
-import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { isLocalPreview, PREVIEW_RECIPIENT, PREVIEW_WALLET } from "@/lib/local-preview";
 import { arisanRoomPage } from "@/lib/arisan-list";
 import { recipientReviewError } from "@/lib/recipient-review";
@@ -364,22 +365,40 @@ export async function paluwaganPayMine() {
 }
 
 export async function paluwaganFriendsPay() {
+  if (isLocalPreview) return { ok: false as const, error: "Local preview cannot submit transactions." };
   const id = paluwaganId();
   if (!id) return { ok: false as const, error: "Circle not set up" };
-  const round = Number(await readContract(id, "round")) || 0;
-  let paid = 0;
-  for (const f of FRIENDS) {
-    const already = Boolean(
-      await readContract(id, "has_paid", [sc.u32(round), sc.addr(f.pub())])
-    );
-    if (already) continue;
-    const r = await invokeAs(f.secret(), id, "contribute", [
-      sc.addr(f.pub()),
-    ]);
-    if (r.ok) paid++;
-    else return { ...failedTransaction(r), error: `${f.label}: ${r.error}` };
+  const owner = await authenticatedArisanWallet();
+  if (!owner.ok) return owner;
+  try {
+    // This legacy circle has no host field. Only its authenticated, saved-wallet
+    // members may trigger configured demo signers; guests cannot use this sibling
+    // endpoint to bypass Arisan's friend controls.
+    const members = await readContract(id, "members");
+    if (!Array.isArray(members) || !members.includes(owner.publicKey))
+      return { ok: false as const, error: "Only a circle member can use demo participant controls." };
+    const round = Number(await readContract(id, "round")) || 0;
+    let paid = 0;
+    for (const f of FRIENDS) {
+      const already = Boolean(
+        await readContract(id, "has_paid", [sc.u32(round), sc.addr(f.pub())])
+      );
+      if (already) continue;
+      const r = await invokeAs(f.secret(), id, "contribute", [
+        sc.addr(f.pub()),
+      ]);
+      if (r.ok) paid++;
+      else return {
+        ...failedTransaction(r),
+        error: r.pending
+          ? "A demo participant transaction is pending. Check it before retrying."
+          : "The demo participant operation was not confirmed.",
+      };
+    }
+    return { ok: true as const, paid };
+  } catch {
+    return { ok: false as const, error: "Demo participant controls are unavailable. No new operation was confirmed." };
   }
-  return { ok: true as const, paid };
 }
 
 export async function paluwaganCollect() {
@@ -565,22 +584,100 @@ function arisanShortAddr(a: string) {
 }
 
 /** Friendly label for an address (You / Teman A / Teman B / short). */
-function arisanLabelOf(addr: string, me: string): string {
+function arisanLabelOf(addr: string, me: string | null): string {
   if (addr === me) return "You";
   const fi = FRIENDS.findIndex((f) => f.pub() === addr);
   if (fi >= 0) return FRIENDS[fi].label;
   return arisanShortAddr(addr);
 }
 
+function validArisanRoomId(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 1 && value <= 0xffff_ffff;
+}
+
+function validArisanInvitation(value: unknown): value is ArisanReviewedInvitation {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const input = value as Partial<ArisanReviewedInvitation>;
+  if (typeof input.code !== "string" || !/^[A-HJ-NP-Z2-9]{6}$/.test(input.code)
+    || !validArisanRoomId(input.roomId)
+    || typeof input.memberTarget !== "number" || !Number.isInteger(input.memberTarget)
+    || input.memberTarget < 3 || input.memberTarget > 20
+    || typeof input.shareStroops !== "string" || !/^[1-9][0-9]{0,29}$/.test(input.shareStroops)
+    || typeof input.depositStroops !== "string" || !/^[1-9][0-9]{0,29}$/.test(input.depositStroops)
+    || typeof input.viewer !== "string" || !StrKey.isValidEd25519PublicKey(input.viewer)) return false;
+  const share = BigInt(input.shareStroops);
+  return share <= MAX_AMOUNT_STROOPS && BigInt(input.depositStroops) === share * BigInt(input.memberTarget);
+}
+
+async function checkedArisanInvitation(id: string, invitation: ArisanReviewedInvitation) {
+  const resolvedId = Number(await readContract(id, "room_by_code", [sc.sym(invitation.code)]));
+  if (!validArisanRoomId(resolvedId) || resolvedId !== invitation.roomId)
+    return { ok: false as const, error: "This invitation changed. Review the room and deposit again." };
+  const room = await readArisanRoom(id, resolvedId);
+  if (room.code !== invitation.code || room.memberTarget !== invitation.memberTarget
+    || room.shareStroops.toString() !== invitation.shareStroops
+    || (room.shareStroops * BigInt(room.memberTarget)).toString() !== invitation.depositStroops)
+    return { ok: false as const, error: "This invitation changed. Review the room and deposit again." };
+  if (room.status !== "Open")
+    return { ok: false as const, error: "This room is no longer open for joining." };
+  if (!Number.isSafeInteger(room.memberCount) || room.memberCount < 0 || room.memberCount >= room.memberTarget)
+    return { ok: false as const, error: "This room has no available places." };
+  if (!Number.isSafeInteger(room.joinDeadline) || Math.floor(Date.now() / 1000) >= room.joinDeadline)
+    return { ok: false as const, error: "This room's joining deadline has passed." };
+  return { ok: true as const, room };
+}
+
+function arisanUnavailable() {
+  return { ok: false as const, error: "Arisan is unavailable. No new operation was confirmed." };
+}
+
+function arisanTransactionFailure(result: Extract<TxResult, { ok: false }>) {
+  return {
+    ...failedTransaction(result),
+    error: result.pending
+      ? "Transaction confirmation is pending. Check the original transaction before retrying."
+      : "The Arisan operation was not confirmed. Please review the room and try again.",
+  };
+}
+
+/** Mutations use an existing authenticated wallet, never provision or borrow a
+ * guest key. Rechecking the canonical public identity catches account changes
+ * before the existing custody helper is allowed to decrypt a signing key. */
+async function arisanSavedSigner(expectedViewer?: string) {
+  const owner = await authenticatedArisanWallet();
+  if (!owner.ok) return owner;
+  if (expectedViewer !== undefined && owner.publicKey !== expectedViewer)
+    return { ok: false as const, error: "Your wallet changed. Review this invitation again." };
+  try {
+    const signer = await getAuthenticatedSigner();
+    if (signer.demo !== false || signer.publicKey !== owner.publicKey)
+      return { ok: false as const, error: "Your wallet changed. No transaction was submitted." };
+    return { ok: true as const, signer };
+  } catch {
+    return { ok: false as const, error: "Your saved wallet is unavailable. No transaction was submitted." };
+  }
+}
+
+async function authorizedArisanHost(id: string, roomId: number) {
+  const owner = await authenticatedArisanWallet();
+  if (!owner.ok) return owner;
+  try {
+    const room = await readArisanRoom(id, roomId);
+    if (room.host !== owner.publicKey)
+      return { ok: false as const, error: "Only this room's authenticated host can use demo participant controls." };
+    return { ok: true as const, room };
+  } catch {
+    return arisanUnavailable();
+  }
+}
+
 /** Soroban contracttype unit-variant enums can deserialize as a tagged object,
  *  a one-element array, or a bare string depending on the SDK build. Coerce. */
 function arisanNormalizeStatus(raw: unknown): ArisanStatus {
-  if (Array.isArray(raw) && typeof raw[0] === "string")
-    return raw[0] as ArisanStatus;
-  if (raw && typeof raw === "object" && "tag" in raw)
-    return (raw as { tag: ArisanStatus }).tag;
-  if (typeof raw === "string") return raw as ArisanStatus;
-  return "Open";
+  const status = Array.isArray(raw) ? raw[0]
+    : raw && typeof raw === "object" && "tag" in raw ? (raw as { tag: unknown }).tag : raw;
+  if (status === "Open" || status === "Active" || status === "Done" || status === "Dissolved") return status;
+  throw new Error("Room status could not be confirmed");
 }
 function arisanNormalizeCadence(raw: unknown): ArisanCadence {
   if (Array.isArray(raw) && typeof raw[0] === "string")
@@ -630,12 +727,15 @@ async function readArisanRoom(id: string, roomId: number) {
 }
 
 export async function arisanList(cursor?: number) {
+  if (isLocalPreview) return { ready: false as const, error: "Local preview does not read live rooms." };
   const id = arisanRoomsId();
   if (!id) return { ready: false as const };
   if (cursor !== undefined && (typeof cursor !== "number" || !Number.isSafeInteger(cursor) || cursor < 1))
     return { ready: false as const, error: "Invalid room cursor" };
   try {
     const me = await currentArisanPublicKey();
+    const owner = await authenticatedArisanWallet();
+    const verifiedPersonal = owner.ok && owner.publicKey === me;
     const count = Number(await readContract(id, "room_count"));
     const page = arisanRoomPage(count, cursor);
     type Row = {
@@ -675,8 +775,8 @@ export async function arisanList(cursor?: number) {
         const members =
           ((await readContract(id, "get_members", [sc.u32(i)])) as string[]) ||
           [];
-        const isMember = me != null && members.includes(me);
-        const isHost = r.host === me;
+        const isMember = verifiedPersonal && me != null && members.includes(me);
+        const isHost = verifiedPersonal && r.host === me;
         const pot = r.shareStroops * BigInt(r.memberTarget);
         rooms.push({
           id: i,
@@ -723,6 +823,7 @@ export async function arisanCreate(input: {
   share: MoneyInput;
   cadence: ArisanCadence;
 }) {
+  if (isLocalPreview) return { ok: false as const, error: "Local preview cannot submit transactions." };
   const id = arisanRoomsId();
   if (!id) return { ok: false as const, error: "Contract not configured" };
   if (!input || typeof input !== "object")
@@ -740,6 +841,10 @@ export async function arisanCreate(input: {
     return { ok: false as const, error: "Members must be 3–20" };
   if (shareStroops == null)
     return { ok: false as const, error: "Enter a valid share amount" };
+
+  const resolvedSigner = await arisanSavedSigner();
+  if (!resolvedSigner.ok) return resolvedSigner;
+  const s = resolvedSigner.signer;
 
   // Contract requires first_kocok ≥ now + JOIN_WINDOW and
   // join_deadline < first_kocok. Demo friend joins are two sequential
@@ -765,7 +870,6 @@ export async function arisanCreate(input: {
     code = genArisanCode();
   }
 
-  const s = await getSigner();
   const r = await invokeAs(s.secret, id, "create_room", [
     sc.addr(s.publicKey),
     sc.sym(code),
@@ -776,7 +880,7 @@ export async function arisanCreate(input: {
     sc.u64(firstKocok),
     sc.u64(joinDeadline),
   ]);
-  if (!r.ok) return failedTransaction(r);
+  if (!r.ok) return arisanTransactionFailure(r);
   return {
     ok: true as const,
     id: Number(r.value),
@@ -786,76 +890,103 @@ export async function arisanCreate(input: {
 }
 
 export async function arisanResolveCode(rawCode: string) {
+  if (isLocalPreview) return { ok: false as const, error: "Local preview does not resolve live invitations." };
   const id = arisanRoomsId();
   if (!id) return { ok: false as const, error: "Contract not configured" };
-  const code = (rawCode ?? "")
-    .toString()
-    .trim()
-    .toUpperCase()
-    .replace(/[^A-Z2-9]/g, "");
-  if (code.length !== 6)
+  if (typeof rawCode !== "string") return { ok: false as const, error: "Code must be 6 characters" };
+  const code = rawCode.trim().toUpperCase();
+  if (!/^[A-HJ-NP-Z2-9]{6}$/.test(code))
     return { ok: false as const, error: "Code must be 6 characters" };
   try {
     const roomId = await readContract(id, "room_by_code", [sc.sym(code)]);
-    return { ok: true as const, id: Number(roomId), code };
+    const rid = Number(roomId);
+    if (!validArisanRoomId(rid)) return { ok: false as const, error: "Code not found" };
+    return { ok: true as const, id: rid, code };
   } catch {
     return { ok: false as const, error: "Code not found" };
   }
 }
 
-export async function arisanJoin(rawCode: string) {
+export async function arisanJoin(invitation: ArisanReviewedInvitation) {
+  if (isLocalPreview) return { ok: false as const, error: "Local preview cannot submit transactions." };
+  if (!validArisanInvitation(invitation))
+    return { ok: false as const, error: "Review a valid invitation and exact deposit before joining." };
   const id = arisanRoomsId();
   if (!id) return { ok: false as const, error: "Contract not configured" };
-  const res = await arisanResolveCode(rawCode);
-  if (!res.ok) return res;
-  const s = await getSigner();
-  const r = await invokeAs(s.secret, id, "join_room", [
-    sc.u32(res.id),
-    sc.sym(res.code),
-    sc.addr(s.publicKey),
-  ]);
-  return r.ok
-    ? { ok: true as const, id: res.id, link: txLink(r.hash) }
-    : failedTransaction(r);
+  const owner = await authenticatedArisanWallet();
+  if (!owner.ok) return owner;
+  if (owner.publicKey !== invitation.viewer)
+    return { ok: false as const, error: "Your wallet changed. Review this invitation again." };
+  try {
+    const checked = await checkedArisanInvitation(id, invitation);
+    if (!checked.ok) return checked;
+    const resolvedSigner = await arisanSavedSigner(invitation.viewer);
+    if (!resolvedSigner.ok) return resolvedSigner;
+    // Wallet/auth resolution can take time. Bind the final current terms and
+    // join window again immediately before submitting the deposit transaction.
+    const current = await checkedArisanInvitation(id, invitation);
+    if (!current.ok) return current;
+    const s = resolvedSigner.signer;
+    const r = await invokeAs(s.secret, id, "join_room", [
+      sc.u32(invitation.roomId), sc.sym(invitation.code), sc.addr(s.publicKey),
+    ]);
+    return r.ok
+      ? { ok: true as const, id: invitation.roomId, link: txLink(r.hash) }
+      : arisanTransactionFailure(r);
+  } catch {
+    return arisanUnavailable();
+  }
 }
 
 export async function arisanLeave(roomId: number) {
+  if (isLocalPreview) return { ok: false as const, error: "Local preview cannot submit transactions." };
+  if (!validArisanRoomId(roomId)) return { ok: false as const, error: "Invalid room" };
   const id = arisanRoomsId();
   if (!id) return { ok: false as const, error: "Contract not configured" };
-  const s = await getSigner();
+  const resolvedSigner = await arisanSavedSigner();
+  if (!resolvedSigner.ok) return resolvedSigner;
+  const s = resolvedSigner.signer;
   const r = await invokeAs(s.secret, id, "leave_room", [
     sc.u32(Number(roomId)),
     sc.addr(s.publicKey),
   ]);
   return r.ok
     ? { ok: true as const, link: txLink(r.hash) }
-    : failedTransaction(r);
+    : arisanTransactionFailure(r);
 }
 
 export async function arisanStart(roomId: number) {
+  if (isLocalPreview) return { ok: false as const, error: "Local preview cannot submit transactions." };
+  if (!validArisanRoomId(roomId)) return { ok: false as const, error: "Invalid room" };
   const id = arisanRoomsId();
   if (!id) return { ok: false as const, error: "Contract not configured" };
-  const s = await getSigner();
+  const resolvedSigner = await arisanSavedSigner();
+  if (!resolvedSigner.ok) return resolvedSigner;
+  const s = resolvedSigner.signer;
   const r = await invokeAs(s.secret, id, "start_room", [
     sc.u32(Number(roomId)),
     sc.addr(s.publicKey),
   ]);
   return r.ok
     ? { ok: true as const, link: txLink(r.hash) }
-    : failedTransaction(r);
+    : arisanTransactionFailure(r);
 }
 
 export async function arisanCancel(roomId: number) {
+  if (isLocalPreview) return { ok: false as const, error: "Local preview cannot submit transactions." };
+  if (!validArisanRoomId(roomId)) return { ok: false as const, error: "Invalid room" };
   const id = arisanRoomsId();
   if (!id) return { ok: false as const, error: "Contract not configured" };
-  const s = await getSigner();
+  const resolvedSigner = await arisanSavedSigner();
+  if (!resolvedSigner.ok) return resolvedSigner;
+  const s = resolvedSigner.signer;
   const r = await invokeAs(s.secret, id, "cancel_room", [
     sc.u32(Number(roomId)),
     sc.addr(s.publicKey),
   ]);
   return r.ok
     ? { ok: true as const, link: txLink(r.hash) }
-    : failedTransaction(r);
+    : arisanTransactionFailure(r);
 }
 
 function arisanDrawSecret(
@@ -874,72 +1005,84 @@ function arisanDrawSecret(
 }
 
 export async function arisanCommit(roomId: number) {
+  if (isLocalPreview) return { ok: false as const, error: "Local preview cannot submit transactions." };
+  if (!validArisanRoomId(roomId)) return { ok: false as const, error: "Invalid room" };
   const id = arisanRoomsId();
   if (!id) return { ok: false as const, error: "Contract not configured" };
-  const s = await getSigner();
-  const rid = Number(roomId);
-  if (!Number.isSafeInteger(rid) || rid < 1)
-    return { ok: false as const, error: "Invalid room" };
-  const round = (await readArisanRoom(id, rid)).round;
-  const secret = arisanDrawSecret(s, id, rid, round);
-  const commitment = createArisanCommitment({
-    contractId: id,
-    roomId: rid,
-    round,
-    participant: s.publicKey,
-    secret,
-  });
-  const r = await invokeAs(s.secret, id, "commit_draw", [
-    sc.u32(rid),
-    sc.addr(s.publicKey),
-    sc.bytes(commitment),
-  ]);
-  return r.ok
-    ? { ok: true as const, hash: r.hash, link: txLink(r.hash) }
-    : {
-        ...failedTransaction(r),
-        ok: false as const,
-        error: r.error,
-        errorKey: arisanFriendlyError(r.error, "arisan.somethingWrong"),
-      };
+  const resolvedSigner = await arisanSavedSigner();
+  if (!resolvedSigner.ok) return resolvedSigner;
+  const s = resolvedSigner.signer;
+  const rid = roomId;
+  try {
+    const round = (await readArisanRoom(id, rid)).round;
+    const secret = arisanDrawSecret(s, id, rid, round);
+    const commitment = createArisanCommitment({
+      contractId: id,
+      roomId: rid,
+      round,
+      participant: s.publicKey,
+      secret,
+    });
+    const r = await invokeAs(s.secret, id, "commit_draw", [
+      sc.u32(rid),
+      sc.addr(s.publicKey),
+      sc.bytes(commitment),
+    ]);
+    return r.ok
+      ? { ok: true as const, hash: r.hash, link: txLink(r.hash) }
+      : {
+          ...arisanTransactionFailure(r),
+          ok: false as const,
+          errorKey: arisanFriendlyError(r.error, "arisan.somethingWrong"),
+        };
+  } catch {
+    return arisanUnavailable();
+  }
 }
 
 export async function arisanReveal(roomId: number) {
+  if (isLocalPreview) return { ok: false as const, error: "Local preview cannot submit transactions." };
+  if (!validArisanRoomId(roomId)) return { ok: false as const, error: "Invalid room" };
   const id = arisanRoomsId();
   if (!id) return { ok: false as const, error: "Contract not configured" };
-  const s = await getSigner();
-  const rid = Number(roomId);
-  if (!Number.isSafeInteger(rid) || rid < 1)
-    return { ok: false as const, error: "Invalid room" };
-  const round = (await readArisanRoom(id, rid)).round;
-  const secret = arisanDrawSecret(s, id, rid, round);
-  const r = await invokeAs(s.secret, id, "reveal_draw", [
-    sc.u32(rid),
-    sc.addr(s.publicKey),
-    sc.bytes(secret),
-  ]);
-  return r.ok
-    ? { ok: true as const, hash: r.hash, link: txLink(r.hash) }
-    : {
-        ...failedTransaction(r),
-        ok: false as const,
-        error: r.error,
-        errorKey: arisanFriendlyError(r.error, "arisan.somethingWrong"),
-      };
+  const resolvedSigner = await arisanSavedSigner();
+  if (!resolvedSigner.ok) return resolvedSigner;
+  const s = resolvedSigner.signer;
+  const rid = roomId;
+  try {
+    const round = (await readArisanRoom(id, rid)).round;
+    const secret = arisanDrawSecret(s, id, rid, round);
+    const r = await invokeAs(s.secret, id, "reveal_draw", [
+      sc.u32(rid),
+      sc.addr(s.publicKey),
+      sc.bytes(secret),
+    ]);
+    return r.ok
+      ? { ok: true as const, hash: r.hash, link: txLink(r.hash) }
+      : {
+          ...arisanTransactionFailure(r),
+          ok: false as const,
+          errorKey: arisanFriendlyError(r.error, "arisan.somethingWrong"),
+        };
+  } catch {
+    return arisanUnavailable();
+  }
 }
 
 export async function arisanFinalize(roomId: number) {
+  if (isLocalPreview) return { ok: false as const, error: "Local preview cannot submit transactions." };
+  if (!validArisanRoomId(roomId)) return { ok: false as const, error: "Invalid room" };
   const id = arisanRoomsId();
   if (!id) return { ok: false as const, error: "Contract not configured" };
-  const s = await getSigner();
-  const rid = Number(roomId);
-  if (!Number.isSafeInteger(rid) || rid < 1)
-    return { ok: false as const, error: "Invalid room" };
+  const resolvedSigner = await arisanSavedSigner();
+  if (!resolvedSigner.ok) return resolvedSigner;
+  const s = resolvedSigner.signer;
+  const rid = roomId;
   const r = await invokeAs(s.secret, id, "finalize_draw", [
     sc.u32(rid),
     sc.addr(s.publicKey),
   ]);
-  if (!r.ok) return failedTransaction(r);
+  if (!r.ok) return arisanTransactionFailure(r);
   const winner = typeof r.value === "string" ? r.value : "";
   return {
     ok: true as const,
@@ -978,10 +1121,16 @@ function arisanFriendlyError(raw: string | undefined, fallbackKey: string) {
 }
 
 export async function arisanPostpone(roomId: number, delaySeconds: number) {
+  if (isLocalPreview) return { ok: false as const, error: "Local preview cannot submit transactions." };
+  if (!validArisanRoomId(roomId)) return { ok: false as const, error: "Invalid room" };
+  if (typeof delaySeconds !== "number" || !Number.isSafeInteger(delaySeconds) || delaySeconds < 0)
+    return { ok: false as const, error: "Invalid postponement" };
   const id = arisanRoomsId();
   if (!id) return { ok: false as const, error: "Contract not configured" };
-  const delay = Math.max(0, Math.floor(Number(delaySeconds)));
-  const s = await getSigner();
+  const delay = delaySeconds;
+  const resolvedSigner = await arisanSavedSigner();
+  if (!resolvedSigner.ok) return resolvedSigner;
+  const s = resolvedSigner.signer;
   const r = await invokeAs(s.secret, id, "postpone_kocok", [
     sc.u32(Number(roomId)),
     sc.addr(s.publicKey),
@@ -992,9 +1141,8 @@ export async function arisanPostpone(roomId: number, delaySeconds: number) {
   // HostError dump. The UI's run() helper falls back to the raw error if
   // errorKey is absent, so older callers stay compatible.
   return {
-    ...failedTransaction(r),
+    ...arisanTransactionFailure(r),
     ok: false as const,
-    error: r.error,
     errorKey: arisanFriendlyError(r.error, "arisan.somethingWrong"),
   };
 }
@@ -1002,35 +1150,36 @@ export async function arisanPostpone(roomId: number, delaySeconds: number) {
 /** Demo helper: have the configured friends auto-join a room by reading its
  *  code from chain. Skips friends already seated. */
 export async function arisanFriendsJoin(roomId: number) {
+  if (isLocalPreview) return { ok: false as const, error: "Local preview cannot submit transactions." };
+  if (!validArisanRoomId(roomId)) return { ok: false as const, error: "Invalid room" };
   const id = arisanRoomsId();
   if (!id) return { ok: false as const, error: "Contract not configured" };
-  let code: string;
+  const authorized = await authorizedArisanHost(id, roomId);
+  if (!authorized.ok) return authorized;
+  if (authorized.room.status !== "Open" || Math.floor(Date.now() / 1000) >= authorized.room.joinDeadline)
+    return { ok: false as const, error: "This room is no longer open for joining." };
   try {
-    const r = await readArisanRoom(id, Number(roomId));
-    code = r.code;
-  } catch (e) {
-    return {
-      ok: false as const,
-      error: e instanceof Error ? e.message : "Room not found",
-    };
+    const code = authorized.room.code;
+    let joined = 0;
+    for (const f of arisanFriendsList()) {
+      const lockedRaw = (await readContract(id, "locked_of", [
+        sc.u32(roomId),
+        sc.addr(f.pub()),
+      ])) as number | bigint | null;
+      const locked = lockedRaw == null ? 0n : BigInt(lockedRaw);
+      if (locked > 0n) continue;
+      const r = await invokeAs(f.secret(), id, "join_room", [
+        sc.u32(roomId),
+        sc.sym(code),
+        sc.addr(f.pub()),
+      ]);
+      if (!r.ok) return arisanTransactionFailure(r);
+      joined++;
+    }
+    return { ok: true as const, joined };
+  } catch {
+    return arisanUnavailable();
   }
-  let joined = 0;
-  for (const f of arisanFriendsList()) {
-    const lockedRaw = (await readContract(id, "locked_of", [
-      sc.u32(Number(roomId)),
-      sc.addr(f.pub()),
-    ])) as number | bigint | null;
-    const locked = lockedRaw == null ? 0n : BigInt(lockedRaw);
-    if (locked > 0n) continue;
-    const r = await invokeAs(f.secret(), id, "join_room", [
-      sc.u32(Number(roomId)),
-      sc.sym(code),
-      sc.addr(f.pub()),
-    ]);
-    if (!r.ok) return { ...failedTransaction(r), error: `${f.label}: ${r.error}` };
-    joined++;
-  }
-  return { ok: true as const, joined };
 }
 
 async function arisanFriendsDrawAction(
@@ -1038,75 +1187,81 @@ async function arisanFriendsDrawAction(
   action: "commit" | "reveal",
   limit = Number.POSITIVE_INFINITY
 ) {
+  if (isLocalPreview) return { ok: false as const, error: "Local preview cannot submit transactions." };
+  if (!validArisanRoomId(roomId)) return { ok: false as const, error: "Invalid room" };
   const id = arisanRoomsId();
   if (!id) return { ok: false as const, error: "Contract not configured" };
-  const rid = Number(roomId);
-  if (!Number.isSafeInteger(rid) || rid < 1)
-    return { ok: false as const, error: "Invalid room" };
-  const room = await readArisanRoom(id, rid);
-  const members =
-    ((await readContract(id, "get_members", [sc.u32(rid)])) as string[]) || [];
-  const links: string[] = [];
-  let submitted = 0;
+  const rid = roomId;
+  const authorized = await authorizedArisanHost(id, rid);
+  if (!authorized.ok) return authorized;
+  const room = authorized.room;
+  try {
+    const members =
+      ((await readContract(id, "get_members", [sc.u32(rid)])) as string[]) || [];
+    const links: string[] = [];
+    let submitted = 0;
 
-  for (const friend of arisanFriendsList()) {
-    if (submitted >= limit) break;
-    const publicKey = friend.pub();
-    if (!members.includes(publicKey)) continue;
-    const won = Boolean(
-      await readContract(id, "has_won", [sc.u32(rid), sc.addr(publicKey)])
-    );
-    if (won) continue;
-    const committed = Boolean(
-      await readContract(id, "has_committed", [
-        sc.u32(rid),
-        sc.u32(room.round),
-        sc.addr(publicKey),
-      ])
-    );
-    const revealed = Boolean(
-      await readContract(id, "has_revealed", [
-        sc.u32(rid),
-        sc.u32(room.round),
-        sc.addr(publicKey),
-      ])
-    );
-    if ((action === "commit" && committed) || (action === "reveal" && revealed))
-      continue;
-    if (action === "reveal" && !committed) continue;
+    for (const friend of arisanFriendsList()) {
+      if (submitted >= limit) break;
+      const publicKey = friend.pub();
+      if (!members.includes(publicKey)) continue;
+      const won = Boolean(
+        await readContract(id, "has_won", [sc.u32(rid), sc.addr(publicKey)])
+      );
+      if (won) continue;
+      const committed = Boolean(
+        await readContract(id, "has_committed", [
+          sc.u32(rid),
+          sc.u32(room.round),
+          sc.addr(publicKey),
+        ])
+      );
+      const revealed = Boolean(
+        await readContract(id, "has_revealed", [
+          sc.u32(rid),
+          sc.u32(room.round),
+          sc.addr(publicKey),
+        ])
+      );
+      if ((action === "commit" && committed) || (action === "reveal" && revealed))
+        continue;
+      if (action === "reveal" && !committed) continue;
 
-    const signer = { publicKey, secret: friend.secret() };
-    const secret = arisanDrawSecret(signer, id, rid, room.round);
-    const args = [sc.u32(rid), sc.addr(publicKey)];
-    const result =
-      action === "commit"
-        ? await invokeAs(signer.secret, id, "commit_draw", [
-            ...args,
-            sc.bytes(
-              createArisanCommitment({
-                contractId: id,
-                roomId: rid,
-                round: room.round,
-                participant: publicKey,
-                secret,
-              })
-            ),
-          ])
-        : await invokeAs(signer.secret, id, "reveal_draw", [
-            ...args,
-            sc.bytes(secret),
-          ]);
-    if (!result.ok)
-      return { ...failedTransaction(result), error: `${friend.label}: ${result.error}` };
-    submitted++;
-    links.push(txLink(result.hash));
+      const signer = { publicKey, secret: friend.secret() };
+      const secret = arisanDrawSecret(signer, id, rid, room.round);
+      const args = [sc.u32(rid), sc.addr(publicKey)];
+      const result =
+        action === "commit"
+          ? await invokeAs(signer.secret, id, "commit_draw", [
+              ...args,
+              sc.bytes(
+                createArisanCommitment({
+                  contractId: id,
+                  roomId: rid,
+                  round: room.round,
+                  participant: publicKey,
+                  secret,
+                })
+              ),
+            ])
+          : await invokeAs(signer.secret, id, "reveal_draw", [
+              ...args,
+              sc.bytes(secret),
+            ]);
+      if (!result.ok)
+        return arisanTransactionFailure(result);
+      submitted++;
+      links.push(txLink(result.hash));
+    }
+    return {
+      ok: true as const,
+      submitted,
+      links,
+      link: links.at(-1),
+    };
+  } catch {
+    return arisanUnavailable();
   }
-  return {
-    ok: true as const,
-    submitted,
-    links,
-    link: links.at(-1),
-  };
 }
 
 export async function arisanFriendsCommit(roomId: number) {
@@ -1114,30 +1269,38 @@ export async function arisanFriendsCommit(roomId: number) {
 }
 
 export async function arisanFriendsReveal(roomId: number, limit = 2) {
-  const safeLimit = Math.max(1, Math.min(2, Math.floor(Number(limit)) || 2));
+  if (typeof limit !== "number" || !Number.isFinite(limit))
+    return { ok: false as const, error: "Invalid reveal limit" };
+  const safeLimit = Math.max(1, Math.min(2, Math.floor(limit) || 2));
   return arisanFriendsDrawAction(roomId, "reveal", safeLimit);
 }
 
 export async function arisanContractBalance() {
+  if (isLocalPreview) return { ready: false as const, error: "Local preview does not read live balances." };
   const id = arisanRoomsId();
   if (!id) return { ready: false as const, error: "Contract not configured" };
   try {
     const raw = await readContract(CONTRACTS.tokenXlmSac, "balance", [sc.addr(id)]);
     return { ready: true as const, stroops: BigInt(raw as number | bigint).toString() };
-  } catch (error) {
+  } catch {
     return {
       ready: false as const,
-      error: error instanceof Error ? error.message : String(error),
+      error: "The room balance could not be read.",
     };
   }
 }
 
 export async function arisanRoomState(roomId: number) {
+  if (isLocalPreview) return { ready: false as const, error: "Local preview does not read live rooms." };
+  if (!validArisanRoomId(roomId)) return { ready: false as const, error: "Invalid room" };
   const id = arisanRoomsId();
   if (!id) return { ready: false as const };
   try {
-    const me = (await getSigner()).publicKey;
-    const rid = Number(roomId);
+    const me = await currentArisanPublicKey();
+    const owner = await authenticatedArisanWallet();
+    const verifiedPersonal = owner.ok && owner.publicKey === me;
+    const personalLabelViewer = verifiedPersonal ? me : null;
+    const rid = roomId;
     const room = await readArisanRoom(id, rid);
     const members =
       ((await readContract(id, "get_members", [sc.u32(rid)])) as string[]) ||
@@ -1185,11 +1348,11 @@ export async function arisanRoomState(roomId: number) {
         ]);
         return {
           addr,
-          label: arisanLabelOf(addr, me),
+          label: arisanLabelOf(addr, personalLabelViewer),
           won,
           committed,
           revealed,
-          isYou: addr === me,
+          isYou: verifiedPersonal && addr === me,
         };
       })
     );
@@ -1216,7 +1379,7 @@ export async function arisanRoomState(roomId: number) {
         winners.push({
           round: r,
           addr,
-          label: arisanLabelOf(addr, me),
+          label: arisanLabelOf(addr, personalLabelViewer),
           ts,
         });
       } catch {
@@ -1226,8 +1389,9 @@ export async function arisanRoomState(roomId: number) {
 
     const cadenceSecs = ARISAN_CADENCE_SECS[room.cadence];
     const pot = room.shareStroops * BigInt(room.memberTarget);
-    const isMember = members.includes(me);
-    const isHost = room.host === me;
+    const isMember = verifiedPersonal && me !== null && members.includes(me);
+    const isHost = verifiedPersonal && room.host === me;
+    const canUseDemoFriends = verifiedPersonal && isHost;
     const seatsFull = seats.length >= room.memberTarget;
     const startWindowOpen = Math.floor(Date.now() / 1000) < room.firstKocok;
     const mySeat = seats.find((seat) => seat.isYou);
@@ -1236,15 +1400,19 @@ export async function arisanRoomState(roomId: number) {
     return {
       ready: true as const,
       id: rid,
+      viewer: me,
+      viewerIdentity: verifiedPersonal ? "personal" as const : "unverified" as const,
       name: room.name,
       code: isMember ? room.code : null,
       host: room.host,
-      hostLabel: arisanLabelOf(room.host, me),
+      hostLabel: arisanLabelOf(room.host, personalLabelViewer),
       cadence: room.cadence,
       cadenceSecs,
       memberTarget: room.memberTarget,
       memberCount: room.memberCount,
       sharePesos: stroopsToPesos(room.shareStroops),
+      shareStroops: room.shareStroops.toString(),
+      depositStroops: (room.shareStroops * BigInt(room.memberTarget)).toString(),
       sharePeso: fmtPeso(stroopsToPesos(room.shareStroops)),
       potPesos: stroopsToPesos(pot),
       potPeso: fmtPeso(stroopsToPesos(pot)),
@@ -1263,93 +1431,36 @@ export async function arisanRoomState(roomId: number) {
       winners,
       isMember,
       isHost,
+      canUseDemoFriends,
       readyToStart:
         isHost && room.status === "Open" && seatsFull && startWindowOpen,
       canCommit:
         drawPhase === "Commit" && !!mySeat && !mySeat.won && !mySeat.committed,
       canReveal:
         drawPhase === "Reveal" && !!mySeat?.committed && !mySeat.revealed,
-      canFinalize: drawPhase === "Finalizable",
+      canFinalize: isMember && drawPhase === "Finalizable",
     };
-  } catch (e) {
+  } catch {
     return {
       ready: false as const,
-      error: e instanceof Error ? e.message : String(e),
+      error: "Room state could not be read. Please retry.",
     };
   }
 }
 
-// ── Salapi Circles waitlist (Build-Award preview) ─────────────────────────
-// NO on-chain transfer. Persists a pledge to public.circles_waitlist when
-// Supabase service-role is configured; otherwise logs to the server console
-// and returns ok so the preview UI keeps working in dev / unconfigured envs.
-// Schema: web/supabase/circles_waitlist.sql.
+// Salapi Circles launch subscription. No on-chain transfer or donor badge.
+// Consent and verified account email are checked again inside the server helper.
+// Success means the request was persisted, never a simulated success fallback.
 export async function joinCirclesWaitlist(input: {
-  email: string;
+  email?: string;
+  expectedOwnerId?: string;
   circleId: string;
   locale: string;
   pesoPledge: number;
   anonymous: boolean;
+  notifyOk: boolean;
   marketingOk: boolean;
-}): Promise<{ ok: true } | { ok: false; error: string }> {
-  if (isLocalPreview) return { ok: false, error: "Local preview does not submit waitlist details." };
-  // Server Functions are reachable via direct POST per Next 16 docs, so any
-  // assumption about the shape of `input` must be defended at runtime.
-  if (!input || typeof input !== "object")
-    return { ok: false, error: "Invalid request." };
-  const email = (input.email ?? "").trim().toLowerCase();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
-    return { ok: false, error: "Enter a valid email." };
-  if (email.length > 200)
-    return { ok: false, error: "Email is too long." };
-
-  const circleId =
-    typeof input.circleId === "string" && input.circleId.length <= 120
-      ? input.circleId
-      : null;
-  const locale =
-    typeof input.locale === "string" && input.locale.length <= 8
-      ? input.locale
-      : null;
-  const pesoPledge =
-    Number.isFinite(input.pesoPledge) && input.pesoPledge >= 0
-      ? Math.min(10_000_000, Math.floor(input.pesoPledge))
-      : 0;
-  const anonymous = Boolean(input.anonymous);
-  const marketingOk = Boolean(input.marketingOk);
-
-  // Graceful fallback when Supabase is not configured (local dev without
-  // .env.local, or an environment without the service-role key): log it and
-  // return ok so the preview flow stays clickable end-to-end.
-  if (!supabaseAdminConfigured()) {
-    // Note: deliberately omit `email` (PII) from this preview-fallback log.
-    console.log("[circles/waitlist] (preview, no Supabase configured)", {
-      circleId,
-      pesoPledge,
-      anonymous,
-      marketingOk,
-      locale,
-    });
-    return { ok: true };
-  }
-
-  try {
-    const admin = createSupabaseAdmin();
-    const { error } = await admin.from("circles_waitlist").insert({
-      email,
-      circle_id: circleId,
-      peso_pledge: pesoPledge,
-      anonymous,
-      marketing_ok: marketingOk,
-      locale,
-    });
-    if (error) {
-      console.error("[circles/waitlist] insert failed:", error.message);
-      return { ok: false, error: "Couldn't save right now. Please try again." };
-    }
-    return { ok: true };
-  } catch (e) {
-    console.error("[circles/waitlist] unexpected error:", e);
-    return { ok: false, error: "Couldn't save right now. Please try again." };
-  }
+}) {
+  const { saveCirclesLaunchSubscription } = await import("@/lib/server/circlesSignup");
+  return saveCirclesLaunchSubscription(input);
 }

@@ -1,5 +1,4 @@
-import { readFileSync, mkdirSync } from "node:fs";
-import { join } from "node:path";
+import { readFileSync } from "node:fs";
 import { test, expect, type Page } from "@playwright/test";
 import { circlesCopy } from "../lib/i18n/revamp-circles";
 import { homeCatalogCopy } from "../lib/i18n/revamp-home-catalog";
@@ -9,7 +8,6 @@ import type { Locale } from "../lib/i18n/config";
 // live-user transaction proof. Main's actual API verification is separate.
 // Quotes and native balances below are clearly isolated UI test doubles. The
 // actual walletState failure is verified first; no login, funding or transfer.
-const output = "C:/Users/Lenovo/AppData/Local/Temp/salapi-coingecko-20261007-qa";
 const fixtureWallet = { address: "GAKZLTZFGSSM372XUKW2ZIJ5GSHVVIW5BYZIKIXRW2BW4MM6TUI5536Y", pesos: 65000, pesoLabel: "Isolated legacy nominal", nativeStroops: "100000000000" };
 
 function quote(now: number, price = .25, status: "fresh" | "stale" = "fresh", ageMs = 0) {
@@ -72,7 +70,7 @@ async function openHome(page: Page) {
 test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () => {
   test.beforeEach(({ baseURL }) => test.skip(!["localhost", "127.0.0.1", "[::1]"].includes(new URL(baseURL!).hostname), "Local price/wallet fixtures never target live deployments"));
 
-  test("fresh native balance estimate, expandable references and manual price change", async ({ page }) => {
+  test("fresh native balance estimate, expandable references and manual price change", async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 390, height: 740 });
     let price = .25;
     const fixture = await setup(page, () => quote(Date.now(), price));
@@ -93,8 +91,7 @@ test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () =>
     const footerRect = await footer.boundingBox(); expect(footerRect).not.toBeNull();
     expect(footerRect!.y + footerRect!.height).toBeLessThanOrEqual(usableBottom + 1);
     expect(await page.locator("#app-content").evaluate(node => node.scrollTop)).toBe(0);
-    mkdirSync(output, { recursive: true });
-    await page.screenshot({ path: join(output, "market-mobile-fresh-fit.png"), fullPage: false });
+    await page.screenshot({ path: testInfo.outputPath("market-mobile-fresh-fit.png"), fullPage: false });
     const summary = market.getByLabel("CoinGecko prices", { exact: true });
     expect((await summary.boundingBox())!.height).toBeGreaterThanOrEqual(24);
     await summary.click();
@@ -109,8 +106,7 @@ test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () =>
     await expect(market).toContainText("XLM $0.30 · USDC $0.9998");
     expect(fixture.calls.quotes).toBe(2); expect(fixture.calls.walletFailuresVerified).toBe(1);
     expect(fixture.calls.forbidden).toEqual([]); expect(fixture.errors).toEqual([]);
-    mkdirSync(output, { recursive: true });
-    await page.screenshot({ path: join(output, "market-mobile-manual-refresh.png"), fullPage: false });
+    await page.screenshot({ path: testInfo.outputPath("market-mobile-manual-refresh.png"), fullPage: false });
   });
 
   test("automatic 60-second price movement updates without refetching the native balance", async ({ page }) => {
@@ -126,7 +122,7 @@ test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () =>
     expect(fixture.calls.forbidden).toEqual([]); expect(fixture.errors).toEqual([]);
   });
 
-  test("stale last price is explicit, expired quotes disappear and unavailable never becomes zero", async ({ page }) => {
+  test("stale last price is explicit, expired quotes disappear and unavailable never becomes zero", async ({ page }, testInfo) => {
     let now = Date.now(), body: object = quote(now, .25, "stale", 121_000);
     await page.clock.install({ time: new Date(now) });
     const fixture = await setup(page, () => body);
@@ -146,8 +142,7 @@ test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () =>
     await expect(market.getByRole("status")).not.toContainText("$0");
     await expect(market.getByText("10000 Native Testnet XLM", { exact: true })).toBeVisible();
     expect(fixture.calls.forbidden).toEqual([]); expect(fixture.errors).toEqual([]);
-    mkdirSync(output, { recursive: true });
-    await page.screenshot({ path: join(output, "market-unavailable-expired.png"), fullPage: false });
+    await page.screenshot({ path: testInfo.outputPath("market-unavailable-expired.png"), fullPage: false });
   });
 
   test("missing configuration is truthful and does not fall back to old fixed valuation", async ({ page }) => {
@@ -166,7 +161,7 @@ test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () =>
   ];
   for (const { state, locale, viewport } of fitCases) test.describe(`${locale} ${viewport.width}x${viewport.height} ${state} market-state fit`, () => {
     test.use({ viewport, isMobile: viewport.width < 1024, hasTouch: viewport.width < 1024 });
-    test(`full Home footer fits at ${viewport.width}x${viewport.height} with ${state} price status`, async ({ page }) => {
+    test(`full Home footer fits at ${viewport.width}x${viewport.height} with ${state} price status`, async ({ page }, testInfo) => {
       // The production app frame is shorter than its desktop browser viewport.
       // Include the longer localized unavailable copy, not only short USD text.
       const body = () => state === "unavailable"
@@ -193,8 +188,7 @@ test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () =>
         catalog.getByRole("button", { name: homeCatalogCopy(locale, "Previous example cause"), exact: true }),
         catalog.getByRole("button", { name: homeCatalogCopy(locale, "Next example cause"), exact: true }),
       ];
-      mkdirSync(output, { recursive: true });
-      await page.screenshot({ path: join(output, viewport.width === 1280 ? `market-desktop-${state}-home-fit.png` : `market-mobile-${locale}-${state}-home-fit.png`), fullPage: false });
+      await page.screenshot({ path: testInfo.outputPath(viewport.width === 1280 ? `market-desktop-${state}-home-fit.png` : `market-mobile-${locale}-${state}-home-fit.png`), fullPage: false });
       expect(geometry.scrollTop).toBe(0); expect(geometry.documentScrollTop).toBe(0);
       for (const control of footerControls) {
         await expect(control).toBeVisible();
@@ -209,7 +203,7 @@ test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () =>
     });
   });
 
-  test("Withdraw separates market estimate from fixed demo limit without submitting a withdrawal", async ({ page }) => {
+  test("Withdraw separates market estimate from fixed demo limit without submitting a withdrawal", async ({ page }, testInfo) => {
     const fixture = await setup(page, () => quote(Date.now()));
     await page.goto("/withdraw", { waitUntil: "domcontentloaded" });
     await expect(page).toHaveURL(/\/withdraw$/); await expect(page).toHaveTitle(/Salapi/);
@@ -223,11 +217,10 @@ test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () =>
     await main.getByRole("button", { name: "Max", exact: true }).click();
     await expect(main.locator("#withdraw-amount")).toHaveValue("1120.68");
     expect(fixture.calls.walletFailuresVerified).toBe(1); expect(fixture.calls.forbidden).toEqual([]); expect(fixture.errors).toEqual([]);
-    mkdirSync(output, { recursive: true });
-    await page.screenshot({ path: join(output, "market-withdraw-demo-limit.png"), fullPage: false });
+    await page.screenshot({ path: testInfo.outputPath("market-withdraw-demo-limit.png"), fullPage: false });
   });
 
-  for (const width of [320, 390, 1280]) test(`independent IDR display currency and expanded details have no overflow at ${width}px`, async ({ page }) => {
+  for (const width of [320, 390, 1280]) test(`independent IDR display currency and expanded details have no overflow at ${width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: width === 1280 ? 800 : 844 });
     const fixture = await setup(page, () => quote(Date.now()), "id");
     const market = await openHome(page);
@@ -245,6 +238,6 @@ test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () =>
     expect(geometry.valueOverflow).toBeLessThanOrEqual(geometry.valueWidth + 1);
     expect(geometry.left).toBeGreaterThanOrEqual(geometry.frameLeft); expect(geometry.right).toBeLessThanOrEqual(geometry.frameRight);
     expect(fixture.calls.forbidden).toEqual([]); expect(fixture.errors).toEqual([]);
-    if (width !== 320) { mkdirSync(output, { recursive: true }); await page.screenshot({ path: join(output, `market-idr-${width}.png`), fullPage: false }); }
+    if (width !== 320) await page.screenshot({ path: testInfo.outputPath(`market-idr-${width}.png`), fullPage: false });
   });
 });

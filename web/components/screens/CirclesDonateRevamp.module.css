@@ -15,6 +15,10 @@
 .cause > div { flex: 1; min-width: 0; }
 .cause h2 { font-size: 17px; font-weight: 750; line-height: 1.25; letter-spacing: -.025em; overflow-wrap: anywhere; text-wrap: pretty; }
 .cause p { margin-top: 5px; color: #586985; font-size: 10px; line-height: 1.45; }
+.chainBoundary { padding: 12px 14px; margin-bottom: 12px; border-radius: 13px; background: #e9eff8; }
+.chainBoundary strong { display: block; color: #344e76; font-size: 12px; line-height: 1.5; }
+.chainBoundary p { margin-top: 5px; color: #586985; font-size: 11px; line-height: 1.6; }
+.chainBoundary a { display: flex; align-items: center; justify-content: space-between; min-height: 44px; margin-top: 3px; color: #2563eb; font-size: 12px; font-weight: 650; }
 .organizerLink { display: inline-flex; align-items: center; gap: 6px; min-width: 44px; min-height: 44px; color: #2563eb; font-size: 11px; font-weight: 650; line-height: 1.4; border-radius: 7px; }
 .organizerLink > span { overflow-wrap: anywhere; }
 .organizerLink > svg { flex-shrink: 0; }
@@ -82,6 +86,7 @@
 .checks input:checked { border-color: #2563eb; background: #2563eb; }
 .checks input:checked::after { content: "✓"; display: block; color: #fff; font-size: 24px; text-align: center; line-height: 41px; }
 .checks input:disabled { cursor: not-allowed; opacity: .55; }
+.notifyConsent { padding: 12px; border-radius: 12px; background: #f2efe7; color: #142440; font-weight: 550; }
 .card .action { margin-top: 15px; }
 .error { padding: 11px 12px; margin: 11px 0; border-radius: 11px; background: #fbeae8; color: #b91c1c; font-size: 12px; line-height: 1.5; }
 .success { padding: 17px 16px; margin-top: 12px; border: 1px solid #cce8dd; border-radius: 18px; background: #e8f5f0; color: #1e6850; font-size: 13px; line-height: 1.5; }

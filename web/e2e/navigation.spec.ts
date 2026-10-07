@@ -46,7 +46,9 @@ async function renderedRoute(page: Page) {
   } else if (pathname === "/settings/language") {
     await visible(main.getByRole("button", { name: /^English/ }));
   } else if (pathname === "/receive") {
-    await visible(main.getByText(/^(Share your username or scan this code to receive Testnet XLM\.|Try receiving with your example username in this local preview\.)$/));
+    await visible(main.locator("header").getByText("Receive", { exact: true }));
+    await visible(main.getByText("Sign in to receive Testnet XLM in your personal wallet.", { exact: true }));
+    await expect(main.getByRole("button", { name: "Share", exact: true })).toBeDisabled();
   } else {
     const titles: Record<string, string> = { "/vaults": "Vaults", "/learn": "Clear rules. Confident steps.", "/settings": "You", "/activity": "Activity", "/send": "Send by name.", "/withdraw": "Plan your cash out." };
     expect(titles[pathname], "Route has a rendered-screen readiness assertion").toBeDefined();

@@ -230,8 +230,22 @@ export default function CircleDetailScreen({ circle, initialTab = "story" }: {
     </section>}
 
     {tab === "proof" && <section key="proof" id="circle-panel-proof" role="tabpanel" tabIndex={0} aria-labelledby="circle-tab-proof" className={`${styles.panel} sl-state-enter`}>
-      <span className={styles.eyebrow}>{c("Example proof notes")}</span><h2>{c("Mock documents, not verified evidence")}</h2>
+      <div className={styles.proofHeading}><div><span className={styles.eyebrow}>{c("Public proof")}</span><h2>{c("Trace the evidence, step by step")}</h2></div>
+        <span className={styles.proofStatus}>{c("Not verified")}</span></div>
       <p>{c("This fictional cause has no on-chain receipt. Its planning, spending and delivery notes are synthetic examples.")}</p>
+      <div className={styles.proofBoundary}><strong>{c("No on-chain campaign linked")}</strong>
+        <p>{c("A real D4 campaign ID, locked recipients and confirmed transactions must be linked before this cause can accept Testnet donations or award a donor badge.")}</p></div>
+      <ol className={styles.proofPipeline} aria-label={c("Evidence and approval pipeline")}>
+        <li><span className={styles.proofNumber} aria-hidden="true">1</span><div><h3>{c("Campaign photos")}</h3><p>{c("Available as AI illustrations only. Not organizer uploads or delivery evidence.")}</p><span>{c("Example only")}</span></div></li>
+        <li><span className={styles.proofNumber} aria-hidden="true">2</span><div><h3>{c("Receipts and delivery documents")}</h3><p>{c("No actual receipt or beneficiary confirmation has been submitted for this concept.")}</p><span>{c("Not submitted")}</span></div></li>
+        <li><span className={styles.proofNumber} aria-hidden="true">3</span><div><h3>{c("Public proof URL and hash")}</h3><p>{c("No evidence hash or confirmed transaction exists. A launch signup is not an on-chain receipt.")}</p><span>{c("Not anchored on-chain")}</span></div></li>
+        <li><span className={styles.proofNumber} aria-hidden="true">4</span><div><h3>{c("Wallet approvals and release")}</h3><p>{c("No approval request or payout exists for this concept. D4 separately requires its configured wallets to approve submitted proof before release.")}</p><span>{c("Not requested")}</span></div></li>
+      </ol>
+      {circle.gallery && circle.gallery.length > 0 && <section className={styles.proofPhotos} aria-labelledby="circle-proof-photos-title">
+        <h3 id="circle-proof-photos-title">{c("Illustrative photo context")}</h3>
+        <div>{circle.gallery.map(photo => <figure key={photo.src}><div><ExampleImage circle={circle} src={photo.src} /></div><figcaption>{c("AI illustration · not proof")}</figcaption></figure>)}</div>
+      </section>}
+      <h3 className={styles.separateHeading}>{c("Mock documents, not verified evidence")}</h3>
       <div className={styles.documentList}>{updates.filter(update => update.proofLabel).map(update => <details key={update.id} className={styles.document}>
         <summary><span aria-hidden="true">{Ico.link({ size: 18, c: T.action })}</span><div><strong>{update.proofLabel}</strong><small>{exampleDate(update.date, locale)} {c("· Example document")}</small></div>
           <span className={styles.expandIcon} aria-hidden="true">{Ico.chev({ size: 16, c: T.slate })}</span></summary>

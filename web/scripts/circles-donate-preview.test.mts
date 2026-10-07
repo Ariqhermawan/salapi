@@ -10,6 +10,7 @@ import { isLocale, type Locale } from "../lib/i18n/config.ts";
 import type { Circle } from "../lib/circles/types.ts";
 import type { LocalSupportRecord } from "../lib/circles/local-support.ts";
 import * as revampCircles from "../lib/i18n/revamp-circles.ts";
+import type { SignupIdentityState } from "../lib/ui/useCirclesSignupIdentity.ts";
 
 type Element = { type: string; props: Record<string, unknown> };
 type Component = { default(props: { circle: Circle }): Element };
@@ -42,7 +43,7 @@ const profiles = fixture("../lib/circles/organizers.ts");
 // Run real handlers, allocation and session writer. Only isolated in-memory
 // sessionStorage is permitted. Network, durable storage, navigation and real
 // signup boundaries fail closed. A supplied action result remains a VM stub.
-function setup(options: { currency?: Locale; locale?: Locale; circleId?: string; preview?: boolean; storageMode?: StorageMode; joinResult?: { ok: boolean; error?: string } } = {}) {
+function setup(options: { currency?: Locale; locale?: Locale; circleId?: string; preview?: boolean; storageMode?: StorageMode; identity?: SignupIdentityState; joinResult?: { ok: boolean; error?: string; kind?: string; persisted?: boolean } } = {}) {
   let currency = options.currency ?? "tl";
   const locale = options.locale ?? "en";
   const preview = options.preview ?? true;
@@ -97,6 +98,14 @@ function setup(options: { currency?: Locale; locale?: Locale; circleId?: string;
   const component = {} as Component;
   const jsx = (type: unknown, props: Record<string, unknown>): Element => typeof type === "function" ? type(props) : { type: String(type), props };
   const icons = new Proxy({}, { get: () => () => null });
+  const signupEmail = {} as { default(props: unknown): Element };
+  runInNewContext(transpile("../components/CirclesSignupEmail.tsx", true), { exports: signupEmail, require(name: string) {
+    if (name === "react/jsx-runtime") return { jsx, jsxs: jsx, Fragment: "Fragment" };
+    if (name === "@/components/I18nProvider") return { useT: () => ({ locale }) };
+    if (name === "@/lib/i18n/revamp-circles") return revampCircles;
+    if (name.endsWith(".module.css")) return { default: {} };
+    throw Error(`Unexpected signup field dependency: ${name}`);
+  } });
   runInNewContext(componentCode, {
     ...context, exports: component,
     require(name: string) {
@@ -117,6 +126,8 @@ function setup(options: { currency?: Locale; locale?: Locale; circleId?: string;
       if (name === "@/components/ui/ExampleOrganizerAvatar") return { default: "ExampleOrganizerAvatar" };
       if (name === "@/components/I18nProvider") return { useT: () => ({ currency, locale }) };
       if (name === "@/lib/i18n/revamp-circles") return revampCircles;
+      if (name === "@/components/CirclesSignupEmail") return signupEmail;
+      if (name === "@/lib/ui/useCirclesSignupIdentity") return { useCirclesSignupIdentity: () => ({ identity: options.identity ?? { status: "guest" }, refresh: () => {}, captureOwnerRevision: () => 0, isCurrentOwner: () => true }) };
       if (name === "@/components/ui/kit") return { T: {}, Ico: icons, PoweredByStellar: "PoweredByStellar" };
       if (name === "@/lib/ui/useGoBack") return { useGoBack: () => forbidden("navigation") };
       if (name === "@/lib/ui/currency") return { CURRENCY, formatLocalAmount, localAmount, pesoFromLocal };
@@ -153,15 +164,17 @@ function setup(options: { currency?: Locale; locale?: Locale; circleId?: string;
     calls, joinPayloads, supports, get tree() { return tree; }, input, button,
     amount(value: string) { (input("circle-preview-amount").props.onChange as (event: unknown) => void)({ target: { value } }); tree = render(); },
     email(value: string) { (input("circle-launch-email").props.onChange as (event: unknown) => void)({ target: { value } }); tree = render(); },
+    notify(value = true) { (input("circle-launch-notify").props.onChange as (event: unknown) => void)({ target: { checked: value } }); tree = render(); },
     anonymous(value: boolean) { (input("circle-demo-anonymous").props.onChange as (event: unknown) => void)({ target: { checked: value } }); tree = render(); },
     comment(value: string) { const field = nodes(tree).find(node => node.type === "textarea" && node.props.id === "circle-demo-comment"); assert.ok(field); (field.props.onChange as (event: unknown) => void)({ target: { value } }); tree = render(); },
     currency(value: Locale) { currency = value; tree = render(); }, storageMode(value: StorageMode) { storageMode = value; },
     async invoke(handler: () => void) { handler(); await settle(); },
     async click(label: string) { (button(label).props.onClick as () => void)(); await settle(); },
-    async submit() {
+    async submit(count = 1) {
       const form = nodes(tree).find(node => node.type === "form");
       assert.ok(form, "Missing signup form");
-      (form.props.onSubmit as (event: unknown) => void)({ preventDefault() {} }); await settle();
+      for (let index = 0; index < count; index++) (form.props.onSubmit as (event: unknown) => void)({ preventDefault() {} });
+      await settle();
     },
   };
 }
@@ -196,7 +209,7 @@ function noExternalEffects(calls: ReturnType<typeof setup>["calls"]) {
 function noWrites(calls: ReturnType<typeof setup>["calls"]) { noExternalEffects(calls); assert.equal(calls.writes, 0); assert.equal(calls.reads, 0); }
 function hasForm(tree: Element) { return nodes(tree).some(node => node.type === "form"); }
 function saved(tree: Element) { return nodes(tree).some(node => node.type === "SuccessMotion" && /Local donation demo saved/.test(String(node.props.title))); }
-function signupDone(tree: Element) { return nodes(tree).some(node => node.props.role === "status" && /signup (complete|request was processed)/.test(text(node))); }
+function signupDone(tree: Element) { return nodes(tree).some(node => node.props.role === "status" && /signup complete|subscription is saved/.test(text(node))); }
 function supportedLink(tree: Element) { return nodes(tree).some(node => node.type === "Link" && node.props.href === "/circles/supported"); }
 
 test("zero-percent allocation uses entered nominal with no early storage or network access", () => {
@@ -268,11 +281,13 @@ test("completed examples cannot enter local review by invoking their disabled ha
   await screen.click("Review local donation"); assert.equal(saved(screen.tree), false);
   assert.ok(nodes(screen.tree).some(node => node.props.role === "alert" && /example is complete/.test(text(node)))); noWrites(screen.calls);
 });
-test("optional local signup defaults both opt-ins false and never calls action, storage or network", async () => {
+test("optional local signup defaults every opt-in false and requires an explicit choice without action, storage or network", async () => {
   const screen = setup({ circleId: "ate-mei-dialysis" }); screen.amount("100"); await screen.click("Optional launch signup");
   const optIns = nodes(screen.tree).filter(node => node.type === "input" && node.props.type === "checkbox");
-  assert.equal(optIns.length, 2); assert.ok(optIns.every(node => node.props.checked === false));
+  assert.equal(optIns.length, 3); assert.ok(optIns.every(node => node.props.checked === false));
   screen.email("qa@example.invalid"); await screen.submit();
+  assert.equal(signupDone(screen.tree), false); noWrites(screen.calls);
+  screen.notify(); await screen.submit();
   assert.equal(signupDone(screen.tree), true); assert.equal(saved(screen.tree), false); assert.equal(supportedLink(screen.tree), false);
   assert.equal(hasForm(screen.tree), false); assert.deepEqual(allocation(screen.tree), expected("tl", 95, 5, 5)); noWrites(screen.calls);
 });
@@ -285,12 +300,12 @@ test("invalid email cannot complete either signup branch or reach a side-effect 
   }
 });
 test("non-preview Continue preserves the signup payload and never writes local support", async () => {
-  const screen = setup({ preview: false, currency: "en", circleId: "ate-mei-dialysis", joinResult: { ok: true } }); screen.amount("10.01");
+  const screen = setup({ preview: false, currency: "en", circleId: "ate-mei-dialysis", joinResult: { ok: true, kind: "launch-subscription", persisted: true } }); screen.amount("10.01");
   const before = allocation(screen.tree); await screen.click("Continue to optional signup"); assert.deepEqual(allocation(screen.tree), before);
   await screen.click("Change amount"); assert.equal(screen.input("circle-preview-amount").props.value, "10.01");
-  await screen.click("Continue to optional signup"); screen.email("qa@example.invalid"); await screen.submit();
+  await screen.click("Continue to optional signup"); screen.email("qa@example.invalid"); screen.notify(); await screen.submit();
   assert.equal(screen.calls.joins, 1);
-  assert.deepEqual(JSON.parse(JSON.stringify(screen.joinPayloads)), [{ email: "qa@example.invalid", circleId: "ate-mei-dialysis", locale: "en", pesoPledge: pesoFromLocal(10.01, "en"), anonymous: false, marketingOk: false }]);
+  assert.deepEqual(JSON.parse(JSON.stringify(screen.joinPayloads)), [{ email: "qa@example.invalid", circleId: "ate-mei-dialysis", locale: "en", pesoPledge: pesoFromLocal(10.01, "en"), anonymous: false, notifyOk: true, marketingOk: false }]);
   assert.equal(signupDone(screen.tree), true); assert.equal(saved(screen.tree), false); assert.equal(supportedLink(screen.tree), false);
   assert.equal(screen.calls.writes, 0); assert.equal(screen.calls.reads, 0); assert.equal(screen.calls.network, 0);
   assert.equal(screen.calls.persistentStorage, 0); assert.equal(screen.calls.navigation, 0);
@@ -298,7 +313,7 @@ test("non-preview Continue preserves the signup payload and never writes local s
 test("non-preview action errors cannot claim processed signup or a saved donation", async () => {
   for (const joinResult of [undefined, { ok: false, error: "Isolated rejected request" }]) {
     const screen = setup({ preview: false, joinResult }); await screen.click("Continue to optional signup");
-    screen.email("qa@example.invalid"); await screen.submit(); assert.equal(signupDone(screen.tree), false); assert.equal(saved(screen.tree), false);
+    screen.email("qa@example.invalid"); screen.notify(); await screen.submit(); assert.equal(signupDone(screen.tree), false); assert.equal(saved(screen.tree), false);
     assert.equal(hasForm(screen.tree), true); assert.ok(nodes(screen.tree).some(node => node.props.role === "alert"));
     assert.equal(screen.calls.joins, 1); assert.equal(screen.calls.writes, 0); assert.equal(screen.calls.reads, 0); assert.equal(screen.calls.network, 0);
   }
@@ -341,10 +356,49 @@ test("local review preferences stay unsaved until confirmation and retain anonym
 test("overlong handler input cannot bypass the local comment bound, and live signup never exposes or submits a comment", async () => {
   const local = setup(); await local.click("Review local donation"); local.comment("x".repeat(301));
   await local.click("Confirm local demo"); assert.equal(saved(local.tree), false); noWrites(local.calls);
-  const live = setup({ preview: false, joinResult: { ok: true } });
+  const live = setup({ preview: false, joinResult: { ok: true, kind: "launch-subscription", persisted: true } });
   await live.click("Continue to optional signup");
   assert.equal(nodes(live.tree).some(node => node.props.id === "circle-demo-comment" || node.props.id === "circle-demo-anonymous"), false);
-  live.email("qa@example.invalid"); await live.submit();
+  live.email("qa@example.invalid"); live.notify(); await live.submit();
   assert.equal(Object.hasOwn(live.joinPayloads[0] as object, "comment"), false);
   assert.equal(live.calls.writes, 0); assert.equal(live.calls.reads, 0);
+});
+
+test("verified Google email needs no manual field and only explicit signup creates a subscription, never a donor badge", async () => {
+  const ownerId = "00000000-0000-4000-8000-000000000001";
+  const screen = setup({ preview: false, identity: { status: "verified", ownerId, email: "google@example.invalid", source: "google" }, joinResult: { ok: true, kind: "launch-subscription", persisted: true } });
+  await screen.click("Continue to optional signup");
+  assert.ok(text(screen.tree).includes("Your verified Google emailgoogle@example.invalid"));
+  assert.equal(nodes(screen.tree).some(node => node.props.id === "circle-launch-email"), false);
+  assert.equal(screen.input("circle-launch-notify").props.checked, false);
+  assert.equal(screen.button("Request launch notification").props.disabled, true);
+  await screen.submit(); assert.equal(screen.calls.joins, 0);
+  screen.notify(); assert.equal(screen.button("Request launch notification").props.disabled, false);
+  await screen.submit(2); assert.equal(screen.calls.joins, 1);
+  const payload = screen.joinPayloads[0] as Record<string, unknown>;
+  assert.equal(payload.expectedOwnerId, ownerId); assert.equal(Object.hasOwn(payload, "email"), false);
+  assert.equal(payload.notifyOk, true); assert.equal(payload.marketingOk, false);
+  assert.equal(signupDone(screen.tree), true); assert.equal(saved(screen.tree), false);
+  assert.match(text(screen.tree), /No donation, Testnet contribution, donor badge or payment receipt was created/);
+  assert.equal(screen.calls.writes, 0); assert.equal(screen.calls.network, 0);
+});
+
+test("loading and unavailable identity cannot expose a manual fallback or bypass a disabled signup", async () => {
+  for (const status of ["loading", "unavailable", "unverified"] as const) {
+    const screen = setup({ preview: false, identity: { status }, joinResult: { ok: true, kind: "launch-subscription", persisted: true } });
+    await screen.click("Continue to optional signup"); screen.notify();
+    assert.equal(nodes(screen.tree).some(node => node.props.id === "circle-launch-email"), false);
+    assert.equal(screen.button("Request launch notification").props.disabled, true);
+    await screen.submit(); assert.equal(signupDone(screen.tree), false); noWrites(screen.calls);
+    assert.ok(nodes(screen.tree).some(node => node.props.role === "alert"));
+  }
+});
+
+test("an unconfirmed ok response cannot claim saved subscription or donate to a prototype", async () => {
+  for (const joinResult of [{ ok: true }, { ok: true, kind: "donation", persisted: true }, { ok: true, kind: "launch-subscription", persisted: false }]) {
+    const screen = setup({ preview: false, joinResult }); await screen.click("Continue to optional signup");
+    screen.email("qa@example.invalid"); screen.notify(); await screen.submit();
+    assert.equal(signupDone(screen.tree), false); assert.equal(saved(screen.tree), false); assert.equal(screen.calls.joins, 1);
+    assert.match(text(screen.tree), /signup result could not be confirmed/); assert.equal(screen.calls.writes, 0);
+  }
 });

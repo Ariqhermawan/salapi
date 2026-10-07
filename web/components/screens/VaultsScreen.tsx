@@ -145,6 +145,12 @@ const choices = [
 export default function VaultsScreen() {
   const { currency, locale } = useT();
   const cardCopy = campaignCardCopy[locale] ?? campaignCardCopy.en;
+  const vaultCopy = {
+    en: { title: "Rooms and campaigns", sub: "Rooms, campaigns and public pools. Shared demo data is not a personal account.", loading: "Loading rooms and campaigns" },
+    tl: { title: "Mga room at kampanya", sub: "Mga room, kampanya at pampublikong pool. Ang shared demo data ay hindi personal na account.", loading: "Nilo-load ang mga room at kampanya" },
+    id: { title: "Room dan campaign", sub: "Room, campaign dan pool publik. Data demo bersama bukan akun pribadi.", loading: "Memuat room dan campaign" },
+    vi: { title: "Phòng và chiến dịch", sub: "Phòng, chiến dịch và quỹ công khai. Dữ liệu demo dùng chung không phải tài khoản cá nhân.", loading: "Đang tải phòng và chiến dịch" },
+  }[locale];
   const [rooms, setRooms] = useState<Rooms | null>(
     PREVIEW ? previewRooms : null,
   );
@@ -291,9 +297,9 @@ export default function VaultsScreen() {
         <span>No real money</span>
         {PREVIEW && <strong>Example data</strong>}
       </div>
-      <section className={styles.warmSection} aria-label="Your vaults" aria-busy={loading}>
+      <section className={styles.warmSection} aria-label={vaultCopy.title} aria-busy={loading}>
         <div className={styles.sectionHeading}>
-          <h2>Your vaults</h2>
+          <h2>{vaultCopy.title}</h2>
           <button
             type="button"
             className={styles.textButton}
@@ -304,12 +310,12 @@ export default function VaultsScreen() {
           </button>
         </div>
         <p className={styles.sectionCopy}>
-          Rooms and recent campaigns you take part in.
+          {vaultCopy.sub}
         </p>
         {loading && !hasVaults ? (
           <div
             role="status"
-            aria-label="Loading your vaults"
+            aria-label={vaultCopy.loading}
             className={styles.loadingGrid}
           >
             <div className={styles.skeleton} />

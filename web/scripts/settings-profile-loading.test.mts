@@ -59,7 +59,7 @@ const forbidden = () => { throw new Error("Unexpected external or mutation bound
 
 function loadScreen({
   locale = "en", preview = false, configured = true, clientThrows = false, hooks = React,
-  settingsHandle = forbidden, walletState = forbidden, getUser = forbidden,
+  settingsHandle = forbidden, walletState = forbidden, getUser = forbidden, routerPush = forbidden,
 }: {
   locale?: Locale;
   preview?: boolean;
@@ -69,6 +69,7 @@ function loadScreen({
   settingsHandle?: () => Promise<HandleResult>;
   walletState?: () => Promise<WalletResult>;
   getUser?: () => Promise<AuthResult>;
+  routerPush?: (path: string) => void;
 } = {}) {
   const screen = {} as { default: React.ComponentType };
   const box = (props: Record<string, unknown>) => React.createElement("div", null,
@@ -85,7 +86,7 @@ function loadScreen({
       if (dependency === "react/jsx-runtime") return jsxRuntime;
       if (dependency === "@supabase/supabase-js") return { isAuthSessionMissingError };
       if (dependency === "next/image") return { default: (props: { alt: string }) => React.createElement("span", null, props.alt) };
-      if (dependency === "next/navigation") return { useRouter: () => ({ push: forbidden }) };
+      if (dependency === "next/navigation") return { useRouter: () => ({ push: routerPush }) };
       if (dependency === "@/components/I18nProvider") return { useT: () => ({ locale, currency: "en", currencyPref: "en", t: (key: string) => translate(locale, key) }) };
       if (dependency === "@/components/AccountAvatar") return { default: kit.Avatar };
       if (dependency === "@/components/AccountPhotoEditor") return { default: () => null };
@@ -124,6 +125,8 @@ function harness({ locale = "en", preview = false, configured = true, clientThro
   const refs: { current: unknown }[] = [];
   const changes: string[] = [];
   const calls = { handle: 0, wallet: 0, auth: 0 };
+  const routes: string[] = [];
+  let lastTree: React.ReactNode;
   let root = false;
   let stateCursor = 0;
   let refCursor = 0;
@@ -158,18 +161,29 @@ function harness({ locale = "en", preview = false, configured = true, clientThro
     settingsHandle: () => { calls.handle++; return identity.promise; },
     walletState: () => { calls.wallet++; return wallet.promise; },
     getUser: () => { calls.auth++; return auth.promise; },
+    routerPush: (path: string) => { routes.push(path); },
   });
   function UnitRoot() {
     root = true;
     stateCursor = refCursor = 0;
-    try { return (Screen as () => React.ReactNode)(); }
+    try { lastTree = (Screen as () => React.ReactNode)(); return lastTree; }
     finally { root = false; }
   }
   const render = () => renderToStaticMarkup(React.createElement(UnitRoot));
   const mount = () => { if (!capturedEffect) render(); return capturedEffect!(); };
   const snapshot = () => Object.fromEntries(stateNames.map((name, index) => [name, state[index]]));
   const beginSignOut = () => { refs[0].current = true; };
-  return { identity, wallet, auth, render, mount, snapshot, calls, changes, beginSignOut };
+  function openAccountDetails() {
+    function find(node: React.ReactNode): React.ReactElement<Record<string, unknown>> | undefined {
+      if (Array.isArray(node)) return node.map(find).find(Boolean);
+      if (!React.isValidElement<Record<string, unknown>>(node)) return;
+      if (node.type === "button" && "data-profile-state" in node.props) return node;
+      return find(node.props.children as React.ReactNode);
+    }
+    const button = find(lastTree); assert.ok(button); assert.equal(button.props.disabled, false);
+    (button.props.onClick as () => void)();
+  }
+  return { identity, wallet, auth, render, mount, snapshot, calls, changes, beginSignOut, routes, openAccountDetails };
 }
 
 async function flush() { for (let step = 0; step < 6; step++) await Promise.resolve(); }
@@ -188,12 +202,13 @@ for (const locale of LOCALES) test(`${locale}: structured wallet failure retains
   assert.deepEqual(h.calls, { handle: 1, wallet: 1, auth: 1 });
 });
 
-function profileButton(html: string, status: "loading" | "ready" | "error") {
+function profileButton(html: string, status: "loading" | "ready" | "error", locale: Locale = "en") {
   const button = html.match(new RegExp(`<button\\b[^>]*data-profile-state="${status}"[^>]*>`))?.[0];
   assert.ok(button, `Actual profile must render ${status} state`);
   assert.match(button, new RegExp(`aria-busy="${status === "loading"}"`));
-  if (status === "ready") assert.doesNotMatch(button, /\bdisabled=""/);
-  else assert.match(button, /\bdisabled=""/);
+  if (status === "loading") assert.match(button, /\bdisabled=""/);
+  else assert.doesNotMatch(button, /\bdisabled=""/);
+  if (status === "error") assert.ok(button.includes(`aria-label="${accountCopy(locale).accountDetails}"`));
   return button;
 }
 
@@ -405,7 +420,7 @@ for (const locale of LOCALES) {
     h.identity.resolve({ ok: false });
     await flush();
     const html = h.render();
-    profileButton(html, "error");
+    profileButton(html, "error", locale);
     assertNoDefaultIdentity(html, locale);
     assert.ok(html.includes(accountCopy(locale).profileUnavailable));
     assert.ok(html.includes(accountCopy(locale).usernameLoad));
@@ -424,6 +439,17 @@ test("rejected identity lookup leaves an explicit error and no Claim action", as
   profileButton(html, "error");
   assertNoDefaultIdentity(html);
   assert.equal(h.snapshot().loadError, "usernameLoad");
+});
+
+test("username outage still permits the actual Account Details route for photo editing and privacy opt-out", async () => {
+  const h = harness(); h.render(); h.mount();
+  h.identity.resolve({ ok: false });
+  h.auth.resolve({ data: { user: { email: "fixture@example.invalid" } } });
+  h.wallet.resolve({ address: PREVIEW_WALLET.address });
+  await flush(); const html = h.render();
+  profileButton(html, "error"); assertNoDefaultIdentity(html);
+  h.openAccountDetails(); assert.deepEqual(h.routes, ["/settings/account"]);
+  assert.doesNotMatch(source, /<AccountPhotoEditor\b|import AccountPhotoEditor/);
 });
 
 test("wallet failure does not overwrite a verified username or restore generic profile", async () => {

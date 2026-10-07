@@ -6,6 +6,52 @@ import type { CircleCategory } from "../circles/types";
 // Tuple order is Tagalog, Indonesian, Vietnamese. English keys preserve the
 // existing English UI and provide a compile-time complete translation contract.
 export const CIRCLES_COPY = {
+  "Testnet donor": ["Donor sa Testnet", "Donor Testnet", "Người góp Testnet"],
+  "Example donor": ["Halimbawang donor", "Donor contoh", "Người góp mẫu"],
+  "Your example contribution": ["Halimbawang kontribusyon mo", "Kontribusi contoh Anda", "Đóng góp mẫu của bạn"],
+  "Your wallet's recorded contribution": ["Naitalang kontribusyon ng wallet mo", "Kontribusi wallet Anda yang tercatat", "Đóng góp đã ghi nhận của ví bạn"],
+  "Confirmed by this wallet's D4 contract record. Not a fiat donation, KYC check or proof of delivery.": ["Kumpirmado ng tala ng D4 para sa wallet na ito. Hindi donasyong fiat, KYC o patunay ng paghahatid.", "Dikonfirmasi oleh catatan kontrak D4 untuk wallet ini. Bukan donasi fiat, pemeriksaan KYC, atau bukti penyaluran.", "Được xác nhận từ hồ sơ D4 của ví này. Không phải quyên góp fiat, KYC hay bằng chứng giao nhận."],
+  "Browser-only example. No confirmed Testnet donation or donor badge.": ["Halimbawa sa browser lamang. Walang kumpirmadong donasyong Testnet o donor badge.", "Hanya contoh di browser. Tanpa donasi Testnet terkonfirmasi atau lencana donor.", "Chỉ là mẫu trên trình duyệt. Không có đóng góp Testnet xác nhận hay huy hiệu người góp."],
+  "Checking your signed-in email…": ["Sinusuri ang email ng account mo…", "Memeriksa email akun Anda…", "Đang kiểm tra email tài khoản…"],
+  "Email from your verified account": ["Email mula sa na-verify mong account", "Email dari akun terverifikasi Anda", "Email từ tài khoản đã xác minh"],
+  "Your verified Google email": ["Na-verify mong Google email", "Email Google Anda yang terverifikasi", "Email Google đã xác minh của bạn"],
+  "Your verified account email": ["Na-verify mong email ng account", "Email akun Anda yang terverifikasi", "Email tài khoản đã xác minh của bạn"],
+  "No need to enter it again. The server checks this email again when you subscribe.": ["Hindi na kailangang ilagay muli. Susuriin muli ng server ang email kapag nag-subscribe ka.", "Tidak perlu mengetik ulang. Server memeriksa email ini lagi saat Anda berlangganan.", "Không cần nhập lại. Máy chủ kiểm tra lại email khi bạn đăng ký nhận tin."],
+  "Check account again": ["Suriin muli ang account", "Periksa akun lagi", "Kiểm tra lại tài khoản"],
+  "Your account could not be verified. Nothing was saved. Try again.": ["Hindi ma-verify ang account. Walang na-save. Subukan muli.", "Akun Anda tidak dapat diverifikasi. Tidak ada yang disimpan. Coba lagi.", "Không thể xác minh tài khoản. Không lưu gì. Hãy thử lại."],
+  "Verify your account email before subscribing. Nothing was saved.": ["I-verify muna ang email ng account bago mag-subscribe. Walang na-save.", "Verifikasi email akun sebelum berlangganan. Tidak ada yang disimpan.", "Xác minh email tài khoản trước khi đăng ký. Không lưu gì."],
+  "Your signed-in account changed. Review your email and try again.": ["Nagbago ang naka-sign-in na account. Suriin ang email at subukan muli.", "Akun yang login berubah. Tinjau email Anda lalu coba lagi.", "Tài khoản đăng nhập đã thay đổi. Kiểm tra email và thử lại."],
+  "Choose the optional email updates checkbox before subscribing.": ["Piliin ang opsyonal na checkbox para sa email update bago mag-subscribe.", "Centang opsi pembaruan email sebelum berlangganan.", "Chọn ô nhận cập nhật email tùy chọn trước khi đăng ký."],
+  "I want email updates about this campaign concept and the Circles launch. Optional, not a donation.": ["Gusto ko ng email update tungkol sa konseptong ito at paglulunsad ng Circles. Opsyonal, hindi donasyon.", "Saya ingin pembaruan email tentang konsep campaign ini dan peluncuran Circles. Opsional, bukan donasi.", "Tôi muốn nhận email về ý tưởng chiến dịch này và Circles ra mắt. Tùy chọn, không phải quyên góp."],
+  "Your launch subscription is saved.": ["Na-save ang subscription mo sa paglulunsad.", "Langganan kabar peluncuran Anda tersimpan.", "Đăng ký nhận tin ra mắt đã được lưu."],
+  "Only your launch notification preference was saved. No donation, Testnet contribution, donor badge or payment receipt was created.": ["Abiso sa paglulunsad lang ang na-save. Walang donasyon, kontribusyon sa Testnet, donor badge o resibo ng bayad.", "Hanya preferensi kabar peluncuran yang tersimpan. Tidak ada donasi, kontribusi Testnet, lencana donor, atau bukti pembayaran.", "Chỉ lưu tùy chọn tin ra mắt. Không tạo quyên góp, đóng góp Testnet, huy hiệu người góp hay biên nhận thanh toán."],
+  "Your organizer launch subscription is saved. Your draft is not published, and no campaign, donor badge or payment was created.": ["Na-save ang subscription ng organizer sa paglulunsad. Hindi nailathala ang draft at walang kampanya, donor badge o bayad na ginawa.", "Langganan kabar penyelenggara tersimpan. Draf belum diterbitkan, dan tidak ada campaign, lencana donor, atau pembayaran yang dibuat.", "Đã lưu đăng ký nhận tin cho nhà tổ chức. Bản nháp chưa xuất bản, không tạo chiến dịch, huy hiệu hay thanh toán."],
+  "Launch notifications are unavailable. Nothing was saved.": ["Hindi available ang abiso sa paglulunsad. Walang na-save.", "Notifikasi peluncuran belum tersedia. Tidak ada yang disimpan.", "Thông báo ra mắt chưa khả dụng. Không lưu gì."],
+  "The signup could not be saved. Try again. No payment was made.": ["Hindi na-save ang pagpapalista. Subukan muli. Walang bayad na ginawa.", "Pendaftaran tidak dapat disimpan. Coba lagi. Tidak ada pembayaran.", "Không lưu được đăng ký. Hãy thử lại. Không thanh toán."],
+  "Invalid request.": ["Hindi wastong kahilingan.", "Permintaan tidak valid.", "Yêu cầu không hợp lệ."],
+  "Local preview does not submit waitlist details.": ["Hindi nagsusumite ng detalye sa waitlist ang lokal na preview.", "Pratinjau lokal tidak mengirim data daftar tunggu.", "Bản xem trước cục bộ không gửi thông tin danh sách chờ."],
+  "Donation availability": ["Availability ng donasyon", "Ketersediaan donasi", "Khả năng quyên góp"],
+  "This concept cannot accept Testnet donations yet.": ["Hindi pa tumatanggap ng donasyong Testnet ang konseptong ito.", "Konsep ini belum dapat menerima donasi Testnet.", "Ý tưởng này chưa thể nhận quyên góp Testnet."],
+  "Preview the split or choose optional email updates. For actual XLM contributions, open the separate D4 campaign list and review that campaign's locked terms.": ["Tingnan ang hatian o piliin ang opsyonal na email update. Para sa aktuwal na XLM, buksan ang hiwalay na listahan ng D4 at suriin ang naka-lock na tuntunin.", "Pratinjau pembagian atau pilih pembaruan email opsional. Untuk kontribusi XLM aktual, buka daftar campaign D4 terpisah dan tinjau syarat terkunci campaign tersebut.", "Xem phân bổ hoặc chọn email tùy chọn. Để góp XLM thực tế, mở danh sách D4 riêng và xem điều khoản đã khóa của chiến dịch."],
+  "Trace the evidence, step by step": ["Sundan ang ebidensya, hakbang-hakbang", "Telusuri bukti, tahap demi tahap", "Theo dõi bằng chứng từng bước"],
+  "Not verified": ["Hindi na-verify", "Belum terverifikasi", "Chưa xác minh"],
+  "No on-chain campaign linked": ["Walang naka-link na kampanya sa blockchain", "Belum terhubung ke campaign on-chain", "Chưa liên kết chiến dịch trên chuỗi"],
+  "A real D4 campaign ID, locked recipients and confirmed transactions must be linked before this cause can accept Testnet donations or award a donor badge.": ["Kailangang i-link ang aktuwal na D4 ID, naka-lock na tatanggap at kumpirmadong transaksyon bago tumanggap ng Testnet o magbigay ng donor badge.", "ID campaign D4 nyata, penerima terkunci, dan transaksi terkonfirmasi harus ditautkan sebelum tujuan ini menerima donasi Testnet atau memberi lencana donor.", "Phải liên kết ID D4 thật, người nhận đã khóa và giao dịch xác nhận trước khi nhận Testnet hay trao huy hiệu người góp."],
+  "Evidence and approval pipeline": ["Mga hakbang ng ebidensya at pag-apruba", "Tahapan bukti dan persetujuan", "Quy trình bằng chứng và phê duyệt"],
+  "Campaign photos": ["Mga larawan ng kampanya", "Foto campaign", "Ảnh chiến dịch"],
+  "Available as AI illustrations only. Not organizer uploads or delivery evidence.": ["Ilustrasyon ng AI lamang. Hindi upload ng organizer o patunay ng paghahatid.", "Hanya ilustrasi AI. Bukan unggahan penyelenggara atau bukti penyaluran.", "Chỉ có minh họa AI. Không phải ảnh nhà tổ chức tải lên hay bằng chứng giao nhận."],
+  "Example only": ["Halimbawa lamang", "Hanya contoh", "Chỉ là mẫu"],
+  "Receipts and delivery documents": ["Mga resibo at dokumento ng paghahatid", "Kuitansi dan dokumen penyaluran", "Biên nhận và tài liệu giao nhận"],
+  "No actual receipt or beneficiary confirmation has been submitted for this concept.": ["Walang aktuwal na resibo o kumpirmasyon ng benepisyaryo para sa konseptong ito.", "Belum ada kuitansi aktual atau konfirmasi penerima yang diajukan untuk konsep ini.", "Chưa gửi biên nhận thật hay xác nhận người hưởng lợi cho ý tưởng này."],
+  "Not submitted": ["Hindi naisumite", "Belum diajukan", "Chưa gửi"],
+  "Public proof URL and hash": ["Pampublikong URL at hash ng patunay", "URL bukti publik dan hash", "URL bằng chứng công khai và hash"],
+  "No evidence hash or confirmed transaction exists. A launch signup is not an on-chain receipt.": ["Walang hash ng ebidensya o kumpirmadong transaksyon. Hindi resibo sa blockchain ang pagpapalista.", "Belum ada hash bukti atau transaksi terkonfirmasi. Pendaftaran peluncuran bukan tanda terima on-chain.", "Chưa có hash bằng chứng hay giao dịch xác nhận. Đăng ký ra mắt không phải biên nhận trên chuỗi."],
+  "Not anchored on-chain": ["Hindi naka-anchor sa blockchain", "Belum dicatat on-chain", "Chưa ghi nhận trên chuỗi"],
+  "Wallet approvals and release": ["Mga pag-apruba ng wallet at release", "Persetujuan wallet dan pencairan", "Phê duyệt ví và giải ngân"],
+  "No approval request or payout exists for this concept. D4 separately requires its configured wallets to approve submitted proof before release.": ["Walang kahilingan sa pag-apruba o payout sa konseptong ito. Hiwalay na hinihingi ng D4 ang pag-apruba ng itinakdang wallet bago release.", "Belum ada permintaan persetujuan atau pencairan untuk konsep ini. D4 secara terpisah mewajibkan wallet terkonfigurasi menyetujui bukti sebelum pencairan.", "Chưa có yêu cầu phê duyệt hay chi trả cho ý tưởng này. D4 riêng yêu cầu các ví đã cấu hình duyệt bằng chứng trước khi giải ngân."],
+  "Not requested": ["Hindi hiniling", "Belum diminta", "Chưa yêu cầu"],
+  "Illustrative photo context": ["Konteksto ng halimbawang larawan", "Konteks foto ilustratif", "Bối cảnh ảnh minh họa"],
+  "AI illustration · not proof": ["Ilustrasyon ng AI · hindi patunay", "Ilustrasi AI · bukan bukti", "Minh họa AI · không phải bằng chứng"],
   "Choose three example photos": ["Pumili ng tatlong halimbawang larawan", "Pilih tiga foto contoh", "Chọn ba ảnh mẫu"],
   "Three-photo browser draft gallery": ["Galeriya ng tatlong larawan sa draft sa browser", "Galeri tiga foto draf browser", "Thư viện ba ảnh bản nháp trình duyệt"],
   "Browser draft photo gallery": ["Galeriya ng larawan sa draft sa browser", "Galeri foto draf browser", "Thư viện ảnh bản nháp trình duyệt"],
@@ -328,6 +374,10 @@ export const CIRCLES_COPY = {
 } as const satisfies Record<string, readonly [string, string, string]>;
 
 export type CirclesCopyKey = keyof typeof CIRCLES_COPY;
+
+export function circlesSignupError(locale: Locale, error: string): string {
+  return circlesCopy(locale)(Object.prototype.hasOwnProperty.call(CIRCLES_COPY, error) ? error as CirclesCopyKey : "The signup request could not be processed.");
+}
 export function circlesCopy(locale: Locale = "en") {
   return (key: CirclesCopyKey, values: Record<string, string | number> = {}): string => {
     const index = locale === "tl" ? 0 : locale === "id" ? 1 : locale === "vi" ? 2 : -1;

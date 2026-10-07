@@ -263,10 +263,11 @@ test("signed-in getSigner verifies readiness, no false wallet success on Horizon
 });
 
 test("D3 authenticated signer remains read-only and never triggers readiness/funding/provisioning", async () => {
-  const fixture = walletFixture({ responses: [] });
+  const user = { id: "11111111-1111-4111-8111-111111111111", is_anonymous: false };
+  const fixture = walletFixture({ responses: [], user });
   assert.equal((await fixture.api.getAuthenticatedSigner()).publicKey, saved.publicKey());
   assert.equal(fixture.net.calls.length, 0); assert.equal(fixture.calls.mints, 0); assert.equal(fixture.calls.upserts, 0);
-  const missing = walletFixture({ initial: null, responses: [] });
+  const missing = walletFixture({ initial: null, responses: [], user });
   await assert.rejects(missing.api.getAuthenticatedSigner(), /unavailable/);
   assert.equal(missing.net.calls.length, 0); assert.equal(missing.calls.mints, 0);
 });
@@ -308,6 +309,7 @@ function walletStateFixture(options: { wallet?: ReturnType<typeof walletFixture>
     "@/lib/local-preview": { isLocalPreview: options.preview ?? false, PREVIEW_WALLET: previewWallet },
     "@/lib/arisan-list": {}, "@/lib/recipient-review": {}, "@/lib/server/xlmDeposit": {},
     "@/lib/server/walletActivity": {}, "@/lib/server/arisanCommitment": {},
+    "@stellar/stellar-sdk": { StrKey }, "@/lib/server/arisanAuthorization": { authenticatedArisanWallet: prohibited },
   });
   return { api, calls, previewWallet };
 }

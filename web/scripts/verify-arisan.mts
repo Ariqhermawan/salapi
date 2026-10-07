@@ -102,9 +102,8 @@ async function revealExactlyOne(roomId: number) {
     console.log(`   only reveal: ${result.link}`);
   } else {
     const result = await A.arisanFriendsReveal(roomId, 1);
-    if (!result.ok || result.submitted !== 1) {
-      throw new Error(`single friend reveal failed: ${result.error ?? "none"}`);
-    }
+    if (!result.ok) throw new Error(`single friend reveal failed: ${result.error}`);
+    if (result.submitted !== 1) throw new Error("single friend reveal expected one submission");
     console.log(`   only reveal: ${result.links[0]}`);
   }
   const after = await roomState(roomId);
@@ -127,6 +126,13 @@ async function finalize(roomId: number, expectedRound: number) {
 }
 
 async function main() {
+  // These public actions now require a verified request session. This legacy
+  // CLI has none: fail before its faucet/transaction setup, not after funding.
+  throw new Error("Legacy unauthenticated Arisan CLI is disabled. Use authenticated preview QA or the isolated contract tests.");
+}
+
+// Retained only as historical evidence, never invoked by this script.
+async function legacyMain() {
   console.log("== Arisan commit-reveal · Deliverable 2 Testnet proof ==");
   console.log("contract:", process.env.ARISAN_ROOMS_CONTRACT);
   if (!process.env.ARISAN_ROOMS_CONTRACT) {
@@ -149,9 +155,8 @@ async function main() {
   console.log(`   room=${roomId} code=${created.code}`);
   console.log(`   create: ${created.link}`);
   const joined = await A.arisanFriendsJoin(roomId);
-  if (!joined.ok || joined.joined !== 2) {
-    throw new Error(`friend join failed: ${joined.error ?? joined.joined}`);
-  }
+  if (!joined.ok) throw new Error(`friend join failed: ${joined.error}`);
+  if (joined.joined !== 2) throw new Error(`friend join expected two members, got ${joined.joined}`);
   const started = await A.arisanStart(roomId);
   if (!started.ok) throw new Error(`start failed: ${started.error}`);
   console.log(`   start: ${started.link}`);
@@ -194,6 +199,8 @@ async function main() {
   console.log("\nPASS · normal, non-reveal timeout, fallback, and zero residual verified");
 }
 
+// Retain the historical scenario without allowing unauthenticated financial execution.
+void legacyMain;
 main().catch((error) => {
   console.error("FAIL:", error instanceof Error ? error.message : String(error));
   process.exit(1);

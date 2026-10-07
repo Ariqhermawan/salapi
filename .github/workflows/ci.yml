@@ -66,7 +66,7 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Commit-reveal encoding tests
+      - name: Arisan invitation binding, authenticated signer controls and commit-reveal encoding
         run: npm run test:arisan
 
       - name: D3 exact amounts and signer guards
@@ -95,6 +95,12 @@ jobs:
 
       - name: Account photo ownership, Google fallback, upload validation and CSP
         run: npm run test:photo
+
+      - name: Receive sharing destinations and account-switch guards
+        run: npm run test:receive
+
+      - name: Account details privacy opt-in and authenticated owner guards
+        run: npm run test:account-details
 
       - name: Authenticated read-only wallet history and account-switch guards
         run: npm run test:activity

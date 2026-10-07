@@ -1,15 +1,14 @@
 "use client";
 
-// Receive — a real, scannable QR of the user's pay link. Crypto-invisible:
-// the QR encodes salapi.app/send?to=<username> so any phone camera opens the
-// Send flow pre-filled with this handle. No address, no token name on the face;
-// the on-chain layer stays behind "View on Stellar". Falls back to the raw
-// Stellar address only when no username is claimed yet.
-
-import { useEffect, useState } from "react";
+// A username QR opens Salapi Send. An address QR is for Stellar Testnet wallets.
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { QRCodeSVG } from "qrcode.react";
-import { myHandle, walletState } from "@/app/actions";
-import { requireWalletState } from "@/lib/wallet-state";
+import { accountDetails } from "@/app/account-details-actions";
+import { createSupabaseBrowser } from "@/lib/supabase/client";
+import { supabaseConfigured } from "@/lib/supabase/env";
+import { receiveDestination, receiveShareData } from "@/lib/receive";
+import { receiveCopy } from "@/lib/i18n/receive";
 import { useT } from "@/components/I18nProvider";
 import { moneyCopy, moneyMessage } from "@/lib/i18n/revamp-money";
 import {
@@ -49,31 +48,91 @@ function ShareGlyph({ c = "#fff", size = 18 }: { c?: string; size?: number }) {
 export default function ReceiveScreen() {
   const { t, locale } = useT();
   const m = moneyCopy(locale);
+  const c = receiveCopy(locale);
   const goBack = useGoBack("/send");
-  const [username, setUsername] = useState<string | null>(isLocalPreview ? PREVIEW_WALLET.handle : null);
-  const [address, setAddress] = useState(isLocalPreview ? PREVIEW_WALLET.address : "");
+  const [identity, setIdentity] = useState<{ address: string | null; username: string | null }>(isLocalPreview
+    ? { address: PREVIEW_WALLET.address, username: PREVIEW_WALLET.handle } : { address: null, username: null });
+  const [status, setStatus] = useState<"loading" | "ready" | "guest" | "error">(isLocalPreview ? "ready" : "loading");
   const [copied, setCopied] = useState(false);
   const [base, setBase] = useState(SITE);
   const [shareError, setShareError] = useState("");
+  const owner = useRef<string | null | undefined>(undefined);
+  const revision = useRef(0);
+  const active = useRef(false);
+  const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (isLocalPreview) { Promise.resolve(window.location.origin).then(setBase); return; }
-    walletState().then(requireWalletState).then((s) => setAddress(s.address)).catch(() => setShareError("Your wallet could not be loaded. Reload this page before sharing a receive link."));
-    myHandle().then((u) => u && setUsername(u)).catch(() => {});
+    active.current = true;
+    const sequence = revision;
+    const timer = copyTimer;
+    let alive = true;
+    let authRevision = 0;
+    let unsubscribe = () => {};
+    function unavailable() {
+      setStatus("error");
+      setShareError("Your wallet could not be loaded. Reload this page before sharing a receive link.");
+    }
+    function applyOwner(nextOwner: string | null) {
+      if (!alive || !active.current) return;
+      owner.current = nextOwner;
+      const request = ++revision.current;
+      setIdentity({ address: null, username: null });
+      setCopied(false);
+      setShareError("");
+      setStatus(nextOwner ? "loading" : "guest");
+      if (timer.current !== null) clearTimeout(timer.current);
+      if (!nextOwner) return;
+      // Auth callbacks stay synchronous; server reads run after the SDK lock.
+      queueMicrotask(async () => {
+        if (!alive || !active.current || revision.current !== request) return;
+        try {
+          const result = await accountDetails(nextOwner);
+          if (!alive || !active.current || request !== revision.current || owner.current !== nextOwner) return;
+          if (!result.ok || result.account.ownerId !== nextOwner) { unavailable(); return; }
+          const { address, handle: username, identityUnavailable } = result.account;
+          if (address && !receiveDestination(address, username, SITE) || !address && identityUnavailable) { unavailable(); return; }
+          setIdentity({ address, username });
+          setStatus("ready");
+        } catch { if (alive && active.current && request === revision.current) unavailable(); }
+      });
+    }
+    if (isLocalPreview) {
+      Promise.resolve(window.location.origin).then(origin => { if (alive && active.current) setBase(origin); });
+    } else if (!supabaseConfigured()) {
+      queueMicrotask(() => applyOwner(null));
+    } else {
+      try {
+        const supabase = createSupabaseBrowser();
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+          ++authRevision;
+          applyOwner(event === "SIGNED_OUT" ? null : session?.user.id ?? null);
+        });
+        unsubscribe = () => subscription.unsubscribe();
+        const initialRevision = authRevision;
+        void supabase.auth.getUser().then(({ data, error }) => {
+          if (!alive || !active.current || authRevision !== initialRevision) return;
+          if (error && error.name !== "AuthSessionMissingError") { unavailable(); return; }
+          applyOwner(data.user?.id ?? null);
+        }).catch(() => { if (alive && active.current && authRevision === initialRevision) unavailable(); });
+      } catch { queueMicrotask(() => { if (alive && active.current) unavailable(); }); }
+    }
+    return () => {
+      alive = false;
+      active.current = false;
+      ++sequence.current;
+      unsubscribe();
+      if (timer.current !== null) clearTimeout(timer.current);
+    };
   }, []);
 
-  const handle = username
-    ? "@" + username
-    : address
-      ? `${address.slice(0, 6)}…${address.slice(-4)}`
-      : "…";
-  // Scannable destination: a real pay deep-link when a username exists, else
-  // the raw on-chain address as a safe fallback.
-  const shareUrl = username ? `${base}/send?to=${username}` : address || base;
+  const destination = status === "ready" ? receiveDestination(identity.address, identity.username, base) : null;
 
   async function onShare() {
+    if (!destination || !active.current) return;
+    const request = revision.current;
+    const current = () => active.current && revision.current === request;
     setShareError("");
-    const data = { title: "Salapi", text: t("receive.sub"), url: shareUrl };
+    const data = receiveShareData(destination, destination.kind === "username" ? c.usernameCaption : c.addressCaption);
     try {
       if (typeof navigator !== "undefined" && navigator.share) {
         await navigator.share(data);
@@ -81,14 +140,17 @@ export default function ReceiveScreen() {
       }
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
-      /* user dismissed the share sheet, or it is unsupported — fall through */
+      // Unsupported sharing falls back to copying the exact destination.
     }
+    if (!current()) return;
     try {
-      await navigator.clipboard.writeText(shareUrl);
+      await navigator.clipboard.writeText(destination.value);
+      if (!current()) return;
       setCopied(true);
-      window.setTimeout(() => setCopied(false), 1800);
+      if (copyTimer.current !== null) clearTimeout(copyTimer.current);
+      copyTimer.current = setTimeout(() => { if (current()) setCopied(false); }, 1800);
     } catch {
-      setShareError(m("Sharing is unavailable in this browser. You can copy the username shown above."));
+      if (current()) setShareError(c.shareUnavailable);
     }
   }
 
@@ -121,8 +183,10 @@ export default function ReceiveScreen() {
             margin: "0 auto",
           }}
         >
-          {isLocalPreview ? m("Try receiving with your example username in this local preview.") : m("Share your username or scan this code to receive Testnet XLM.")}
+          {isLocalPreview ? m("Try receiving with your example username in this local preview.") : status === "guest" ? c.guest : destination?.kind === "address" ? c.addressHint : c.usernameHint}
         </p>
+        {status === "guest" ? <Link href="/signin?next=%2Freceive">{c.signIn}</Link> : null}
+        {status === "ready" && !destination ? <p style={{ fontSize: 13, color: T.slate }}>{c.noWallet}</p> : null}
       </div>
 
       {/* QR card */}
@@ -148,7 +212,7 @@ export default function ReceiveScreen() {
               color: T.slate,
             }}
           >
-            {t("receive.scan")}
+            {destination?.kind === "address" ? c.addressScan : t("receive.scan")}
           </div>
           <div
             style={{
@@ -162,14 +226,14 @@ export default function ReceiveScreen() {
               boxShadow: "inset 0 0 0 1px " + T.hairline,
             }}
           >
-            {username || address ? <QRCodeSVG
-              value={shareUrl}
+            {destination ? <QRCodeSVG
+              value={destination.value}
               size={188}
               level="M"
               marginSize={2}
               fgColor={T.ink}
               bgColor="#ffffff"
-            /> : <div role="status" style={{ width: 188, height: 188, display: "grid", placeItems: "center", color: T.slate, fontSize: 13 }}>{shareError ? m("Receive code unavailable") : m("Loading receive code…")}</div>}
+            /> : <div role="status" style={{ width: 188, height: 188, display: "grid", placeItems: "center", color: T.slate, fontSize: 13 }}>{status === "loading" ? m("Loading receive code…") : m("Receive code unavailable")}</div>}
           </div>
           <div
             style={{
@@ -179,10 +243,12 @@ export default function ReceiveScreen() {
               letterSpacing: "-0.02em",
               color: T.action,
               overflowWrap: "anywhere",
+              userSelect: "text",
             }}
           >
-            {handle}
+            {destination?.display ?? "…"}
           </div>
+          {destination?.kind === "address" ? <p style={{ fontSize: 12, color: T.slate }}>{c.addressLabel}</p> : null}
           <div style={{ marginTop: 4, fontSize: 12, color: T.slate }}>
             {m("Testnet only · no real money")}
           </div>
@@ -196,7 +262,7 @@ export default function ReceiveScreen() {
         {shareError && <p role="alert" style={{ color: T.danger, fontSize: 13, lineHeight: 1.5 }}>{moneyMessage(locale, shareError)}</p>}
         <Btn
           kind="primary"
-          disabled={!username && !address}
+          disabled={!destination}
           onClick={onShare}
           leading={copied ? Ico.check({ c: "#fff" }) : <ShareGlyph />}
         >

@@ -37,7 +37,7 @@ function savedSigner(row: { public_key?: unknown; secret_cipher?: unknown }): Si
 }
 
 /** Resolve only a verified owner, never infer a guest from client setup errors. */
-async function walletOwner(authenticatedOnly: boolean): Promise<string | null> {
+async function walletOwner(authenticatedOnly: boolean, privileged = false): Promise<string | null> {
   if (isLocalPreview) throw new Error("Local preview cannot submit transactions or provision wallets.");
   function guest() {
     if (authenticatedOnly) throw new Error("Sign in to prepare your personal Testnet wallet.");
@@ -64,6 +64,10 @@ async function walletOwner(authenticatedOnly: boolean): Promise<string | null> {
   }
   if (user === null) return guest();
   if (typeof user?.id !== "string" || !user.id)
+    throw new Error("Authentication is unavailable. No transaction was submitted.");
+  // Privileged signer controls require an actual, nonanonymous Auth owner.
+  // These checks never change the intentional getSigner's guest-demo behavior.
+  if (privileged && (user.is_anonymous !== false || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id)))
     throw new Error("Authentication is unavailable. No transaction was submitted.");
   return user.id;
 }
@@ -147,7 +151,9 @@ export async function currentUserId(): Promise<string | null> {
 /** Privileged D3 actions never provision a wallet or fall back to demo keys. */
 export async function getAuthenticatedSigner(): Promise<Signer> {
   if (isLocalPreview) throw new Error("Local preview cannot use signer controls.");
-  const userId = await currentUserId();
+  // Revalidate this read independently: a previous action check does not make
+  // a later errored/anonymous Auth response suitable for custody access.
+  const userId = await walletOwner(true, true);
   if (!userId) throw new Error("Sign in to use signer controls");
   if (!supabaseAdminConfigured()) throw new Error("Wallet service is unavailable");
   const { data, error } = await createSupabaseAdmin().from("wallets")

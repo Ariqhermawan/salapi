@@ -120,7 +120,7 @@ test.describe("D3 local UI and HTTP authorization", () => {
       expect(response.ok()).toBeTruthy();
       const body = await response.text();
       expect(body).toContain('"ok":false');
-      expect(body).toContain("Sign in to use signer controls");
+      expect(body).toContain("Sign in to prepare your personal Testnet wallet.");
       expect(body).not.toContain('"ok":true');
     });
   }

@@ -1,3 +1,5 @@
+import type { MarketPriceResult } from "./market-prices";
+
 /** Network-specific identities, verified against Circle's issuer documentation.
  * The SAC is Asset("USDC", issuer).contractId(Networks.TESTNET), not a code-only
  * token match. This history allowlist does not change the app's transfer rail.
@@ -25,6 +27,8 @@ export type WalletActivityItem = {
 };
 
 export type WalletActivityErrorCode = "unauthenticated" | "unavailable" | "invalid-cursor" | "invalid-wallet" | "local-preview";
+/** Only verified public handles and explicitly consented receipt photos. */
+export type WalletActivityIdentity = { address: string; handle: string | null; photoUrl: string | null };
 /** Public provider output cannot establish a Supabase session identity. */
 export type WalletActivityPageResult =
   | { ok: true; address: string; items: WalletActivityItem[]; nextCursor: string | null }
@@ -32,7 +36,7 @@ export type WalletActivityPageResult =
 
 /** Every session result identifies the verified owner, never the caller's hint. */
 export type WalletActivityResult =
-  | { ok: true; ownerId: string; address: string | null; items: WalletActivityItem[]; nextCursor: string | null }
+  | { ok: true; ownerId: string; address: string | null; items: WalletActivityItem[]; nextCursor: string | null; identities?: WalletActivityIdentity[] }
   | { ok: false; ownerId: string | null; address: string | null; error: string; code: WalletActivityErrorCode };
 
 export const WALLET_ACTIVITY_PAGE_SIZE = 30;
@@ -57,6 +61,25 @@ export function activityStroopsToXlm(value: string): string {
   const amount = BigInt(value), whole = amount / 10_000_000n;
   const fraction = (amount % 10_000_000n).toString().padStart(7, "0").replace(/0+$/, "");
   return fraction ? `${whole}.${fraction}` : whole.toString();
+}
+
+/** Display-only current XLM/USDC equivalent. Never used to send/convert tokens.
+ * Recheck the shared quote's age here so an open receipt cannot retain a price
+ * forever. A USDC movement stays actual USDC and needs no synthetic equivalent.
+ */
+export function activityUsdcEquivalent(amountStroops: string, asset: WalletActivityAsset, quote: MarketPriceResult, nowMs = Date.now()): { amount: number; status: "fresh" | "stale"; updatedAt: number } | null {
+  if (asset.code !== "XLM" || (quote.status !== "fresh" && quote.status !== "stale") || quote.source !== "CoinGecko"
+    || !/^(?:0|[1-9]\d{0,39})$/.test(amountStroops) || !Number.isFinite(nowMs)) return null;
+  const timestamps = [quote.fetchedAt, quote.assets?.xlm?.updatedAt, quote.assets?.usdc?.updatedAt];
+  if (timestamps.some(value => !Number.isSafeInteger(value) || value <= 0 || value * 1000 > nowMs + 60_000)) return null;
+  const updatedAt = Math.min(...timestamps), age = Math.max(0, nowMs - updatedAt * 1000);
+  if (age > 300_000) return null;
+  const xlmPrice = quote.assets.xlm.prices?.usd, usdcPrice = quote.assets.usdc.prices?.usd;
+  if (![xlmPrice, usdcPrice].every(value => Number.isFinite(value) && value > 0)) return null;
+  const units = BigInt(amountStroops);
+  const native = Number(units / 10_000_000n) + Number(units % 10_000_000n) / 10_000_000;
+  const amount = native * xlmPrice / usdcPrice;
+  return Number.isFinite(amount) ? { amount, updatedAt, status: quote.status === "stale" || age > 120_000 ? "stale" : "fresh" } : null;
 }
 
 type RecordValue = Record<string, unknown>;

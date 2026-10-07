@@ -23,7 +23,9 @@ import SuccessMotion from "@/components/ui/SuccessMotion";
 import OrganizerVerification from "@/components/ui/OrganizerVerification";
 import ExampleOrganizerAvatar from "@/components/ui/ExampleOrganizerAvatar";
 import styles from "./CirclesDonateRevamp.module.css";
-import { circlesCopy } from "@/lib/i18n/revamp-circles";
+import { circlesCopy, circlesSignupError } from "@/lib/i18n/revamp-circles";
+import CirclesSignupEmail from "@/components/CirclesSignupEmail";
+import { useCirclesSignupIdentity } from "@/lib/ui/useCirclesSignupIdentity";
 
 type Phase = "amount" | "review" | "waitlist" | "done";
 const quickAmounts: Record<Locale, number[]> = {
@@ -84,11 +86,16 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
   const [anonymous, setAnonymous] = useState(false);
   const [comment, setComment] = useState("");
   const [marketingOk, setMarketingOk] = useState(false);
+  const [notifyOk, setNotifyOk] = useState(false);
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [pending, startTransition] = useTransition();
   const [localSaved, setLocalSaved] = useState<LocalSupportRecord | null>(null);
   const confirmingLocal = useRef(false);
+  const submittingNotification = useRef(false);
+  const { identity, refresh: refreshIdentity, captureOwnerRevision, isCurrentOwner } = useCirclesSignupIdentity(() => {
+    setNotifyOk(false); setMarketingOk(false); setAnonymous(false); setEmail(""); setError(""); setPhase("amount");
+  });
   const organizer = getOrganizerForCircle(circle);
   const cover = circle.coverImage ?? photos[circle.category] ?? "/illustrations/giving.png";
   const savedAllocation = localSaved ? previewPledgeAllocation(localSaved.displayValue, localSaved.currency, localSaved.organizerPct) : null;
@@ -121,42 +128,60 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
     allocation !== null;
 
   function submitNotification() {
+    if (submittingNotification.current) return;
     setError("");
     if (!validAmount) {
       setError(amountIssue || c("Enter a positive preview amount first."));
       return;
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+    if (identity.status !== "guest" && identity.status !== "verified") {
+      setError(c("Your account could not be verified. Nothing was saved. Try again."));
+      return;
+    }
+    if (identity.status === "guest" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       setError(c("Enter a valid email address."));
+      return;
+    }
+    if (!notifyOk) {
+      setError(c("Choose the optional email updates checkbox before subscribing."));
       return;
     }
     if (isLocalPreview) {
       setPhase("done");
       return;
     }
+    submittingNotification.current = true;
+    const requestedOwnerRevision = captureOwnerRevision();
     startTransition(async () => {
       try {
         const result = await joinCirclesWaitlist({
-          email: email.trim(),
+          ...(identity.status === "verified" ? { expectedOwnerId: identity.ownerId } : { email: email.trim() }),
           circleId: circle.id,
           locale,
           pesoPledge: pesoFromLocal(amount, currency),
           anonymous,
+          notifyOk,
           marketingOk,
         });
+        if (!isCurrentOwner(requestedOwnerRevision)) return;
         if (!result.ok) {
           setError(
-            result.error || c("The signup request could not be processed."),
+            circlesSignupError(locale, result.error),
           );
           return;
         }
-        // This action can return ok without database persistence when its service
-        // is unconfigured. Do not claim a saved pledge or a completed donation.
+        if (result.kind !== "launch-subscription" || result.persisted !== true) {
+          setError(c("The signup result could not be confirmed. No payment was made."));
+          return;
+        }
         setPhase("done");
       } catch {
+        if (!isCurrentOwner(requestedOwnerRevision)) return;
         setError(
           c("The signup result could not be confirmed. No payment was made."),
         );
+      } finally {
+        submittingNotification.current = false;
       }
     });
   }
@@ -209,6 +234,11 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
           {organizer ? <OrganizerVerification kind={organizer.kind} compact /> : null}
         </div>
       </section>
+      {!isLocalPreview && <aside className={styles.chainBoundary} aria-label={c("Donation availability")}>
+        <strong>{c("This concept cannot accept Testnet donations yet.")}</strong>
+        <p>{c("Preview the split or choose optional email updates. For actual XLM contributions, open the separate D4 campaign list and review that campaign's locked terms.")}</p>
+        <Link href="/campaigns?mode=testnet">{c("Explore D4 Testnet campaigns")}{Ico.chev({ size: 15, c: T.action })}</Link>
+      </aside>}
       {phase === "amount" && (
         <>
           <section className={styles.warmCard}>
@@ -326,18 +356,10 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
           >
             <div className={styles.form}>
               <h2>{c("Hear when Circles is ready.")}</h2>
-              <label htmlFor="circle-launch-email" className={styles.field}>{c("Email address")}<input
-                  id="circle-launch-email"
-                  className={styles.input}
-                  type="email"
-                  autoComplete="email"
-                  required
-                  maxLength={200}
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  disabled={pending}
-                  placeholder="you@example.com"
-                />
+              <CirclesSignupEmail identity={identity} email={email} onChange={setEmail} refresh={refreshIdentity} pending={pending} id="circle-launch-email" />
+              <label className={`${styles.checks} ${styles.notifyConsent}`}>
+                <input id="circle-launch-notify" type="checkbox" checked={notifyOk} onChange={event => setNotifyOk(event.target.checked)} disabled={pending} />
+                <span>{c("I want email updates about this campaign concept and the Circles launch. Optional, not a donation.")}</span>
               </label>
               <label className={styles.checks}>
                 <input
@@ -365,7 +387,7 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
               </div>
             )}
             <div className={styles.action}>
-              <button type="submit" className={styles.primaryButton} aria-busy={pending} disabled={pending || !email.trim() || !validAmount}>
+              <button type="submit" className={styles.primaryButton} aria-busy={pending} disabled={pending || !notifyOk || !validAmount || (identity.status !== "verified" && (identity.status !== "guest" || !email.trim()))}>
                 {pending
                   ? c("Processing request…")
                   : isLocalPreview
@@ -385,12 +407,12 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
             <strong>
               {isLocalPreview
                 ? c("Example signup complete. Nothing was sent.")
-                : c("Your signup request was processed.")}
+                : c("Your launch subscription is saved.")}
             </strong>
             <p>
               {isLocalPreview
                 ? c("Your email stays in this screen only. No funds moved and no account data changed.")
-                : c("No payment was made. This is not a saved donation, an on-chain receipt or a guarantee that the service has stored the request.")}
+                : c("Only your launch notification preference was saved. No donation, Testnet contribution, donor badge or payment receipt was created.")}
             </p>
           </section> : <Link className={styles.primaryButton} href="/circles/supported">{c("My supported causes")}{" "}{Ico.chev({ size: 18, c: "#fff" })}</Link>}
           <Link href={`/circles/${circle.id}`} className={styles.cardLink}>{c("Back to the example cause")}{Ico.chev({ size: 14, c: T.action })}

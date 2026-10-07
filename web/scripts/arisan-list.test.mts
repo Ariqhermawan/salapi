@@ -61,7 +61,7 @@ type Room = { id: number; name: string; status: string; memberCount: number; mem
 type Page = { ready: true; mine: Room[]; total: number; nextCursor: number | null } | { ready: false; error?: string };
 const actionCode = compile("../app/actions.ts");
 const componentCode = compile("../components/screens/ArisanListScreen.tsx", true);
-function actionSetup(options: { count?: number; memberIds?: number[]; failId?: number; zeroId?: number } = {}) {
+function actionSetup(options: { count?: number; memberIds?: number[]; failId?: number; zeroId?: number; authenticated?: boolean } = {}) {
   const calls = { ids: [] as number[], members: [] as number[], identity: 0, signers: 0, submissions: 0 };
   const me = "isolated-readonly-public";
   const api = loadModule<{ arisanList(cursor?: unknown): Promise<Page> }>(actionCode, {
@@ -83,6 +83,9 @@ function actionSetup(options: { count?: number; memberIds?: number[]; failId?: n
     "@/lib/money": money, "@/lib/arisan-list": { arisanRoomPage }, "@/lib/local-preview": { isLocalPreview: false },
     "./disaster-actions": {}, "@/lib/supabase/env": {}, "@/lib/supabase/admin": {}, "@/lib/recipient-review": {}, "@/lib/server/arisanCommitment": {}, "@/lib/server/xlmDeposit": {},
     "@/lib/server/walletActivity": { currentWalletActivity: async () => { throw Error("Unexpected activity access in isolated discovery tests"); } },
+    "@stellar/stellar-sdk": new Proxy({}, { get() { throw Error("Discovery must not validate signing input"); } }),
+    "@/lib/server/arisanAuthorization": { authenticatedArisanWallet: async () => options.authenticated === false
+      ? { ok: false, error: "No verified account" } : { ok: true, publicKey: me } },
   });
   return { api, calls };
 }
@@ -95,6 +98,15 @@ test("the real action reaches a membership older than 150 rooms without signing 
   }
   assert.deepEqual(found, [6]); assert.equal(calls.ids.length, 173); assert.equal(new Set(calls.ids).size, 173);
   assert.equal(calls.ids.includes(0), false); assert.equal(calls.signers, 0); assert.equal(calls.submissions, 0);
+});
+
+test("a shared or unverified viewer cannot claim personal room membership or host roles", async () => {
+  const { api, calls } = actionSetup({ count: 6, authenticated: false });
+  const page = await api.arisanList();
+  assert.equal(page.ready, true);
+  if (!page.ready) assert.fail("Expected public discovery to remain readable");
+  assert.equal(page.mine.length, 0);
+  assert.equal(calls.signers, 0); assert.equal(calls.submissions, 0);
 });
 test("the real action rejects invalid cursors and unsafe counts without reading room IDs", async () => {
   for (const cursor of [0, -1, 1.5, "3", null, 174, Number.MAX_SAFE_INTEGER + 1]) {

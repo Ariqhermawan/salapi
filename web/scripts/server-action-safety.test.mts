@@ -8,6 +8,7 @@ import * as money from "../lib/money.ts";
 import { CURRENCY, formatLocalAmount, pesoFromLocal } from "../lib/ui/currency.ts";
 import { AuthSessionMissingError, isAuthSessionMissingError } from "@supabase/supabase-js";
 import { arisanRoomPage } from "../lib/arisan-list.ts";
+import { Keypair, StrKey } from "@stellar/stellar-sdk";
 
 type Result = { ok: boolean; error?: string; hash?: string; pending?: boolean; value?: unknown };
 type Signer = { publicKey: string; secret: string; demo: boolean };
@@ -16,6 +17,8 @@ type Read = { data: Row | null; error?: object | null };
 const hash = "a".repeat(64);
 const otherHash = "b".repeat(64);
 const unresolvedKey = "salapi:testnet:unresolved-send:v1";
+const arisanSender = Keypair.fromRawEd25519Seed(Buffer.alloc(32, 35)).publicKey();
+const reviewedArisan = { code: "234567", roomId: 1, memberTarget: 3, shareStroops: "10000000", depositStroops: "30000000", viewer: arisanSender };
 
 function compile(path: string, jsx = false) {
   return ts.transpileModule(readFileSync(new URL(path, import.meta.url), "utf8"), {
@@ -277,14 +280,17 @@ test("reconciliation rejects malformed hashes and cannot poll real RPC in local 
 function actionsSetup(options: { result?: Result; preview?: boolean; reveal?: boolean; viewer?: string | null; viewerResolver?: () => Promise<string | null>; members?: string[]; roomByCode?: number } = {}) {
   const calls = { signers: 0, sends: 0, status: 0 };
   const dependencies = {
+    "@stellar/stellar-sdk": { StrKey },
+    "@/lib/server/arisanAuthorization": { authenticatedArisanWallet: async () => ({ ok: true, publicKey: arisanSender }) },
     "@/lib/server/stellar": { CONTRACTS: { usernameRegistry: "registry", tokenXlmSac: "token" },
       FRIENDS: ["one", "two"].map(name => ({ label: name, pub: () => `friend-${name}`, secret: () => `isolated-${name}` })),
       paluwaganId: () => "isolated-paluwagan", smartSavingsId: () => "isolated-savings", arisanRoomsId: () => "isolated-arisan",
       sc: Object.fromEntries(["str", "addr", "i128", "u32", "u64", "sym", "unitVariant", "bytes"].map(name => [name, (v: unknown) => v])),
       readContract: async (_id: string, method: string) => {
         if (method === "resolve") return "recipient-public";
-        if (method === "get_room") return { host: "sender-public", name: "Isolated room", code: "234567", member_target: 3, share: 10000000n, cadence: "Weekly", first_kocok: 1, join_deadline: 1, status: "Open", member_count: 3, round: 0 };
-        if (method === "get_members") return options.members ?? ["sender-public", "friend-one", "friend-two"];
+        if (method === "get_room") return { host: arisanSender, name: "Isolated room", code: "234567", member_target: 3, share: 10000000n, cadence: "Weekly", first_kocok: Math.floor(Date.now() / 1000) + 720, join_deadline: Math.floor(Date.now() / 1000) + 600, status: "Open", member_count: 1, round: 0 };
+        if (method === "get_members") return options.members ?? ["sender-public", arisanSender, "friend-one", "friend-two"];
+        if (method === "members") return [arisanSender, "friend-one", "friend-two"];
         if (method === "has_committed") return options.reveal ?? false;
         if (["has_paid", "has_won", "has_revealed"].includes(method)) return false;
         if (method === "locked_of") return 0n;
@@ -294,7 +300,11 @@ function actionsSetup(options: { result?: Result; preview?: boolean; reveal?: bo
       txLink: (v: string) => `https://stellar.expert/explorer/testnet/tx/${v}`,
       invokeAs: async () => { calls.sends++; return options.result ?? { ok: false, pending: true, hash, error: "Isolated unknown" }; },
       submittedTransactionStatus: async () => { calls.status++; return options.result ?? { ok: false, pending: true, hash, error: "Isolated unknown" }; } },
-    "@/lib/server/userWallet": { getSigner: async () => { calls.signers++; return { publicKey: "sender-public", secret: "isolated-secret", demo: false }; }, currentArisanPublicKey: options.viewerResolver ?? (async () => options.viewer === undefined ? "sender-public" : options.viewer) },
+    "@/lib/server/userWallet": {
+      getSigner: async () => { calls.signers++; return { publicKey: "sender-public", secret: "isolated-secret", demo: false }; },
+      getAuthenticatedSigner: async () => { calls.signers++; return { publicKey: arisanSender, secret: "isolated-authenticated-secret", demo: false }; },
+      currentArisanPublicKey: options.viewerResolver ?? (async () => options.viewer === undefined ? "sender-public" : options.viewer),
+    },
     "@/lib/money": money, "./disaster-actions": {}, "@/lib/supabase/env": {}, "@/lib/supabase/admin": {},
     "@/lib/local-preview": { isLocalPreview: options.preview ?? false }, "@/lib/arisan-list": { arisanRoomPage },
     "@/lib/recipient-review": { recipientReviewError: (resolved: string, expected?: string) => expected !== undefined && resolved !== expected ? "Recipient changed" : null },
@@ -318,7 +328,7 @@ test("Savings, Paluwagan and Arisan wrappers preserve pending hashes without ann
     ["smartSavingsDeposit", [{ amount: "100", currency: "tl" }]], ["smartSavingsOpen", [{ amount: "100", currency: "tl" }]],
     ["smartSavingsWithdraw", []], ["paluwaganPayMine", []], ["paluwaganCollect", []],
     ["arisanCreate", [{ name: "Isolated", memberTarget: 3, share: { amount: "100", currency: "tl" }, cadence: "Weekly" }]],
-    ["arisanJoin", ["234567"]], ["arisanLeave", [1]], ["arisanStart", [1]], ["arisanCancel", [1]], ["arisanCommit", [1]], ["arisanReveal", [1]], ["arisanFinalize", [1]], ["arisanPostpone", [1, 60]],
+    ["arisanJoin", [reviewedArisan]], ["arisanLeave", [1]], ["arisanStart", [1]], ["arisanCancel", [1]], ["arisanCommit", [1]], ["arisanReveal", [1]], ["arisanFinalize", [1]], ["arisanPostpone", [1, 60]],
     ["registerUsername", ["jamamam"]], ["renameUsername", ["jamamam"]],
   ] as [string, unknown[]][]) {
     const { api, calls } = actionsSetup(method === "arisanJoin" ? { roomByCode: 1 } : {}); const result = await api[method](...args);
@@ -326,15 +336,15 @@ test("Savings, Paluwagan and Arisan wrappers preserve pending hashes without ann
   }
 });
 test("Arisan list retains matching readonly identity and never obtains a signer to discover rooms", async () => {
-  for (const [viewer, expected] of [["sender-public", 1], [null, 0]] as const) {
+  for (const [viewer, expected] of [[arisanSender, 1], [null, 0]] as const) {
     const { api, calls } = actionsSetup({ viewer });
     const result = await api.arisanList() as unknown as { ready: boolean; mine: unknown[] };
     assert.equal(result.ready, true); assert.equal(result.mine.length, expected); assert.equal(calls.signers, 0); assert.equal(calls.sends, 0);
   }
 });
 
-test("real Arisan discovery retains confirmed guest memberships but not auth-outage demo memberships", async () => {
-  for (const [authError, expected] of [[new AuthSessionMissingError(), 1], [new Error("Isolated auth outage"), 0]] as const) {
+test("real Arisan discovery cannot claim personal memberships for guests or auth-outage demo views", async () => {
+  for (const [authError, expected] of [[new AuthSessionMissingError(), 0], [new Error("Isolated auth outage"), 0]] as const) {
     const identity = walletSetup({ signedIn: false, authError });
     const { api, calls } = actionsSetup({ viewerResolver: identity.api.currentArisanPublicKey, members: ["demo-public"] });
     const result = await api.arisanList() as unknown as { ready: boolean; mine: unknown[] };
@@ -342,6 +352,24 @@ test("real Arisan discovery retains confirmed guest memberships but not auth-out
     assert.equal(calls.signers, 0); assert.equal(calls.sends, 0); assert.equal(identity.calls.auth, 1);
     assert.equal(identity.calls.reads, 0); assert.equal(identity.calls.mints, 0); assert.equal(identity.calls.upserts, 0);
     assert.equal(identity.calls.decrypts, 0); assert.equal(identity.calls.keyLoads, 0); assert.equal(identity.calls.funding, 0);
+  }
+});
+test("room reads use the actual readonly wallet resolver without minting, custody decryption or funding", async () => {
+  for (const options of [
+    { reads: [{ data: { public_key: "sender-public" } }] },
+    { signedIn: false, authError: new AuthSessionMissingError() },
+    { signedIn: false, authError: new Error("Isolated auth outage") },
+    { reads: [{ data: null }] },
+  ]) {
+    const identity = walletSetup(options);
+    const { api, calls } = actionsSetup({ viewerResolver: identity.api.currentArisanPublicKey, members: ["sender-public", "demo-public"] });
+    const room = await api.arisanRoomState(1) as unknown as { ready: boolean; viewer: string | null; code: string | null; canFinalize: boolean };
+    assert.equal(room.ready, true); assert.equal(calls.signers, 0); assert.equal(calls.sends, 0);
+    assert.equal(identity.calls.mints, 0); assert.equal(identity.calls.upserts, 0); assert.equal(identity.calls.funding, 0);
+    assert.equal(identity.calls.decrypts, 0); assert.equal(identity.calls.keyLoads, 0);
+    assert.ok(identity.calls.columns.every(column => column === "public_key"));
+    if (room.viewer === null) assert.equal(room.code, null);
+    assert.equal(room.canFinalize, false);
   }
 });
 test("friend batches stop at the first unresolved envelope and preserve that hash", async () => {

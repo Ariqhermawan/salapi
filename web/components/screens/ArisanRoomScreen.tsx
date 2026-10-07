@@ -35,6 +35,8 @@ import SubmissionStatusPanel from "@/components/ui/SubmissionStatusPanel";
 import styles from "./ArisanRoomRevamp.module.css";
 import { accountCopy } from "@/lib/i18n/revamp-account";
 import { readPreviewArisanRoom, savePreviewArisanRoom, type PreviewArisanChange } from "./arisan-preview";
+import { pesosToStroopsExact } from "@/lib/money";
+import { arisanDrawRecovery, arisanRoomCopy, arisanViewerIdentity, arisanViewerRole } from "@/lib/arisan-room-guidance";
 const PREVIEW_WALLET = PREVIEW_ACCOUNT.address;
 
 type State = Awaited<ReturnType<typeof arisanRoomState>>;
@@ -55,11 +57,19 @@ function loadLocalRoom(roomId: number): ReadyRoom {
     cancelled = sessionStorage.getItem(`salapi.preview.arisan-cancelled.${roomId}`) === "1";
   } catch { /* Initial restore remains tolerant; every mutation requires checked storage. */ }
   const active = roomId === 2;
-  const target = created && draft ? draft.members : active ? 4 : 5;
-  const share = created && draft ? (draft.sharePesos ?? draft.share) : active ? 180 : 250;
+  const target = created && draft && Number.isInteger(draft.members) && draft.members >= 3 && draft.members <= 20 ? draft.members : active ? 4 : 5;
+  const draftShare = created && draft ? (draft.sharePesos ?? draft.share) : null;
+  const share = draftShare !== null && Number.isFinite(draftShare) && draftShare > 0 ? draftShare : active ? 180 : 250;
+  const shareStroops = pesosToStroopsExact(String(share)) ?? 0n;
+  const isHost = !active && !joined && !left;
   const names = created ? ["Ariqhermawan"] : active ? ["Ariqhermawan", "Farrel", "Maya", "Rina"] : ["Ariqhermawan", "Farrel", "Maya", "Rina", "Bayu"];
   const seats = names.map((label,i) => ({ addr: i === 0 ? PREVIEW_WALLET : `LOCAL_MEMBER_${i}`, label, won: active && i === 1, committed: active && i === 2, revealed: false, isYou: i === 0 })).filter(seat => !left || !seat.isYou);
-  return { ready: true, id: roomId, name: created && draft ? draft.name : active ? "Weekend community circle" : "Family arisan", code: left ? null : created ? "NEW234" : active ? "CIR234" : "FAM234", host: joined || left || active ? "LOCAL_MEMBER_1" : PREVIEW_WALLET, hostLabel: joined || left || active ? "Farrel" : "Ariqhermawan", cadence: created && draft ? draft.cadence : active ? "Biweekly" : "Weekly", cadenceSecs: 604800, memberTarget: target, memberCount: seats.length, sharePesos: share, sharePeso: String(share), potPesos: share*target, potPeso: String(share*target), status: cancelled ? "Dissolved" : active ? "Active" : "Open", round: active ? 2 : 0, drawPhase: active ? "Commit" : null, firstKocok: time+86400, joinDeadline: time+43200, commitAt: time+3600, revealAt: time+7200, nextActionAt: time+3600, commitCount: active ? 1 : 0, revealCount: 0, eligibleCount: active ? 3 : target, seats, winners: active ? [{ round: 1, addr: "LOCAL_MEMBER_1", label: "Farrel", ts: time-604800 }] : [], isMember: !left, isHost: !active && !joined && !left, readyToStart: !cancelled && !active && !joined && !left && seats.length === target, canCommit: active, canReveal: false, canFinalize: false };
+  return { ready: true, id: roomId, viewer: PREVIEW_WALLET, viewerIdentity: "unverified", name: created && draft ? draft.name : active ? "Weekend community circle" : "Family arisan", code: left ? null : created ? "NEW234" : active ? "CIR234" : "FAM234", host: joined || left || active ? "LOCAL_MEMBER_1" : PREVIEW_WALLET, hostLabel: joined || left || active ? "Farrel" : "Ariqhermawan", cadence: created && draft ? draft.cadence : active ? "Biweekly" : "Weekly", cadenceSecs: 604800, memberTarget: target, memberCount: seats.length, sharePesos: share, shareStroops: shareStroops.toString(), depositStroops: (shareStroops * BigInt(target)).toString(), sharePeso: String(share), potPesos: share*target, potPeso: String(share*target), status: cancelled ? "Dissolved" : active ? "Active" : "Open", round: active ? 2 : 0, drawPhase: active ? "Commit" : null, firstKocok: time+86400, joinDeadline: time+43200, commitAt: time+3600, revealAt: time+7200, nextActionAt: time+3600, commitCount: active ? 1 : 0, revealCount: 0, eligibleCount: active ? 3 : target, seats, winners: active ? [{ round: 1, addr: "LOCAL_MEMBER_1", label: "Farrel", ts: time-604800 }] : [], isMember: !left, isHost, canUseDemoFriends: isHost, readyToStart: !cancelled && !active && !joined && !left && seats.length === target, canCommit: active, canReveal: false, canFinalize: false };
+}
+
+function formatXlm(stroops: string) {
+  const value = BigInt(stroops);
+  return `${value / 10_000_000n}.${(value % 10_000_000n).toString().padStart(7, "0")}`;
 }
 
 const RING = ["#FDE6D9", "#DCEAF8", "#E8E3FA", "#DDF1E5", "#FBEAE0", "#E1ECF6"];
@@ -218,8 +228,10 @@ function Roulette({
 export default function ArisanRoomScreen({ roomId }: { roomId: number }) {
   const submission = useUnresolvedSubmission("arisan:rooms");
   const { t, currency, locale } = useT();
+  const roomCopy = arisanRoomCopy(locale);
   const goBack = useGoBack("/arisan");
   const [st, setSt] = useState<State | null>(null);
+  const latestRoom = useRef<ReadyRoom | null>(null);
   const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
   const [msg, setMsg] = useState<{ tone: "ok" | "err"; text: string; link?: string } | null>(null);
   const [transitionPending, start] = useTransition();
@@ -231,10 +243,24 @@ export default function ArisanRoomScreen({ roomId }: { roomId: number }) {
   } | null>(null);
   const [copied, setCopied] = useState(false);
 
+  useEffect(() => {
+    latestRoom.current = st?.ready ? st : null;
+    return () => { latestRoom.current = null; };
+  }, [st]);
+
+  async function readLatestRoom(): Promise<State | null> {
+    if (isLocalPreview) return null;
+    try {
+      const room = await arisanRoomState(roomId);
+      setSt(room);
+      return room;
+    } catch {
+      setSt({ ready: false, error: "Room state could not be read. No operation was resubmitted." });
+      return null;
+    }
+  }
   async function refresh() {
-    if (isLocalPreview) return;
-    try { setSt(await arisanRoomState(roomId)); }
-    catch { setSt({ ready: false, error: "Room state could not be read. No operation was resubmitted." }); }
+    await readLatestRoom();
   }
   useEffect(() => {
     const initialLoad = setTimeout(() => { if (isLocalPreview) setSt(loadLocalRoom(roomId)); else void refresh(); }, 0);
@@ -249,9 +275,10 @@ export default function ArisanRoomScreen({ roomId }: { roomId: number }) {
   }, [roomId]);
 
   function run<
-    T extends { ok: boolean; link?: string; error?: string; errorKey?: string },
+    T extends { ok: boolean; link?: string; error?: string; errorKey?: string; pending?: boolean },
   >(fn: () => Promise<T>, okText: string, previewAction?: PreviewAction) {
     if (pending) return;
+    if ((previewAction === "join" || previewAction === "friendsCommit" || previewAction === "friendsReveal") && latestRoom.current?.canUseDemoFriends !== true) return;
     if (isLocalPreview) {
       try {
       if (!st?.ready) return;
@@ -265,7 +292,7 @@ export default function ArisanRoomScreen({ roomId }: { roomId: number }) {
         if (previewAction === "join") { while (room.seats.length < room.memberTarget) room.seats.push({ addr: `LOCAL_MEMBER_${room.seats.length}`, label: ["Maya","Rina","Bayu","Nadia","Lila"][room.seats.length%5], won: false, committed: false, revealed: false, isYou: false }); room.memberCount = room.seats.length; room.readyToStart = room.isHost; }
         if (previewAction === "start") { room.status = "Active"; room.round = 1; room.drawPhase = "Commit"; room.canCommit = true; room.readyToStart = false; }
         if (previewAction === "cancel") { room.status = "Dissolved"; room.readyToStart = false; }
-        if (previewAction === "leave") { room.seats = room.seats.filter(seat => !seat.isYou); room.memberCount = room.seats.length; room.isMember = false; room.isHost = false; room.readyToStart = false; room.code = null; }
+        if (previewAction === "leave") { room.seats = room.seats.filter(seat => !seat.isYou); room.memberCount = room.seats.length; room.isMember = false; room.isHost = false; room.canUseDemoFriends = false; room.readyToStart = false; room.code = null; }
         if (previewAction === "commit" || previewAction === "friendsCommit") { room.seats = room.seats.map(seat => ({ ...seat, committed: !seat.won && (previewAction === "friendsCommit" || seat.isYou) || seat.committed })); room.commitCount = room.seats.filter(seat => seat.committed).length; room.canCommit = false; if (room.commitCount >= room.eligibleCount) { room.drawPhase = "Reveal"; room.canReveal = !!room.seats.find(seat => seat.isYou)?.committed; } }
         if (previewAction === "reveal" || previewAction === "friendsReveal") { room.seats = room.seats.map(seat => ({ ...seat, revealed: seat.committed && (previewAction === "friendsReveal" || seat.isYou) || seat.revealed })); room.revealCount = room.seats.filter(seat => seat.revealed).length; room.canReveal = false; if (room.revealCount >= room.commitCount) { room.drawPhase = "Finalizable"; room.canFinalize = true; } }
         if (previewAction === "postpone") { room.nextActionAt += 60; room.commitAt += 60; }
@@ -277,21 +304,24 @@ export default function ArisanRoomScreen({ roomId }: { roomId: number }) {
     }
     start(async () => {
       setMsg(null);
+      const before = st?.ready ? st : null;
       try {
         const r = await submission.run(fn);
         if (!r) return;
         if (r.ok) {
           setMsg({ tone: "ok", text: okText, link: r.link });
+          await refresh();
         } else {
           // Prefer the i18n key the action attached (e.g. arisanPostpone maps
           // contract error codes to keys) so the toast is human-readable
           // instead of a raw HostError / XDR dump.
-          const text = r.errorKey
+          const text = r.errorKey && r.errorKey !== "arisan.somethingWrong"
             ? t(r.errorKey)
-            : r.error || t("arisan.somethingWrong");
-          setMsg({ tone: "err", text });
+            : r.errorKey === "arisan.somethingWrong" ? roomCopy.notConfirmed : r.error || roomCopy.notConfirmed;
+          const refreshed = await readLatestRoom();
+          const guidance = r.pending ? null : arisanDrawRecovery(previewAction, before, refreshed?.ready ? refreshed : null, locale);
+          setMsg({ tone: "err", text: guidance ? `${text} ${guidance}` : text });
         }
-        await refresh();
       } catch (error) {
         setMsg({
           tone: "err",
@@ -371,7 +401,9 @@ export default function ArisanRoomScreen({ roomId }: { roomId: number }) {
     : st.drawPhase === "Reveal" ? t("arisan.draw.revealClosesIn") : t("arisan.draw.readyToFinalize");
   const countdownValue = st.status === "Done" || st.status === "Dissolved" || staleOpen ? "-"
     : st.drawPhase === "Finalizable" ? "Ready" : fmtCountdown(countdown);
-  const role = st.isHost ? "You are the host" : st.isMember ? "You are a member" : "Public view";
+  const role = arisanViewerRole(st, isLocalPreview, locale);
+  const viewerIdentity = arisanViewerIdentity(st);
+  const identityNotice = isLocalPreview ? roomCopy.localNotice : viewerIdentity === "demo" ? roomCopy.demoNotice : viewerIdentity !== "personal" ? roomCopy.unverifiedNotice : null;
   const statusTitle = staleOpen ? "This room missed its start window."
     : st.status === "Open" ? seatsFull ? st.isHost ? "Everyone is funded. Ready to start." : "Everyone is funded. Waiting for the host."
       : joinWindowClosed ? "Funding closed before the circle filled." : "Waiting for the circle to fill."
@@ -385,8 +417,9 @@ export default function ArisanRoomScreen({ roomId }: { roomId: number }) {
   const phaseSummary = st.drawPhase === "Commit" ? st.commitCount + "/" + st.eligibleCount + " committed"
     : st.drawPhase === "Reveal" ? st.revealCount + "/" + st.commitCount + " revealed" : st.drawPhase === "Finalizable" ? "Ready for payout" : "";
   const latestWinner = st.winners[st.winners.length - 1];
-  const hasDemoControls = st.status === "Open" && st.isHost && st.memberCount < st.memberTarget && !joinWindowClosed
-    || st.status === "Active" && st.round <= st.memberTarget && (st.drawPhase === "Commit" || st.drawPhase === "Reveal");
+  const hasDemoControls = st.canUseDemoFriends === true && (st.status === "Open" && st.memberCount < st.memberTarget && !joinWindowClosed
+    || st.status === "Active" && st.round <= st.memberTarget && (st.drawPhase === "Commit" || st.drawPhase === "Reveal"));
+  const scheduleLabel = st.cadenceSecs > 0 && st.cadenceSecs < 86400 ? `${st.cadenceSecs} seconds between rounds` : t("arisan.cadence." + st.cadence);
   const canPostpone = st.status === "Active" && st.round <= st.memberTarget && st.isHost && st.drawPhase === "Commit" && st.commitCount === 0;
 
   return <div className={styles.screen}>
@@ -400,9 +433,9 @@ export default function ArisanRoomScreen({ roomId }: { roomId: number }) {
       <section className={styles.summary} aria-label="Room overview">
         <div className={styles.badges}>
           <Chip kind={st.status === "Open" ? "action" : st.status === "Active" ? "success" : st.status === "Done" ? "neutral" : "warn"}>{t("arisan.status." + st.status)}</Chip>
-          <Chip kind="neutral">{t("arisan.cadence." + st.cadence)}</Chip><Chip kind="neutral">{t("arisan.previewBadge")}</Chip>
+          <Chip kind="neutral">{scheduleLabel}</Chip><Chip kind="neutral">{t("arisan.previewBadge")}</Chip>
         </div>
-        <div className={styles.hero}><div><span className={styles.role}>{role}</span><h1>{statusTitle}</h1><p>{statusCopy}</p></div><Image className={styles.doodle} src="/illustrations/arisan.png" width={112} height={108} alt="Friends contributing to a shared arisan pool" /></div>
+        <div className={styles.hero}><div><span className={styles.role}>{role}</span><h1>{statusTitle}</h1><p>{statusCopy}</p>{identityNotice ? <p>{identityNotice}</p> : null}</div><Image className={styles.doodle} src="/illustrations/arisan.png" width={112} height={108} alt="Friends contributing to a shared arisan pool" /></div>
         <div className={styles.memberStrip}>
           <div className={styles.avatars} aria-hidden="true">{st.seats.slice(0,5).map(seat => <Avatar key={seat.addr} name={seat.label} size={29} />)}{st.seats.length > 5 ? <span className={styles.moreAvatars}>+{st.seats.length-5}</span> : null}</div>
           <div><strong>{st.memberCount}/{st.memberTarget} {t("arisan.members")}</strong><span>{memberSummary}</span></div>
@@ -430,7 +463,7 @@ export default function ArisanRoomScreen({ roomId }: { roomId: number }) {
 
       <section className={styles.members} aria-label="All room members">
         <header className={styles.sectionHeader}><h2>Members <span>({st.memberCount}/{st.memberTarget})</span></h2><span>{memberSummary}</span></header>
-        <div>{st.seats.map(seat => <div className={styles.memberRow} key={seat.addr}><Avatar name={seat.label} size={30} /><div className={styles.memberName}>{seat.label}{seat.isYou ? <span>{t("arisan.you")}</span> : null}</div>
+        <div>{st.seats.map(seat => <div className={styles.memberRow} key={seat.addr}><Avatar name={seat.label} size={30} /><div className={styles.memberName}>{seat.label}{seat.isYou ? <span>{isLocalPreview ? roomCopy.localYou : viewerIdentity === "demo" ? roomCopy.demoYou : t("arisan.you")}</span> : null}</div>
           {seat.won ? <Chip kind="success" size="sm" leading={Ico.check({ size:11,c:T.moneyIn })}>{t("arisan.statusWon")}</Chip>
             : seat.revealed ? <Chip kind="success" size="sm" leading={Ico.check({ size:11,c:T.moneyIn })}>{t("arisan.draw.revealed")}</Chip>
             : seat.committed ? <Chip kind="action" size="sm">{t("arisan.draw.committed")}</Chip>
@@ -444,14 +477,14 @@ export default function ArisanRoomScreen({ roomId }: { roomId: number }) {
         : st.status === "Open" && st.isMember ? <Btn kind="ghost" className={styles.secondaryExit} onClick={() => run(() => arisanLeave(st.id),t("arisan.room.leftOk"),"leave")} disabled={pending} trailing={Ico.chev({ size:16,c:T.danger })}>{t("arisan.room.leaveCta")}</Btn> : null}
 
       {hasDemoControls || canPostpone ? <details className={styles.tools}><summary>{isLocalPreview ? "Local example controls" : "Testnet demo controls"}<span>Show</span></summary><div className={styles.toolButtons}>
-        {st.status === "Open" && st.isHost && st.memberCount < st.memberTarget && !joinWindowClosed ? <Btn kind="secondary" size="md" onClick={() => run(() => arisanFriendsJoin(st.id),t("arisan.room.friendsJoinedOk"),"join")} disabled={pending} loading={pending && !roulette} leading={Ico.plus({ size:14,c:T.ink })}>{t("arisan.room.friendsJoinCta")}</Btn> : null}
-        {st.status === "Active" && st.round <= st.memberTarget && st.drawPhase === "Commit" ? <Btn kind="secondary" size="md" onClick={() => run(() => arisanFriendsCommit(st.id),t("arisan.draw.friendsCommittedOk"),"friendsCommit")} disabled={pending || st.commitCount >= st.eligibleCount}>{t("arisan.draw.friendsCommitCta")}</Btn> : null}
-        {st.status === "Active" && st.round <= st.memberTarget && st.drawPhase === "Reveal" ? <Btn kind="secondary" size="md" onClick={() => run(() => arisanFriendsReveal(st.id),t("arisan.draw.friendsRevealedOk"),"friendsReveal")} disabled={pending || st.revealCount >= st.commitCount}>{t("arisan.draw.friendsRevealCta")}</Btn> : null}
+        {st.canUseDemoFriends === true && st.status === "Open" && st.memberCount < st.memberTarget && !joinWindowClosed ? <Btn kind="secondary" size="md" onClick={() => run(() => arisanFriendsJoin(st.id),t("arisan.room.friendsJoinedOk"),"join")} disabled={pending} loading={pending && !roulette} leading={Ico.plus({ size:14,c:T.ink })}>{t("arisan.room.friendsJoinCta")}</Btn> : null}
+        {st.canUseDemoFriends === true && st.status === "Active" && st.round <= st.memberTarget && st.drawPhase === "Commit" ? <Btn kind="secondary" size="md" onClick={() => run(() => arisanFriendsCommit(st.id),t("arisan.draw.friendsCommittedOk"),"friendsCommit")} disabled={pending || st.commitCount >= st.eligibleCount}>{t("arisan.draw.friendsCommitCta")}</Btn> : null}
+        {st.canUseDemoFriends === true && st.status === "Active" && st.round <= st.memberTarget && st.drawPhase === "Reveal" ? <Btn kind="secondary" size="md" onClick={() => run(() => arisanFriendsReveal(st.id),t("arisan.draw.friendsRevealedOk"),"friendsReveal")} disabled={pending || st.revealCount >= st.commitCount}>{t("arisan.draw.friendsRevealCta")}</Btn> : null}
         {canPostpone ? <Btn kind="ghost" size="md" onClick={() => run(() => arisanPostpone(st.id,60),t("arisan.room.postponingOk"),"postpone")} disabled={pending}>{t("arisan.room.postponeCta")}</Btn> : null}
         <p>{isLocalPreview ? "These controls update example participants only. No network transaction is sent." : "Demo participants are separate Testnet accounts. These controls send Testnet transactions."}</p>
       </div></details> : null}
 
-      <details className={styles.rules}><summary>How this room works<span>Read terms</span></summary><div><p><strong>Upfront funding:</strong> {st.memberTarget} × {formatLocal(st.sharePesos,currency)} = {formatLocal(st.sharePesos*st.memberTarget,currency)} per member before the first draw. Share per round and upfront deposit are different amounts.</p><p>Payout order comes from the commit and reveal process after the host starts the room. Only members who have not received a payout are eligible for a later draw.</p><p>{isLocalPreview ? "The local preview selects an example eligible member for demonstration. It is not a random on-chain draw and moves no funds." : "The browser animation displays the result returned by the contract. Use the receipt to check network activity."} Testnet XLM has no real monetary value.</p></div></details>
+      <details className={styles.rules}><summary>How this room works<span>Read terms</span></summary><div><p><strong>Upfront funding:</strong> {st.memberTarget} × {formatXlm(st.shareStroops)} Testnet XLM = {formatXlm(st.depositStroops)} Testnet XLM per member before the first draw. Share per round and upfront deposit are different amounts.</p><p>Illustrative display only: share {formatLocal(st.sharePesos,currency)}; upfront deposit {formatLocal(st.sharePesos*st.memberTarget,currency)}.</p><p><strong>Schedule:</strong> {st.cadenceSecs} seconds between rounds. {isLocalPreview ? "Local example timing." : "Testnet demo timing."}</p><p>Payout order comes from the commit and reveal process after the host starts the room. Only members who have not received a payout are eligible for a later draw.</p><p>{isLocalPreview ? "The local preview selects an example eligible member for demonstration. It is not a random on-chain draw and moves no funds." : "The browser animation displays the result returned by the contract. Use the receipt to check network activity."} Testnet XLM has no real monetary value.</p></div></details>
       <footer className={styles.footer}><PoweredByStellar /><span>{isLocalPreview ? "Example data · no transactions" : "Stellar Testnet · no real money"}</span></footer>
     </div>
   </div>;

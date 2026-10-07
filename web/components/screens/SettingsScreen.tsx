@@ -16,7 +16,6 @@ import {
 } from "@/app/actions";
 import { settingsHandle } from "@/app/account-actions";
 import AccountAvatar from "@/components/AccountAvatar";
-import AccountPhotoEditor from "@/components/AccountPhotoEditor";
 import { useAccountPhoto } from "@/components/useAccountPhoto";
 import { accountPhotoCopy } from "@/lib/i18n/account-photo";
 import { createSupabaseBrowser } from "@/lib/supabase/client";
@@ -325,9 +324,9 @@ export default function SettingsScreen() {
       </header>
       {loadError ? <p role="alert" className={styles.loadError}>{c[loadError]}</p> : null}
 
-      <button type="button" className={styles.profile} onClick={() => router.push("/you/kyc-tier")}
-        disabled={profileStatus !== "ready"} aria-busy={profileStatus === "loading"} data-profile-state={profileStatus}
-        aria-label={profileStatus === "loading" ? c.profileLoading : profileStatus === "error" ? c.profileUnavailable : undefined}>
+      <button type="button" className={styles.profile} onClick={() => router.push("/settings/account")}
+        disabled={profileStatus === "loading" || signOutPending} aria-busy={profileStatus === "loading"} data-profile-state={profileStatus}
+        aria-label={profileStatus === "loading" ? c.profileLoading : profileStatus === "error" ? c.accountDetails : undefined}>
         {profileStatus === "ready" ? <AccountAvatar name={name || supaEmail || "Salapi"} photoUrl={photo.profile?.photoUrl ?? null} size={46} alt={photoCopy.alt} loading={photo.status === "loading"} />
           : <span className={`${styles.profileAvatarPlaceholder} ${profileStatus === "loading" ? "sl-skel" : ""}`} aria-hidden="true" />}
         <span className={styles.profileCopy}>
@@ -337,12 +336,10 @@ export default function SettingsScreen() {
           <span className={styles.profileSub}>{isLocalPreview ? c.previewAccount : c.managedWallet}</span>
           <span className={styles.profileMeta}>
             <span className={styles.testnet}><span />Testnet</span>
-            <span className={styles.accountDetails}>{profileStatus === "loading" ? c.loading : profileStatus === "ready" ? <>{c.accountDetails}{Ico.chev({ size: 15, c: T.action })}</> : null}</span>
+            <span className={styles.accountDetails}>{profileStatus === "loading" ? c.loading : <>{c.accountDetails}{Ico.chev({ size: 15, c: T.action })}</>}</span>
           </span>
         </span>
       </button>
-
-      <AccountPhotoEditor photo={photo} disabled={signOutPending} />
 
       <section className={styles.sheet} aria-labelledby="account-title">
         <SectionLabel id="account-title">{t("settings.accounts")}</SectionLabel>

@@ -5,7 +5,8 @@ import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import * as copy from "../lib/i18n/revamp-money.ts";
 import { activityCopy } from "../lib/i18n/wallet-activity.ts";
-import { XLM_ACTIVITY_ASSET, USDC_ACTIVITY_ASSET } from "../lib/wallet-activity.ts";
+import { XLM_ACTIVITY_ASSET, USDC_ACTIVITY_ASSET, activityUsdcEquivalent } from "../lib/wallet-activity.ts";
+import type { MarketPriceResult } from "../lib/market-prices.ts";
 import { PREVIEW_WALLET } from "../lib/local-preview.ts";
 import { formatLocal } from "../lib/ui/currency.ts";
 import type { WalletActivityResult, WalletActivityItem } from "../lib/wallet-activity.ts";
@@ -40,7 +41,7 @@ const pageResult = (items: WalletActivityItem[] = [], nextCursor: string | null 
 
 // These tests execute the actual component, effect/refresh handlers, and JSX.
 // Auth and actions are isolated fixtures, never live authenticated E2E proof.
-function mount(options: { preview?: boolean; configured?: boolean; locale?: "en" | "id" } = {}) {
+function mount(options: { preview?: boolean; configured?: boolean; locale?: "en" | "id" | "tl" | "vi"; prices?: MarketPriceResult } = {}) {
   const preview = options.preview ?? false;
   const slots: unknown[] = [];
   const effects: { index: number; callback: Effect; dependencies: unknown[] | undefined }[] = [];
@@ -89,6 +90,9 @@ function mount(options: { preview?: boolean; configured?: boolean; locale?: "en"
       if (dependency === "@/components/ui/kit") return { Ico: icons, T: {}, IconButton: "IconButton", PoweredByStellar: "PoweredByStellar" };
       if (dependency === "@/lib/ui/useGoBack") return { useGoBack: () => () => {} };
       if (dependency === "@/components/I18nProvider") return { useT: () => ({ currency: "en", locale: options.locale ?? "en" }) };
+      if (dependency === "@/components/AccountAvatar") return { default: "AccountAvatar" };
+      if (dependency === "@/components/MarketPricesProvider") return { useMarketPrices: () => ({ prices: options.prices ?? { status: "unavailable", source: "CoinGecko", reason: "provider-unavailable" } }) };
+      if (dependency === "@/lib/wallet-activity") return { activityUsdcEquivalent };
       if (dependency === "@/lib/i18n/revamp-money") return copy;
       if (dependency === "@/lib/i18n/wallet-activity") return { activityCopy };
       if (dependency === "@/lib/ui/currency") return { formatLocal };
@@ -341,4 +345,102 @@ test("unknown fees are never displayed as zero or incorrectly assigned to an inc
   assert.match(text(h.tree), /Tidak diasumsikan biaya nol atau siapa pembayarnya/);
   assert.doesNotMatch(text(h.tree), /Biaya jaringan: 0 XLM|Dibayar wallet kamu/);
   h.unmount();
+});
+
+const marketQuote = (age = 0, status: "fresh" | "stale" = "fresh"): MarketPriceResult => {
+  const updatedAt = Math.floor(Date.now() / 1000) - age;
+  return { status, source: "CoinGecko", fetchedAt: updatedAt, assets: {
+    xlm: { updatedAt, prices: { usd: .2, php: 12, idr: 3000, vnd: 5000 } },
+    usdc: { updatedAt, prices: { usd: 1, php: 58, idr: 15000, vnd: 25000 } },
+  } };
+};
+
+test("confirmed receipt shows matched participant handle/photo plus both public wallets and actual gas payer", async () => {
+  const fixture = item(); fixture.fee = { status: "available", amountStroops: "100", payer: counterparty, paidByWallet: false, transactionHash: fixture.hash, feeBump: false };
+  const result = pageResult([fixture]); if (!result.ok) throw Error("Fixture");
+  result.identities = [{ address, handle: "recipient_handle", photoUrl: null }, { address: counterparty, handle: "sender_handle", photoUrl: "https://lh3.googleusercontent.com/a/consented-fixture" }];
+  const h = mount(); h.emitAuth("owner-a"); await h.flush(); h.historyRequests[0].deferred.resolve(result); await h.flush();
+  assert.match(text(h.tree), /From @sender_handle/);
+  assert.ok(nodes(h.tree).some(node => node.type === "AccountAvatar" && node.props.name === "sender_handle" && node.props.photoUrl === result.identities![1].photoUrl));
+  const receipt = nodes(h.tree).find(node => node.props["aria-controls"] === `activity-receipt-${fixture.id}`)!;
+  (receipt.props.onClick as () => void)(); h.render();
+  assert.match(text(h.tree), /Sender@sender_handle/); assert.match(text(h.tree), /Recipient@recipient_handle/);
+  assert.ok(text(h.tree).includes(address) && text(h.tree).includes(counterparty));
+  assert.match(text(h.tree), /0\.00001 Testnet XLM/); assert.match(text(h.tree), /Fee payer@sender_handle/);
+  h.unmount();
+});
+
+test("unrelated identity DTO never appears on another receipt; missing app profile uses truthful wallet fallback", async () => {
+  const result = pageResult([item()]); if (!result.ok) throw Error("Fixture");
+  result.identities = [{ address: "G" + "A".repeat(55), handle: "wrong_wallet", photoUrl: "https://lh3.googleusercontent.com/a/wrong" }];
+  const h = mount(); h.emitAuth("owner-a"); await h.flush(); h.historyRequests[0].deferred.resolve(result); await h.flush();
+  assert.doesNotMatch(text(h.tree), /wrong_wallet/); assert.match(text(h.tree), /From Stellar wallet/);
+  assert.ok(nodes(h.tree).filter(node => node.type === "AccountAvatar").every(node => node.props.photoUrl === null)); h.unmount();
+});
+
+test("XLM primary stays exact while current USDC equivalent changes with both shared market prices", async () => {
+  const options = { prices: marketQuote() }, h = mount(options); h.emitAuth("owner-a"); await h.flush();
+  h.historyRequests[0].deferred.resolve(pageResult([item()])); await h.flush();
+  assert.match(text(h.tree), /\+446\.1538462Testnet XLM/); assert.match(text(h.tree), /Current equivalent: ≈ 89\.230769 USDC/);
+  assert.ok(nodes(h.tree).some(node => node.props.href === "https://www.coingecko.com" && text(node) === "CoinGecko" && node.props.rel === "noopener noreferrer"));
+  assert.match(text(h.tree), /not a historical receipt value or token conversion/);
+  if (options.prices.status === "unavailable") throw Error("Fixture");
+  options.prices.assets.usdc.prices.usd = .5; h.render();
+  assert.match(text(h.tree), /Current equivalent: ≈ 178\.46154 USDC/); assert.match(text(h.tree), /\+446\.1538462Testnet XLM/); h.unmount();
+});
+
+test("stale estimate is timestamped, expired/missing estimate is unavailable, never a fake zero", async () => {
+  for (const prices of [marketQuote(150), marketQuote(0, "stale"), marketQuote(301), { status: "unavailable", source: "CoinGecko", reason: "provider-unavailable" } as const]) {
+    const h = mount({ prices }); h.emitAuth("owner-a"); await h.flush(); h.historyRequests[0].deferred.resolve(pageResult([item()])); await h.flush();
+    const row = nodes(h.tree).find(node => node.props["data-activity-equivalent"]);
+    assert.ok(row);
+    if (prices.status === "stale" || (prices.status !== "unavailable" && prices.assets.xlm.updatedAt > Math.floor(Date.now() / 1000) - 300)) {
+      assert.equal(row.props["data-activity-equivalent"], "stale"); assert.match(text(row), /Older price/);
+    } else { assert.equal(row.props["data-activity-equivalent"], "unavailable"); assert.match(text(row), /USDC equivalent unavailable/); assert.doesNotMatch(text(row), /≈ 0/); }
+    h.unmount();
+  }
+});
+
+test("actual USDC rows have no fabricated XLM conversion or current-equivalent badge", async () => {
+  const receipt = item(); receipt.asset = USDC_ACTIVITY_ASSET;
+  const h = mount({ prices: marketQuote() }); h.emitAuth("owner-a"); await h.flush(); h.historyRequests[0].deferred.resolve(pageResult([receipt])); await h.flush();
+  assert.match(text(h.tree), /\+446\.1538462Testnet USDC/); assert.equal(nodes(h.tree).filter(node => node.props["data-activity-equivalent"]).length, 0); h.unmount();
+});
+
+test("account switch clears receipt identities and late old-owner photos cannot be restored", async () => {
+  const result = pageResult([item()]); if (!result.ok) throw Error("Fixture");
+  result.identities = [{ address: counterparty, handle: "old_owner_contact", photoUrl: "https://lh3.googleusercontent.com/a/old" }];
+  const h = mount(); h.emitAuth("owner-a"); await h.flush(); h.historyRequests[0].deferred.resolve(result); await h.flush();
+  assert.match(text(h.tree), /old_owner_contact/); h.click("Refresh activity"); await h.flush(); h.emitAuth("owner-b"); await h.flush();
+  h.historyRequests[1].deferred.resolve(result); await h.flush(); assert.doesNotMatch(text(h.tree), /old_owner_contact/);
+  h.historyRequests[2].deferred.resolve(pageResult([item()], null, address, "owner-b")); await h.flush(); assert.doesNotMatch(text(h.tree), /old_owner_contact/);
+  assert.ok(nodes(h.tree).filter(node => node.type === "AccountAvatar").every(node => node.props.photoUrl === null)); h.unmount();
+});
+
+test("identity and equivalent labels are localized across en/tl/id/vi without changing actual asset", async () => {
+  for (const locale of ["en", "tl", "id", "vi"] as const) {
+    const h = mount({ locale, prices: marketQuote() }); h.emitAuth("owner-a"); await h.flush(); h.historyRequests[0].deferred.resolve(pageResult([item()])); await h.flush();
+    assert.ok(text(h.tree).includes(activityCopy(locale)("equivalent")));
+    assert.ok(text(h.tree).includes(activityCopy(locale)("identityScope")));
+    assert.ok(text(h.tree).includes("Testnet XLM")); assert.ok(text(h.tree).includes("USDC")); h.unmount();
+  }
+});
+
+test("malformed optional identity objects and null entries never hide confirmed financial movements", async () => {
+  for (const identities of [{ address: counterparty }, [null, false, [], "bad", { address: counterparty, handle: "<script>", photoUrl: 123 }]]) {
+    const result = pageResult([item()]); if (!result.ok) throw Error("Fixture");
+    result.identities = identities as never;
+    const h = mount(); h.emitAuth("owner-a"); await h.flush(); h.historyRequests[0].deferred.resolve(result); await h.flush();
+    assert.equal(state(h.tree), "ready"); assert.match(text(h.tree), /\+446\.1538462Testnet XLM/);
+    assert.doesNotMatch(text(h.tree), /<script>/);
+    assert.ok(nodes(h.tree).filter(node => node.type === "AccountAvatar").every(node => node.props.photoUrl === null)); h.unmount();
+  }
+});
+
+test("optional identity enrichment applies a twelve-entry budget without altering the financial page", async () => {
+  const result = pageResult([item()]); if (!result.ok) throw Error("Fixture");
+  result.identities = [...Array.from({ length: 12 }, () => ({ address, handle: null, photoUrl: null })), { address: counterparty, handle: "over_budget", photoUrl: null }];
+  const h = mount(); h.emitAuth("owner-a"); await h.flush(); h.historyRequests[0].deferred.resolve(result); await h.flush();
+  assert.equal(state(h.tree), "ready"); assert.match(text(h.tree), /\+446\.1538462Testnet XLM/);
+  assert.doesNotMatch(text(h.tree), /over_budget/); h.unmount();
 });

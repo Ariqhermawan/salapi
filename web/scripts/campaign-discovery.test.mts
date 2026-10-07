@@ -15,6 +15,7 @@ import { formatStroops } from "../lib/disaster.ts";
 import { DICTS } from "../lib/i18n/dictionaries.ts";
 import { LOCALES, type Locale } from "../lib/i18n/config.ts";
 import type { Circle, CircleCategory } from "../lib/circles/types.ts";
+import { campaignDonorBadge } from "../lib/ui/testnet-donor.ts";
 
 type Element = { type: unknown; props: Record<string, unknown>; key?: string };
 function nodes(value: unknown): Element[] {
@@ -221,7 +222,7 @@ test("catalog entry and explicit flag0 examples retain truthful labels and separ
   }
 });
 
-function campaignCard(campaign: Campaign, preview: boolean, locale: Locale = "en") {
+function campaignCard(campaign: Campaign, preview: boolean, locale: Locale = "en", viewer?: string | null) {
   const local = previewModule(preview), media = {} as { vaultCampaignMedia: unknown };
   runInNewContext(compile("../lib/vault-campaign-media.ts"), { exports: media, require(name: string) { assert.equal(name, "./local-preview"); return local; } });
   let cursor = 0; const states: unknown[] = [], reviews: { label: string; action: unknown; preview: unknown }[] = [];
@@ -247,6 +248,8 @@ function campaignCard(campaign: Campaign, preview: boolean, locale: Locale = "en
       if (name === "@/lib/vault-campaign-media") return media;
       if (name === "@/lib/i18n/revamp-campaign-discovery") return discoveryCopy;
       if (name === "@/lib/i18n/revamp-account") return accountCopy;
+      if (name === "@/lib/i18n/revamp-circles") return circlesCopy;
+      if (name === "@/lib/ui/testnet-donor") return { campaignDonorBadge };
       if (name === "@/lib/ui/useGoBack") return { useGoBack: () => forbidden("action") };
       if (name === "@/app/campaign-actions") return new Proxy({}, { get: () => forbidden("action") });
       if (name === "@/lib/ui/useUnresolvedSubmission") return { useUnresolvedSubmission: forbidden("action") };
@@ -256,7 +259,7 @@ function campaignCard(campaign: Campaign, preview: boolean, locale: Locale = "en
       throw Error(`Unexpected actual campaign dependency: ${name}`);
     },
   });
-  const render = () => { cursor = 0; return exports.cardForTest({ c: campaign, now: BigInt(local.PREVIEW_TIME), viewer: local.PREVIEW_WALLET.address, busy: false, detail: true,
+  const render = () => { cursor = 0; return exports.cardForTest({ c: campaign, now: BigInt(local.PREVIEW_TIME), viewer: viewer === undefined ? local.PREVIEW_WALLET.address : viewer, busy: false, detail: true,
     run(label: string, action: unknown, _created: unknown, previewAction: unknown) { reviews.push({ label, action, preview: previewAction }); }, onPreviewUpdate: forbidden("storage") }); };
   let tree = render();
   return { calls, reviews, get tree() { return tree; }, amount(value: string) {
@@ -357,4 +360,40 @@ test("D4 details bind organizer galleries to campaign identity without rebinding
       assert.deepEqual(screen.calls, { network: 0, action: 0, storage: 0 });
     }
   }
+});
+
+test("only a positive unrefunded contract-read contribution for the current viewer renders Testnet donor, never an example or zero balance", () => {
+  const base = previewModule(true).PREVIEW_CAMPAIGNS[0];
+  for (const preview of [true, false]) for (const amount of ["0", "1", "50000000"]) for (const refunded of [true, false]) for (const viewer of [null, base.config.creator]) {
+    const campaign = { ...base, contribution: { amount, refunded } };
+    const screen = campaignCard(campaign, preview, "en", viewer);
+    const badge = nodes(screen.tree).find(node => node.props["data-testid"] === "campaign-donor-badge");
+    const eligible = viewer !== null && BigInt(amount) > 0n && !refunded;
+    assert.equal(Boolean(badge), eligible);
+    if (eligible) {
+      assert.equal(badge?.props["data-evidence"], preview ? "example" : "testnet");
+      assert.equal(text(badge), preview ? "Example donor" : "Testnet donor");
+      assert.ok(text(screen.tree).includes(preview ? "Browser-only example" : "Confirmed by this wallet's D4 contract record"));
+    }
+    assert.deepEqual(screen.calls, { network: 0, action: 0, storage: 0 });
+  }
+  for (const amount of ["-1", "1.2", "bad", "", "NaN"]) assert.equal(campaignDonorBadge({ contribution: { amount, refunded: false } }, base.config.creator, false), null);
+});
+
+test("confirmed donor labels are four-locale and a pending action does not substitute for a refreshed contribution read", () => {
+  const base = previewModule(true).PREVIEW_CAMPAIGNS[0];
+  for (const locale of LOCALES) {
+    const c = circlesCopy.circlesCopy(locale);
+    for (const preview of [true, false]) {
+      const screen = campaignCard({ ...base, contribution: { amount: "1", refunded: false } }, preview, locale);
+      const badge = nodes(screen.tree).find(node => node.props["data-testid"] === "campaign-donor-badge");
+      assert.equal(text(badge), c(preview ? "Example donor" : "Testnet donor"));
+    }
+  }
+  const awaitingRead = campaignCard({ ...base, contribution: { amount: "0", refunded: false } }, false);
+  awaitingRead.amount("5"); awaitingRead.review();
+  assert.equal(awaitingRead.reviews.length, 1);
+  assert.equal(nodes(awaitingRead.tree).some(node => node.props["data-testid"] === "campaign-donor-badge"), false);
+  const source = readFileSync(new URL("../app/campaign-actions.ts", import.meta.url), "utf8");
+  assert.match(source, /readContract\(contractId, "contribution", \[sc\.u64\(c\.id\), sc\.addr\(viewer\)\]\)/);
 });

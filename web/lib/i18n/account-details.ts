@@ -1,0 +1,50 @@
+import type { Locale } from "./config";
+const en = {
+  title: "Account details", back: "Back", sub: "Your identity, photo and Testnet wallet in one place.",
+  email: "Signed-in email", username: "Username", wallet: "Stellar Testnet wallet", noUsername: "No username claimed", noWallet: "No saved wallet yet",
+  manage: "Manage username in You", explorer: "Open wallet explorer", loading: "Loading your account…", retry: "Retry",
+  guest: "Sign in to see and edit your account.", signIn: "Sign in", unavailable: "Your account details could not be loaded. Try again.",
+  identityUnavailable: "Wallet or username lookup is temporarily unavailable. Your identity has not been replaced.",
+  privacy: "Receipt photo privacy", share: "Show my photo to people I transfer with",
+  shareHint: "Off by default. When enabled, your current photo appears on confirmed transfer receipts for their participants, not in a public user directory. Your email stays private. Turning this off stops future sharing; photos or links already loaded or copied may remain.",
+  saved: "Photo sharing preference saved.", saving: "Saving…", saveError: "The change could not be confirmed. Retry loading to check before saving again.",
+  verification: "Identity verification", verificationHint: "Separate demo flow. This does not verify your account or enable real-money payments.",
+};
+type Copy = typeof en;
+const copies: Record<Locale, Copy> = {
+  en,
+  id: {
+    title: "Detail akun", back: "Kembali", sub: "Identitas, foto dan dompet Testnet Anda di satu tempat.",
+    email: "Email akun yang login", username: "Username", wallet: "Dompet Stellar Testnet", noUsername: "Belum memilih username", noWallet: "Belum ada dompet tersimpan",
+    manage: "Kelola username di Kamu", explorer: "Buka explorer dompet", loading: "Memuat akun Anda…", retry: "Coba lagi",
+    guest: "Login untuk melihat dan mengubah akun Anda.", signIn: "Login", unavailable: "Detail akun gagal dimuat. Coba lagi.",
+    identityUnavailable: "Data dompet atau username sementara tidak tersedia. Identitas Anda tidak diganti.",
+    privacy: "Privasi foto di bukti transfer", share: "Tampilkan foto saya kepada lawan transaksi",
+    shareHint: "Nonaktif secara default. Jika diaktifkan, foto Anda muncul di bukti transfer terkonfirmasi untuk pihak transaksi, bukan di direktori pengguna publik. Email tetap privat. Menonaktifkan menghentikan pembagian berikutnya; foto atau tautan yang sudah dimuat atau disalin bisa tetap tersimpan.",
+    saved: "Preferensi berbagi foto tersimpan.", saving: "Menyimpan…", saveError: "Perubahan belum dapat dikonfirmasi. Muat ulang untuk mengecek sebelum menyimpan lagi.",
+    verification: "Verifikasi identitas", verificationHint: "Alur demo terpisah. Tidak memverifikasi akun atau mengaktifkan pembayaran uang nyata.",
+  },
+  tl: {
+    title: "Detalye ng account", back: "Bumalik", sub: "Identidad, larawan at Testnet wallet sa isang lugar.",
+    email: "Email ng naka-sign in", username: "Username", wallet: "Stellar Testnet wallet", noUsername: "Wala pang username", noWallet: "Wala pang naka-save na wallet",
+    manage: "Pamahalaan ang username sa You", explorer: "Buksan ang wallet explorer", loading: "Nilo-load ang account…", retry: "Subukan muli",
+    guest: "Mag-sign in upang makita at baguhin ang account.", signIn: "Mag-sign in", unavailable: "Hindi ma-load ang detalye ng account. Subukan muli.",
+    identityUnavailable: "Pansamantalang hindi available ang wallet o username. Hindi napalitan ang iyong identidad.",
+    privacy: "Privacy ng larawan sa resibo", share: "Ipakita ang larawan sa mga ka-transfer ko",
+    shareHint: "Naka-off bilang default. Kapag naka-on, makikita ang larawan sa kumpirmadong resibo ng mga kalahok, hindi sa pampublikong directory. Pribado ang email. Ang pag-off ay humihinto sa susunod na pagbabahagi; maaaring manatili ang na-load o nakopyang larawan at link.",
+    saved: "Na-save ang preference sa larawan.", saving: "Sine-save…", saveError: "Hindi makumpirma ang pagbabago. I-load muli bago mag-save ulit.",
+    verification: "Pag-verify ng identidad", verificationHint: "Hiwalay na demo. Hindi nito bine-verify ang account o pinapagana ang totoong pagbabayad.",
+  },
+  vi: {
+    title: "Chi tiết tài khoản", back: "Quay lại", sub: "Danh tính, ảnh và ví Testnet ở cùng một nơi.",
+    email: "Email đã đăng nhập", username: "Tên người dùng", wallet: "Ví Stellar Testnet", noUsername: "Chưa đăng ký tên", noWallet: "Chưa có ví đã lưu",
+    manage: "Quản lý tên trong You", explorer: "Mở trình khám phá ví", loading: "Đang tải tài khoản…", retry: "Thử lại",
+    guest: "Đăng nhập để xem và sửa tài khoản.", signIn: "Đăng nhập", unavailable: "Không thể tải chi tiết tài khoản. Vui lòng thử lại.",
+    identityUnavailable: "Tạm thời không thể tra cứu ví hoặc tên. Danh tính của bạn không bị thay thế.",
+    privacy: "Quyền riêng tư ảnh trên biên nhận", share: "Hiện ảnh cho người giao dịch với tôi",
+    shareHint: "Mặc định tắt. Khi bật, ảnh hiện trong biên nhận giao dịch đã xác nhận cho các bên tham gia, không phải danh bạ công khai. Email vẫn riêng tư. Tắt sẽ ngừng chia sẻ tiếp; ảnh hoặc liên kết đã tải hay sao chép có thể còn được giữ lại.",
+    saved: "Đã lưu tùy chọn chia sẻ ảnh.", saving: "Đang lưu…", saveError: "Chưa xác nhận được thay đổi. Tải lại để kiểm tra trước khi lưu tiếp.",
+    verification: "Xác minh danh tính", verificationHint: "Luồng demo riêng. Không xác minh tài khoản hoặc bật thanh toán tiền thật.",
+  },
+};
+export function accountDetailsCopy(locale: Locale): Copy { return copies[locale] ?? en; }

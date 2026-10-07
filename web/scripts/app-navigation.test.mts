@@ -237,17 +237,102 @@ test("bounded registry evicts old predecessors conservatively and rejects malfor
   const second = context.tracker(); const stopSecond = second.start(); assert.equal(second.canGoBack(), false); stopSecond();
 });
 
-test("only allowlisted harmless UI fields can be persisted or observed", () => {
+test("only allowlisted harmless UI fields can be persisted or observed", async () => {
   const context = fakeWindow(); const tracker = context.tracker(); const stop = tracker.start(); commit(context, tracker);
   let changes = 0; const unsubscribe = tracker.subscribe(() => changes++);
   tracker.writeView("home-circles", { category: "animalCare", index: 1 });
-  const snapshot = tracker.viewSnapshot("home-circles"); assert.equal(changes, 1);
+  const snapshot = tracker.viewSnapshot("home-circles"); assert.equal(changes, 0, "listeners are deferred beyond the current commit");
+  await Promise.resolve(); assert.equal(changes, 1);
   for (const forbidden of [{ amount: 500 }, { balance: 900 }, { email: "private" }, { category: "medical", kyc: true }, { index: -1 }, { index: NaN }, { index: 1.2 }, { category: "x".repeat(600) }]) tracker.writeView("home-circles", forbidden);
   tracker.writeView("financial-form", { amount: 500 }); tracker.writeView("circles-discovery", { index: 2 });
+  await Promise.resolve();
   assert.equal(tracker.viewSnapshot("home-circles"), snapshot); assert.equal(changes, 1);
-  tracker.writeView("home-circles", { category: "animalCare", index: 1 }); assert.equal(changes, 1, "stable serialized snapshots");
-  unsubscribe(); tracker.writeView("home-circles", { category: "education", index: 0 }); assert.equal(changes, 1);
+  tracker.writeView("home-circles", { category: "animalCare", index: 1 }); await Promise.resolve(); assert.equal(changes, 1, "stable serialized snapshots");
+  unsubscribe(); tracker.writeView("home-circles", { category: "education", index: 0 }); await Promise.resolve(); assert.equal(changes, 1);
   stop();
+});
+
+test("Next insertion-effect history replacement never synchronously invokes an updating subscriber", async () => {
+  const context = fakeWindow("/arisan/join"); const tracker = context.tracker(); const stop = tracker.start(); commit(context, tracker);
+  await Promise.resolve();
+  let inInsertionEffect = false;
+  let notifications = 0;
+  const unsubscribe = tracker.subscribe(() => {
+    assert.equal(inInsertionEffect, false, "React updates must not be scheduled from Next's insertion effect");
+    notifications++;
+  });
+  const before = tracker.entrySnapshot();
+  inInsertionEffect = true;
+  context.win.history.replaceState(NEXT_STATE, "", "/arisan/1");
+  assert.notEqual(tracker.entrySnapshot(), before, "history snapshot updates immediately");
+  assert.equal(commit(context, tracker)?.top, 0, "scroll plan is available without waiting for subscribers");
+  assert.equal(tracker.canGoBack(), false, "cold invite replacement must not invent a predecessor");
+  assert.equal(notifications, 0);
+  inInsertionEffect = false;
+  await Promise.resolve();
+  assert.equal(notifications, 1);
+  unsubscribe(); stop();
+});
+
+test("a turn's start, history and view writes coalesce into one notification of the latest synchronous state", async () => {
+  const context = fakeWindow("/"); const tracker = context.tracker();
+  const observed: { entry: string; view: string }[] = [];
+  const unsubscribe = tracker.subscribe(() => observed.push({ entry: tracker.entrySnapshot(), view: tracker.viewSnapshot("circles-discovery") }));
+  const stop = tracker.start(); commit(context, tracker);
+  navigate(context, tracker, "/circles");
+  context.win.history.replaceState(NEXT_STATE, "", "/circles?sort=recent");
+  tracker.writeView("circles-discovery", { category: "medical", sort: "recent" });
+  tracker.writeView("circles-discovery", { category: "education", sort: "goal" });
+  const latest = { entry: tracker.entrySnapshot(), view: '{"category":"education","sort":"goal"}' };
+  assert.equal(tracker.viewSnapshot("circles-discovery"), latest.view); assert.equal(tracker.canGoBack(), true);
+  assert.deepEqual(observed, []);
+  await Promise.resolve(); assert.deepEqual(observed, [latest]);
+  context.win.history.replaceState(NEXT_STATE, "", "/circles?sort=recent");
+  tracker.writeView("circles-discovery", { category: "education", sort: "goal" });
+  await Promise.resolve(); assert.deepEqual(observed, [latest], "same URL/tree and stable views do not republish");
+  unsubscribe(); stop();
+});
+
+test("Back claims and POP reset remain synchronous while subscriber delivery is pending", async () => {
+  const context = fakeWindow("/"); const tracker = context.tracker(); const stop = tracker.start(); commit(context, tracker);
+  let notifications = 0; const unsubscribe = tracker.subscribe(() => notifications++);
+  navigate(context, tracker, "/arisan"); navigate(context, tracker, "/arisan/join");
+  assert.equal(tracker.claimBack(), "back"); assert.equal(tracker.claimBack(), "pending");
+  context.win.history.go(-1); assert.equal(tracker.claimBack(), "back", "confirmed POP immediately releases the prior claim");
+  assert.equal(tracker.claimBack(), "pending");
+  context.win.history.go(-1); assert.equal(tracker.claimBack(), "fallback", "root boundary remains protected before the microtask");
+  assert.equal(notifications, 0);
+  await Promise.resolve(); assert.equal(notifications, 1);
+  unsubscribe(); stop();
+});
+
+test("unsubscribe before delivery or during an earlier subscriber callback suppresses the removed listener", async () => {
+  const context = fakeWindow("/"); const tracker = context.tracker(); const stop = tracker.start(); commit(context, tracker); await Promise.resolve();
+  let removedCalls = 0; let liveCalls = 0;
+  const removed = tracker.subscribe(() => removedCalls++);
+  tracker.writeView("home-circles", { category: "medical", index: 1 }); removed();
+  await Promise.resolve(); assert.equal(removedCalls, 0);
+  let unsubscribeSecond = () => {};
+  const first = tracker.subscribe(() => { liveCalls++; unsubscribeSecond(); });
+  unsubscribeSecond = tracker.subscribe(() => removedCalls++);
+  tracker.writeView("home-circles", { category: "education", index: 2 });
+  await Promise.resolve(); assert.equal(liveCalls, 1); assert.equal(removedCalls, 0);
+  first(); stop();
+});
+
+test("final cleanup cancels queued notifications and StrictMode restart publishes only the new generation", async () => {
+  const context = fakeWindow("/"); const tracker = context.tracker(); let notifications = 0;
+  const unsubscribe = tracker.subscribe(() => notifications++);
+  const stop = tracker.start(); navigate(context, tracker, "/circles"); stop();
+  await Promise.resolve(); assert.equal(notifications, 0, "detached owners cannot deliver an already queued update");
+  const stopRestart = tracker.start();
+  tracker.writeView("circles-discovery", { category: "medical", sort: "recent" });
+  await Promise.resolve(); assert.equal(notifications, 1, "restart's writes share one live delivery");
+  const stopSecondOwner = tracker.start(); navigate(context, tracker, "/vaults"); stopRestart();
+  await Promise.resolve(); assert.equal(notifications, 2, "one remaining owner keeps its queued delivery");
+  navigate(context, tracker, "/settings"); stopSecondOwner();
+  await Promise.resolve(); assert.equal(notifications, 2, "last owner cleanup cancels its pending delivery");
+  unsubscribe();
 });
 
 test("fallback URL normalization rejects external/open-redirect/scheme/control paths", () => {

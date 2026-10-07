@@ -67,6 +67,25 @@ const screenNames = ["CirclesDiscoverScreen", "CircleDetailScreen", "CirclesDona
 type ScreenName = typeof screenNames[number];
 const scripts = new Map(screenNames.map(name => [name, transpile(`../components/screens/${name}.tsx`)]));
 
+test("all 27 concept proof flows expose photos, missing documents, missing hash and unrequested approval without false confirmation", () => {
+  assert.equal(seed.SEED_CIRCLES.length, 27);
+  for (const circle of seed.SEED_CIRCLES) for (const preview of [true, false]) {
+    const screen = setup("CircleDetailScreen", "en", preview, circle.id);
+    screen.click("Public proof");
+    const pipeline = nodes(screen.tree).find(node => node.type === "ol" && node.props["aria-label"] === "Evidence and approval pipeline");
+    assert.ok(pipeline, circle.id); assert.equal(nodes(pipeline).filter(node => node.type === "li").length, 4);
+    assert.match(text(screen.tree), /No on-chain campaign linked/);
+    for (const status of ["Example only", "Not submitted", "Not anchored on-chain", "Not requested"]) assert.ok(text(pipeline).includes(status), `${circle.id}: ${status}`);
+    const context = nodes(screen.tree).find(node => node.props["aria-labelledby"] === "circle-proof-photos-title");
+    assert.ok(context); assert.deepEqual(nodes(context).filter(node => node.type === "Image").map(node => node.props.src), Array.from(circle.gallery!, photo => photo.src));
+    assert.equal(nodes(context).filter(node => node.type === "figcaption").length, 3);
+    assert.match(text(context), /AI illustration · not proof/);
+    assert.equal(nodes(screen.tree).some(node => node.type === "Link" && /stellar\.expert.*[a-f0-9]{64}/.test(String(node.props.href))), false);
+    assert.equal(nodes(screen.tree).some(node => node.type === "SuccessMotion"), false);
+    assert.deepEqual(screen.calls, { storage: 0, network: 0, action: 0 });
+  }
+});
+
 // This harness executes actual TSX handlers with deterministic isolated hooks.
 // No browser, provider, database, credential, navigation or live action exists.
 function setup(name: ScreenName, locale: Locale = "en", preview = true, circleId = "tino-relief") {
@@ -80,6 +99,14 @@ function setup(name: ScreenName, locale: Locale = "en", preview = true, circleId
   const exports = {} as { default(props: unknown): Element; selectCircleExamples(circles: readonly Circle[], category: CircleCategory | "all", sort: string): Circle[] };
   const jsx = (type: unknown, props: Record<string, unknown>, key?: string): Element => typeof type === "function" ? type(props) : { type: String(type), props, key };
   const icons = new Proxy({}, { get: () => () => null });
+  const signupEmail: Record<string, unknown> = {};
+  runInNewContext(transpile("../components/CirclesSignupEmail.tsx"), { exports: signupEmail, require(module: string) {
+    if (module === "react/jsx-runtime") return { jsx, jsxs: jsx, Fragment: "Fragment" };
+    if (module === "@/components/I18nProvider") return { useT: () => ({ locale }) };
+    if (module === "@/lib/i18n/revamp-circles") return copy;
+    if (module.endsWith(".module.css")) return { default: {} };
+    throw Error(`Unexpected isolated signup email dependency: ${module}`);
+  } });
   runInNewContext(scripts.get(name)!, {
     exports, fetch: forbidden("network"),
     localStorage: { getItem: (key: string) => memory.get(key) ?? null, setItem(key: string, value: string) { calls.storage++; memory.set(key, value); }, removeItem(key: string) { calls.storage++; memory.delete(key); } },
@@ -104,6 +131,8 @@ function setup(name: ScreenName, locale: Locale = "en", preview = true, circleId
         return value;
       } }) };
       if (module === "@/lib/i18n/revamp-circles") return copy;
+      if (module === "@/components/CirclesSignupEmail") return signupEmail;
+      if (module === "@/lib/ui/useCirclesSignupIdentity") return { useCirclesSignupIdentity: () => ({ identity: { status: "guest" }, refresh: () => {}, captureOwnerRevision: () => 0, isCurrentOwner: () => true }) };
       if (module === "@/lib/i18n/revamp-campaign-discovery") return discoveryCopy;
       if (module === "@/lib/ui/circle-draft-gallery") return draftGallery;
       if (module === "@/lib/home-circles") return homeCircles;
@@ -304,6 +333,8 @@ test("four-locale donor review and optional signup retain exact amounts, validat
     assert.ok(text(screen.tree).includes(c("Check your cause and amount.")));
     assert.ok(text(screen.tree).includes(currency.formatLocalAmount(10, "en"))); screen.click(c("Change amount"));
     screen.click(c("Optional launch signup")); screen.input("circle-launch-email", "qa@example.invalid"); await screen.submit();
+    assert.ok(!text(screen.tree).includes(c("Example signup complete. Nothing was sent.")));
+    screen.check(c("I want email updates about this campaign concept and the Circles launch. Optional, not a donation.")); await screen.submit();
     assert.ok(text(screen.tree).includes(c("Example signup complete. Nothing was sent.")));
     assert.deepEqual(screen.calls, { storage: 0, network: 0, action: 0 });
   }

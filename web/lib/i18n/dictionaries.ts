@@ -974,7 +974,7 @@ const en = {
       postponeOnlyHost: "Only the host can postpone.",
       doneTitle: "Cycle complete",
       doneBody:
-        "Every member won exactly once. The contract balance is exactly zero. The receipts are on-chain.",
+        "This room's cycle is complete. Each member received one payout. View this room's payout history below.",
       dissolvedTitle: "Room dissolved",
       dissolvedBody:
         "All locked funds were refunded to their owners. You can start a new room any time.",
@@ -1963,7 +1963,7 @@ const tl: Dict = {
       postponeOnlyHost: "Tanging host lamang ang puwedeng magpaliban.",
       doneTitle: "Tapos na ang cycle",
       doneBody:
-        "Eksaktong isang beses nanalo ang bawat miyembro. Eksaktong sero ang balanse ng kontrata. On-chain ang mga resibo.",
+        "Tapos na ang cycle ng room na ito. Nakatanggap ng isang payout ang bawat miyembro. Tingnan ang payout history ng room sa ibaba.",
       dissolvedTitle: "Binura ang room",
       dissolvedBody:
         "Naibalik sa mga may-ari ang lahat ng naka-lock na pondo. Maaaring magbukas muli ng bagong room.",
@@ -2948,7 +2948,7 @@ const id: Dict = {
       postponeOnlyHost: "Hanya host yang bisa menunda.",
       doneTitle: "Siklus selesai",
       doneBody:
-        "Setiap anggota menang tepat sekali. Saldo kontrak tepat nol. Tanda terima ada di on-chain.",
+        "Siklus ruang ini selesai. Setiap anggota menerima satu payout. Lihat riwayat payout ruang ini di bawah.",
       dissolvedTitle: "Ruang dibubarkan",
       dissolvedBody:
         "Semua dana terkunci dikembalikan ke pemiliknya. Kamu bisa memulai ruang baru kapan saja.",
@@ -3934,7 +3934,7 @@ const vi: Dict = {
       postponeOnlyHost: "Chỉ chủ phòng mới có thể hoãn.",
       doneTitle: "Chu kỳ hoàn tất",
       doneBody:
-        "Mỗi thành viên trúng đúng một lần. Số dư hợp đồng đúng bằng không. Biên nhận có trên on-chain.",
+        "Chu kỳ của phòng này đã hoàn tất. Mỗi thành viên nhận một khoản chi trả. Xem lịch sử chi trả của phòng bên dưới.",
       dissolvedTitle: "Phòng đã giải tán",
       dissolvedBody:
         "Toàn bộ tiền khóa đã hoàn lại cho chủ. Bạn có thể tạo phòng mới bất cứ lúc nào.",
