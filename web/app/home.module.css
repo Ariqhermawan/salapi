@@ -213,10 +213,11 @@
    quote timestamp. Desktop app frames are only 94vh, so an 800px browser also
    needs this compact spacing. Keep navigation touch targets unchanged. */
 @media (max-height: 820px) {
-  .wallet { padding-top: 8px; padding-bottom: 8px; }
-  .identity { padding-bottom: 4px; }
-  .walletContent { padding-top: 4px; }
+  .home { padding-top: 6px; }
+  .wallet { padding-top: 6px; padding-bottom: 6px; }
+  .identity { padding-bottom: 2px; }
+  .walletContent { padding-top: 2px; }
   .balanceLabel > span:first-child { padding-top: 1px; padding-bottom: 1px; }
   .amount { margin-top: 1px; }
-  .walletCaption { margin-top: 2px; }
+  .walletCaption { margin-top: 1px; }
 }

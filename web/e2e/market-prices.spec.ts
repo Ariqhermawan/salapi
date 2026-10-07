@@ -19,10 +19,21 @@ function linkedFundingFixture(): Extract<CircleTestnetCampaignResult, { ok: true
     approverWallets: wallets.slice(2), creatorCutBps: 0, fundingDeadline: "1793000000", reviewDeadline: "1794000000" };
   return { ok: true, available: true, network: "testnet", circleId: "tino-relief", contractId: "CC6D7P35SVCNZLOKTHKDNH4S2ZELYHBP5UO3IWADFORKEF7BCSBY37FU",
     qaLabel: "QA Testnet · fictional cause", donationOpen: true, status: "ready", mapping, now: "1791000000",
-    campaign: { id: "100", title: "Isolated Home funding fixture", state: "Funding", total: "1000000000", escrow: "1000000000", proofHash: null, proofUrl: "", approvals: [],
+    campaign: { id: "100", title: "QA Circles: tino-relief", state: "Funding", total: "1000000000", escrow: "1000000000", proofHash: null, proofUrl: "", approvals: [],
       config: { creator: mapping.creatorWallet, beneficiary: mapping.beneficiaryWallet, approvers: mapping.approverWallets, creator_cut_bps: 0,
         funding_deadline: mapping.fundingDeadline, review_deadline: mapping.reviewDeadline, token: "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC" } } };
 }
+
+function publicDiscoveryFixture() {
+  const linked = linkedFundingFixture();
+  // A linked QA ledger card is represented by its story, while an unrelated
+  // D4 campaign remains in the unified carousel. Display fixtures only.
+  const standalone = { ...linked.campaign, id: "99", title: "Isolated standalone Testnet campaign" };
+  return { ok: true, contractId: linked.contractId, now: linked.now,
+    campaigns: [linked.campaign, standalone], circleLinks: { "100": "tino-relief" } };
+}
+
+const fixtureCatalogCount = 28;
 
 function quote(now: number, price = .25, status: "fresh" | "stale" = "fresh", ageMs = 0) {
   const updatedAt = Math.floor((now - ageMs) / 1000);
@@ -49,6 +60,10 @@ async function setup(page: Page, priceBody: () => object, currency = "en", local
     if (url.pathname === "/api/market-prices") {
       expect(request.method()).toBe("GET"); calls.quotes++;
       return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(priceBody()) });
+    }
+    if (request.method() === "GET" && url.pathname === "/api/public/campaigns"
+      && url.searchParams.size === 1 && url.searchParams.get("before") === "0") {
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(publicDiscoveryFixture()) });
     }
     if (linkedFunding && request.method() === "GET" && url.pathname === "/api/public/circles-testnet"
       && url.searchParams.size === 1 && url.searchParams.get("circleId") === "tino-relief") {
@@ -103,9 +118,12 @@ test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () =>
     await expect(market.locator("[data-native-balance]")).toHaveText("10000 XLM");
     const attribution = market.getByRole("link", { name: "CoinGecko", exact: true });
     await expect(attribution).toBeVisible(); await expect(attribution).toHaveAttribute("href", "https://www.coingecko.com");
-    await expect(market.getByText("Price data by", { exact: false })).toBeVisible();
+    await expect(market.locator('[data-price-attribution="coingecko"]').getByText("Data powered by", { exact: true })).toBeVisible();
+    await expect(attribution.getByRole("img", { name: "CoinGecko", exact: true })).toBeVisible();
     await page.evaluate(async () => { await document.fonts.ready; });
     const catalog = page.getByTestId("home-circles-catalog");
+    await expect(catalog.locator("article[data-example-cause]")).toHaveCount(27);
+    await expect(catalog.locator("article[data-standalone-campaign]")).toHaveCount(1);
     const footer = catalog.getByRole("link", { name: "Sketch your own cause", exact: true });
     const usableBottom = await page.evaluate(() => {
       const nav = document.querySelector<HTMLElement>(".sl-tabbar")!, main = document.querySelector<HTMLElement>("#app-content")!;
@@ -152,6 +170,8 @@ test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () =>
     const market = await openHome(page);
     await expect(market.locator("[data-native-balance]")).toHaveText("10000 XLM");
     const catalog = page.getByTestId("home-circles-catalog");
+    await expect(catalog.locator("article[data-example-cause]")).toHaveCount(27);
+    await expect(catalog.locator("article[data-standalone-campaign]")).toHaveCount(1);
     const funding = catalog.locator('[data-funding-kind="testnet"]');
     await expect(funding).toHaveCount(1);
     await expect(funding).toContainText("100 XLM");
@@ -228,6 +248,9 @@ test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () =>
       await expect(market.getByRole("link", { name: "CoinGecko", exact: true })).toBeVisible();
       const catalog = page.getByTestId("home-circles-catalog");
       await expect(catalog).toHaveAttribute("data-catalog-ready", "true");
+      await expect(catalog.locator("article[data-example-cause]")).toHaveCount(27);
+      await expect(catalog.locator("article[data-standalone-campaign]")).toHaveCount(1);
+      await expect(catalog.locator('[data-standalone-campaign="99"]')).toContainText("Isolated standalone Testnet campaign");
       await expect(page.locator("html")).toHaveAttribute("lang", locale);
       await page.evaluate(async () => { await document.fonts.ready; });
       const geometry = await page.evaluate(() => {
@@ -250,7 +273,7 @@ test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () =>
         expect(rect!.height).toBeGreaterThanOrEqual(43.5); expect(rect!.width).toBeGreaterThanOrEqual(43.5);
       }
       await footerControls[2].click();
-      await expect(catalog.getByLabel(homeCatalogCopy(locale, "{current} of {count} example causes", { current: 2, count: 27 }), { exact: true })).toHaveText("02 / 27");
+      await expect(catalog.getByLabel(homeCatalogCopy(locale, "{current} of {count} example causes", { current: 2, count: fixtureCatalogCount }), { exact: true })).toHaveText("02 / 28");
       expect(await page.locator("#app-content").evaluate(node => node.scrollTop)).toBe(0);
       expect(fixture.calls.forbidden).toEqual([]); expect(fixture.errors).toEqual([]);
     });

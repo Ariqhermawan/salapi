@@ -550,6 +550,27 @@ test("flag0 D4 discovery failure remains visible and retryable within the same a
   assert.equal(ui.calls.network, 0); assert.equal(ui.calls.writes, 0);
 });
 
+test("background discovery status and retry remain after the primary footer in every locale", async () => {
+  for (const locale of LOCALES) {
+    const pending = deferred<PublicCampaignPage>();
+    const loading = mount({ preview: false, locale, campaignReader: () => pending.promise });
+    const failed = mount({ preview: false, locale, failCampaigns: true });
+    for (const screen of [loading, failed]) {
+      await screen.flush();
+      const elements = nodes(screen.catalog);
+      const footer = elements.findIndex(node => hasClass(node, "footer"));
+      const status = elements.findIndex(node => hasClass(node, "discoveryStatus"));
+      assert.ok(footer >= 0 && status > footer, "A slow or failed background lookup must not add a loading or 44px retry row before the main carousel controls");
+      assert.ok(elements.slice(footer, status).some(node => node.props.href === "/circles/create"));
+      assert.equal(elements.slice(footer, status).filter(node => node.type === "button").length, 2);
+      assert.equal(screen.cards.length, 27); assert.equal(screen.calls.network, 0); assert.equal(screen.calls.writes, 0);
+      screen.cleanup();
+    }
+    assert.equal(nodes(failed.catalog).find(node => hasClass(node, "discoveryStatus"))?.props.role, "alert");
+    assert.ok(nodes(failed.catalog).some(node => node.type === "button" && text(node) === homeCopy(locale, "Try again")));
+  }
+});
+
 test("public D4 first page is visible while later pages are still pending and all records remain after completion", async () => {
   const later = deferred<PublicCampaignPage>();
   const campaigns = Array.from({ length: 12 }, (_, index) => ({ ...PREVIEW_CAMPAIGNS[0], id: String(800 + index), title: `Public funding ${index + 1}` }));
@@ -695,13 +716,42 @@ test("short Home windows reclaim decorative space without shrinking or hiding in
   compact.walkRules(rule => {
     touched.push(...rule.selectors);
     for (const node of rule.nodes) if (node.type === "decl") {
-      assert.ok(["margin-top", "padding-bottom", "margin-bottom", "height", "padding-top", "gap"].includes(node.prop));
+      const badge = rule.selectors.every(selector => [".category", ".example", ".ai"].includes(selector));
+      assert.ok(["margin-top", "padding-bottom", "margin-bottom", "height", "padding-top", "gap", ...(badge ? ["top", "bottom", "padding", "line-height"] : [])].includes(node.prop));
       assert.ok(Number.parseFloat(node.value) >= 0);
       assert.notEqual(node.prop, "font-size");
     }
   });
-  assert.deepEqual(touched, [".catalog", ".header", ".notice", ".tools", ".strip", ".photo", ".body", ".rating", ".footer"]);
+  assert.deepEqual(touched, [".catalog", ".header", ".notice", ".tools", ".strip", ".photo", ".category", ".example", ".ai", ".body", ".rating", ".footer"]);
   assert.equal(touched.some(selector => /pledge|button|select|organizer|explore/.test(selector)), false);
+});
+
+test("compact thumbnail badges keep their readable font sizes and a positive vertical gap", () => {
+  const sheet = parse(source("../components/HomeCirclesCatalog.module.css"));
+  const base: Record<string, Record<string, string>> = {};
+  const compact: Record<string, Record<string, string>> = {};
+  sheet.walkRules(rule => {
+    const atRule = rule.parent?.type === "atrule" ? rule.parent : null;
+    const target = atRule?.params === "(max-height: 900px)" ? compact : atRule === null ? base : null;
+    if (!target) return;
+    for (const selector of rule.selectors.filter(selector => [".photo", ".category", ".example", ".ai"].includes(selector))) {
+      target[selector] ??= {};
+      for (const node of rule.nodes) if (node.type === "decl") target[selector][node.prop] = node.value;
+    }
+  });
+  assert.equal(base[".category"]["font-size"], "10px");
+  for (const selector of [".example", ".ai"]) assert.equal(base[selector]["font-size"], "9px");
+  for (const selector of [".category", ".example", ".ai"]) assert.equal(compact[selector]["font-size"], undefined, "Compact spacing must not shrink the readable badge font");
+  const photoHeight = Number.parseFloat(compact[".photo"].height);
+  const categoryBottom = Number.parseFloat(compact[".category"].top)
+    + Number.parseFloat(base[".category"]["font-size"]) * Number.parseFloat(compact[".category"]["line-height"])
+    + 2 * Number.parseFloat(compact[".category"].padding);
+  for (const selector of [".example", ".ai"]) {
+    const badgeTop = photoHeight - Number.parseFloat(compact[selector].bottom)
+      - Number.parseFloat(base[selector]["font-size"]) * Number.parseFloat(compact[selector]["line-height"])
+      - 2 * Number.parseFloat(compact[selector].padding);
+    assert.ok(badgeTop - categoryBottom >= 4, `${selector} needs a positive decorative gap from the category badge`);
+  }
 });
 
 test("Home wires discovery into one manual catalog and renders the shared Stellar footer", () => {

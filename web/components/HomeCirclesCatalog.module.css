@@ -60,17 +60,23 @@
 /* Natural height stays scrollable on tiny/landscape screens and at zoom.
    Only decorative space is reduced; identity, truth labels and actions stay. */
 @container (max-width: 350px) { .header h1 { font-size: 23px; } .header > img { width: 36px; } .tools { gap: 7px; } .body h2 { font-size: 17px; } .body { padding-inline: 10px; } .controls span { min-width: 38px; } .footer { gap: 4px; } .explore { font-size: 11px; } }
-/* Reserve the visible native balance line in short dashboard windows. Reduce
-   image/padding space while keeping labels and every 44px control intact. */
+/* The strip also contains standalone cards, whose height can exceed a story's
+   loading placeholder. Reserve space for the completed funding rows and the
+   visible wallet amount without shrinking any 44px navigation target. */
 @media (max-height: 900px) {
-  .catalog { margin-top: 8px; padding-top: 6px; padding-bottom: 4px; }
-  .header { padding-bottom: 4px; }
-  .notice { margin-bottom: 4px; }
-  .tools { margin-bottom: 3px; }
-  .strip { padding-top: 0; padding-bottom: 1px; }
-  .photo { height: 64px; }
-  .body { gap: 1px; padding-top: 6px; padding-bottom: 7px; }
-  .rating { padding-top: 3px; }
+  .catalog { margin-top: 6px; padding-top: 4px; padding-bottom: 4px; }
+  .header { padding-bottom: 2px; }
+  .notice { margin-bottom: 2px; }
+  .tools { margin-bottom: 1px; }
+  .strip { padding-top: 0; padding-bottom: 0; }
+  .photo { height: 48px; }
+  .category { top: 4px; padding: 2px 5px; line-height: 1.2; }
+  .example, .ai { bottom: 4px; padding: 2px 5px; line-height: 1.2; }
+  .body { gap: 0; padding-top: 4px; padding-bottom: 4px; }
+  .rating { padding-top: 2px; }
   .footer { padding-top: 0; }
 }
+/* Desktop frames are shorter than their outer browser window. Avoid the
+   abrupt 26px thumbnail jump immediately above the compact breakpoint. */
+@media (min-height: 901px) and (max-height: 950px) { .photo { height: 64px; } }
 @media (prefers-reduced-motion: reduce) { .strip { scroll-behavior: auto; } .photo img, .pledge, .controls button { transition: none; } .photo:hover img, .pledge:active { transform: none; } }

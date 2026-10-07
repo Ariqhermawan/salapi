@@ -158,8 +158,6 @@ export default function HomeCirclesCatalog({ campaigns = [], circleLinks = {}, l
         </div>
       </article>)}
     </div>
-    {!isLocalPreview && loading ? <p className={styles.discoveryStatus} role="status">{copy("Checking other Testnet campaigns")}</p> : null}
-    {!isLocalPreview && error ? <div className={styles.discoveryStatus} role="alert"><span>{homeCopy(locale, error)}</span>{onRetry ? <button type="button" onClick={onRetry}>{homeCopy(locale, "Try again")}</button> : null}</div> : null}
     <div className={styles.footer}>
       <Link href="/circles/create" prefetch={false} className={styles.explore}>{c("Sketch your own cause")}{Ico.chev({ size: 15 })}</Link>
       <div className={styles.controls}>
@@ -168,6 +166,10 @@ export default function HomeCirclesCatalog({ campaigns = [], circleLinks = {}, l
         <button type="button" aria-label={copy("Next example cause")} onClick={() => move(index + 1)} disabled={!ready || cardCount < 2}>{Ico.chev({ size: 17 })}</button>
       </div>
     </div>
+    {/* Background discovery must not push the primary carousel controls below
+        the persistent navigation when it is slow or needs a retry. */}
+    {!isLocalPreview && loading ? <p className={styles.discoveryStatus} role="status">{copy("Checking other Testnet campaigns")}</p> : null}
+    {!isLocalPreview && error ? <div className={styles.discoveryStatus} role="alert"><span>{homeCopy(locale, error)}</span>{onRetry ? <button type="button" onClick={onRetry}>{homeCopy(locale, "Try again")}</button> : null}</div> : null}
     <nav className={styles.otherActions} aria-label={copy("D4 Testnet campaigns")}><Link href="/campaigns?mode=testnet" prefetch={false}>{copy("D4 Testnet campaigns")}{Ico.chev({ size: 12 })}</Link>{!isLocalPreview ? <Link href="/campaigns?create=1" prefetch={false}>{copy("Start a campaign")}</Link> : null}</nav>
   </section>;
 }
