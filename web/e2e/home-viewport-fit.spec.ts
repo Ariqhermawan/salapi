@@ -143,7 +143,8 @@ for (const { viewport, locale } of viewportCases) {
     await expect(catalog.getByLabel(homeCatalogCopy(locale, "{current} of {count} example causes", { current: 1, count: 3 }), { exact: true })).toHaveText("01 / 03");
     expect((await appScrollport(page)).scrollTop).toBe(0);
     await expectFullyInside(tools, await appScrollport(page), "Filtered campaign tools footer");
-    await expect(catalog.locator("details").filter({ has: tools })).not.toHaveAttribute("open", "");
+    await expect(catalog.locator("details")).toHaveCount(1);
+    await expect(catalog.locator("details")).not.toHaveAttribute("open", "");
     await tools.click();
     await expect(catalog.getByRole("link", { name: c("Sketch your own cause"), exact: true })).toBeVisible();
     await expect(catalog.getByRole("link", { name: homeCatalogCopy(locale, "D4 Testnet campaigns"), exact: true })).toBeVisible();

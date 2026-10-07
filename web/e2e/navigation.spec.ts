@@ -333,6 +333,9 @@ test("Discovery Back restores the full query, category, sort and main scroll pos
 });
 
 test("Home animals second-card pledge Back restores category, carousel and main scroll", async ({ page }) => {
+  // The default dashboard now fits a standard phone. Use a short scrollport
+  // to exercise real Back scroll restoration without artificially tall UI.
+  await page.setViewportSize({ width: 390, height: 640 });
   const catalog = await home(page);
   const category = catalog.locator("#home-cause-category");
   await category.selectOption("animals");
