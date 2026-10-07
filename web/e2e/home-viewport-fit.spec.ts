@@ -95,7 +95,19 @@ for (const { viewport, locale } of viewportCases) {
     const next = catalog.getByRole("button", { name: homeCatalogCopy(locale, "Next example cause"), exact: true });
 
     if (nativeQa) {
-      await expect(wallet.locator("[data-native-balance]")).toBeVisible({ timeout: 30000 });
+      if (process.env.E2E_EXPECT_UNFUNDED_WALLET === "1") {
+        // CI deliberately creates, but does not fund, a disposable signer.
+        // This expectation is forbidden on deployed targets, where the test
+        // still requires the actual native XLM balance to be displayed.
+        expect(new URL(baseURL ?? "http://localhost:4747").hostname).toMatch(/^(localhost|127\.0\.0\.1|\[::1\])$/);
+        await expect(wallet.getByRole("button", {
+          name: `${homeCopy(locale, "Your wallet balance is unavailable.")} ${homeCopy(locale, "Retry")}`, exact: true,
+        })).toBeVisible({ timeout: 30000 });
+        await expect(wallet.locator("[data-native-balance]")).toHaveCount(0);
+        test.info().annotations.push({ type: "wallet-fixture", description: "Unfunded disposable CI signer: unavailable/retry UI, not live balance proof." });
+      } else {
+        await expect(wallet.locator("[data-native-balance]")).toBeVisible({ timeout: 30000 });
+      }
       await expect(catalog.getByText(homeCatalogCopy(locale, "Checking other Testnet campaigns"), { exact: true })).toHaveCount(0, { timeout: 30000 });
       const fundingLoading = { en: "Checking Testnet funding", tl: "Sinusuri ang Testnet funding", id: "Memeriksa pendanaan Testnet", vi: "Đang kiểm tra đóng góp Testnet" }[locale];
       await expect(firstCard.getByText(fundingLoading, { exact: true })).toHaveCount(0, { timeout: 30000 });

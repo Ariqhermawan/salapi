@@ -185,6 +185,9 @@ jobs:
       - name: Run Playwright E2E
         env:
           E2E_BASE_URL: http://localhost:4747
+          # The ephemeral signer has no Horizon account. Assert its honest
+          # unavailable/retry UI, rather than requiring a funded live wallet.
+          E2E_EXPECT_UNFUNDED_WALLET: "1"
         run: npm run test:e2e
 
       - name: Upload E2E traces
