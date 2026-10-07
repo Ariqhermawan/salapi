@@ -409,10 +409,20 @@ test("donation Back edits local preview review or exits unverified native QA to 
   } else {
     await expect(page.getByRole("heading", { name: "Test a donation", exact: true, level: 1 })).toBeVisible();
     const signIn = page.getByRole("link", { name: "Sign in with Google", exact: true });
-    const unavailableIdentity = page.getByText("Your account must be verified before donating.");
-    await expect(signIn.or(unavailableIdentity)).toBeVisible({ timeout: 20000 });
-    if (await signIn.count()) await expect(signIn).toHaveAttribute("href", "/signin?next=%2Fcircles%2Ftino-relief%2Fdonate");
-    else await expect(page.getByRole("button", { name: "Check account", exact: true })).toBeVisible();
+    const checkAccount = page.getByRole("button", { name: "Check account", exact: true });
+    // Read the allowed control and its destination/status in one DOM snapshot.
+    // Identity can settle from loading to guest between separate count/expect
+    // calls; neither that transition nor missing controls may choose a stale
+    // branch. The existing financial assertions below still apply to both.
+    await expect.poll(() => signIn.or(checkAccount).evaluateAll(controls => {
+      if (controls.length !== 1) return "transitioning";
+      const control = controls[0];
+      const rect = control.getBoundingClientRect();
+      const visibility = getComputedStyle(control).visibility;
+      if (rect.width <= 0 || rect.height <= 0 || visibility === "hidden" || visibility === "collapse") return "hidden-control";
+      if (control.tagName === "A") return control.getAttribute("href") === "/signin?next=%2Fcircles%2Ftino-relief%2Fdonate" ? "guest" : "invalid-sign-in";
+      return control.closest('[role="status"]')?.textContent?.includes("Your account must be verified before donating.") ? "unverified" : "invalid-account-status";
+    }), { timeout: 20000, message: "An unverified visitor must have the correct sign-in destination or verification status and Check account control" }).toMatch(/^(guest|unverified)$/);
     await expect(page.getByRole("button", { name: "Review Testnet donation", exact: true }).and(page.locator("button:not([disabled])"))).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Confirm Testnet donation", exact: true })).toHaveCount(0);
     await expect(page.getByText("Testnet donation confirmed", { exact: true })).toHaveCount(0);
