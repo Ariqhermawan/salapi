@@ -177,6 +177,10 @@ function setup(options: Options = {}) {
   }
   const checkSubmittedStatus = () => (statusPanelButton("Check submitted status").props.onClick as () => Promise<void>)();
   return { render, nodes, all, button, field, checkbox, change, click, statusRefreshHandler, statusPanelButton, checkSubmittedStatus, donations, metadata, mappingRefreshes, calls, transitions, text,
+    panelHtml(confirmedHash?: string) {
+      const panel = all().find(node => node.type === StatusPanel); assert.ok(panel);
+      return renderToStaticMarkup(StatusPanel({ ...panel.props, confirmedHash }));
+    },
     guardSnapshot: () => ({ locked: guardLocked, hash: guardHash }),
     html: () => renderToStaticMarkup(render()), setMapping(value: CircleTestnetCampaignResult | null) { result = value; },
     setIdentity(value: SignupIdentityState) { revision++; identity = value; resetOwner?.(); }, cleanup() { alive = false; revision++; },
@@ -464,6 +468,42 @@ test("confirmed finance receipt with nonretryable metadata error retains chain c
   const html = h.html(); assert.match(html, /Testnet donation confirmed/); assert.match(html, /receipt or account could not be verified/); assert.doesNotMatch(html, /Your donor record is saved|Confirm Testnet donation/);
   assert.equal(h.button("Verify and retry donor record only").props.disabled, true); h.click("Verify and retry donor record only"); await settle(h);
   assert.equal(h.metadata.length, 1); assert.equal(h.donations.length, 1);
+});
+
+test("confirmed chain receipt distinguishes pending donor metadata while preserving same-hash recovery", async () => {
+  const h = setup(); review(h); const staleConfirm = h.button("Confirm Testnet donation").props.onClick as () => void;
+  staleConfirm(); h.donations[0].response.resolve(confirmed()); await flush();
+  let html = h.html(); assert.match(html, /Testnet submission confirmed/); assert.match(html, /receipt record is still pending/);
+  assert.doesNotMatch(html, /Submission not yet resolved|success has not been established|does not prove whether funds moved|Your donor record is saved/);
+  assert.deepEqual(h.guardSnapshot(), { locked: true, hash }); assert.deepEqual(h.calls.clearVerified, []);
+  h.metadata[0].response.resolve({ ok: false, campaignId: "100", hash, code: "receipt_mismatch", donationConfirmed: false, retryMetadataOnly: false }); await settle(h);
+  assert.equal(h.button("Verify and retry donor record only").props.disabled, true);
+  staleConfirm(); assert.equal(h.donations.length, 1);
+  const recovery = h.checkSubmittedStatus(); await flush();
+  assert.equal(h.metadata.length, 2); assert.equal(h.donations.length, 1);
+  assert.deepEqual(h.metadata[1].input, h.metadata[0].input); assert.deepEqual(h.guardSnapshot(), { locked: true, hash });
+  h.metadata[1].response.resolve(saved()); await recovery; await flush();
+  html = h.html(); assert.match(html, /Your donor record is saved/); assert.doesNotMatch(html, /receipt record is still pending|Submission not yet resolved/);
+  assert.deepEqual(h.guardSnapshot(), { locked: false, hash: null }); assert.deepEqual(h.calls.clearVerified, [hash]); assert.equal(h.donations.length, 1);
+});
+
+test("confirmed receipt copy suppresses stale generic uncertainty without clearing the safeguard", async () => {
+  const h = setup({ statusResult: { ok: false, pending: true, hash } }); review(h); h.click("Confirm Testnet donation");
+  h.donations[0].response.resolve(confirmed()); await flush(); h.metadata[0].response.resolve(missingMetadata); await settle(h);
+  await h.checkSubmittedStatus(); await flush();
+  assert.match(h.html(), /Testnet submission confirmed/); assert.doesNotMatch(h.html(), /Submission not yet resolved|success has not been established|Testnet has not returned a definitive result/);
+  assert.deepEqual(h.guardSnapshot(), { locked: true, hash }); assert.deepEqual(h.calls.clearVerified, []);
+  assert.equal(h.metadata.length, 1); assert.equal(h.donations.length, 1);
+});
+
+test("generic status panel stays backward-compatible and rejects another hash's confirmation", () => {
+  const h = setup({ locked: true });
+  for (const confirmedHash of [undefined, "b".repeat(64)]) {
+    const html = h.panelHtml(confirmedHash); assert.match(html, /Submission not yet resolved|success has not been established/);
+    assert.doesNotMatch(html, /Testnet submission confirmed|receipt record is still pending/);
+  }
+  const matched = h.panelHtml(hash); assert.match(matched, /Testnet submission confirmed|receipt record is still pending/);
+  assert.deepEqual(h.guardSnapshot(), { locked: true, hash }); assert.equal(h.donations.length, 0); assert.equal(h.metadata.length, 0);
 });
 test("definitive donation failure cannot display success or attach metadata", async () => {
   const h = setup(); review(h); h.click("Confirm Testnet donation"); h.donations[0].response.resolve({ ok: false, error: "Funding deadline changed" }); await settle(h);

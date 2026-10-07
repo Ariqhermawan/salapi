@@ -142,7 +142,7 @@ export default function CircleTestnetDonate({ circle }: { circle: Circle }) {
     <aside className={styles.boundary}><strong>{text("Fictional cause, real Testnet transaction")}</strong>
       <p>{text("QA wallets receive test tokens, not the pictured organizer or NGO. Testnet XLM has no monetary value. This D4 contract does not send USDC.")}</p></aside>
     <CircleTestnetSummary circleId={circle.id} result={mapping.result} loading={mapping.loading} hideDonate />
-    <SubmissionStatusPanel guard={guard} onRefresh={refreshSubmission} />
+    <SubmissionStatusPanel guard={guard} onRefresh={refreshSubmission} confirmedHash={confirmed ? receipt?.hash : undefined} />
     {guard.state.kind === "locked" && !receipt && <p className={styles.hint}>{text("After reload, a recovered donor record defaults to anonymous with no comment or profile permission. Existing saved records are not changed. Recovery never resends funds.")}</p>}
     {identity.status === "guest" ? <Link className={styles.primary} href={signIn}>{text("Sign in with Google")}</Link>
       : identity.status !== "verified" ? <p role="status">{text("Your account must be verified before donating.")} <button type="button" onClick={refreshIdentity} disabled={busy}>{text("Check account")}</button></p> : null}

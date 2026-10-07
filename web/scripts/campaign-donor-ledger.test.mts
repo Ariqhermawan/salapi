@@ -26,7 +26,7 @@ type FixtureOptions = { method?: string; contract?: string; campaign?: bigint; s
   donorWallet?: string; amount?: bigint; args?: sdk.xdr.ScVal[]; extraOperation?: boolean; operationSource?: string;
   eventContract?: string; eventCampaign?: bigint; eventWallet?: string; eventAmount?: bigint; eventName?: string;
   eventType?: sdk.xdr.ContractEventType; eventCount?: number; diagnosticOnly?: boolean; metaVersion?: number;
-  feeBump?: boolean; status?: "SUCCESS" | "NOT_FOUND" | "FAILED"; createdAt?: number; wrongResult?: boolean };
+  feeBump?: boolean; status?: "SUCCESS" | "NOT_FOUND" | "FAILED"; createdAt?: unknown; wrongResult?: boolean };
 function fixture(options: FixtureOptions = {}) {
   const c = options.contract ?? contract, campaign = options.campaign ?? 1n, address = options.donorWallet ?? wallet, amount = options.amount ?? 10_000_001n;
   let operation = new sdk.Contract(c).call(options.method ?? "donate", ...(options.args ?? [
@@ -61,7 +61,7 @@ function fixture(options: FixtureOptions = {}) {
   }));
   const hash = outer.hash().toString("hex");
   const response = { status: options.status ?? "SUCCESS", txHash: hash, latestLedger: 100, latestLedgerCloseTime: 1_791_333_600,
-    oldestLedger: 1, oldestLedgerCloseTime: 1_791_330_000, ledger: 99, createdAt: options.createdAt ?? 1_791_333_600,
+    oldestLedger: 1, oldestLedgerCloseTime: 1_791_330_000, ledger: 99, createdAt: Object.hasOwn(options, "createdAt") ? options.createdAt : 1_791_333_600,
     applicationOrder: 1, feeBump: options.feeBump ?? false, envelopeXdr: outer.toEnvelope(), resultMetaXdr: meta,
     resultXdr: new sdk.xdr.TransactionResult({ feeCharged: sdk.xdr.Int64.fromString("100"), result: outerResult, ext: new sdk.xdr.TransactionResultExt(0) }),
     events: { transactionEventsXdr: [], contractEventsXdr: [events] },
@@ -163,6 +163,35 @@ test("strict bounded campaign, hash, cursor and plain-text comment validation", 
 test("real SDK envelope and committed D4 event provide exact per-transaction amount", () => {
   const h = harness(); const value = h.verifyCampaignDonationReceipt(h.receipt.response, h.receipt.hash, contract, "1", wallet);
   assert.ok(value); assert.equal(value.amountStroops, "10000001"); assert.equal(value.ledger, 99);
+});
+test("actual RPC epoch-seconds string shape verifies with metadata v4 and fee-bump envelopes", () => {
+  for (const options of [{ metaVersion: 4 }, { metaVersion: 4, feeBump: true }]) {
+    const h = harness({ status: { ...options, createdAt: "1791346527" } });
+    const value = h.verifyCampaignDonationReceipt(h.receipt.response, h.receipt.hash, contract, "1", wallet, 1_791_346_527_000);
+    assert.ok(value); assert.equal(value.createdAt, "2026-10-07T04:15:27.000Z"); assert.equal(value.amountStroops, "10000001");
+  }
+});
+test("receipt timestamp normalization rejects malformed, noncanonical and unsafe values", () => {
+  for (const createdAt of ["", "0", "01791346527", " 1791346527", "1791346527 ", "+1791346527", "-1791346527",
+    "1791346527.0", "1.791346527e9", "0x6ac5c25f", "1791346527x", "9007199254740992", "9".repeat(100),
+    0, -1, 1_791_346_527.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1, Number.MAX_SAFE_INTEGER, null, undefined, true, {}]) {
+    const h = harness({ status: { createdAt } });
+    assert.equal(h.verifyCampaignDonationReceipt(h.receipt.response, h.receipt.hash, contract, "1", wallet, 1_791_346_527_000), null);
+  }
+});
+test("numeric and string receipt timestamps retain the exact five-minute future guard", () => {
+  for (const createdAt of [1_791_346_827, "1791346827", 1_791_346_828, "1791346828"]) {
+    const h = harness({ status: { createdAt } });
+    const value = h.verifyCampaignDonationReceipt(h.receipt.response, h.receipt.hash, contract, "1", wallet, 1_791_346_527_000);
+    assert.equal(value !== null, Number(createdAt) === 1_791_346_827);
+  }
+});
+test("SDK timestamp strings persist normalized receipt metadata and retry only the existing record", async () => {
+  const h = harness({ status: { metaVersion: 4, createdAt: "1791346527" } });
+  const first = await h.recordCampaignDonor("1", input(h)); assert.ok(first.ok); assert.equal(first.status, "recorded");
+  assert.equal(h.calls.inserts[0].created_at, "2026-10-07T04:15:27.000Z");
+  const second = await h.recordCampaignDonor("1", input(h)); assert.ok(second.ok); assert.equal(second.status, "already_recorded");
+  assert.equal(h.calls.inserts.length, 1); assert.equal(h.calls.rpc, 1);
 });
 for (const [name, options] of Object.entries({
   "different contract": { contract: wrongContract }, "different method": { method: "refund" }, "different campaign": { campaign: 2n },

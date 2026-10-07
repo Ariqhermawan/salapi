@@ -75,6 +75,14 @@ function committedEvents(meta: xdr.TransactionMeta): xdr.ContractEvent[] {
   return [];
 }
 
+function receiptEpochSeconds(value: unknown): number | null {
+  // RPC timestamps can remain decimal strings after SDK decoding. Never coerce
+  // whitespace, signs, fractions, exponents, or noncanonical leading zeroes.
+  const seconds = typeof value === "number" ? value
+    : typeof value === "string" && /^[1-9]\d{0,15}$/.test(value) ? Number(value) : NaN;
+  return Number.isSafeInteger(seconds) && seconds > 0 && Number.isSafeInteger(seconds * 1000) ? seconds : null;
+}
+
 /** Decode only a successful, exact D4 donation receipt. The amount is this
  * invocation's i128, corroborated by its committed donated event, never the
  * caller's amount or the wallet's accumulated campaign contribution.
@@ -82,10 +90,12 @@ function committedEvents(meta: xdr.TransactionMeta): xdr.ContractEvent[] {
 export function verifyCampaignDonationReceipt(response: rpc.Api.GetTransactionResponse, hash: string, contractId: string,
   campaignId: string, wallet: string, nowMs = Date.now()): Receipt | null {
   try {
-    if (response.status !== "SUCCESS" || response.txHash !== hash || !campaignDonorHash(hash)
+    if (response.status !== "SUCCESS") return null;
+    const createdAt = receiptEpochSeconds(response.createdAt);
+    if (response.txHash !== hash || !campaignDonorHash(hash)
       || !StrKey.isValidContract(contractId) || !StrKey.isValidEd25519PublicKey(wallet) || !canonicalDonorCampaignId(campaignId)
       || !Number.isSafeInteger(response.ledger) || response.ledger <= 0 || response.ledger > 4_294_967_295
-      || !Number.isSafeInteger(response.createdAt) || response.createdAt <= 0 || response.createdAt * 1000 > nowMs + 300_000) return null;
+      || createdAt === null || createdAt * 1000 > nowMs + 300_000) return null;
     const outer = TransactionBuilder.fromXDR(response.envelopeXdr.toXDR("base64"), Networks.TESTNET);
     if (outer.hash().toString("hex") !== hash || response.feeBump !== (outer instanceof FeeBumpTransaction)) return null;
     const tx = outer instanceof FeeBumpTransaction ? outer.innerTransaction : outer;
@@ -121,7 +131,7 @@ export function verifyCampaignDonationReceipt(response: rpc.Api.GetTransactionRe
         && body.data().switch().name === "scvI128" && scValToNative(body.data()) === amount;
     });
     if (matching.length !== 1) return null;
-    return { amountStroops: amount.toString(), ledger: response.ledger, createdAt: new Date(response.createdAt * 1000).toISOString() };
+    return { amountStroops: amount.toString(), ledger: response.ledger, createdAt: new Date(createdAt * 1000).toISOString() };
   } catch { return null; }
 }
 
