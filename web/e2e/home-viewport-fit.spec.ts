@@ -87,7 +87,8 @@ for (const { viewport, locale } of viewportCases) {
     await expect(catalog.locator("article[data-example-cause]")).toHaveCount(27);
     const wallet = page.getByRole("region", { name: homeCopy(locale, "Your Testnet wallet"), exact: true });
     const category = catalog.locator("#home-cause-category");
-    const pledge = firstCard.getByRole("link", { name: c("Preview a pledge"), exact: true });
+    const nativeQa = await firstCard.getByRole("link", { name: c("Review QA Testnet donation"), exact: true }).count() > 0;
+    const pledge = firstCard.getByRole("link", { name: c(nativeQa ? "Review QA Testnet donation" : "Preview a pledge"), exact: true });
     const create = catalog.getByRole("link", { name: c("Sketch your own cause"), exact: true });
     const previous = catalog.getByRole("button", { name: homeCatalogCopy(locale, "Previous example cause"), exact: true });
     const next = catalog.getByRole("button", { name: homeCatalogCopy(locale, "Next example cause"), exact: true });
@@ -97,7 +98,9 @@ for (const { viewport, locale } of viewportCases) {
     await expectFullyInside(walletCaption, bounds, "Persistent no-real-money wallet caption");
     const captionText = await walletCaption.textContent();
     expect([homeCopy(locale, "Native Testnet XLM · indicative value · no real money"), homeCopy(locale, "test XLM · no real money")].some(copy => captionText?.includes(copy)), "Locale-specific Testnet/no-real-money framing must stay visible").toBe(true);
-    await expectFullyInside(catalog.getByText(homeCatalogCopy(locale, "Fictional causes · AI photos · example ratings · no payment."), { exact: true }), bounds, "Persistent example/AI/no-payment framing");
+    await expectFullyInside(catalog.getByText(homeCatalogCopy(locale, nativeQa
+      ? "Fictional causes · AI photos · QA Testnet donations when linked."
+      : "Fictional causes · AI photos · example ratings · no payment."), { exact: true }), bounds, "Persistent fictional/AI/Testnet framing");
     await expectFullyInside(firstCard.locator('a[href$="/organizer"]'), bounds, "Clickable example organizer");
     await expectFullyInside(firstCard.getByText(homeCatalogCopy(locale, "Example rating"), { exact: true }), bounds, "Example rating label");
     await expectFullyInside(pledge, bounds, "Preview pledge CTA");

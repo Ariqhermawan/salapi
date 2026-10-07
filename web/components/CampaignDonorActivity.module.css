@@ -1,0 +1,31 @@
+.feed { margin-top: 16px; border: 1px solid #dfe7f3; border-radius: 22px; padding: 18px; background: #fff; color: #142440; }
+.header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.header h3 { margin: 0; font-size: 18px; font-weight: 700; line-height: 1.3; letter-spacing: -.3px; }
+.header p, .status, .empty p, .error p, .privacy p { margin: 8px 0; color: #607491; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.refresh { flex: 0 0 44px; height: 44px; border: 1px solid #dce6f7; border-radius: 14px; background: #f4f7fc; color: #2461ec; font-size: 24px; cursor: pointer; }
+.refresh:disabled, .more:disabled { opacity: .55; cursor: wait; }
+.count { margin: 12px 0 0; color: #607491; font-size: 11px; }
+.list { list-style: none; margin: 8px 0 0; padding: 0; }
+.entry { display: flex; align-items: flex-start; gap: 10px; padding: 16px 0; border-top: 1px solid #e2eaf5; }
+.avatar { display: flex; flex: 0 0 40px; width: 40px; height: 40px; align-items: center; justify-content: center; border-radius: 50%; overflow: hidden; color: #315c91; background: #e4edfc; font-size: 14px; font-weight: 700; }
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+.body { flex: 1; min-width: 0; }
+.row { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; column-gap: 12px; row-gap: 5px; }
+.row > strong { min-width: 0; overflow-wrap: anywhere; font-size: 13px; line-height: 1.5; }
+.amount { color: #00856c; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; max-width: 100%; }
+.amount small { font-size: 10px; font-weight: 600; }
+.badge { display: inline-block; margin-top: 6px; padding: 3px 7px; border: 1px solid #c0e7d9; border-radius: 7px; background: #ebf9f3; color: #166a54; font-size: 9px; font-weight: 650; line-height: 1.4; }
+.body time { display: block; margin-top: 5px; color: #74849b; font-size: 10px; line-height: 1.5; }
+.address { margin: 8px 0 0; font-family: ui-monospace, monospace; color: #63728a; font-size: 10px; line-height: 1.6; overflow-wrap: anywhere; }
+.address span { font-family: inherit; font-weight: 700; }
+.comment { margin: 9px 0 0; font-size: 12px; color: #3b5475; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; }
+.receipt { display: inline-block; margin-top: 9px; color: #2461ec; font-size: 11px; font-weight: 650; text-decoration: none; }
+.empty, .error { margin: 12px 0; padding: 14px; border: 1px solid #dce6f7; border-radius: 13px; background: #f6f8fc; }
+.empty strong, .error strong { display: block; font-size: 13px; line-height: 1.5; }
+.error { border-color: #eed6a5; background: #fff9ec; }
+.error button, .more { min-height: 44px; border: 1px solid #c9dafa; border-radius: 12px; padding: 10px 14px; background: #edf3ff; color: #1a54d7; font-size: 12px; font-weight: 650; cursor: pointer; }
+.more { width: 100%; margin-top: 6px; }
+.privacy { margin-top: 12px; padding-top: 12px; border-top: 1px solid #e2eaf5; font-size: 11px; color: #607491; line-height: 1.6; }
+.privacy summary { cursor: pointer; color: #35567e; font-weight: 650; }
+.refresh:focus-visible, .more:focus-visible, .error button:focus-visible, .receipt:focus-visible, .privacy summary:focus-visible { outline: 2px solid #2461ec; outline-offset: 3px; }
+@media (max-width: 370px) { .feed { padding: 14px; } .header h3 { font-size: 16px; } .row { display: block; } .amount { display: block; margin-top: 4px; } }

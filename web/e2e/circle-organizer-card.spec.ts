@@ -1,11 +1,16 @@
 import { test, expect, type Locator, type Page } from "@playwright/test";
+import { readFileSync } from "node:fs";
 import { LOCALE_COOKIE, type Locale } from "../lib/i18n/config";
 import { circlesCopy } from "../lib/i18n/revamp-circles";
 
 // Clean guest contexts and a language preference only. Server mutations, signup,
 // auth changes and financial actions are forbidden throughout this UI audit.
 const health = new WeakMap<Page, { errors: string[]; console: string[]; blocked: string[] }>();
-test.beforeEach(async ({ page }) => {
+test.beforeEach(async ({ page, baseURL }) => {
+  test.skip(!["localhost", "127.0.0.1", "[::1]"].includes(new URL(baseURL!).hostname), "Organizer candidate QA runs locally only");
+  const manifest = JSON.parse(readFileSync(".next/server/server-reference-manifest.json", "utf8"));
+  const actionNames = new Map(Object.entries(manifest.node as Record<string, { exportedName: string }>).map(([id, value]) => [id, value.exportedName]));
+  expect([...actionNames.values()]).toContain("readCircleTestnetCampaign");
   const state = { errors: [] as string[], console: [] as string[], blocked: [] as string[] };
   health.set(page, state);
   page.on("pageerror", error => state.errors.push(error.message));
@@ -15,8 +20,14 @@ test.beforeEach(async ({ page }) => {
     state.console.push(message.text());
   });
   await page.route("**/*", async route => {
-    if (["POST", "PUT", "PATCH", "DELETE"].includes(route.request().method())) {
-      state.blocked.push(new URL(route.request().url()).pathname);
+    const request = route.request();
+    if (["POST", "PUT", "PATCH", "DELETE"].includes(request.method())) {
+      // Next Server Actions use POST even for harmless public reads. Only the
+      // exact mapping read is allowed; metadata, auth and money writes remain
+      // blocked and make the afterEach assertions fail if attempted.
+      const action = actionNames.get(request.headers()["next-action"]);
+      if (request.method() === "POST" && action === "readCircleTestnetCampaign") return route.continue();
+      state.blocked.push(`${request.method()} ${new URL(request.url()).pathname}: ${action ?? "unknown"}`);
       await route.fulfill({ status: 403, contentType: "application/json", body: JSON.stringify({ error: "Read-only organizer QA: server mutation blocked" }) });
       return;
     }

@@ -20,6 +20,7 @@
     "test:money": "node --experimental-strip-types --test scripts/money.test.mts",
     "test:disaster": "node --experimental-strip-types --test scripts/disaster.test.mts",
     "test:campaign": "node --experimental-strip-types --test scripts/campaign.test.mts",
+    "test:campaign-qa": "node --experimental-strip-types --test scripts/circles-testnet-mapping.test.mts scripts/circles-testnet-ui.test.mts scripts/circle-testnet-donation.test.mts scripts/circle-testnet-donate-ui.test.mts scripts/submission-recovery-hook.test.mts scripts/campaign-donor-ledger.test.mts scripts/campaign-donor-ui.test.mts scripts/campaign-updates.test.mts scripts/campaign-updates-ui.test.mts scripts/campaign-updates-organizer-ui.test.mts",
     "test:campaign-media": "node --experimental-strip-types --test scripts/campaign-media.test.mts scripts/campaign-photo-preparation.test.mts scripts/d4-campaign-gallery.test.mts",
     "test:circles": "node --experimental-strip-types --test scripts/circles-pledge-allocation.test.mts scripts/circles-fixtures.test.mts scripts/circles-donate-preview.test.mts scripts/circles-local-support.test.mts scripts/circles-media-ui.test.mts scripts/circles-draft-gallery.test.mts scripts/circles-signup-auth.test.mts",
     "test:providers": "node --experimental-strip-types --test scripts/provider-demo.test.mts scripts/sumsub-demo.test.mts scripts/provider-demo-flow.test.mts scripts/payment-channels.test.mts",

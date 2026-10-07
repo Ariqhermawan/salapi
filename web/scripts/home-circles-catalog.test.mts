@@ -302,7 +302,7 @@ for (const preview of [true, false]) for (const locale of LOCALES) test(`${local
   assert.equal(ui.cards.length, 27);
   const c = circlesCopy.circlesCopy(locale);
   assert.ok(ui.catalog);
-  assert.ok(text(ui.catalog).includes(catalogCopy.homeCatalogCopy(locale, "Fictional causes · AI photos · example ratings · no payment.")));
+  assert.ok(text(ui.catalog).includes(catalogCopy.homeCatalogCopy(locale, preview ? "Fictional causes · AI photos · example ratings · no payment." : "Fictional causes · AI photos · QA Testnet donations when linked.")));
   const organizers = fixture("../lib/circles/organizers.ts") as { getOrganizerForCircle(circle: Circle): { rating: number; reviewCount: number } };
   for (const [index, card] of ui.cards.entries()) {
     const circle = seed.SEED_CIRCLES[index];
@@ -315,7 +315,7 @@ for (const preview of [true, false]) for (const locale of LOCALES) test(`${local
     assert.equal(image.props.loading, index === 0 ? "eager" : "lazy");
     assert.ok(nodes(card).some(node => node.props.href === `/circles/${circle.id}`));
     assert.ok(nodes(card).some(node => node.props.href === `/circles/${circle.id}/organizer` && node.props["aria-label"] === c("View example organizer profile: {name}", { name: circle.organizer })));
-    assert.ok(nodes(card).some(node => node.props.href === `/circles/${circle.id}/donate` && text(node).trim() === c("Preview a pledge")));
+    assert.ok(nodes(card).some(node => node.props.href === `/circles/${circle.id}/donate` && text(node).trim() === c(preview ? "Preview a pledge" : "Review QA Testnet donation")));
     assert.ok(nodes(card).filter(node => node.type === "Link").every(node => node.props.prefetch === false));
     assert.ok(text(card).includes(circle.title)); assert.ok(text(card).includes(circle.organizer));
     assert.ok(text(card).includes(c("Example cause")));

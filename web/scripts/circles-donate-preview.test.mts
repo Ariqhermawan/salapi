@@ -13,7 +13,7 @@ import * as revampCircles from "../lib/i18n/revamp-circles.ts";
 import type { SignupIdentityState } from "../lib/ui/useCirclesSignupIdentity.ts";
 
 type Element = { type: string; props: Record<string, unknown> };
-type Component = { default(props: { circle: Circle }): Element };
+type Component = { default(props: { circle: Circle }): Element; CirclesPreviewDonateScreen(props: { circle: Circle }): Element };
 type StorageMode = "normal" | "throw" | "drop" | "tamper";
 function transpile(path: string, jsx = false) {
   return ts.transpileModule(readFileSync(new URL(path, import.meta.url), "utf8"), {
@@ -122,6 +122,7 @@ function setup(options: { currency?: Locale; locale?: Locale; circleId?: string;
       if (name === "next/link") return { default: "Link" };
       if (name === "next/image") return { default: "Image" };
       if (name === "@/components/ui/SuccessMotion") return { default: "SuccessMotion" };
+      if (name === "@/components/CircleTestnetDonate") return { default: "CircleTestnetDonate" };
       if (name === "@/components/ui/OrganizerVerification") return { default: "OrganizerVerification" };
       if (name === "@/components/ui/ExampleOrganizerAvatar") return { default: "ExampleOrganizerAvatar" };
       if (name === "@/components/I18nProvider") return { useT: () => ({ currency, locale }) };
@@ -147,7 +148,9 @@ function setup(options: { currency?: Locale; locale?: Locale; circleId?: string;
       throw new Error(`Unexpected component dependency: ${name}`);
     },
   });
-  const render = () => { cursor = 0; return component.default({ circle }); };
+  // This suite exercises the retained illustrative/local flow, not the new
+  // network donation component (which has its own receipt and auth tests).
+  const render = () => { cursor = 0; return component.CirclesPreviewDonateScreen({ circle }); };
   let tree = render();
   const settle = async () => { while (transitions.length) await Promise.all(transitions.splice(0)); tree = render(); };
   const input = (id: string) => {

@@ -19,6 +19,11 @@ import type { Locale } from "@/lib/i18n/config";
 import { isLocalPreview } from "@/lib/local-preview";
 import styles from "./CirclesDetailRevamp.module.css";
 import { circlesCopy } from "@/lib/i18n/revamp-circles";
+import { useCircleTestnet } from "@/lib/ui/useCircleTestnet";
+import CircleTestnetSummary from "@/components/CircleTestnetSummary";
+import CampaignDonorActivity from "@/components/CampaignDonorActivity";
+import CampaignUpdateSubscription from "@/components/CampaignUpdateSubscription";
+import CampaignOrganizerUpdates from "@/components/CampaignOrganizerUpdates";
 
 const photos: Partial<Record<CircleCategory, string>> = {
   disaster: "/circles/disaster.jpg", medical: "/circles/medical.jpg", education: "/circles/education.jpg",
@@ -71,10 +76,12 @@ export default function CircleDetailScreen({ circle, initialTab = "story" }: {
   const { currency, locale } = useT();
   const c = circlesCopy(locale);
   const [tab, setTab] = useState<Tab>(initialTab);
+  const qa = useCircleTestnet(circle.id, !isLocalPreview && circle.status !== "completed");
   const [supports, setSupports] = useState<LocalSupportRecord[]>([]);
   const [seenNotice, setSeenNotice] = useState("");
   const organizer = getOrganizerForCircle(circle);
   const completed = circle.status === "completed";
+  const knownUnlinked = isLocalPreview || completed || (qa.result?.ok === false && qa.result.code === "unmapped");
   const allowance = circle.allowance?.percentage ?? 0;
   const split = localePreviewSplit(currency, allowance);
   const percent = progressPct(circle);
@@ -166,9 +173,9 @@ export default function CircleDetailScreen({ circle, initialTab = "story" }: {
       <div className={styles.action}>
         <Link className={styles.primaryLink} href={completed ? `/circles/${circle.id}/organizer` : `/circles/${circle.id}/donate`}>
           <span aria-hidden="true">{completed ? Ico.user({ size: 20, c: "#fff" }) : Ico.plus({ size: 20, c: "#fff" })}</span>
-          {completed ? c("View organizer") : c("Preview a pledge")}
+          {completed ? c("View organizer") : c(!isLocalPreview ? "Review QA Testnet donation" : "Preview a pledge")}
         </Link>
-        <p className={styles.actionNotice}>{completed ? c("Completed only in the fictional example. No pledge is available.") : isLocalPreview ? c("No payment. Confirm a browser-only donation demo.") : c("No payment. Optional launch notification only.")}
+        <p className={styles.actionNotice}>{completed ? c("Completed only in the fictional example. No pledge is available.") : isLocalPreview ? c("No payment. Confirm a browser-only donation demo.") : c("Fictional cause. Test-token donations require a linked, open QA campaign.")}
           {isLocalPreview && !completed && <span>{c("Saved only after your explicit local confirmation.")}</span>}
         </p>
       </div>
@@ -205,6 +212,9 @@ export default function CircleDetailScreen({ circle, initialTab = "story" }: {
       <p className={styles.hint}>{c("Demo verification, not an identity check. Names, goals, ratings, dates and scenes are fictional.")}</p>
     </section>}
 
+    {!isLocalPreview && !completed && <CircleTestnetSummary circleId={circle.id} result={qa.result} loading={qa.loading} onRefresh={qa.refresh} />}
+    {tab === "story" && qa.result?.ok && <><CampaignDonorActivity campaignId={qa.result.mapping.campaignId} /><CampaignUpdateSubscription campaignId={qa.result.mapping.campaignId} /></>}
+    {tab === "updates" && qa.result?.ok && <CampaignOrganizerUpdates campaignId={qa.result.mapping.campaignId} />}
     {tab === "story" && <CircleDonorExamples circle={circle} supports={currentSupports} />}
 
     {tab === "updates" && <section key="updates" id="circle-panel-updates" role="tabpanel" tabIndex={0} aria-labelledby="circle-tab-updates" className={`${styles.updatesPanel} sl-state-enter`}>
@@ -232,7 +242,7 @@ export default function CircleDetailScreen({ circle, initialTab = "story" }: {
     {tab === "proof" && <section key="proof" id="circle-panel-proof" role="tabpanel" tabIndex={0} aria-labelledby="circle-tab-proof" className={`${styles.panel} sl-state-enter`}>
       <div className={styles.proofHeading}><div><span className={styles.eyebrow}>{c("Public proof")}</span><h2>{c("Trace the evidence, step by step")}</h2></div>
         <span className={styles.proofStatus}>{c("Not verified")}</span></div>
-      <p>{c("This fictional cause has no on-chain receipt. Its planning, spending and delivery notes are synthetic examples.")}</p>
+      {qa.result?.ok ? <p>{c("The linked QA contract status is shown separately above. The example documents and photos below remain fictional, not delivery proof.")}</p> : !knownUnlinked ? <p role="status">{c("On-chain linkage is not verified right now. Check the QA status above; no proof or balance is assumed.")}</p> : <><p>{c("This fictional cause has no on-chain receipt. Its planning, spending and delivery notes are synthetic examples.")}</p>
       <div className={styles.proofBoundary}><strong>{c("No on-chain campaign linked")}</strong>
         <p>{c("A real D4 campaign ID, locked recipients and confirmed transactions must be linked before this cause can accept Testnet donations or award a donor badge.")}</p></div>
       <ol className={styles.proofPipeline} aria-label={c("Evidence and approval pipeline")}>
@@ -241,6 +251,7 @@ export default function CircleDetailScreen({ circle, initialTab = "story" }: {
         <li><span className={styles.proofNumber} aria-hidden="true">3</span><div><h3>{c("Public proof URL and hash")}</h3><p>{c("No evidence hash or confirmed transaction exists. A launch signup is not an on-chain receipt.")}</p><span>{c("Not anchored on-chain")}</span></div></li>
         <li><span className={styles.proofNumber} aria-hidden="true">4</span><div><h3>{c("Wallet approvals and release")}</h3><p>{c("No approval request or payout exists for this concept. D4 separately requires its configured wallets to approve submitted proof before release.")}</p><span>{c("Not requested")}</span></div></li>
       </ol>
+      </>}
       {circle.gallery && circle.gallery.length > 0 && <section className={styles.proofPhotos} aria-labelledby="circle-proof-photos-title">
         <h3 id="circle-proof-photos-title">{c("Illustrative photo context")}</h3>
         <div>{circle.gallery.map(photo => <figure key={photo.src}><div><ExampleImage circle={circle} src={photo.src} /></div><figcaption>{c("AI illustration · not proof")}</figcaption></figure>)}</div>

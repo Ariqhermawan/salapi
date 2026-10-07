@@ -4,7 +4,8 @@ import { fileURLToPath } from "node:url";
 
 // This is the committed D1 inventory boundary. UI formatting may use numbers,
 // but every value entering a contract must pass through this exact module.
-const INVENTORIED_PATHS = ["lib/money.ts", "lib/campaign-money.ts", "lib/server/walletReadiness.ts"];
+const INVENTORIED_PATHS = ["lib/money.ts", "lib/campaign-money.ts", "lib/server/walletReadiness.ts",
+  "lib/circles/donation.ts", "app/circle-donation-actions.ts"];
 const FORBIDDEN = [
   ["Number or Number.*", /\bNumber\s*(?:\.|\()/g],
   ["parseFloat", /\bparseFloat\s*\(/g],

@@ -3,6 +3,7 @@ import { LOCALE_COOKIE } from "../lib/i18n/config";
 import { getCircle } from "../lib/circles/seed";
 
 const browserHealth = new WeakMap<Page, { errors: string[]; console: string[] }>();
+const donationEntry = /^(Preview a pledge|Review QA Testnet donation)$/;
 
 // Exercise real visitor links and header controls. Never sign in, save a draft,
 // submit a signup, or authorize a financial transaction. Compare full routes so
@@ -32,7 +33,7 @@ async function renderedRoute(page: Page) {
   } else if (/^\/circles\/[^/]+\/organizer$/.test(pathname)) {
     await visible(main.locator("h1#organizer-name"));
   } else if (/^\/circles\/[^/]+\/donate$/.test(pathname)) {
-    await visible(heading("Donate"));
+    await visible(main.getByRole("heading", { name: /^(Donate|Test a donation)$/, exact: true, level: 1 }));
   } else if (/^\/circles\/[^/]+\/manage$/.test(pathname)) {
     await visible(heading("Care for the cause."));
   } else if (/^\/circles\/[^/]+$/.test(pathname)) {
@@ -316,7 +317,7 @@ test("Home animals second-card pledge Back restores category, carousel and main 
   await category.selectOption("animals");
   await catalog.getByRole("button", { name: "Next example cause", exact: true }).click();
   await expect(catalog.getByLabel("2 of 3 example causes", { exact: true })).toHaveText("02 / 03");
-  const pledge = catalog.locator("article[data-example-cause]").nth(1).getByRole("link", { name: "Preview a pledge", exact: true });
+  const pledge = catalog.locator("article[data-example-cause]").nth(1).getByRole("link", { name: donationEntry });
   const href = await pledge.getAttribute("href");
   expect(href).toMatch(/^\/circles\/[a-z0-9-]+\/donate$/);
   await pledge.scrollIntoViewIfNeeded();
@@ -365,16 +366,31 @@ test("same-path Home query entries restore their separate category and carousel 
   await expect.poll(async () => Math.abs(await strip.evaluate(element => element.scrollLeft) - priorLeft)).toBeLessThanOrEqual(2);
 });
 
-test("pledge review Back edits the amount before a second Back exits to the actual parent", async ({ page }) => {
+test("donation Back edits local preview review or exits unverified native QA to the actual parent", async ({ page }) => {
   const catalog = await home(page);
-  await catalog.locator('article[data-example-cause="tino-relief"]').getByRole("link", { name: "Preview a pledge", exact: true }).click();
+  const entry = catalog.locator('article[data-example-cause="tino-relief"]').getByRole("link", { name: donationEntry });
+  const preview = (await entry.innerText()).trim() === "Preview a pledge";
+  await entry.click();
   await expectRoute(page, "/circles/tino-relief/donate");
-  // Opening a review/signup form is not confirmation or email submission.
-  await page.getByRole("button", { name: /^(Review local donation|Continue to optional signup)$/ }).click();
-  await expect(page.getByText(/^(Review local donation demo|Your example preference)$/)).toBeVisible();
-  await headerBack(page);
-  await expectRoute(page, "/circles/tino-relief/donate");
-  await expect(page.getByRole("button", { name: /^(Review local donation|Continue to optional signup)$/ })).toBeVisible();
+  if (preview) {
+    await expect(page.getByRole("heading", { name: "Donate", exact: true, level: 1 })).toBeVisible();
+    // Opening a local review is not its confirmation or email submission.
+    await page.getByRole("button", { name: "Review local donation", exact: true }).click();
+    await expect(page.getByText("Review local donation demo", { exact: true })).toBeVisible();
+    await headerBack(page);
+    await expectRoute(page, "/circles/tino-relief/donate");
+    await expect(page.getByRole("button", { name: "Review local donation", exact: true })).toBeVisible();
+  } else {
+    await expect(page.getByRole("heading", { name: "Test a donation", exact: true, level: 1 })).toBeVisible();
+    const signIn = page.getByRole("link", { name: "Sign in with Google", exact: true });
+    const unavailableIdentity = page.getByText("Your account must be verified before donating.");
+    await expect(signIn.or(unavailableIdentity)).toBeVisible({ timeout: 20000 });
+    if (await signIn.count()) await expect(signIn).toHaveAttribute("href", "/signin?next=%2Fcircles%2Ftino-relief%2Fdonate");
+    else await expect(page.getByRole("button", { name: "Check account", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Review Testnet donation", exact: true }).and(page.locator("button:not([disabled])"))).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Confirm Testnet donation", exact: true })).toHaveCount(0);
+    await expect(page.getByText("Testnet donation confirmed", { exact: true })).toHaveCount(0);
+  }
   await headerBack(page);
   await expectRoute(page, "/");
 });

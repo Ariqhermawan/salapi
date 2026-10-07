@@ -238,6 +238,11 @@ function campaignCard(campaign: Campaign, preview: boolean, locale: Locale = "en
       if (name === "next/image") return { default: "Image" };
       if (name === "@phosphor-icons/react/dist/csr/Heart") return { Heart: "Heart" };
       if (name === "@/components/D4CampaignGallery") return { default: "D4CampaignGallery" };
+      // Independently tested ledger/subscription/organizer panels are isolated
+      // boundaries here. Discovery still forbids all action/network/storage use.
+      if (name === "@/components/CampaignDonorActivity") return { default: "CampaignDonorActivity" };
+      if (name === "@/components/CampaignUpdateSubscription") return { default: "CampaignUpdateSubscription" };
+      if (name === "@/components/CampaignOrganizerUpdates") return { default: "CampaignOrganizerUpdates" };
       if (name === "@/components/I18nProvider") return { useT: () => ({ locale }) };
       if (name === "@/components/ui/kit") return { Ico: new Proxy({}, { get: () => () => null }), T: {}, Btn: "Btn", Card: "Card", PoweredByStellar: "PoweredByStellar" };
       if (name === "@/lib/campaign-money") return money;

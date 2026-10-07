@@ -26,6 +26,7 @@ import styles from "./CirclesDonateRevamp.module.css";
 import { circlesCopy, circlesSignupError } from "@/lib/i18n/revamp-circles";
 import CirclesSignupEmail from "@/components/CirclesSignupEmail";
 import { useCirclesSignupIdentity } from "@/lib/ui/useCirclesSignupIdentity";
+import CircleTestnetDonate from "@/components/CircleTestnetDonate";
 
 type Phase = "amount" | "review" | "waitlist" | "done";
 const quickAmounts: Record<Locale, number[]> = {
@@ -74,7 +75,7 @@ function AllocationTicket({ allocation, currency }: { allocation: Allocation | n
   );
 }
 
-export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
+export function CirclesPreviewDonateScreen({ circle }: { circle: Circle }) {
   const goBack = useGoBack(`/circles/${circle.id}`);
   const { locale, currency } = useT();
   const c = circlesCopy(locale);
@@ -432,4 +433,10 @@ export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
       </footer>
     </div>
   );
+}
+
+// Browser-only examples keep their existing flow. Network-enabled builds use
+// separately bound QA campaigns and never treat a waitlist as a token payment.
+export default function CirclesDonateScreen({ circle }: { circle: Circle }) {
+  return isLocalPreview ? <CirclesPreviewDonateScreen circle={circle} /> : <CircleTestnetDonate circle={circle} />;
 }

@@ -96,7 +96,7 @@ function setup(name: ScreenName, locale: Locale = "en", preview = true, circleId
   const navigationViews = new Map<string, string>();
   const calls = { storage: 0, network: 0, action: 0 };
   const forbidden = (kind: "network" | "action") => () => { calls[kind]++; throw Error(`Forbidden ${kind} in isolated locale test`); };
-  const exports = {} as { default(props: unknown): Element; selectCircleExamples(circles: readonly Circle[], category: CircleCategory | "all", sort: string): Circle[] };
+  const exports = {} as { default(props: unknown): Element; CirclesPreviewDonateScreen(props: unknown): Element; selectCircleExamples(circles: readonly Circle[], category: CircleCategory | "all", sort: string): Circle[] };
   const jsx = (type: unknown, props: Record<string, unknown>, key?: string): Element => typeof type === "function" ? type(props) : { type: String(type), props, key };
   const icons = new Proxy({}, { get: () => () => null });
   const signupEmail: Record<string, unknown> = {};
@@ -133,6 +133,8 @@ function setup(name: ScreenName, locale: Locale = "en", preview = true, circleId
       if (module === "@/lib/i18n/revamp-circles") return copy;
       if (module === "@/components/CirclesSignupEmail") return signupEmail;
       if (module === "@/lib/ui/useCirclesSignupIdentity") return { useCirclesSignupIdentity: () => ({ identity: { status: "guest" }, refresh: () => {}, captureOwnerRevision: () => 0, isCurrentOwner: () => true }) };
+      if (module === "@/lib/ui/useCircleTestnet") return { useCircleTestnet: () => ({ result: { ok: false, code: "unmapped", circleId }, loading: false, refresh: forbidden("action") }) };
+      if (["@/components/CircleTestnetSummary", "@/components/CampaignDonorActivity", "@/components/CampaignUpdateSubscription", "@/components/CampaignOrganizerUpdates", "@/components/CircleTestnetDonate"].includes(module)) return { default: module };
       if (module === "@/lib/i18n/revamp-campaign-discovery") return discoveryCopy;
       if (module === "@/lib/ui/circle-draft-gallery") return draftGallery;
       if (module === "@/lib/home-circles") return homeCircles;
@@ -164,7 +166,7 @@ function setup(name: ScreenName, locale: Locale = "en", preview = true, circleId
       throw Error(`Unexpected actual screen dependency: ${module}`);
     },
   });
-  const render = () => { cursor = 0; return exports.default({ circle: seed.getCircle(circleId) }); };
+  const render = () => { cursor = 0; return (name === "CirclesDonateScreen" ? exports.CirclesPreviewDonateScreen : exports.default)({ circle: seed.getCircle(circleId) }); };
   let tree = render();
   function input(id: string, value: string) {
     const node = nodes(tree).find(node => node.props.id === id); assert.ok(node, `Missing input ${id}`);
@@ -295,7 +297,7 @@ test("four locales render translated catalog, detail, donor, manager and creator
     const detail = setup("CircleDetailScreen", locale, preview);
     const tabs = nodes(detail.tree).filter(node => node.props.role === "tab");
     assert.deepEqual(tabs.map(text), [c("Story"), c("Updates") + "3", c("Public proof")]);
-    assert.ok(text(detail.tree).includes(c("Preview a pledge")));
+    assert.ok(text(detail.tree).includes(c(preview ? "Preview a pledge" : "Review QA Testnet donation")));
     assert.ok(text(detail.tree).includes(seed.getCircle("tino-relief").story.split("\n\n")[0]), "Authored fictional fixture text is retained");
     const donate = setup("CirclesDonateScreen", locale, preview);
     assert.ok(text(donate.tree).includes(c("Where your pledge would go")));

@@ -81,6 +81,9 @@ jobs:
       - name: Circles example fixtures, allocation and local support guards
         run: npm run test:circles
 
+      - name: Bound QA campaigns, confirmed donors and email-update guards
+        run: npm run test:campaign-qa
+
       - name: Local payment and verification provider simulation guards
         run: npm run test:providers
 

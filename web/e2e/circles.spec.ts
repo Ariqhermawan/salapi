@@ -1,21 +1,50 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 
 // Home exposes fictional Circles fixtures in both modes, with real D4 campaigns
 // kept in a separate live-only section. Explicit D4 links keep their mode.
 // These are read-only navigation checks, never a payment/chain acceptance test.
+const donationEntry = /^(Preview a pledge|Review QA Testnet donation)$/;
+type DonationMode = "preview" | "testnet";
 
-test("Home example pledge opens a no-payment preview before any submission", async ({ page }) => {
+async function donationScreen(page: Page, expected: DonationMode) {
+  const main = page.locator("#app-content");
+  const heading = main.getByRole("heading", { name: /^(Donate|Test a donation)$/, exact: true, level: 1 });
+  await expect(heading).toBeVisible({ timeout: 20000 });
+  await expect(heading).toHaveText(expected === "preview" ? "Donate" : "Test a donation");
+  if (expected === "preview") {
+    await expect(main.getByText("Prototype · no payment", { exact: true })).toBeVisible();
+    await expect(main.getByText("Where your pledge would go", { exact: true })).toBeVisible();
+    await expect(main.getByRole("button", { name: "Review local donation", exact: true })).toBeVisible();
+    await expect(main.getByText(/No payment method, authorization or/)).toBeVisible();
+  } else {
+    await expect(main.getByText("Fictional cause, real Testnet transaction", { exact: true })).toBeVisible();
+    await expect(main.getByText(/QA wallets receive test tokens, not the pictured organizer or NGO/)).toBeVisible();
+    const signIn = main.getByRole("link", { name: "Sign in with Google", exact: true });
+    const unavailableIdentity = main.getByText("Your account must be verified before donating.");
+    await expect(signIn.or(unavailableIdentity)).toBeVisible({ timeout: 20000 });
+    if (await signIn.count()) await expect(signIn).toHaveAttribute("href", /^\/signin\?next=%2Fcircles%2F[a-z0-9-]+%2Fdonate$/);
+    else await expect(main.getByRole("button", { name: "Check account", exact: true })).toBeVisible();
+    // A public visitor cannot manufacture a native financial review. Missing
+    // mappings may omit the form; an available form must remain disabled.
+    await expect(main.getByRole("button", { name: "Review Testnet donation", exact: true }).and(main.locator("button:not([disabled])"))).toHaveCount(0);
+    await expect(main.getByRole("button", { name: "Confirm Testnet donation", exact: true })).toHaveCount(0);
+    await expect(main.getByRole("button", { name: "Request launch notification", exact: true })).toHaveCount(0);
+    await expect(main.getByText("Testnet donation confirmed", { exact: true })).toHaveCount(0);
+  }
+}
+
+test("Home cause donation entry shows the explicit preview or unverified QA boundary without submission", async ({ page }, testInfo) => {
   await page.goto("/", { waitUntil: "domcontentloaded", timeout: 45000 });
   const catalog = page.getByTestId("home-circles-catalog");
   await expect(catalog).toHaveAttribute("data-catalog-ready", "true", { timeout: 20000 });
-  const campaignLink = catalog.getByRole("link", { name: "Preview a pledge", exact: true }).first();
+  const campaignLink = catalog.getByRole("link", { name: donationEntry }).first();
+  const mode: DonationMode = (await campaignLink.innerText()).trim() === "Preview a pledge" ? "preview" : "testnet";
   await expect(campaignLink).toHaveAttribute("href", /^\/circles\/[a-z0-9-]+\/donate$/);
   await campaignLink.click();
   await expect(page).toHaveURL(/\/circles\/[a-z0-9-]+\/donate$/);
-  await expect(page.getByText("Prototype · no payment", { exact: true })).toBeVisible();
-  await expect(page.getByText("Where your pledge would go", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: /^(Review local donation|Continue to optional signup)$/ })).toBeVisible();
-  await expect(page.getByText(/No payment method, authorization or/)).toBeVisible();
+  await expect(page).toHaveTitle(/Salapi/);
+  await donationScreen(page, mode);
+  await page.screenshot({ path: testInfo.outputPath(`${mode}-donation-boundary.png`), fullPage: false });
 });
 
 test("Home exposes example discovery and keeps D4 as a distinct route", async ({ page }) => {
@@ -40,14 +69,15 @@ test("Home exposes example discovery and keeps D4 as a distinct route", async ({
   await expect(page.getByRole("heading", { name: "A cause can bring us closer.", exact: true })).toBeVisible();
   await page.getByRole("link", { name: /Explore this concept/ }).first().click();
   await expect(page).toHaveURL(/\/circles\/[a-z0-9-]+$/);
-  await expect(page.getByRole("link", { name: "Preview a pledge", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: donationEntry })).toBeVisible();
 });
 
 test("Home categories show three examples per sector and clickable organizer ratings and histories", async ({ page }) => {
   await page.goto("/", { waitUntil: "domcontentloaded", timeout: 45000 });
   const catalog = page.getByTestId("home-circles-catalog");
   const category = catalog.locator("#home-cause-category");
-  await expect(catalog.getByText("Fictional causes · AI photos · example ratings · no payment.", { exact: true })).toBeVisible();
+  const liveMode = await catalog.getByRole("link", { name: "Review QA Testnet donation", exact: true }).count() > 0;
+  await expect(catalog.getByText(liveMode ? "Fictional causes · AI photos · QA Testnet donations when linked." : "Fictional causes · AI photos · example ratings · no payment.", { exact: true })).toBeVisible();
   await expect(catalog).toHaveAttribute("data-catalog-ready", "true", { timeout: 20000 });
   await expect(category).toBeEnabled();
   for (const sector of ["disaster", "medical", "education", "community", "family", "creator", "animals", "care", "volunteer"]) {
@@ -116,9 +146,11 @@ test("donor and detail Back unwind the actual Home to cause to pledge path", asy
   await expect(catalog).toHaveAttribute("data-catalog-ready", "true");
   await catalog.locator('a[href="/circles/tino-relief"]').first().click();
   await expect(page).toHaveURL(/\/circles\/tino-relief$/);
-  await page.getByRole("link", { name: "Preview a pledge", exact: true }).click();
+  const entry = page.getByRole("link", { name: donationEntry });
+  const mode: DonationMode = (await entry.innerText()).trim() === "Preview a pledge" ? "preview" : "testnet";
+  await entry.click();
   await expect(page).toHaveURL(/\/circles\/tino-relief\/donate$/);
-  await expect(page.getByRole("heading", { name: "Donate", exact: true, level: 1 })).toBeVisible({ timeout: 20000 });
+  await donationScreen(page, mode);
   await expect.poll(() => page.evaluate(() => Boolean(window.history.state?.__salapiNavigation)), { timeout: 20000 }).toBe(true);
   await page.getByRole("button", { name: "Back", exact: true }).first().click();
   await expect(page).toHaveURL(/\/circles\/tino-relief$/);

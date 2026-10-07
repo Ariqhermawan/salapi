@@ -1,0 +1,38 @@
+.card { margin: 14px 0; padding: 17px; border: 1px solid #ccddee; border-radius: 20px; background: #fff; color: #142440; min-width: 0; }
+.heading { display: grid; gap: 8px; }
+.heading h2 { margin: 0; font-size: 18px; line-height: 1.3; font-weight: 680; letter-spacing: -.3px; }
+.badge { justify-self: start; padding: 5px 9px; border-radius: 8px; background: #fff1d6; color: #925019; font-size: 10px; line-height: 1.4; font-weight: 650; }
+.card .notice { margin: 9px 0 13px; color: #5c6d84; font-size: 11px; line-height: 1.65; }
+.metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 14px; background: #f2f6fc; border-radius: 13px; }
+.metrics small { display: block; color: #60718b; font-size: 10px; line-height: 1.5; }
+.metrics strong { display: block; margin-top: 4px; font-size: 17px; line-height: 1.4; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.card .separation { margin: 9px 0 14px; color: #65748c; font-size: 10px; line-height: 1.65; }
+.phase { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
+.phase strong { font-size: 11px; padding: 5px 8px; border-radius: 7px; }
+.open { color: #13765b; background: #e6f7f1; }
+.closed { color: #7b5735; background: #fff3e3; }
+.phase span { color: #61728a; font-size: 10px; overflow-wrap: anywhere; }
+.deadline { display: grid; gap: 3px; margin: 12px 0; }
+.deadline small { color: #60718b; font-size: 10px; }
+.deadline time { font-size: 11px; color: #314d74; overflow-wrap: anywhere; }
+.controls { border-top: 1px solid #e3eaf4; border-bottom: 1px solid #e3eaf4; padding: 12px 0; }
+.controls summary { min-height: 32px; cursor: pointer; color: #2563eb; font-size: 12px; font-weight: 620; line-height: 1.5; }
+.card .controls p, .card .proof p { margin: 5px 0; color: #61728a; font-size: 10px; line-height: 1.65; }
+.controls dl { margin: 12px 0 0; }
+.controls dt { margin-top: 10px; color: #395573; font-size: 11px; font-weight: 620; }
+.controls dd { margin: 4px 0 0; }
+.controls code, .proof code { display: block; color: #62748c; font-size: 9px; line-height: 1.6; overflow-wrap: anywhere; word-break: break-word; }
+.controls ol { margin: 0; padding-left: 18px; }
+.controls li { margin: 5px 0; }
+.proof { padding: 13px 0; }
+.proof h3 { margin: 0 0 5px; color: #2c486a; font-size: 12px; font-weight: 640; }
+.proof > span { display: block; margin: 5px 0; font-size: 11px; color: #365477; }
+.actions { display: grid; gap: 8px; }
+.card .actions a { display: flex; align-items: center; justify-content: center; min-height: 44px; padding: 8px 10px; border-radius: 11px; font-size: 12px; text-align: center; text-decoration: none; font-weight: 640; }
+.card .primary { color: #fff; background: #2563eb; }
+.card .secondary { color: #2563eb; background: #edf3ff; border: 1px solid #d9e5fb; }
+.card .state, .card .unavailable p { margin: 0; color: #63728a; font-size: 11px; line-height: 1.65; }
+.unavailable { border-top: 1px solid #e3eaf4; padding-top: 12px; }
+.unavailable button { min-height: 44px; margin-top: 8px; border: 1px solid #d9e5fb; border-radius: 10px; background: #edf3ff; color: #2563eb; padding: 8px 12px; font: inherit; font-size: 11px; font-weight: 630; cursor: pointer; }
+.card a:focus-visible, .card button:focus-visible, .controls summary:focus-visible { outline: 2px solid #2563eb; outline-offset: 3px; }
+@media (max-width: 370px) { .card { padding: 14px; } .metrics { gap: 8px; padding: 11px; } .metrics strong { font-size: 15px; } }

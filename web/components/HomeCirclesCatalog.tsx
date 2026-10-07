@@ -18,6 +18,7 @@ import { circlesCopy, circlesCategory } from "@/lib/i18n/revamp-circles";
 import { homeCatalogCopy, type HomeCatalogKey } from "@/lib/i18n/revamp-home-catalog";
 import ExampleOrganizerAvatar from "@/components/ui/ExampleOrganizerAvatar";
 import styles from "./HomeCirclesCatalog.module.css";
+import { isLocalPreview } from "@/lib/local-preview";
 
 // Native selects can be changed before React attaches their handlers. Keep
 // interactive controls disabled in SSR/hydration, then enable at client commit.
@@ -92,7 +93,7 @@ export default function HomeCirclesCatalog() {
       </div>
       <Image src="/illustrations/giving.png" alt="" width={90} height={90} />
     </header>
-    <p className={styles.notice}>{copy("Fictional causes · AI photos · example ratings · no payment.")}</p>
+    <p className={styles.notice}>{copy(isLocalPreview ? "Fictional causes · AI photos · example ratings · no payment." : "Fictional causes · AI photos · QA Testnet donations when linked.")}</p>
     <div className={styles.tools}>
       <label htmlFor="home-cause-category">
         <span className={styles.srOnly}>{copy("Category")}</span>
@@ -134,7 +135,7 @@ export default function HomeCirclesCatalog() {
               <span>{copy("Example progress")}<strong>{percent}%</strong></span>
               <progress value={percent} max={100} aria-hidden="true" />
             </div>
-            <Link href={`/circles/${circle.id}/donate`} prefetch={false} className={styles.pledge}><Heart size={18} aria-hidden="true" />{c("Preview a pledge")}</Link>
+            <Link href={`/circles/${circle.id}/donate`} prefetch={false} className={styles.pledge}><Heart size={18} aria-hidden="true" />{c(isLocalPreview ? "Preview a pledge" : "Review QA Testnet donation")}</Link>
           </div>
         </article>;
       })}

@@ -1,6 +1,9 @@
 "use client";
 import SuccessMotion from "@/components/ui/SuccessMotion";
 import D4CampaignGallery from "@/components/D4CampaignGallery";
+import CampaignDonorActivity from "@/components/CampaignDonorActivity";
+import CampaignUpdateSubscription from "@/components/CampaignUpdateSubscription";
+import CampaignOrganizerUpdates from "@/components/CampaignOrganizerUpdates";
 
 import Link from "next/link";
 import Image from "next/image";
@@ -202,6 +205,11 @@ function CampaignCard({ c, viewer, now, run, busy, detail, onPreviewUpdate }: { 
     {viewer && refundOpen && BigInt(c.contribution.amount) > 0n && !c.contribution.refunded && <Btn disabled={busy} onClick={() => run(`Return your full ${formatStroops(c.contribution.amount)} XLM donation from campaign #${c.id} to your original wallet.`, () => campaignRefund(c.id), false, () => onPreviewUpdate({ ...c, escrow: String(BigInt(c.escrow) - BigInt(c.contribution.amount)), contribution: { ...c.contribution, refunded: true } }))}>Claim full refund</Btn>}
     {viewer && refundOpen && c.total === "0" && <Btn kind="secondary" disabled={busy} onClick={() => run(`Close empty campaign #${c.id}.`, () => campaignCloseEmpty(c.id), false, () => onPreviewUpdate({ ...c, state: "Closed" }))}>Close empty campaign</Btn>}
     {error && !(viewer && fundingOpen) && <p className={styles.error} role="alert">{error}</p>}
+    {detail && !isLocalPreview && c.title.startsWith("QA Circles: ") && <>
+      <CampaignDonorActivity campaignId={c.id} refreshKey={`${c.total}:${c.escrow}`} />
+      <CampaignUpdateSubscription campaignId={c.id} />
+      <CampaignOrganizerUpdates campaignId={c.id} />
+    </>}
   </div></section>;
 }
 

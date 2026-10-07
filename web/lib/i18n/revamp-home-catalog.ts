@@ -1,6 +1,7 @@
 import type { Locale } from "./config";
 
 export const HOME_CATALOG_COPY = {
+  "Fictional causes · AI photos · QA Testnet donations when linked.": ["Kathang-isip na layunin · AI photos · QA Testnet donation kapag naka-link.", "Tujuan fiktif · foto AI · donasi QA Testnet jika terhubung.", "Mục tiêu hư cấu · ảnh AI · quyên góp QA Testnet khi liên kết."],
   "CROWDFUNDING · PROTOTYPE": ["PAGLIKOM NG PONDO · PROTOTYPE", "PENGGALANGAN DANA · PROTOTIPE", "GÂY QUỸ · NGUYÊN MẪU"],
   "Fictional causes · AI illustrations · no payment.": ["Kathang-isip na mga layunin · larawan ng AI · walang bayad.", "Tujuan fiktif · ilustrasi AI · tanpa pembayaran.", "Mục đích hư cấu · minh họa AI · không thanh toán."],
   "Fictional causes · AI photos · example ratings · no payment.": ["Kathang-isip na mga layunin · larawan ng AI · halimbawang rating · walang bayad.", "Tujuan fiktif · foto AI · rating contoh · tanpa pembayaran.", "Mục đích hư cấu · ảnh AI · đánh giá mẫu · không thanh toán."],
