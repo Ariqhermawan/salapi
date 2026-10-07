@@ -2,7 +2,7 @@ import type { CircleTestnetCampaignResult } from "@/lib/circles/testnet";
 import type { CampaignDonorFeedResult } from "@/lib/campaign-donor";
 import type { Campaign } from "@/lib/campaign";
 
-export type PublicCampaignState = { ok: true; contractId: string; now: string; campaigns: Omit<Campaign, "contribution">[] }
+export type PublicCampaignState = { ok: true; contractId: string; now: string; campaigns: Omit<Campaign, "contribution">[]; circleLinks?: Record<string, string> }
   | { ok: false; error: string };
 
 /** Display-only GETs can run beside private reads without the Server Action queue.

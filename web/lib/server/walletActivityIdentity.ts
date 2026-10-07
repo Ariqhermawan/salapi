@@ -57,15 +57,29 @@ function safeSignedPhoto(value: unknown, path: string): string | null {
 export async function readActivityIdentities(viewer: string, items: WalletActivityItem[], donationPhotoOwners?: ReadonlyMap<string, string>): Promise<WalletActivityIdentity[]> {
   if (!validAddress(viewer)) return [];
   const addresses = [...new Set([viewer, ...items.flatMap(item => [item.counterparty, item.fee.status === "available" ? item.fee.payer : null])].filter(validAddress))].slice(0, MAX_IDENTITIES);
+  return readVerifiedIdentities(addresses, MAX_IDENTITIES, true, donationPhotoOwners);
+}
+
+/** Addresses must be derived from a validated contract membership read, never
+ * caller input. Private receipt photos are available only to a verified member
+ * of that room, and each photo still requires its owner's existing consent.
+ */
+export async function readArisanWalletIdentities(addresses: readonly string[], allowPhotos: boolean): Promise<WalletActivityIdentity[]> {
+  if (addresses.length > 20 || addresses.some(address => !validAddress(address)) || new Set(addresses).size !== addresses.length) return [];
+  return readVerifiedIdentities([...addresses], 20, allowPhotos, undefined, true, true);
+}
+
+async function readVerifiedIdentities(addresses: string[], limit: number, allowPhotos: boolean, donationPhotoOwners?: ReadonlyMap<string, string>, nonanonymousOwners = false, publicFallbackOnPhotoFailure = false): Promise<WalletActivityIdentity[]> {
   const result = addresses.map(address => ({ address, handle: null, photoUrl: null } as WalletActivityIdentity));
   const deadline = Date.now() + DEADLINE_MS;
   const owners = new Map<string, string>();
-  let admin: ReturnType<typeof createSupabaseAdmin>;
+  let admin: ReturnType<typeof createSupabaseAdmin> | null = null;
+  if (allowPhotos) {
   try {
     admin = createSupabaseAdmin();
     const { data, error } = await beforeDeadline(admin.from("wallets").select("public_key,user_id").in("public_key", addresses)
-      .limit(MAX_IDENTITIES + 1).abortSignal(AbortSignal.timeout(DEADLINE_MS)), deadline);
-    if (!error && Array.isArray(data) && data.length <= MAX_IDENTITIES) {
+      .limit(limit + 1).abortSignal(AbortSignal.timeout(DEADLINE_MS)), deadline);
+    if (!error && Array.isArray(data) && data.length <= limit) {
       const duplicates = new Set<string>();
       for (const row of data) {
         if (!addresses.includes(row.public_key) || typeof row.user_id !== "string" || !UUID.test(row.user_id)) continue;
@@ -74,7 +88,12 @@ export async function readActivityIdentities(viewer: string, items: WalletActivi
       }
       for (const duplicate of duplicates) owners.delete(duplicate);
     }
-  } catch { return result; }
+  } catch {
+    if (!publicFallbackOnPhotoFailure) return result;
+    // A missing photo database cannot suppress public registry verification.
+    admin = null; owners.clear();
+  }
+  }
   let next = 0;
   await Promise.all(Array.from({ length: Math.min(WORKERS, addresses.length) }, async () => {
     for (;;) {
@@ -84,12 +103,13 @@ export async function readActivityIdentities(viewer: string, items: WalletActivi
       const handleRead = publicHandle(identity.address, deadline).then(handle => { identity.handle = handle; });
       const photoRead = (async () => {
         const ownerId = owners.get(identity.address);
-        if (!ownerId || Date.now() >= deadline) return;
+        if (!admin || !ownerId || Date.now() >= deadline) return;
         try {
           // Bounded, confirmed receipt participants only. Never list auth users.
           const { data, error } = await beforeDeadline(admin.auth.admin.getUserById(ownerId), deadline);
           const user = data.user;
           if (error || !user || user.id !== ownerId || Date.now() >= deadline) return;
+          if (nonanonymousOwners && user.is_anonymous !== false) return;
           const photoAllowed = donationPhotoOwners !== undefined
             ? donationPhotoOwners.get(identity.address) === ownerId
             : user.user_metadata?.salapi_receipt_photo_consent === true;

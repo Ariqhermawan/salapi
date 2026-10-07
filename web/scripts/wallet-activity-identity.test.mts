@@ -13,7 +13,7 @@ const wallet = (index: number) => sdk.StrKey.encodeEd25519PublicKey(Buffer.alloc
 const address = wallet(7), other = wallet(8), unrelated = wallet(9);
 const uid = (index: number) => `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`;
 const googleUrl = "https://lh3.googleusercontent.com/a/fixture=s96-c";
-const user = (id = uid(1), consent: unknown = false, metadata = {}) => ({ id, email: "nonimaharani@fixture.invalid",
+const user = (id = uid(1), consent: unknown = false, metadata = {}) => ({ id, is_anonymous: false as boolean, email: "nonimaharani@fixture.invalid",
   user_metadata: { salapi_receipt_photo_consent: consent, username: "nonimaharani", ...metadata },
   identities: [{ provider: "google", identity_data: { avatar_url: googleUrl } }] });
 const item = (counterparty = other): WalletActivityItem => ({ id: "1:payment", hash: "a".repeat(64), createdAt: "2026-10-07T00:00:00Z",
@@ -22,7 +22,7 @@ const source = readFileSync(new URL("../lib/server/walletActivityIdentity.ts", i
 const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
 
 function harness(options: { rows?: { public_key: string; user_id: string }[]; users?: Record<string, ReturnType<typeof user>>;
-  handles?: Record<string, string>; resolves?: Record<string, string>; dbError?: boolean; authError?: boolean; authThrows?: boolean; signUrl?: string; signError?: boolean; deadline?: boolean; registryGate?: Promise<void> } = {}) {
+  handles?: Record<string, string>; resolves?: Record<string, string>; dbError?: boolean; adminThrows?: boolean; authError?: boolean; authThrows?: boolean; signUrl?: string; signError?: boolean; deadline?: boolean; registryGate?: Promise<void> } = {}) {
   const calls = { columns: [] as string[], targets: [] as string[][], limit: 0, auth: [] as string[], sign: [] as string[],
     registry: [] as { method: string; argument: unknown }[], active: 0, maxActive: 0 };
   let now = Date.now();
@@ -65,12 +65,13 @@ function harness(options: { rows?: { public_key: string; user_id: string }[]; us
       return { result: { retval: sdk.nativeToScVal(method === "username_of" ? handles[argument] ?? "" : resolves[argument] ?? "") } };
     }
   }
-  const exports = {} as { readActivityIdentities(viewer: string, items: WalletActivityItem[], donationPhotoOwners?: ReadonlyMap<string, string>): Promise<WalletActivityIdentity[]> };
+  const exports = {} as { readActivityIdentities(viewer: string, items: WalletActivityItem[], donationPhotoOwners?: ReadonlyMap<string, string>): Promise<WalletActivityIdentity[]>;
+    readArisanWalletIdentities(addresses: readonly string[], allowPhotos: boolean): Promise<WalletActivityIdentity[]> };
   runInNewContext(compiled, { exports, URL, AbortSignal, setTimeout, clearTimeout, Date: class extends Date { static now() { return now; } },
     require(dependency: string) {
       if (dependency === "server-only") return {};
       if (dependency === "@stellar/stellar-sdk") return { ...sdk, rpc: { Server: ReadOnlyRpc, Api: { isSimulationSuccess: (value: { result?: unknown }) => !!value.result } } };
-      if (dependency === "@/lib/supabase/admin") return { createSupabaseAdmin: () => admin };
+      if (dependency === "@/lib/supabase/admin") return { createSupabaseAdmin: () => { if (options.adminThrows) throw Error("Photo database unavailable"); return admin; } };
       if (dependency === "@/lib/supabase/env") return { SUPABASE_URL: "https://project.supabase.co" };
       if (dependency === "@/lib/account-photo") return photo;
       if (dependency === "./stellar") return { RPC_URL: "https://soroban-testnet.stellar.org", CONTRACTS: { usernameRegistry: "CDDINUQXTF6SHZN2ZJ36IT7P4YOJ3OZN3H6LTYHVCQ35YYO7YTAWM4G3" } };
@@ -196,6 +197,45 @@ test("invalid viewer, DB/Auth outage and shared deadline preserve safe wallet fa
   for (const options of [{ dbError: true }, { authError: true }, { authThrows: true }, { deadline: true }]) {
     const h = harness(options); const identities = await h.readActivityIdentities(address, [item()]);
     assert.ok(identities.every(identity => identity.photoUrl === null)); assert.deepEqual(h.calls.sign, []);
+  }
+});
+
+test("public Arisan display reads two-way registry handles without private wallet, Auth or Storage reads", async () => {
+  const h = harness({ users: { [uid(1)]: user(uid(1), true) } });
+  const result = await h.readArisanWalletIdentities([address, other], false);
+  assert.equal(result[1].handle, "verified_handle");
+  assert.ok(result.every(identity => identity.photoUrl === null));
+  assert.deepEqual(h.calls.columns, []); assert.deepEqual(h.calls.auth, []); assert.deepEqual(h.calls.sign, []);
+});
+
+test("Arisan public registry handles remain available when optional photo database or Auth reads fail", async () => {
+  for (const failure of [{ adminThrows: true }, { dbError: true }, { authError: true }, { authThrows: true }]) {
+    const h = harness({ ...failure, users: { [uid(1)]: user(uid(1), true) } });
+    const result = await h.readArisanWalletIdentities([other], true);
+    assert.equal(result[0].handle, "verified_handle"); assert.equal(result[0].photoUrl, null);
+    assert.deepEqual(h.calls.sign, []);
+  }
+});
+
+test("private Arisan photos bind mapped nonanonymous owners and preserve their existing photo consent", async () => {
+  const confirmed = harness({ users: { [uid(1)]: user(uid(1), true) } });
+  assert.equal((await confirmed.readArisanWalletIdentities([other], true))[0].photoUrl, googleUrl);
+  for (const current of [user(uid(1), false), { ...user(uid(1), true), is_anonymous: true }, { ...user(uid(1), true), is_anonymous: undefined }, user(uid(2), true)]) {
+    const h = harness({ users: { [uid(1)]: current as ReturnType<typeof user> } });
+    assert.equal((await h.readArisanWalletIdentities([other], true))[0].photoUrl, null);
+    assert.deepEqual(h.calls.sign, []);
+  }
+});
+
+test("Arisan identities support twenty validated members, refuse duplicates/oversize/invalid addresses, and retain three workers", async () => {
+  const addresses = Array.from({ length: 20 }, (_, index) => wallet(index + 20));
+  const h = harness();
+  assert.equal((await h.readArisanWalletIdentities(addresses, true)).length, 20);
+  assert.equal(h.calls.limit, 21); assert.ok(h.calls.maxActive <= 3);
+  for (const bad of [[...addresses, wallet(41)], [address, address], [address, "not-a-wallet"]]) {
+    const invalid = harness();
+    assert.equal((await invalid.readArisanWalletIdentities(bad, true)).length, 0);
+    assert.deepEqual(invalid.calls.columns, []); assert.deepEqual(invalid.calls.registry, []);
   }
 });
 

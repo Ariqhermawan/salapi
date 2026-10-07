@@ -52,12 +52,13 @@ function deferred<T>() {
   return { promise, resolve, reject };
 }
 type HomeWallet = { pesos: number; address: string; nativeStroops: string } | { ok: false; error: string };
-type PublicCampaignPage = { ok: true; now: string; campaigns: Omit<Campaign, "contribution">[] } | { ok: false; error: string };
+type PublicCampaignPage = { ok: true; now: string; campaigns: Omit<Campaign, "contribution">[]; circleLinks?: Record<string, string> } | { ok: false; error: string };
+type CatalogProps = { campaigns?: Omit<Campaign, "contribution">[]; circleLinks?: Record<string, string>; loading?: boolean; error?: string; onRetry?: Callback };
 
 // Actual Home and HomeCirclesCatalog TSX, with separate hook state for each
 // component and isolated effects/DOM-shaped refs. No browser, auth, provider,
 // ledger, actual navigation or network requests are available.
-function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: boolean; deniedStorage?: boolean; failCampaigns?: boolean; failWallet?: boolean; liveCampaigns?: Campaign[]; savedCatalogView?: unknown; navigationEntryReady?: boolean;
+function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: boolean; deniedStorage?: boolean; failCampaigns?: boolean; failWallet?: boolean; liveCampaigns?: Campaign[]; circleLinks?: Record<string, string>; savedCatalogView?: unknown; navigationEntryReady?: boolean;
   walletReader?: () => Promise<HomeWallet>; handleReader?: () => Promise<string | null>; campaignReader?: (before: string) => Promise<PublicCampaignPage> } = {}) {
   const preview = options.preview ?? true;
   const locale = options.locale ?? "en";
@@ -87,13 +88,13 @@ function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: bo
   const scrolls: { left: number; behavior: string }[] = [];
   const dependenciesEqual = (a: readonly unknown[], b: readonly unknown[]) => a.length === b.length && a.every((value, index) => Object.is(value, b[index]));
   const component = {} as { default(): Element };
-  const catalog = {} as { default(): Element };
+  const catalog = {} as { default(props: CatalogProps): Element };
   const navigationViewHook = {} as { useNavigationViewState(key: string): string };
   const jsx = (type: unknown, props: Record<string, unknown>, key?: string): Element => {
     if (type !== catalog.default) return { type, props, key };
     const parentStates = states, parentCursor = cursor;
     states = catalogStates; cursor = 0;
-    try { return catalog.default(); }
+    try { return catalog.default(props); }
     finally { states = parentStates; cursor = parentCursor; }
   };
   const icons = new Proxy({}, { get: () => () => null });
@@ -139,6 +140,7 @@ function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: bo
       if (name === "@/components/useAccountPhoto") return { useAccountPhoto: () => ({ status: "ready", profile: null }) };
       if (name === "@/components/ui/kit") return { Ico: icons, Peso: "Peso" };
       if (name === "@/components/ui/icons") return { Ico: icons };
+      if (name === "@/components/ui/brand") return { PoweredByStellarV2: "PoweredByStellarV2" };
       if (name === "@/lib/local-preview") return { isLocalPreview: preview, PREVIEW_WALLET, PREVIEW_TIME, PREVIEW_CAMPAIGNS, normalizePreviewCampaigns: (rows: Campaign[]) => rows };
       if (name === "@/lib/circles/seed") return seed;
       if (name === "@/lib/circles/types") return fixture("../lib/circles/types.ts");
@@ -162,7 +164,7 @@ function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: bo
       if (name === "@/lib/format-stroops") return { formatStroops: (value: string) => `exact-source-units:${value}` };
       if (name === "@/lib/wallet-state") return { requireWalletState };
       if (name === "@/app/actions") return { async walletState() { calls.wallet++; assert.equal(preview, false); return options.walletReader ? options.walletReader() : options.failWallet ? { ok: false, error: "Your wallet balance is unavailable." } : { pesos: 123.45, address: "Readonly isolated Testnet wallet", nativeStroops: "189923077" }; }, async myHandle() { calls.handle++; assert.equal(preview, false); return options.handleReader ? options.handleReader() : "isolated"; } };
-      if (name === "@/lib/ui/public-read") return { async readPublicCampaigns(before: string) { calls.campaigns.push(before); assert.equal(preview, false); if (options.campaignReader) return options.campaignReader(before); if (campaignFailure) return { ok: false, error: "Isolated readonly failure" }; const offset = before === "0" ? 0 : liveCampaigns.findIndex(campaign => campaign.id === before) + 1; return { ok: true, now: String(PREVIEW_TIME), campaigns: liveCampaigns.slice(offset, offset + 10) }; } };
+      if (name === "@/lib/ui/public-read") return { async readPublicCampaigns(before: string) { calls.campaigns.push(before); assert.equal(preview, false); if (options.campaignReader) return options.campaignReader(before); if (campaignFailure) return { ok: false, error: "Isolated readonly failure" }; const offset = before === "0" ? 0 : liveCampaigns.findIndex(campaign => campaign.id === before) + 1; const campaigns = liveCampaigns.slice(offset, offset + 10); const circleLinks = Object.fromEntries(campaigns.flatMap(campaign => options.circleLinks?.[campaign.id] ? [[campaign.id, options.circleLinks[campaign.id]]] : [])); return { ok: true, now: String(PREVIEW_TIME), campaigns, circleLinks }; } };
       if (name.endsWith(".module.css")) return { default: new Proxy({}, { get: (_target, key) => String(key) }) };
       throw Error(`Unexpected actual Home dependency: ${name}`);
     },
@@ -206,7 +208,7 @@ function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: bo
     remountCatalog() {
       for (const state of catalogStates) (state as { unsubscribe?: () => void } | undefined)?.unsubscribe?.();
       catalogStates.length = 0; render();
-    }, set campaignFailure(value: boolean) { campaignFailure = value; }, get tree() { return tree!; }, get catalog() { return nodes(tree).find(node => node.props["data-testid"] === "home-circles-catalog")!; }, get cards() { return nodes(tree).filter(node => node.type === "article" && "data-example-cause" in node.props); }, get d4Cards() { const strip = nodes(tree).find(node => node.props["aria-label"] === homeCopy(locale, "Campaign carousel")); return nodes(strip).filter(node => node.type === "article"); }, changeReducedMotion(value: boolean) { mediaReduced = value; for (const listener of mediaListeners) listener(); render(); } };
+    }, set campaignFailure(value: boolean) { campaignFailure = value; }, get tree() { return tree!; }, get catalog() { return nodes(tree).find(node => node.props["data-testid"] === "home-circles-catalog")!; }, get cards() { return nodes(tree).filter(node => node.type === "article" && "data-example-cause" in node.props); }, get d4Cards() { return nodes(tree).filter(node => node.type === "article" && "data-standalone-campaign" in node.props); }, get orderedCards() { const strip = nodes(tree).find(node => hasClass(node, "strip")); return nodes(strip).filter(node => node.type === "article"); }, changeReducedMotion(value: boolean) { mediaReduced = value; for (const listener of mediaListeners) listener(); render(); } };
 }
 
 test("history view state accepts only bounded discovery fields and ignores corrupt or financial values", () => {
@@ -215,6 +217,8 @@ test("history view state accepts only bounded discovery fields and ignores corru
   assert.deepEqual(homeCircles.parseCauseViewState(JSON.stringify({ category: "animals", index: 1, sort: "closeToGoal", balance: 999, kyc: true })), { category: "animals", index: 1, sort: "closeToGoal" });
   assert.deepEqual(homeCircles.parseCauseViewState(JSON.stringify({ category: "__proto__", index: -1, sort: "<script>" })), neutral);
   assert.deepEqual(homeCircles.parseCauseViewState(JSON.stringify({ category: "medical", index: 1.5 })), { category: "medical", index: 0, sort: "all" });
+  assert.deepEqual(homeCircles.parseCauseViewState(JSON.stringify({ category: "all", index: 1026 })), { category: "all", index: 1026, sort: "all" }, "The final index remains bounded to 27 stories plus the maximum 100 discovery pages");
+  for (const index of [1027, Number.MAX_SAFE_INTEGER, -1, "29", null]) assert.deepEqual(homeCircles.parseCauseViewState(JSON.stringify({ category: "all", index })), neutral);
 });
 
 test("Home restores category, selected card and horizontal position after a route remount without financial storage writes", async () => {
@@ -285,6 +289,32 @@ test("Home waits for a valid navigation entry after hydration and restores the s
   }
 });
 
+test("a saved standalone selection restores after its public discovery page arrives instead of remaining on the clamped story", async () => {
+  const firstPage = deferred<PublicCampaignPage>();
+  const campaigns = Array.from({ length: 5 }, (_, index) => ({ ...PREVIEW_CAMPAIGNS[0], id: String(800 + index) }));
+  const ui = mount({ preview: false, savedCatalogView: { category: "all", index: 29 }, campaignReader: () => firstPage.promise });
+  assert.equal(ui.orderedCards.length, 27); assert.equal(ui.scrolls.length, 0);
+  await ui.flush(); assert.equal(ui.orderedCards.length, 27); assert.equal(ui.calls.viewStateWrites, 0);
+  firstPage.resolve({ ok: true, now: String(PREVIEW_TIME), campaigns, circleLinks: {} }); await ui.flush();
+  assert.equal(ui.orderedCards.length, 32); assert.match(text(ui.catalog), /30 \/ 32/);
+  assert.equal(ui.scrolls.at(-1)?.left, 29 * 264); assert.equal(ui.scrolls.at(-1)?.behavior, "instant");
+  assert.deepEqual(JSON.parse(ui.navigationViews.get("home-circles")!), { category: "all", index: 29 });
+  assert.equal(ui.calls.viewStateWrites, 0); assert.equal(ui.calls.network, 0); assert.equal(ui.calls.writes, 0);
+});
+
+test("a saved later-page standalone selection waits for its card without hiding completed discovery pages", async () => {
+  const later = deferred<PublicCampaignPage>();
+  const campaigns = Array.from({ length: 12 }, (_, index) => ({ ...PREVIEW_CAMPAIGNS[0], id: String(800 + index) }));
+  const ui = mount({ preview: false, savedCatalogView: { category: "all", index: 38 }, campaignReader: async before => before === "0"
+    ? { ok: true, now: String(PREVIEW_TIME), campaigns: campaigns.slice(0, 10), circleLinks: {} } : later.promise });
+  await ui.flush(); assert.equal(ui.cards.length, 27); assert.equal(ui.d4Cards.length, 10); assert.equal(ui.scrolls.length, 0);
+  assert.ok(text(ui.catalog).includes(catalogCopy.homeCatalogCopy("en", "Checking other Testnet campaigns")));
+  later.resolve({ ok: true, now: String(PREVIEW_TIME), campaigns: campaigns.slice(10), circleLinks: {} }); await ui.flush();
+  assert.equal(ui.d4Cards.length, 12); assert.equal(ui.scrolls.at(-1)?.left, 38 * 264); assert.equal(ui.scrolls.at(-1)?.behavior, "instant");
+  assert.match(text(ui.catalog), /39 \/ 39/); assert.equal(ui.calls.viewStateWrites, 0);
+  assert.equal(text(ui.catalog).includes(catalogCopy.homeCatalogCopy("en", "Checking other Testnet campaigns")), false);
+});
+
 test("Home fixture selection keeps all 27 active examples and all nine categories without altering seeds", () => {
   const before = JSON.stringify(seed);
   assert.equal(homeCircles.homeCircleExamples([...seed.SEED_CIRCLES, ...seed.COMPLETED_CIRCLES], "all").length, 27);
@@ -297,6 +327,61 @@ test("Home fixture selection keeps all 27 active examples and all nine categorie
   assert.equal(homeCircles.isHomeCauseCategory("unknown"), false);
   assert.equal(homeCircles.isHomeCauseCategory("__proto__"), false);
   assert.equal(JSON.stringify(seed), before);
+});
+
+test("standalone selection uses only supplied immutable campaign-to-story IDs, never matching titles or completed stories", () => {
+  const stories = [...seed.SEED_CIRCLES, ...seed.COMPLETED_CIRCLES];
+  const campaigns = [
+    { ...PREVIEW_CAMPAIGNS[0], id: "800", title: "A linked campaign whose title changed" },
+    { ...PREVIEW_CAMPAIGNS[0], id: "801", title: seed.SEED_CIRCLES[0].title },
+    { ...PREVIEW_CAMPAIGNS[0], id: "802", title: "An unrelated campaign" },
+    { ...PREVIEW_CAMPAIGNS[0], id: "803", title: "A completed story campaign" },
+    { ...PREVIEW_CAMPAIGNS[0], id: "804", title: "An unknown story mapping" },
+  ];
+  const links = { "800": seed.SEED_CIRCLES[0].id, "803": seed.COMPLETED_CIRCLES[0].id, "804": "not-a-listed-story" };
+  const before = JSON.stringify({ stories, campaigns, links });
+  assert.deepEqual(homeCircles.homeStandaloneCampaigns(stories, campaigns, links).map(campaign => campaign.id), ["801", "802", "803", "804"]);
+  assert.deepEqual(homeCircles.homeStandaloneCampaigns(stories, campaigns, {}).map(campaign => campaign.id), ["800", "801", "802", "803", "804"], "An unavailable mapping cannot authorize guessed deduplication");
+  assert.equal(JSON.stringify({ stories, campaigns, links }), before, "Discovery must not mutate seeds, contract rows or the mapping");
+});
+
+test("the actual catalog hides server-linked QA campaigns, preserves all stories first and retains title-only lookalikes", async () => {
+  const campaigns = [
+    { ...PREVIEW_CAMPAIGNS[0], id: "800", title: "QA linked to the first story" },
+    { ...PREVIEW_CAMPAIGNS[0], id: "801", title: seed.SEED_CIRCLES[0].title },
+    { ...PREVIEW_CAMPAIGNS[0], id: "802", title: "Standalone escrow fixture" },
+    { ...PREVIEW_CAMPAIGNS[0], id: "803", title: "QA linked to another story" },
+  ];
+  const ui = mount({ preview: false, liveCampaigns: campaigns, circleLinks: { "800": seed.SEED_CIRCLES[0].id, "803": seed.SEED_CIRCLES[6].id } });
+  await ui.flush();
+  assert.equal(nodes(ui.tree).filter(node => hasClass(node, "strip")).length, 1);
+  assert.deepEqual(ui.orderedCards.map(card => card.props["data-example-cause"] ?? card.props["data-standalone-campaign"]), [...seed.SEED_CIRCLES.map(circle => circle.id), "801", "802"]);
+  assert.equal(ui.cards.length, 27); assert.equal(ui.d4Cards.length, 2); assert.match(text(ui.catalog), /01 \/ 29/);
+  assert.ok(nodes(ui.d4Cards[0]).filter(node => node.type === "Link").every(node => node.props.href === "/campaigns?id=801"));
+  assert.ok(nodes(ui.cards[0]).filter(node => node.type === "Link").every(node => node.props.href === `/circles/${seed.SEED_CIRCLES[0].id}`));
+  for (const category of homeCircles.HOME_CAUSE_CATEGORIES.slice(1)) {
+    ui.select(category); await ui.flush(); assert.equal(ui.cards.length, 3); assert.equal(ui.d4Cards.length, 0);
+    assert.equal(ui.orderedCards.length, 3); assert.ok(ui.cards.every(card => text(card).includes(circlesCopy.circlesCategory("en", category as CircleCategory))));
+  }
+  ui.select("all"); await ui.flush(); assert.deepEqual(ui.d4Cards.map(card => card.props["data-standalone-campaign"]), ["801", "802"]);
+  assert.deepEqual(ui.calls.campaigns, ["0"]); assert.equal(ui.calls.network, 0); assert.equal(ui.calls.writes, 0);
+});
+
+test("missing server mapping leaves similarly named campaigns visible without pretending they are linked", async () => {
+  const campaign = { ...PREVIEW_CAMPAIGNS[0], id: "804", title: seed.SEED_CIRCLES[0].title };
+  const ui = mount({ preview: false, campaignReader: async () => ({ ok: true, now: String(PREVIEW_TIME), campaigns: [campaign] }) });
+  await ui.flush(); assert.equal(ui.cards.length, 27); assert.equal(ui.d4Cards.length, 1);
+  assert.equal(ui.d4Cards[0].props["data-standalone-campaign"], "804"); assert.match(text(ui.catalog), /01 \/ 28/);
+});
+
+test("a server mapping lookup failure stays visible and retryable without hiding or fabricating the story catalog", async () => {
+  const ui = mount({ preview: false, campaignReader: async () => ({ ok: false, error: "Verified QA campaign mapping is unavailable" }) });
+  await ui.flush(); assert.equal(ui.cards.length, 27); assert.equal(ui.d4Cards.length, 0);
+  const alert = nodes(ui.catalog).find(node => node.props.role === "alert"); assert.ok(alert);
+  assert.match(text(alert), /Campaigns could not be loaded\. Please try again\./);
+  assert.ok(nodes(alert).some(node => node.type === "button" && text(node) === "Try again"));
+  assert.equal(nodes(ui.catalog).filter(node => node.type === "HomeCircleFundingProgress" && node.props.active).length, 1);
+  assert.equal(ui.calls.network, 0); assert.equal(ui.calls.writes, 0);
 });
 
 test("Home prototype UI phrases cover all four locales and preserve interpolation", () => {
@@ -345,6 +430,7 @@ for (const preview of [true, false]) for (const locale of LOCALES) test(`${local
   assert.ok(nodes(ui.tree).some(node => node.props.href === "/circles/create"));
   assert.ok(nodes(ui.catalog).some(node => node.props.href === "/campaigns?mode=examples" && node.props["aria-label"] === catalogCopy.homeCatalogCopy(locale, "Browse all example causes")));
   const options = nodes(ui.catalog).filter(node => node.type === "option"); assert.equal(options.length, 10);
+  assert.equal(text(options[0]), catalogCopy.homeCatalogCopy(locale, "All campaigns"));
   for (const option of options.slice(1)) assert.equal(text(option), circlesCopy.circlesCategory(locale, option.props.value as CircleCategory));
   assert.equal(ui.calls.wallet, preview ? 0 : 1); assert.equal(ui.calls.handle, preview ? 0 : 1);
   assert.deepEqual(ui.calls.campaigns, preview ? [] : ["0", "809"]);
@@ -430,12 +516,16 @@ test("example catalog is manual-only, wraps correctly and respects reduced-motio
 });
 
 test("unavailable preview storage does not substitute D4 data or trigger real readers", async () => {
-  const ui = mount({ deniedStorage: true }); await ui.flush(); assert.equal(ui.cards.length, 27); assert.equal(ui.calls.storageReads, 1); assert.equal(ui.calls.wallet, 0); assert.deepEqual(ui.calls.campaigns, []); assert.equal(ui.calls.writes, 0);
+  const ui = mount({ deniedStorage: true }); await ui.flush(); assert.equal(ui.cards.length, 27); assert.equal(ui.d4Cards.length, 0); assert.equal(ui.calls.storageReads, 0); assert.equal(ui.calls.wallet, 0); assert.deepEqual(ui.calls.campaigns, []); assert.equal(ui.calls.writes, 0);
 });
 
-test("flag0 Home retains paginated D4 reads, contract IDs/exact source totals and original creation/navigation", async () => {
+test("flag0 Home appends paginated standalone D4 after stories in one catalog with exact contract IDs and source totals", async () => {
   const ui = mount({ preview: false }); await ui.flush();
   assert.equal(ui.calls.wallet, 1); assert.equal(ui.calls.handle, 1); assert.deepEqual(ui.calls.campaigns, ["0", "809"]); assert.equal(ui.cards.length, 27); assert.equal(ui.d4Cards.length, 12);
+  assert.equal(nodes(ui.tree).filter(node => hasClass(node, "strip")).length, 1);
+  assert.deepEqual(ui.orderedCards.slice(0, 27).map(card => card.props["data-example-cause"]), Array.from(seed.SEED_CIRCLES, circle => circle.id));
+  assert.deepEqual(ui.orderedCards.slice(27).map(card => card.props["data-standalone-campaign"]), Array.from({ length: 12 }, (_, index) => String(800 + index)));
+  assert.match(text(ui.catalog), /01 \/ 39/);
   for (const [index, card] of ui.d4Cards.entries()) {
     assert.ok(text(card).includes(`Isolated Testnet campaign ${index + 1}`));
     assert.ok(text(card).includes(`exact-source-units:${PREVIEW_CAMPAIGNS[0].total} XLM`));
@@ -445,13 +535,14 @@ test("flag0 Home retains paginated D4 reads, contract IDs/exact source totals an
   }
   assert.ok(nodes(ui.catalog).some(node => node.props.id === "home-cause-category"));
   assert.ok(nodes(ui.tree).some(node => node.props.href === "/campaigns?create=1"));
-  assert.ok(text(ui.tree).includes(catalogCopy.homeCatalogCopy("en", "Separate on-chain escrow and proof-review flow. Not the fictional examples above.")));
-  ui.select("animals"); await ui.flush(); assert.equal(ui.cards.length, 3); assert.equal(ui.d4Cards.length, 12);
+  assert.ok(text(ui.tree).includes(catalogCopy.homeCatalogCopy("en", "Escrow and public proof on Stellar Testnet. No real money.")));
+  ui.select("animals"); await ui.flush(); assert.equal(ui.cards.length, 3); assert.equal(ui.d4Cards.length, 0); assert.equal(ui.orderedCards.length, 3);
+  ui.select("all"); await ui.flush(); assert.equal(ui.cards.length, 27); assert.equal(ui.d4Cards.length, 12);
   assert.deepEqual(ui.calls.campaigns, ["0", "809"], "Selecting examples never reloads or substitutes D4 contract data");
   assert.equal(ui.calls.storageReads, 0); assert.equal(ui.calls.network, 0); assert.equal(ui.calls.writes, 0);
 });
 
-test("flag0 D4 campaign failure remains honest and retryable while the independent example catalog stays available", async () => {
+test("flag0 D4 discovery failure remains visible and retryable within the same available story catalog", async () => {
   const ui = mount({ preview: false, failCampaigns: true }); await ui.flush(); assert.equal(ui.d4Cards.length, 0); assert.equal(ui.cards.length, 27);
   assert.ok(text(ui.tree).includes(homeCopy("en", "Campaigns could not be loaded. Please try again.")));
   const retry = nodes(ui.tree).find(node => node.type === "button" && text(node) === "Try again")!;
@@ -471,6 +562,20 @@ test("public D4 first page is visible while later pages are still pending and al
   assert.equal(nodes(ui.tree).some(node => hasClass(node, "skeletonCards")), false);
   later.resolve({ ok: true, now: String(PREVIEW_TIME), campaigns: campaigns.slice(10) });
   await ui.flush(); assert.equal(ui.d4Cards.length, 12);
+});
+
+test("verified mappings are accumulated across public pages without reintroducing already represented campaigns", async () => {
+  const later = deferred<PublicCampaignPage>();
+  const campaigns = Array.from({ length: 12 }, (_, index) => ({ ...PREVIEW_CAMPAIGNS[0], id: String(800 + index) }));
+  const ui = mount({ preview: false, campaignReader: async before => before === "0"
+    ? { ok: true, now: String(PREVIEW_TIME), campaigns: campaigns.slice(0, 10), circleLinks: { "800": seed.SEED_CIRCLES[0].id } } : later.promise });
+  await ui.flush();
+  assert.deepEqual(ui.d4Cards.map(card => card.props["data-standalone-campaign"]), campaigns.slice(1, 10).map(campaign => campaign.id));
+  later.resolve({ ok: true, now: String(PREVIEW_TIME), campaigns: campaigns.slice(10), circleLinks: { "810": seed.SEED_CIRCLES[1].id } });
+  await ui.flush();
+  assert.equal(ui.cards.length, 27); assert.equal(ui.d4Cards.length, 10);
+  assert.deepEqual(ui.orderedCards.slice(27).map(card => card.props["data-standalone-campaign"]), campaigns.filter(campaign => campaign.id !== "800" && campaign.id !== "810").map(campaign => campaign.id));
+  assert.match(text(ui.catalog), /01 \/ 37/); assert.deepEqual(ui.calls.campaigns, ["0", "809"]);
 });
 
 test("failed later discovery page preserves verified first-page cards and offers an honest retry", async () => {
@@ -493,7 +598,7 @@ test("unmount invalidates pending public discovery instead of appending a stale 
   await ui.flush(); assert.equal(ui.d4Cards.length, 0);
 });
 
-test("structured wallet failure enters Home retry UI while both independent campaign catalogs remain available", async () => {
+test("structured wallet failure enters Home retry UI while the independent unified campaign catalog remains available", async () => {
   const options = { preview: false, failWallet: true };
   const ui = mount(options); await ui.flush();
   const wallet = nodes(ui.tree).find(node => node.type === "section" && hasClass(node, "wallet"))!;
@@ -554,7 +659,8 @@ test("examples render before wallet/D4 readers settle and remain present when th
   assert.equal(ui.calls.wallet, 0); assert.deepEqual(ui.calls.campaigns, []);
   await ui.flush();
   assert.equal(ui.cards.length, 27); assert.equal(ui.d4Cards.length, 0);
-  assert.ok(text(ui.tree).includes(homeCopy("en", "No campaigns yet. Start one and invite your community.")));
+  assert.doesNotMatch(text(ui.tree), /No campaigns yet\. Start one and invite your community\./, "The available story catalog must not look empty");
+  assert.equal(ui.orderedCards.length, 27); assert.match(text(ui.catalog), /01 \/ 27/);
   assert.ok(nodes(ui.tree).some(node => node.props.href === "/campaigns?create=1"));
 });
 
@@ -562,9 +668,10 @@ test("closed D4 campaigns remain honest read-only cards, never fictional pledge 
   const campaign = { ...PREVIEW_CAMPAIGNS[0], id: "904", title: "Actual closed escrow fixture", state: "Closed" as Campaign["state"] };
   const ui = mount({ preview: false, liveCampaigns: [campaign] }); await ui.flush();
   assert.equal(ui.cards.length, 27); assert.equal(ui.d4Cards.length, 1);
-  const link = nodes(ui.d4Cards[0]).find(node => node.type === "Link")!;
+  const link = nodes(ui.d4Cards[0]).find(node => node.type === "Link" && hasClass(node, "pledge"))!;
   assert.equal(link.props.href, "/campaigns?id=904"); assert.equal(text(link), homeCopy("en", "View campaign"));
-  assert.ok(text(ui.d4Cards[0]).includes("CAMPAIGN #904 · Closed"));
+  assert.ok(text(ui.d4Cards[0]).includes("#904 · Closed"));
+  assert.ok(nodes(ui.d4Cards[0]).filter(node => node.type === "Link").every(node => node.props.href === "/campaigns?id=904" && node.props.prefetch === false));
 });
 
 test("Home catalog responsive styles retain compact controls and persistent truth framing", () => {
@@ -597,20 +704,28 @@ test("short Home windows reclaim decorative space without shrinking or hiding in
   assert.equal(touched.some(selector => /pledge|button|select|organizer|explore/.test(selector)), false);
 });
 
-test("Home always renders the example component before the separately gated D4 section", () => {
+test("Home wires discovery into one manual catalog and renders the shared Stellar footer", () => {
   const home = source("../app/page.tsx"), catalog = source("../components/HomeCirclesCatalog.tsx");
-  assert.match(home, /<HomeCirclesCatalog\s*\/>\s*\{!isLocalPreview\s*&&\s*<section/);
+  assert.equal((home.match(/<HomeCirclesCatalog\b/g) ?? []).length, 1);
+  assert.match(home, /<HomeCirclesCatalog\s+campaigns=\{campaigns\}\s+circleLinks=\{circleLinks\}\s+loading=\{loading\}\s+error=\{error\}\s+onRetry=\{loadCampaigns\}\s*\/>/);
+  assert.match(home, /import\s*\{\s*PoweredByStellarV2\s*\}\s*from\s*["']@\/components\/ui\/brand["']/);
+  assert.match(home, /<footer\b[^>]*><PoweredByStellarV2\s*\/>/);
+  assert.doesNotMatch(home, /s\.(?:fundraise|strip)|Pause|Play|setInterval\s*\(/);
   assert.doesNotMatch(catalog, /campaignState|walletState|myHandle|sessionStorage|localStorage|fetch\s*\(/);
   assert.doesNotMatch(catalog, /setInterval\s*\(/);
 });
 
-test("real D4 carousel keeps its pause, hidden-page and interaction safeguards independently of manual examples", async () => {
-  const ui = mount({ preview: false, reducedMotion: false }); await ui.flush(); assert.equal(ui.intervals.size, 1);
-  for (const interval of [...ui.intervals.values()]) interval(); await ui.flush(); assert.ok(text(ui.tree).includes("02 / 12"));
-  const count = ui.scrolls.length; ui.document.hidden = true; for (const interval of [...ui.intervals.values()]) interval(); await ui.flush(); assert.equal(ui.scrolls.length, count);
-  ui.document.hidden = false; ui.click(homeCopy("en", "Pause campaign carousel")); await ui.flush(); assert.equal(ui.intervals.size, 0);
-  ui.click(homeCopy("en", "Play campaign carousel")); await ui.flush(); assert.equal(ui.intervals.size, 1);
-  const strip = nodes(ui.tree).find(node => node.props["aria-label"] === homeCopy("en", "Campaign carousel"))!; (strip.props.onPointerDown as () => void)(); await ui.flush(); assert.equal(ui.intervals.size, 0);
-  ui.click(homeCopy("en", "Play campaign carousel")); await ui.flush(); ui.changeReducedMotion(true); await ui.flush(); assert.equal(ui.intervals.size, 0);
-  assert.equal(ui.cards.length, 27); assert.equal(ui.d4Cards.length, 12);
+test("the unified carousel remains manual, wraps all stories and standalone campaigns and respects reduced motion", async () => {
+  const ui = mount({ preview: false, reducedMotion: false }); await ui.flush(); assert.equal(ui.intervals.size, 0);
+  assert.equal(ui.orderedCards.length, 39);
+  ui.click(catalogCopy.homeCatalogCopy("en", "Previous example cause")); await ui.flush();
+  assert.equal(ui.scrolls.at(-1)?.left, 38 * 264); assert.equal(ui.scrolls.at(-1)?.behavior, "smooth"); assert.match(text(ui.catalog), /39 \/ 39/);
+  assert.equal(nodes(ui.catalog).filter(node => node.type === "HomeCircleFundingProgress" && node.props.active).length, 0, "Selecting a standalone campaign must not fan out story funding reads");
+  const count = ui.scrolls.length; ui.document.hidden = true; await ui.flush(); assert.equal(ui.scrolls.length, count); assert.equal(ui.intervals.size, 0);
+  assert.equal(nodes(ui.catalog).some(node => /(?:Pause|Play) campaign carousel/.test(String(node.props["aria-label"] ?? ""))), false);
+  ui.document.hidden = false; ui.changeReducedMotion(true); await ui.flush();
+  ui.click(catalogCopy.homeCatalogCopy("en", "Next example cause")); await ui.flush();
+  assert.equal(ui.scrolls.at(-1)?.left, 0); assert.equal(ui.scrolls.at(-1)?.behavior, "instant"); assert.match(text(ui.catalog), /01 \/ 39/);
+  assert.equal(ui.cards.length, 27); assert.equal(ui.d4Cards.length, 12); assert.equal(ui.intervals.size, 0);
+  assert.equal(ui.calls.network, 0); assert.equal(ui.calls.writes, 0);
 });

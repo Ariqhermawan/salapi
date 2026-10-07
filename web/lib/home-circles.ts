@@ -1,6 +1,7 @@
 import type { Circle, CircleCategory, DiscoverFilter } from "./circles/types";
+import type { Campaign } from "./campaign";
 
-// Home discovery reads the Circles fixtures, never D4 contract IDs or XLM sums.
+// Fictional stories remain separate from their explicitly linked QA ledger data.
 export const HOME_CAUSE_CATEGORIES = ["all", "disaster", "medical", "education", "community", "family", "creator", "animals", "care", "volunteer"] as const;
 export type HomeCauseCategory = CircleCategory | "all";
 export function isHomeCauseCategory(value: string): value is HomeCauseCategory {
@@ -8,6 +9,11 @@ export function isHomeCauseCategory(value: string): value is HomeCauseCategory {
 }
 export function homeCircleExamples(circles: readonly Circle[], category: HomeCauseCategory): Circle[] {
   return circles.filter(circle => circle.status !== "completed" && (category === "all" || circle.category === category));
+}
+
+export function homeStandaloneCampaigns(circles: readonly Circle[], campaigns: readonly Omit<Campaign, "contribution">[], links: Readonly<Record<string, string>>): Omit<Campaign, "contribution">[] {
+  const represented = new Set(circles.filter(circle => circle.status !== "completed").map(circle => circle.id));
+  return campaigns.filter(campaign => !represented.has(links[campaign.id]));
 }
 
 // Treat browser history UI state as untrusted. Only category, card index and
@@ -21,7 +27,7 @@ export function parseCauseViewState(snapshot: string): { category: HomeCauseCate
     const state = value as Record<string, unknown>;
     return {
       category: typeof state.category === "string" && isHomeCauseCategory(state.category) ? state.category : "all",
-      index: typeof state.index === "number" && Number.isSafeInteger(state.index) && state.index >= 0 && state.index < 100 ? state.index : 0,
+      index: typeof state.index === "number" && Number.isSafeInteger(state.index) && state.index >= 0 && state.index < 1027 ? state.index : 0,
       sort: state.sort === "trending" || state.sort === "closeToGoal" || state.sort === "justLaunched" ? state.sort : "all",
     };
   } catch { return fallback; }

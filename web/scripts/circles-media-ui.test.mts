@@ -47,8 +47,9 @@ const sceneCircle: Circle = { ...base, gallery: [
 
 // Actual component handlers run with isolated hooks. Images are element data,
 // not downloads, and network/storage/action boundaries are forbidden.
-function mount(path: string, props: unknown, locale: Locale = "en") {
+function mount(path: string, props: unknown, locale: Locale = "en", initiallyHydrated = true) {
   const states: unknown[] = []; let cursor = 0;
+  let hydrated = initiallyHydrated;
   const calls = { network: 0, storage: 0 };
   const forbidden = (kind: keyof typeof calls) => () => { calls[kind]++; throw Error(`Forbidden ${kind} in isolated UI test`); };
   const output = {} as { default(props: unknown): Element };
@@ -57,7 +58,10 @@ function mount(path: string, props: unknown, locale: Locale = "en") {
     exports: output, fetch: forbidden("network"), sessionStorage: { getItem: forbidden("storage"), setItem: forbidden("storage") },
     require(name: string) {
       if (name === "react/jsx-runtime") return { jsx, jsxs: jsx, Fragment: "Fragment" };
-      if (name === "react") return { useState(initial: unknown) { const i = cursor++; if (!(i in states)) states[i] = typeof initial === "function" ? initial() : initial; return [states[i], (value: unknown) => { states[i] = typeof value === "function" ? value(states[i]) : value; }]; } };
+      if (name === "react") return {
+        useState(initial: unknown) { const i = cursor++; if (!(i in states)) states[i] = typeof initial === "function" ? initial() : initial; return [states[i], (value: unknown) => { states[i] = typeof value === "function" ? value(states[i]) : value; }]; },
+        useSyncExternalStore(_subscribe: unknown, clientSnapshot: () => unknown, serverSnapshot: () => unknown) { return hydrated ? clientSnapshot() : serverSnapshot(); },
+      };
       if (name === "next/image") return { default: "Image" };
       if (name === "@/components/I18nProvider") return { useT: () => ({ locale, currency: "en" }) };
       if (name === "@/lib/i18n/revamp-circles") return copy;
@@ -71,6 +75,7 @@ function mount(path: string, props: unknown, locale: Locale = "en") {
   let tree = render();
   return { get tree() { return tree; }, calls,
     refresh() { tree = render(); },
+    hydrate() { hydrated = true; tree = render(); },
     click(label: string) { const node = nodes(tree).find(node => node.type === "button" && node.props["aria-label"] === label); assert.ok(node, label); (node.props.onClick as () => void)(); tree = render(); },
     key(key: string) { const node = nodes(tree).find(node => node.props.role === "region")!; let prevented = false; (node.props.onKeyDown as (event: unknown) => void)({ key, preventDefault() { prevented = true; } }); tree = render(); return prevented; },
     error(src: string) { const node = nodes(tree).find(node => node.type === "Image" && node.props.src === src)!; assert.ok(node); (node.props.onError as () => void)(); tree = render(); },
@@ -100,6 +105,26 @@ test("real gallery handlers cycle arrows, choose thumbnails and expose keyboard/
   assert.equal(view.key("End"), true); assert.match(text(view.tree), /Photo 3 of 3/);
   assert.equal(view.key("Enter"), false);
   assert.ok(nodes(view.tree).some(node => node.type === "figcaption" && node.props["aria-live"] === "polite"));
+  assert.deepEqual(view.calls, { network: 0, storage: 0 });
+});
+
+test("SSR gallery controls cannot lose an early press and the first permitted click works after hydration", () => {
+  const view = mount("../components/CircleGallery.tsx", { circle: sceneCircle }, "en", false);
+  assert.equal(view.tree.props["aria-busy"], true);
+  assert.equal(view.tree.props.tabIndex, undefined);
+  assert.equal(nodes(view.tree).filter(node => node.type === "button").length, 5);
+  assert.ok(nodes(view.tree).filter(node => node.type === "button").every(node => node.props.disabled === true));
+  view.click("Next photo");
+  view.click("Show photo 3 of 3");
+  assert.equal(view.key("ArrowRight"), false);
+  assert.match(text(view.tree), /Photo 1 of 3/);
+  view.hydrate();
+  assert.equal(view.tree.props["aria-busy"], false);
+  assert.equal(view.tree.props.tabIndex, 0);
+  assert.ok(nodes(view.tree).filter(node => node.type === "button").every(node => node.props.disabled === false));
+  view.click("Next photo");
+  assert.match(text(view.tree), /Photo 2 of 3/);
+  assert.equal(nodes(view.tree).find(node => node.props["aria-pressed"] === true)?.props["aria-label"], "Show photo 2 of 3");
   assert.deepEqual(view.calls, { network: 0, storage: 0 });
 });
 

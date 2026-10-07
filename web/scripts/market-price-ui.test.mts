@@ -124,8 +124,8 @@ test("unavailable provider never produces a fake zero and aborted unmount discar
   assert.equal(h.value().prices.status, "unavailable"); assert.equal(h.requests[1].options.signal?.aborted, true);
 });
 
-function widget(options: { prices?: MarketPriceResult; locale?: "en" | "tl" | "id" | "vi"; currency?: "en" | "tl" | "id" | "vi"; nativeStroops?: string; loading?: boolean; showNative?: boolean } = {}) {
-  const exported = {} as { default(props: { nativeStroops?: string; compact: boolean; showNative?: boolean }): Element };
+function widget(options: { prices?: MarketPriceResult; locale?: "en" | "tl" | "id" | "vi"; currency?: "en" | "tl" | "id" | "vi"; nativeStroops?: string; loading?: boolean; showNative?: boolean; compact?: boolean; size?: number; color?: string } = {}) {
+  const exported = {} as { default(props: { nativeStroops?: string; compact: boolean; showNative?: boolean; size?: number; color?: string }): Element };
   let refreshed = 0;
   runInNewContext(widgetCode, { exports: exported, Intl, Date, BigInt,
     require(name: string) {
@@ -136,18 +136,19 @@ function widget(options: { prices?: MarketPriceResult; locale?: "en" | "tl" | "i
       throw Error(`Unexpected dependency ${name}`);
     },
   });
-  const tree = exported.default({ nativeStroops: options.nativeStroops, compact: true, showNative: options.showNative });
+  const tree = exported.default({ nativeStroops: options.nativeStroops, compact: options.compact ?? true, showNative: options.showNative, size: options.size, color: options.color });
   return { tree, text: text(tree), refreshCount: () => refreshed };
 }
 
 test("market widget values exact native XLM with current prices and preserves USDC reference boundary", () => {
   const h = widget({ prices: quote(Date.now()), nativeStroops: "95538290085" });
   assert.equal(h.tree.props["data-market-value"], "fresh");
-  assert.match(h.text, /≈ \$1,910\.77/); assert.match(h.text, /9553\.8290085 Native Testnet XLM/);
+  assert.match(h.text, /≈ \$1,910\.77/); assert.match(h.text, /9553\.8290085 XLM/);
   assert.match(h.text, /USDC \$0\.9998/); assert.match(h.text, /not USDC/); assert.match(h.text, /no monetary value/);
-  assert.match(h.text, /Price data by CoinGecko/);
+  assert.match(h.text, /Data powered by/);
   const attribution = nodes(h.tree).find(node => node.type === "a")!;
-  assert.equal(attribution.props.href, "https://www.coingecko.com"); assert.equal(attribution.props.rel, "noreferrer"); assert.equal(attribution.props.target, "_blank");
+  assert.equal(attribution.props.href, "https://www.coingecko.com"); assert.equal(attribution.props.rel, "noopener noreferrer"); assert.equal(attribution.props.target, "_blank");
+  assert.equal(nodes(attribution).find(node => node.type === "img")?.props.alt, "CoinGecko");
   assert.equal(nodes(nodes(h.tree).find(node => node.type === "details")!).includes(attribution), false, "Attribution remains outside collapsed details");
   const button = nodes(h.tree).find(node => node.type === "button")!;
   (button.props.onClick as () => void)(); assert.equal(h.refreshCount(), 1);
@@ -155,7 +156,7 @@ test("market widget values exact native XLM with current prices and preserves US
 
 test("market widget honors separate currency preference instead of static FX or language", () => {
   const h = widget({ prices: quote(Date.now()), nativeStroops: "100000000", locale: "id", currency: "tl" });
-  assert.match(h.text, /≈ ₱112\.00/); assert.match(h.text, /Data harga dari CoinGecko/);
+  assert.match(h.text, /≈ ₱112\.00/); assert.match(h.text, /Data powered by/);
 });
 
 test("no quote, stale quote, zero balance and absent balance remain distinct", () => {
@@ -198,5 +199,36 @@ test("visible native amount distinguishes real zero from absent or invalid walle
     assert.equal(nodes(h.tree).some(node => node.props["data-native-balance"] !== undefined), false);
     assert.match(h.text, /Exact XLM balance unavailable/);
     assert.doesNotMatch(h.text, /0 XLM/);
+  }
+});
+
+test("fiat estimate precedes smaller exact XLM in compact and full widgets by default", () => {
+  for (const compact of [true, false]) {
+    const h = widget({ prices: quote(Date.now()), nativeStroops: "95538290085", compact });
+    const elements = nodes(h.tree);
+    const estimate = elements.find(node => node.props["data-market-estimate"] !== undefined)!;
+    const native = elements.find(node => node.props["data-native-balance"] === "95538290085")!;
+    assert.ok(elements.indexOf(estimate) < elements.indexOf(native));
+    assert.match(text(estimate), /^≈ \$/);
+    assert.equal(text(native), "9553.8290085 XLM");
+    assert.ok((estimate.props.style as { fontSize: number }).fontSize > (native.props.style as { fontSize: number }).fontSize);
+    assert.equal((native.props.style as { fontWeight: number }).fontWeight, 500);
+  }
+  const hidden = widget({ prices: quote(Date.now()), nativeStroops: "95538290085", showNative: false });
+  assert.equal(nodes(hidden.tree).some(node => node.props["data-native-balance"] !== undefined), false);
+  assert.match(text(nodes(hidden.tree).find(node => node.type === "details")), /9553\.8290085 Native Testnet XLM/);
+});
+
+test("linked official CoinGecko logo and required short attribution remain visible in all locales", () => {
+  for (const locale of ["en", "tl", "id", "vi"] as const) for (const color of ["currentColor", "#fff", "rgba(255, 255, 255, .8)"]) {
+    const h = widget({ prices: quote(Date.now()), nativeStroops: "10000000", locale, color });
+    const attribution = nodes(h.tree).find(node => node.props["data-price-attribution"] === "coingecko")!;
+    assert.match(text(attribution), /Data powered by/);
+    const link = nodes(attribution).find(node => node.type === "a")!;
+    assert.equal(link.props.href, "https://www.coingecko.com");
+    const logo = nodes(link).find(node => node.type === "img")!;
+    assert.equal(logo.props.src, color === "currentColor" ? "/brands/coingecko-white.svg" : "/brands/coingecko.svg");
+    assert.equal(logo.props.height, 16); assert.equal(logo.props.alt, "CoinGecko");
+    assert.equal(nodes(nodes(h.tree).find(node => node.type === "details")).includes(attribution), false);
   }
 });

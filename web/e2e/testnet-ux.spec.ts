@@ -32,6 +32,7 @@ async function readFixture(page: Page, values: Record<string, unknown>) {
         && typeof donors === "object" && donors !== null && "campaignId" in donors
         && url.searchParams.get("campaignId") === donors.campaignId) fixtureName = "campaignDonorActivity";
       else if (url.pathname === "/api/account/photo" && !url.search && "accountPhoto" in values) fixtureName = "accountPhoto";
+      else if (url.pathname === "/api/account/circles-identity" && !url.search && "readCirclesSignupIdentity" in values) fixtureName = "readCirclesSignupIdentity";
       if (fixtureName) return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(values[fixtureName]) });
       return route.fallback();
     }
@@ -88,9 +89,12 @@ test.beforeEach(async ({ page, baseURL }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
 });
 
-test.afterEach(({ page }) => {
-  expect(health.get(page)?.blocked, "No auth, signup, donor metadata or financial mutation was attempted").toEqual([]);
-  expect(health.get(page)?.errors, "No app runtime or console error").toEqual([]);
+test.afterEach(({ page }, testInfo) => {
+  const state = health.get(page);
+  if (testInfo.status === "skipped" && !state) return;
+  expect(state, "Health monitor must exist for every exercised test").toBeDefined();
+  expect(state?.blocked, "No auth, signup, donor metadata or financial mutation was attempted").toEqual([]);
+  expect(state?.errors, "No app runtime or console error").toEqual([]);
 });
 
 for (const code of ["not_configured", "unmapped"] as const) for (const width of [320, 390, 1280]) test(`public proof ${code} keeps mock evidence separate at ${width}px`, async ({ page }, testInfo) => {

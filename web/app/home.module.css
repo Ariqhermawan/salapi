@@ -73,9 +73,7 @@
 .cream { background: #fff7e9; }
 .coming { background: #dfe6ee; color: #536785; border-radius: 20px; font-size: 9px; padding: 3px 7px; width: fit-content; font-weight: 600; }
 .tileArrow { width: 23px; height: 23px; display: grid; place-items: center; position: absolute; bottom: 7px; right: 7px; color: #2563eb; background: white; border-radius: 50%; }
-.stellar { display: grid; justify-items: center; gap: 5px; padding-top: 23px; color: #586985; font-size: 12px; }
-.stellar > div { display: flex; align-items: center; gap: 9px; }
-.stellar img { width: 88px; height: auto; }
+.stellar { display: grid; justify-items: center; gap: 3px; padding-top: 12px; color: #586985; font-size: 11px; text-align: center; }
 .stellar small { font-size: 10px; }
 .stellar > a { font-size: 10px; color: #2563eb; margin-top: 3px; }
 .skeletonCards { display: flex; gap: 14px; height: 330px; overflow: hidden; }

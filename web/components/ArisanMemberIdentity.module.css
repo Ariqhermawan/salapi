@@ -1,0 +1,6 @@
+.identity { flex: 1; min-width: 0; }
+.name { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; min-width: 0; }
+.name strong { font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
+.name > span { padding: 2px 5px; border-radius: 4px; background: #eaf0ff; color: #3768ec; font-size: 9px; font-weight: 600; }
+.address { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 3px; color: #70809a; font-family: var(--font-geist-mono), monospace; font-size: 10px; line-height: 1.5; }
+.avatar { display: block; flex-shrink: 0; object-fit: cover; border-radius: 50%; }

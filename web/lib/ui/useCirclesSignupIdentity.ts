@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { readCirclesSignupIdentity } from "@/app/circles-signup-actions";
+import { readCirclesSignupIdentityClient } from "@/lib/ui/circles-identity-read";
 import { createSupabaseBrowser } from "@/lib/supabase/client";
 import { supabaseConfigured } from "@/lib/supabase/env";
 import { isLocalPreview } from "@/lib/local-preview";
@@ -21,7 +21,7 @@ export function useCirclesSignupIdentity(onOwnerChange?: () => void) {
     if (!enabled || !active.current || authOwner.current === undefined) return;
     const requestedOwner = authOwner.current, request = ++requestVersion.current;
     try {
-      const result = await readCirclesSignupIdentity();
+      const result = await readCirclesSignupIdentityClient();
       if (!active.current || request !== requestVersion.current || requestedOwner !== authOwner.current) return;
       // Browser identity only correlates the response. Server getUser remains
       // authoritative. Never display another owner's email during a cookie race.
@@ -52,7 +52,7 @@ export function useCirclesSignupIdentity(onOwnerChange?: () => void) {
           }
         }
         authOwner.current = nextOwner;
-        // Stay synchronous inside the Auth SDK callback. No getUser or action
+        // Stay synchronous inside the Auth SDK callback. No getUser or request
         // runs until the SDK's event callback has returned.
         queueMicrotask(() => { if (active.current) void reload(); });
       });

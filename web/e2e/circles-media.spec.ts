@@ -3,6 +3,7 @@ import { test, expect, type Page } from "@playwright/test";
 // Candidate UI coverage. Guest contexts only; all mutation HTTP methods are
 // intercepted. No auth session, signup, transfer, campaign or database write.
 // Expected to run against an approved candidate Preview, not an older release.
+test.use({ serviceWorkers: "block" });
 test.beforeEach(async ({ page }) => {
   await page.route("**/*", async route => {
     if (["POST", "PUT", "PATCH", "DELETE"].includes(route.request().method())) {
@@ -11,6 +12,40 @@ test.beforeEach(async ({ page }) => {
     }
     await route.continue();
   });
+});
+
+test("a cold gallery waits for real React handlers and the first permitted Next click changes the photo", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  let heldScripts = 0;
+  await page.route("**/_next/**", async route => {
+    if (route.request().resourceType() === "script") {
+      heldScripts++;
+      await gate;
+    }
+    await route.fallback();
+  });
+  try {
+    await page.goto("/circles/tino-relief", { waitUntil: "domcontentloaded", timeout: 45000 });
+    const gallery = page.getByRole("region", { name: "Fictional campaign photo gallery", exact: true });
+    const next = gallery.getByRole("button", { name: "Next photo", exact: true });
+    const caption = gallery.locator("figcaption");
+    await expect(gallery).toBeVisible();
+    await expect(gallery).toHaveAttribute("aria-busy", "true");
+    await expect(next).toBeDisabled();
+    await expect(gallery.getByRole("button", { name: "Previous photo", exact: true })).toBeDisabled();
+    for (const button of await gallery.getByRole("button", { name: /^Show photo/ }).all()) await expect(button).toBeDisabled();
+    expect(heldScripts, "Disabled controls are observed with actual React chunks held").toBeGreaterThan(0);
+    await next.evaluate(button => (button as HTMLButtonElement).click());
+    await expect(caption).toContainText("Photo 1 of 3");
+    // Native disabled state makes actionability wait for the real handler.
+    const firstClick = next.click();
+    release();
+    await firstClick;
+    await expect(gallery).toHaveAttribute("aria-busy", "false");
+    await expect(caption).toContainText("Photo 2 of 3");
+  } finally { release(); }
 });
 
 async function noHorizontalOverflow(page: Page) {

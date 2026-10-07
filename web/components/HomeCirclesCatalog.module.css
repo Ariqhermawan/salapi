@@ -35,6 +35,17 @@
 .rating strong { color: #13233d; font-size: 12px; font-variant-numeric: tabular-nums; }
 .rating small { font-size: 10px; }
 .pledge { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 6px 10px; border-radius: 13px; color: #fff; background: #2563eb; font-size: 13px; font-weight: 650; text-align: center; transition: background .18s ease, transform .18s ease; }
+.body > .pledge { margin-top: auto; }
+.testnetPhoto img { object-fit: contain; background: #eef3ff; }
+.testnetState { align-self: flex-start; padding: 4px 7px; color: #164cbc; background: #eaf2ff; border-radius: 7px; font-size: 10px; font-weight: 700; }
+.testnetNote { margin: 5px 0; color: #586985; font-size: 11px; line-height: 1.5; }
+.testnetTotal { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; margin: 5px 0 8px; }
+.testnetTotal strong { font-size: 14px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.testnetTotal small { color: #586985; font-size: 10px; }
+.discoveryStatus { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; margin: 3px 4px; color: #586985; font-size: 10px; line-height: 1.4; }
+.discoveryStatus button { min-height: 44px; color: #164cbc; text-decoration: underline; }
+.otherActions { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 10px; margin: 0 4px; }
+.otherActions a { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; color: #164cbc; font-size: 10px; font-weight: 650; }
 .footer { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 2px 4px 0; }
 .explore { display: inline-flex; align-items: center; gap: 3px; min-height: 44px; color: #164cbc; font-size: 12px; line-height: 1.4; font-weight: 650; text-wrap: pretty; }
 .explore > svg { flex-shrink: 0; }

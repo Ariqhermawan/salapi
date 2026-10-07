@@ -140,6 +140,8 @@ function setup({ lockedHash, storageRemovalDenied = false }: { lockedHash?: stri
     "@/components/ui/kit": { AppBar: (props: Record<string, unknown>) => jsx("header", props), Btn: (props: Record<string, unknown>) => jsx("button", props),
       IconButton: (props: Record<string, unknown>) => jsx("button", props), Ico: { back: () => null }, T: { fontSans: "test-font" } },
     "@/lib/ui/useGoBack": { useGoBack: () => () => undefined },
+    "@/lib/ui/useArisanMemberIdentities": { useArisanMemberIdentities: () => new Map() },
+    "@/components/ArisanMemberIdentity": { ArisanMemberAvatar: () => null, ArisanMemberIdentity: (props: Record<string, unknown>) => jsx("div", props) },
     "@/lib/ui/useUnresolvedSubmission": hook,
     "@/components/ui/SubmissionStatusPanel": panel,
     "@/lib/local-preview": localPreview, "@/lib/arisan-funding": domain,

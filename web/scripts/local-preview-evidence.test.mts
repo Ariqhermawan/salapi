@@ -83,8 +83,10 @@ test("migrates only the exact legacy seeded proof while preserving all stored mo
 });
 
 test("all preview session readers apply the exact seeded evidence migration", () => {
-  for (const path of ["../app/page.tsx", "../components/screens/VaultsScreen.tsx", "../components/screens/CampaignScreen.tsx"]) {
+  for (const path of ["../components/screens/VaultsScreen.tsx", "../components/screens/CampaignScreen.tsx"]) {
     const source = readFileSync(new URL(path, import.meta.url), "utf8");
     assert.match(source, /normalizePreviewCampaigns\(saved\)/, path);
   }
+  const home = readFileSync(new URL("../app/page.tsx", import.meta.url), "utf8");
+  assert.doesNotMatch(home, /sessionStorage|PREVIEW_CAMPAIGNS/, "Home no longer renders or reads local D4 samples");
 });

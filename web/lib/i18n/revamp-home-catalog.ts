@@ -1,6 +1,9 @@
 import type { Locale } from "./config";
 
 export const HOME_CATALOG_COPY = {
+  "All campaigns": ["Lahat ng kampanya", "Semua campaign", "Tất cả chiến dịch"],
+  "Escrow and public proof on Stellar Testnet. No real money.": ["Escrow at pampublikong patunay sa Stellar Testnet. Walang totoong pera.", "Escrow dan bukti publik di Stellar Testnet. Bukan uang nyata.", "Ký quỹ và bằng chứng công khai trên Stellar Testnet. Không phải tiền thật."],
+  "Checking other Testnet campaigns": ["Sinusuri ang iba pang kampanya sa Testnet", "Memeriksa campaign Testnet lainnya", "Đang kiểm tra các chiến dịch Testnet khác"],
   "Fictional causes · AI photos · QA Testnet donations when linked.": ["Kathang-isip na layunin · AI photos · QA Testnet donation kapag naka-link.", "Tujuan fiktif · foto AI · donasi QA Testnet jika terhubung.", "Mục tiêu hư cấu · ảnh AI · quyên góp QA Testnet khi liên kết."],
   "CROWDFUNDING · PROTOTYPE": ["PAGLIKOM NG PONDO · PROTOTYPE", "PENGGALANGAN DANA · PROTOTIPE", "GÂY QUỸ · NGUYÊN MẪU"],
   "Fictional causes · AI illustrations · no payment.": ["Kathang-isip na mga layunin · larawan ng AI · walang bayad.", "Tujuan fiktif · ilustrasi AI · tanpa pembayaran.", "Mục đích hư cấu · minh họa AI · không thanh toán."],

@@ -3,7 +3,7 @@
 // The desktop introduction stays English; app controls retain their locale.
 import Link from "next/link";
 import Image from "next/image";
-import { Wordmark, MakerLockup } from "@/components/ui/kit";
+import { Wordmark, MakerLockup, PoweredByStellar } from "@/components/ui/kit";
 
 export default function MarketingAside() {
   return (
@@ -31,7 +31,7 @@ export default function MarketingAside() {
         <Link href="/send">Send by @ <span>↗</span></Link>
       </div>
       <footer className="sl-marketing-footer">
-        <div className="sl-marketing-powered"><span>Powered by</span><Image src="/stellar.png" width="100" height="24" alt="Stellar" /></div>
+        <div className="sl-marketing-powered"><PoweredByStellar c="#fff" /></div>
         <Link href="/docs">Public documentation <span aria-hidden="true">↗</span></Link>
         <small>Testnet only. No real-money donations or cash-out.</small>
       </footer>

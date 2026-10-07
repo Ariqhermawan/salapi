@@ -25,7 +25,6 @@ import {
   IconButton,
   Btn,
   Chip,
-  Avatar,
   PoweredByStellar,
 } from "@/components/ui/kit";
 import { formatLocal } from "@/lib/ui/currency";
@@ -37,6 +36,9 @@ import { accountCopy } from "@/lib/i18n/revamp-account";
 import { readPreviewArisanRoom, savePreviewArisanRoom, type PreviewArisanChange } from "./arisan-preview";
 import { pesosToStroopsExact } from "@/lib/money";
 import { arisanDrawRecovery, arisanRoomCopy, arisanViewerIdentity, arisanViewerRole } from "@/lib/arisan-room-guidance";
+import { arisanMemberName, type ArisanMemberIdentity as MemberIdentity } from "@/lib/arisan-member-identity";
+import { useArisanMemberIdentities } from "@/lib/ui/useArisanMemberIdentities";
+import { ArisanMemberAvatar, ArisanMemberIdentity } from "@/components/ArisanMemberIdentity";
 const PREVIEW_WALLET = PREVIEW_ACCOUNT.address;
 
 type State = Awaited<ReturnType<typeof arisanRoomState>>;
@@ -108,7 +110,7 @@ function Roulette({
   winnerIdx,
   onDone,
 }: {
-  seats: { addr: string; label: string; won: boolean; isYou: boolean }[];
+  seats: { addr: string; label: string; won: boolean; isYou: boolean; identity?: MemberIdentity }[];
   winnerIdx: number;
   onDone: () => void;
 }) {
@@ -182,7 +184,7 @@ function Roulette({
                 transform: active ? "scale(1.18)" : "scale(1)",
               }}
             >
-              {m.label.trim().charAt(0).toUpperCase()}
+              <ArisanMemberAvatar address={m.addr} identity={m.identity} previewLabel={m.label} size={56} />
             </div>
           );
         })}
@@ -242,6 +244,8 @@ export default function ArisanRoomScreen({ roomId }: { roomId: number }) {
     winnerLabel: string;
   } | null>(null);
   const [copied, setCopied] = useState(false);
+  const identities = useArisanMemberIdentities("upfront", roomId, st?.ready ? st.seats.map(seat => seat.addr) : [], st?.ready ? st.viewer : null);
+  const memberName = (address: string, previewLabel?: string) => arisanMemberName(address, identities.get(address), isLocalPreview ? previewLabel : undefined);
 
   useEffect(() => {
     latestRoom.current = st?.ready ? st : null;
@@ -424,8 +428,9 @@ export default function ArisanRoomScreen({ roomId }: { roomId: number }) {
 
   return <div className={styles.screen}>
     <SubmissionStatusPanel guard={submission} onRefresh={refresh} />
-    {roulette ? <Roulette seats={st.seats} winnerIdx={roulette.winnerIdx} onDone={() => {
-      setMsg({ tone: "ok", text: t("arisan.kocok.wonText", { who: roulette.winnerLabel, pot: formatLocal(st.potPesos, currency) }), link: roulette.link });
+    {roulette ? <Roulette seats={st.seats.map(seat => ({ ...seat, label: memberName(seat.addr, seat.label), identity: identities.get(seat.addr) }))} winnerIdx={roulette.winnerIdx} onDone={() => {
+      const winner = st.seats[roulette.winnerIdx];
+      setMsg({ tone: "ok", text: t("arisan.kocok.wonText", { who: winner ? memberName(winner.addr, winner.label) : "Wallet user", pot: formatLocal(st.potPesos, currency) }), link: roulette.link });
       setRoulette(null); refresh();
     }} /> : null}
     <AppBar leading={<IconButton ariaLabel={accountCopy(locale).back} onClick={goBack}>{Ico.back({})}</IconButton>} title={st.name} />
@@ -437,7 +442,7 @@ export default function ArisanRoomScreen({ roomId }: { roomId: number }) {
         </div>
         <div className={styles.hero}><div><span className={styles.role}>{role}</span><h1>{statusTitle}</h1><p>{statusCopy}</p>{identityNotice ? <p>{identityNotice}</p> : null}</div><Image className={styles.doodle} src="/illustrations/arisan.png" width={112} height={108} alt="Friends contributing to a shared arisan pool" /></div>
         <div className={styles.memberStrip}>
-          <div className={styles.avatars} aria-hidden="true">{st.seats.slice(0,5).map(seat => <Avatar key={seat.addr} name={seat.label} size={29} />)}{st.seats.length > 5 ? <span className={styles.moreAvatars}>+{st.seats.length-5}</span> : null}</div>
+          <div className={styles.avatars} aria-hidden="true">{st.seats.slice(0,5).map(seat => <ArisanMemberAvatar key={seat.addr} address={seat.addr} identity={identities.get(seat.addr)} previewLabel={isLocalPreview ? seat.label : undefined} size={29} />)}{st.seats.length > 5 ? <span className={styles.moreAvatars}>+{st.seats.length-5}</span> : null}</div>
           <div><strong>{st.memberCount}/{st.memberTarget} {t("arisan.members")}</strong><span>{memberSummary}</span></div>
         </div>
         {st.status === "Active" ? <div className={styles.phaseRail} aria-label="Current draw phase">{["Commit","Reveal","Finalizable"].map(phase => <span key={phase} className={st.drawPhase === phase ? styles.currentPhase : undefined}>{phase === "Finalizable" ? "Payout" : t("arisan.draw.phase." + phase)}</span>)}</div> : null}
@@ -463,7 +468,7 @@ export default function ArisanRoomScreen({ roomId }: { roomId: number }) {
 
       <section className={styles.members} aria-label="All room members">
         <header className={styles.sectionHeader}><h2>Members <span>({st.memberCount}/{st.memberTarget})</span></h2><span>{memberSummary}</span></header>
-        <div>{st.seats.map(seat => <div className={styles.memberRow} key={seat.addr}><Avatar name={seat.label} size={30} /><div className={styles.memberName}>{seat.label}{seat.isYou ? <span>{isLocalPreview ? roomCopy.localYou : viewerIdentity === "demo" ? roomCopy.demoYou : t("arisan.you")}</span> : null}</div>
+        <div>{st.seats.map(seat => <div className={styles.memberRow} key={seat.addr}><ArisanMemberAvatar address={seat.addr} identity={identities.get(seat.addr)} previewLabel={isLocalPreview ? seat.label : undefined} size={30} /><ArisanMemberIdentity address={seat.addr} identity={identities.get(seat.addr)} previewLabel={isLocalPreview ? seat.label : undefined}>{seat.isYou ? <span>{isLocalPreview ? roomCopy.localYou : viewerIdentity === "demo" ? roomCopy.demoYou : t("arisan.you")}</span> : null}</ArisanMemberIdentity>
           {seat.won ? <Chip kind="success" size="sm" leading={Ico.check({ size:11,c:T.moneyIn })}>{t("arisan.statusWon")}</Chip>
             : seat.revealed ? <Chip kind="success" size="sm" leading={Ico.check({ size:11,c:T.moneyIn })}>{t("arisan.draw.revealed")}</Chip>
             : seat.committed ? <Chip kind="action" size="sm">{t("arisan.draw.committed")}</Chip>
@@ -471,7 +476,7 @@ export default function ArisanRoomScreen({ roomId }: { roomId: number }) {
         </div>)}</div>
       </section>
 
-      {latestWinner ? <details className={styles.history}><summary><div><span>{isLocalPreview ? "Latest example payout" : "Latest payout"} · Round {latestWinner.round}</span><strong>{latestWinner.label}</strong></div><div className={styles.historyAmount}><strong>{formatLocal(st.potPesos,currency)}</strong><span>{st.winners.length} payout{st.winners.length === 1 ? "" : "s"} · View history</span></div></summary><ol>{st.winners.map(winner => <li key={winner.round}><span className={styles.roundNumber}>{pad2(winner.round)}</span><strong>{winner.label}</strong><span>{formatLocal(st.sharePesos*st.memberTarget,currency)}</span></li>)}</ol></details> : null}
+      {latestWinner ? <details className={styles.history}><summary><div><span>{isLocalPreview ? "Latest example payout" : "Latest payout"} · Round {latestWinner.round}</span><ArisanMemberIdentity address={latestWinner.addr} identity={identities.get(latestWinner.addr)} previewLabel={isLocalPreview ? latestWinner.label : undefined} /></div><div className={styles.historyAmount}><strong>{formatLocal(st.potPesos,currency)}</strong><span>{st.winners.length} payout{st.winners.length === 1 ? "" : "s"} · View history</span></div></summary><ol>{st.winners.map(winner => <li key={winner.round}><span className={styles.roundNumber}>{pad2(winner.round)}</span><ArisanMemberIdentity address={winner.addr} identity={identities.get(winner.addr)} previewLabel={isLocalPreview ? winner.label : undefined} /><span>{formatLocal(st.sharePesos*st.memberTarget,currency)}</span></li>)}</ol></details> : null}
 
       {st.status === "Open" && st.isHost ? <Btn kind="ghost" className={styles.secondaryExit} onClick={() => run(() => arisanCancel(st.id),t("arisan.room.cancelledOk"),"cancel")} disabled={pending} trailing={Ico.chev({ size:16,c:T.danger })}>{t("arisan.room.cancelCta")}</Btn>
         : st.status === "Open" && st.isMember ? <Btn kind="ghost" className={styles.secondaryExit} onClick={() => run(() => arisanLeave(st.id),t("arisan.room.leftOk"),"leave")} disabled={pending} trailing={Ico.chev({ size:16,c:T.danger })}>{t("arisan.room.leaveCta")}</Btn> : null}

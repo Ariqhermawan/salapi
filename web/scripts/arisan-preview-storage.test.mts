@@ -8,6 +8,7 @@ import { PREVIEW_WALLET } from "../lib/local-preview.ts";
 import { moneyInputToStroops, pesosToStroopsExact } from "../lib/money.ts";
 import * as accountCopy from "../lib/i18n/revamp-account.ts";
 import * as arisanRoomGuidance from "../lib/arisan-room-guidance.ts";
+import * as memberIdentity from "../lib/arisan-member-identity.ts";
 
 type Element = { type: string; props: Record<string, unknown> };
 type Api = { readPreviewArisanRoom(id: number, checked?: boolean): unknown; savePreviewArisanRoom(room: unknown): boolean; clearPreviewArisanRoom(id: number): boolean; commitPreviewArisanSession(changes: { key: string; value: string | null }[]): boolean; previewArisanRoomKey(id: number): string };
@@ -57,6 +58,9 @@ function setup(screen: typeof screens[number], options: { roomId?: number; mode?
       if (name === "@/components/I18nProvider") return { useT: () => ({ locale: "en", currency: "en", t: (key: string) => key }) };
       if (name === "@/lib/i18n/revamp-account") return accountCopy;
       if (name === "@/lib/arisan-room-guidance") return arisanRoomGuidance;
+      if (name === "@/lib/arisan-member-identity") return memberIdentity;
+      if (name === "@/lib/ui/useArisanMemberIdentities") return { useArisanMemberIdentities: () => new Map() };
+      if (name === "@/components/ArisanMemberIdentity") return { ArisanMemberAvatar: "Avatar", ArisanMemberIdentity: (props: { address: string; previewLabel?: string; children?: unknown }) => jsx("div", { children: [memberIdentity.arisanMemberName(props.address, undefined, props.previewLabel), props.children] }) };
       if (name === "@/components/ui/kit") return { T: {}, Ico: new Proxy({}, { get: () => () => null }), AppBar: "AppBar", IconButton: "IconButton", Card: "Card", Btn: "Btn", Chip: "Chip", Avatar: "Avatar", PoweredByStellar: "PoweredByStellar" };
       if (name === "@/components/ui/SuccessMotion") return { default: (props: Record<string, unknown>) => jsx("SuccessMotion", { ...props, children: [props.title, props.children] }) };
       if (name === "@/lib/ui/success-feedback") return { announceSuccessMotion: () => { calls.success++; } };

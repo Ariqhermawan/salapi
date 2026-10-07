@@ -27,7 +27,8 @@ function route(path: string, dependencies: Record<string, unknown>) {
 function setup(kind: "campaigns" | "circles" | "donors" | "photo", value: unknown = { ok: true }) {
   const calls: unknown[][] = [];
   const read: Read = async (...args) => { calls.push(args); return value; };
-  const api = kind === "campaigns" ? route("../app/api/public/campaigns/route.ts", { "@/app/campaign-actions": { publicCampaignState: read } })
+  const api = kind === "campaigns" ? route("../app/api/public/campaigns/route.ts", { "@/app/campaign-actions": { publicCampaignState: read },
+    "@/lib/server/circlesTestnet": { readCircleDiscoveryMappings: async () => [], circleDiscoveryLinks: () => ({}) } })
     : kind === "circles" ? route("../app/api/public/circles-testnet/route.ts", {
       "@/lib/server/circlesTestnet": { readCircleTestnetCampaign: read }, "@/lib/circles/testnet": { canonicalCircleTestnetSlug } })
     : kind === "donors" ? route("../app/api/public/campaign-donors/route.ts", {
@@ -40,7 +41,19 @@ test("public discovery uses one bounded page and cannot select a viewer", async 
   const h = setup("campaigns", { ok: true, campaigns: [], now: "1", contractId: "fixed" });
   const response = await h.get("?before=20");
   assert.equal(response.status, 200); assert.equal(response.headers.get("Cache-Control"), "no-store");
-  assert.deepEqual(h.calls, [["20"]]); assert.deepEqual(await response.json(), { ok: true, campaigns: [], now: "1", contractId: "fixed" });
+  assert.deepEqual(h.calls, [["20"]]); assert.deepEqual(await response.json(), { ok: true, campaigns: [], now: "1", contractId: "fixed", circleLinks: {} });
+});
+
+test("discovery mapping read starts beside the ledger page, without delaying ledger dispatch", async () => {
+  const started: string[] = []; let release!: (value: unknown[]) => void;
+  const pending = new Promise<unknown[]>(resolve => { release = resolve; });
+  const get = route("../app/api/public/campaigns/route.ts", {
+    "@/app/campaign-actions": { publicCampaignState: async () => { started.push("ledger"); return { ok: true, campaigns: [], now: "1", contractId: "fixed" }; } },
+    "@/lib/server/circlesTestnet": { readCircleDiscoveryMappings: () => { started.push("mapping"); return pending; }, circleDiscoveryLinks: () => ({}) },
+  });
+  const response = get(new Request("https://fixture.invalid/api/public/campaigns"));
+  assert.deepEqual(started, ["ledger", "mapping"]); release([]);
+  assert.equal((await response).status, 200);
 });
 for (const query of ["?before=01", "?before=-1", "?before=18446744073709551616", "?before=0&before=1", "?viewer=private", "?contractId=foreign"]) {
   test(`discovery rejects selectors before network: ${query}`, async () => {

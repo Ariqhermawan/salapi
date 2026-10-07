@@ -35,10 +35,15 @@ test.beforeEach(async ({ page, baseURL }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
 });
 
-test.afterEach(async ({ page }) => {
-  expect(health.get(page)?.errors, "No app runtime exception").toEqual([]);
-  expect(health.get(page)?.console, "No relevant browser console error or warning").toEqual([]);
-  expect(health.get(page)?.blocked, "Organizer viewing and Back must not attempt a server mutation").toEqual([]);
+test.afterEach(async ({ page }, testInfo) => {
+  const state = health.get(page);
+  // A beforeEach production skip never installs the candidate health monitor.
+  // Missing monitoring still fails every non-skipped test.
+  if (testInfo.status === "skipped" && !state) return;
+  expect(state, "Health monitor must exist for every exercised test").toBeDefined();
+  expect(state?.errors, "No app runtime exception").toEqual([]);
+  expect(state?.console, "No relevant browser console error or warning").toEqual([]);
+  expect(state?.blocked, "Organizer viewing and Back must not attempt a server mutation").toEqual([]);
 });
 
 const verificationCopy: Record<Locale, { ngo: string; individual: string; disclaimer: string }> = {

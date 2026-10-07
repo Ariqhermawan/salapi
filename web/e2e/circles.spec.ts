@@ -1,7 +1,8 @@
 import { test, expect, type Page } from "@playwright/test";
 
-// Home exposes fictional Circles fixtures in both modes, with real D4 campaigns
-// kept in a separate live-only section. Explicit D4 links keep their mode.
+// Home keeps all fictional Circles stories first in one manual carousel and
+// appends standalone D4 campaigns only when no verified story represents them.
+// Explicit D4 list links and on-chain campaign IDs keep their distinct routes.
 // These are read-only navigation checks, never a payment/chain acceptance test.
 const donationEntry = /^(Preview a pledge|Donate Testnet XLM)$/;
 type DonationMode = "preview" | "testnet";
@@ -50,23 +51,25 @@ test("Home cause donation entry shows the explicit preview or unverified QA boun
   await page.screenshot({ path: testInfo.outputPath(`${mode}-donation-boundary.png`), fullPage: false });
 });
 
-test("Home exposes example discovery and keeps D4 as a distinct route", async ({ page }) => {
+test("Home exposes one ordered campaign carousel and keeps explicit D4 browsing as a distinct route", async ({ page }) => {
   await page.goto("/", { waitUntil: "domcontentloaded", timeout: 45000 });
   const catalogSection = page.getByTestId("home-circles-catalog");
   await expect(catalogSection).toHaveAttribute("data-catalog-ready", "true", { timeout: 20000 });
   const catalog = catalogSection.getByRole("link", { name: "Browse all example causes", exact: true });
   await expect(catalog).toHaveAttribute("href", "/campaigns?mode=examples");
   await expect(page.locator("#home-cause-category option")).toHaveCount(10);
+  await expect(catalogSection.locator('#home-cause-category option[value="all"]')).toHaveText("All campaigns");
   await expect(catalogSection.locator("article[data-example-cause]")).toHaveCount(27);
   await expect(catalogSection.getByRole("link", { name: "Sketch your own cause", exact: true })).toHaveAttribute("href", "/circles/create");
-  const d4Heading = page.getByRole("heading", { name: "D4 Testnet campaigns", exact: true });
-  if (await d4Heading.count()) {
-    const d4Section = page.locator('section[aria-labelledby="testnet-campaign-title"]');
-    await expect(d4Section.getByRole("link", { name: /See all/ })).toHaveAttribute("href", "/campaigns?mode=testnet");
-    await expect(d4Section.locator("[data-example-cause]")).toHaveCount(0);
-  } else {
-    await expect(page.getByRole("link", { name: /^D4 Testnet campaigns/ })).toHaveAttribute("href", "/campaigns?mode=testnet");
-  }
+  await expect(page.getByLabel("Example causes carousel", { exact: true })).toHaveCount(1);
+  await expect(page.locator('section[aria-labelledby="testnet-campaign-title"]')).toHaveCount(0);
+  await expect(catalogSection.getByRole("link", { name: /^D4 Testnet campaigns/ })).toHaveAttribute("href", "/campaigns?mode=testnet");
+  await expect(catalogSection.getByRole("button", { name: /^(Pause|Play) campaign carousel$/ })).toHaveCount(0);
+  const cards = await catalogSection.locator("article").evaluateAll(rows => rows.map(row => ({ story: row.getAttribute("data-example-cause"), campaign: row.getAttribute("data-standalone-campaign") })));
+  expect(cards.length).toBeGreaterThanOrEqual(27);
+  expect(cards[0].story).toBe("tino-relief");
+  expect(cards.slice(0, 27).every(card => card.story !== null && card.campaign === null)).toBe(true);
+  expect(cards.slice(27).every(card => card.story === null && /^\d+$/.test(card.campaign ?? ""))).toBe(true);
   await catalog.click();
   await expect(page).toHaveURL(/\/campaigns\?mode=examples$/);
   await expect(page.getByRole("heading", { name: "A cause can bring us closer.", exact: true })).toBeVisible();
@@ -86,6 +89,7 @@ test("Home categories show three examples per sector and clickable organizer rat
   for (const sector of ["disaster", "medical", "education", "community", "family", "creator", "animals", "care", "volunteer"]) {
     await category.selectOption(sector);
     await expect(catalog.locator("article[data-example-cause]")).toHaveCount(3);
+    await expect(catalog.locator("article[data-standalone-campaign]")).toHaveCount(0);
     await expect(catalog.getByRole("status").filter({ hasText: /^3 examples$/ })).toHaveText("3 examples");
     await expect(catalog.getByText("Example rating", { exact: true })).toHaveCount(3);
     await expect(catalog.getByText("3 example reviews", { exact: true })).toHaveCount(3);
@@ -95,8 +99,10 @@ test("Home categories show three examples per sector and clickable organizer rat
   }
   await category.selectOption("all");
   await expect(catalog.locator("article[data-example-cause]")).toHaveCount(27);
+  await expect(catalog.getByText("Checking other Testnet campaigns", { exact: true })).toHaveCount(0, { timeout: 30000 });
+  const cardCount = await catalog.locator("article").count();
   await catalog.getByRole("button", { name: "Next example cause", exact: true }).click();
-  await expect(catalog.getByLabel("2 of 27 example causes", { exact: true })).toHaveText("02 / 27");
+  await expect(catalog.getByLabel(`2 of ${cardCount} example causes`, { exact: true })).toHaveText(`02 / ${String(cardCount).padStart(2, "0")}`);
   await category.selectOption("animals");
   await catalog.getByRole("link", { name: "View campaign", exact: true }).first().click();
   await expect(page).toHaveURL(/\/circles\/[a-z0-9-]+$/);
@@ -110,13 +116,25 @@ test("Home categories show three examples per sector and clickable organizer rat
   await expect(page.getByText("Fictional profile. Verification, histories and ratings are simulated. Demo verification, not an identity check.", { exact: true })).toBeVisible();
 });
 
-test("live Home D4 cards retain direct contract IDs separately from examples", async ({ page }) => {
+test("live Home standalone D4 cards retain direct contract IDs after the story cards", async ({ page }) => {
   test.skip(!process.env.D4_E2E_CONTRACT, "Set D4_E2E_CONTRACT to require configured live Testnet campaign reads; unconfigured local builds have no on-chain cards");
   await page.goto("/", { waitUntil: "domcontentloaded", timeout: 45000 });
-  const d4Section = page.locator('section[aria-labelledby="testnet-campaign-title"]');
-  test.skip(await d4Section.count() === 0, "Local preview deliberately exposes the separate D4 route without live on-chain readers");
-  const campaignLink = d4Section.getByLabel("Campaign carousel").getByRole("link", { name: /^(Donate|View campaign)$/ }).first();
+  const catalog = page.getByTestId("home-circles-catalog");
+  await expect(catalog).toHaveAttribute("data-catalog-ready", "true", { timeout: 20000 });
+  test.skip(await catalog.getByText("Fictional causes · AI photos · example ratings · no payment.", { exact: true }).count() > 0, "Local preview does not invoke on-chain discovery readers");
+  await expect(catalog.getByText("Checking other Testnet campaigns", { exact: true })).toHaveCount(0, { timeout: 30000 });
+  await expect(catalog.getByRole("alert")).toHaveCount(0);
+  const standalone = catalog.locator("article[data-standalone-campaign]");
+  test.skip(await standalone.count() === 0, "No standalone on-chain campaigns are returned. The public set may be empty or fully represented by verified story mappings");
+  await expect(catalog.locator("article[data-example-cause]")).toHaveCount(27);
+  const firstStandaloneIndex = await catalog.locator("article").evaluateAll(rows => rows.findIndex(row => row.hasAttribute("data-standalone-campaign")));
+  expect(firstStandaloneIndex).toBe(27);
+  const campaignId = await standalone.first().getAttribute("data-standalone-campaign");
+  expect(campaignId).toMatch(/^\d+$/);
+  const campaignLink = standalone.first().getByRole("link", { name: "View campaign", exact: true });
+  await expect(campaignLink).toHaveAttribute("href", `/campaigns?id=${campaignId}`);
   await expect(campaignLink).toHaveAttribute("href", /^\/campaigns\?id=\d+$/);
+  await expect(standalone.first().locator('a[href^="/circles/"]')).toHaveCount(0);
   await campaignLink.click();
   await expect(page).toHaveURL(/\/campaigns\?id=\d+$/);
   await expect(page.getByRole("heading", { name: "Give with clarity.", exact: true })).toBeVisible();

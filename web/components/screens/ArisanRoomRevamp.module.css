@@ -42,8 +42,6 @@
 .sectionHeader > span { color: #6e7c93; font-size: 9px; line-height: 1.4; text-align: right; }
 .memberRow { display: flex; align-items: center; gap: 9px; min-height: 43px; padding: 6px 0; }
 .memberRow + .memberRow { border-top: 1px solid #e8edf5; }
-.memberName { display: flex; flex: 1; min-width: 0; flex-wrap: wrap; align-items: center; gap: 5px; color: #14243b; font-size: 11px; line-height: 1.4; font-weight: 600; overflow-wrap: anywhere; }
-.memberName > span { padding: 3px 5px; background: #eaf2ff; color: #2563eb; font-size: 9px; font-weight: 650; border-radius: 6px; }
 .memberRow > span:last-child { flex-shrink: 0; }
 .history { padding: 13px; background: #eaf2ff; border: 1px solid #dce6f5; border-radius: 17px; }
 .history summary { display: flex; justify-content: space-between; align-items: center; gap: 10px; list-style: none; cursor: pointer; }
@@ -55,7 +53,8 @@
 .history ol { list-style: none; padding: 10px 0 0; margin: 10px 0 0; border-top: 1px solid #cfddf2; }
 .history li { display: flex; align-items: center; gap: 9px; padding: 8px 0; font-size: 11px; color: #5e6d84; }
 .history li + li { border-top: 1px solid #dce6f5; }
-.history li > strong { flex: 1; font-size: 11px; color: #18324f; }
+.history li > div { flex: 1; min-width: 0; color: #18324f; }
+.history summary > div:first-child { flex: 1; min-width: 0; }
 .roundNumber { color: #2563eb; font-size: 10px; font-family: var(--font-geist-mono),monospace; }
 .secondaryExit { min-height: 44px !important; justify-content: space-between !important; padding: 10px 14px !important; border: 1px solid #dce5f0 !important; border-radius: 16px !important; color: #be3b48 !important; font-size: 12px !important; }
 .tools,.rules { background: #edf2f9; border-radius: 14px; padding: 11px 13px; }

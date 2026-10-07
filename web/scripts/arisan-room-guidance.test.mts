@@ -9,6 +9,7 @@ import ts from "typescript";
 import { DICTS } from "../lib/i18n/dictionaries.ts";
 import { arisanDrawRecovery, arisanRoomCopy, arisanViewerIdentity, arisanViewerRole } from "../lib/arisan-room-guidance.ts";
 import { PREVIEW_WALLET } from "../lib/local-preview.ts";
+import * as memberIdentity from "../lib/arisan-member-identity.ts";
 
 const now = 1_800_000_000;
 const room = (overrides: Record<string, unknown> = {}) => ({ ready: true, id: 1, viewer: PREVIEW_WALLET.address, viewerIdentity: "personal", name: "QA room", host: PREVIEW_WALLET.address, hostLabel: "You", cadence: "Weekly", cadenceSecs: 60, memberTarget: 3, memberCount: 3, sharePesos: 100, shareStroops: "10000000", depositStroops: "30000000", potPesos: 300, status: "Active", round: 1, drawPhase: "Reveal", firstKocok: now - 60, joinDeadline: now - 90, commitAt: now - 30, revealAt: now + 10, nextActionAt: now + 10, commitCount: 3, revealCount: 0, eligibleCount: 3, seats: [{ addr: PREVIEW_WALLET.address, label: "You", isYou: true, won: false, committed: true, revealed: false }], winners: [], isHost: true, isMember: true, canUseDemoFriends: false, canCommit: false, canReveal: true, canFinalize: false, ...overrides });
@@ -62,6 +63,10 @@ function setup() {
       if (name === "@/components/I18nProvider") return { useT: () => ({ currency: "en", locale: "en", t }) };
       if (name === "@/components/ui/kit") return { T: {}, Ico: new Proxy({}, { get: () => () => null }), AppBar: ({ leading, title }: { leading: React.ReactNode; title: string }) => React.createElement("header", null, leading, title), IconButton: Button, Btn: Button, Chip: Container, Avatar: () => null, PoweredByStellar: () => null };
       if (name === "@/lib/ui/useGoBack") return { useGoBack: () => () => {} };
+      if (name === "@/lib/arisan-member-identity") return memberIdentity;
+      if (name === "@/lib/ui/useArisanMemberIdentities") return { useArisanMemberIdentities: () => new Map() };
+      if (name === "@/components/ArisanMemberIdentity") return { ArisanMemberAvatar: () => null,
+        ArisanMemberIdentity: (props: { address: string; previewLabel?: string; children?: React.ReactNode }) => React.createElement("div", null, memberIdentity.arisanMemberName(props.address, undefined, props.previewLabel), props.children) };
       if (name === "@/lib/ui/useUnresolvedSubmission") return { useUnresolvedSubmission: () => ({ locked: false, run: (action: () => Promise<unknown>) => action() }) };
       if (name === "@/components/ui/SubmissionStatusPanel") return { __esModule: true, default: () => null };
       if (name === "@/components/ui/SuccessMotion") return { __esModule: true, default: Container };

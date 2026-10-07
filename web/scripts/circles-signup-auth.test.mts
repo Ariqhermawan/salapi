@@ -50,6 +50,15 @@ test("server getUser supplies the confirmed Google email and client spoofing nev
   assert.deepEqual(Object.keys(calls.inserts[0]).sort(), ["anonymous", "circle_id", "email", "locale", "marketing_ok", "peso_pledge"]);
 });
 
+test("display identity reader performs only request-bound getUser, never admin, wallet or subscription writes", async () => {
+  for (const options of [{}, { user: verifiedUser }, { authError: { name: "NetworkError" } }]) {
+    const { api, calls } = setup(options);
+    await api.resolveCirclesSignupIdentity();
+    assert.equal(calls.auth, 1); assert.equal(calls.clients, 1);
+    assert.equal(calls.admin, 0); assert.equal(calls.inserts.length, 0); assert.equal(calls.logs, 0);
+  }
+});
+
 test("server verified email works with omitted or malformed client email; confirmed non-Google email is labelled account", async () => {
   for (const email of [undefined, 7, { trim: "invalid" }]) {
     const { api, calls } = setup({ user: { ...verifiedUser, app_metadata: { provider: "email" }, user_metadata: { provider: "google", email_verified: true } } });
@@ -149,7 +158,7 @@ function hookSetup(preview = false, configured = true) {
     if (name === "@/lib/local-preview") return { isLocalPreview: preview };
     if (name === "@/lib/supabase/env") return { supabaseConfigured: () => configured };
     if (name === "@/lib/supabase/client") return { createSupabaseBrowser() { return { auth: { onAuthStateChange(callback: typeof authCallback) { authCallback = callback; return { data: { subscription: { unsubscribe() { unsubscribed++; } } } }; } } }; } };
-    if (name === "@/app/circles-signup-actions") return { readCirclesSignupIdentity() { assert.equal(inCallback, false, "Never await or invoke an action in the Auth SDK callback"); return new Promise<CirclesSignupIdentity>((resolve, reject) => requests.push({ resolve, reject })); } };
+    if (name === "@/lib/ui/circles-identity-read") return { readCirclesSignupIdentityClient() { assert.equal(inCallback, false, "Never await or invoke a read request in the Auth SDK callback"); return new Promise<CirclesSignupIdentity>((resolve, reject) => requests.push({ resolve, reject })); } };
     if (name === "react") return {
       useState(initial: unknown) { const index = cursor++; if (!(index in states)) states[index] = initial; return [states[index], (value: unknown) => { states[index] = typeof value === "function" ? value(states[index]) : value; }]; },
       useRef(initial: unknown) { const index = cursor++; if (!(index in states)) states[index] = { current: initial }; return states[index]; },
@@ -222,4 +231,19 @@ test("same-owner refresh keeps consent while mismatched server owner never expos
   hook.requests[1].resolve({ status: "verified", ownerId, email: "a@example.invalid", source: "google" });
   assert.equal((await hook.settle()).identity.status, "verified");
   const absent = hookSetup(false, false); assert.equal(absent.render().identity.status, "unavailable"); assert.equal(absent.requests.length, 0);
+});
+
+test("an in-flight identity GET from the previous owner cannot leak email after owner switch or signout", async () => {
+  const hook = hookSetup(); hook.render(); hook.emit("INITIAL_SESSION", ownerId); await hook.settle();
+  hook.emit("SIGNED_IN", "owner-b"); await hook.settle();
+  hook.requests[0].resolve({ status: "verified", ownerId, email: "old-private@example.invalid", source: "google" });
+  const pending = await hook.settle();
+  assert.equal(pending.identity.status, "loading");
+  assert.doesNotMatch(JSON.stringify(pending.identity), /old-private/);
+  hook.emit("SIGNED_OUT", null); await hook.settle();
+  hook.requests[1].resolve({ status: "verified", ownerId: "owner-b", email: "other-private@example.invalid", source: "google" });
+  assert.equal((await hook.settle()).identity.status, "loading");
+  hook.requests[2].resolve({ status: "guest" });
+  assert.deepEqual(JSON.parse(JSON.stringify((await hook.settle()).identity)), { status: "guest" });
+  hook.dispose();
 });

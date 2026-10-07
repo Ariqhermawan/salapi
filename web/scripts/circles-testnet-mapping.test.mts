@@ -268,6 +268,39 @@ test("reads are request scoped, never shared cross-account or stale deployment c
   assert.equal(h.calls.table, 2); assert.equal(h.calls.clients, 2); assert.equal(h.calls.rpc.filter(method => method === "campaign").length, 2);
 });
 
+test("Home discovery validates all mappings in one bounded read without ledger fanout", async () => {
+  const rows = allSlugs.map((slug, index) => row(slug, String(index + 1)));
+  const h = harness({ rows });
+  const mappings = await h.readCircleDiscoveryMappings();
+  assert.equal(mappings.length, 27); assert.equal(h.calls.table, 1);
+  assert.deepEqual(h.calls.rpc, []); assert.equal(h.calls.clients, 1);
+  assert.deepEqual(h.calls.filters, [["eq", "network", "testnet"], ["eq", "contract_id", contract], ["is", "archived_at", null]]);
+});
+
+test("discovery metadata fails open for visibility, never hides campaigns on invalid mappings", async () => {
+  for (const options of [{ preview: true }, { configured: false }, { rows: null }, { rows: [row(), row()] },
+    { rows: [row(), row("cats-recovery")] }, { tableError: { code: "internal" } },
+    { rows: [{ ...row(), beneficiary_wallet: creator }] }]) {
+    const h = harness(options);
+    assert.deepEqual(structuredClone(await h.readCircleDiscoveryMappings()), []);
+    assert.deepEqual(h.calls.rpc, []);
+  }
+});
+
+test("carousel dedup requires full validated immutable D4 mapping, not matching title or ID", () => {
+  const h = harness(); const stored = mapping.validatedCircleTestnetMapping(row(), contract, token)!;
+  const campaign = mapping.validatedCircleTestnetCampaign(rawCampaign(), stored, token)!;
+  assert.deepEqual(structuredClone(h.circleDiscoveryLinks([campaign], [stored])), { "1": "tino-relief" });
+  const variants = [
+    { ...campaign, id: "2" }, { ...campaign, title: "Someone else's cause" },
+    ...Object.entries({ creator: beneficiary, beneficiary: creator, token: contract, creator_cut_bps: 1,
+      funding_deadline: "1", review_deadline: "2", approvers: [...approvers].reverse() })
+      .map(([field, value]) => ({ ...campaign, config: { ...campaign.config, [field]: value } })),
+  ];
+  for (const variant of variants) assert.deepEqual(structuredClone(h.circleDiscoveryLinks([variant], [stored])), {});
+  assert.deepEqual(structuredClone(h.circleDiscoveryLinks([campaign], [])), {});
+});
+
 test("admin fetch cannot leak service credential via untrusted URL or redirect", async () => {
   const h = harness(); await h.readCircleTestnetCampaign("tino-relief");
   const safeFetch = h.mappingFetch();

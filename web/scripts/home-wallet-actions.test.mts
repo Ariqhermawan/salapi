@@ -81,6 +81,7 @@ function render(options: { preview?: boolean; locale?: Locale; currency?: Locale
       if (name === "@/components/HomeCirclesCatalog") return { default: "HomeCirclesCatalog" };
       if (name === "@/components/AccountAvatar") return { default: "AccountAvatar" };
       if (name === "@/components/MarketValue") return { default: "MarketValue" };
+      if (name === "@/components/ui/brand") return { PoweredByStellarV2: "PoweredByStellarV2" };
       if (name === "@/components/useAccountPhoto") return { useAccountPhoto: () => ({ profile: null, status: "ready" }) };
       if (name === "@/lib/i18n/account-photo") return { accountPhotoCopy };
       if (name === "@/components/ui/kit") return { Ico: new Proxy({}, { get: (_target, icon) => (props: Record<string, unknown>) => jsx("svg", { ...props, "data-icon": String(icon) }) }), Peso: "Peso" };

@@ -9,7 +9,9 @@ import { useT } from "@/components/I18nProvider";
 import { Ico } from "@/components/ui/icons";
 import { SEED_CIRCLES } from "@/lib/circles/seed";
 import { getOrganizerForCircle } from "@/lib/circles/organizers";
-import { HOME_CAUSE_CATEGORIES, homeCircleExamples, isHomeCauseCategory, parseCauseViewState } from "@/lib/home-circles";
+import { HOME_CAUSE_CATEGORIES, homeCircleExamples, homeStandaloneCampaigns, isHomeCauseCategory, parseCauseViewState } from "@/lib/home-circles";
+import type { Campaign } from "@/lib/campaign";
+import { formatStroops } from "@/lib/format-stroops";
 import { useNavigationViewState } from "@/lib/ui/useNavigationViewState";
 import { getNavigationEntrySnapshot, subscribeNavigationViewState, writeNavigationViewState } from "@/lib/ui/app-navigation";
 import { homeCopy } from "@/lib/i18n/revamp-home";
@@ -30,7 +32,9 @@ function catalogServerEntrySnapshot() { return ""; }
 
 // Discovery never signs or pays. Only the selected card reads its public QA
 // funding total; the rest of the catalog does not fan out ledger requests.
-export default function HomeCirclesCatalog() {
+export default function HomeCirclesCatalog({ campaigns = [], circleLinks = {}, loading = false, error = "", onRetry }: {
+  campaigns?: Omit<Campaign, "contribution">[]; circleLinks?: Record<string, string>; loading?: boolean; error?: string; onRetry?: () => void;
+}) {
   const { locale } = useT();
   const c = circlesCopy(locale);
   const copy = (key: HomeCatalogKey, vars?: Record<string, string | number>) => homeCatalogCopy(locale, key, vars);
@@ -41,11 +45,16 @@ export default function HomeCirclesCatalog() {
   const strip = useRef<HTMLDivElement>(null);
   const restoredView = useRef<{ entry: string; category: string } | null>(null);
   const examples = homeCircleExamples(SEED_CIRCLES, category);
-  const index = Math.min(savedIndex, Math.max(0, examples.length - 1));
+  const standalone = !isLocalPreview && category === "all" ? homeStandaloneCampaigns(SEED_CIRCLES, campaigns, circleLinks) : [];
+  const cardCount = examples.length + standalone.length;
+  const index = Math.min(savedIndex, Math.max(0, cardCount - 1));
 
   useLayoutEffect(() => {
     const element = strip.current;
     if (!ready || !element || (restoredView.current?.entry === entry && restoredView.current.category === category)) return;
+    // A saved trailing D4 card may not have arrived yet. Do not mark a clamped
+    // story card restored, or the counter and visible card would diverge.
+    if (loading && savedIndex >= cardCount) return;
     const card = element.children[index] as HTMLElement | undefined;
     const first = element.children[0] as HTMLElement | undefined;
     if (!card || !first) return;
@@ -53,7 +62,7 @@ export default function HomeCirclesCatalog() {
     // A same-path history traversal can retain this component and DOM. Restore
     // the new entry/category once, not on index writes from manual scrolling.
     restoredView.current = { entry, category };
-  }, [ready, entry, category, index]);
+  }, [ready, entry, category, index, savedIndex, cardCount, loading]);
 
   function setIndex(next: number) {
     writeNavigationViewState("home-circles", { category, index: next });
@@ -61,8 +70,8 @@ export default function HomeCirclesCatalog() {
 
   function move(next: number) {
     const element = strip.current;
-    if (!ready || !element || !examples.length) return;
-    const current = (next + examples.length) % examples.length;
+    if (!ready || !element || !cardCount) return;
+    const current = (next + cardCount) % cardCount;
     const card = element.children[current] as HTMLElement | undefined;
     const first = element.children[0] as HTMLElement | undefined;
     if (!card || !first) return;
@@ -88,7 +97,7 @@ export default function HomeCirclesCatalog() {
   return <section className={styles.catalog} aria-labelledby="home-circles-title" data-testid="home-circles-catalog" data-catalog-ready={ready}>
     <header className={styles.header}>
       <div>
-        <span className={styles.eyebrow}>{copy("CROWDFUNDING · PROTOTYPE")}</span>
+        <span className={styles.eyebrow}>{isLocalPreview ? copy("CROWDFUNDING · PROTOTYPE") : homeCopy(locale, "CROWDFUNDING · TESTNET")}</span>
         <h1 id="home-circles-title">{homeCopy(locale, "Give with clarity.")}</h1>
       </div>
       <Image src="/illustrations/giving.png" alt="" width={90} height={90} />
@@ -101,7 +110,7 @@ export default function HomeCirclesCatalog() {
           if (!ready || !isHomeCauseCategory(event.target.value)) return;
           writeNavigationViewState("home-circles", { category: event.target.value, index: 0 });
         }}>
-          {HOME_CAUSE_CATEGORIES.map(value => <option key={value} value={value}>{value === "all" ? c("All examples") : circlesCategory(locale, value)}</option>)}
+          {HOME_CAUSE_CATEGORIES.map(value => <option key={value} value={value}>{value === "all" ? copy("All campaigns") : circlesCategory(locale, value)}</option>)}
         </select>
       </label>
       <Link href="/campaigns?mode=examples" prefetch={false} aria-label={copy("Browse all example causes")}>{homeCopy(locale, "See all")}{Ico.chev({ size: 15 })}</Link>
@@ -135,14 +144,30 @@ export default function HomeCirclesCatalog() {
           </div>
         </article>;
       })}
+      {standalone.map(campaign => <article key={`d4-${campaign.id}`} className={styles.card} data-standalone-campaign={campaign.id}>
+        <Link href={`/campaigns?id=${campaign.id}`} prefetch={false} className={`${styles.photo} ${styles.testnetPhoto}`} aria-label={campaign.title}>
+          <Image src="/illustrations/giving.png" alt="" width={600} height={340} sizes="(max-width: 500px) 82vw, 384px" loading="lazy" />
+          <span className={styles.category}>{copy("D4 Testnet campaigns")}</span>
+        </Link>
+        <div className={styles.body}>
+          <h2><Link href={`/campaigns?id=${campaign.id}`} prefetch={false} title={campaign.title}><span>{campaign.title}</span></Link></h2>
+          <span className={styles.testnetState}>#{campaign.id} · {campaign.state}</span>
+          <p className={styles.testnetNote}>{copy("Escrow and public proof on Stellar Testnet. No real money.")}</p>
+          <div className={styles.testnetTotal}><strong>{formatStroops(campaign.total)} XLM</strong><small>{homeCopy(locale, "funded on Testnet")}</small></div>
+          <Link href={`/campaigns?id=${campaign.id}`} prefetch={false} className={styles.pledge}><Heart size={18} aria-hidden="true" />{c("View campaign")}</Link>
+        </div>
+      </article>)}
     </div>
+    {!isLocalPreview && loading ? <p className={styles.discoveryStatus} role="status">{copy("Checking other Testnet campaigns")}</p> : null}
+    {!isLocalPreview && error ? <div className={styles.discoveryStatus} role="alert"><span>{homeCopy(locale, error)}</span>{onRetry ? <button type="button" onClick={onRetry}>{homeCopy(locale, "Try again")}</button> : null}</div> : null}
     <div className={styles.footer}>
       <Link href="/circles/create" prefetch={false} className={styles.explore}>{c("Sketch your own cause")}{Ico.chev({ size: 15 })}</Link>
       <div className={styles.controls}>
-        <button type="button" aria-label={copy("Previous example cause")} onClick={() => move(index - 1)} disabled={!ready || examples.length < 2}>{Ico.back({ size: 17 })}</button>
-        <span aria-label={copy("{current} of {count} example causes", { current: Math.min(index + 1, examples.length), count: examples.length })}>{String(Math.min(index + 1, examples.length)).padStart(2, "0")} / {String(examples.length).padStart(2, "0")}</span>
-        <button type="button" aria-label={copy("Next example cause")} onClick={() => move(index + 1)} disabled={!ready || examples.length < 2}>{Ico.chev({ size: 17 })}</button>
+        <button type="button" aria-label={copy("Previous example cause")} onClick={() => move(index - 1)} disabled={!ready || cardCount < 2}>{Ico.back({ size: 17 })}</button>
+        <span aria-label={copy("{current} of {count} example causes", { current: Math.min(index + 1, cardCount), count: cardCount })}>{String(Math.min(index + 1, cardCount)).padStart(2, "0")} / {String(cardCount).padStart(2, "0")}</span>
+        <button type="button" aria-label={copy("Next example cause")} onClick={() => move(index + 1)} disabled={!ready || cardCount < 2}>{Ico.chev({ size: 17 })}</button>
       </div>
     </div>
+    <nav className={styles.otherActions} aria-label={copy("D4 Testnet campaigns")}><Link href="/campaigns?mode=testnet" prefetch={false}>{copy("D4 Testnet campaigns")}{Ico.chev({ size: 12 })}</Link>{!isLocalPreview ? <Link href="/campaigns?create=1" prefetch={false}>{copy("Start a campaign")}</Link> : null}</nav>
   </section>;
 }

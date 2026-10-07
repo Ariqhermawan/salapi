@@ -142,11 +142,12 @@ export function StellarMark({ size = 14, c = T.slate }: { size?: number; c?: str
 // Official Stellar lockup (symbol + wordmark) from Stellar's brand kit,
 // unmodified, used for sanctioned "Powered by Stellar" attribution. Black on
 // light, white on dark, per Stellar brand guidelines.
-export function PoweredByStellarV2({ c = T.slate, size = 11 }: { c?: string; size?: number }) {
+// The legacy size prop remains accepted, but every footer uses one small scale.
+export function PoweredByStellarV2({ c = T.slate }: { c?: string; size?: number }) {
   const onDark = typeof c === "string" && /255\s*,\s*255\s*,\s*255|#fff/i.test(c);
-  const h = size + 5;
+  const h = 16;
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 7, color: c, fontSize: size, fontFamily: T.fontSans, letterSpacing: 0.02 }}>
+    <span data-brand-attribution="stellar" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "2px 8px", color: c, fontSize: 11, lineHeight: "16px", fontFamily: T.fontSans, letterSpacing: "normal", verticalAlign: "middle" }}>
       {/* opacity:0.75 used to tint this to ~#818994 on canvas, failing
           contrast at 3.27:1. Full T.slate (#5B6472) is ~6.7:1, well over
           the 4.5 bar, and visually still reads as secondary next to the
@@ -157,7 +158,7 @@ export function PoweredByStellarV2({ c = T.slate, size = 11 }: { c?: string; siz
         src={onDark ? "/stellar-white.png" : "/stellar.png"}
         alt="Stellar"
         height={h}
-        style={{ height: h, width: "auto", display: "block" }}
+        style={{ height: h, width: "auto", display: "block", flex: "0 0 auto" }}
       />
     </span>
   );

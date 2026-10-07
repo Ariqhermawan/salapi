@@ -7,9 +7,14 @@ test.use({ serviceWorkers: "block" });
 test.beforeEach(async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.route("**/*", async route => {
-    if (["POST", "PUT", "PATCH", "DELETE"].includes(route.request().method())) {
+    const request = route.request();
+    if (["POST", "PUT", "PATCH", "DELETE"].includes(request.method())) {
+      // Preserve the fail-closed guard while identifying read-action/telemetry
+      // traffic. Never log payloads, auth headers, query strings or full URLs.
+      const identity = { method: request.method(), pathname: new URL(request.url()).pathname,
+        nextAction: request.headers()["next-action"] ?? null };
       await route.abort();
-      throw new Error(`Unexpected server mutation in draft hydration QA: ${route.request().method()}`);
+      throw new Error(`Unexpected server mutation in draft hydration QA: ${JSON.stringify(identity)}`);
     }
     await route.continue();
   });

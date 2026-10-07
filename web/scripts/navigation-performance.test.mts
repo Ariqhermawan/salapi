@@ -36,7 +36,7 @@ test("exact formatter has no SDK, provider, auth or other runtime imports", () =
 
 test("display-only UI imports the pure formatter instead of the SDK-backed validator", () => {
   for (const path of [
-    "../app/page.tsx", "../components/screens/VaultsScreen.tsx", "../components/screens/CampaignScreen.tsx",
+    "../components/HomeCirclesCatalog.tsx", "../components/screens/VaultsScreen.tsx", "../components/screens/CampaignScreen.tsx",
     "../components/screens/TransparencyScreen.tsx", "../components/CircleTestnetDonate.tsx",
   ]) {
     const code = source(path);

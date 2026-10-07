@@ -7,6 +7,8 @@
 .ai { bottom: 10px; right: 11px; color: #fff; background: #142440e8; font-size: 9px; }
 .arrow { position: absolute; top: calc(50% - 22px); z-index: 1; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 0; border: 1px solid #ffffff80; border-radius: 50%; background: #142440cb; color: #fff; font: inherit; font-size: 31px; cursor: pointer; }
 .arrow:hover { background: #142440; }
+.arrow:disabled, .thumbnail:disabled { cursor: wait; opacity: .65; }
+.arrow:disabled:hover { background: #142440cb; }
 .previous { left: 10px; }
 .next { right: 10px; }
 .caption { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px 7px; color: #63728a; font-size: 10px; line-height: 1.55; }

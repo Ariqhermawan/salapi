@@ -4,15 +4,16 @@ import { StrKey } from "@stellar/stellar-sdk";
 import { SUPABASE_URL, SUPABASE_SERVICE_ROLE, supabaseAdminConfigured } from "@/lib/supabase/env";
 import { isLocalPreview } from "@/lib/local-preview";
 import { CONTRACTS, donationCampaignId, readContract, sc } from "@/lib/server/stellar";
+import type { Campaign } from "@/lib/campaign";
 import { canonicalCircleTestnetSlug, circleTestnetSlugs, circleTestnetFailure, circleTestnetReady,
   validatedCircleTestnetMapping, validatedCircleTestnetCampaign,
-  type CircleTestnetCode, type CircleTestnetCampaignResult, type CircleTestnetBatchResult } from "@/lib/circles/testnet";
+  type CircleTestnetCode, type CircleTestnetCampaignResult, type CircleTestnetBatchResult, type StoredCircleTestnetMapping } from "@/lib/circles/testnet";
 
 const TABLE = "circles_testnet_campaigns";
 const COLUMNS = "network,contract_id,circle_slug,campaign_id,campaign_title,creator_wallet,beneficiary_wallet,token_id,approver_wallets,creator_cut_bps,funding_deadline,review_deadline,purpose,archived_at";
 const RPC_CONCURRENCY = 4;
 
-function admin(): SupabaseClient | null {
+function admin(timeoutMs = 8_000): SupabaseClient | null {
   if (!supabaseAdminConfigured()) return null;
   try {
     const url = new URL(SUPABASE_URL);
@@ -21,7 +22,7 @@ function admin(): SupabaseClient | null {
     const boundedFetch: typeof fetch = (input, init) => {
       const target = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
       if (target.origin !== origin || target.username || target.password) return Promise.reject(new Error("Unexpected mapping origin"));
-      const timeout = AbortSignal.timeout(8_000);
+      const timeout = AbortSignal.timeout(timeoutMs);
       const signal = init?.signal ? AbortSignal.any([init.signal, timeout]) : timeout;
       return fetch(input, { ...init, signal, redirect: "error", cache: "no-store" });
     };
@@ -40,6 +41,40 @@ async function bounded<T>(operation: Promise<T>, milliseconds = 8_000): Promise<
 
 function setupMissing(error: unknown): boolean {
   return !!error && typeof error === "object" && ["42P01", "PGRST205"].includes(String((error as { code?: unknown }).code));
+}
+
+/** Discovery metadata only: one bounded DB read, no additional ledger calls.
+ * A missing/invalid mapping never hides a campaign by a title heuristic. */
+export async function readCircleDiscoveryMappings(): Promise<StoredCircleTestnetMapping[]> {
+  const contractId = donationCampaignId();
+  const db = !isLocalPreview && contractId && StrKey.isValidContract(contractId) ? admin(2_000) : null;
+  if (!db || !contractId) return [];
+  try {
+    const slugs = circleTestnetSlugs()!;
+    const stored = await bounded(Promise.resolve(db.from(TABLE).select(COLUMNS).eq("network", "testnet")
+      .eq("contract_id", contractId).is("archived_at", null).in("circle_slug", slugs).limit(slugs.length + 1)), 2_000);
+    if (stored.error || !Array.isArray(stored.data) || stored.data.length > slugs.length) return [];
+    const mappings = stored.data.map(row => validatedCircleTestnetMapping(row, contractId, CONTRACTS.tokenXlmSac));
+    if (mappings.some(mapping => !mapping) || new Set(mappings.map(mapping => mapping!.circleId)).size !== mappings.length
+      || new Set(mappings.map(mapping => mapping!.campaignId)).size !== mappings.length) return [];
+    return mappings as StoredCircleTestnetMapping[];
+  } catch { return []; }
+}
+
+/** The public campaign page already validated version, token and the ledger
+ * projection. Match the entire immutable configuration before deduplicating. */
+export function circleDiscoveryLinks(campaigns: Omit<Campaign, "contribution">[], mappings: StoredCircleTestnetMapping[]): Record<string, string> {
+  const links: Record<string, string> = Object.create(null);
+  for (const campaign of campaigns) {
+    const mapping = mappings.find(row => row.campaignId === campaign.id);
+    if (!mapping || campaign.title !== mapping.campaignTitle || campaign.config.creator !== mapping.creatorWallet
+      || campaign.config.beneficiary !== mapping.beneficiaryWallet || campaign.config.token !== CONTRACTS.tokenXlmSac
+      || campaign.config.creator_cut_bps !== mapping.creatorCutBps || campaign.config.funding_deadline !== mapping.fundingDeadline
+      || campaign.config.review_deadline !== mapping.reviewDeadline || campaign.config.approvers.length !== mapping.approverWallets.length
+      || campaign.config.approvers.some((wallet, index) => wallet !== mapping.approverWallets[index])) continue;
+    links[campaign.id] = mapping.circleId;
+  }
+  return links;
 }
 
 /** Public, read-only and request-scoped. No viewer auth, custody or mutation. */
