@@ -1,7 +1,6 @@
 import { readFileSync } from "node:fs";
 import { test, expect, type Page } from "@playwright/test";
 import { Keypair } from "@stellar/stellar-sdk";
-import { circlesCopy } from "../lib/i18n/revamp-circles";
 import { homeCatalogCopy } from "../lib/i18n/revamp-home-catalog";
 import type { Locale } from "../lib/i18n/config";
 import type { CircleTestnetCampaignResult } from "../lib/circles/testnet";
@@ -124,7 +123,7 @@ test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () =>
     const catalog = page.getByTestId("home-circles-catalog");
     await expect(catalog.locator("article[data-example-cause]")).toHaveCount(27);
     await expect(catalog.locator("article[data-standalone-campaign]")).toHaveCount(1);
-    const footer = catalog.getByRole("link", { name: "Sketch your own cause", exact: true });
+    const footer = catalog.locator("summary").filter({ hasText: "Campaign tools" });
     const usableBottom = await page.evaluate(() => {
       const nav = document.querySelector<HTMLElement>(".sl-tabbar")!, main = document.querySelector<HTMLElement>("#app-content")!;
       const controls = [...nav.querySelectorAll("button,button span")].map(node => node.getBoundingClientRect()).filter(rect => rect.height > 0 && rect.width > 0);
@@ -185,7 +184,7 @@ test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () =>
       const controls = [...nav.querySelectorAll("button,button span")].map(node => node.getBoundingClientRect()).filter(rect => rect.height > 0 && rect.width > 0);
       return { bottom: Math.min(innerHeight, main.getBoundingClientRect().bottom, nav.getBoundingClientRect().top, ...controls.map(rect => rect.top)), scrollTop: main.scrollTop };
     });
-    const footer = catalog.getByRole("link", { name: "Sketch your own cause", exact: true });
+    const footer = catalog.locator("summary").filter({ hasText: "Campaign tools" });
     const rect = await footer.boundingBox(); expect(rect).not.toBeNull();
     expect(rect!.y + rect!.height).toBeLessThanOrEqual(geometry.bottom + 1);
     expect(rect!.height).toBeGreaterThanOrEqual(43.5);
@@ -258,9 +257,8 @@ test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () =>
         const controls = [...nav.querySelectorAll("button,button span")].map(node => node.getBoundingClientRect()).filter(rect => rect.height > 0 && rect.width > 0);
         return { bottom: Math.min(innerHeight, frame.getBoundingClientRect().bottom, main.getBoundingClientRect().bottom, nav.getBoundingClientRect().top, ...controls.map(rect => rect.top)), scrollTop: main.scrollTop, documentScrollTop: document.scrollingElement?.scrollTop ?? 0 };
       });
-      const c = circlesCopy(locale);
       const footerControls = [
-        catalog.getByRole("link", { name: c("Sketch your own cause"), exact: true }),
+        catalog.locator("summary").filter({ hasText: homeCatalogCopy(locale, "Campaign tools") }),
         catalog.getByRole("button", { name: homeCatalogCopy(locale, "Previous example cause"), exact: true }),
         catalog.getByRole("button", { name: homeCatalogCopy(locale, "Next example cause"), exact: true }),
       ];

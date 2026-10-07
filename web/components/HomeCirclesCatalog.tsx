@@ -4,7 +4,6 @@ import { useLayoutEffect, useRef, useSyncExternalStore } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Heart } from "@phosphor-icons/react/dist/csr/Heart";
-import { Star } from "@phosphor-icons/react/dist/csr/Star";
 import { useT } from "@/components/I18nProvider";
 import { Ico } from "@/components/ui/icons";
 import { SEED_CIRCLES } from "@/lib/circles/seed";
@@ -102,7 +101,7 @@ export default function HomeCirclesCatalog({ campaigns = [], circleLinks = {}, l
       </div>
       <Image src="/illustrations/giving.png" alt="" width={90} height={90} />
     </header>
-    <p className={styles.notice}>{copy(isLocalPreview ? "Fictional causes · AI photos · example ratings · no payment." : "Fictional causes · AI photos · QA Testnet donations when linked.")}</p>
+    <p className={styles.notice}>{copy(isLocalPreview ? "Fictional causes · no payment." : "Fictional causes · Testnet XLM only.")}</p>
     <div className={styles.tools}>
       <label htmlFor="home-cause-category">
         <span className={styles.srOnly}>{copy("Category")}</span>
@@ -130,15 +129,10 @@ export default function HomeCirclesCatalog({ campaigns = [], circleLinks = {}, l
           </Link>
           <div className={styles.body}>
             <h2><Link href={`/circles/${circle.id}`} prefetch={false} title={circle.title}><span>{circle.title}</span></Link></h2>
-            <Link href={`/circles/${circle.id}`} prefetch={false} className={styles.organizer} aria-label={copy("View example cause: {title}", { title: circle.title })}>
+            <div className={styles.organizer} data-testid="home-campaign-organizer">
               {organizer ? <ExampleOrganizerAvatar organizer={organizer} size={34} /> : <span className={styles.avatar} aria-hidden="true">{circle.organizer.charAt(0)}</span>}
               <span className={styles.identity}><strong>{circle.organizer}</strong><small>{circle.organizerLocation}{" "}{c("· Example organizer")}</small></span>
-              {Ico.chev({ size: 15 })}
-            </Link>
-            {organizer ? <div className={styles.rating}>
-              <span><span>{copy("Example rating")}</span><Star size={13} weight="fill" aria-hidden="true" /><strong>{organizer.rating.toFixed(1)}/5</strong></span>
-              <small>{copy("{count} example reviews", { count: organizer.reviewCount })}</small>
-            </div> : null}
+            </div>
             <HomeCircleFundingProgress circle={circle} active={ready && position === index} />
             <Link href={`/circles/${circle.id}`} prefetch={ready && position === index} className={styles.pledge}><Heart size={18} aria-hidden="true" />{c("View campaign")}</Link>
           </div>
@@ -152,14 +146,21 @@ export default function HomeCirclesCatalog({ campaigns = [], circleLinks = {}, l
         <div className={styles.body}>
           <h2><Link href={`/campaigns?id=${campaign.id}`} prefetch={false} title={campaign.title}><span>{campaign.title}</span></Link></h2>
           <span className={styles.testnetState}>#{campaign.id} · {campaign.state}</span>
-          <p className={styles.testnetNote}>{copy("Escrow and public proof on Stellar Testnet. No real money.")}</p>
+          <p className={styles.testnetNote}>{homeCopy(locale, "test XLM · no real money")}</p>
           <div className={styles.testnetTotal}><strong>{formatStroops(campaign.total)} XLM</strong><small>{homeCopy(locale, "funded on Testnet")}</small></div>
           <Link href={`/campaigns?id=${campaign.id}`} prefetch={false} className={styles.pledge}><Heart size={18} aria-hidden="true" />{c("View campaign")}</Link>
         </div>
       </article>)}
     </div>
     <div className={styles.footer}>
-      <Link href="/circles/create" prefetch={false} className={styles.explore}>{c("Sketch your own cause")}{Ico.chev({ size: 15 })}</Link>
+      <details className={styles.campaignTools}>
+        <summary>{copy("Campaign tools")}</summary>
+        <nav className={styles.otherActions} aria-label={copy("Campaign tools")}>
+          <Link href="/circles/create" prefetch={false} className={styles.explore}>{c("Sketch your own cause")}{Ico.chev({ size: 15 })}</Link>
+          <Link href="/campaigns?mode=testnet" prefetch={false}>{copy("D4 Testnet campaigns")}{Ico.chev({ size: 12 })}</Link>
+          {!isLocalPreview ? <Link href="/campaigns?create=1" prefetch={false}>{copy("Start a campaign")}</Link> : null}
+        </nav>
+      </details>
       <div className={styles.controls}>
         <button type="button" aria-label={copy("Previous example cause")} onClick={() => move(index - 1)} disabled={!ready || cardCount < 2}>{Ico.back({ size: 17 })}</button>
         <span aria-label={copy("{current} of {count} example causes", { current: Math.min(index + 1, cardCount), count: cardCount })}>{String(Math.min(index + 1, cardCount)).padStart(2, "0")} / {String(cardCount).padStart(2, "0")}</span>
@@ -170,6 +171,5 @@ export default function HomeCirclesCatalog({ campaigns = [], circleLinks = {}, l
         the persistent navigation when it is slow or needs a retry. */}
     {!isLocalPreview && loading ? <p className={styles.discoveryStatus} role="status">{copy("Checking other Testnet campaigns")}</p> : null}
     {!isLocalPreview && error ? <div className={styles.discoveryStatus} role="alert"><span>{homeCopy(locale, error)}</span>{onRetry ? <button type="button" onClick={onRetry}>{homeCopy(locale, "Try again")}</button> : null}</div> : null}
-    <nav className={styles.otherActions} aria-label={copy("D4 Testnet campaigns")}><Link href="/campaigns?mode=testnet" prefetch={false}>{copy("D4 Testnet campaigns")}{Ico.chev({ size: 12 })}</Link>{!isLocalPreview ? <Link href="/campaigns?create=1" prefetch={false}>{copy("Start a campaign")}</Link> : null}</nav>
   </section>;
 }

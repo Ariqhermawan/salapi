@@ -1,20 +1,20 @@
-.home { padding: 10px 16px 24px; color: #0c1730; }
-.wallet { background: #092247; color: white; border-radius: 24px; padding: 10px 16px; box-shadow: 0 14px 34px -25px #0c2e5c; }
-.identity { display: flex; align-items: center; gap: 10px; padding-bottom: 6px; border-bottom: 1px solid #ffffff26; }
+.home { padding: 6px 12px 0; color: #0c1730; }
+.wallet { background: #092247; color: white; border-radius: 24px; padding: 6px 12px; box-shadow: 0 14px 34px -25px #0c2e5c; }
+.identity { display: flex; align-items: center; gap: 8px; padding-bottom: 2px; border-bottom: 1px solid #ffffff26; }
 .avatar { width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0; display: grid; place-items: center; background: #fff; color: #2563eb; font-size: 22px; font-weight: 750; }
 .name { flex: 1; min-width: 0; display: grid; gap: 3px; }
 .name > span { display:none; }
 .name strong { font-size: 17px; letter-spacing: -.025em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .name small { color: #c7d7ef; font-size: 11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .round { width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid #ffffff26; background: #ffffff10; border-radius: 50%; flex-shrink: 0; }
-.walletContent { display: grid; grid-template-columns: minmax(0,1fr) 176px; gap: 12px; padding-top: 6px; align-items:center; }
+.walletContent { display: grid; grid-template-columns: minmax(0,1fr) 176px; gap: 12px; padding-top: 2px; align-items:center; }
 .walletContent > div:first-child { text-align:center; min-width:0; }
 .balanceLabel { display: flex; gap: 8px; align-items: center; justify-content:center; flex-wrap: wrap; }
-.balanceLabel > span:first-child { color: #9a4d0b; background: #fff0d7; border: 1px solid #f1d4a8; border-radius: 20px; padding: 4px 8px; font-size: 9px; letter-spacing: .06em; font-weight: 700; }
-.amount { display: flex; align-items: baseline; justify-content:center; white-space: nowrap; margin-top: 5px; }
+.balanceLabel > span:first-child { color: #9a4d0b; background: #fff0d7; border: 1px solid #f1d4a8; border-radius: 20px; padding: 1px 8px; font-size: 9px; letter-spacing: .06em; font-weight: 700; }
+.amount { display: flex; align-items: baseline; justify-content:center; white-space: nowrap; margin-top: 1px; }
 .amount > span { font-size: 19px; margin-right: 2px; }
 .walletContent p { color: #bdcce4; font-size: 10px; line-height: 1.5; margin: 8px 0 0; }
-.walletCaption { color: #bdcce4; font-size: 10px; line-height: 1.3; margin: 4px 0 0; text-align: center; }
+.walletCaption { color: #bdcce4; font-size: 10px; line-height: 1.3; margin: 1px 0 0; text-align: center; }
 .walletActions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; min-width: 0; padding: 4px; border-radius: 18px; background: #ffffff0a; box-shadow: inset 0 0 0 1px #ffffff14; }
 .walletAction { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-width: 0; min-height: 48px; padding: 6px 4px; border-radius: 14px; color: #f2f6ff; transition: background .18s ease, transform .18s ease; }
 .walletAction + .walletAction::before { content: ""; position: absolute; left: -3px; top: 50%; width: 1px; height: 26px; background: #ffffff1f; transform: translateY(-50%); }
@@ -59,23 +59,25 @@
 .controls button { width: 44px; height: 44px; display: grid; place-items: center; }
 .controls span { min-width: 35px; text-align: center; font-variant-numeric: tabular-nums; }
 .pause { width: 44px; height: 44px; flex-shrink:0; border-radius: 24px; background: white; border: 1px solid #dedfe3; display: grid; place-items: center; }
-.quick { margin-top: 20px; }
-.sectionTitle { display: flex; align-items: center; gap: 12px; font-size: 10px; font-weight: 750; color: #586985; letter-spacing: .09em; margin: 0 3px 11px; }
+.quick { margin-top: 8px; }
+.sectionTitle { display: flex; align-items: center; gap: 12px; font-size: 10px; font-weight: 750; color: #586985; letter-spacing: .09em; margin: 0 3px 5px; }
 .sectionTitle span { flex: 1; height: 1px; background: #dfe6f0; }
-.quickGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.tile { min-height: 99px; display: flex; align-items: center; gap: 6px; padding: 9px 7px; border: 2px solid white; border-radius: 19px; position: relative; box-shadow: 0 4px 12px -9px #18376925; }
-.tile img { width: 66px; height: auto; object-fit: contain; flex-shrink: 0; }
-.tile > div { display: grid; gap: 4px; min-width: 0; }
-.tile strong { font-size: 14px; font-weight: 750; line-height: 1.15; letter-spacing: -.025em; }
-.tile small { color: #586985; font-size: 10px; line-height: 1.3; }
+.quickGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.tile { min-height: 76px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 6px 3px; border: 2px solid white; border-radius: 16px; position: relative; box-shadow: 0 4px 12px -9px #18376925; text-align: center; }
+.tile img { width: 32px; height: 32px; object-fit: contain; flex-shrink: 0; }
+.tile > div { display: grid; gap: 3px; min-width: 0; justify-items: center; }
+.tile strong { font-size: 11px; font-weight: 750; line-height: 1.2; letter-spacing: -.025em; }
+.tile small { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.tile:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+.tile:active { filter: brightness(.97); }
 .blue { background: #eaf3ff; }
 .mint { background: #edf9f4; }
 .cream { background: #fff7e9; }
 .coming { background: #dfe6ee; color: #536785; border-radius: 20px; font-size: 9px; padding: 3px 7px; width: fit-content; font-weight: 600; }
-.tileArrow { width: 23px; height: 23px; display: grid; place-items: center; position: absolute; bottom: 7px; right: 7px; color: #2563eb; background: white; border-radius: 50%; }
-.stellar { display: grid; justify-items: center; gap: 3px; padding-top: 12px; color: #586985; font-size: 11px; text-align: center; }
-.stellar small { font-size: 10px; }
-.stellar > a { font-size: 10px; color: #2563eb; margin-top: 3px; }
+.stellar { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 4px 8px; color: #586985; font-size: 11px; text-align: center; }
+.stellar small { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.stellar > a { display: inline-flex; align-items: center; min-height: 44px; font-size: 10px; color: #2563eb; }
+.stellar > a:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
 .skeletonCards { display: flex; gap: 14px; height: 330px; overflow: hidden; }
 .skeletonCards > div { min-width: 83%; border-radius: 19px; }
 .empty { min-height: 130px; display: grid; align-content: center; gap: 10px; padding: 25px; color: #586985; background: #fff; border-radius: 18px; font-size: 13px; }
@@ -106,13 +108,13 @@
 .testnetBridge small { font-size: 10px; line-height: 1.4; color: #586985; }
 .catalogTools select:focus-visible, .catalogTools > a:focus-visible, .catalogTitle:focus-visible, .catalogOrganizer:focus-visible, .catalogCard .photo:focus-visible, .testnetBridge:focus-visible { outline: 2px solid #2563eb; outline-offset: 3px; }
 @container (max-width: 420px) {
-  .home { padding: 10px 12px 24px; } .wallet { padding: 10px 14px; }
-  .identity { padding-bottom: 6px; } .avatar { width: 44px; height: 44px; }
+  .home { padding: 6px 12px 0; } .wallet { padding: 6px 12px; }
+  .identity { padding-bottom: 2px; } .avatar { width: 44px; height: 44px; }
   .name > span { display: none; }
-  .walletContent { grid-template-columns: minmax(0,1fr); gap: 10px; padding-top: 6px; align-items: center; }
+  .walletContent { grid-template-columns: minmax(0,1fr); gap: 6px; padding-top: 2px; align-items: center; }
   .walletAction { flex-direction: row; padding: 6px 8px; gap: 8px; }
   .walletActionLabel { font-size: 12px; }
-  .amount { margin-top: 5px; } .walletContent p { margin-top: 4px; }
+  .amount { margin-top: 1px; } .walletContent p { margin-top: 4px; }
   .crowdfunding { margin-top: 10px; padding-top: 10px; }
   .giveHeader { min-height: 62px; } .giveHeader h1 { font-size: 27px; }
   .giveHeader img { width: 62px; height: auto; } .giveHeader p { max-width: 215px; font-size: 11px; }
@@ -121,12 +123,12 @@
   .campaign h2 { font-size: 20px; margin-top: 8px; }
   .campaign p { margin-bottom: 10px; }
   .donate { margin-top: 8px; }
-  .tile img { width: 52px; height: auto; } .tile strong { font-size: 13px; }
+  .tile img { width: 32px; height: 32px; } .tile strong { font-size: 11px; }
 }
 @container (min-width: 421px) {
   .walletContent { grid-template-columns:minmax(0,1fr) 176px; }
 }
-@container (max-width: 350px) { .walletContent { gap:6px; } .walletAction { padding-inline:4px; gap:6px; } .walletActionIcon { width:28px; height:28px; } .walletActionLabel { font-size:11px; } .quickGrid { gap: 7px; } .tile { flex-direction: column; align-items: flex-start; padding: 10px; } .tile img { align-self: center; } .giveHeader img { width: 44px; } .giveHeader h1 { font-size: 23px; } .name strong { font-size: 15px; } .identity { gap:7px; } }
+@container (max-width: 350px) { .walletContent { gap:6px; } .walletAction { padding-inline:4px; gap:6px; } .walletActionIcon { width:28px; height:28px; } .walletActionLabel { font-size:11px; } .quickGrid { gap: 4px; } .giveHeader img { width: 44px; } .giveHeader h1 { font-size: 23px; } .name strong { font-size: 15px; } .identity { gap:7px; } }
 /* Short windows retain Donate and campaign creation above the persistent tab bar.
    Descriptive copy stays available inside the campaign detail. */
 @media (max-height: 820px) {

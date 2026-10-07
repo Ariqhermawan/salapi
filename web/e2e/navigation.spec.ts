@@ -142,6 +142,7 @@ test("Home organizer, cause and create headers return to their actual Home entry
   await headerBack(page);
   await expectRoute(page, homeRoute);
 
+  await page.getByTestId("home-circles-catalog").locator("summary").filter({ hasText: "Campaign tools" }).click();
   await page.getByTestId("home-circles-catalog").getByRole("link", { name: "Sketch your own cause", exact: true }).click();
   await expectRoute(page, "/circles/create");
   await expect(page.locator("#circle-draft-title")).toBeVisible();

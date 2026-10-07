@@ -60,6 +60,7 @@ test("Home exposes one ordered campaign carousel and keeps explicit D4 browsing 
   await expect(page.locator("#home-cause-category option")).toHaveCount(10);
   await expect(catalogSection.locator('#home-cause-category option[value="all"]')).toHaveText("All campaigns");
   await expect(catalogSection.locator("article[data-example-cause]")).toHaveCount(27);
+  await catalogSection.locator("summary").filter({ hasText: "Campaign tools" }).click();
   await expect(catalogSection.getByRole("link", { name: "Sketch your own cause", exact: true })).toHaveAttribute("href", "/circles/create");
   await expect(page.getByLabel("Example causes carousel", { exact: true })).toHaveCount(1);
   await expect(page.locator('section[aria-labelledby="testnet-campaign-title"]')).toHaveCount(0);
@@ -78,12 +79,12 @@ test("Home exposes one ordered campaign carousel and keeps explicit D4 browsing 
   await expect(page.getByRole("link", { name: donationEntry })).toBeVisible();
 });
 
-test("Home categories show three examples per sector and clickable organizer ratings and histories", async ({ page }) => {
+test("Home categories show three compact examples per sector while organizer details retain ratings and histories", async ({ page }) => {
   await page.goto("/", { waitUntil: "domcontentloaded", timeout: 45000 });
   const catalog = page.getByTestId("home-circles-catalog");
   const category = catalog.locator("#home-cause-category");
-  const liveMode = await catalog.getByText("Fictional causes · AI photos · QA Testnet donations when linked.", { exact: true }).count() > 0;
-  await expect(catalog.getByText(liveMode ? "Fictional causes · AI photos · QA Testnet donations when linked." : "Fictional causes · AI photos · example ratings · no payment.", { exact: true })).toBeVisible();
+  const liveMode = await catalog.getByText("Fictional causes · Testnet XLM only.", { exact: true }).count() > 0;
+  await expect(catalog.getByText(liveMode ? "Fictional causes · Testnet XLM only." : "Fictional causes · no payment.", { exact: true })).toBeVisible();
   await expect(catalog).toHaveAttribute("data-catalog-ready", "true", { timeout: 20000 });
   await expect(category).toBeEnabled();
   for (const sector of ["disaster", "medical", "education", "community", "family", "creator", "animals", "care", "volunteer"]) {
@@ -91,8 +92,8 @@ test("Home categories show three examples per sector and clickable organizer rat
     await expect(catalog.locator("article[data-example-cause]")).toHaveCount(3);
     await expect(catalog.locator("article[data-standalone-campaign]")).toHaveCount(0);
     await expect(catalog.getByRole("status").filter({ hasText: /^3 examples$/ })).toHaveText("3 examples");
-    await expect(catalog.getByText("Example rating", { exact: true })).toHaveCount(3);
-    await expect(catalog.getByText("3 example reviews", { exact: true })).toHaveCount(3);
+    await expect(catalog.getByText("Example rating", { exact: true })).toHaveCount(0);
+    await expect(catalog.getByTestId("home-campaign-organizer")).toHaveCount(3);
     const covers = catalog.locator("article[data-example-cause] > a img");
     await expect(covers).toHaveCount(3);
     for (const cover of await covers.all()) await expect(cover).toHaveAttribute("src", /(?:\/circles\/generated\/|circles%2Fgenerated%2F)/);
@@ -121,7 +122,7 @@ test("live Home standalone D4 cards retain direct contract IDs after the story c
   await page.goto("/", { waitUntil: "domcontentloaded", timeout: 45000 });
   const catalog = page.getByTestId("home-circles-catalog");
   await expect(catalog).toHaveAttribute("data-catalog-ready", "true", { timeout: 20000 });
-  test.skip(await catalog.getByText("Fictional causes · AI photos · example ratings · no payment.", { exact: true }).count() > 0, "Local preview does not invoke on-chain discovery readers");
+  test.skip(await catalog.getByText("Fictional causes · no payment.", { exact: true }).count() > 0, "Local preview does not invoke on-chain discovery readers");
   await expect(catalog.getByText("Checking other Testnet campaigns", { exact: true })).toHaveCount(0, { timeout: 30000 });
   await expect(catalog.getByRole("alert")).toHaveCount(0);
   const standalone = catalog.locator("article[data-standalone-campaign]");

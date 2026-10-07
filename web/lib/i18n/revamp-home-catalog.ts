@@ -1,6 +1,9 @@
 import type { Locale } from "./config";
 
 export const HOME_CATALOG_COPY = {
+  "Campaign tools": ["Mga tool sa kampanya", "Alat campaign", "Công cụ chiến dịch"],
+  "Fictional causes · no payment.": ["Kathang-isip na layunin · walang bayad.", "Tujuan fiktif · tanpa pembayaran.", "Mục tiêu hư cấu · không thanh toán."],
+  "Fictional causes · Testnet XLM only.": ["Kathang-isip na layunin · Testnet XLM lang.", "Tujuan fiktif · hanya XLM Testnet.", "Mục tiêu hư cấu · chỉ XLM Testnet."],
   "All campaigns": ["Lahat ng kampanya", "Semua campaign", "Tất cả chiến dịch"],
   "Escrow and public proof on Stellar Testnet. No real money.": ["Escrow at pampublikong patunay sa Stellar Testnet. Walang totoong pera.", "Escrow dan bukti publik di Stellar Testnet. Bukan uang nyata.", "Ký quỹ và bằng chứng công khai trên Stellar Testnet. Không phải tiền thật."],
   "Checking other Testnet campaigns": ["Sinusuri ang iba pang kampanya sa Testnet", "Memeriksa campaign Testnet lainnya", "Đang kiểm tra các chiến dịch Testnet khác"],

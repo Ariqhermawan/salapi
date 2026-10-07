@@ -86,7 +86,7 @@ export default function Home() {
     const task = setTimeout(() => { void loadWallet(); void loadCampaigns(); }, 0);
     return () => { clearTimeout(task); requestVersion.current++; campaignVersion.current++; };
   }, [loadWallet, loadCampaigns]);
-  return <div className={s.home}>
+  return <div className={s.home} data-testid="home-dashboard">
     <section className={s.wallet} aria-label={copy("Your Testnet wallet")}>
       <div className={s.identity}>
         <Link href="/settings" className={s.avatar} aria-label={copy("Your account")}><AccountAvatar name={handle || photo.profile?.email || "Salapi"} photoUrl={photo.profile?.photoUrl ?? null} size={44} alt={photoCopy.alt} loading={photo.status === "loading"} /></Link>
@@ -113,14 +113,14 @@ export default function Home() {
       <p className={s.walletCaption}>{isLocalPreview ? `${PREVIEW_WALLET.xlm} ${copy("test XLM · no real money")}` : copy("Native Testnet XLM · indicative value · no real money")}</p>
     </section>
     <HomeCirclesCatalog campaigns={campaigns} circleLinks={circleLinks} loading={loading} error={error} onRetry={loadCampaigns} />
-    <section className={s.quick} aria-label={copy("QUICK ACTIONS")}><div className={s.sectionTitle}>{copy("QUICK ACTIONS")}<span /></div><div className={s.quickGrid}>
+    <section className={s.quick} aria-label={copy("QUICK ACTIONS")}><div className={s.quickGrid}>
       {[
         { title: "Smart Savings", sub: isLocalPreview ? "Create a local saving goal" : "Lock toward a goal", art: "savings", demo: isLocalPreview, to: "/savings", tone: "mint" },
         { title: "Arisan", sub: "Fund together, upfront", art: "arisan", to: "/arisan", tone: "blue" },
         { title: "Send by @", sub: "Send to anyone by name", art: "send", to: "/send", tone: "blue" },
         { title: "Disaster Vault", sub: "Shared payout approvals", art: "disaster", to: "/transparency", tone: "cream" },
       ].map(tile => <Link key={tile.art} href={tile.to} className={`${s.tile} ${s[tile.tone]}`}>
-        <Image src={`/illustrations/${tile.art}.png`} alt="" width="78" height="78" /><div><strong>{copy(tile.title)}</strong><small>{copy(tile.sub)}</small>{tile.demo && <span className={s.coming}>{copy("Local demo")}</span>}</div><span className={s.tileArrow}>{Ico.chev({ size: 14 })}</span>
+        <Image src={`/illustrations/${tile.art}.png`} alt="" width="78" height="78" /><div><strong>{copy(tile.title)}</strong><small>{copy(tile.sub)}</small>{tile.demo && <span className={s.coming}>{copy("Local demo")}</span>}</div>
       </Link>)}
     </div></section>
     <footer className={s.stellar}><PoweredByStellarV2 /><small>{copy("Public proof on Stellar Testnet")}</small><Link href="/docs">{copy("How Salapi works")}</Link></footer>

@@ -392,16 +392,14 @@ test("Home prototype UI phrases cover all four locales and preserve interpolatio
   }
 });
 
-for (const preview of [true, false]) for (const locale of LOCALES) test(`${locale}: ${preview ? "preview" : "live"} Home renders all 27 example covers, organizers and synthetic ratings`, async () => {
+for (const preview of [true, false]) for (const locale of LOCALES) test(`${locale}: ${preview ? "preview" : "live"} compact Home retains all 27 covers, organizers and funding without duplicating synthetic ratings`, async () => {
   const ui = mount({ locale, preview }); await ui.flush();
   assert.equal(ui.cards.length, 27);
   const c = circlesCopy.circlesCopy(locale);
   assert.ok(ui.catalog);
-  assert.ok(text(ui.catalog).includes(catalogCopy.homeCatalogCopy(locale, preview ? "Fictional causes · AI photos · example ratings · no payment." : "Fictional causes · AI photos · QA Testnet donations when linked.")));
-  const organizers = fixture("../lib/circles/organizers.ts") as { getOrganizerForCircle(circle: Circle): { rating: number; reviewCount: number } };
+  assert.ok(text(ui.catalog).includes(catalogCopy.homeCatalogCopy(locale, preview ? "Fictional causes · no payment." : "Fictional causes · Testnet XLM only.")));
   for (const [index, card] of ui.cards.entries()) {
     const circle = seed.SEED_CIRCLES[index];
-    const organizer = organizers.getOrganizerForCircle(circle);
     const image = nodes(card).find(node => node.type === "Image")!;
     assert.equal(card.props["data-example-cause"], circle.id);
     assert.equal(image.props.src, circle.coverImage);
@@ -416,10 +414,7 @@ for (const preview of [true, false]) for (const locale of LOCALES) test(`${local
     assert.ok(cardLinks.filter(node => text(node).trim() !== c("View campaign")).every(node => node.props.prefetch === false));
     assert.ok(text(card).includes(circle.title)); assert.ok(text(card).includes(circle.organizer));
     assert.ok(text(card).includes(c("Example cause")));
-    assert.ok(text(card).includes(catalogCopy.homeCatalogCopy(locale, "Example rating")));
-    assert.ok(nodes(card).some(node => node.type === "span" && text(node) === catalogCopy.homeCatalogCopy(locale, "Example rating")), "The visible rating label must remain independently identifiable");
-    assert.ok(text(card).includes(organizer.rating.toFixed(1)));
-    assert.ok(text(card).includes(catalogCopy.homeCatalogCopy(locale, "{count} example reviews", { count: organizer.reviewCount })));
+    assert.equal(nodes(card).some(node => hasClass(node, "rating")), false, "Home summarizes funding; synthetic ratings remain in the organizer detail");
     const funding = nodes(card).find(node => node.type === "HomeCircleFundingProgress"); assert.ok(funding);
     assert.equal(funding.props.circle, circle);
     assert.equal(funding.props.active, index === 0, "Only the selected card may read Testnet funding");
@@ -535,7 +530,7 @@ test("flag0 Home appends paginated standalone D4 after stories in one catalog wi
   }
   assert.ok(nodes(ui.catalog).some(node => node.props.id === "home-cause-category"));
   assert.ok(nodes(ui.tree).some(node => node.props.href === "/campaigns?create=1"));
-  assert.ok(text(ui.tree).includes(catalogCopy.homeCatalogCopy("en", "Escrow and public proof on Stellar Testnet. No real money.")));
+  assert.ok(text(ui.tree).includes(homeCopy("en", "test XLM · no real money")));
   ui.select("animals"); await ui.flush(); assert.equal(ui.cards.length, 3); assert.equal(ui.d4Cards.length, 0); assert.equal(ui.orderedCards.length, 3);
   ui.select("all"); await ui.flush(); assert.equal(ui.cards.length, 27); assert.equal(ui.d4Cards.length, 12);
   assert.deepEqual(ui.calls.campaigns, ["0", "809"], "Selecting examples never reloads or substitutes D4 contract data");
@@ -698,7 +693,7 @@ test("closed D4 campaigns remain honest read-only cards, never fictional pledge 
 test("Home catalog responsive styles retain compact controls and persistent truth framing", () => {
   const css = source("../components/HomeCirclesCatalog.module.css");
   const sheet = parse(css);
-  for (const [selector, property] of [[".tools select", "min-height"], [".organizer", "min-height"], [".body h2 a", "min-height"], [".pledge", "min-height"], [".controls button", "height"]]) {
+  for (const [selector, property] of [[".tools select", "min-height"], [".body h2 a", "min-height"], [".pledge", "min-height"], [".controls button", "height"]]) {
     const values: string[] = [];
     sheet.walkRules(rule => { if (rule.selectors.includes(selector)) for (const node of rule.nodes) if (node.type === "decl" && (node as Declaration).prop === property) values.push((node as Declaration).value); });
     assert.ok(values.some(value => Number.parseFloat(value) >= 44), `${selector} must retain a 44px touch target`);
@@ -706,6 +701,23 @@ test("Home catalog responsive styles retain compact controls and persistent trut
   assert.match(css, /:focus-visible[^}]*outline:\s*2px/);
   assert.doesNotMatch(css, /\.notice\s*\{[^}]*display:\s*none/);
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
+});
+
+test("secondary campaign destinations remain in a closed native disclosure in all four locales", async () => {
+  for (const locale of LOCALES) {
+    const ui = mount({ preview: false, locale }); await ui.flush();
+    const disclosure = nodes(ui.catalog).find(node => node.type === "details" && hasClass(node, "campaignTools"))!;
+    assert.ok(disclosure);
+    assert.equal(disclosure.props.open, undefined, "The default dashboard must not reserve three secondary navigation rows");
+    const summary = nodes(disclosure).find(node => node.type === "summary")!;
+    assert.equal(text(summary), catalogCopy.homeCatalogCopy(locale, "Campaign tools"));
+    assert.deepEqual(nodes(disclosure).filter(node => node.type === "Link").map(node => node.props.href), ["/circles/create", "/campaigns?mode=testnet", "/campaigns?create=1"]);
+    ui.cleanup();
+  }
+  const css = source("../components/HomeCirclesCatalog.module.css");
+  assert.match(css, /\.campaignTools summary\s*\{[^}]*min-height:\s*44px/);
+  assert.match(css, /summary\):focus-visible[^}]*outline:\s*2px/);
+  assert.match(source("../components/screens/CirclesOrganizerScreen.tsx"), /Example rating/);
 });
 
 test("short Home windows reclaim decorative space without shrinking or hiding interactive controls", () => {
@@ -722,7 +734,7 @@ test("short Home windows reclaim decorative space without shrinking or hiding in
       assert.notEqual(node.prop, "font-size");
     }
   });
-  assert.deepEqual(touched, [".catalog", ".header", ".notice", ".tools", ".strip", ".photo", ".category", ".example", ".ai", ".body", ".rating", ".footer"]);
+  assert.deepEqual(touched, [".catalog", ".header", ".notice", ".tools", ".strip", ".photo", ".category", ".example", ".ai", ".body", ".footer"]);
   assert.equal(touched.some(selector => /pledge|button|select|organizer|explore/.test(selector)), false);
 });
 

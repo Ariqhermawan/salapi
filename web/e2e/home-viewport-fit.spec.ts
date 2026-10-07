@@ -5,7 +5,8 @@ import { homeCatalogCopy } from "../lib/i18n/revamp-home-catalog";
 import { circlesCopy } from "../lib/i18n/revamp-circles";
 
 // Measure the app's own clipped scrollport, not just the desktop browser.
-// D4/quick actions may still continue below this compact first screen.
+// Standard phone screens include quick actions and the footer. Short screens
+// retain scrolling, rather than shrinking or clipping essential controls.
 type Scrollport = {
   top: number; right: number; bottom: number; left: number;
   scrollTop: number; documentScrollTop: number; width: number; height: number;
@@ -53,7 +54,7 @@ async function expectTouchTarget(locator: Locator, label: string) {
 }
 
 const viewportCases: { viewport: { width: number; height: number }; locale: Locale }[] = [
-  ...[{ width: 390, height: 740 }, { width: 390, height: 844 }, { width: 1440, height: 950 }, { width: 1280, height: 800 }].map(viewport => ({ viewport, locale: "en" as const })),
+  ...[{ width: 390, height: 740 }, { width: 375, height: 812 }, { width: 390, height: 844 }, { width: 1440, height: 950 }, { width: 1280, height: 800 }].map(viewport => ({ viewport, locale: "en" as const })),
   ...(["tl", "id", "vi"] as const).map(locale => ({ viewport: { width: 390, height: 844 }, locale })),
 ];
 
@@ -87,11 +88,19 @@ for (const { viewport, locale } of viewportCases) {
     await expect(catalog.locator("article[data-example-cause]")).toHaveCount(27);
     const wallet = page.getByRole("region", { name: homeCopy(locale, "Your Testnet wallet"), exact: true });
     const category = catalog.locator("#home-cause-category");
-    const nativeQa = await catalog.getByText(homeCatalogCopy(locale, "Fictional causes · AI photos · QA Testnet donations when linked."), { exact: true }).count() > 0;
+    const nativeQa = await catalog.getByText(homeCatalogCopy(locale, "Fictional causes · Testnet XLM only."), { exact: true }).count() > 0;
     const pledge = firstCard.getByRole("link", { name: c("View campaign"), exact: true });
-    const create = catalog.getByRole("link", { name: c("Sketch your own cause"), exact: true });
+    const tools = catalog.locator("summary").filter({ hasText: homeCatalogCopy(locale, "Campaign tools") });
     const previous = catalog.getByRole("button", { name: homeCatalogCopy(locale, "Previous example cause"), exact: true });
     const next = catalog.getByRole("button", { name: homeCatalogCopy(locale, "Next example cause"), exact: true });
+
+    if (nativeQa) {
+      await expect(wallet.locator("[data-native-balance]")).toBeVisible({ timeout: 30000 });
+      await expect(catalog.getByText(homeCatalogCopy(locale, "Checking other Testnet campaigns"), { exact: true })).toHaveCount(0, { timeout: 30000 });
+      const fundingLoading = { en: "Checking Testnet funding", tl: "Sinusuri ang Testnet funding", id: "Memeriksa pendanaan Testnet", vi: "Đang kiểm tra đóng góp Testnet" }[locale];
+      await expect(firstCard.getByText(fundingLoading, { exact: true })).toHaveCount(0, { timeout: 30000 });
+    }
+    const settledBounds = await appScrollport(page);
 
     await expectFullyInside(wallet, bounds, "Testnet wallet and its actions");
     const walletCaption = wallet.locator("p");
@@ -99,16 +108,28 @@ for (const { viewport, locale } of viewportCases) {
     const captionText = await walletCaption.textContent();
     expect([homeCopy(locale, "Native Testnet XLM · indicative value · no real money"), homeCopy(locale, "test XLM · no real money")].some(copy => captionText?.includes(copy)), "Locale-specific Testnet/no-real-money framing must stay visible").toBe(true);
     await expectFullyInside(catalog.getByText(homeCatalogCopy(locale, nativeQa
-      ? "Fictional causes · AI photos · QA Testnet donations when linked."
-      : "Fictional causes · AI photos · example ratings · no payment."), { exact: true }), bounds, "Persistent fictional/AI/Testnet framing");
-    await expectFullyInside(firstCard.locator("a").filter({ has: page.getByText("Maria S.", { exact: true }) }), bounds, "Clickable organizer row opens its campaign");
-    await expectFullyInside(firstCard.getByText(homeCatalogCopy(locale, "Example rating"), { exact: true }), bounds, "Example rating label");
+      ? "Fictional causes · Testnet XLM only."
+      : "Fictional causes · no payment."), { exact: true }), bounds, "Persistent fictional/Testnet framing");
+    await expectFullyInside(firstCard.getByTestId("home-campaign-organizer"), bounds, "Organizer identity and photo");
+    await expect(firstCard.getByText(homeCatalogCopy(locale, "Example rating"), { exact: true })).toHaveCount(0);
     await expectFullyInside(pledge, bounds, "Preview pledge CTA");
-    await expectFullyInside(create, bounds, "Example creation footer");
+    await expectFullyInside(tools, bounds, "Campaign tools disclosure");
     await expectFullyInside(previous, bounds, "Previous example footer control");
     await expectFullyInside(next, bounds, "Next example footer control");
-    for (const [control, label] of [[category, "Category"], [pledge, "Preview pledge"], [create, "Sketch cause"], [previous, "Previous example"], [next, "Next example"]] as const) await expectTouchTarget(control, label);
+    for (const [control, label] of [[category, "Category"], [pledge, "Preview pledge"], [tools, "Campaign tools"], [previous, "Previous example"], [next, "Next example"]] as const) await expectTouchTarget(control, label);
     for (const label of ["Top up", "Withdraw"]) await expectTouchTarget(wallet.getByRole("link", { name: homeCopy(locale, label), exact: true }), label);
+
+    if (viewport.width < 1024 && viewport.height >= 812) {
+      const quick = page.getByRole("region", { name: homeCopy(locale, "QUICK ACTIONS"), exact: true });
+      await expect(quick.getByRole("link")).toHaveCount(4);
+      for (const action of await quick.getByRole("link").all()) {
+        await expectFullyInside(action, settledBounds, "Quick action");
+        await expectTouchTarget(action, "Quick action");
+      }
+      await expectFullyInside(page.getByRole("link", { name: homeCopy(locale, "How Salapi works"), exact: true }), settledBounds, "Stellar/footer documentation");
+      const size = await page.locator("#app-content").evaluate(node => ({ height: node.clientHeight, scroll: node.scrollHeight }));
+      expect(size.scroll, "Closed default dashboard must fit without scrolling on standard phone screens").toBeLessThanOrEqual(size.height + 1);
+    }
 
     // These controls must remain usable without Playwright silently scrolling
     // the main panel down to reach them. Category updates must also not move it.
@@ -121,7 +142,11 @@ for (const { viewport, locale } of viewportCases) {
     await previous.click();
     await expect(catalog.getByLabel(homeCatalogCopy(locale, "{current} of {count} example causes", { current: 1, count: 3 }), { exact: true })).toHaveText("01 / 03");
     expect((await appScrollport(page)).scrollTop).toBe(0);
-    await expectFullyInside(create, await appScrollport(page), "Filtered example creation footer");
+    await expectFullyInside(tools, await appScrollport(page), "Filtered campaign tools footer");
+    await expect(catalog.locator("details").filter({ has: tools })).not.toHaveAttribute("open", "");
+    await tools.click();
+    await expect(catalog.getByRole("link", { name: c("Sketch your own cause"), exact: true })).toBeVisible();
+    await expect(catalog.getByRole("link", { name: homeCatalogCopy(locale, "D4 Testnet campaigns"), exact: true })).toBeVisible();
   });
   });
 }

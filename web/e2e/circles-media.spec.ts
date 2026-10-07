@@ -112,12 +112,12 @@ test("Home retains its compact carousel with actual example avatar images", asyn
   const catalog = page.getByTestId("home-circles-catalog");
   await expect(catalog).toHaveAttribute("data-catalog-ready", "true", { timeout: 20000 });
   const first = catalog.locator("article[data-example-cause]").first();
-  const organizer = first.locator("a").filter({ has: page.getByText("Maria S.", { exact: true }) });
-  await expect(organizer).toHaveAttribute("href", "/circles/tino-relief");
+  const organizer = first.getByTestId("home-campaign-organizer");
+  await expect(organizer).toContainText("Maria S.");
   await expect(organizer.locator("img")).toHaveCount(1);
   const bounds = await organizer.locator("img").boundingBox();
   expect(bounds?.height).toBe(30); // 34px avatar includes its existing 2px border.
   await expect(catalog.locator("article[data-example-cause]")).toHaveCount(27);
-  await expect(first.getByText("Example rating", { exact: true })).toBeVisible();
+  await expect(first.getByText("Example rating", { exact: true })).toHaveCount(0);
   await noHorizontalOverflow(page);
 });
