@@ -202,6 +202,8 @@ const rows = {
   settingsWalletLoad: ["Your wallet could not be loaded. Reload this page to try again.", "Hindi ma-load ang wallet. I-reload ang pahina para subukan muli.", "Wallet tidak dapat dimuat. Muat ulang halaman untuk mencoba lagi.", "Không tải được ví. Tải lại trang để thử lại."],
   communityAlt: ["People working together around a globe", "Mga taong nagtutulungan sa paligid ng mundo", "Orang-orang bekerja sama mengelilingi globe", "Mọi người cùng hợp tác quanh quả địa cầu"],
   previewAccount: ["Local preview account", "Lokal na preview account", "Akun pratinjau lokal", "Tài khoản xem trước cục bộ"],
+  guestAccount: ["Guest account", "Account ng bisita", "Akun tamu", "Tài khoản khách"],
+  sharedDemoWallet: ["Shared demo wallet · Stellar Testnet", "Demo wallet na pinagsasaluhan · Stellar Testnet", "Wallet demo bersama · Stellar Testnet", "Ví demo dùng chung · Stellar Testnet"],
   managedWallet: ["Managed Stellar Testnet wallet", "Pinamamahalaang Stellar Testnet wallet", "Wallet Stellar Testnet terkelola", "Ví Stellar Testnet được quản lý"],
   accountDetails: ["Account details", "Detalye ng account", "Detail akun", "Thông tin tài khoản"],
   localReminders: ["Local reminders. Push delivery is not enabled.", "Lokal na paalala. Hindi aktibo ang push notification.", "Pengingat lokal. Notifikasi push belum aktif.", "Nhắc nhở cục bộ. Chưa bật thông báo đẩy."],

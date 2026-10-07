@@ -214,6 +214,9 @@ function profileButton(html: string, status: "loading" | "ready" | "error", loca
 
 function assertNoDefaultIdentity(html: string, locale: Locale = "en") {
   assert.ok(!html.includes(translate(locale, "settings.salapiUser")), "Unresolved identity must not render Salapi user");
+  assert.ok(!html.includes(accountCopy(locale).guestAccount), "Unresolved identity must not claim to be a guest");
+  assert.ok(!html.includes(accountCopy(locale).sharedDemoWallet), "Unresolved identity must not claim a demo wallet");
+  assert.ok(!html.includes(accountCopy(locale).managedWallet), "Unresolved identity must not claim a personal managed wallet");
   assert.ok(!html.includes(`>${translate(locale, "settings.claim")}<`), "Unresolved identity must not offer Claim");
   assert.doesNotMatch(html, /data-avatar-name=/, "Unresolved identity must use neutral avatar placeholder");
 }
@@ -274,12 +277,30 @@ test("a confirmed no-handle result waits for auth before showing identity or Cla
   await flush();
   const html = h.render();
   profileButton(html, "ready");
-  assert.ok(html.includes(translate("en", "settings.salapiUser")));
+  assert.ok(html.includes(accountCopy("en").guestAccount));
+  assert.ok(html.includes(accountCopy("en").sharedDemoWallet));
+  assert.ok(!html.includes(accountCopy("en").managedWallet));
   assert.ok(html.includes(`>${translate("en", "settings.claim")}<`));
-  assert.match(html, /data-avatar-name="Salapi"/);
+  assert.ok(html.includes(`data-avatar-name="${accountCopy("en").guestAccount}"`));
 });
 
 for (const locale of LOCALES) {
+  test(`${locale}: a confirmed live guest is explicitly guest with a shared demo Testnet wallet`, async () => {
+    const h = harness({ locale }); h.render(); h.mount();
+    h.identity.resolve({ ok: true, handle: null });
+    h.auth.resolve({ data: { user: null }, error: null });
+    h.wallet.resolve({ address: PREVIEW_WALLET.address });
+    await flush(); const html = h.render();
+    profileButton(html, "ready", locale);
+    const c = accountCopy(locale);
+    assert.ok(html.includes(`class="profileName">${c.guestAccount}</span>`));
+    assert.ok(html.includes(`class="profileSub">${c.sharedDemoWallet}</span>`));
+    assert.ok(html.includes(`data-avatar-name="${c.guestAccount}"`));
+    assert.ok(!html.includes(translate(locale, "settings.salapiUser")));
+    assert.ok(!html.includes(c.managedWallet));
+    assert.ok(html.includes(`>${translate(locale, "signin.signIn")}<`));
+    assert.deepEqual(h.calls, { handle: 1, wallet: 1, auth: 1 });
+  });
   test(`${locale}: a signed-in account without a handle displays its verified email and email avatar`, async () => {
     const h = harness({ locale });
     h.render();
@@ -292,6 +313,9 @@ for (const locale of LOCALES) {
     assert.match(html, /class="profileName">fixture@example\.invalid<\/span>/);
     assert.match(html, /data-avatar-name="fixture@example\.invalid"/);
     assert.ok(!html.includes(translate(locale, "settings.salapiUser")));
+    assert.ok(html.includes(accountCopy(locale).managedWallet));
+    assert.ok(!html.includes(accountCopy(locale).sharedDemoWallet));
+    assert.ok(!html.includes(accountCopy(locale).guestAccount));
     assert.ok(html.includes(`>${translate(locale, "settings.claim")}<`));
     assert.ok(!html.includes(`>${translate(locale, "signin.signIn")}<`));
   });
@@ -395,7 +419,9 @@ for (const missingMode of ["error result", "rejected request"] as const) {
     else h.auth.reject(new AuthSessionMissingError());
     await flush();
     profileButton(h.render(), "ready");
-    assert.ok(h.render().includes(translate("en", "settings.salapiUser")));
+    assert.ok(h.render().includes(accountCopy("en").guestAccount));
+    assert.ok(h.render().includes(accountCopy("en").sharedDemoWallet));
+    assert.ok(!h.render().includes(accountCopy("en").managedWallet));
     assert.ok(h.render().includes(`>${translate("en", "signin.signIn")}<`));
     assert.equal(h.snapshot().authFailed, false);
   });

@@ -300,7 +300,10 @@ export default function SettingsScreen() {
   // verified account email instead of briefly presenting a generic identity.
   const profileStatus = nameStatus !== "ready" || name
     ? nameStatus : !authChecked ? "loading" : authFailed ? "error" : "ready";
-  const display = name ? `@${name}` : supaEmail ?? t("settings.salapiUser");
+  const guest = !isLocalPreview && profileStatus === "ready" && !name && !supaEmail && authChecked && !authFailed;
+  const display = name ? `@${name}` : supaEmail ?? c.guestAccount;
+  const profileSub = isLocalPreview ? c.previewAccount : profileStatus === "loading" ? c.loading
+    : profileStatus === "error" ? c.profileUnavailable : guest ? c.sharedDemoWallet : c.managedWallet;
   const shortAddr = addr ? `${addr.slice(0, 4)}…${addr.slice(-4)}` : "-";
   const explorer = addr
     ? `https://stellar.expert/explorer/testnet/account/${addr}`
@@ -327,13 +330,13 @@ export default function SettingsScreen() {
       <button type="button" className={styles.profile} onClick={() => router.push("/settings/account")}
         disabled={profileStatus === "loading" || signOutPending} aria-busy={profileStatus === "loading"} data-profile-state={profileStatus}
         aria-label={profileStatus === "loading" ? c.profileLoading : profileStatus === "error" ? c.accountDetails : undefined}>
-        {profileStatus === "ready" ? <AccountAvatar name={name || supaEmail || "Salapi"} photoUrl={photo.profile?.photoUrl ?? null} size={46} alt={photoCopy.alt} loading={photo.status === "loading"} />
+        {profileStatus === "ready" ? <AccountAvatar name={name || supaEmail || c.guestAccount} photoUrl={photo.profile?.photoUrl ?? null} size={46} alt={photoCopy.alt} loading={photo.status === "loading"} />
           : <span className={`${styles.profileAvatarPlaceholder} ${profileStatus === "loading" ? "sl-skel" : ""}`} aria-hidden="true" />}
         <span className={styles.profileCopy}>
           <span className={styles.profileName}>{profileStatus === "loading"
             ? <span className={`${styles.profileNamePlaceholder} sl-skel`} aria-hidden="true" />
             : profileStatus === "error" ? c.profileUnavailable : display}</span>
-          <span className={styles.profileSub}>{isLocalPreview ? c.previewAccount : c.managedWallet}</span>
+          <span className={styles.profileSub}>{profileSub}</span>
           <span className={styles.profileMeta}>
             <span className={styles.testnet}><span />Testnet</span>
             <span className={styles.accountDetails}>{profileStatus === "loading" ? c.loading : <>{c.accountDetails}{Ico.chev({ size: 15, c: T.action })}</>}</span>
