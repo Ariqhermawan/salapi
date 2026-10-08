@@ -15,6 +15,7 @@ import { formatStroops } from "@/lib/format-stroops";
 import type { Campaign } from "@/lib/campaign";
 import type { Locale } from "@/lib/i18n/config";
 import { vaultCampaignMedia } from "@/lib/vault-campaign-media";
+import { vaultCircleCover } from "@/lib/vault-campaign-cover";
 import { circleDisplayTitle } from "@/lib/i18n/circles-content";
 import {
   PREVIEW_CAMPAIGNS,
@@ -47,6 +48,12 @@ const campaignCardCopy: Record<Locale, {
   tl: { campaign: "Kampanya ng donasyon", organizer: "Organizer", beneficiary: "Benepisyaryo", approver: "Tagapag-apruba", donor: "Donor", exampleOrganizer: "Halimbawang kathang-isip na organizer", organizerWallet: "Wallet ng organizer", photo: "Larawang ilustrasyon ng kampanya", portrait: "Ilustrasyong larawan sa profile, hindi beripikadong pagkakakilanlan", viewProfile: "Tingnan ang halimbawang profile ng organizer", noPhoto: "Walang ibinigay na larawan ng kampanya", inEscrow: "Testnet XLM sa escrow", review: "Pagsusuri ng patunay", viewCampaign: "Tingnan ang kampanya" },
   id: { campaign: "Campaign donasi", organizer: "Penyelenggara", beneficiary: "Penerima manfaat", approver: "Pemberi persetujuan", donor: "Donatur", exampleOrganizer: "Contoh penyelenggara fiktif", organizerWallet: "Wallet penyelenggara", photo: "Foto campaign ilustrasi", portrait: "Foto profil ilustrasi, bukan identitas terverifikasi", viewProfile: "Lihat profil penyelenggara contoh", noPhoto: "Foto campaign belum tersedia", inEscrow: "Testnet XLM dalam escrow", review: "Tinjauan bukti", viewCampaign: "Lihat campaign" },
   vi: { campaign: "Chiến dịch quyên góp", organizer: "Nhà tổ chức", beneficiary: "Người thụ hưởng", approver: "Người phê duyệt", donor: "Người quyên góp", exampleOrganizer: "Nhà tổ chức hư cấu mẫu", organizerWallet: "Ví nhà tổ chức", photo: "Ảnh minh họa chiến dịch", portrait: "Ảnh hồ sơ minh họa, không phải danh tính đã xác minh", viewProfile: "Xem hồ sơ nhà tổ chức mẫu", noPhoto: "Chưa cung cấp ảnh chiến dịch", inEscrow: "Testnet XLM trong ký quỹ", review: "Xem xét bằng chứng", viewCampaign: "Xem chiến dịch" },
+};
+const catalogCoverCopy: Record<Locale, string> = {
+  en: "AI illustration · fictional cause",
+  tl: "Ilustrasyong AI · kathang-isip na layunin",
+  id: "Ilustrasi AI · campaign fiktif",
+  vi: "Minh họa AI · chiến dịch hư cấu",
 };
 const campaignHistoryCopy = {
   en: { partial: "Older campaigns are still being checked. This count is not the final total.", failed: "Older campaigns could not be loaded. Your verified entries are still shown. Try again.", more: "Load older campaigns", loading: "Checking older campaigns…" },
@@ -558,12 +565,15 @@ export default function VaultsScreen() {
           {mine.map((campaign) => {
             const media = vaultCampaignMedia(campaign, PREVIEW);
             const circleId = campaigns?.ok ? campaigns.circleLinks?.[campaign.id] : undefined;
+            // A verified catalog association restores the cover, not a fictional
+            // organizer identity. Real creator wallets stay authoritative below.
+            const coverSrc = media?.coverSrc ?? (!PREVIEW ? vaultCircleCover(circleId) : null);
             const displayTitle = circleId ? circleDisplayTitle(circleId, locale) ?? campaign.title : campaign.title;
             const creator = campaign.config.creator;
             const shortCreator = `${creator.slice(0, 6)}…${creator.slice(-6)}`;
             return <article key={campaign.id} className={styles.campaignVault} aria-labelledby={`vault-campaign-${campaign.id}`}>
-              <header className={styles.campaignHero} data-has-photo={Boolean(media)}>
-                {media ? <Image src={media.coverSrc} alt="" fill sizes="(max-width: 440px) 100vw, 460px" className={styles.campaignCover} /> : null}
+              <header className={styles.campaignHero} data-has-photo={Boolean(coverSrc)}>
+                {coverSrc ? <Image src={coverSrc} alt="" fill sizes="(max-width: 440px) 100vw, 460px" className={styles.campaignCover} /> : null}
                 <div className={styles.campaignHeroContent}>
                   <div className={styles.campaignHeroTop}>
                     <span className={styles.campaignNumber}>{cardCopy.campaign} #{campaign.id}</span>
@@ -580,7 +590,7 @@ export default function VaultsScreen() {
                     </span>
                   </div>
                   <div>
-                    <span className={styles.campaignPhotoNote}>{media ? cardCopy.photo : cardCopy.noPhoto}</span>
+                    <span className={styles.campaignPhotoNote}>{media ? cardCopy.photo : coverSrc ? catalogCoverCopy[locale] : cardCopy.noPhoto}</span>
                     <h3 id={`vault-campaign-${campaign.id}`}>{displayTitle}</h3>
                   </div>
                 </div>

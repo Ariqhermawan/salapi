@@ -8,6 +8,7 @@ import { formatLocal } from "../lib/ui/currency.ts";
 import { formatStroops } from "../lib/format-stroops.ts";
 import type { Campaign } from "../lib/campaign.ts";
 import type { Locale } from "../lib/i18n/config.ts";
+import type { Circle } from "../lib/circles/types.ts";
 import { homeCopy } from "../lib/i18n/revamp-home.ts";
 import * as contentCopy from "../lib/i18n/circles-content.ts";
 
@@ -32,6 +33,16 @@ function transpile(path: string, jsx = false) {
 const media = {} as { vaultCampaignMedia(campaign: Campaign, preview: boolean): Media | null };
 runInNewContext(transpile("../lib/vault-campaign-media.ts"), { exports: media, require(name: string) {
   assert.equal(name, "./local-preview"); return { PREVIEW_CAMPAIGNS };
+} });
+const organizers: Record<string, unknown> = {};
+runInNewContext(transpile("../lib/circles/organizers.ts"), { exports: organizers });
+const catalog = {} as { SEED_CIRCLES: Circle[]; COMPLETED_CIRCLES: Circle[] };
+runInNewContext(transpile("../lib/circles/seed.ts"), { exports: catalog, require(name: string) {
+  assert.equal(name, "./organizers"); return organizers;
+} });
+const covers = {} as { vaultCircleCover(circleId: string | undefined): string | null };
+runInNewContext(transpile("../lib/vault-campaign-cover.ts"), { exports: covers, require(name: string) {
+  assert.equal(name, "./circles/seed"); return catalog;
 } });
 const code = transpile("../components/screens/VaultsScreen.tsx", true);
 
@@ -86,6 +97,7 @@ function screen(options: { preview?: boolean; campaigns?: Campaign[]; circleLink
       if (name === "@/lib/ui/currency") return { formatLocal };
       if (name === "@/lib/format-stroops") return { formatStroops };
       if (name === "@/lib/vault-campaign-media") return media;
+      if (name === "@/lib/vault-campaign-cover") return covers;
       if (name === "@/lib/local-preview") return { PREVIEW_CAMPAIGNS, PREVIEW_TIME, PREVIEW_WALLET, normalizePreviewCampaigns: (values: Campaign[]) => values };
       if (name === "./arisan-preview") return { readPreviewArisanRoom: forbidden("storage") };
       if (name.endsWith(".module.css")) return { default: styles };
@@ -168,12 +180,69 @@ test("server-verified catalog associations localize Vault titles but preserve or
     assert.ok(text(ui.cards[0]).includes(contentCopy.circleDisplayTitle("cebu-community-water", locale)!));
     assert.ok(text(ui.cards[0]).includes(formatStroops(campaign.escrow)));
     assert.ok(text(ui.cards[1]).includes(custom.title));
-    assert.equal(nodes(ui.cards[0]).some(node => node.type === "Image"), false);
+    assert.ok(nodes(ui.cards[0]).some(node => node.type === "Image" && node.props.src === "/circles/generated/cebu-community-water.png"));
+    assert.equal(nodes(ui.cards[1]).some(node => node.type === "Image"), false);
     assert.deepEqual(ui.calls, { actions: 0, network: 0, storage: 0 });
   }
   const fallback = screen({ preview: false, campaigns: [campaign], locale: "id" });
   assert.ok(text(fallback.cards[0]).includes(campaign.title));
   assert.equal(JSON.stringify([campaign, custom]), before);
+});
+
+test("verified live catalog cards recover the exact cover but retain actual creator wallet and ledger data", () => {
+  const slugs = ["cats-recovery", "cebu-community-water", "barangay-library", "arisan-banjir-jakarta", "ate-mei-dialysis", "tino-relief"];
+  const campaigns = slugs.map((slug, index) => ({ ...PREVIEW_CAMPAIGNS[0], id: String(24 - index), title: `QA Circles: ${slug}`, escrow: String(5010000000 - index) }));
+  const circleLinks = Object.fromEntries(campaigns.map((campaign, index) => [campaign.id, slugs[index]]));
+  const before = JSON.stringify(campaigns);
+  for (const locale of ["en", "tl", "id", "vi"] as const) {
+    const ui = screen({ preview: false, campaigns, circleLinks, locale });
+    assert.equal(ui.cards.length, slugs.length);
+    for (const [index, card] of ui.cards.entries()) {
+      const header = nodes(card).find(node => node.type === "header")!;
+      assert.equal(header.props["data-has-photo"], true);
+      const images = nodes(card).filter(node => node.type === "Image");
+      assert.equal(images.length, 1, "A catalog cover must not attach a fictional organizer avatar");
+      assert.equal(images[0].props.src, `/circles/generated/${slugs[index]}.png`);
+      assert.equal(images[0].props.alt, ""); assert.equal(images[0].props.fill, true);
+      assert.ok(nodes(card).some(node => node.type === "a" && node.props.href === `https://stellar.expert/explorer/testnet/account/${campaigns[index].config.creator}`));
+      assert.equal(nodes(card).some(node => String(node.props.href ?? "").startsWith("/circles/")), false);
+      assert.ok(text(card).includes(formatStroops(campaigns[index].escrow)));
+      assert.ok(nodes(card).some(node => node.type === "Link" && node.props.href === `/campaigns?id=${campaigns[index].id}`));
+      const labels = { en: "AI illustration · fictional cause", tl: "Ilustrasyong AI · kathang-isip na layunin", id: "Ilustrasi AI · campaign fiktif", vi: "Minh họa AI · chiến dịch hư cấu" };
+      assert.ok(text(header).includes(labels[locale]));
+      assert.doesNotMatch(text(card), /Paws & Home Care|Maria S\.|Fictional organizer example/);
+    }
+    assert.deepEqual(ui.calls, { actions: 0, network: 0, storage: 0 });
+  }
+  assert.equal(JSON.stringify(campaigns), before);
+});
+
+test("unmapped, mismatched, unknown and completed associations do not invent live campaign covers", () => {
+  const campaign = { ...PREVIEW_CAMPAIGNS[0], id: "24", title: "QA Circles: cats-recovery" };
+  const invalidLinks = [undefined, { "25": "cats-recovery" }, ...["unknown-cause", "__proto__", "constructor", "../cats-recovery", "cats-clinic-recovery"].map(slug => ({ "24": slug }))];
+  for (const circleLinks of invalidLinks) {
+    const ui = screen({ preview: false, campaigns: [campaign], circleLinks });
+    assert.equal(nodes(ui.cards[0]).some(node => node.type === "Image"), false);
+    assert.match(text(ui.cards[0]), /Campaign photo not provided/);
+    assert.ok(nodes(ui.cards[0]).some(node => node.type === "a" && node.props.href === `https://stellar.expert/explorer/testnet/account/${campaign.config.creator}`));
+    assert.deepEqual(ui.calls, { actions: 0, network: 0, storage: 0 });
+  }
+  for (const slug of [undefined, "", "unknown-cause", "__proto__", "constructor", "../cats-recovery", ...catalog.COMPLETED_CIRCLES.map(circle => circle.id)])
+    assert.equal(covers.vaultCircleCover(slug), null);
+});
+
+test("all 27 active catalog associations resolve existing covers without mutating catalog data", () => {
+  const before = JSON.stringify(catalog);
+  assert.equal(catalog.SEED_CIRCLES.length, 27);
+  for (const circle of catalog.SEED_CIRCLES) {
+    const src = covers.vaultCircleCover(circle.id);
+    assert.equal(src, circle.coverImage);
+    assert.match(src!, /^\/circles\/generated\/[a-z0-9-]+\.png$/);
+    const bytes = readFileSync(new URL(`../public${src}`, import.meta.url));
+    assert.equal(bytes.subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
+    assert.ok(bytes.readUInt32BE(16) >= 44 && bytes.readUInt32BE(20) >= 44);
+  }
+  assert.equal(JSON.stringify(catalog), before);
 });
 
 test("actual local campaign cards contain decorative cover, visibly fictional organizer and descriptive portrait", () => {

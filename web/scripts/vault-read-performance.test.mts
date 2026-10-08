@@ -179,6 +179,7 @@ function screenSetup(read: () => Promise<Overview>, preview = false, storage: { 
     "@/components/ui/kit": { Ico: new Proxy({}, { get: () => () => null }), T: {}, PoweredByStellar: "PoweredByStellar" },
     "@/lib/ui/currency": { formatLocal }, "@/lib/format-stroops": { formatStroops },
     "@/lib/vault-campaign-media": { vaultCampaignMedia: () => null },
+    "@/lib/vault-campaign-cover": { vaultCircleCover: () => null },
     "@/lib/i18n/circles-content": contentCopy,
     "@/lib/local-preview": { PREVIEW_CAMPAIGNS, PREVIEW_TIME, PREVIEW_WALLET, normalizePreviewCampaigns: (value: unknown) => value },
     "./arisan-preview": { readPreviewArisanRoom: () => null },
