@@ -1,6 +1,8 @@
 import type { Locale } from "./config";
 
 const copy = {
+  autoUpdates: ["Updates automatically while this page is open.", "Awtomatikong ina-update habang bukas ang pahinang ito.", "Diperbarui otomatis saat halaman ini terbuka.", "Tự động cập nhật khi trang này đang mở."],
+  updating: ["Checking for new transfers…", "Sinusuri ang mga bagong transfer…", "Memeriksa transfer baru…", "Đang kiểm tra giao dịch mới…"],
   checking: ["Checking confirmed incoming and outgoing XLM and verified USDC.", "Sinusuri ang nakumpirmang papasok at palabas na XLM at verified USDC.", "Memeriksa XLM dan USDC terverifikasi yang masuk dan keluar.", "Kiểm tra XLM và USDC đã xác minh được gửi và nhận."],
   signedOut: ["Confirmed XLM and verified USDC transfers appear here for your saved Testnet wallet.", "Dito makikita ang nakumpirmang XLM at verified USDC transfer ng naka-save na Testnet wallet.", "Transfer XLM dan USDC terverifikasi muncul di sini untuk wallet Testnet kamu.", "Giao dịch XLM và USDC đã xác minh của ví Testnet đã lưu hiển thị tại đây."],
   confirmed: ["XLM and Circle-issued Testnet USDC only. Testnet tokens have no monetary value.", "XLM at Circle-issued Testnet USDC lang. Walang halagang pera ang Testnet tokens.", "Hanya XLM dan USDC Testnet dari Circle. Token Testnet tidak bernilai uang.", "Chỉ XLM và USDC Testnet do Circle phát hành. Token Testnet không có giá trị tiền tệ."],

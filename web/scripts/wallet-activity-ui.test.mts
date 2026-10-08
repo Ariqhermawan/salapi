@@ -49,13 +49,14 @@ function mount(options: { preview?: boolean; configured?: boolean; locale?: "en"
   const timers = new Map<number, () => void>();
   const authRequests: ReturnType<typeof deferred<{ data: { user: { id: string } | null }; error?: { name: string } }>>[] = [];
   const historyRequests: { cursor: string | null; deferred: ReturnType<typeof deferred<WalletActivityResult>> }[] = [];
+  const watchers: { address: string; changed: () => Promise<void>; closed: boolean }[] = [];
   let cursor = 0, timerId = 0, mutations = 0, subscriptions = 0;
   let authListener: ((event: string, session: { user: { id: string } } | null) => void) | null = null;
   const jsx = (type: unknown, props: Record<string, unknown>) => ({ type, props });
   const exports = {} as { default(): Element };
   const icons = new Proxy({}, { get: () => () => null });
   const forbidden = () => { throw Error("Unexpected mutation or network boundary"); };
-  runInNewContext(compiled, { exports, Intl, Promise, document: { getElementById: () => ({ focus() {} }) },
+  runInNewContext(compiled, { exports, Intl, Promise, AbortController, AbortSignal, queueMicrotask, document: { getElementById: () => ({ focus() {} }) },
     setTimeout(callback: () => void) { const id = ++timerId; timers.set(id, callback); return id; }, clearTimeout(id: number) { timers.delete(id); },
     require(dependency: string) {
       if (dependency === "react/jsx-runtime") return { jsx, jsxs: jsx, Fragment: "Fragment" };
@@ -81,6 +82,10 @@ function mount(options: { preview?: boolean; configured?: boolean; locale?: "en"
       };
       if (dependency === "next/link") return { default: "Link" };
       if (dependency === "@/app/actions") return { walletActivity(nextCursor: string | null = null) { const next = deferred<WalletActivityResult>(); historyRequests.push({ cursor: nextCursor, deferred: next }); return next.promise; }, sendByUsername: forbidden };
+      if (dependency === "@/lib/ui/wallet-activity-read") return { readWalletActivity(nextCursor: string | null) { const next = deferred<WalletActivityResult>(); historyRequests.push({ cursor: nextCursor, deferred: next }); return next.promise; } };
+      if (dependency === "@/lib/ui/watchWalletActivity") return { watchWalletActivity(address: string, changed: () => Promise<void>) {
+        const watcher = { address, changed, closed: false }; watchers.push(watcher); return () => { watcher.closed = true; };
+      } };
       if (dependency === "@/lib/supabase/env") return { supabaseConfigured: () => options.configured ?? true };
       if (dependency === "@/lib/supabase/client") return { createSupabaseBrowser: () => ({ auth: {
         getUser() { const next = deferred<{ data: { user: { id: string } | null }; error?: { name: string } }>(); authRequests.push(next); return next.promise; },
@@ -130,7 +135,7 @@ function mount(options: { preview?: boolean; configured?: boolean; locale?: "en"
   function emitAuth(id: string | null) { assert.ok(authListener); authListener(id ? "SIGNED_IN" : "SIGNED_OUT", id ? { user: { id } } : null); render(); }
   function unmount() { for (const cleanup of cleanups.values()) cleanup(); cleanups.clear(); }
   render(); runEffects();
-  return { get tree() { return tree; }, get mutations() { return mutations; }, get subscriptions() { return subscriptions; }, authRequests, historyRequests, render, flush, click, emitAuth, unmount };
+  return { get tree() { return tree; }, get mutations() { return mutations; }, get subscriptions() { return subscriptions; }, authRequests, historyRequests, watchers, render, flush, click, emitAuth, unmount };
 }
 function state(tree: Element) { return nodes(tree).find((node) => node.props["data-personal-history-state"])?.props["data-personal-history-state"]; }
 
@@ -500,4 +505,62 @@ test("native receipt layout reserves a full-width line and never wraps digits in
   assert.match(native, /overflow-x:\s*auto/);
   assert.match(css, /\.personalTimeline \.transferButton\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/);
   assert.doesNotMatch(css, /\.receiptAmount\s*\{[^}]*max-width:\s*55%/);
+});
+
+test("a new incoming transfer is prepended automatically without clearing rows, details or older pagination", async () => {
+  const h = mount(); h.emitAuth("owner-a"); await h.flush();
+  h.historyRequests[0].deferred.resolve(pageResult([item()], "101")); await h.flush();
+  h.click("Load earlier transfers"); await h.flush();
+  h.historyRequests[1].deferred.resolve(pageResult([item("90:payment")], "90")); await h.flush();
+  const details = nodes(h.tree).find(node => node.props["aria-controls"] === "activity-receipt-90:payment")!;
+  (details.props.onClick as () => void)(); h.render();
+  assert.equal(h.watchers.length, 1);
+  void h.watchers[0].changed(); await h.flush();
+  assert.equal(state(h.tree), "ready");
+  assert.match(text(h.tree), /446\.1538462/);
+  assert.equal(nodes(h.tree).find(node => node.props["aria-controls"] === "activity-receipt-90:payment")?.props["aria-expanded"], true);
+  h.historyRequests[2].deferred.resolve(pageResult([item("110:payment", "received", "70000000"), item()], "100")); await h.flush();
+  assert.deepEqual(nodes(h.tree).filter(node => "data-activity-native-amount" in node.props).map(text), ["+7", "+446.1538462", "+446.1538462"]);
+  assert.equal(nodes(h.tree).filter(node => node.props["aria-controls"] === "activity-receipt-101:sac-0").length, 1);
+  h.click("Load earlier transfers"); await h.flush(); assert.equal(h.historyRequests[3].cursor, "90"); h.unmount();
+});
+
+test("background read failures preserve the last confirmed rows and retry clears the error", async () => {
+  const h = mount(); h.emitAuth("owner-a"); await h.flush();
+  h.historyRequests[0].deferred.resolve(pageResult([item()])); await h.flush();
+  void h.watchers[0].changed(); await h.flush();
+  h.historyRequests[1].deferred.reject(Error("Offline fixture")); await h.flush();
+  assert.equal(state(h.tree), "ready"); assert.match(text(h.tree), /446\.1538462.*?/);
+  assert.match(text(h.tree), /Your Testnet history could not be loaded/);
+  void h.watchers[0].changed(); await h.flush();
+  h.historyRequests[2].deferred.resolve(pageResult([item()])); await h.flush();
+  assert.doesNotMatch(text(h.tree), /could not be loaded/); h.unmount();
+});
+
+test("public proof, sign-out, account switch and unmount close the old wallet watcher", async () => {
+  const h = mount(); h.emitAuth("owner-a"); await h.flush(); h.historyRequests[0].deferred.resolve(pageResult([item()])); await h.flush();
+  h.click("Public proof"); await h.flush(); assert.equal(h.watchers[0].closed, true);
+  h.click("My activity"); await h.flush(); assert.equal(h.watchers.length, 2);
+  h.emitAuth("owner-b"); await h.flush(); assert.equal(h.watchers[1].closed, true);
+  h.historyRequests[1].deferred.resolve(pageResult([item()], null, counterparty, "owner-b")); await h.flush();
+  assert.equal(h.watchers[2].address, counterparty);
+  h.emitAuth(null); await h.flush(); assert.equal(h.watchers[2].closed, true); h.unmount();
+});
+
+test("events arriving while an older page is loading queue exactly one fresh head read", async () => {
+  const h = mount(); h.emitAuth("owner-a"); await h.flush(); h.historyRequests[0].deferred.resolve(pageResult([item()], "101")); await h.flush();
+  h.click("Load earlier transfers"); await h.flush();
+  void h.watchers[0].changed(); void h.watchers[0].changed(); await h.flush(); assert.equal(h.historyRequests.length, 2);
+  h.historyRequests[1].deferred.resolve(pageResult([item("90:payment")], "90")); await h.flush();
+  assert.equal(h.historyRequests.length, 3); assert.equal(h.historyRequests[2].cursor, null);
+  h.historyRequests[2].deferred.resolve(pageResult([item("110:payment", "received", "20000000"), item()], "100")); await h.flush();
+  assert.match(text(h.tree), /\+2Testnet XLM/); h.unmount();
+});
+
+test("a nonoverlapping new head resets the cursor rather than leave a hidden page gap", async () => {
+  const h = mount(); h.emitAuth("owner-a"); await h.flush(); h.historyRequests[0].deferred.resolve(pageResult([item()], "101")); await h.flush();
+  void h.watchers[0].changed(); await h.flush();
+  h.historyRequests[1].deferred.resolve(pageResult([item("999:payment", "received", "30000000")], "970")); await h.flush();
+  assert.doesNotMatch(text(h.tree), /446\.1538462/);
+  h.click("Load earlier transfers"); await h.flush(); assert.equal(h.historyRequests[2].cursor, "970"); h.unmount();
 });

@@ -131,6 +131,8 @@ function mount(name: typeof names[number], locale: Locale, options: { preview?: 
         throw Error("Auth forbidden in localization tests");
       } };
       if (dependency === "@/app/actions") return { async lookupRecipient(username: string) { calls.lookups++; return { ok: true, username, address: PREVIEW_RECIPIENT }; }, myHandle() { if (!options.myHandle) throw Error("Unexpected wallet read"); calls.handleReads++; return options.myHandle(); }, walletState() { if (!options.walletState) throw Error("Unexpected wallet read"); calls.walletReads++; return options.walletState(); }, registerUsername() { calls.serverWrites++; throw Error("Write forbidden"); }, sendByUsername() { calls.serverWrites++; throw Error("Write forbidden"); } };
+      if (dependency === "@/lib/ui/wallet-activity-read") return { readWalletActivity() { throw Error("Live reads forbidden in local preview"); } };
+      if (dependency === "@/lib/ui/watchWalletActivity") return { watchWalletActivity() { throw Error("Live streams forbidden in local preview"); } };
       if (dependency.endsWith(".module.css")) return { default: {} };
       throw Error(`Unstubbed screen dependency: ${dependency}`);
     },

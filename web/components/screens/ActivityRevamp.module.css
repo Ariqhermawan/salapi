@@ -602,6 +602,7 @@
 }
 .participant { margin-bottom: 4px; }
 .personalTimeline { margin-top: 12px; }
+.liveStatus { color: #61758e; font-size: 10px; line-height: 1.5; margin: 8px 0; }
 .personalTimeline .timelineItem { gap: 11px; padding-bottom: 16px; }
 .personalTimeline .timelineItem:not(:last-child)::before { display: none; }
 .personalTimeline .receiptBody { border-bottom: 1px solid #d6dce8; padding-bottom: 16px; }

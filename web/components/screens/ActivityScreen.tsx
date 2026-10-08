@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import Link from "next/link";
-import { walletActivity } from "@/app/actions";
+import { readWalletActivity } from "@/lib/ui/wallet-activity-read";
+import { watchWalletActivity } from "@/lib/ui/watchWalletActivity";
 import { activityContextHref, activityUsdcEquivalent, type WalletActivityIdentity, type WalletActivityItem } from "@/lib/wallet-activity";
 import AccountAvatar from "@/components/AccountAvatar";
 import { useMarketPrices } from "@/components/MarketPricesProvider";
@@ -181,31 +182,37 @@ export default function ActivityScreen() {
   const [authAttempt, setAuthAttempt] = useState(0);
   const [history, setHistory] = useState<PersonalHistory>(emptyHistory);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [transfers, setTransfers] = useState<PreviewTransfer[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
   const ownerRef = useRef<string | null | undefined>(undefined);
   const requestId = useRef(0);
   const inFlight = useRef(false);
   const mounted = useRef(false);
+  const controller = useRef<AbortController | null>(null);
+  const pendingRefresh = useRef(false);
 
-  const refresh = useCallback(async (cursor: string | null = null) => {
+  const refresh = useCallback(async function refreshHistory(cursor: string | null = null, background = false) {
     if (isLocalPreview) {
       setTransfers(listPreviewTransfers());
       return;
     }
     const requestedOwner = ownerRef.current;
-    if (!requestedOwner || inFlight.current || !mounted.current) return;
+    if (!requestedOwner || !mounted.current) return;
+    if (inFlight.current) { if (background) pendingRefresh.current = true; return; }
     inFlight.current = true;
+    controller.current = new AbortController();
     const currentRequest = ++requestId.current;
     setLoadingMore(Boolean(cursor));
+    setRefreshing(!cursor);
     setHistory((current) => ({
-      ...(!cursor || current.owner !== requestedOwner ? emptyHistory : current),
+      ...((!cursor && !background) || current.owner !== requestedOwner ? emptyHistory : current),
       owner: requestedOwner,
-      status: cursor ? "ready" : "loading",
+      status: cursor || background ? "ready" : "loading",
       error: "",
     }));
     try {
-      const result = await walletActivity(cursor);
+      const result = await readWalletActivity(cursor, AbortSignal.any([controller.current.signal, AbortSignal.timeout(20_000)]));
       if (!mounted.current || currentRequest !== requestId.current || ownerRef.current !== requestedOwner) return;
       if (!result.ok && result.code === "unauthenticated") {
         ownerRef.current = null;
@@ -224,17 +231,22 @@ export default function ActivityScreen() {
         return;
       }
       if (!result.ok) {
-        setHistory((current) => ({ ...current, address: validAddress(result.address), status: "error", error: "Your Testnet history could not be loaded. Try again." }));
+        setHistory((current) => ({ ...current, address: validAddress(result.address), status: background ? "ready" : "error", error: "Your Testnet history could not be loaded. Try again." }));
         return;
       }
       setHistory((current) => {
-        const previous = cursor && current.owner === requestedOwner && current.address === result.address ? current.items : [];
-        const items = [...previous];
-        const seen = new Set(previous.map((item) => item.id));
-        for (const item of result.items) {
+        const sameWallet = current.owner === requestedOwner && current.address === result.address;
+        // Retain loaded older pages only when the new head overlaps them. If
+        // an entire page arrived meanwhile, reset pagination rather than leave
+        // an invisible gap in the confirmed history.
+        const retainOlder = background && sameWallet && result.items.some(item => current.items.some(previous => previous.id === item.id));
+        const previous = (cursor || retainOlder) && sameWallet ? current.items : [];
+        const items: WalletActivityItem[] = [];
+        const seen = new Set<string>();
+        for (const item of cursor ? [...previous, ...result.items] : [...result.items, ...previous]) {
           if (!seen.has(item.id)) { items.push(item); seen.add(item.id); }
         }
-        const identities = new Map((cursor && current.address === result.address ? current.identities : []).map(identity => [identity.address, identity]));
+        const identities = new Map(((cursor || retainOlder) && sameWallet ? current.identities : []).map(identity => [identity.address, identity]));
         const participants = new Set([result.address, ...items.flatMap(item => [item.counterparty, item.fee.status === "available" ? item.fee.payer : null])]);
         const enrichment: unknown[] = Array.isArray(result.identities) ? result.identities.slice(0, 12) : [];
         for (const entry of enrichment) {
@@ -247,15 +259,20 @@ export default function ActivityScreen() {
             photoUrl: typeof identity.photoUrl === "string" && identity.photoUrl.length <= 4096 ? identity.photoUrl : null,
           });
         }
-        return { owner: requestedOwner, address: validAddress(result.address), items, identities: [...identities.values()], nextCursor: result.nextCursor, status: "ready", error: "" };
+        return { owner: requestedOwner, address: validAddress(result.address), items, identities: [...identities.values()], nextCursor: retainOlder ? current.nextCursor : result.nextCursor, status: "ready", error: "" };
       });
     } catch {
       if (mounted.current && currentRequest === requestId.current && ownerRef.current === requestedOwner)
-        setHistory((current) => ({ ...current, status: "error", error: "Your Testnet history could not be loaded. Try again." }));
+        setHistory((current) => ({ ...current, status: background ? "ready" : "error", error: "Your Testnet history could not be loaded. Try again." }));
     } finally {
       if (mounted.current && currentRequest === requestId.current) {
         inFlight.current = false;
         setLoadingMore(false);
+        setRefreshing(false);
+        if (pendingRefresh.current) {
+          pendingRefresh.current = false;
+          queueMicrotask(() => { if (mounted.current && ownerRef.current === requestedOwner) void refreshHistory(null, true); });
+        }
       }
     }
   }, []);
@@ -270,10 +287,13 @@ export default function ActivityScreen() {
       if (!active) return;
       if (ownerRef.current !== nextOwner) {
         ++requestId.current;
+        controller.current?.abort();
+        pendingRefresh.current = false;
         inFlight.current = false;
         ownerRef.current = nextOwner;
         setExpanded(null);
         setLoadingMore(false);
+        setRefreshing(false);
         setHistory(emptyHistory);
       }
       setAuthError(false);
@@ -285,7 +305,7 @@ export default function ActivityScreen() {
     }
     const supabase = createSupabaseBrowser();
     // Synchronous callback: do not make an Auth API call inside the SDK lock.
-    // Server action independently authenticates ownership before any lookup.
+    // Private GET independently authenticates ownership before any lookup.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       ++authRevision;
       applyOwner(session?.user.id ?? null);
@@ -302,6 +322,8 @@ export default function ActivityScreen() {
       active = false;
       mounted.current = false;
       ++requests.current;
+      controller.current?.abort();
+      pendingRefresh.current = false;
       inFlight.current = false;
       subscription.unsubscribe();
     };
@@ -315,6 +337,10 @@ export default function ActivityScreen() {
   // including the frame before the new account request has started.
   const personal = owner && history.owner === owner ? history : emptyHistory;
   const address = isLocalPreview ? PREVIEW_WALLET.address : personal.address;
+  useEffect(() => {
+    if (isLocalPreview || !owner || !address || authError || tab !== "personal") return;
+    return watchWalletActivity(address, () => refresh(null, true));
+  }, [owner, address, authError, tab, refresh]);
   const identitiesByAddress = new Map(personal.identities.map(identity => [identity.address, identity]));
   const loading = !isLocalPreview && !authError && (owner === undefined || Boolean(owner && personal.status === "loading"));
   const shortAddress = address
@@ -449,10 +475,11 @@ export default function ActivityScreen() {
                       <h2>{m("Your Testnet transfers")}</h2>
                       <p>{h("confirmed")}</p>
                     </div>
-                    <button type="button" className={styles.refresh} disabled={loadingMore} aria-label={m("Refresh activity")} onClick={() => void refresh()}>
+                    <button type="button" className={styles.refresh} disabled={loadingMore || refreshing} aria-busy={refreshing} aria-label={m("Refresh activity")} onClick={() => void refresh(null, true)}>
                       {Ico.refresh({ size: 18, c: T.action })}
                     </button>
                   </div>
+                  {address ? <p className={styles.liveStatus} data-activity-auto-update>{h(refreshing ? "updating" : "autoUpdates")}</p> : null}
                   {personal.items.length ? (
                     <details className={styles.historyNotes}>
                       <summary>{h("historyDetails")}</summary>
@@ -465,7 +492,7 @@ export default function ActivityScreen() {
                   {personal.error ? (
                     <div className={styles.error} role="alert">
                       {moneyMessage(locale, personal.error)}
-                      <button type="button" disabled={loadingMore} onClick={() => void refresh()}>{m("Try again")}</button>
+                      <button type="button" disabled={loadingMore || refreshing} onClick={() => void refresh(null, true)}>{m("Try again")}</button>
                     </div>
                   ) : null}
                   {personal.status === "ready" && !address ? (
