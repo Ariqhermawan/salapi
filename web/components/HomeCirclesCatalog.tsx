@@ -113,7 +113,7 @@ export default function HomeCirclesCatalog({ campaigns = [], circleLinks = {}, l
     if (nearest !== index) setIndex(nearest);
   }
 
-  return <section className={styles.catalog} aria-labelledby="home-circles-title" data-testid="home-crowdfunding" data-catalog-ready={ready}>
+  return <section className={styles.catalog} aria-labelledby="home-circles-title" data-testid="home-circles-catalog" data-crowdfunding-catalog="true" data-catalog-ready={ready}>
     <header className={styles.header}>
       <div className={styles.heading}>
         <span className={styles.eyebrow}>{isLocalPreview ? copy("CROWDFUNDING · PROTOTYPE") : homeCopy(locale, "CROWDFUNDING · TESTNET")}</span>
@@ -122,7 +122,7 @@ export default function HomeCirclesCatalog({ campaigns = [], circleLinks = {}, l
       <Link href={isLocalPreview ? "/circles/create" : "/campaigns?create=1"} prefetch={false} className={styles.startCampaign}>{Ico.plus({ size: 17 })}<span>{copy("Start a campaign")}</span></Link>
       <Image className={styles.givingArt} src="/illustrations/crowdfund-together.png" alt="" width={160} height={100} />
     </header>
-    <p className={styles.notice}>{copy(isLocalPreview ? "Fictional causes · no payment." : "Fictional causes · Testnet XLM only.")}</p>
+    <p className={styles.notice}>{copy(isLocalPreview ? "Fictional causes · no payment." : "Fictional causes · Testnet XLM only. No real money.")}</p>
     <div className={styles.tools}>
       <details className={styles.categoryPicker} ref={categoryPicker}>
         <summary id="home-cause-category" aria-label={copy("Category")} aria-disabled={!ready} onClick={event => { if (!ready) event.preventDefault(); }}>

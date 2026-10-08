@@ -36,13 +36,17 @@ test("exact formatter has no SDK, provider, auth or other runtime imports", () =
 
 test("display-only UI imports the pure formatter instead of the SDK-backed validator", () => {
   for (const path of [
-    "../components/HomeCirclesCatalog.tsx", "../components/screens/VaultsScreen.tsx", "../components/screens/CampaignScreen.tsx",
+    "../components/HomeCircleFundingProgress.tsx", "../components/screens/VaultsScreen.tsx", "../components/screens/CampaignScreen.tsx",
     "../components/screens/TransparencyScreen.tsx", "../components/CircleTestnetDonate.tsx",
   ]) {
     const code = source(path);
     assert.match(code, /import \{ formatStroops \} from "@\/lib\/format-stroops";/, path);
     assert.doesNotMatch(code, /import \{[^}]*formatStroops[^}]*\} from "@\/lib\/disaster";/, path);
   }
+  const catalog = source("../components/HomeCirclesCatalog.tsx");
+  assert.match(catalog, /import HomeCircleFundingProgress, \{ ConfirmedFundingProgress \} from "@\/components\/HomeCircleFundingProgress";/);
+  assert.doesNotMatch(catalog, /import\s+(?!type\b)[^;]*from\s+["'][^"']*(?:stellar-sdk|\/lib\/disaster)["']/,
+    "Catalog delegates exact funding display without importing the SDK-backed transaction validator");
   assert.match(source("../lib/disaster.ts"), /export \{ formatStroops \} from "\.\/format-stroops\.ts";/);
   assert.match(source("../lib/disaster.ts"), /StrKey\.isValidEd25519PublicKey/, "The transaction validator is not weakened");
 });

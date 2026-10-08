@@ -107,7 +107,7 @@ test("organizer identities show a fictional individual portrait or NGO logo with
   }
 });
 
-test("Home retains its compact carousel with actual example avatar images", async ({ page }) => {
+test("Home carousel shows example avatar images with explicit sample ratings", async ({ page }) => {
   await page.goto("/", { waitUntil: "domcontentloaded", timeout: 45000 });
   const catalog = page.getByTestId("home-circles-catalog");
   await expect(catalog).toHaveAttribute("data-catalog-ready", "true", { timeout: 20000 });
@@ -116,8 +116,9 @@ test("Home retains its compact carousel with actual example avatar images", asyn
   await expect(organizer).toContainText("Maria S.");
   await expect(organizer.locator("img")).toHaveCount(1);
   const bounds = await organizer.locator("img").boundingBox();
-  expect(bounds?.height).toBe(30); // 34px avatar includes its existing 2px border.
+  expect(bounds?.height).toBe(36); // 40px avatar includes its existing 2px border.
   await expect(catalog.locator("article[data-example-cause]")).toHaveCount(27);
-  await expect(first.getByText("Example rating", { exact: true })).toHaveCount(0);
+  await expect(first.getByText("Example rating", { exact: true })).toHaveCount(1);
+  await expect(first.getByTestId("organizer-trust-summary")).toHaveAttribute("data-kyc-status", "unverified");
   await noHorizontalOverflow(page);
 });

@@ -8,6 +8,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import ts from "typescript";
 import { validateMarketPrices } from "../lib/market-prices.ts";
 import { exampleGoalUsd, fundingUsdProgress } from "../lib/home-circle-funding.ts";
+import { formatStroops } from "../lib/format-stroops.ts";
 import { progressPct, type Circle } from "../lib/circles/types.ts";
 import { homeCatalogCopy } from "../lib/i18n/revamp-home-catalog.ts";
 import type { MarketPriceResult } from "../lib/market-prices.ts";
@@ -52,6 +53,7 @@ function fixture(options: { preview?: boolean; locale?: Locale; result?: CircleT
     } };
     if (name === "@/lib/market-prices") return { validateMarketPrices };
     if (name === "@/lib/home-circle-funding") return { exampleGoalUsd, fundingUsdProgress };
+    if (name === "@/lib/format-stroops") return { formatStroops };
     if (name === "@/lib/circles/types") return { progressPct };
     if (name === "@/lib/i18n/revamp-home-catalog") return { homeCatalogCopy };
     if (name === "@/lib/local-preview") return { isLocalPreview: options.preview ?? false };

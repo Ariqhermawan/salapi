@@ -6,6 +6,7 @@ import { useMarketPrices } from "@/components/MarketPricesProvider";
 import { useCircleTestnet } from "@/lib/ui/useCircleTestnet";
 import { validateMarketPrices } from "@/lib/market-prices";
 import { exampleGoalUsd, fundingUsdProgress } from "@/lib/home-circle-funding";
+import { formatStroops } from "@/lib/format-stroops";
 import type { CampaignDonorSummaryResult } from "@/lib/campaign-donor";
 import { progressPct, type Circle } from "@/lib/circles/types";
 import { homeCatalogCopy } from "@/lib/i18n/revamp-home-catalog";
@@ -20,12 +21,6 @@ const COPY = {
   vi: { loading: "Đang kiểm tra đóng góp Testnet", inactive: "Xem đóng góp trong chiến dịch", unavailable: "Chưa có dữ liệu đóng góp Testnet", marketUnavailable: "Chưa có ước tính USD", confirmed: "Đóng góp Testnet đã xác nhận", collected: "Tổng đóng góp · ước tính USD", goal: "Mục tiêu minh họa", stale: "Giá gần nhất đã biết", contributors: "người đóng góp", wallets: "ví đóng góp", contributorsUnavailable: "Chưa có số người đóng góp", contributorBasis: "Dựa trên hồ sơ đóng góp đã xác nhận. Đếm tài khoản riêng biệt, thay bằng ví khi không có tài khoản; không phải số người đã xác minh. Bao gồm đóng góp ẩn danh.", incomplete: "Một số đóng góp đã xác nhận chưa có hồ sơ; đây là số lượng tối thiểu đã ghi nhận.", exampleAmount: "Số tiền minh họa", exampleContributors: "người đóng góp minh họa" },
 } satisfies Record<Locale, Record<string, string>>;
 const NUMBER_LOCALES: Record<Locale, string> = { en: "en-US", id: "id-ID", tl: "fil-PH", vi: "vi-VN" };
-
-function exactXlm(stroops: string): string {
-  const value = BigInt(stroops);
-  const fraction = (value % 10_000_000n).toString().padStart(7, "0").replace(/0+$/, "");
-  return `${value / 10_000_000n}${fraction ? `.${fraction}` : ""} XLM`;
-}
 
 function ExampleProgress({ circle }: { circle: Circle }) {
   const { locale } = useT();
@@ -60,7 +55,7 @@ export function ConfirmedFundingProgress({ totalStroops, goalUsd = null, donorSu
     <div className={styles.amounts}><span>{copy.collected}</span>
       {progress ? <strong>≈ ${format(progress.usd)} <small>USD</small></strong> : <span className={styles.unknown}>{copy.marketUnavailable}</span>}
       {progress && quote.status === "stale" ? <span className={styles.stale}>{copy.stale}</span> : null}</div>
-    <div className={styles.secondary}><span data-confirmed-stroops={totalStroops}>{exactXlm(totalStroops)} <small>· Testnet</small></span>
+    <div className={styles.secondary}><span data-confirmed-stroops={totalStroops}>{formatStroops(totalStroops)} XLM <small>· Testnet</small></span>
       <span className={styles.contributors} title={summary ? `${copy.contributorBasis}${summary.coverage === "recorded" ? ` ${copy.incomplete}` : ""}` : undefined}>
         <Users size={17} aria-hidden="true" />{summary ? <>{summary.count.toLocaleString(NUMBER_LOCALES[locale])}{summary.coverage === "recorded" ? "+" : ""} {summary.basis === "wallets" ? copy.wallets : copy.contributors}</> : copy.contributorsUnavailable}
       </span></div>

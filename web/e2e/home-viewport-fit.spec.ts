@@ -3,10 +3,11 @@ import { LOCALE_COOKIE, type Locale } from "../lib/i18n/config";
 import { homeCopy } from "../lib/i18n/revamp-home";
 import { homeCatalogCopy } from "../lib/i18n/revamp-home-catalog";
 import { circlesCopy } from "../lib/i18n/revamp-circles";
+import { chooseHomeCauseCategory, expectHomeControlReachable } from "./helpers/home-catalog";
 
 // Measure the app's own clipped scrollport, not just the desktop browser.
-// Standard phone screens include quick actions and the footer. Short screens
-// retain scrolling, rather than shrinking or clipping essential controls.
+// The detailed campaign and quick actions can use vertical app scrolling.
+// Every essential control must remain reachable above persistent navigation.
 type Scrollport = {
   top: number; right: number; bottom: number; left: number;
   scrollTop: number; documentScrollTop: number; width: number; height: number;
@@ -41,7 +42,7 @@ async function expectFullyInside(locator: Locator, bounds: Scrollport, label: st
   const rect = await locator.boundingBox();
   expect(rect, `${label} must have a rendered box`).not.toBeNull();
   expect(rect!.y, `${label} must not be clipped above the main scrollport`).toBeGreaterThanOrEqual(bounds.top - 1);
-  expect(rect!.y + rect!.height, `${label} must fit above the persistent navigation without vertical scrolling`).toBeLessThanOrEqual(bounds.bottom + 1);
+  expect(rect!.y + rect!.height, `${label} must fit above the persistent navigation`).toBeLessThanOrEqual(bounds.bottom + 1);
   expect(rect!.x, `${label} must not overflow the app frame's left edge`).toBeGreaterThanOrEqual(bounds.left - 1);
   expect(rect!.x + rect!.width, `${label} must not overflow the app frame's right edge`).toBeLessThanOrEqual(bounds.right + 1);
 }
@@ -61,7 +62,7 @@ const viewportCases: { viewport: { width: number; height: number }; locale: Loca
 for (const { viewport, locale } of viewportCases) {
   test.describe(`${locale} ${viewport.width}x${viewport.height} app-frame geometry`, () => {
     test.use({ viewport, isMobile: viewport.width < 1024, hasTouch: viewport.width < 1024 });
-  test(`Home wallet and full example card fit the real first viewport at ${viewport.width}x${viewport.height}`, async ({ page, context, baseURL }) => {
+  test(`Home wallet starts visible and campaign controls stay reachable at ${viewport.width}x${viewport.height}`, async ({ page, context, baseURL }) => {
     const c = circlesCopy(locale);
     await context.addCookies([{ name: LOCALE_COOKIE, value: locale, url: new URL(baseURL ?? "http://localhost:4747").origin }]);
     await page.setViewportSize(viewport);
@@ -88,7 +89,7 @@ for (const { viewport, locale } of viewportCases) {
     await expect(catalog.locator("article[data-example-cause]")).toHaveCount(27);
     const wallet = page.getByRole("region", { name: homeCopy(locale, "Your Testnet wallet"), exact: true });
     const category = catalog.locator("#home-cause-category");
-    const nativeQa = await catalog.getByText(homeCatalogCopy(locale, "Fictional causes · Testnet XLM only."), { exact: true }).count() > 0;
+    const nativeQa = await catalog.getByText(homeCatalogCopy(locale, "Fictional causes · Testnet XLM only. No real money."), { exact: true }).count() > 0;
     const pledge = firstCard.getByRole("link", { name: c("View campaign"), exact: true });
     const tools = catalog.locator("summary").filter({ hasText: homeCatalogCopy(locale, "Campaign tools") });
     const previous = catalog.getByRole("button", { name: homeCatalogCopy(locale, "Previous example cause"), exact: true });
@@ -112,22 +113,22 @@ for (const { viewport, locale } of viewportCases) {
       const fundingLoading = { en: "Checking Testnet funding", tl: "Sinusuri ang Testnet funding", id: "Memeriksa pendanaan Testnet", vi: "Đang kiểm tra đóng góp Testnet" }[locale];
       await expect(firstCard.getByText(fundingLoading, { exact: true })).toHaveCount(0, { timeout: 30000 });
     }
-    const settledBounds = await appScrollport(page);
-
     await expectFullyInside(wallet, bounds, "Testnet wallet and its actions");
     const walletCaption = wallet.locator("p");
     await expectFullyInside(walletCaption, bounds, "Persistent no-real-money wallet caption");
     const captionText = await walletCaption.textContent();
     expect([homeCopy(locale, "Testnet · no real money"), homeCopy(locale, "test XLM · no real money")].some(copy => captionText?.includes(copy)), "Locale-specific Testnet/no-real-money framing must stay visible").toBe(true);
     await expectFullyInside(catalog.getByText(homeCatalogCopy(locale, nativeQa
-      ? "Fictional causes · Testnet XLM only."
+      ? "Fictional causes · Testnet XLM only. No real money."
       : "Fictional causes · no payment."), { exact: true }), bounds, "Persistent fictional/Testnet framing");
-    await expectFullyInside(firstCard.getByTestId("home-campaign-organizer"), bounds, "Organizer identity and photo");
-    await expect(firstCard.getByText(homeCatalogCopy(locale, "Example rating"), { exact: true })).toHaveCount(0);
-    await expectFullyInside(pledge, bounds, "Preview pledge CTA");
-    await expectFullyInside(tools, bounds, "Campaign tools disclosure");
-    await expectFullyInside(previous, bounds, "Previous example footer control");
-    await expectFullyInside(next, bounds, "Next example footer control");
+    await expectHomeControlReachable(page, firstCard.getByTestId("home-campaign-organizer"), "Organizer identity and photo");
+    await expect(firstCard.getByText(homeCatalogCopy(locale, "Example rating"), { exact: true })).toHaveCount(1);
+    await expect(firstCard.getByTestId("organizer-trust-summary")).toHaveAttribute("data-kyc-status", "unverified");
+    expect(await firstCard.getByRole("heading", { level: 2 }).evaluate(element => getComputedStyle(element).textAlign), "Campaign heading must use centered formatting").toBe("center");
+    await expectHomeControlReachable(page, pledge, "Campaign CTA");
+    await expectHomeControlReachable(page, tools, "Campaign tools disclosure");
+    await expectHomeControlReachable(page, previous, "Previous example footer control");
+    await expectHomeControlReachable(page, next, "Next example footer control");
     for (const [control, label] of [[category, "Category"], [pledge, "Preview pledge"], [tools, "Campaign tools"], [previous, "Previous example"], [next, "Next example"]] as const) await expectTouchTarget(control, label);
     for (const label of ["Top up", "Withdraw"]) await expectTouchTarget(wallet.getByRole("link", { name: homeCopy(locale, label), exact: true }), label);
 
@@ -142,28 +143,26 @@ for (const { viewport, locale } of viewportCases) {
       const tiles = quick.locator("a, button");
       await expect(tiles).toHaveCount(4);
       for (const action of await tiles.all()) {
-        await expectFullyInside(action, settledBounds, "Quick action");
+        await expectHomeControlReachable(page, action, "Quick action");
         await expectTouchTarget(action, "Quick action");
       }
-      await expectFullyInside(page.getByRole("link", { name: homeCopy(locale, "How Salapi works"), exact: true }), settledBounds, "Stellar/footer documentation");
-      const size = await page.locator("#app-content").evaluate(node => ({ height: node.clientHeight, scroll: node.scrollHeight }));
-      expect(size.scroll, "Closed default dashboard must fit without scrolling on standard phone screens").toBeLessThanOrEqual(size.height + 1);
+      await expectHomeControlReachable(page, page.getByRole("link", { name: homeCopy(locale, "How Salapi works"), exact: true }), "Stellar/footer documentation");
     }
 
-    // These controls must remain usable without Playwright silently scrolling
-    // the main panel down to reach them. Category updates must also not move it.
-    await category.selectOption("animals");
+    const width = await page.locator("#app-content").evaluate(node => ({ available: node.clientWidth, content: node.scrollWidth }));
+    expect(width.content, "Home content must not overflow its horizontal app frame").toBeLessThanOrEqual(width.available + 1);
+
+    await chooseHomeCauseCategory(catalog, "animals", locale);
     await expect(catalog.locator("article[data-example-cause]")).toHaveCount(3);
-    expect((await appScrollport(page)).scrollTop).toBe(0);
+    await expectHomeControlReachable(page, next, "Filtered next campaign control");
     await next.click();
     await expect(catalog.getByLabel(homeCatalogCopy(locale, "{current} of {count} example causes", { current: 2, count: 3 }), { exact: true })).toHaveText("02 / 03");
-    expect((await appScrollport(page)).scrollTop).toBe(0);
+    await expectHomeControlReachable(page, previous, "Filtered previous campaign control");
     await previous.click();
     await expect(catalog.getByLabel(homeCatalogCopy(locale, "{current} of {count} example causes", { current: 1, count: 3 }), { exact: true })).toHaveText("01 / 03");
-    expect((await appScrollport(page)).scrollTop).toBe(0);
-    await expectFullyInside(tools, await appScrollport(page), "Filtered campaign tools footer");
-    await expect(catalog.locator("details")).toHaveCount(1);
-    await expect(catalog.locator("details")).not.toHaveAttribute("open", "");
+    await expectHomeControlReachable(page, tools, "Filtered campaign tools footer");
+    await expect(catalog.locator("details")).toHaveCount(2);
+    await expect(tools.locator("..")).not.toHaveAttribute("open", "");
     await tools.click();
     await expect(catalog.getByRole("link", { name: c("Sketch your own cause"), exact: true })).toBeVisible();
     await expect(catalog.getByRole("link", { name: homeCatalogCopy(locale, "D4 Testnet campaigns"), exact: true })).toBeVisible();

@@ -4,6 +4,7 @@ import { Keypair } from "@stellar/stellar-sdk";
 import { homeCatalogCopy } from "../lib/i18n/revamp-home-catalog";
 import type { Locale } from "../lib/i18n/config";
 import type { CircleTestnetCampaignResult } from "../lib/circles/testnet";
+import { expectHomeControlReachable } from "./helpers/home-catalog";
 
 // Repository automated browser QA, localhost only. Not native Android or
 // live-user transaction proof. Main's actual API verification is separate.
@@ -124,15 +125,9 @@ test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () =>
     await expect(catalog.locator("article[data-example-cause]")).toHaveCount(27);
     await expect(catalog.locator("article[data-standalone-campaign]")).toHaveCount(1);
     const footer = catalog.locator("summary").filter({ hasText: "Campaign tools" });
-    const usableBottom = await page.evaluate(() => {
-      const nav = document.querySelector<HTMLElement>(".sl-tabbar")!, main = document.querySelector<HTMLElement>("#app-content")!;
-      const controls = [...nav.querySelectorAll("button,button span")].map(node => node.getBoundingClientRect()).filter(rect => rect.height > 0 && rect.width > 0);
-      return Math.min(innerHeight, main.getBoundingClientRect().bottom, nav.getBoundingClientRect().top, ...controls.map(rect => rect.top));
-    });
-    const footerRect = await footer.boundingBox(); expect(footerRect).not.toBeNull();
-    expect(footerRect!.y + footerRect!.height).toBeLessThanOrEqual(usableBottom + 1);
     expect(await page.locator("#app-content").evaluate(node => node.scrollTop)).toBe(0);
-    await page.screenshot({ path: testInfo.outputPath("market-mobile-fresh-fit.png"), fullPage: false });
+    await expectHomeControlReachable(page, footer, "Fresh-price campaign footer");
+    await page.screenshot({ path: testInfo.outputPath("market-mobile-fresh-footer.png"), fullPage: false });
     const summary = market.getByLabel("CoinGecko prices", { exact: true });
     expect((await summary.boundingBox())!.height).toBeGreaterThanOrEqual(44);
     await expect(market).toHaveAttribute("data-market-layout", "dashboard");
@@ -174,7 +169,7 @@ test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () =>
     expect(fixture.calls.forbidden).toEqual([]); expect(fixture.errors).toEqual([]);
   });
 
-  for (const viewport of [{ width: 390, height: 740 }, { width: 1280, height: 800 }, { width: 1280, height: 821 }, { width: 1280, height: 901 }]) test(`linked campaign funding fits above Send at ${viewport.width}x${viewport.height}`, async ({ page }, testInfo) => {
+  for (const viewport of [{ width: 390, height: 740 }, { width: 1280, height: 800 }, { width: 1280, height: 821 }, { width: 1280, height: 901 }]) test(`linked campaign USD estimate and controls stay reachable above Send at ${viewport.width}x${viewport.height}`, async ({ page }, testInfo) => {
     await page.setViewportSize(viewport);
     const fixture = await setup(page, () => quote(Date.now(), .25, "stale", 121_000), "en", "en", true);
     const market = await openHome(page);
@@ -182,24 +177,19 @@ test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () =>
     const catalog = page.getByTestId("home-circles-catalog");
     await expect(catalog.locator("article[data-example-cause]")).toHaveCount(27);
     await expect(catalog.locator("article[data-standalone-campaign]")).toHaveCount(1);
-    const funding = catalog.locator('[data-funding-kind="testnet"]');
+    const funding = catalog.locator("article[data-example-cause]").first().locator('[data-funding-kind="testnet"]');
     await expect(funding).toHaveCount(1);
     await expect(funding).toContainText("100 XLM");
-    await expect(funding).toContainText("≈ 25.01 USDC");
+    await expect(funding).toContainText("≈ $25.00 USD");
+    await expect(funding).not.toContainText("USDC");
     await expect(funding).toContainText("Last known price");
-    await expect(funding).toContainText("QA goal: 4,310.34 USDC");
+    await expect(funding).toContainText("Example goal: $4,310.34 USD");
     await expect(funding.locator("progress")).toHaveAttribute("aria-valuetext", "0.58%");
     await page.evaluate(async () => { await document.fonts.ready; });
-    const geometry = await page.evaluate(() => {
-      const main = document.querySelector<HTMLElement>("#app-content")!, nav = document.querySelector<HTMLElement>(".sl-tabbar")!;
-      const controls = [...nav.querySelectorAll("button,button span")].map(node => node.getBoundingClientRect()).filter(rect => rect.height > 0 && rect.width > 0);
-      return { bottom: Math.min(innerHeight, main.getBoundingClientRect().bottom, nav.getBoundingClientRect().top, ...controls.map(rect => rect.top)), scrollTop: main.scrollTop };
-    });
     const footer = catalog.locator("summary").filter({ hasText: "Campaign tools" });
+    await expectHomeControlReachable(page, footer, "Linked campaign footer");
     const rect = await footer.boundingBox(); expect(rect).not.toBeNull();
-    expect(rect!.y + rect!.height).toBeLessThanOrEqual(geometry.bottom + 1);
     expect(rect!.height).toBeGreaterThanOrEqual(43.5);
-    expect(geometry.scrollTop).toBe(0);
     expect(fixture.calls.forbidden).toEqual([]); expect(fixture.errors).toEqual([]);
     await page.screenshot({ path: testInfo.outputPath(`market-linked-home-${viewport.width}.png`), fullPage: false });
   });
@@ -244,7 +234,7 @@ test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () =>
   ];
   for (const { state, locale, viewport } of fitCases) test.describe(`${locale} ${viewport.width}x${viewport.height} ${state} market-state fit`, () => {
     test.use({ viewport, isMobile: viewport.width < 1024, hasTouch: viewport.width < 1024 });
-    test(`full Home footer fits at ${viewport.width}x${viewport.height} with ${state} price status`, async ({ page }, testInfo) => {
+    test(`Home footer remains reachable at ${viewport.width}x${viewport.height} with ${state} price status`, async ({ page }, testInfo) => {
       // The production app frame is shorter than its desktop browser viewport.
       // Include the longer localized unavailable copy, not only short USD text.
       const body = () => state === "unavailable"
@@ -263,27 +253,21 @@ test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () =>
       await expect(catalog.locator('[data-standalone-campaign="99"]')).toContainText("Isolated standalone Testnet campaign");
       await expect(page.locator("html")).toHaveAttribute("lang", locale);
       await page.evaluate(async () => { await document.fonts.ready; });
-      const geometry = await page.evaluate(() => {
-        const frame = document.querySelector<HTMLElement>(".sl-app-frame")!, main = document.querySelector<HTMLElement>("#app-content")!, nav = document.querySelector<HTMLElement>(".sl-tabbar")!;
-        const controls = [...nav.querySelectorAll("button,button span")].map(node => node.getBoundingClientRect()).filter(rect => rect.height > 0 && rect.width > 0);
-        return { bottom: Math.min(innerHeight, frame.getBoundingClientRect().bottom, main.getBoundingClientRect().bottom, nav.getBoundingClientRect().top, ...controls.map(rect => rect.top)), scrollTop: main.scrollTop, documentScrollTop: document.scrollingElement?.scrollTop ?? 0 };
-      });
       const footerControls = [
         catalog.locator("summary").filter({ hasText: homeCatalogCopy(locale, "Campaign tools") }),
         catalog.getByRole("button", { name: homeCatalogCopy(locale, "Previous example cause"), exact: true }),
         catalog.getByRole("button", { name: homeCatalogCopy(locale, "Next example cause"), exact: true }),
       ];
-      await page.screenshot({ path: testInfo.outputPath(viewport.width === 1280 ? `market-desktop-${state}-home-fit.png` : `market-mobile-${locale}-${state}-home-fit.png`), fullPage: false });
-      expect(geometry.scrollTop).toBe(0); expect(geometry.documentScrollTop).toBe(0);
-      for (const control of footerControls) {
-        await expect(control).toBeVisible();
+      expect(await page.locator("#app-content").evaluate(node => node.scrollTop)).toBe(0);
+      for (const [index, control] of footerControls.entries()) {
+        await expectHomeControlReachable(page, control, `${state} campaign footer control ${index + 1}`);
         const rect = await control.boundingBox(); expect(rect).not.toBeNull();
-        expect(rect!.y + rect!.height, `${state} footer must fit above the raised Send control`).toBeLessThanOrEqual(geometry.bottom + 1);
         expect(rect!.height).toBeGreaterThanOrEqual(43.5); expect(rect!.width).toBeGreaterThanOrEqual(43.5);
       }
+      await page.screenshot({ path: testInfo.outputPath(viewport.width === 1280 ? `market-desktop-${state}-home-footer.png` : `market-mobile-${locale}-${state}-home-footer.png`), fullPage: false });
       await footerControls[2].click();
       await expect(catalog.getByLabel(homeCatalogCopy(locale, "{current} of {count} example causes", { current: 2, count: fixtureCatalogCount }), { exact: true })).toHaveText("02 / 28");
-      expect(await page.locator("#app-content").evaluate(node => node.scrollTop)).toBe(0);
+      await expectHomeControlReachable(page, footerControls[2], "Next campaign after slide change");
       expect(fixture.calls.forbidden).toEqual([]); expect(fixture.errors).toEqual([]);
     });
   });
