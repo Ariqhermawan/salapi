@@ -1,5 +1,6 @@
 import { StrKey } from "@stellar/stellar-sdk";
 import type { Campaign } from "../campaign";
+import type { CampaignDonorSummaryResult } from "../campaign-donor";
 import { SEED_CIRCLES } from "./seed";
 
 // This catalog is fictional. A mapping only enables an explicitly reviewed
@@ -31,6 +32,7 @@ export type CircleTestnetCampaignResult = CircleTestnetEnvelope & ({
   mapping: CircleTestnetMapping;
   // Public reads never invent or cache the current viewer's contribution.
   campaign: Omit<Campaign, "contribution">;
+  donorSummary?: CampaignDonorSummaryResult;
   now: string;
 } | {
   ok: false;

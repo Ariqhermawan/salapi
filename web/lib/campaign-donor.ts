@@ -21,6 +21,13 @@ export type CampaignDonorFeedResult =
   | { ok: true; campaignId: string; entries: CampaignDonorEntry[]; nextCursor: string | null; anonymityNotice: string }
   | { ok: false; campaignId: string; code: CampaignDonorCode };
 
+/** Count-only public projection. Accounts and wallet fallbacks are not proof of
+ * distinct humans. Recorded coverage means receipts may be missing from metadata. */
+export type CampaignDonorSummaryResult =
+  | { ok: true; campaignId: string; count: number; basis: "accounts" | "wallets" | "mixed";
+      coverage: "complete" | "recorded"; confirmedTotalStroops: string }
+  | { ok: false; campaignId: string; code: CampaignDonorCode };
+
 export function canonicalDonorCampaignId(input: unknown): string | null {
   return typeof input === "string" && /^[1-9]\d{0,19}$/.test(input) && BigInt(input) <= 18_446_744_073_709_551_615n ? input : null;
 }

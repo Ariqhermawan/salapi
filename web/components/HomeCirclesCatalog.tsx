@@ -3,14 +3,13 @@
 import { useLayoutEffect, useRef, useSyncExternalStore } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Heart } from "@phosphor-icons/react/dist/csr/Heart";
+import { ArrowRight } from "@phosphor-icons/react/dist/csr/ArrowRight";
 import { useT } from "@/components/I18nProvider";
 import { Ico } from "@/components/ui/icons";
 import { SEED_CIRCLES } from "@/lib/circles/seed";
 import { getOrganizerForCircle } from "@/lib/circles/organizers";
-import { HOME_CAUSE_CATEGORIES, homeCircleExamples, homeStandaloneCampaigns, isHomeCauseCategory, parseCauseViewState } from "@/lib/home-circles";
+import { homeCircleExamples, homeStandaloneCampaigns, isHomeCauseCategory, parseCauseViewState } from "@/lib/home-circles";
 import type { Campaign } from "@/lib/campaign";
-import { formatStroops } from "@/lib/format-stroops";
 import { useNavigationViewState } from "@/lib/ui/useNavigationViewState";
 import { getNavigationEntrySnapshot, subscribeNavigationViewState, writeNavigationViewState } from "@/lib/ui/app-navigation";
 import { homeCopy } from "@/lib/i18n/revamp-home";
@@ -18,14 +17,17 @@ import { circlesCopy, circlesCategory } from "@/lib/i18n/revamp-circles";
 import { circleDisplayContent } from "@/lib/i18n/circles-content";
 import { homeCatalogCopy, type HomeCatalogKey } from "@/lib/i18n/revamp-home-catalog";
 import ExampleOrganizerAvatar from "@/components/ui/ExampleOrganizerAvatar";
+import OrganizerTrustSummary from "@/components/ui/OrganizerTrustSummary";
+import CauseCategoryPicker from "@/components/CauseCategoryPicker";
+import CauseCategoryDoodle from "@/components/ui/CauseCategoryDoodle";
 import styles from "./HomeCirclesCatalog.module.css";
 import { isLocalPreview } from "@/lib/local-preview";
-import HomeCircleFundingProgress from "@/components/HomeCircleFundingProgress";
+import HomeCircleFundingProgress, { ConfirmedFundingProgress } from "@/components/HomeCircleFundingProgress";
 import CampaignDonationBadge from "@/components/CampaignDonationBadge";
 import { useOwnedAccountRead } from "@/lib/ui/useOwnedAccountRead";
 import { validCampaignSupport } from "@/lib/campaign-support";
 
-// Native selects can be changed before React attaches their handlers. Keep
+// Native controls can be changed before React attaches their handlers. Keep
 // interactive controls disabled in SSR/hydration, then enable at client commit.
 // Stable snapshots avoid a state-setting effect or a hydration mismatch.
 function subscribeCatalogReady() { return () => {}; }
@@ -46,6 +48,7 @@ export default function HomeCirclesCatalog({ campaigns = [], circleLinks = {}, l
   const ready = hydrated && entry !== "";
   const { category, index: savedIndex } = parseCauseViewState(useNavigationViewState("home-circles"));
   const strip = useRef<HTMLDivElement>(null);
+  const categoryPicker = useRef<HTMLDetailsElement>(null);
   const restoredView = useRef<{ entry: string; category: string } | null>(null);
   const examples = homeCircleExamples(SEED_CIRCLES, category);
   const standalone = !isLocalPreview && category === "all" ? homeStandaloneCampaigns(SEED_CIRCLES, campaigns, circleLinks) : [];
@@ -110,26 +113,33 @@ export default function HomeCirclesCatalog({ campaigns = [], circleLinks = {}, l
     if (nearest !== index) setIndex(nearest);
   }
 
-  return <section className={styles.catalog} aria-labelledby="home-circles-title" data-testid="home-circles-catalog" data-catalog-ready={ready}>
+  return <section className={styles.catalog} aria-labelledby="home-circles-title" data-testid="home-crowdfunding" data-catalog-ready={ready}>
     <header className={styles.header}>
-      <div>
+      <div className={styles.heading}>
         <span className={styles.eyebrow}>{isLocalPreview ? copy("CROWDFUNDING · PROTOTYPE") : homeCopy(locale, "CROWDFUNDING · TESTNET")}</span>
         <h1 id="home-circles-title">{homeCopy(locale, "Give with clarity.")}</h1>
       </div>
-      <Image src="/illustrations/giving.png" alt="" width={90} height={90} />
+      <Link href={isLocalPreview ? "/circles/create" : "/campaigns?create=1"} prefetch={false} className={styles.startCampaign}>{Ico.plus({ size: 17 })}<span>{copy("Start a campaign")}</span></Link>
+      <Image className={styles.givingArt} src="/illustrations/crowdfund-together.png" alt="" width={160} height={100} />
     </header>
     <p className={styles.notice}>{copy(isLocalPreview ? "Fictional causes · no payment." : "Fictional causes · Testnet XLM only.")}</p>
     <div className={styles.tools}>
-      <label htmlFor="home-cause-category">
-        <span className={styles.srOnly}>{copy("Category")}</span>
-        <select id="home-cause-category" value={category} disabled={!ready} onChange={event => {
-          if (!ready || !isHomeCauseCategory(event.target.value)) return;
-          writeNavigationViewState("home-circles", { category: event.target.value, index: 0 });
-        }}>
-          {HOME_CAUSE_CATEGORIES.map(value => <option key={value} value={value}>{value === "all" ? copy("All campaigns") : circlesCategory(locale, value)}</option>)}
-        </select>
-      </label>
-      <Link href="/campaigns?mode=examples" prefetch={false} aria-label={copy("Browse all example causes")}>{homeCopy(locale, "See all")}{Ico.chev({ size: 15 })}</Link>
+      <details className={styles.categoryPicker} ref={categoryPicker}>
+        <summary id="home-cause-category" aria-label={copy("Category")} aria-disabled={!ready} onClick={event => { if (!ready) event.preventDefault(); }}>
+          <span className={styles.categoryArt}><CauseCategoryDoodle category={category} /></span>
+          <span>{category === "all" ? copy("All campaigns") : circlesCategory(locale, category)}</span>
+          {Ico.chev({ size: 16 })}
+        </summary>
+        <fieldset className={styles.categoryChoices} disabled={!ready}>
+          <legend className={styles.srOnly}>{copy("Category")}</legend>
+          <CauseCategoryPicker circles={homeCircleExamples(SEED_CIRCLES, "all")} selected={category} locale={locale} onSelect={next => {
+            if (!ready || !isHomeCauseCategory(next)) return;
+            writeNavigationViewState("home-circles", { category: next, index: 0 });
+            if (categoryPicker.current) categoryPicker.current.open = false;
+          }} />
+        </fieldset>
+      </details>
+      <Link href="/campaigns?mode=examples" prefetch={false} aria-label={copy("Browse all example causes")}>{homeCopy(locale, "See all")}<ArrowRight size={17} aria-hidden="true" /></Link>
     </div>
     {/* The visible carousel counter already gives the total. Announce filter
         results without adding another full row to the first viewport. */}
@@ -138,37 +148,42 @@ export default function HomeCirclesCatalog({ campaigns = [], circleLinks = {}, l
       {examples.map((circle, position) => {
         const organizer = getOrganizerForCircle(circle);
         const display = circleDisplayContent(circle, locale);
-        return <article key={circle.id} className={styles.card} data-example-cause={circle.id}>
+        return <article key={circle.id} className={styles.card} data-testid="home-crowdfunding-card" data-example-cause={circle.id}>
           <Link href={`/circles/${circle.id}`} prefetch={false} className={styles.photo} aria-label={copy("View example cause: {title}", { title: display.title })}>
-            <Image src={circle.coverImage ?? "/illustrations/giving.png"} alt={display.imageAlt ?? c("AI-generated fictional campaign illustration")} width={600} height={340} sizes="(max-width: 500px) 82vw, 384px" loading={position === 0 ? "eager" : "lazy"} />
-            <span className={styles.category}>{circlesCategory(locale, circle.category)}</span>
+            <Image src={circle.coverImage ?? "/illustrations/giving.png"} alt={display.imageAlt ?? c("AI-generated fictional campaign illustration")} width={600} height={340} sizes="(max-width: 500px) 90vw, 430px" loading={position === 0 ? "eager" : "lazy"} />
             <span className={styles.example}>{c("Example cause")}</span>
             <small className={styles.ai}>{c("AI illustration")}</small>
-            <span className={styles.donationMark}><CampaignDonationBadge support={forCircle(circle.id)} /></span>
           </Link>
           <div className={styles.body}>
+            <div className={styles.cardMeta}>
+              <span className={styles.category}>{circlesCategory(locale, circle.category)}</span>
+              <span className={styles.donationMark}><CampaignDonationBadge support={forCircle(circle.id)} /></span>
+            </div>
             <h2><Link href={`/circles/${circle.id}`} prefetch={false} title={display.title}><span>{display.title}</span></Link></h2>
             <div className={styles.organizer} data-testid="home-campaign-organizer">
-              {organizer ? <ExampleOrganizerAvatar organizer={organizer} size={34} /> : <span className={styles.avatar} aria-hidden="true">{circle.organizer.charAt(0)}</span>}
-              <span className={styles.identity}><strong>{circle.organizer}</strong><small>{circle.organizerLocation}{" "}{c("· Example organizer")}</small></span>
+              {organizer ? <ExampleOrganizerAvatar organizer={organizer} size={40} /> : <span className={styles.avatar} aria-hidden="true">{circle.organizer.charAt(0)}</span>}
+              <div className={styles.identity}><strong>{circle.organizer}</strong><small>{circle.organizerLocation}{" "}{c("· Example organizer")}</small><OrganizerTrustSummary exampleOrganizer={organizer} /></div>
             </div>
             <HomeCircleFundingProgress circle={circle} active={ready && position === index} />
-            <Link href={`/circles/${circle.id}`} prefetch={ready && position === index} className={styles.pledge}><Heart size={18} aria-hidden="true" />{c("View campaign")}</Link>
+            <Link href={`/circles/${circle.id}`} prefetch={ready && position === index} className={styles.pledge}>{c("View campaign")}<ArrowRight size={19} aria-hidden="true" /></Link>
           </div>
         </article>;
       })}
-      {standalone.map(campaign => <article key={`d4-${campaign.id}`} className={styles.card} data-standalone-campaign={campaign.id}>
+      {standalone.map(campaign => <article key={`d4-${campaign.id}`} className={styles.card} data-testid="home-crowdfunding-card" data-standalone-campaign={campaign.id}>
         <Link href={`/campaigns?id=${campaign.id}`} prefetch={false} className={`${styles.photo} ${styles.testnetPhoto}`} aria-label={campaign.title}>
-          <Image src="/illustrations/giving.png" alt="" width={600} height={340} sizes="(max-width: 500px) 82vw, 384px" loading="lazy" />
-          <span className={styles.category}>{copy("D4 Testnet campaigns")}</span>
-          <span className={styles.donationMark}><CampaignDonationBadge support={support.value?.contributions[campaign.id]} /></span>
+          <Image src="/illustrations/giving.png" alt="" width={600} height={340} sizes="(max-width: 500px) 90vw, 430px" loading="lazy" />
         </Link>
         <div className={styles.body}>
+          <div className={styles.cardMeta}>
+            <span className={styles.category}>{copy("D4 Testnet campaigns")}</span>
+            <span className={styles.donationMark}><CampaignDonationBadge support={support.value?.contributions[campaign.id]} /></span>
+          </div>
           <h2><Link href={`/campaigns?id=${campaign.id}`} prefetch={false} title={campaign.title}><span>{campaign.title}</span></Link></h2>
           <span className={styles.testnetState}>#{campaign.id} · {campaign.state}</span>
+          <OrganizerTrustSummary />
           <p className={styles.testnetNote}>{homeCopy(locale, "test XLM · no real money")}</p>
-          <div className={styles.testnetTotal}><strong>{formatStroops(campaign.total)} XLM</strong><small>{homeCopy(locale, "funded on Testnet")}</small></div>
-          <Link href={`/campaigns?id=${campaign.id}`} prefetch={false} className={styles.pledge}><Heart size={18} aria-hidden="true" />{c("View campaign")}</Link>
+          <ConfirmedFundingProgress totalStroops={campaign.total} />
+          <Link href={`/campaigns?id=${campaign.id}`} prefetch={false} className={styles.pledge}>{c("View campaign")}<ArrowRight size={19} aria-hidden="true" /></Link>
         </div>
       </article>)}
     </div>

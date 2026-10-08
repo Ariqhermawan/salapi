@@ -30,7 +30,8 @@ function setup(kind: "campaigns" | "circles" | "donors" | "photo", value: unknow
   const api = kind === "campaigns" ? route("../app/api/public/campaigns/route.ts", { "@/app/campaign-actions": { publicCampaignState: read },
     "@/lib/server/circlesTestnet": { readCircleDiscoveryMappings: async () => [], circleDiscoveryLinks: () => ({}) } })
     : kind === "circles" ? route("../app/api/public/circles-testnet/route.ts", {
-      "@/lib/server/circlesTestnet": { readCircleTestnetCampaign: read }, "@/lib/circles/testnet": { canonicalCircleTestnetSlug } })
+      "@/lib/server/circlesTestnet": { readCircleTestnetCampaign: read }, "@/lib/circles/testnet": { canonicalCircleTestnetSlug },
+      "@/lib/server/campaignDonors": { readCampaignDonorSummary: async () => ({ ok: false, code: "unavailable" }) } })
     : kind === "donors" ? route("../app/api/public/campaign-donors/route.ts", {
       "@/lib/server/campaignDonors": { readCampaignDonors: read }, "@/lib/campaign-donor": { canonicalDonorCampaignId, campaignDonorCursor } })
     : route("../app/api/account/photo/route.ts", { "@/lib/server/accountPhoto": { readAccountPhoto: read } });
@@ -61,8 +62,20 @@ for (const query of ["?before=01", "?before=-1", "?before=18446744073709551616",
   });
 }
 test("circle GET accepts only the fixed fictional catalog slug", async () => {
-  const h = setup("circles"); const response = await h.get("?circleId=tino-relief");
+  const h = setup("circles", { ok: false, code: "unavailable" }); const response = await h.get("?circleId=tino-relief");
   assert.equal(response.status, 200); assert.equal(response.headers.get("Cache-Control"), "no-store"); assert.deepEqual(h.calls, [["tino-relief"]]);
+});
+test("circle summary only follows verified linkage and never replaces confirmed funding on optional failure", async () => {
+  const summaryCalls: unknown[][] = [];
+  const value = { ok: true, campaign: { id: "6", total: "12345" } };
+  const get = route("../app/api/public/circles-testnet/route.ts", {
+    "@/lib/server/circlesTestnet": { readCircleTestnetCampaign: async () => value },
+    "@/lib/circles/testnet": { canonicalCircleTestnetSlug },
+    "@/lib/server/campaignDonors": { readCampaignDonorSummary: async (...args: unknown[]) => { summaryCalls.push(args); throw Error("private summary failure"); } },
+  });
+  const response = await get(new Request("https://fixture.invalid/api/circles?circleId=tino-relief"));
+  assert.equal(response.status, 200); assert.deepEqual(summaryCalls, [["6", "12345"]]);
+  assert.deepEqual(await response.json(), { ...value, donorSummary: { ok: false, campaignId: "6", code: "unavailable" } });
 });
 for (const query of ["", "?circleId=made-up", "?circleId=tino-relief&circleId=cats-recovery", "?circleId=tino-relief&wallet=private", "?circleId=tino-relief&contractId=foreign"]) {
   test(`circle GET rejects unreviewed selectors: ${query}`, async () => {
