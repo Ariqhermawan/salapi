@@ -1,12 +1,12 @@
 "use server";
 
 import { arisanList, disasterState, paluwaganState } from "./actions";
-import { campaignState } from "./campaign-actions";
+import { readVaultCampaignHistory, type VaultCampaignHistory } from "@/lib/server/vaultCampaignHistory";
 import { isLocalPreview } from "@/lib/local-preview";
 
 type VaultOverview = {
   rooms: Awaited<ReturnType<typeof arisanList>>;
-  campaigns: Awaited<ReturnType<typeof campaignState>>;
+  campaigns: VaultCampaignHistory;
   pool: Awaited<ReturnType<typeof disasterState>>;
   legacyCircle: Awaited<ReturnType<typeof paluwaganState>> | null;
 };
@@ -26,7 +26,7 @@ export async function vaultOverview(): Promise<VaultOverview> {
   if (isLocalPreview) return unavailableVaults();
   const [rooms, campaigns, pool, legacyCircle] = await Promise.allSettled([
     arisanList(),
-    campaignState(),
+    readVaultCampaignHistory(),
     disasterState(),
     paluwaganState(),
   ]);
@@ -37,4 +37,9 @@ export async function vaultOverview(): Promise<VaultOverview> {
     pool: pool.status === "fulfilled" ? pool.value : unavailable.pool,
     legacyCircle: legacyCircle.status === "fulfilled" ? legacyCircle.value : unavailable.legacyCircle,
   };
+}
+
+/** Continue only the current authenticated owner's personal campaign history. */
+export async function vaultCampaignHistory(before: unknown = "0", expectedOwnerId?: unknown): Promise<VaultCampaignHistory> {
+  return readVaultCampaignHistory(before, expectedOwnerId);
 }

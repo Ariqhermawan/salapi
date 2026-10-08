@@ -30,6 +30,7 @@ const messages = {
   "Your donor record is saved.": { id: "Catatan donor Anda tersimpan.", tl: "Naka-save ang donor record mo.", vi: "Đã lưu bản ghi nhà tài trợ của bạn." },
   "Verify and retry donor record only": { id: "Verifikasi dan ulangi catatan donor saja", tl: "I-verify at ulitin lamang ang donor record", vi: "Xác minh và chỉ thử lại bản ghi nhà tài trợ" },
   "Back to campaign": { id: "Kembali ke campaign", tl: "Bumalik sa campaign", vi: "Quay lại chiến dịch" },
+  "Go to Home": { id: "Ke beranda", tl: "Pumunta sa Home", vi: "Về trang chủ" },
   "Review Testnet donation": { id: "Tinjau donasi Testnet", tl: "Suriin ang Testnet donation", vi: "Xem lại quyên góp Testnet" },
   "Review before sending": { id: "Tinjau sebelum mengirim", tl: "Suriin bago ipadala", vi: "Xem lại trước khi gửi" },
   "Transaction details": { id: "Detail transaksi", tl: "Mga detalye ng transaksyon", vi: "Chi tiết giao dịch" },
@@ -49,6 +50,14 @@ const messages = {
   "QA beneficiary": { id: "Penerima QA", tl: "QA beneficiary", vi: "Người nhận QA" },
   "Creator share": { id: "Bagian pembuat", tl: "Bahagi ng creator", vi: "Phần của người tạo" },
   "Public display": { id: "Tampilan publik", tl: "Pampublikong pagpapakita", vi: "Hiển thị công khai" },
+  "Public: wallet, @username and permitted photo. You can choose anonymous below.": {
+    id: "Publik: wallet, @username dan foto yang diizinkan. Anda bisa memilih anonim di bawah.",
+    tl: "Pampubliko: wallet, @username at pinahintulutang larawan. Maaari kang pumili ng anonymous sa ibaba.",
+    vi: "Công khai: ví, @username và ảnh được cho phép. Bạn có thể chọn ẩn danh bên dưới." },
+  "Public: wallet and receipt only. Name and photo stay hidden.": {
+    id: "Publik: hanya wallet dan bukti transaksi. Nama dan foto tetap tersembunyi.",
+    tl: "Pampubliko: wallet at receipt lang. Nakatago ang pangalan at larawan.",
+    vi: "Công khai: chỉ ví và biên nhận. Tên và ảnh vẫn được ẩn." },
   "Anonymous": { id: "Anonim", tl: "Hindi nagpapakilala", vi: "Ẩn danh" },
   "Wallet, @username and permitted photo": { id: "Wallet, @username dan foto yang diizinkan", tl: "Wallet, @username at pinahintulutang larawan", vi: "Ví, @username và ảnh được cho phép" },
   "Wallet only": { id: "Wallet saja", tl: "Wallet lamang", vi: "Chỉ ví" },

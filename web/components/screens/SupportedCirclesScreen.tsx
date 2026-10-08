@@ -3,10 +3,13 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useT } from "@/components/I18nProvider";
 import { Ico, T, PoweredByStellar } from "@/components/ui/kit";
 import { CURRENCY, formatLocalAmount } from "@/lib/ui/currency";
 import { isLocalPreview } from "@/lib/local-preview";
 import { getCircle } from "@/lib/circles/seed";
+import { circleDisplayContent } from "@/lib/i18n/circles-content";
+import { circlesCopy } from "@/lib/i18n/revamp-circles";
 import type { Circle, CircleCategory } from "@/lib/circles/types";
 import { readLocalSupports, markCircleUpdatesSeen, unreadSupportUpdates, type LocalSupportRecord } from "@/lib/circles/local-support";
 import styles from "./SupportedCirclesRevamp.module.css";
@@ -23,6 +26,8 @@ function formattedDate(value: string) {
 }
 
 export default function SupportedCirclesScreen() {
+  const { locale } = useT();
+  const c = circlesCopy(locale);
   const [supports, setSupports] = useState<LocalSupportRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState<{ circleId: string; text: string; ok: boolean } | null>(null);
@@ -63,12 +68,13 @@ export default function SupportedCirclesScreen() {
         <Link className={styles.primaryLink} href={isLocalPreview ? "/circles" : "/campaigns?mode=testnet"}>{isLocalPreview ? "Explore example causes" : "Explore Testnet campaigns"}{Ico.chev({ size: 17, c: "#fff" })}</Link>
       </section> : <section className={styles.list} aria-label="Locally supported example causes">
         {causes.map(({ circle, records, latest, unread }) => {
+          const display = circleDisplayContent(circle, locale);
           const cover = circle.coverImage ?? photos[circle.category] ?? "/illustrations/giving.png";
-          const latestUpdate = [...(circle.updates ?? [])].sort((a, b) => Date.parse(b.date) - Date.parse(a.date))[0];
+          const latestUpdate = [...(display.updates ?? [])].sort((a, b) => Date.parse(b.date) - Date.parse(a.date))[0];
           return <article className={styles.causeCard} key={circle.id}>
             <div className={styles.causeTop}>
-              <div className={styles.imageWrap}><Image className={cover === "/illustrations/giving.png" ? styles.doodle : styles.photo} src={cover} width={88} height={80} alt="AI-generated fictional campaign illustration" /><span>AI image</span></div>
-              <div><span className={styles.causeLabel}>Example cause · {circle.status === "completed" ? "Completed example" : "Active example"}</span><h2><Link href={`/circles/${circle.id}`}>{circle.title}</Link></h2><span className={styles.organizer}>{circle.organizer} · {circle.organizerLocation}</span></div>
+              <div className={styles.imageWrap}><Image className={cover === "/illustrations/giving.png" ? styles.doodle : styles.photo} src={cover} width={88} height={80} alt={display.imageAlt ?? c("AI-generated fictional campaign illustration")} /><span>AI image</span></div>
+              <div><span className={styles.causeLabel}>Example cause · {circle.status === "completed" ? "Completed example" : "Active example"}</span><h2><Link href={`/circles/${circle.id}`}>{display.title}</Link></h2><span className={styles.organizer}>{circle.organizer} · {circle.organizerLocation}</span></div>
             </div>
             <div className={styles.supportLine}><div><span>Latest local demo</span><strong>{supportAmount(latest)}</strong></div><div><span>{records.length} local {records.length === 1 ? "demo" : "demos"}</span><time dateTime={latest.confirmedAt}>{formattedDate(latest.confirmedAt)}</time></div></div>
             <section className={styles.allocation} aria-label="Latest local demo allocation"><div className={styles.allocationBar} aria-hidden="true"><span style={{width:`${latest.beneficiaryPct}%`}}/><span style={{width:`${latest.organizerPct}%`}}/></div><div><span><strong>{latest.beneficiaryPct}%</strong> beneficiary<br/>{supportAmount(latest,"beneficiaryMinor")}</span><span><strong>{latest.organizerPct}%</strong> organizer<br/>{supportAmount(latest,"organizerMinor")}</span></div></section>

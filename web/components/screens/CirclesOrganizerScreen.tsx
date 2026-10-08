@@ -12,6 +12,7 @@ import { CATEGORY_LABEL, type Circle, type CircleCategory } from "@/lib/circles/
 import type { CircleOrganizer } from "@/lib/circles/organizers";
 import { useGoBack } from "@/lib/ui/useGoBack";
 import { circlesCopy } from "@/lib/i18n/revamp-circles";
+import { circleDisplayContent } from "@/lib/i18n/circles-content";
 import styles from "./CirclesOrganizerRevamp.module.css";
 
 const photos: Partial<Record<CircleCategory, string>> = {
@@ -26,26 +27,28 @@ function exampleDate(value: string): string {
 }
 
 function CauseCard({ cause, history = false }: { cause: Circle; history?: boolean }) {
-  const { currency } = useT();
+  const { currency, locale } = useT();
+  const c = circlesCopy(locale);
+  const display = circleDisplayContent(cause, locale);
   const [failed, setFailed] = useState(false);
   const fallback = photos[cause.category] ?? "/illustrations/giving.png";
   const source = failed ? fallback : cause.coverImage ?? fallback;
   return <Link href={`/circles/${cause.id}`} className={`${styles.causeCard} ${history ? styles.historyCard : styles.activeCard}`}
-    aria-label={`View ${history ? "completed " : ""}example cause: ${cause.title}`}>
+    aria-label={`View ${history ? "completed " : ""}example cause: ${display.title}`}>
     <div className={styles.cover}>
-      <Image src={source} alt={cause.imageAlt ?? `${CATEGORY_LABEL[cause.category]} fictional example`} fill
+      <Image src={source} alt={display.imageAlt ?? c("AI-generated fictional campaign illustration")} fill
         sizes="(max-width: 370px) 90px, 116px" onError={() => setFailed(true)}
         className={source === "/illustrations/giving.png" ? styles.doodleCover : undefined} />
       <span className={styles.aiLabel}>{cause.coverImage ? "AI illustration" : "Example cover"}</span>
     </div>
     <div className={styles.causeCopy}>
       <small>{CATEGORY_LABEL[cause.category]} · {history ? "completed example" : "current example"}</small>
-      <h3>{cause.title}</h3>
+      <h3>{display.title}</h3>
       {history ? <>
         {cause.completedOn && <p className={styles.historyDate}>Example completed {exampleDate(cause.completedOn)}</p>}
         <p className={styles.historyAmount}>Example raised {formatLocal(cause.pesoRaised, currency)}</p>
       </> : <>
-        {cause.summary && <p className={styles.causeSummary}>{cause.summary}</p>}
+        {display.summary && <p className={styles.causeSummary}>{display.summary}</p>}
         <div className={styles.causeFee}><span>Proposed organizer allowance</span><strong>{cause.allowance?.percentage ?? 0}%</strong></div>
       </>}
       <span className={styles.viewCause}>{history ? "View details" : "View cause"}{Ico.chev({ size: 14, c: T.action })}</span>

@@ -249,7 +249,7 @@ test("native QA donation with missing setup neither offers payment nor the old m
   await readFixture(page, { readCircleTestnetCampaign: mappingFailure("not_configured") });
   await page.goto("/circles/tino-relief/donate", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: "Test a donation", exact: true })).toBeVisible();
-  await expect(page.getByText("Fictional cause, real Testnet transaction", { exact: true })).toBeVisible();
+  await expect(page.getByText("Test tokens go to a QA wallet. Fictional cause, no real money.", { exact: true })).toBeVisible();
   await expect(page.getByTestId("circle-testnet-summary")).toContainText("Testnet donations are not configured for this cause yet.");
   await expectIdentityDenied(page);
   await expect(page.locator("#circle-testnet-amount")).toHaveCount(0);
@@ -273,7 +273,7 @@ for (const width of [320, 390, 1280]) test(`new donation defaults to public prof
   const notice = page.getByTestId("donor-privacy-notice");
   const options = page.locator("details").filter({ has: page.getByText("Privacy and comment (optional)", { exact: true }) });
   await expect(options).not.toHaveAttribute("open");
-  await expect(notice).toContainText("Your wallet, available @username and permitted profile photo will be public.");
+  await expect(notice).toContainText("Public: wallet, @username and permitted photo. You can choose anonymous below.");
   await notice.scrollIntoViewIfNeeded();
   await expect(notice).toBeVisible();
   await page.getByText("Privacy and comment (optional)", { exact: true }).click();
@@ -284,7 +284,7 @@ for (const width of [320, 390, 1280]) test(`new donation defaults to public prof
   await publicProfile.scrollIntoViewIfNeeded();
   await page.screenshot({ path: testInfo.outputPath(`donor-public-default-${width}.png`) });
   await publicProfile.uncheck();
-  await expect(notice).toContainText("Your name and photo will not be published.");
+  await expect(notice).toContainText("Public: wallet and receipt only. Name and photo stay hidden.");
   await publicProfile.check();
   await anonymous.check();
   await expect(publicProfile).toHaveCount(0);
@@ -300,7 +300,7 @@ for (const width of [320, 390, 1280]) test(`new donation defaults to public prof
   // A fresh form gets the new defaults. This is not pending receipt recovery,
   // whose separate metadata path must retain anonymous/no-profile safeguards.
   await page.reload({ waitUntil: "domcontentloaded" });
-  await expect(notice).toContainText("Your wallet, available @username and permitted profile photo will be public.");
+  await expect(notice).toContainText("Public: wallet, @username and permitted photo. You can choose anonymous below.");
   await page.getByText("Privacy and comment (optional)", { exact: true }).click();
   await expect(anonymous).not.toBeChecked();
   await expect(publicProfile).toBeChecked();

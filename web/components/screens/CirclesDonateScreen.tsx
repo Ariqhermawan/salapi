@@ -24,6 +24,7 @@ import OrganizerVerification from "@/components/ui/OrganizerVerification";
 import ExampleOrganizerAvatar from "@/components/ui/ExampleOrganizerAvatar";
 import styles from "./CirclesDonateRevamp.module.css";
 import { circlesCopy, circlesSignupError } from "@/lib/i18n/revamp-circles";
+import { circleDisplayContent } from "@/lib/i18n/circles-content";
 import CirclesSignupEmail from "@/components/CirclesSignupEmail";
 import { useCirclesSignupIdentity } from "@/lib/ui/useCirclesSignupIdentity";
 import CircleTestnetDonate from "@/components/CircleTestnetDonate";
@@ -79,6 +80,7 @@ export function CirclesPreviewDonateScreen({ circle }: { circle: Circle }) {
   const goBack = useGoBack(`/circles/${circle.id}`);
   const { locale, currency } = useT();
   const c = circlesCopy(locale);
+  const display = circleDisplayContent(circle, locale);
   const [phase, setPhase] = useState<Phase>("amount");
   const [entry, setEntry] = useState<{ value: string; currency: Locale }>({
     value: String(quickAmounts[currency][1]),
@@ -225,9 +227,9 @@ export function CirclesPreviewDonateScreen({ circle }: { circle: Circle }) {
         </div>
       </div>
       <section className={styles.cause} aria-label={c("Example cause")}>
-        <Image src={cover} width={120} height={90} className={cover === "/illustrations/giving.png" ? styles.causeDoodle : styles.causePhoto} alt={cover === "/illustrations/giving.png" ? c("Two people sharing a blue heart") : circle.imageAlt || c("AI-generated fictional cause cover, not verified evidence")} />
+        <Image src={cover} width={120} height={90} className={cover === "/illustrations/giving.png" ? styles.causeDoodle : styles.causePhoto} alt={cover === "/illustrations/giving.png" ? c("Two people sharing a blue heart") : display.imageAlt || c("AI-generated fictional cause cover, not verified evidence")} />
         <div>
-          <h2>{circle.title}</h2>
+          <h2>{display.title}</h2>
           <p>{c("Example cause · AI image ·")}{" "}{circle.organizerLocation}</p>
           <Link href={`/circles/${circle.id}/organizer`} className={styles.organizerLink} aria-label={c("View example organizer profile: {name}", { name: circle.organizer })}>
             {organizer && <ExampleOrganizerAvatar organizer={organizer} size={32} />}<span>{circle.organizer}</span>{Ico.chev({ size: 15, c: T.action })}

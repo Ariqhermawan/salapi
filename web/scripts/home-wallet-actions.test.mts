@@ -35,7 +35,7 @@ function nodes(value: unknown): Element[] {
   if (Array.isArray(value)) return value.flatMap(nodes);
   if (!value || typeof value !== "object" || !("props" in value)) return [];
   const node = value as Element;
-  return [node, ...nodes(node.props.children)];
+  return [node, ...nodes(node.props.children), ...nodes(node.props.dashboardActions), ...nodes(node.props.dashboardBalanceError)];
 }
 function text(value: unknown): string {
   if (typeof value === "string" || typeof value === "number") return String(value);
@@ -130,20 +130,20 @@ test("actual Home wallet rail retains exactly two native navigation links in bot
   }
 });
 
-test("wallet balance/actions stay a two-child grid with truthful currency caption after the grid", () => {
+test("Home delegates balance, native action links and truthful caption to one dashboard layout", () => {
   for (const preview of [true, false]) for (const locale of LOCALES) {
     const ui = render({ preview, locale });
     const walletChildren = directChildren(ui.wallet.props.children);
-    const gridIndex = walletChildren.findIndex(node => hasClass(node, "walletContent"));
-    assert.ok(gridIndex >= 0);
-    const grid = walletChildren[gridIndex], gridChildren = directChildren(grid.props.children);
-    assert.equal(gridChildren.length, 2, "A separate caption must not become a third implicit grid cell");
-    assert.equal(gridChildren[0].type, "div", "Balance stays in the first grid column");
-    assert.equal(gridChildren[1], ui.rail, "The complete connected action rail stays in the second grid column");
-    const caption = walletChildren[gridIndex + 1];
-    assert.ok(caption && caption.type === "p" && hasClass(caption, "walletCaption"), "Caption must be the following wallet sibling, not a grid child");
-    assert.ok(text(caption).includes(homeCopy(locale, preview ? "test XLM · no real money" : "Testnet · no real money")));
-    assert.equal(nodes(grid).includes(caption), false);
+    const content = walletChildren.find(node => hasClass(node, "walletContent"));
+    assert.ok(content);
+    const markets = nodes(content).filter(node => node.type === "MarketValue");
+    assert.equal(markets.length, 1, "Balance must not be duplicated in two responsive layouts");
+    const market = markets[0]!;
+    assert.equal(market.props.dashboard, true);
+    assert.equal(market.props.dashboardActions, ui.rail, "The complete navigation rail enters the dashboard action slot");
+    assert.ok(String(market.props.dashboardCaption).includes(homeCopy(locale, "Testnet · no real money")));
+    assert.equal(walletChildren.some(node => hasClass(node, "walletCaption")), false, "Testnet footer must not be repeated as a separate card row");
+    assert.equal(nodes(content).filter(node => node === ui.rail).length, 1);
     assert.deepEqual(ui.calls, { read: 0, write: 0, storage: 0, network: 0 });
   }
 });
@@ -152,50 +152,65 @@ test("action labels follow language independently of currency and retain exact b
   for (const preview of [true, false]) for (const locale of LOCALES) for (const currency of LOCALES) {
     const balance = { pesos: 9876543.21, address: "Readonly isolated wallet", nativeStroops: "123456789000" }, ui = render({ preview, locale, currency, wallet: balance });
     assert.equal(text(ui.links[0]), homeCopy(locale, "Top up")); assert.equal(text(ui.links[1]), homeCopy(locale, "Withdraw"));
-    if (preview) assert.equal(nodes(ui.wallet).find(node => node.type === "Peso")?.props.value, balance.pesos);
-    else {
-      assert.equal(nodes(ui.wallet).find(node => node.type === "MarketValue")?.props.nativeStroops, balance.nativeStroops);
-      assert.equal(nodes(ui.wallet).find(node => node.type === "MarketValue")?.props.showNative, true, "Home exposes the native quantity without opening market details");
-      assert.equal(nodes(ui.wallet).find(node => node.type === "MarketValue")?.props.dashboard, true, "Minimal metadata is scoped to Home, not transaction/review screens");
-      assert.equal(nodes(ui.wallet).some(node => node.type === "Peso"), false, "Real wallet market display must not retain a static peso valuation");
-    }
+    const market = nodes(ui.wallet).find(node => node.type === "MarketValue")!;
+    assert.equal(market.props.nativeStroops, balance.nativeStroops, "Canonical native stroops take precedence over any presentation fixture");
+    assert.equal(market.props.showNative, true, "Home exposes the native quantity without opening market details");
+    assert.equal(market.props.dashboard, true, "Minimal metadata is scoped to Home, not transaction/review screens");
+    assert.equal(nodes(ui.wallet).some(node => node.type === "Peso"), false, "No Home mode may present the static peso demo as a current wallet market estimate");
     assert.ok(text(ui.wallet).includes(homeCopy(locale, "TESTNET BALANCE")));
-    assert.ok(text(ui.wallet).includes(homeCopy(locale, preview ? "test XLM · no real money" : "Testnet · no real money")));
+    assert.ok(String(market.props.dashboardCaption).includes(homeCopy(locale, "Testnet · no real money")));
     assert.deepEqual(ui.calls, { read: 0, write: 0, storage: 0, network: 0 });
   }
 });
 
-test("unknown, failed and zero balances keep wallet navigation without fabricating a zero balance", () => {
+test("explicit local Home preview uses an exact native-token fixture, not a static peso value", () => {
+  const ui = render({ preview: true });
+  const market = nodes(ui.wallet).find(node => node.type === "MarketValue")!;
+  assert.equal(market.props.nativeStroops, "78406200000");
+  assert.equal(nodes(ui.wallet).some(node => node.type === "Peso"), false);
+  assert.equal(nodes(ui.wallet).find(node => hasClass(node, "amount"))?.props["data-preview-balance"], true);
+  assert.deepEqual(ui.calls, { read: 0, write: 0, storage: 0, network: 0 });
+});
+
+test("unknown and failed wallets keep navigation while a confirmed native zero remains distinct", () => {
   for (const preview of [true, false]) {
     const unknown = render({ preview, wallet: null });
     assert.equal(nodes(unknown.wallet).some(node => node.type === "Peso"), false);
-    assert.equal(nodes(unknown.wallet).some(node => node.type === "MarketValue"), false);
+    const pendingMarket = nodes(unknown.wallet).find(node => node.type === "MarketValue")!;
+    assert.equal(pendingMarket.props.nativeStroops, undefined);
+    assert.equal(pendingMarket.props.balanceLoading, true);
     assert.deepEqual(unknown.links.map(node => node.props.href), ["/topup", "/withdraw"]);
     const failed = render({ preview, wallet: null, walletError: "Your wallet balance is unavailable." });
-    assert.ok(text(failed.wallet).includes("Your wallet balance is unavailable."));
+    const failedMarket = nodes(failed.wallet).find(node => node.type === "MarketValue")!;
+    assert.ok(text(failedMarket.props.dashboardBalanceError).includes("Your wallet balance is unavailable."));
     assert.equal(nodes(failed.wallet).some(node => node.type === "Peso"), false);
-    assert.equal(nodes(failed.wallet).some(node => node.type === "MarketValue"), false);
+    assert.equal(failedMarket.props.nativeStroops, undefined);
+    assert.equal(failedMarket.props.balanceLoading, false);
     assert.equal(nodes(failed.wallet).some(node => hasClass(node, "sl-skel")), false, "Failure replaces pending geometry instead of stacking another row");
     const stale = render({ preview, wallet: { pesos: 123, address: "Readonly old-balance fixture" }, walletError: "Your wallet balance is unavailable." });
     assert.equal(nodes(stale.wallet).some(node => node.type === "Peso"), false, "A failed refresh must not keep displaying the old balance");
-    assert.equal(nodes(stale.wallet).some(node => node.type === "MarketValue"), false);
-    assert.ok(text(stale.wallet).includes("Your wallet balance is unavailable."));
-    const zero = render({ preview, wallet: { pesos: 0, address: "Readonly zero-balance fixture", nativeStroops: "0" } });
-    if (preview) assert.equal(nodes(zero.wallet).find(node => node.type === "Peso")?.props.value, 0);
-    else assert.equal(nodes(zero.wallet).find(node => node.type === "MarketValue")?.props.nativeStroops, "0");
-    for (const ui of [unknown, failed, stale, zero]) assert.deepEqual(ui.calls, { read: 0, write: 0, storage: 0, network: 0 });
+    const staleMarket = nodes(stale.wallet).find(node => node.type === "MarketValue")!;
+    assert.equal(staleMarket.props.nativeStroops, undefined);
+    assert.ok(text(staleMarket.props.dashboardBalanceError).includes("Your wallet balance is unavailable."));
+    for (const ui of [unknown, failed, stale]) assert.deepEqual(ui.calls, { read: 0, write: 0, storage: 0, network: 0 });
   }
+  const zero = render({ preview: false, wallet: { pesos: 0, address: "Readonly zero-balance fixture", nativeStroops: "0" } });
+  const zeroMarket = nodes(zero.wallet).find(node => node.type === "MarketValue")!;
+  assert.equal(zeroMarket.props.nativeStroops, "0");
+  assert.equal(zeroMarket.props.balanceLoading, false);
+  assert.ok(!zeroMarket.props.dashboardBalanceError);
+  assert.deepEqual(zero.calls, { read: 0, write: 0, storage: 0, network: 0 });
 });
 
-test("pending balance reserves the real currency amount height without an oversized loading row", () => {
+test("pending Home balance uses the dashboard loading slot rather than a currency-sized outer row", () => {
   for (const currency of LOCALES) {
     const ui = render({ preview: false, wallet: null, currency });
-    const skeleton = nodes(ui.wallet).find(node => hasClass(node, "sl-skel"));
-    assert.ok(skeleton);
-    const size = currency === "id" || currency === "vi" ? 23 : currency === "tl" ? 29 : 32;
-    assert.equal((skeleton.props.style as { height: number }).height, size);
-    assert.equal((skeleton.props.style as { marginTop: number }).marginTop, 5);
-    assert.equal((skeleton.props.style as { width: string }).width, "calc(100% - var(--wallet-actions-width) - 8px)", "Loading cannot occupy the action column");
+    const market = nodes(ui.wallet).find(node => node.type === "MarketValue")!;
+    assert.ok(market);
+    assert.equal(market.props.balanceLoading, true);
+    assert.equal(market.props.nativeStroops, undefined);
+    assert.equal(market.props.dashboardActions, ui.rail);
+    assert.equal(nodes(ui.wallet).some(node => hasClass(node, "sl-skel")), false, "MarketValue owns consistent native-amount loading geometry");
     assert.equal(nodes(ui.wallet).some(node => node.type === "Peso"), false, "Pending state must not fabricate a balance");
     assert.deepEqual(ui.calls, { read: 0, write: 0, storage: 0, network: 0 });
   }
@@ -212,13 +227,16 @@ function insideReducedMotion(rule: Rule) {
   return false;
 }
 
-test("wallet CSS defines a connected equal horizontal rail with minimum touch height", () => {
+test("selected wallet CSS uses equal separate pills, icon-label separators and minimum touch height", () => {
   const rail = rules(".walletActions").find(rule => declaration(rule, "display") === "grid")!; assert.ok(rail);
   assert.equal(declaration(rail, "grid-template-columns")?.replace(/\s/g, ""), "repeat(2,minmax(0,1fr))");
   assert.ok(declaration(rail, "border-radius"));
-  const action = rules(".walletAction").find(rule => declaration(rule, "min-height"))!; assert.ok(action);
+  const action = rules(".wallet .walletAction").find(rule => declaration(rule, "min-height"))!; assert.ok(action);
   assert.ok(Number.parseFloat(declaration(action, "min-height")!) >= 44);
-  assert.ok(rules(".walletAction + .walletAction::before").some(rule => declaration(rule, "width") === "1px" && declaration(rule, "background")), "A shared divider keeps the two controls connected");
+  assert.equal(declaration(action, "border-radius"), "999px");
+  assert.equal(declaration(action, "flex-direction"), "row");
+  assert.ok(rules(".wallet .walletAction + .walletAction::before").some(rule => declaration(rule, "content") === "none"), "Separate pills replace the old shared divider");
+  assert.ok(rules(".wallet .walletActionIcon").some(rule => /^1px solid /.test(declaration(rule, "border-right") ?? "")), "Each pill separates its icon from the visible label");
 });
 
 test("wallet CSS never hides labels or disables links at narrow breakpoints", () => {

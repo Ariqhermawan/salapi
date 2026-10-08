@@ -8,6 +8,7 @@ import { LOCALES, type Locale } from "../lib/i18n/config.ts";
 import { homeCopy } from "../lib/i18n/revamp-home.ts";
 import * as catalogCopy from "../lib/i18n/revamp-home-catalog.ts";
 import * as circlesCopy from "../lib/i18n/revamp-circles.ts";
+import * as contentCopy from "../lib/i18n/circles-content.ts";
 import { accountPhotoCopy } from "../lib/i18n/account-photo.ts";
 import { requireWalletState } from "../lib/wallet-state.ts";
 import * as homeCircles from "../lib/home-circles.ts";
@@ -38,7 +39,7 @@ function nodes(value: unknown): Element[] {
   if (Array.isArray(value)) return value.flatMap(nodes);
   if (!value || typeof value !== "object" || !("props" in value)) return [];
   const node = value as Element;
-  return [node, ...nodes(node.props.children)];
+  return [node, ...nodes(node.props.children), ...nodes(node.props.dashboardActions), ...nodes(node.props.dashboardBalanceError)];
 }
 function text(value: unknown): string {
   if (typeof value === "string" || typeof value === "number") return String(value);
@@ -163,6 +164,7 @@ function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: bo
       if (name === "@/lib/i18n/revamp-home") return { homeCopy };
       if (name === "@/lib/i18n/revamp-home-catalog") return catalogCopy;
       if (name === "@/lib/i18n/revamp-circles") return circlesCopy;
+      if (name === "@/lib/i18n/circles-content") return contentCopy;
       if (name === "@/lib/i18n/account-photo") return { accountPhotoCopy };
       if (name === "@/lib/format-stroops") return { formatStroops: (value: string) => `exact-source-units:${value}` };
       if (name === "@/lib/wallet-state") return { requireWalletState };
@@ -407,7 +409,7 @@ for (const preview of [true, false]) for (const locale of LOCALES) test(`${local
     assert.equal(card.props["data-example-cause"], circle.id);
     assert.equal(image.props.src, circle.coverImage);
     assert.ok(existsSync(new URL(`../public${circle.coverImage}`, import.meta.url)));
-    assert.equal(image.props.alt, circle.imageAlt ?? c("AI-generated fictional campaign illustration"));
+    assert.equal(image.props.alt, contentCopy.circleDisplayContent(circle, locale).imageAlt ?? c("AI-generated fictional campaign illustration"));
     assert.equal(image.props.loading, index === 0 ? "eager" : "lazy");
     assert.ok(nodes(card).some(node => node.props.href === `/circles/${circle.id}`));
     assert.ok(nodes(card).filter(node => node.props.href).every(node => node.props.href === `/circles/${circle.id}`), "All card targets must open the same campaign, not an organizer or another donation flow");
@@ -415,7 +417,7 @@ for (const preview of [true, false]) for (const locale of LOCALES) test(`${local
     const cardLinks = nodes(card).filter(node => node.type === "Link");
     assert.equal(cardLinks.filter(node => node.props.prefetch === true).length, index === 0 ? 1 : 0, "Only the active card CTA may prefetch its route");
     assert.ok(cardLinks.filter(node => text(node).trim() !== c("View campaign")).every(node => node.props.prefetch === false));
-    assert.ok(text(card).includes(circle.title)); assert.ok(text(card).includes(circle.organizer));
+    assert.ok(text(card).includes(contentCopy.circleDisplayContent(circle, locale).title)); assert.ok(text(card).includes(circle.organizer));
     assert.ok(text(card).includes(c("Example cause")));
     assert.equal(nodes(card).some(node => hasClass(node, "rating")), false, "Home summarizes funding; synthetic ratings remain in the organizer detail");
     const funding = nodes(card).find(node => node.type === "HomeCircleFundingProgress"); assert.ok(funding);
@@ -621,8 +623,11 @@ test("structured wallet failure enters Home retry UI while the independent unifi
   const options = { preview: false, failWallet: true };
   const ui = mount(options); await ui.flush();
   const wallet = nodes(ui.tree).find(node => node.type === "section" && hasClass(node, "wallet"))!;
-  assert.equal(nodes(wallet).some(node => node.type === "Peso" || node.type === "MarketValue" || hasClass(node, "sl-skel")), false);
-  assert.ok(text(wallet).includes("Your wallet balance is unavailable."));
+  assert.equal(nodes(wallet).some(node => node.type === "Peso" || hasClass(node, "sl-skel")), false);
+  const market = nodes(wallet).find(node => node.type === "MarketValue")!;
+  assert.equal(market.props.nativeStroops, undefined, "Failed refresh does not keep an old balance visible");
+  assert.equal(market.props.balanceLoading, false);
+  assert.ok(text(market.props.dashboardBalanceError).includes("Your wallet balance is unavailable."));
   assert.equal(ui.cards.length, 27); assert.equal(ui.d4Cards.length, 12);
   const retry = nodes(wallet).find(node => node.type === "button" && hasClass(node, "walletRetry"))!;
   options.failWallet = false; (retry.props.onClick as () => void)(); await ui.flush();
@@ -653,7 +658,9 @@ test("Home ignores pending wallet and handle results after its mount is disposed
   const ui = mount({ preview: false, walletReader: () => balance.promise, handleReader: () => handle.promise }); await ui.flush();
   ui.cleanup();
   balance.resolve({ pesos: 99, address: "Disposed wallet", nativeStroops: "999999999" }); handle.resolve("disposed_owner"); await ui.flush();
-  assert.equal(nodes(ui.tree).find(node => node.type === "MarketValue"), undefined);
+  const market = nodes(ui.tree).find(node => node.type === "MarketValue")!;
+  assert.equal(market.props.nativeStroops, undefined, "Disposed response cannot populate the persistent balance layout");
+  assert.equal(market.props.balanceLoading, true);
   assert.doesNotMatch(text(ui.tree), /@disposed_owner|Your wallet balance is unavailable\./);
 });
 

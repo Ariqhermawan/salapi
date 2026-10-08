@@ -12,6 +12,7 @@ import { getOrganizerForCircle } from "@/lib/circles/organizers";
 import OrganizerVerification from "@/components/ui/OrganizerVerification";
 import ExampleOrganizerAvatar from "@/components/ui/ExampleOrganizerAvatar";
 import { circlesCopy, circlesCategory } from "@/lib/i18n/revamp-circles";
+import { circleDisplayContent } from "@/lib/i18n/circles-content";
 import { campaignDiscoveryCopy } from "@/lib/i18n/revamp-campaign-discovery";
 import CauseCategoryPicker from "@/components/CauseCategoryPicker";
 import { parseCauseViewState } from "@/lib/home-circles";
@@ -103,6 +104,7 @@ export default function CirclesDiscoverScreen({ campaignEntry = false }: { campa
       <section key={`${filter}:${sort}`} className={`${styles.list} sl-state-enter`} aria-label={c("Example circles")}>
         {visible.map((circle) => {
           const organizer = getOrganizerForCircle(circle);
+          const display = circleDisplayContent(circle, locale);
           return (
           <article key={circle.id} className={styles.exampleCard}>
             <div className={styles.photo}>
@@ -112,7 +114,7 @@ export default function CirclesDiscoverScreen({ campaignEntry = false }: { campa
                 height={220}
                 className={circle.coverImage || photos[circle.category] ? styles.photoCover : styles.illustratedCover}
                 alt={
-                  circle.coverImage ? circle.imageAlt ?? c("AI-generated fictional campaign illustration") : photos[circle.category]
+                  circle.coverImage ? display.imageAlt ?? c("AI-generated fictional campaign illustration") : photos[circle.category]
                     ? c("AI-generated fictional campaign illustration")
                     : c("Two people sharing a blue heart")
                 }
@@ -125,11 +127,11 @@ export default function CirclesDiscoverScreen({ campaignEntry = false }: { campa
             </div>
             <div className={styles.cardBody}>
               <span className={styles.exampleLabel}>{c("Example cause")}</span>
-              <h2>{circle.title}</h2>
+              <h2>{display.title}</h2>
               <Link className={styles.organizerLink} href={`/circles/${circle.id}/organizer`}>{organizer && <ExampleOrganizerAvatar organizer={organizer} size={36} />}<strong>{circle.organizer}</strong>{Ico.chev({size:15,c:T.action})}</Link>
               {organizer ? <OrganizerVerification kind={organizer.kind} compact /> : null}
               <span className={styles.location}>{circle.organizerLocation}{" "}{c("· Example organizer")}</span>
-              <p>{circle.summary ?? examplePurpose[circle.id] ?? c("A fictional cause for exploring the Circles prototype.")}</p>
+              <p>{display.summary ?? examplePurpose[circle.id] ?? c("A fictional cause for exploring the Circles prototype.")}</p>
               <div className={styles.feeLine}><span>{c("Beneficiary")}{" "}<strong>{100-(circle.allowance?.percentage ?? 0)}%</strong></span><span>{c("Organizer operations")}{" "}<strong>{circle.allowance?.percentage ?? 0}%</strong></span></div>
               <Link href={`/circles/${circle.id}`} className={styles.cardLink}>{c("Explore this concept")}{Ico.chev({ size: 16, c: T.action })}
               </Link>

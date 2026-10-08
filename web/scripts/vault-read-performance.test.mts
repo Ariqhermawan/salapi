@@ -6,6 +6,7 @@ import ts from "typescript";
 import { PREVIEW_CAMPAIGNS, PREVIEW_TIME, PREVIEW_WALLET } from "../lib/local-preview.ts";
 import { formatLocal } from "../lib/ui/currency.ts";
 import { formatStroops } from "../lib/format-stroops.ts";
+import * as contentCopy from "../lib/i18n/circles-content.ts";
 
 type Source = "rooms" | "campaigns" | "pool" | "legacyCircle";
 type Overview = Record<Source, unknown>;
@@ -47,7 +48,7 @@ function actionSetup(read: (source: Source) => Promise<unknown>, preview = false
   const reader = (source: Source) => async () => { started.push(source); return read(source); };
   const api = load<{ vaultOverview(): Promise<Overview> }>(actionCode, {
     "./actions": { arisanList: reader("rooms"), disasterState: reader("pool"), paluwaganState: reader("legacyCircle") },
-    "./campaign-actions": { campaignState: reader("campaigns") },
+    "@/lib/server/vaultCampaignHistory": { readVaultCampaignHistory: reader("campaigns") },
     "@/lib/local-preview": { isLocalPreview: preview },
   });
   return { api, started };
@@ -144,10 +145,15 @@ function text(value: unknown): string {
   if (Array.isArray(value)) return value.map(text).join("");
   return value && typeof value === "object" && "props" in value ? text((value as Element).props.children) : "";
 }
-function screenSetup(read: () => Promise<Overview>, preview = false, storage: { saved?: string; blocked?: boolean } = {}) {
+function screenSetup(read: () => Promise<Overview>, preview = false, storage: { saved?: string; blocked?: boolean } = {}, options: {
+  older?: (cursor: unknown, owner: unknown) => Promise<unknown>; auth?: boolean; initialOwner?: string;
+} = {}) {
   const states: unknown[] = [], effects: (() => void)[] = [], timers: (() => void)[] = [];
+  const refs: { current: unknown }[] = [];
   const savedPreferences: [string, string][] = [];
-  let index = 0, mounted = false, calls = 0;
+  let index = 0, refIndex = 0, mounted = false, calls = 0;
+  const olderCalls: { cursor: unknown; owner: unknown }[] = [];
+  let authCallback: ((event: string, session: unknown) => void) | undefined;
   const jsx = (type: string, props: Record<string, unknown>) => ({ type, props });
   const api = load<{ default(): Element }>(screenCode, {
     "react/jsx-runtime": { jsx, jsxs: jsx, Fragment: "Fragment" },
@@ -158,20 +164,28 @@ function screenSetup(read: () => Promise<Overview>, preview = false, storage: { 
         return [states[slot], (value: unknown) => { states[slot] = typeof value === "function" ? value(states[slot]) : value; }];
       },
       useCallback: (callback: unknown) => callback,
+      useRef(initial: unknown) { const slot = refIndex++; refs[slot] ??= { current: initial }; return refs[slot]; },
       useEffect: (effect: () => void) => { if (!mounted) effects.push(effect); },
     },
     "next/link": { default: "Link" }, "next/image": { default: "Image" },
-    "@/app/vault-read-actions": { vaultOverview: () => { calls++; return read(); } },
+    "@/app/vault-read-actions": {
+      vaultOverview: () => { calls++; return read(); },
+      vaultCampaignHistory: (cursor: unknown, owner: unknown) => { olderCalls.push({ cursor, owner }); return options.older ? options.older(cursor, owner) : Promise.resolve({ ok: false, error: "Isolated older history unavailable" }); },
+    },
+    "@/lib/supabase/env": { supabaseConfigured: () => options.auth ?? false },
+    "@/lib/supabase/client": { createSupabaseBrowser: () => ({ auth: { onAuthStateChange(callback: typeof authCallback) { authCallback = callback; if (callback && options.initialOwner) callback("INITIAL_SESSION", { user: { id: options.initialOwner } }); return { data: { subscription: { unsubscribe() {} } } }; } } }) },
     "@/components/I18nProvider": { useT: () => ({ currency: "en", locale: "en" }) },
     "@/lib/i18n/revamp-home": { homeCopy: (_locale: string, phrase: string) => phrase },
     "@/components/ui/kit": { Ico: new Proxy({}, { get: () => () => null }), T: {}, PoweredByStellar: "PoweredByStellar" },
     "@/lib/ui/currency": { formatLocal }, "@/lib/format-stroops": { formatStroops },
     "@/lib/vault-campaign-media": { vaultCampaignMedia: () => null },
+    "@/lib/i18n/circles-content": contentCopy,
     "@/lib/local-preview": { PREVIEW_CAMPAIGNS, PREVIEW_TIME, PREVIEW_WALLET, normalizePreviewCampaigns: (value: unknown) => value },
     "./arisan-preview": { readPreviewArisanRoom: () => null },
     "./VaultsRevamp.module.css": { default: new Proxy({}, { get: (_target, name) => String(name) }) },
   }, {
     process: { env: { NEXT_PUBLIC_LOCAL_PREVIEW: preview ? "1" : "0" } },
+    queueMicrotask,
     setTimeout: (callback: () => void) => { timers.push(callback); return timers.length; }, clearTimeout() {},
     sessionStorage: {
       getItem: (key: string) => { if (storage.blocked) throw Error("Storage denied"); return key === "salapi.vaults.tab.v1" ? storage.saved ?? null : null; },
@@ -180,15 +194,17 @@ function screenSetup(read: () => Promise<Overview>, preview = false, storage: { 
   });
   return {
     states,
+    olderCalls,
     savedPreferences,
     get calls() { return calls; },
-    render() { index = 0; const tree = api.default(); mounted = true; return tree; },
+    render() { index = 0; refIndex = 0; const tree = api.default(); mounted = true; return tree; },
     mount() { effects.splice(0).forEach(effect => effect()); timers.splice(0).forEach(timer => timer()); },
+    auth(event: string, userId: string | null) { assert.ok(authCallback); authCallback(event, userId ? { user: { id: userId } } : null); },
   };
 }
-async function flush() { for (let i = 0; i < 8; i++) await Promise.resolve(); }
+async function flush() { for (let i = 0; i < 16; i++) await Promise.resolve(); }
 function campaignResult() {
-  return { ok: true, viewer: PREVIEW_WALLET.address, contractId: "Isolated test contract", now: String(PREVIEW_TIME), campaigns: [PREVIEW_CAMPAIGNS[0]] };
+  return { ok: true, ownerId: "00000000-0000-4000-8000-000000000001", viewer: PREVIEW_WALLET.address, contractId: "Isolated test contract", now: String(PREVIEW_TIME), campaigns: [PREVIEW_CAMPAIGNS[0]], nextCursor: null, complete: true };
 }
 
 test("actual Vaults UI requests one overview and preserves campaign cards beside a room failure", async () => {
@@ -337,4 +353,153 @@ test("arrow and Home/End keys change the selected tab and move focus without a l
     assert.equal(focused.at(-1), `#vault-tab-${next}`);
   }
   assert.equal(prevented, 4); assert.equal(ui.calls, 1);
+});
+
+function historyResult(campaigns = [PREVIEW_CAMPAIGNS[0]], complete = true, nextCursor: string | null = null) {
+  return { ...campaignResult(), campaigns, complete, nextCursor };
+}
+function olderButton(tree: Element) {
+  const button = nodes(panel(tree, "crowdfund")).find(node => node.type === "button" && text(node) === "Load older campaigns");
+  assert.ok(button); return button;
+}
+function campaignIds(tree: Element) {
+  return nodes(panel(tree, "crowdfund")).filter(node => node.type === "article")
+    .map(node => String(node.props["aria-labelledby"]).replace("vault-campaign-", ""));
+}
+function click(node: Element) { (node.props.onClick as () => void)(); }
+
+test("completed personal crowdfunding history shows all three cards and an exact badge, not discovery's newest slice", async () => {
+  const ui = screenSetup(async () => ({ ...unavailable, campaigns: historyResult(PREVIEW_CAMPAIGNS) }));
+  ui.render(); ui.mount(); await flush();
+  const tree = ui.render();
+  assert.deepEqual(campaignIds(tree), PREVIEW_CAMPAIGNS.map(campaign => campaign.id));
+  assert.equal(text(tab(tree, "crowdfund")), "Crowdfund3");
+  assert.doesNotMatch(text(panel(tree, "crowdfund")), /Older campaigns are still being checked|Browse older campaigns/);
+  assert.equal(ui.olderCalls.length, 0); assert.equal(ui.calls, 1);
+});
+
+test("partial personal history uses 1+ or 0+, never a false final count or false empty state", async () => {
+  for (const campaigns of [[PREVIEW_CAMPAIGNS[0]], []]) {
+    const ui = screenSetup(async () => ({ ...unavailable, campaigns: historyResult(campaigns, false, campaigns.length ? "12" : "0") }));
+    ui.render(); ui.mount(); await flush();
+    const tree = ui.render();
+    assert.equal(text(tab(tree, "crowdfund")), `Crowdfund${campaigns.length}+`);
+    assert.match(text(panel(tree, "crowdfund")), /Older campaigns are still being checked\. This count is not the final total\./);
+    assert.doesNotMatch(text(panel(tree, "crowdfund")), /No campaigns linked to this wallet yet/);
+    assert.equal(olderButton(tree).props.disabled, false);
+  }
+});
+
+test("loading older history passes the previous cursor and owner, deduplicates cards and replaces partial count with exact total", async () => {
+  const ui = screenSetup(async () => ({ ...unavailable, campaigns: historyResult([PREVIEW_CAMPAIGNS[2]], false, "12") }), false, {}, {
+    older: async () => historyResult(PREVIEW_CAMPAIGNS),
+  });
+  ui.render(); ui.mount(); await flush();
+  click(olderButton(ui.render())); await flush();
+  assert.deepEqual(ui.olderCalls, [{ cursor: "12", owner: campaignResult().ownerId }]);
+  const tree = ui.render();
+  assert.deepEqual(campaignIds(tree), ["103", "102", "101"]);
+  assert.equal(text(tab(tree, "crowdfund")), "Crowdfund3");
+  assert.equal(nodes(tree).some(node => node.type === "button" && text(node) === "Load older campaigns"), false);
+  assert.equal(ui.calls, 1, "Loading more must not reread rooms and pool");
+});
+
+test("a failed older action retains verified entries and partial count, with an actionable retry", async () => {
+  for (const transport of [false, true]) {
+    let failed = true;
+    const ui = screenSetup(async () => ({ ...unavailable, campaigns: historyResult([PREVIEW_CAMPAIGNS[0]], false, "12") }), false, {}, {
+      older: async () => { if (failed) { if (transport) throw Error("Isolated transport"); return { ok: false, error: "Unavailable" }; } return historyResult(PREVIEW_CAMPAIGNS); },
+    });
+    ui.render(); ui.mount(); await flush();
+    click(olderButton(ui.render())); await flush();
+    const partial = ui.render();
+    assert.deepEqual(campaignIds(partial), ["101"]); assert.equal(text(tab(partial, "crowdfund")), "Crowdfund1+");
+    assert.match(text(panel(partial, "crowdfund")), /Older campaigns could not be loaded\. Your verified entries are still shown\. Try again\./);
+    assert.equal(olderButton(partial).props.disabled, false);
+    failed = false; click(olderButton(partial)); await flush();
+    assert.equal(text(tab(ui.render(), "crowdfund")), "Crowdfund3"); assert.equal(ui.olderCalls.length, 2);
+  }
+});
+
+test("repeated older clicks in the same render dispatch only one read and keep the loading control disabled", async () => {
+  const gate = deferred<unknown>();
+  const ui = screenSetup(async () => ({ ...unavailable, campaigns: historyResult([PREVIEW_CAMPAIGNS[0]], false, "12") }), false, {}, { older: () => gate.promise });
+  ui.render(); ui.mount(); await flush();
+  const button = olderButton(ui.render()); click(button); click(button);
+  assert.equal(ui.olderCalls.length, 1);
+  const loading = nodes(ui.render()).find(node => node.type === "button" && text(node) === "Checking older campaigns…")!;
+  assert.ok(loading); assert.equal(loading.props.disabled, true);
+  gate.resolve(historyResult(PREVIEW_CAMPAIGNS)); await flush();
+  assert.equal(text(tab(ui.render(), "crowdfund")), "Crowdfund3");
+});
+
+test("a new overview invalidates an older reply without allowing stale cards or count to overwrite refresh", async () => {
+  const gate = deferred<unknown>(); let reads = 0;
+  const ui = screenSetup(async () => ({ ...unavailable, campaigns: ++reads === 1 ? historyResult([PREVIEW_CAMPAIGNS[0]], false, "12") : historyResult([PREVIEW_CAMPAIGNS[1]]) }), false, {}, { older: () => gate.promise });
+  ui.render(); ui.mount(); await flush();
+  const previous = ui.render();
+  const refresh = nodes(panel(previous, "crowdfund")).find(node => node.type === "button" && text(node).trim() === "Refresh")!;
+  click(olderButton(previous)); click(refresh); await flush();
+  assert.equal(ui.calls, 2); assert.deepEqual(campaignIds(ui.render()), ["102"]);
+  gate.resolve(historyResult(PREVIEW_CAMPAIGNS)); await flush();
+  assert.deepEqual(campaignIds(ui.render()), ["102"]); assert.equal(text(tab(ui.render(), "crowdfund")), "Crowdfund1");
+});
+
+test("owner initialization gates authenticated reads, and a later account change discards the old owner's pending reply", async () => {
+  const gate = deferred<unknown>(), firstOwner = campaignResult().ownerId, secondOwner = "00000000-0000-4000-8000-000000000002";
+  let currentOwner = firstOwner;
+  const ui = screenSetup(async () => ({ ...unavailable, campaigns: currentOwner === firstOwner ? historyResult([PREVIEW_CAMPAIGNS[0]], false, "12")
+    : { ...historyResult([PREVIEW_CAMPAIGNS[1]]), ownerId: secondOwner } }), false, {}, { auth: true, older: () => gate.promise });
+  ui.render(); ui.mount(); await flush();
+  assert.equal(ui.calls, 0, "No personal result may be accepted before owner correlation");
+  ui.auth("INITIAL_SESSION", firstOwner); await flush();
+  assert.equal(ui.calls, 1); click(olderButton(ui.render()));
+  currentOwner = secondOwner; ui.auth("SIGNED_IN", secondOwner); await flush();
+  assert.equal(ui.calls, 2); assert.deepEqual(campaignIds(ui.render()), ["102"]);
+  gate.resolve(historyResult(PREVIEW_CAMPAIGNS)); await flush();
+  assert.deepEqual(campaignIds(ui.render()), ["102"]); assert.equal(text(tab(ui.render(), "crowdfund")), "Crowdfund1");
+});
+
+test("pagination identity mismatch cannot merge another wallet or deployment's private campaign entries", async () => {
+  for (const changed of [{ ownerId: "00000000-0000-4000-8000-000000000002" }, { viewer: "other-wallet" }, { contractId: "other-deployment" }]) {
+    const ui = screenSetup(async () => ({ ...unavailable, campaigns: historyResult([PREVIEW_CAMPAIGNS[0]], false, "12") }), false, {}, {
+      older: async () => ({ ...historyResult(PREVIEW_CAMPAIGNS), ...changed }),
+    });
+    ui.render(); ui.mount(); await flush(); click(olderButton(ui.render())); await flush();
+    const tree = ui.render(); assert.match(text(panel(tree, "crowdfund")), /Your campaigns could not be loaded/);
+    assert.deepEqual(campaignIds(tree), []);
+  }
+});
+
+test("an overview for a different owner fails closed, never rendering an unverified no-campaigns message", async () => {
+  const ui = screenSetup(async () => ({ ...unavailable, campaigns: historyResult([]) }), false, {}, { auth: true });
+  ui.render(); ui.mount(); await flush();
+  ui.auth("INITIAL_SESSION", "00000000-0000-4000-8000-000000000002"); await flush();
+  const crowdfunding = panel(ui.render(), "crowdfund");
+  assert.match(text(crowdfunding), /Your campaigns could not be loaded/);
+  assert.doesNotMatch(text(crowdfunding), /No campaigns linked to this wallet yet/);
+  assert.equal(nodes(crowdfunding).some(node => node.props.role === "alert"), true);
+});
+
+test("mount and INITIAL_SESSION overlap deduplicate one pending overview instead of queueing extra personal reads", async () => {
+  const gate = deferred<Overview>();
+  const ui = screenSetup(() => gate.promise, false, {}, { auth: true, initialOwner: campaignResult().ownerId });
+  ui.render(); ui.mount(); await flush();
+  assert.equal(ui.calls, 1);
+  ui.auth("INITIAL_SESSION", campaignResult().ownerId); ui.auth("TOKEN_REFRESHED", campaignResult().ownerId); await flush();
+  assert.equal(ui.calls, 1);
+  gate.resolve({ ...unavailable, campaigns: historyResult(PREVIEW_CAMPAIGNS) }); await flush();
+  assert.equal(text(tab(ui.render(), "crowdfund")), "Crowdfund3");
+});
+
+test("a late old-owner overview cannot repopulate campaigns after a new authenticated owner is correlated", async () => {
+  const old = deferred<Overview>(), secondOwner = "00000000-0000-4000-8000-000000000002";
+  let reads = 0;
+  const ui = screenSetup(() => ++reads === 1 ? old.promise : Promise.resolve({ ...unavailable, campaigns: { ...historyResult([PREVIEW_CAMPAIGNS[1]]), ownerId: secondOwner } }), false, {}, { auth: true });
+  ui.render(); ui.mount(); ui.auth("INITIAL_SESSION", campaignResult().ownerId); await flush();
+  assert.equal(ui.calls, 1);
+  ui.auth("SIGNED_IN", secondOwner); await flush();
+  assert.deepEqual(campaignIds(ui.render()), ["102"]);
+  old.resolve({ ...unavailable, campaigns: historyResult(PREVIEW_CAMPAIGNS) }); await flush();
+  assert.deepEqual(campaignIds(ui.render()), ["102"]); assert.equal(text(tab(ui.render(), "crowdfund")), "Crowdfund1");
 });

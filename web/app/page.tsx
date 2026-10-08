@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { myHandle, walletState } from "@/app/actions";
 import { requireWalletState } from "@/lib/wallet-state";
 import { readPublicCampaigns } from "@/lib/ui/public-read";
-import { Ico, Peso } from "@/components/ui/kit";
+import { Ico } from "@/components/ui/kit";
 import { useT } from "@/components/I18nProvider";
 import type { Campaign } from "@/lib/campaign";
 import { isLocalPreview, PREVIEW_WALLET } from "@/lib/local-preview";
@@ -18,10 +18,13 @@ import { accountPhotoCopy } from "@/lib/i18n/account-photo";
 import MarketValue from "@/components/MarketValue";
 import { PoweredByStellarV2 } from "@/components/ui/brand";
 
+// Preview uses its declared native token quantity, never its demo fiat balance.
+const [previewWhole, previewFraction = ""] = PREVIEW_WALLET.xlm.split(".");
+const previewNativeStroops = `${previewWhole}${previewFraction.padEnd(7, "0")}`;
+
 export default function Home() {
-  const { currency, locale } = useT();
+  const { locale } = useT();
   const copy = (phrase: string) => homeCopy(locale, phrase);
-  const balanceSize = currency === "id" || currency === "vi" ? 23 : currency === "tl" ? 29 : 32;
   const photo = useAccountPhoto();
   const photoCopy = accountPhotoCopy(locale);
   const [wallet, setWallet] = useState<{ pesos: number; address: string; nativeStroops?: string } | null>(isLocalPreview ? PREVIEW_WALLET : null);
@@ -89,28 +92,34 @@ export default function Home() {
   return <div className={s.home} data-testid="home-dashboard">
     <section className={s.wallet} aria-label={copy("Your Testnet wallet")}>
       <div className={s.identity}>
-        <Link href="/settings" className={s.avatar} aria-label={copy("Your account")}><AccountAvatar name={handle || photo.profile?.email || "Salapi"} photoUrl={photo.profile?.photoUrl ?? null} size={44} alt={photoCopy.alt} loading={photo.status === "loading"} /></Link>
+        <Link href="/settings" className={s.avatar} aria-label={copy("Your account")}><AccountAvatar name={handle || photo.profile?.email || "Salapi"} photoUrl={photo.profile?.photoUrl ?? null} size={64} alt={photoCopy.alt} loading={photo.status === "loading"} /></Link>
         <div className={s.name}><span>{copy("Hi there")}</span><strong>{handle ? handle.charAt(0).toUpperCase() + handle.slice(1) : photo.profile?.email || copy("Welcome to Salapi")}</strong><small>{handle ? `@${handle}` : copy("Your community money, together.")}</small></div>
         <Link href="/learn" className={s.round} aria-label={copy("Help and learning")}>{Ico.bulb({ size: 20, c: "#fff" })}</Link>
         <Link href="/receive" className={s.round} aria-label={copy("Receive by QR")}>{Ico.qr({ size: 20, c: "#fff" })}</Link>
       </div>
-      <div className={`${s.walletContent} ${s.walletMinimal}`}><div><div className={s.balanceLabel}><span>{copy("TESTNET BALANCE")}</span></div>
-        {walletError ? <button className={s.walletRetry} onClick={loadWallet}>{copy(walletError)} {copy("Retry")}</button>
-          : wallet ? <div className={s.amount} data-preview-balance={isLocalPreview || undefined}>{isLocalPreview ? <><span>≈ </span><Peso value={wallet.pesos} size={balanceSize} color="#fff" /></> : <MarketValue nativeStroops={wallet.nativeStroops} size={balanceSize} color="#fff" compact showNative dashboard />}</div>
-          : <div className="sl-skel" style={{ height: balanceSize, width: "calc(100% - var(--wallet-actions-width) - 8px)", marginTop: 5 }} />}
+      <div className={`${s.walletContent} ${s.walletMinimal}`}>
+        <div className={s.balanceLabel}><span>{copy("TESTNET BALANCE")}</span></div>
+        <div className={s.amount} data-preview-balance={isLocalPreview || undefined}>
+          <MarketValue
+            nativeStroops={walletError ? undefined : wallet?.nativeStroops ?? (isLocalPreview && wallet ? previewNativeStroops : undefined)}
+            size={40} color="#fff" compact showNative dashboard
+            balanceLoading={!wallet && !walletError}
+            dashboardBalanceError={walletError ? <button className={s.walletRetry} onClick={loadWallet}>{copy(walletError)} {copy("Retry")}</button> : undefined}
+            dashboardCaption={copy("Testnet · no real money")}
+            dashboardActions={
+              <nav className={s.walletActions} aria-label={copy("Wallet actions")}>
+                <Link href="/topup" className={s.walletAction} aria-label={copy("Top up")}>
+                  <span className={s.walletActionIcon} aria-hidden="true">{Ico.arrowDown({ size: 18, c: "currentColor" })}</span>
+                  <span className={s.walletActionLabel}>{copy("Top up")}</span>
+                </Link>
+                <Link href="/withdraw" className={s.walletAction} aria-label={copy("Withdraw")}>
+                  <span className={s.walletActionIcon} aria-hidden="true">{Ico.arrowUp({ size: 18, c: "currentColor" })}</span>
+                  <span className={s.walletActionLabel}>{copy("Withdraw")}</span>
+                </Link>
+              </nav>
+            } />
+        </div>
       </div>
-        <nav className={s.walletActions} aria-label={copy("Wallet actions")}>
-          <Link href="/topup" className={s.walletAction} aria-label={copy("Top up")}>
-            <span className={s.walletActionIcon} aria-hidden="true">{Ico.arrowDown({ size: 18, c: "currentColor" })}</span>
-            <span className={s.walletActionLabel}>{copy("Top up")}</span>
-          </Link>
-          <Link href="/withdraw" className={s.walletAction} aria-label={copy("Withdraw")}>
-            <span className={s.walletActionIcon} aria-hidden="true">{Ico.arrowUp({ size: 18, c: "currentColor" })}</span>
-            <span className={s.walletActionLabel}>{copy("Withdraw")}</span>
-          </Link>
-        </nav>
-      </div>
-      <p className={s.walletCaption}>{isLocalPreview ? `${PREVIEW_WALLET.xlm} ${copy("test XLM · no real money")}` : copy("Testnet · no real money")}</p>
     </section>
     <HomeCirclesCatalog campaigns={campaigns} circleLinks={circleLinks} loading={loading} error={error} onRetry={loadCampaigns} />
     <section className={s.quick} aria-label={copy("QUICK ACTIONS")}><div className={s.quickGrid}>

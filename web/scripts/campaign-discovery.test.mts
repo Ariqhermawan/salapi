@@ -16,6 +16,7 @@ import { DICTS } from "../lib/i18n/dictionaries.ts";
 import { LOCALES, type Locale } from "../lib/i18n/config.ts";
 import type { Circle, CircleCategory } from "../lib/circles/types.ts";
 import { campaignDonorBadge } from "../lib/ui/testnet-donor.ts";
+import * as contentCopy from "../lib/i18n/circles-content.ts";
 
 type Element = { type: unknown; props: Record<string, unknown>; key?: string };
 function nodes(value: unknown): Element[] {
@@ -152,6 +153,7 @@ function catalog(preview = true, campaignEntry = true) {
       if (name === "@/lib/circles/types") return circleTypes;
       if (name === "@/lib/circles/organizers") return fixture("../lib/circles/organizers.ts");
       if (name === "@/lib/i18n/revamp-circles") return circlesCopy;
+      if (name === "@/lib/i18n/circles-content") return contentCopy;
       if (name === "@/lib/i18n/revamp-campaign-discovery") return discoveryCopy;
       if (name === "@/lib/home-circles") return homeCircles;
       if (name === "@/lib/ui/useNavigationViewState") return { useNavigationViewState: (key: string) => navigationViews.get(key) ?? "" };
@@ -188,7 +190,7 @@ test("default local catalog renders all 27 causes with nine filters, original ph
   assert.equal(Object.keys(circleTypes.CATEGORY_LABEL).length, 9);
   for (let i = 0; i < articles.length; i++) {
     const circle = seed.SEED_CIRCLES[i], article = articles[i];
-    assert.equal(text(nodes(article).find(node => node.type === "h2")), circle.title);
+    assert.equal(text(nodes(article).find(node => node.type === "h2")), contentCopy.circleDisplayContent(circle, "en").title);
     assert.equal(nodes(article).find(node => node.type === "Image")?.props.src, circle.coverImage);
     assert.ok(nodes(article).some(node => node.props.href === `/circles/${circle.id}`));
     assert.ok(nodes(article).some(node => node.props.href === `/circles/${circle.id}/organizer`));
@@ -198,7 +200,7 @@ test("default local catalog renders all 27 causes with nine filters, original ph
     screen.filter(category);
     const expected = seed.SEED_CIRCLES.filter(circle => circle.category === category);
     assert.equal(expected.length, 3);
-    assert.deepEqual(nodes(screen.tree).filter(node => node.type === "article").map(node => text(nodes(node).find(child => child.type === "h2"))), Array.from(expected, circle => circle.title));
+    assert.deepEqual(nodes(screen.tree).filter(node => node.type === "article").map(node => text(nodes(node).find(child => child.type === "h2"))), Array.from(expected, circle => contentCopy.circleDisplayContent(circle, "en").title));
     assert.equal(nodes(screen.tree).filter(node => node.type === "button" && node.props["aria-pressed"] === true).length, 1);
   }
   screen.filter("all"); assert.equal(nodes(screen.tree).filter(node => node.type === "article").length, 27);
@@ -257,6 +259,7 @@ function campaignCard(campaign: Campaign, preview: boolean, locale: Locale = "en
       if (name === "@/lib/i18n/revamp-campaign-discovery") return discoveryCopy;
       if (name === "@/lib/i18n/revamp-account") return accountCopy;
       if (name === "@/lib/i18n/revamp-circles") return circlesCopy;
+      if (name === "@/lib/i18n/circles-content") return contentCopy;
       if (name === "@/lib/ui/testnet-donor") return { campaignDonorBadge };
       if (name === "@/lib/ui/useGoBack") return { useGoBack: () => forbidden("action") };
       if (["@/components/AvailableWalletBalance", "@/components/CampaignDonationBadge"].includes(name)) return { __esModule: true, default: () => null };

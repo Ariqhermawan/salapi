@@ -6,6 +6,7 @@ import { currentWalletPublicKey, getAuthenticatedSigner } from "@/lib/server/use
 import { campaignAmount } from "@/lib/campaign-money";
 import { campaignId, campaignError, campaignStruct, parseCampaignConfig, proofHash, publicProofUrl, type Campaign } from "@/lib/campaign";
 import { isLocalPreview } from "@/lib/local-preview";
+import { readCircleDiscoveryMappings, circleDiscoveryLinks } from "@/lib/server/circlesTestnet";
 
 type RawCampaign = Omit<Campaign, "id" | "config" | "total" | "escrow" | "state" | "proofHash" | "proofUrl" | "contribution"> & {
   id: bigint; config: Omit<Campaign["config"], "funding_deadline" | "review_deadline"> & { funding_deadline: bigint; review_deadline: bigint };
@@ -74,16 +75,24 @@ export async function campaignState(id = "", before = "0") {
   if (isLocalPreview) return { ok: false as const, error: "Local preview does not read live campaign state." };
   try {
     const contractId = await deployment();
+    const selector = id ? campaignId(id) : campaignId(before, true);
+    const mappingsRead = readCircleDiscoveryMappings().catch(() => []);
     const [raw, viewer, now] = await Promise.all([
-      id ? readContract(contractId, "campaign", [sc.u64(campaignId(id))]).then(c => [c])
-        : readContract(contractId, "campaigns", [sc.u64(campaignId(before, true)), sc.u32(10)]),
+      id ? readContract(contractId, "campaign", [sc.u64(selector)]).then(c => [c])
+        : readContract(contractId, "campaigns", [sc.u64(selector), sc.u32(10)]),
       currentWalletPublicKey(), readContract(contractId, "clock"),
     ]);
     const campaigns = await Promise.all((raw as RawCampaign[]).map(async c => {
       const contribution = viewer ? await readContract(contractId, "contribution", [sc.u64(c.id), sc.addr(viewer)]) as { amount: bigint; refunded: boolean } : null;
       return serialize(c, contribution ? { ...contribution, amount: contribution.amount.toString() } : undefined);
     }));
-    return { ok: true as const, contractId, viewer, now: String(now), campaigns };
+    // Titles and full immutable config establish a display association only.
+    // Campaign payloads remain the exact ledger and contribution projection.
+    let circleLinks: Record<string, string> = {};
+    try { circleLinks = circleDiscoveryLinks(campaigns, await mappingsRead); }
+    catch { /* Optional catalog metadata cannot hide a live campaign. */ }
+    return { ok: true as const, contractId, viewer, now: String(now), campaigns,
+      ...(Object.keys(circleLinks).length ? { circleLinks } : {}) };
   } catch (error) { return { ok: false as const, error: campaignError(error) }; }
 }
 export async function campaignEvents() {

@@ -11,6 +11,7 @@ import type { Circle } from "../lib/circles/types.ts";
 import type { LocalSupportRecord } from "../lib/circles/local-support.ts";
 import * as revampCircles from "../lib/i18n/revamp-circles.ts";
 import type { SignupIdentityState } from "../lib/ui/useCirclesSignupIdentity.ts";
+import * as contentCopy from "../lib/i18n/circles-content.ts";
 
 type Element = { type: string; props: Record<string, unknown> };
 type Component = { default(props: { circle: Circle }): Element; CirclesPreviewDonateScreen(props: { circle: Circle }): Element };
@@ -127,6 +128,7 @@ function setup(options: { currency?: Locale; locale?: Locale; circleId?: string;
       if (name === "@/components/ui/ExampleOrganizerAvatar") return { default: "ExampleOrganizerAvatar" };
       if (name === "@/components/I18nProvider") return { useT: () => ({ currency, locale }) };
       if (name === "@/lib/i18n/revamp-circles") return revampCircles;
+      if (name === "@/lib/i18n/circles-content") return contentCopy;
       if (name === "@/components/CirclesSignupEmail") return signupEmail;
       if (name === "@/lib/ui/useCirclesSignupIdentity") return { useCirclesSignupIdentity: () => ({ identity: options.identity ?? { status: "guest" }, refresh: () => {}, captureOwnerRevision: () => 0, isCurrentOwner: () => true }) };
       if (name === "@/components/ui/kit") return { T: {}, Ico: icons, PoweredByStellar: "PoweredByStellar" };

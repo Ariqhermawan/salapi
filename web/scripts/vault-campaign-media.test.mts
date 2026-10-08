@@ -9,6 +9,7 @@ import { formatStroops } from "../lib/format-stroops.ts";
 import type { Campaign } from "../lib/campaign.ts";
 import type { Locale } from "../lib/i18n/config.ts";
 import { homeCopy } from "../lib/i18n/revamp-home.ts";
+import * as contentCopy from "../lib/i18n/circles-content.ts";
 
 type Media = { coverSrc: string; gallery: { src: string; alt: string; caption: string }[]; organizerName: string; organizerPhotoSrc: string; organizerHref: string };
 type Element = { type: string; props: Record<string, unknown> };
@@ -43,12 +44,14 @@ const mapping = [
 // Render the actual Vaults UI with isolated hydrated state. Effects are not
 // executed: no browser, auth, account provisioning, RPC, network or storage can
 // run. The same ID/title data is deliberately supplied in flag0 negative cases.
-function screen(options: { preview?: boolean; campaigns?: Campaign[]; locale?: Locale } = {}) {
+function screen(options: { preview?: boolean; campaigns?: Campaign[]; circleLinks?: Record<string, string>; locale?: Locale } = {}) {
   const preview = options.preview ?? true;
   const locale = options.locale ?? "en";
   const campaigns = options.campaigns ?? PREVIEW_CAMPAIGNS;
   const states: unknown[] = [];
+  const refs: { current: unknown }[] = [];
   let cursor = 0;
+  let refCursor = 0;
   const calls = { actions: 0, network: 0, storage: 0 };
   const forbidden = (kind: keyof typeof calls) => () => { calls[kind]++; throw Error(`Forbidden ${kind} in isolated Vaults media test`); };
   const component = {} as { default(): Element };
@@ -65,18 +68,20 @@ function screen(options: { preview?: boolean; campaigns?: Campaign[]; locale?: L
         useState(initial: unknown) {
           const index = cursor++;
           if (!(index in states)) {
-            if (index === 1) states[index] = { ok: true, viewer: PREVIEW_WALLET.address, contractId: "Isolated test fixture", now: String(PREVIEW_TIME), campaigns };
+            if (index === 1) states[index] = { ok: true, ownerId: "00000000-0000-4000-8000-000000000001", viewer: PREVIEW_WALLET.address, contractId: "Isolated test fixture", now: String(PREVIEW_TIME), campaigns, circleLinks: options.circleLinks, complete: true, nextCursor: null };
             else if (index === 4) states[index] = false;
             else states[index] = typeof initial === "function" ? initial() : initial;
           }
           return [states[index], (value: unknown) => { states[index] = typeof value === "function" ? value(states[index]) : value; }];
         },
         useEffect() {}, useCallback: (callback: unknown) => callback,
+        useRef(initial: unknown) { const slot = refCursor++; refs[slot] ??= { current: initial }; return refs[slot]; },
       };
       if (name === "next/link") return { default: "Link" };
       if (name === "next/image") return { default: "Image" };
       if (name === "@/components/I18nProvider") return { useT: () => ({ currency: "en", locale }) };
       if (name === "@/lib/i18n/revamp-home") return { homeCopy };
+      if (name === "@/lib/i18n/circles-content") return contentCopy;
       if (name === "@/components/ui/kit") return { Ico: icons, T: {}, PoweredByStellar: "PoweredByStellar" };
       if (name === "@/lib/ui/currency") return { formatLocal };
       if (name === "@/lib/format-stroops") return { formatStroops };
@@ -84,7 +89,9 @@ function screen(options: { preview?: boolean; campaigns?: Campaign[]; locale?: L
       if (name === "@/lib/local-preview") return { PREVIEW_CAMPAIGNS, PREVIEW_TIME, PREVIEW_WALLET, normalizePreviewCampaigns: (values: Campaign[]) => values };
       if (name === "./arisan-preview") return { readPreviewArisanRoom: forbidden("storage") };
       if (name.endsWith(".module.css")) return { default: styles };
-      if (name === "@/app/vault-read-actions") return { vaultOverview: forbidden("actions") };
+      if (name === "@/app/vault-read-actions") return { vaultOverview: forbidden("actions"), vaultCampaignHistory: forbidden("actions") };
+      if (name === "@/lib/supabase/env") return { supabaseConfigured: () => false };
+      if (name === "@/lib/supabase/client") return { createSupabaseBrowser: forbidden("network") };
       throw Error(`Unexpected actual Vaults dependency: ${name}`);
     },
   });
@@ -150,6 +157,23 @@ test("unknown local ID and changed title or creator cannot rebind canonical port
     assert.ok(nodes(card).some(node => node.type === "a" && node.props.href === `https://stellar.expert/explorer/testnet/account/${campaign.config.creator}`));
     assert.deepEqual(ui.calls, { actions: 0, network: 0, storage: 0 });
   }
+});
+
+test("server-verified catalog associations localize Vault titles but preserve original campaigns and unknown titles", () => {
+  const campaign = { ...PREVIEW_CAMPAIGNS[0], id: "8", title: "QA Circles: cebu-community-water" };
+  const custom = { ...PREVIEW_CAMPAIGNS[0], id: "9", title: "Original user-authored campaign" };
+  const before = JSON.stringify([campaign, custom]);
+  for (const locale of ["en", "tl", "id", "vi"] as const) {
+    const ui = screen({ preview: false, campaigns: [campaign, custom], circleLinks: { "8": "cebu-community-water", "9": "unknown-cause" }, locale });
+    assert.ok(text(ui.cards[0]).includes(contentCopy.circleDisplayTitle("cebu-community-water", locale)!));
+    assert.ok(text(ui.cards[0]).includes(formatStroops(campaign.escrow)));
+    assert.ok(text(ui.cards[1]).includes(custom.title));
+    assert.equal(nodes(ui.cards[0]).some(node => node.type === "Image"), false);
+    assert.deepEqual(ui.calls, { actions: 0, network: 0, storage: 0 });
+  }
+  const fallback = screen({ preview: false, campaigns: [campaign], locale: "id" });
+  assert.ok(text(fallback.cards[0]).includes(campaign.title));
+  assert.equal(JSON.stringify([campaign, custom]), before);
 });
 
 test("actual local campaign cards contain decorative cover, visibly fictional organizer and descriptive portrait", () => {

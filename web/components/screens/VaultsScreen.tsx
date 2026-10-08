@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import type { arisanList, disasterState, paluwaganState } from "@/app/actions";
-import type { campaignState } from "@/app/campaign-actions";
-import { vaultOverview } from "@/app/vault-read-actions";
+import { vaultOverview, vaultCampaignHistory } from "@/app/vault-read-actions";
+import { createSupabaseBrowser } from "@/lib/supabase/client";
+import { supabaseConfigured } from "@/lib/supabase/env";
 import { useT } from "@/components/I18nProvider";
 import { homeCopy } from "@/lib/i18n/revamp-home";
 import { Ico, T, PoweredByStellar } from "@/components/ui/kit";
@@ -14,6 +15,7 @@ import { formatStroops } from "@/lib/format-stroops";
 import type { Campaign } from "@/lib/campaign";
 import type { Locale } from "@/lib/i18n/config";
 import { vaultCampaignMedia } from "@/lib/vault-campaign-media";
+import { circleDisplayTitle } from "@/lib/i18n/circles-content";
 import {
   PREVIEW_CAMPAIGNS,
   PREVIEW_TIME,
@@ -24,7 +26,7 @@ import styles from "./VaultsRevamp.module.css";
 import { readPreviewArisanRoom } from "./arisan-preview";
 
 type Rooms = Awaited<ReturnType<typeof arisanList>>;
-type Campaigns = Awaited<ReturnType<typeof campaignState>>;
+type Campaigns = Awaited<ReturnType<typeof vaultCampaignHistory>>;
 type Pool = Awaited<ReturnType<typeof disasterState>>;
 type LegacyCircle = Awaited<ReturnType<typeof paluwaganState>>;
 type VaultTab = "arisan" | "crowdfund";
@@ -45,6 +47,12 @@ const campaignCardCopy: Record<Locale, {
   tl: { campaign: "Kampanya ng donasyon", organizer: "Organizer", beneficiary: "Benepisyaryo", approver: "Tagapag-apruba", donor: "Donor", exampleOrganizer: "Halimbawang kathang-isip na organizer", organizerWallet: "Wallet ng organizer", photo: "Larawang ilustrasyon ng kampanya", portrait: "Ilustrasyong larawan sa profile, hindi beripikadong pagkakakilanlan", viewProfile: "Tingnan ang halimbawang profile ng organizer", noPhoto: "Walang ibinigay na larawan ng kampanya", inEscrow: "Testnet XLM sa escrow", review: "Pagsusuri ng patunay", viewCampaign: "Tingnan ang kampanya" },
   id: { campaign: "Campaign donasi", organizer: "Penyelenggara", beneficiary: "Penerima manfaat", approver: "Pemberi persetujuan", donor: "Donatur", exampleOrganizer: "Contoh penyelenggara fiktif", organizerWallet: "Wallet penyelenggara", photo: "Foto campaign ilustrasi", portrait: "Foto profil ilustrasi, bukan identitas terverifikasi", viewProfile: "Lihat profil penyelenggara contoh", noPhoto: "Foto campaign belum tersedia", inEscrow: "Testnet XLM dalam escrow", review: "Tinjauan bukti", viewCampaign: "Lihat campaign" },
   vi: { campaign: "Chiến dịch quyên góp", organizer: "Nhà tổ chức", beneficiary: "Người thụ hưởng", approver: "Người phê duyệt", donor: "Người quyên góp", exampleOrganizer: "Nhà tổ chức hư cấu mẫu", organizerWallet: "Ví nhà tổ chức", photo: "Ảnh minh họa chiến dịch", portrait: "Ảnh hồ sơ minh họa, không phải danh tính đã xác minh", viewProfile: "Xem hồ sơ nhà tổ chức mẫu", noPhoto: "Chưa cung cấp ảnh chiến dịch", inEscrow: "Testnet XLM trong ký quỹ", review: "Xem xét bằng chứng", viewCampaign: "Xem chiến dịch" },
+};
+const campaignHistoryCopy = {
+  en: { partial: "Older campaigns are still being checked. This count is not the final total.", failed: "Older campaigns could not be loaded. Your verified entries are still shown. Try again.", more: "Load older campaigns", loading: "Checking older campaigns…" },
+  tl: { partial: "Sinusuri pa ang mga mas lumang kampanya. Hindi pa ito ang kabuuang bilang.", failed: "Hindi ma-load ang mas lumang kampanya. Nananatili ang mga beripikadong entry. Subukan muli.", more: "I-load ang mas lumang kampanya", loading: "Sinusuri ang mas lumang kampanya…" },
+  id: { partial: "Campaign lama belum selesai diperiksa. Jumlah ini belum merupakan total akhir.", failed: "Campaign lama belum dapat dimuat. Data terverifikasi tetap ditampilkan. Coba lagi.", more: "Muat campaign lama", loading: "Memeriksa campaign lama…" },
+  vi: { partial: "Các chiến dịch cũ vẫn đang được kiểm tra. Đây chưa phải tổng số cuối cùng.", failed: "Không thể tải chiến dịch cũ. Các mục đã xác minh vẫn hiển thị. Hãy thử lại.", more: "Tải chiến dịch cũ", loading: "Đang kiểm tra chiến dịch cũ…" },
 };
 const previewRooms: Rooms = {
   ready: true,
@@ -90,10 +98,13 @@ const previewRooms: Rooms = {
 function previewCampaignState(list = PREVIEW_CAMPAIGNS): Campaigns {
   return {
     ok: true,
+    ownerId: "local-preview",
     contractId: "Local example, no deployed contract",
     viewer: PREVIEW_WALLET.address,
     now: String(PREVIEW_TIME),
     campaigns: list,
+    nextCursor: null,
+    complete: true,
   };
 }
 function isPreviewCampaign(value: unknown): value is Campaign {
@@ -142,6 +153,7 @@ export default function VaultsScreen() {
   const { currency, locale } = useT();
   const cardCopy = campaignCardCopy[locale] ?? campaignCardCopy.en;
   const vaultCopy = vaultContentCopy[locale];
+  const historyCopy = campaignHistoryCopy[locale];
   const [rooms, setRooms] = useState<Rooms | null>(
     PREVIEW ? previewRooms : null,
   );
@@ -153,11 +165,28 @@ export default function VaultsScreen() {
   const [loading, setLoading] = useState(!PREVIEW);
   const [tab, setTab] = useState<VaultTab>("arisan");
   const [tabsReady, setTabsReady] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [historyFailed, setHistoryFailed] = useState(false);
+  const requestRevision = useRef(0);
+  const historyPending = useRef(false);
+  const overviewPending = useRef(false);
+  const owner = useRef<string | null | undefined>(undefined);
+  const invalidateReads = useCallback(() => {
+    ++requestRevision.current;
+    overviewPending.current = false;
+    historyPending.current = false;
+  }, []);
   const selectTab = (next: VaultTab) => {
     setTab(next);
     try { sessionStorage.setItem(VAULT_TAB_KEY, next); } catch { /* Switching still works without browser storage. */ }
   };
   const refresh = useCallback(async () => {
+    // Wait for the browser's owner correlation, and deduplicate mount/auth reads.
+    if (!PREVIEW && ((supabaseConfigured() && owner.current === undefined) || overviewPending.current)) return;
+    const request = ++requestRevision.current;
+    historyPending.current = false;
+    setLoadingOlder(false);
+    setHistoryFailed(false);
     if (PREVIEW) {
       let list = PREVIEW_CAMPAIGNS;
       const mine = previewRooms.ready
@@ -223,24 +252,103 @@ export default function VaultsScreen() {
       setLoading(false);
       return;
     }
+    overviewPending.current = true;
     setLoading(true);
     try {
       // Client Server Actions dispatch sequentially. Overlap these independent
       // reads inside one server request instead of queueing four round trips.
       const overview = await vaultOverview();
+      if (request !== requestRevision.current) return;
+      if (overview.campaigns.ok && owner.current !== undefined && overview.campaigns.ownerId !== owner.current) {
+        setRooms({ ready: false, error: "We couldn't load your rooms." });
+        setCampaigns({ ok: false, error: "We couldn't load your campaigns." });
+        setLegacyCircle(null);
+        return;
+      }
       setRooms(overview.rooms);
       setCampaigns(overview.campaigns);
       setPool(overview.pool);
       setLegacyCircle(overview.legacyCircle);
     } catch {
+      if (request !== requestRevision.current) return;
       setRooms({ ready: false, error: "We couldn't load your rooms." });
       setCampaigns({ ok: false, error: "We couldn't load your campaigns." });
       setPool({ ok: false, error: "The community pool is temporarily unavailable." });
       setLegacyCircle(null);
     } finally {
-      setLoading(false);
+      if (request === requestRevision.current) {
+        overviewPending.current = false;
+        setLoading(false);
+      }
     }
   }, []);
+  const loadOlder = async () => {
+    if (PREVIEW || loading || historyPending.current || !campaigns?.ok || campaigns.complete || campaigns.nextCursor === null) return;
+    const previous = campaigns;
+    const request = ++requestRevision.current;
+    historyPending.current = true;
+    setLoadingOlder(true);
+    setHistoryFailed(false);
+    try {
+      const next = await vaultCampaignHistory(previous.nextCursor, previous.ownerId);
+      if (request !== requestRevision.current) return;
+      if (owner.current !== undefined && owner.current !== previous.ownerId) return;
+      if (!next.ok) { setHistoryFailed(true); return; }
+      if (next.ownerId !== previous.ownerId || next.viewer !== previous.viewer || next.contractId !== previous.contractId) {
+        setCampaigns({ ok: false, error: "We couldn't load your campaigns." });
+        return;
+      }
+      const unique = new Map(previous.campaigns.map(campaign => [campaign.id, campaign]));
+      for (const campaign of next.campaigns) unique.set(campaign.id, campaign);
+      // A replaced page cannot retain an older association that is no longer
+      // verified against the current immutable campaign configuration.
+      const circleLinks = { ...previous.circleLinks };
+      for (const campaign of next.campaigns) delete circleLinks[campaign.id];
+      Object.assign(circleLinks, next.circleLinks);
+      setCampaigns({ ...next, circleLinks, campaigns: [...unique.values()].sort((a, b) => BigInt(a.id) > BigInt(b.id) ? -1 : BigInt(a.id) < BigInt(b.id) ? 1 : 0) });
+      setHistoryFailed(!next.complete && next.nextCursor === previous.nextCursor);
+    } catch {
+      // A transport failure does not erase already verified campaign history.
+      if (request === requestRevision.current) setHistoryFailed(true);
+    } finally {
+      if (request === requestRevision.current) {
+        historyPending.current = false;
+        setLoadingOlder(false);
+      }
+    }
+  };
+  useEffect(() => {
+    if (PREVIEW || !supabaseConfigured()) return;
+    let active = true;
+    let unsubscribe = () => {};
+    try {
+      const { data } = createSupabaseBrowser().auth.onAuthStateChange((event, session) => {
+        const nextOwner = event === "SIGNED_OUT" ? null : session?.user.id ?? null;
+        const changed = owner.current !== nextOwner;
+        owner.current = nextOwner;
+        if (!changed) return;
+        // Invalidate both refresh and pagination before a late old-owner reply.
+        invalidateReads();
+        setRooms(null);
+        setCampaigns(null);
+        setLegacyCircle(null);
+        setLoadingOlder(false);
+        setHistoryFailed(false);
+        setLoading(Boolean(nextOwner));
+        queueMicrotask(() => { if (active) void refresh(); });
+      });
+      unsubscribe = () => data.subscription.unsubscribe();
+    } catch {
+      queueMicrotask(() => {
+        if (!active) return;
+        ++requestRevision.current;
+        setLoading(false);
+        setRooms({ ready: false, error: "We couldn't load your rooms." });
+        setCampaigns({ ok: false, error: "We couldn't load your campaigns." });
+      });
+    }
+    return () => { active = false; invalidateReads(); unsubscribe(); };
+  }, [refresh, invalidateReads]);
   useEffect(() => {
     const initialLoad = setTimeout(() => {
       try {
@@ -252,8 +360,11 @@ export default function VaultsScreen() {
       setTabsReady(true);
       void refresh();
     }, 0);
-    return () => clearTimeout(initialLoad);
-  }, [refresh]);
+    return () => {
+      clearTimeout(initialLoad);
+      invalidateReads();
+    };
+  }, [refresh, invalidateReads]);
   const mine =
     campaigns?.ok && campaigns.viewer
       ? campaigns.campaigns.filter(
@@ -264,12 +375,14 @@ export default function VaultsScreen() {
             BigInt(c.contribution.amount) > 0n,
         )
       : [];
+  const campaignViewer = campaigns?.ok ? campaigns.viewer : null;
   const myRooms = rooms?.ready ? rooms.mine : [];
   const hasLegacyCircle = Boolean(
     legacyCircle?.ready && legacyCircle.potPesos > 0,
   );
   const roomsIncomplete = !PREVIEW && rooms !== null && !rooms.ready;
   const campaignsIncomplete = !PREVIEW && campaigns !== null && !campaigns.ok;
+  const historyIncomplete = Boolean(campaigns?.ok && !campaigns.complete);
 
   return (
     <div className={`${styles.screen} ${styles.vaultsScreen}`} data-testid="vaults-dashboard">
@@ -305,7 +418,7 @@ export default function VaultsScreen() {
             event.currentTarget.parentElement?.querySelector<HTMLButtonElement>(`#vault-tab-${next}`)?.focus();
           }}>
           {vaultCopy[item]}
-          {(item === "arisan" ? rooms?.ready : campaigns?.ok) && <span aria-hidden="true">{item === "arisan" ? myRooms.length : mine.length}</span>}
+          {(item === "arisan" ? rooms?.ready : campaigns?.ok) && <span aria-hidden="true">{item === "arisan" ? myRooms.length : `${mine.length}${historyIncomplete ? "+" : ""}`}</span>}
         </button>)}
       </div>
       <div id="vault-panel-arisan" role="tabpanel" aria-labelledby="vault-tab-arisan" hidden={tab !== "arisan"} className={styles.vaultPanel}>
@@ -422,10 +535,10 @@ export default function VaultsScreen() {
       </Link>
       </div>
       <div id="vault-panel-crowdfund" role="tabpanel" aria-labelledby="vault-tab-crowdfund" hidden={tab !== "crowdfund"} className={styles.vaultPanel}>
-      <section className={styles.warmSection} aria-label={vaultCopy.campaignTitle} aria-busy={loading}>
+      <section className={styles.warmSection} aria-label={vaultCopy.campaignTitle} aria-busy={loading || loadingOlder}>
         <div className={styles.sectionHeading}>
           <h2>{vaultCopy.campaignTitle}</h2>
-          <button type="button" className={styles.textButton} onClick={() => void refresh()} disabled={loading}>
+          <button type="button" className={styles.textButton} onClick={() => void refresh()} disabled={loading || loadingOlder}>
             {vaultCopy.refresh} {Ico.refresh({ size: 13, c: T.action })}
           </button>
         </div>
@@ -438,12 +551,14 @@ export default function VaultsScreen() {
         {campaignsIncomplete && <div className={styles.inlineNotice} role="alert">
           {vaultCopy.campaignError} <button type="button" onClick={() => void refresh()}>{vaultCopy.retry}</button>
         </div>}
-        {!loading && !campaignsIncomplete && mine.length === 0 && <div className={styles.emptyState}>
+        {!loading && campaigns?.ok && campaigns.complete && mine.length === 0 && <div className={styles.emptyState}>
           <h3>{vaultCopy.emptyCampaign}</h3><p>{vaultCopy.emptyCampaignSub}</p>
         </div>}
         <div className={styles.vaultStack}>
           {mine.map((campaign) => {
             const media = vaultCampaignMedia(campaign, PREVIEW);
+            const circleId = campaigns?.ok ? campaigns.circleLinks?.[campaign.id] : undefined;
+            const displayTitle = circleId ? circleDisplayTitle(circleId, locale) ?? campaign.title : campaign.title;
             const creator = campaign.config.creator;
             const shortCreator = `${creator.slice(0, 6)}…${creator.slice(-6)}`;
             return <article key={campaign.id} className={styles.campaignVault} aria-labelledby={`vault-campaign-${campaign.id}`}>
@@ -453,12 +568,12 @@ export default function VaultsScreen() {
                   <div className={styles.campaignHeroTop}>
                     <span className={styles.campaignNumber}>{cardCopy.campaign} #{campaign.id}</span>
                     <span className={styles.campaignRole}>
-                    {campaign.config.creator === campaigns?.viewer
+                    {campaign.config.creator === campaignViewer
                       ? cardCopy.organizer
-                      : campaign.config.beneficiary === campaigns?.viewer
+                      : campaign.config.beneficiary === campaignViewer
                         ? cardCopy.beneficiary
                         : campaign.config.approvers.includes(
-                              campaigns?.viewer ?? "",
+                              campaignViewer ?? "",
                             )
                           ? cardCopy.approver
                           : cardCopy.donor}
@@ -466,7 +581,7 @@ export default function VaultsScreen() {
                   </div>
                   <div>
                     <span className={styles.campaignPhotoNote}>{media ? cardCopy.photo : cardCopy.noPhoto}</span>
-                    <h3 id={`vault-campaign-${campaign.id}`}>{campaign.title}</h3>
+                    <h3 id={`vault-campaign-${campaign.id}`}>{displayTitle}</h3>
                   </div>
                 </div>
               </header>
@@ -512,14 +627,13 @@ export default function VaultsScreen() {
             Campaign escrow is separate from your available wallet balance.
           </p>
         )}
-        {!PREVIEW &&
-          campaigns?.ok &&
-          campaigns.campaigns.length > 0 &&
-          BigInt(campaigns.campaigns.at(-1)!.id) > 1n && (
-            <Link href="/campaigns?mode=testnet" className={styles.cardAction}>
-              Browse older campaigns {Ico.chev({ size: 14, c: T.action })}
-            </Link>
-          )}
+        {!PREVIEW && historyIncomplete && <div className={styles.inlineNotice} role="status" aria-live="polite">
+          <p>{historyCopy.partial}</p>
+          {historyFailed && <p>{historyCopy.failed}</p>}
+          <button type="button" onClick={() => void loadOlder()} disabled={loading || loadingOlder}>
+            {loadingOlder ? historyCopy.loading : historyCopy.more}
+          </button>
+        </div>}
       </section>
       <section
         className={styles.communitySection}

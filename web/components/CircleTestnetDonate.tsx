@@ -21,6 +21,7 @@ import SubmissionStatusPanel from "@/components/ui/SubmissionStatusPanel";
 import SuccessMotion from "@/components/ui/SuccessMotion";
 import { useT } from "@/components/I18nProvider";
 import { circleTestnetDonateCopy } from "@/lib/i18n/circle-testnet-donate";
+import { circleDisplayContent } from "@/lib/i18n/circles-content";
 import styles from "./CircleTestnetDonate.module.css";
 import AvailableWalletBalance from "@/components/AvailableWalletBalance";
 
@@ -31,13 +32,14 @@ function focusReviewHeading(node: HTMLHeadingElement | null) {
   if (!node) return;
   node.focus({ preventScroll: true });
   // This app scrolls inside its phone frame, not the browser document.
-  // Enter review at the top instead of retaining the amount form's scroll.
+  // Enter the next stage at the top instead of retaining expanded details' scroll.
   node.closest("main")?.scrollTo({ top: 0, behavior: "instant" });
 }
 
 export default function CircleTestnetDonate({ circle }: { circle: Circle }) {
   const { locale } = useT();
   const text = circleTestnetDonateCopy(locale);
+  const display = circleDisplayContent(circle, locale);
   const goBack = useGoBack(`/circles/${circle.id}`);
   const mapping = useCircleTestnet(circle.id);
   const guard = useUnresolvedSubmission(`circle-donate:${circle.id}`, { keepSuccessLocked: true });
@@ -65,6 +67,7 @@ export default function CircleTestnetDonate({ circle }: { circle: Circle }) {
   const reviewing = !!review && !receipt;
   const reviewedAmount = review ? circleDonationAmount(review.amount) : null;
   const reviewedSplit = review && reviewedAmount !== null ? campaignSplit(reviewedAmount, BigInt(review.terms.mapping.creatorCutBps)) : null;
+  const amountSplit = native !== null && mapping.result?.ok ? campaignSplit(native, BigInt(mapping.result.mapping.creatorCutBps)) : null;
   const signIn = `/signin?next=${encodeURIComponent(`/circles/${circle.id}/donate`)}`;
 
   async function attach(entry: Receipt, revision: number) {
@@ -147,27 +150,31 @@ export default function CircleTestnetDonate({ circle }: { circle: Circle }) {
     await attach(entry, entry.ownerRevision);
   }
 
-  return <div className={`${styles.screen}${reviewing ? ` ${styles.reviewScreen}` : ""}`}>
+  return <div className={`${styles.screen} ${reviewing ? styles.reviewScreen : receipt ? styles.receiptScreen : styles.amountScreen}`}>
     <header className={styles.header}><button type="button" onClick={() => review && !receipt ? setReview(null) : goBack()} disabled={busy}>{text("Back")}</button>
       <span>QA · Stellar Testnet</span></header>
-    {!reviewing && <><h1>{text("Test a donation")}</h1><h2>{circle.title}</h2>
-    <p className={styles.steps} aria-live="polite">{receipt ? text("3 · Receipt") : text("1 · Amount")}</p>
-    <aside className={styles.boundary}><strong>{text("Fictional cause, real Testnet transaction")}</strong>
-      <p>{text("QA wallets receive test tokens, not the pictured organizer or NGO. Testnet XLM has no monetary value. This D4 contract does not send USDC.")}</p></aside></>}
+    {!reviewing && <><div className={styles.intro}>
+      <div><h1 ref={receipt ? focusReviewHeading : undefined} tabIndex={receipt ? -1 : undefined}>{text("Test a donation")}</h1><p className={styles.steps} aria-live="polite">{receipt ? text("3 · Receipt") : text("1 · Amount")}</p></div>
+      <h2>{display.title}</h2>
+    </div>
+    <aside className={styles.compactBoundary}>{text("Test tokens go to a QA wallet. Fictional cause, no real money.")}</aside></>}
     <SubmissionStatusPanel guard={guard} onRefresh={refreshSubmission} confirmedHash={confirmed ? receipt?.hash : undefined} />
     {guard.state.kind === "locked" && !receipt && <p className={styles.hint}>{text("After reload, a recovered donor record defaults to anonymous with no comment or profile permission. Existing saved records are not changed. Recovery never resends funds.")}</p>}
     {identity.status === "guest" ? <Link className={styles.primary} href={signIn}>{text("Sign in with Google")}</Link>
       : identity.status !== "verified" ? <p role="status">{text("Your account must be verified before donating.")} <button type="button" onClick={refreshIdentity} disabled={busy}>{text("Check account")}</button></p> : null}
-    {receipt ? <section className={styles.card}>
+    {receipt ? <section className={`${styles.card} ${styles.receiptCard}`}>
       {confirmed ? <SuccessMotion title={text("Testnet donation confirmed")}><p>{text("Confirmed Testnet donor. Not a fiat donation or proof of delivery.")}</p></SuccessMotion>
         : <p role="status">{text("A hash was returned. Confirmation is not established yet.")}</p>}
       {confirmed && receipt.amountStroops && <strong className={styles.amount}>{formatStroops(receipt.amountStroops)} XLM</strong>}
       <a className={styles.address} href={`https://stellar.expert/explorer/testnet/tx/${receipt.hash}`} target="_blank" rel="noopener noreferrer">{text("View Testnet receipt")}: {receipt.hash}</a>
       {recorded ? <p role="status">{text("Your donor record is saved.")}</p> : <button type="button" className={styles.secondary} disabled={busy || !metadataRetry || identity.status !== "verified" || identity.ownerId !== receipt.ownerId} onClick={retryMetadata}>{text("Verify and retry donor record only")}</button>}
-      <button type="button" className={styles.secondary} onClick={goBack} disabled={busy}>{text("Back to campaign")}</button>
+      <div className={styles.receiptActions} data-testid="donation-receipt-actions">
+        <Link className={styles.primary} href="/">{text("Go to Home")}</Link>
+        <button type="button" className={styles.secondary} onClick={goBack} disabled={busy}>{text("Back to campaign")}</button>
+      </div>
     </section> : review ? <section className={`${styles.card} ${styles.reviewCard}`} aria-label={text("Review Testnet donation")}>
       <h1 ref={focusReviewHeading} tabIndex={-1}>{text("Review before sending")}</h1>
-      <p className={styles.reviewTitle} title={circle.title}>{circle.title}</p>
+      <p className={styles.reviewTitle} title={display.title}>{display.title}</p>
       <div className={styles.reviewAmount}><strong className={styles.amount}>{formatStroops(reviewedAmount!)} XLM</strong><span className={styles.steps}>{text("2 · Review")}</span></div>
       {reviewedSplit && <dl className={styles.reviewSplit}>
         <div><dt>{text("Beneficiary share")}</dt><dd>{formatStroops(reviewedSplit.beneficiary)} XLM</dd></div>
@@ -190,34 +197,42 @@ export default function CircleTestnetDonate({ circle }: { circle: Circle }) {
       <button type="button" className={styles.primary} disabled={busy || guard.locked || identity.status !== "verified" || identity.ownerId !== review.ownerId} aria-busy={busy} onClick={send}>{busy ? text("Waiting for Testnet…") : text("Confirm Testnet donation")}</button>
       <button type="button" className={styles.secondary} disabled={busy} onClick={() => setReview(null)}>{text("Change amount")}</button>
       </div>
-    </section> : available ? <section className={styles.card}>
+    </section> : available ? <section className={`${styles.card} ${styles.amountCard}`} data-testid="donation-amount-form">
       <label htmlFor="circle-testnet-amount">{text("Amount in native Testnet XLM")}</label>
       <div className={styles.amountInput}><input id="circle-testnet-amount" inputMode="decimal" autoComplete="off" value={amount} disabled={busy || guard.locked}
         onChange={event => { setAmount(event.target.value); setError(""); }} aria-invalid={native === null} /><strong>XLM</strong></div>
-      <AvailableWalletBalance amountStroops={native} />
+      <AvailableWalletBalance amountStroops={native} compact />
       <div className={styles.presets}>{[1, 5, 10, 50].map(value => <button key={value} type="button" aria-pressed={amount === String(value)} disabled={busy || guard.locked} onClick={() => { setAmount(String(value)); setError(""); }}>{value} XLM</button>)}</div>
-      <p>{text("Positive amounts, up to 7 decimal places. No dollar-to-XLM simulation.")}</p>
-      {native && mapping.result?.ok ? <dl><div><dt>{text("Beneficiary share")}</dt><dd>{formatStroops(campaignSplit(native, BigInt(mapping.result.mapping.creatorCutBps)).beneficiary)} XLM</dd></div>
-        <div><dt>{text("Creator share")}</dt><dd>{formatStroops(campaignSplit(native, BigInt(mapping.result.mapping.creatorCutBps)).creator)} XLM</dd></div></dl> : null}
+      {native === null ? <p className={styles.hint} role="alert">{text("Positive amounts, up to 7 decimal places. No dollar-to-XLM simulation.")}</p> : null}
+      {amountSplit && mapping.result?.ok ? <dl className={styles.reviewSplit}>
+        <div><dt>{text("Beneficiary share")}</dt><dd>{formatStroops(amountSplit.beneficiary)} XLM</dd></div>
+        <div><dt>{text("Creator share")}</dt><dd>{formatStroops(amountSplit.creator)} XLM <small>({mapping.result.mapping.creatorCutBps / 100}%)</small></dd></div>
+      </dl> : null}
       <p className={styles.privacyNotice} data-testid="donor-privacy-notice" aria-live="polite">{anonymous
         ? text("Your donor entry will be anonymous. Stellar transactions remain public.")
         : publicProfileOk
-          ? text("Your wallet, available @username and permitted profile photo will be public. Choose anonymous below to hide them from this feed.")
-          : text("Only your wallet and receipt link will appear in this feed. Your name and photo will not be published.")}</p>
+          ? text("Public: wallet, @username and permitted photo. You can choose anonymous below.")
+          : text("Public: wallet and receipt only. Name and photo stay hidden.")}</p>
       <details className={styles.options}><summary>{text("Privacy and comment (optional)")}</summary><div className={styles.optionFields}>
       <label className={styles.check}><input type="checkbox" checked={anonymous} disabled={busy} onChange={event => { setAnonymous(event.target.checked); setPublicProfileOk(false); }} />{text("Display anonymously in the donor feed")}</label>
       <p className={styles.hint}>{text("Anonymous hides your wallet, name, photo and receipt link here. Transactions remain public on Stellar and timing or amounts can still identify you.")}</p>
       {!anonymous && <label className={styles.check}><input type="checkbox" checked={publicProfileOk} disabled={busy} onChange={event => setPublicProfileOk(event.target.checked)} />{text("Also publish my available @username and permitted profile photo for this donation")}</label>}
       <label htmlFor="circle-testnet-comment">{text("Optional public comment")}</label><textarea id="circle-testnet-comment" rows={3} maxLength={500} value={comment} disabled={busy} onChange={event => setComment(event.target.value)} aria-invalid={!commentValid} />
       <p className={styles.hint}>{text("Maximum 500 UTF-8 bytes. Do not include private information; anonymous comments are still public.")}</p>
+      <p className={styles.hint}>{text("Positive amounts, up to 7 decimal places. No dollar-to-XLM simulation.")}</p>
+      <p className={styles.hint}>{anonymous ? text("Your donor entry will be anonymous. Stellar transactions remain public.") : publicProfileOk ? text("Your wallet, available @username and permitted profile photo will be public. Choose anonymous below to hide them from this feed.") : text("Only your wallet and receipt link will appear in this feed. Your name and photo will not be published.")}</p>
       </div></details>
+      <div className={styles.amountActions} data-testid="donation-amount-actions">
       <button type="button" className={styles.primary} disabled={!native || !commentValid || busy || guard.locked || identity.status !== "verified"} onClick={() => {
         if (identity.status !== "verified" || !mapping.result?.ok || !mapping.result.donationOpen || !native || !commentValid) return;
         setError(""); setReview({ terms: mapping.result, amount, ownerId: identity.ownerId, ownerRevision: captureOwnerRevision(), comment: campaignDonorComment(comment)!, anonymous, publicProfileOk });
       }}>{text("Review Testnet donation")}</button>
+      </div>
     </section> : !mapping.loading ? <button type="button" className={styles.secondary} disabled={busy} onClick={() => void mapping.refresh()}>{text("Check campaign availability")}</button> : null}
     {error && <p className={styles.error} role="alert">{error}</p>}
     <details className={styles.options} open={!available && !receipt && !review}><summary>{text("Campaign details")}</summary>
+      <div className={styles.optionFields}><h2>{display.title}</h2><strong>{text("Fictional cause, real Testnet transaction")}</strong>
+        <p>{text("QA wallets receive test tokens, not the pictured organizer or NGO. Testnet XLM has no monetary value. This D4 contract does not send USDC.")}</p></div>
       <CircleTestnetSummary circleId={circle.id} result={mapping.result} loading={mapping.loading} onRefresh={mapping.refresh} hideDonate hideDetailsLink />
     </details>
     {receipt && mapping.result?.ok && <><CampaignDonorActivity campaignId={mapping.result.mapping.campaignId} refreshKey={feedRevision} /><CampaignUpdateSubscription campaignId={mapping.result.mapping.campaignId} /></>}

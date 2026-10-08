@@ -14,6 +14,7 @@ import { useGoBack } from "@/lib/ui/useGoBack";
 import { useT } from "@/components/I18nProvider";
 import { moneyCopy, moneyMessage } from "@/lib/i18n/revamp-money";
 import { activityCopy } from "@/lib/i18n/wallet-activity";
+import { circleDisplayTitle } from "@/lib/i18n/circles-content";
 import { formatLocal } from "@/lib/ui/currency";
 import { isLocalPreview, PREVIEW_WALLET } from "@/lib/local-preview";
 import {
@@ -515,7 +516,8 @@ export default function ActivityScreen() {
                         const purposeHref = activityContextHref(context);
                         const referenceLabel = context?.referenceId ? context.type.startsWith("campaign-") ? h("campaignName", { id: context.referenceId })
                           : context.type.startsWith("arisan-") ? h("arisanName", { id: context.referenceId }) : null : null;
-                        const purposeName = context?.title ?? referenceLabel ?? (context?.type.startsWith("disaster-") ? h("disasterPool")
+                        const circleTitle = context?.type.startsWith("campaign-") && context.circleId ? circleDisplayTitle(context.circleId, locale) : undefined;
+                        const purposeName = (circleTitle ? `QA · ${circleTitle}` : context?.title) ?? referenceLabel ?? (context?.type.startsWith("disaster-") ? h("disasterPool")
                           : context?.type.startsWith("savings-") ? h("savingsPool") : h("arisanPool"));
                         const counterparty = shortCounterparty(receipt.counterparty);
                         const explorerReceipt = transactionUrl(receipt.hash);

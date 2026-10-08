@@ -13,7 +13,6 @@
 .balanceLabel > span:first-child { color: #9a4d0b; background: #fff0d7; border: 1px solid #f1d4a8; border-radius: 20px; padding: 1px 8px; font-size: 9px; letter-spacing: .06em; font-weight: 700; }
 .amount { display: flex; align-items: baseline; justify-content:center; white-space: nowrap; margin-top: 1px; }
 .amount > span { font-size: 19px; margin-right: 2px; }
-.walletContent p { color: #bdcce4; font-size: 10px; line-height: 1.5; margin: 8px 0 0; }
 .walletCaption { color: #bdcce4; font-size: 10px; line-height: 1.3; margin: 1px 0 0; text-align: center; }
 .walletActions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; min-width: 0; padding: 4px; border-radius: 18px; background: #ffffff0a; box-shadow: inset 0 0 0 1px #ffffff14; }
 .walletAction { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-width: 0; min-height: 48px; padding: 6px 4px; border-radius: 14px; color: #f2f6ff; transition: background .18s ease, transform .18s ease; }
@@ -230,18 +229,47 @@
   .walletCaption { margin-top: 1px; }
 }
 
-/* Keep one amount hierarchy and one metadata row. Actions occupy the empty
-   right-hand grid area, never the price disclosure or the native balance. */
-.walletMinimal { --wallet-actions-width: 128px; grid-template-columns: minmax(0, 1fr) var(--wallet-actions-width); align-items: start; gap: 8px; padding-top: 8px; }
-.walletMinimal > div:first-child { grid-column: 1 / -1; grid-row: 1; text-align: left; }
-.walletMinimal .balanceLabel { justify-content: flex-start; margin-bottom: 4px; }
-.walletMinimal .balanceLabel > span:first-child { padding: 0; border: 0; border-radius: 0; background: none; color: #ffe1ad; font-size: 10px; font-weight: 600; }
-.walletMinimal .amount { display: block; text-align: left; }
-.walletMinimal .amount[data-preview-balance], .walletMinimal .walletRetry { max-width: calc(100% - var(--wallet-actions-width) - 8px); }
-.walletMinimal .walletRetry { text-align: left; }
-.walletMinimal .walletActions { grid-column: 2; grid-row: 1; align-self: start; margin-top: 16px; padding: 0; border-radius: 0; background: none; box-shadow: none; }
-.walletMinimal .walletAction { flex-direction: column; padding: 4px 3px; gap: 4px; font-size: 11px; }
-.walletMinimal .walletActionLabel { font-size: 11px; }
-.walletMinimal .walletActionIcon { width: 26px; height: 26px; border-radius: 9px; }
-.walletMinimal + .walletCaption { margin-top: 0; text-align: left; font-size: 10px; }
-@container (max-width: 350px) { .walletMinimal { --wallet-actions-width: 112px; } }
+/* Selected Navy Minimal card. The USD market reference is primary, with
+   exact Testnet XLM below. On phones the two actions move below the balance. */
+.home .wallet { container-type: inline-size; background: #172544; border-radius: 28px; padding: 20px 24px 10px; box-shadow: 0 12px 28px -24px #0c1730; }
+.wallet .identity { gap: 16px; padding-bottom: 0; border-bottom: 0; }
+.wallet .avatar { width: 64px; height: 64px; overflow: hidden; border: 1px solid #ffffff50; }
+.wallet .avatar > span, .wallet .avatar img { width: 100% !important; height: 100% !important; }
+.wallet .name { gap: 5px; }
+.wallet .name strong { font-size: clamp(18px, 3.7cqw, 27px); font-weight: 750; line-height: 1.2; }
+.wallet .name small { font-size: clamp(12px, 2.5cqw, 17px); color: #b7c9eb; line-height: 1.4; }
+.wallet .round { width: 54px; height: 54px; border-color: #ffffff26; background: #ffffff0a; }
+.wallet .round svg { width: 25px; height: 25px; }
+.wallet .round:focus-visible, .wallet .avatar:focus-visible { outline: 2px solid #a9cbff; outline-offset: 3px; }
+.wallet .walletMinimal { display: block; padding-top: 24px; }
+.walletMinimal .balanceLabel { justify-content: flex-start; margin-bottom: 9px; text-align: left; }
+.walletMinimal .balanceLabel > span:first-child { padding: 0; border: 0; border-radius: 0; background: none; color: #b7c9eb; font-size: 14px; font-weight: 650; letter-spacing: .055em; }
+.walletMinimal .amount { display: block; margin-top: 0; text-align: left; white-space: normal; }
+.wallet .walletActions { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0; padding: 0; border-radius: 0; background: none; box-shadow: none; }
+.wallet .walletAction { flex-direction: row; gap: 10px; min-height: 52px; padding: 8px 12px; border-radius: 999px; background: #2b3e65; }
+.wallet .walletAction + .walletAction::before { content: none; }
+.wallet .walletActionIcon, .wallet .walletAction:first-child .walletActionIcon { width: 25px; height: 28px; color: #d3e3ff; background: none; border-radius: 0; box-shadow: none; padding-right: 9px; border-right: 1px solid #ffffff35; box-sizing: content-box; }
+.wallet .walletActionIcon svg { width: 24px; height: 24px; }
+.wallet .walletActionLabel { font-size: 13px; font-weight: 650; line-height: 1.3; }
+.wallet .walletRetry { margin: 0; min-height: 44px; font-size: 12px; text-align: left; }
+@media (hover: hover) { .wallet .walletAction:hover, .wallet .round:hover { background: #354b76; } }
+@container (max-width: 540px) {
+  .home .wallet { padding: 14px 18px 6px; border-radius: 25px; }
+  .wallet .identity { gap: 9px; }
+  .wallet .avatar { width: 48px; height: 48px; }
+  .wallet .round { width: 44px; height: 44px; }
+  .wallet .round svg { width: 21px; height: 21px; }
+  .wallet .name strong { font-size: 18px; }
+  .wallet .name small { font-size: 12px; }
+  .wallet .walletMinimal { padding-top: 12px; }
+  .walletMinimal .balanceLabel { margin-bottom: 6px; }
+  .wallet .walletAction { min-height: 44px; }
+  .walletMinimal .balanceLabel > span:first-child { font-size: 10px; }
+}
+@container (max-width: 320px) {
+  .wallet .identity { gap: 6px; }
+  .wallet .name strong { font-size: 16px; }
+  .wallet .name small { font-size: 11px; }
+  .wallet .walletAction { padding-inline: 8px; gap: 7px; }
+  .wallet .walletActionLabel { font-size: 12px; }
+}

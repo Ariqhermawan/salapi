@@ -12,6 +12,7 @@ import * as money from "../lib/money.ts";
 import { formatStroops } from "../lib/format-stroops.ts";
 import * as support from "../lib/campaign-support.ts";
 import type { AvailableBalance } from "../lib/available-balance.ts";
+import type { Locale } from "../lib/i18n/config.ts";
 
 const ownerId = "00000000-0000-4000-8000-000000000001";
 const address = StrKey.encodeEd25519PublicKey(Buffer.alloc(32, 7));
@@ -121,6 +122,54 @@ test("actual balance component shows exact XLM, reserve and over-limit warning, 
   const html = renderToStaticMarkup(React.createElement(component, { amountStroops: 1_000_000_000n }));
   assert.match(html, /Saldo tersedia/); assert.match(html, /99.1234567/); assert.match(html, /Cadangan jaringan/); assert.match(html, /melebihi XLM/); assert.doesNotMatch(html, /USD|\$/);
 });
+
+function balanceUi(options: { locale?: Locale; status?: "ready" | "loading" | "unavailable" | "guest"; balance?: AvailableBalance | null } = {}) {
+  const status = options.status ?? "ready", balance = options.balance === undefined
+    ? balanceModule.availableBalanceFromHorizon(account(), ledger, address)! : options.balance;
+  let refreshes = 0;
+  const component = load<{ default: React.FC<{ amountStroops?: bigint | null; compact?: boolean }> }>("../components/AvailableWalletBalance.tsx", {
+    "react/jsx-runtime": jsx, "@/components/I18nProvider": { useT: () => ({ locale: options.locale ?? "en" }) },
+    "@/lib/ui/useOwnedAccountRead": { useOwnedAccountRead: () => ({ status, value: balance ? { ok: true, ownerId, balance } : null, refresh: () => { refreshes++; } }) },
+    "@/lib/format-stroops": { formatStroops }, "@/lib/local-preview": { isLocalPreview: false }, "./AvailableWalletBalance.module.css": { default: {} },
+  }).default;
+  return { component, refreshes: () => refreshes, html: (compact = false, amountStroops: bigint | null = null) => renderToStaticMarkup(React.createElement(component, { compact, amountStroops })) };
+}
+
+for (const [locale, longNote, compactNote] of [
+  ["en", "Testnet XLM, after reserve and liabilities. Leave room for network fees.", "After reserve and liabilities. Network fees extra."],
+  ["id", "XLM Testnet, setelah cadangan dan kewajiban. Sisakan saldo untuk biaya jaringan.", "Setelah cadangan dan kewajiban. Biaya jaringan terpisah."],
+  ["tl", "Testnet XLM, matapos ang reserve at liabilities. Magtira para sa network fees.", "Matapos ang reserve at liabilities. Hiwalay ang network fees."],
+  ["vi", "XLM Testnet sau dự trữ và nghĩa vụ. Giữ lại tiền cho phí mạng.", "Sau dự trữ và nghĩa vụ. Phí mạng tính riêng."],
+] as const) test(`${locale}: compact wallet balance shortens only its note and keeps exact available XLM`, () => {
+  const h = balanceUi({ locale }), normal = h.html(), compact = h.html(true);
+  assert.ok(normal.includes(longNote)); assert.ok(!normal.includes(compactNote));
+  assert.ok(compact.includes(compactNote)); assert.ok(!compact.includes(longNote));
+  for (const html of [normal, compact]) { assert.match(html, /99\.1234567/); assert.match(html, /<small>XLM<\/small>/); assert.doesNotMatch(html, /USD|\$/); }
+  assert.match(normal, /<details>/); assert.doesNotMatch(compact, /<details>/);
+  assert.equal(h.refreshes(), 0, "Changing density must not refresh or mutate the wallet");
+});
+
+for (const compact of [false, true]) test(`${compact ? "compact" : "default"} wallet balance retains exact over-limit alert boundary`, () => {
+  const h = balanceUi();
+  for (const amount of [null, 0n, 991_234_567n]) assert.doesNotMatch(h.html(compact, amount), /role="alert"/);
+  const html = h.html(compact, 991_234_568n);
+  assert.match(html, /<p[^>]*role="alert">This amount exceeds your available XLM\.<\/p>/);
+  assert.match(html, /99\.1234567/); assert.equal(h.refreshes(), 0);
+});
+
+for (const compact of [false, true]) for (const status of ["loading", "unavailable"] as const) test(`${compact ? "compact" : "default"} ${status} balance never invents usable XLM or hides read status`, () => {
+  const h = balanceUi({ status, balance: null }), html = h.html(compact, 100_000_000n);
+  assert.match(html, status === "loading" ? /role="status">Checking your wallet…/ : /role="status">Balance unavailable/);
+  assert.match(html, /aria-label="Refresh balance"/);
+  assert.equal(html.includes('disabled=""'), status === "loading");
+  assert.doesNotMatch(html, /<strong>|<small>XLM<\/small>|role="alert"|After reserve|Leave room|<details>/);
+  assert.equal(h.refreshes(), 0);
+});
+
+for (const compact of [false, true]) test(`${compact ? "compact" : "default"} guest balance remains absent`, () => {
+  const h = balanceUi({ status: "guest", balance: null }); assert.equal(h.html(compact), ""); assert.equal(h.refreshes(), 0);
+});
+
 test("private display routes are cookie-scoped, no-store, and expose no user selector", () => {
   for (const path of ["spending", "campaign-support"]) {
     const code = readFileSync(new URL(`../app/api/account/${path}/route.ts`, import.meta.url), "utf8");

@@ -11,6 +11,7 @@ import * as discoveryCopy from "../lib/i18n/revamp-campaign-discovery.ts";
 import * as accountCopy from "../lib/i18n/revamp-account.ts";
 import { campaignDonorBadge } from "../lib/ui/testnet-donor.ts";
 import * as circlesCopy from "../lib/i18n/revamp-circles.ts";
+import * as contentCopy from "../lib/i18n/circles-content.ts";
 
 type Mode = "normal" | "throw" | "drop" | "tamper" | "partial" | "read-blocked";
 function storage(mode: Mode, seed = "previous-draft") {
@@ -102,6 +103,7 @@ function screen(mode: Mode) {
     if (name === "@/components/I18nProvider") return { useT: () => ({ locale: "en" }) };
     if (name === "@/lib/i18n/revamp-account") return accountCopy;
     if (name === "@/lib/i18n/revamp-circles") return circlesCopy;
+    if (name === "@/lib/i18n/circles-content") return contentCopy;
     if (name === "@/lib/ui/testnet-donor") return { campaignDonorBadge };
     if (name === "@/lib/ui/useGoBack") return { useGoBack: () => () => { throw Error("Navigation forbidden in isolated campaign storage tests"); } };
     if (["@/components/AvailableWalletBalance", "@/components/CampaignDonationBadge"].includes(name)) return { __esModule: true, default: () => null };

@@ -9,12 +9,14 @@ import type { Circle } from "@/lib/circles/types";
 import { isLocalPreview } from "@/lib/local-preview";
 import styles from "./CirclesPreview.module.css";
 import { circlesCopy } from "@/lib/i18n/revamp-circles";
+import { circleDisplayContent } from "@/lib/i18n/circles-content";
 import { useGoBack } from "@/lib/ui/useGoBack";
 
 export default function CircleManageScreen({ circle }: { circle: Circle }) {
   const goBack = useGoBack(`/circles/${circle.id}`);
   const { currency, locale } = useT();
   const c = circlesCopy(locale);
+  const display = circleDisplayContent(circle, locale);
   const [note, setNote] = useState("");
   return (
     <div className={styles.screen}>
@@ -27,7 +29,7 @@ export default function CircleManageScreen({ circle }: { circle: Circle }) {
         <div>
           <span className={styles.eyebrow}>{c("Tools for community organizers")}</span>
           <h1>{c("Care for the cause.")}</h1>
-          <p>{circle.title}</p>
+          <p>{display.title}</p>
         </div>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/illustrations/giving.png" alt={c("People sharing a heart")} />
@@ -44,7 +46,7 @@ export default function CircleManageScreen({ circle }: { circle: Circle }) {
       <div className={styles.notice}>{c("This organizer view is a future concept. No real allowance, custody, reputation score or dispute window is shown here.")}</div>
       <section className={styles.warmCard}>
         <span className={styles.eyebrow}>{c("Example campaign summary")}</span>
-        <h2>{circle.title}</h2>
+        <h2>{display.title}</h2>
         <div className={styles.metrics}>
           <div>
             <small>{c("Illustrative raised amount")}</small>

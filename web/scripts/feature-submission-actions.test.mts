@@ -21,6 +21,7 @@ function setup(feature: keyof typeof codes, options: { preview?: boolean; result
   const dependencies = {
     "@stellar/stellar-sdk": { nativeToScVal: (value: unknown) => value, scValToNative: (value: unknown) => value, xdr: { ScVal: { scvVec: (value: unknown) => value } }, rpc: { Server: class { constructor() { calls.rpc++; throw new Error("No provider request authorized"); } } } },
     "@/lib/local-preview": { isLocalPreview: options.preview ?? false },
+    "@/lib/server/circlesTestnet": { readCircleDiscoveryMappings: async () => [], circleDiscoveryLinks: () => ({}) },
     "@/lib/server/stellar": { sc, CONTRACTS: { tokenXlmSac: "test-token" }, RPC_URL: "https://isolated.invalid", disasterId: () => "d3", donationCampaignId: () => "d4", txLink: (value: string) => `https://stellar.expert/explorer/testnet/tx/${value}`, stroopsToPesos: () => 5, fmtPeso: () => "PHP 5",
       readContract: async (_id: string, method: string) => { calls.reads++; if (method === "version") return feature === "disaster" ? 3 : 4; if (method === "config") return { signers: ["wallet-a", "wallet-b", "wallet-c"], token: "test-token", cap_bps: 2000, timelock_ledgers: 20 }; if (method === "token") return "test-token"; if (method === "clock") return 1000n; if (method === "campaign") return { config: { creator: "wallet-a" } }; throw new Error(`Unexpected contract read ${method}`); },
       invokeAs: async () => { calls.invokes++; return options.result ?? { ok: false, pending: true, hash, error: "Submitted status is unknown" }; } },

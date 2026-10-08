@@ -30,6 +30,7 @@ import { accountCopy } from "@/lib/i18n/revamp-account";
 import { useGoBack } from "@/lib/ui/useGoBack";
 import { campaignDonorBadge } from "@/lib/ui/testnet-donor";
 import { circlesCopy } from "@/lib/i18n/revamp-circles";
+import { circleDisplayTitle } from "@/lib/i18n/circles-content";
 import AvailableWalletBalance from "@/components/AvailableWalletBalance";
 import CampaignDonationBadge from "@/components/CampaignDonationBadge";
 const styles = { ...baseStyles, ...detailStyles };
@@ -116,8 +117,9 @@ function CreateCampaign({ run, busy, onPreviewCreate, initialCreate = false }: {
   </details>;
 }
 
-function CampaignCard({ c, viewer, now, run, busy, detail, onPreviewUpdate }: { c: Campaign; viewer: string | null; now: bigint; run: Run; busy: boolean; detail: boolean; onPreviewUpdate: (campaign: Campaign) => boolean }) {
+function CampaignCard({ c, circleId, viewer, now, run, busy, detail, onPreviewUpdate }: { c: Campaign; circleId?: string; viewer: string | null; now: bigint; run: Run; busy: boolean; detail: boolean; onPreviewUpdate: (campaign: Campaign) => boolean }) {
   const { locale } = useT();
+  const displayTitle = circleId ? circleDisplayTitle(circleId, locale) ?? c.title : c.title;
   const donorCopy = circlesCopy(locale);
   const donorBadge = campaignDonorBadge(c, viewer, isLocalPreview);
   const photoCopy = campaignDiscoveryCopy(locale);
@@ -146,7 +148,7 @@ function CampaignCard({ c, viewer, now, run, busy, detail, onPreviewUpdate }: { 
   return <section className={`${styles.card} ${media ? styles.photoCard : ""}`} aria-label={`Campaign #${c.id}`}>
     {media && !detail ? <header className={styles.campaignPhoto}>
       <Image src={media.coverSrc} fill sizes="(max-width: 500px) 100vw, 460px" alt="" />
-      <div><span>{photoCopy("Illustrative campaign photo")}</span><Link href={`/campaigns?id=${c.id}`}><h2>{c.title}</h2></Link></div>
+      <div><span>{photoCopy("Illustrative campaign photo")}</span><Link href={`/campaigns?id=${c.id}`}><h2>{displayTitle}</h2></Link></div>
     </header> : null}
     <div className={`${styles.stack} ${media ? styles.photoCardBody : ""}`}>
     <CampaignDonationBadge support={viewer && !isLocalPreview && BigInt(c.contribution.amount) > 0n ? { amount: c.contribution.amount, status: c.contribution.refunded ? "refunded" : "donated" } : undefined} />
@@ -154,7 +156,7 @@ function CampaignCard({ c, viewer, now, run, busy, detail, onPreviewUpdate }: { 
       <Image src={media.organizerPhotoSrc} width={44} height={44} alt={photoCopy("Illustrative profile photo, not a verified identity")} />
       <span><small>{photoCopy("Fictional organizer example")}</small><strong>{media.organizerName}</strong></span>{Ico.chev({size:16,c:T.action})}
     </Link> : null}
-    <div><div className={styles.row}><span className={styles.eyebrow}>Campaign #{c.id.length > 8 ? "Local draft" : c.id}</span><span className={styles.badge}>{status}</span></div>{(!media || detail) && <Link href={`/campaigns?id=${c.id}`}><h2>{c.title}</h2></Link>}
+    <div><div className={styles.row}><span className={styles.eyebrow}>Campaign #{c.id.length > 8 ? "Local draft" : c.id}</span><span className={styles.badge}>{status}</span></div>{(!media || detail) && <Link href={`/campaigns?id=${c.id}`}><h2>{displayTitle}</h2></Link>}
       <p className={styles.muted}>Funding closes {stamp(c.config.funding_deadline)}{viewer ? ` · ${role}` : ""}</p></div>
     {detail && <D4CampaignGallery key={c.id} campaignId={c.id} creatorWallet={c.config.creator} viewer={viewer}
       localPreview={isLocalPreview} examplePhotos={media?.gallery} />}
@@ -349,7 +351,7 @@ export default function CampaignScreen({ id, initialCreate = false }: { id: stri
           : <div className={styles.notice}><p>Explore campaign terms and proof publicly. Sign in to give or manage a campaign.</p><Link className={styles.textButton} href={`/signin?next=${encodeURIComponent(initialCreate ? "/campaigns?create=1" : `/campaigns${id ? `?id=${id}` : "?mode=testnet"}`)}`}>Sign in →</Link></div>}
         {!id && <nav aria-label="Filter campaigns" className={styles.filters}>{["All", "Funding", "In review", "My campaigns", "Completed"].map(label => <button key={label} aria-pressed={filter === label} className={`${styles.filter} ${filter === label ? styles.filterActive : ""}`} onClick={() => setFilter(label)}>{label}</button>)}</nav>}
         {visibleCampaigns.length === 0 && <div className={styles.empty}><h2>{id ? "Campaign not found" : "No campaigns in this view"}</h2><p className={styles.muted}>{id ? "Return to all campaigns to choose another cause." : "Choose another filter, or start a cause with clear terms."}</p></div>}
-        {visibleCampaigns.map(c => <CampaignCard key={c.id} c={c} now={BigInt(state.now)} viewer={state.viewer} busy={busy || !!confirm} run={run} detail={!!id} onPreviewUpdate={updatePreview} />)}
+        {visibleCampaigns.map(c => <CampaignCard key={c.id} c={c} circleId={"circleLinks" in state ? state.circleLinks?.[c.id] : undefined} now={BigInt(state.now)} viewer={state.viewer} busy={busy || !!confirm} run={run} detail={!!id} onPreviewUpdate={updatePreview} />)}
         {id && !initialCreate && state.viewer && <Link className={styles.startLink} href="/campaigns?create=1">{Ico.plus({ size: 18 })}<span>Start a campaign</span>{Ico.chev({ size: 17 })}</Link>}
         {!id && <div style={{ display: "flex", gap: 12 }}>{before !== "0" && <button onClick={() => setBefore("0")}>Newest campaigns</button>}
           {state.campaigns.length === 10 && <button onClick={() => setBefore(state.campaigns.at(-1)!.id)}>Older campaigns</button>}</div>}

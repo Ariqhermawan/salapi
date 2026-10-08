@@ -2,8 +2,9 @@
 
 import { useT } from "@/components/I18nProvider";
 import { useMarketPrices } from "@/components/MarketPricesProvider";
-import { formatMarketValue } from "@/lib/market-prices";
+import { formatMarketValue, validateMarketPrices } from "@/lib/market-prices";
 import type { Locale } from "@/lib/i18n/config";
+import type { ReactNode } from "react";
 import styles from "./MarketValue.module.css";
 
 const COPY = {
@@ -14,6 +15,8 @@ const COPY = {
 } satisfies Record<Locale, Record<string, string>>;
 const TIME_LOCALES: Record<Locale, string> = { en: "en-US", tl: "fil-PH", id: "id-ID", vi: "vi-VN" };
 const DETAIL_LABEL: Record<Locale, string> = { en: "Price details", tl: "Detalye ng presyo", id: "Detail harga", vi: "Chi tiết giá" };
+const BALANCE_LOADING: Record<Locale, string> = { en: "Loading wallet balance", tl: "Kinukuha ang balanse ng wallet", id: "Memuat saldo wallet", vi: "Đang tải số dư ví" };
+const LIVE_ESTIMATE: Record<Locale, string> = { en: "Live estimate", tl: "Live na tantiya", id: "Estimasi live", vi: "Ước tính trực tiếp" };
 
 function nativeAmount(stroops: string | undefined): string | null {
   if (!stroops || !/^(?:0|[1-9]\d{0,18})$/.test(stroops)) return null;
@@ -24,32 +27,42 @@ function nativeAmount(stroops: string | undefined): string | null {
 }
 
 /** This is a current market reference, never an asset balance or transaction quote. */
-export default function MarketValue({ nativeStroops, size = 32, color = "currentColor", compact = false, showNative = true, dashboard = false }: { nativeStroops?: string; size?: number; color?: string; compact?: boolean; showNative?: boolean; dashboard?: boolean }) {
+export default function MarketValue({ nativeStroops, size = 32, color = "currentColor", compact = false, showNative = true, dashboard = false, dashboardActions, dashboardCaption, balanceLoading = false, dashboardBalanceError }: { nativeStroops?: string; size?: number; color?: string; compact?: boolean; showNative?: boolean; dashboard?: boolean; dashboardActions?: ReactNode; dashboardCaption?: string; balanceLoading?: boolean; dashboardBalanceError?: ReactNode }) {
   const { locale, currency } = useT();
   const { prices, loading, refresh } = useMarketPrices();
   const c = COPY[locale];
   const quantity = nativeAmount(nativeStroops);
-  const value = nativeStroops ? formatMarketValue(nativeStroops, prices, currency) : null;
-  const quote = prices.status === "unavailable" ? null : prices;
+  const hasWalletBalance = !balanceLoading && !dashboardBalanceError && quantity !== null;
+  const checkedPrices = validateMarketPrices(prices);
+  // Home shows a USD market reference; other surfaces keep the user's currency.
+  const value = nativeStroops ? formatMarketValue(nativeStroops, checkedPrices, dashboard ? "en" : currency) : null;
+  const quote = checkedPrices.status === "unavailable" ? null : checkedPrices;
   const updated = quote ? Math.min(quote.assets.xlm.updatedAt, quote.assets.usdc.updatedAt) * 1000 : null;
   const timestamp = updated === null ? null : new Intl.DateTimeFormat(TIME_LOCALES[locale], { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(updated);
   const usdPrice = (number: number) => new Intl.NumberFormat(TIME_LOCALES[locale], { style: "currency", currency: "USD", maximumFractionDigits: 6 }).format(number);
   const onDark = /255\s*,\s*255\s*,\s*255|#fff/i.test(color);
-  return <div data-market-value={value === null ? "unavailable" : prices.status} data-market-layout={dashboard ? "dashboard" : undefined} className={dashboard ? styles.dashboard : undefined} style={{ color, minWidth: 0, width: "100%", whiteSpace: "normal", ...(dashboard ? { fontSize: Math.max(20, size - 4) } : {}) }}>
+  // Official unmodified Brand Kit lockup, not an attribution sample.
+  const providerImage = (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={onDark ? "/brands/coingecko.svg" : "/brands/coingecko-white.svg"} width={73} height={16} alt="CoinGecko" style={{ display: "block", width: "auto", height: 16 }} />
+  );
+  const providerLogo = <a href="https://www.coingecko.com" target="_blank" rel="noopener noreferrer" aria-label="CoinGecko" style={dashboard ? undefined : { display: "inline-flex", alignItems: "center", minHeight: 24 }}>
+    {dashboard ? <><span className={styles.feedLabel}>USD price data</span><span className={styles.providerRow}><span>Powered by</span>{providerImage}</span></> : providerImage}
+  </a>;
+  const native = showNative && quantity !== null && <div data-native-balance={nativeStroops} data-long-balance={dashboard && quantity.length > 16 || undefined} aria-label={`${quantity} ${c.balance}`} className={dashboard ? styles.native : undefined} style={dashboard ? undefined : { fontWeight: 500, fontSize: compact ? 14 : 16, lineHeight: 1.3, marginTop: compact ? 4 : 6, fontVariantNumeric: "tabular-nums", overflowWrap: "anywhere", letterSpacing: "normal" }}>{quantity} <span style={dashboard ? undefined : { fontSize: compact ? 11 : 12, opacity: .88 }}>XLM</span></div>;
+  return <div data-market-value={value === null ? "unavailable" : checkedPrices.status} data-market-layout={dashboard ? "dashboard" : undefined} className={dashboard ? styles.dashboard : undefined} style={{ color, minWidth: 0, width: "100%", whiteSpace: "normal", ...(dashboard ? { fontSize: Math.max(20, size - 4) } : {}) }}>
+    {dashboard && (dashboardBalanceError ? <div className={styles.balanceState} role="status">{dashboardBalanceError}</div> : balanceLoading ? <div className={styles.balanceState} role="status" aria-label={BALANCE_LOADING[locale]}><span className={`sl-skel ${styles.skeleton}`} aria-hidden="true" /></div> : quantity === null ? <div className={styles.balanceState} role="status">{c.noBalance}</div> : null)}
     <div data-market-estimate aria-live="polite" role="status" className={dashboard ? styles.estimate : undefined} style={dashboard ? undefined : { fontWeight: 800, letterSpacing: "-.04em", lineHeight: 1.1, fontSize: value === null ? compact ? 12 : 16 : compact ? Math.max(20, size - 4) : size, fontVariantNumeric: "tabular-nums", overflowWrap: "anywhere" }}>
-      {value === null ? !quantity ? c.noBalance : loading ? c.loading : c.unavailable : `≈ ${value}`}
+      {dashboard && (balanceLoading || dashboardBalanceError || quantity === null) ? null : value === null ? !quantity ? c.noBalance : <>{dashboard ? "USD · " : ""}{loading ? c.loading : c.unavailable}</> : dashboard ? <strong>≈ {value} <span className={styles.currencyUnit}>USD</span></strong> : `≈ ${value}`}
     </div>
-    {showNative && quantity !== null && <div data-native-balance={nativeStroops} aria-label={`${quantity} ${c.balance}`} className={dashboard ? styles.native : undefined} style={dashboard ? undefined : { fontWeight: 500, fontSize: compact ? 14 : 16, lineHeight: 1.3, marginTop: compact ? 4 : 6, fontVariantNumeric: "tabular-nums", overflowWrap: "anywhere", letterSpacing: "normal" }}>{quantity} <span style={{ fontSize: compact ? 11 : 12, opacity: .88 }}>XLM</span></div>}
-    <div data-price-attribution="coingecko" className={dashboard ? styles.attribution : undefined} style={dashboard ? undefined : { display: "flex", flexWrap: "wrap", justifyContent: compact ? "center" : "flex-start", alignItems: "center", gap: 5, fontSize: 10, lineHeight: "16px", marginTop: 5, letterSpacing: "normal", fontWeight: 400 }}>
-      <span>{dashboard ? "Powered by" : "Data powered by"}</span>
-      <a href="https://www.coingecko.com" target="_blank" rel="noopener noreferrer" aria-label="CoinGecko" style={{ display: "inline-flex", alignItems: "center", minHeight: 24 }}>
-        {/* Official unmodified Brand Kit lockup, not an attribution sample. */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={onDark ? "/brands/coingecko.svg" : "/brands/coingecko-white.svg"} width={73} height={16} alt="CoinGecko" style={{ display: "block", width: "auto", height: 16 }} />
-      </a>
+    {dashboard && <div className={styles.secondary}><div data-wallet-context className={styles.tokenContext}>{hasWalletBalance && native}<span data-wallet-testnet className={styles.caption}>{dashboardCaption ?? c.testnet}</span></div>{hasWalletBalance && value !== null && <span data-price-status={checkedPrices.status} className={styles.quoteStatus}>{checkedPrices.status === "stale" ? c.stale : LIVE_ESTIMATE[locale]}</span>}</div>}
+    {!dashboard && native}
+    {dashboard && dashboardActions && <div className={styles.actions}>{dashboardActions}</div>}
+    <div data-price-attribution="coingecko" aria-label={dashboard ? "USD price data powered by CoinGecko" : undefined} className={dashboard ? styles.attribution : undefined} style={dashboard ? undefined : { display: "flex", flexWrap: "wrap", justifyContent: compact ? "center" : "flex-start", alignItems: "center", gap: 5, fontSize: 10, lineHeight: "16px", marginTop: 5, letterSpacing: "normal", fontWeight: 400 }}>
+      {dashboard ? providerLogo : <><span>Data powered by</span>{providerLogo}</>}
     </div>
     <details className={dashboard ? styles.details : undefined} style={dashboard ? undefined : { marginTop: compact ? 0 : 8, fontSize: compact ? 9 : 12, lineHeight: 1.45, letterSpacing: "normal", fontWeight: 400, textAlign: compact ? "center" : "left" }}>
-      <summary aria-label={c.details} style={dashboard ? undefined : { cursor: "pointer", opacity: .88, minHeight: 24 }}>{prices.status === "stale" ? c.stale : dashboard ? DETAIL_LABEL[locale] : quote ? c.updated : c.details}{!dashboard && timestamp ? ` · ${timestamp}` : ""}</summary>
+      <summary aria-label={c.details} style={dashboard ? undefined : { cursor: "pointer", opacity: .88, minHeight: 24 }}>{checkedPrices.status === "stale" ? c.stale : dashboard ? DETAIL_LABEL[locale] : quote ? c.updated : c.details}{!dashboard && timestamp ? ` · ${timestamp}` : ""}</summary>
       <div className={dashboard ? styles.reference : undefined} style={dashboard ? undefined : { padding: "8px 0 2px", display: "grid", gap: 5 }}>
         {!showNative && quantity !== null && <span>{quantity} {c.balance}</span>}
         {quote && <><span>{c.fresh}: XLM {usdPrice(quote.assets.xlm.prices.usd)} · USDC {usdPrice(quote.assets.usdc.prices.usd)}</span><time dateTime={new Date(updated!).toISOString()}>{c.updated}: {new Intl.DateTimeFormat(TIME_LOCALES[locale], { dateStyle: "medium", timeStyle: "medium" }).format(updated!)}</time></>}

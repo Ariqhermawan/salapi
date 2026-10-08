@@ -1,8 +1,8 @@
 import type { Locale } from "./config";
 import type { CircleCategory } from "../circles/types";
 
-// Feature-local UI copy. Fictional fixture stories, names and update documents
-// remain authored data, rather than being silently machine-translated here.
+// Feature-local UI copy. Reviewed fictional catalog translations live in
+// circles-content.ts; organizer/user text and donor comments remain authored.
 // Tuple order is Tagalog, Indonesian, Vietnamese. English keys preserve the
 // existing English UI and provide a compile-time complete translation contract.
 export const CIRCLES_COPY = {

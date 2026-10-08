@@ -9,6 +9,7 @@ import * as revampCircles from "../lib/i18n/revamp-circles.ts";
 import * as draftGallery from "../lib/ui/circle-draft-gallery.ts";
 import { CATEGORY_LABEL } from "../lib/circles/types.ts";
 import type { SignupIdentityState } from "../lib/ui/useCirclesSignupIdentity.ts";
+import * as contentCopy from "../lib/i18n/circles-content.ts";
 
 type Element = { type: string; props: Record<string, unknown> };
 const code = ts.transpileModule(readFileSync(new URL("../components/screens/CirclesCreateScreen.tsx", import.meta.url), "utf8"), {
@@ -224,8 +225,9 @@ test("organizer manage bridge describes simulated escrow in preview and preserve
       if (name === "react") return { useState: (initial: unknown) => [initial, () => {}] };
       if (name === "next/link") return { default: "Link" };
       if (name === "@/components/ui/kit") return { Ico: icons, T: {}, Btn: "Btn", PoweredByStellar: "PoweredByStellar" };
-      if (name === "@/components/I18nProvider") return { useT: () => ({ currency: "en" }) };
+      if (name === "@/components/I18nProvider") return { useT: () => ({ currency: "en", locale: "en" }) };
       if (name === "@/lib/i18n/revamp-circles") return revampCircles;
+      if (name === "@/lib/i18n/circles-content") return contentCopy;
       if (name === "@/lib/ui/currency") return { formatLocal };
       if (name === "@/lib/local-preview") return { isLocalPreview: preview };
       if (name === "@/lib/ui/useGoBack") return { useGoBack: () => () => { throw Error("Navigation is outside isolated manage rendering"); } };

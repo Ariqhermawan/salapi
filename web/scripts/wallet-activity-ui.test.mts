@@ -5,6 +5,7 @@ import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import * as copy from "../lib/i18n/revamp-money.ts";
 import { activityCopy } from "../lib/i18n/wallet-activity.ts";
+import * as contentCopy from "../lib/i18n/circles-content.ts";
 import { XLM_ACTIVITY_ASSET, USDC_ACTIVITY_ASSET, activityContextHref, activityUsdcEquivalent } from "../lib/wallet-activity.ts";
 import type { MarketPriceResult } from "../lib/market-prices.ts";
 import { PREVIEW_WALLET } from "../lib/local-preview.ts";
@@ -100,6 +101,7 @@ function mount(options: { preview?: boolean; configured?: boolean; locale?: "en"
       if (dependency === "@/lib/wallet-activity") return { activityContextHref, activityUsdcEquivalent };
       if (dependency === "@/lib/i18n/revamp-money") return copy;
       if (dependency === "@/lib/i18n/wallet-activity") return { activityCopy };
+      if (dependency === "@/lib/i18n/circles-content") return contentCopy;
       if (dependency === "@/lib/ui/currency") return { formatLocal };
       if (dependency === "@/lib/local-preview") return { isLocalPreview: preview, PREVIEW_WALLET };
       if (dependency === "@/lib/local-preview-history") return { listPreviewTransfers: () => [] };
@@ -398,6 +400,26 @@ test("unrelated identity DTO never appears on another receipt; missing app profi
   const h = mount(); h.emitAuth("owner-a"); await h.flush(); h.historyRequests[0].deferred.resolve(result); await h.flush();
   assert.doesNotMatch(text(h.tree), /wrong_wallet/); assert.match(text(h.tree), /From Stellar wallet/);
   assert.ok(nodes(h.tree).filter(node => node.type === "AccountAvatar").every(node => node.props.photoUrl === null)); h.unmount();
+});
+
+test("verified campaign purpose follows language without changing receipts or re-reading activity", async () => {
+  const options: { locale: "en" | "id" | "tl" | "vi" } = { locale: "en" };
+  const fixture: WalletActivityItem = { ...item("locale-campaign", "sent", "3000000000"), context: {
+    type: "campaign-donation", referenceId: "8", contractId: "C" + "A".repeat(55),
+    title: "QA · Original ledger title", circleId: "cebu-community-water",
+  } };
+  const original = JSON.stringify(fixture);
+  const h = mount(options); h.emitAuth("owner-a"); await h.flush();
+  h.historyRequests[0].deferred.resolve(pageResult([fixture])); await h.flush();
+  const reads = h.historyRequests.length;
+  for (const locale of ["en", "id", "tl", "vi"] as const) {
+    options.locale = locale; h.render();
+    assert.ok(text(h.tree).includes(`QA · ${contentCopy.circleDisplayTitle(fixture.context!.circleId!, locale)}`));
+    assert.match(text(h.tree), /−300Testnet XLM/);
+    assert.equal(h.historyRequests.length, reads);
+    assert.equal(JSON.stringify(fixture), original);
+  }
+  h.unmount();
 });
 
 test("XLM primary stays exact while current USDC equivalent changes with both shared market prices", async () => {

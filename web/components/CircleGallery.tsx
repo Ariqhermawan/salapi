@@ -4,6 +4,7 @@ import { useState, useSyncExternalStore, type KeyboardEvent } from "react";
 import Image from "next/image";
 import { useT } from "@/components/I18nProvider";
 import { circlesCopy, circlesCategory } from "@/lib/i18n/revamp-circles";
+import { circleDisplayContent } from "@/lib/i18n/circles-content";
 import type { Circle } from "@/lib/circles/types";
 import { circlePhotos, galleryIndex } from "@/lib/ui/circle-media";
 import styles from "./CircleGallery.module.css";
@@ -15,7 +16,8 @@ const serverReady = () => false;
 export default function CircleGallery({ circle }: { circle: Circle }) {
   const { locale } = useT();
   const c = circlesCopy(locale);
-  const photos = circlePhotos(circle);
+  const display = circleDisplayContent(circle, locale);
+  const photos = circlePhotos({ ...circle, ...display });
   // The SSR photo remains visible, but controls must wait for their handlers.
   // A stable server snapshot also preserves identical initial hydration markup.
   const ready = useSyncExternalStore(subscribeToClient, clientReady, serverReady);

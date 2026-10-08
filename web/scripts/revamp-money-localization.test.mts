@@ -17,6 +17,7 @@ import { requireWalletState } from "../lib/wallet-state.ts";
 import { receiveCopy } from "../lib/i18n/receive.ts";
 import { receiveDestination, receiveShareData } from "../lib/receive.ts";
 import type { AccountDetailsResult } from "../lib/account-details.ts";
+import * as contentCopy from "../lib/i18n/circles-content.ts";
 
 type Element = { type: unknown; props: Record<string, unknown> };
 type Handler = (...args: unknown[]) => unknown;
@@ -97,6 +98,7 @@ function mount(name: typeof names[number], locale: Locale, options: { preview?: 
       if (dependency === "@/lib/receive") return { receiveDestination, receiveShareData };
       if (dependency === "@/app/account-details-actions") return { accountDetails() { calls.receiveReads++; if (!options.receiveAccount) throw Error("Unexpected receive identity read"); return options.receiveAccount(); } };
       if (dependency === "@/lib/i18n/wallet-activity") return activityCopyModule;
+      if (dependency === "@/lib/i18n/circles-content") return contentCopy;
       if (dependency === "@/lib/wallet-activity") return { activityUsdcEquivalent };
       if (dependency === "@/components/AccountAvatar") return { default: "AccountAvatar" };
       if (dependency === "@/components/useAccountPhoto") return { useAccountPhoto: () => ({ profile: null }) };

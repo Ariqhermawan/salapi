@@ -11,6 +11,7 @@ import { campaignDonorComment, type CampaignDonorInput, type CampaignDonorRecord
 import { campaignSplit } from "../lib/campaign-money.ts";
 import { formatStroops } from "../lib/format-stroops.ts";
 import { circleTestnetDonateCopy, type CircleTestnetDonateMessage } from "../lib/i18n/circle-testnet-donate.ts";
+import * as contentCopy from "../lib/i18n/circles-content.ts";
 import type { Circle } from "../lib/circles/types.ts";
 import type { CircleTestnetCampaignResult } from "../lib/circles/testnet.ts";
 import type { SignupIdentityState } from "../lib/ui/useCirclesSignupIdentity.ts";
@@ -62,6 +63,9 @@ function setup(options: Options = {}) {
   const metadata: { id: string; input: CampaignDonorInput; response: ReturnType<typeof deferred<CampaignDonorRecordResult>> }[] = [];
   const mappingRefreshes: ReturnType<typeof deferred<CircleTestnetCampaignResult | null>>[] = [];
   const dummy = (label: string) => function FixtureSection({ children }: { children?: React.ReactNode }) { return React.createElement("section", { "data-fixture": label }, children ?? label); };
+  const Balance = ({ amountStroops, compact }: { amountStroops?: bigint | null; compact?: boolean }) => React.createElement("aside", {
+    "data-fixture": "available-balance", "data-compact": compact, "data-requested-stroops": amountStroops?.toString(),
+  }, "Available balance");
   const panelExports = {} as { default: (props: Record<string, unknown>) => React.ReactElement | null };
   runInNewContext(compile("../components/ui/SubmissionStatusPanel.tsx"), { exports: panelExports,
     require(name: string) {
@@ -138,13 +142,14 @@ function setup(options: Options = {}) {
       if (name === "@/lib/format-stroops") return { formatStroops };
       if (name === "@/lib/campaign-money") return { campaignSplit };
       if (name === "@/components/CircleTestnetSummary") return { __esModule: true, default: dummy("mapping-summary") };
-      if (name === "@/components/AvailableWalletBalance") return { __esModule: true, default: () => null };
+      if (name === "@/components/AvailableWalletBalance") return { __esModule: true, default: Balance };
       if (name === "@/components/CampaignDonorActivity") return { __esModule: true, default: dummy("donor-feed") };
       if (name === "@/components/CampaignUpdateSubscription") return { __esModule: true, default: dummy("updates-subscription") };
       if (name === "@/components/ui/SubmissionStatusPanel") return { __esModule: true, default: StatusPanel };
       if (name === "@/components/ui/SuccessMotion") return { __esModule: true, default: (props: { title: string; children: React.ReactNode }) => React.createElement("section", { "data-success-motion": true }, React.createElement("strong", {}, props.title), props.children) };
       if (name === "@/components/I18nProvider") return { useT: () => ({ locale }) };
       if (name === "@/lib/i18n/circle-testnet-donate") return { circleTestnetDonateCopy };
+      if (name === "@/lib/i18n/circles-content") return contentCopy;
       if (name.endsWith(".module.css")) return { __esModule: true, default: new Proxy({}, { get: (_, key) => key }) };
       throw Error(`Unexpected dependency ${name}`);
     },
@@ -178,6 +183,7 @@ function setup(options: Options = {}) {
   }
   const checkSubmittedStatus = () => (statusPanelButton("Check submitted status").props.onClick as () => Promise<void>)();
   return { render, nodes, all, button, field, checkbox, change, click, statusRefreshHandler, statusPanelButton, checkSubmittedStatus, donations, metadata, mappingRefreshes, calls, transitions, text,
+    balance() { const value = all().find(node => node.type === Balance); assert.ok(value, "Available wallet balance must remain in the actual form"); return value; },
     panelHtml(confirmedHash?: string) {
       const panel = all().find(node => node.type === StatusPanel); assert.ok(panel);
       return renderToStaticMarkup(StatusPanel({ ...panel.props, confirmedHash }));
@@ -239,6 +245,8 @@ test("new donation defaults to a public permitted profile and discloses it befor
   const html = h.html(); assert.match(html, /QA wallets receive test tokens/); assert.match(html, /does not send USDC/); assert.match(html, /up to 7 decimal places/);
   assert.match(html, /Your wallet, available @username and permitted profile photo will be public/);
   assert.ok(html.indexOf('data-testid="donor-privacy-notice"') < html.indexOf('<details class="options">'));
+  const visibleNotice = h.all().find(node => node.props["data-testid"] === "donor-privacy-notice"); assert.ok(visibleNotice);
+  assert.equal(visibleNotice.props.children, h.text("Public: wallet, @username and permitted photo. You can choose anonymous below."));
   assert.equal(h.donations.length, 0); assert.equal(h.metadata.length, 0);
 });
 test("public-profile publication can be disabled and anonymity clears it without silently reenabling it", () => {
@@ -620,6 +628,68 @@ test("amount form precedes collapsed technical details and optional controls", (
   assert.match(html, /<details class="options"><summary>Campaign details/);
   assert.match(html, /1 · Amount/);
   assert.doesNotMatch(html, /data-fixture="donor-feed"|data-fixture="updates-subscription"/);
+});
+
+test("compact amount view exposes exact input, balance and one review action without executing finance", () => {
+  const h = setup(); h.change(h.field("circle-testnet-amount"), "100.1234567");
+  const all = h.all(), form = all.find(node => node.props["data-testid"] === "donation-amount-form");
+  const actions = all.find(node => node.props["data-testid"] === "donation-amount-actions");
+  assert.ok(form, "The compact amount form must have a stable target for first-viewport QA");
+  assert.ok(actions, "Review must have a dedicated reachable action dock");
+  assert.equal(h.field("circle-testnet-amount").props.inputMode, "decimal");
+  assert.equal(h.balance().props.compact, true);
+  assert.equal(h.balance().props.amountStroops, 1_001_234_567n);
+  assert.equal(h.nodes(actions).filter(node => node.type === "button" && node.props.children === h.text("Review Testnet donation")).length, 1);
+  assert.equal(all.filter(node => node.type === "button" && node.props.children === h.text("Review Testnet donation")).length, 1);
+  assert.ok(!all.some(node => node.type === "button" && node.props.children === h.text("Confirm Testnet donation")));
+  h.click("Review Testnet donation");
+  assert.ok(!h.all().some(node => node.props["data-testid"] === "donation-amount-actions"), "Review state must not retain the amount CTA");
+  assert.equal(h.donations.length, 0); assert.equal(h.metadata.length, 0);
+});
+
+for (const cut of [{ bps: 0, beneficiary: "100", creator: "0", percent: "0" },
+  { bps: 300, beneficiary: "97", creator: "3", percent: "3" },
+  { bps: 1_000, beneficiary: "90", creator: "10", percent: "10" }]) {
+  test(`compact amount discloses the real ${cut.percent}% creator cut before review`, () => {
+    const mapping = readyMapping(); mapping.mapping.creatorCutBps = cut.bps; mapping.campaign.config.creator_cut_bps = cut.bps;
+    const h = setup({ mapping }); h.change(h.field("circle-testnet-amount"), "100");
+    const form = h.all().find(node => node.props["data-testid"] === "donation-amount-form"); assert.ok(form);
+    const split = h.nodes(form).find(node => node.type === "dl"); assert.ok(split, "The split must remain in the main amount form, not just review/details");
+    const html = renderToStaticMarkup(split);
+    assert.ok(html.includes(`${cut.beneficiary} XLM`)); assert.ok(html.includes(`${cut.creator} XLM`)); assert.ok(html.includes(`${cut.percent}%`));
+    assert.equal(h.donations.length, 0); assert.equal(h.metadata.length, 0);
+  });
+}
+
+test("compact amount keeps detailed Testnet and privacy disclosures in closed optional sections", () => {
+  const h = setup(), all = h.all();
+  const optional = all.filter(node => node.type === "details");
+  assert.ok(optional.length >= 2, "Privacy/comment and transaction details remain independently expandable");
+  for (const detail of optional) assert.notEqual(detail.props.open, true, "Details must be closed in the initial compact amount view");
+  const html = h.html();
+  assert.match(html, /up to 7 decimal places/); assert.match(html, /does not send USDC/);
+  assert.match(html, /Testnet XLM has no monetary value/);
+  assert.match(html, /Your wallet, available @username and permitted profile photo will be public/);
+  const notice = all.find(node => node.props["data-testid"] === "donor-privacy-notice"); assert.ok(notice);
+  assert.equal(notice.props.children, h.text("Public: wallet, @username and permitted photo. You can choose anonymous below."));
+  assert.equal(h.checkbox("Display anonymously in the donor feed").props.checked, false);
+  assert.equal(h.checkbox("Also publish my available @username and permitted profile photo for this donation").props.checked, true);
+  assert.equal(h.field("circle-testnet-comment").props.maxLength, 500);
+  assert.equal(h.donations.length, 0); assert.equal(h.metadata.length, 0);
+});
+
+for (const locale of ["en", "id", "tl", "vi"] as const) test(`confirmed receipt offers explicit Home and campaign return in ${locale}`, async () => {
+  const h = setup({ locale }); review(h, "100"); h.click("Confirm Testnet donation");
+  h.donations[0].response.resolve(confirmed()); await flush();
+  h.metadata[0].response.resolve(saved()); await settle(h);
+  const actions = h.all().find(node => node.props["data-testid"] === "donation-receipt-actions"); assert.ok(actions);
+  const entries = h.nodes(actions), home = entries.find(node => node.props.href === "/"); assert.ok(home, "Home must be an explicit link alongside the campaign action");
+  const homeHtml = renderToStaticMarkup(home);
+  assert.ok(homeHtml.includes(h.text("Go to Home")));
+  assert.equal(entries.filter(node => node.type === "button" && node.props.children === h.text("Back to campaign")).length, 1);
+  assert.doesNotMatch(h.html(), /donation-amount-actions|donation-review-actions/);
+  h.click("Back to campaign"); assert.equal(h.calls.backs, 1);
+  assert.equal(h.donations.length, 1); assert.equal(h.metadata.length, 1);
 });
 
 test("confirmed receipt displays the exact reviewed XLM amount without another transfer", async () => {

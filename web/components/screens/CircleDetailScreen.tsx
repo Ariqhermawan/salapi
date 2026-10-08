@@ -19,6 +19,7 @@ import type { Locale } from "@/lib/i18n/config";
 import { isLocalPreview } from "@/lib/local-preview";
 import styles from "./CirclesDetailRevamp.module.css";
 import { circlesCopy } from "@/lib/i18n/revamp-circles";
+import { circleDisplayContent } from "@/lib/i18n/circles-content";
 import { useCircleTestnet } from "@/lib/ui/useCircleTestnet";
 import CircleTestnetSummary from "@/components/CircleTestnetSummary";
 import CampaignDonorActivity from "@/components/CampaignDonorActivity";
@@ -58,11 +59,12 @@ function ExampleImage({ circle, src, className, priority = false }: {
   const [failed, setFailed] = useState(false);
   const { locale } = useT();
   const c = circlesCopy(locale);
+  const display = circleDisplayContent(circle, locale);
   const fallback = photos[circle.category] ?? "/illustrations/giving.png";
   const source = failed ? fallback : src ?? circle.coverImage ?? fallback;
   const alt = failed ? c("AI-generated fictional campaign illustration")
-    : src ? circle.gallery?.find(photo => photo.src === src)?.alt ?? c("AI-generated fictional campaign illustration")
-      : circle.imageAlt ?? c("AI-generated fictional campaign illustration");
+    : src ? display.gallery?.find(photo => photo.src === src)?.alt ?? c("AI-generated fictional campaign illustration")
+      : display.imageAlt ?? c("AI-generated fictional campaign illustration");
   return <Image src={source} alt={alt} fill
     sizes="(max-width: 500px) 100vw, 500px" priority={priority}
     className={`${className ?? ""} ${source === "/illustrations/giving.png" ? styles.doodleCover : ""}`}
@@ -75,6 +77,7 @@ export default function CircleDetailScreen({ circle, initialTab = "story" }: {
   const goBack = useGoBack("/circles");
   const { currency, locale } = useT();
   const c = circlesCopy(locale);
+  const display = circleDisplayContent(circle, locale);
   const [tab, setTab] = useState<Tab>(initialTab);
   const qa = useCircleTestnet(circle.id, !isLocalPreview && circle.status !== "completed");
   const [supports, setSupports] = useState<LocalSupportRecord[]>([]);
@@ -86,7 +89,8 @@ export default function CircleDetailScreen({ circle, initialTab = "story" }: {
   const split = localePreviewSplit(currency, allowance);
   const percent = progressPct(circle);
   const updates = circle.updates ?? [];
-  const storyText = circle.story.trim();
+  const displayUpdates = display.updates ?? [];
+  const storyText = display.story.trim();
   const storyLimit = 360;
   const storyBoundary = storyText.length > storyLimit ? storyText.lastIndexOf(" ", storyLimit) : storyText.length;
   const storyCut = storyBoundary > storyLimit / 2 ? storyBoundary : Math.min(storyText.length, storyLimit);
@@ -160,12 +164,12 @@ export default function CircleDetailScreen({ circle, initialTab = "story" }: {
         <CircleGallery key={circle.id} circle={circle} />
         <header className={styles.heroBody}>
           <span className={styles.eyebrow}>{completed ? c("Fictional completed history") : c("Circles concept")}</span>
-          <h1 id="circle-title">{circle.title}</h1>
+          <h1 id="circle-title">{display.title}</h1>
           {organizerLink()}
         </header>
       </section>
     </> : <header className={styles.compactHero}>
-      <h1>{circle.title}</h1><p>{c("Prototype · All updates, scenes and proof notes are fictional examples.")}</p>
+      <h1>{display.title}</h1><p>{c("Prototype · All updates, scenes and proof notes are fictional examples.")}</p>
     </header>}
 
     {currentSupports.length > 0 && <section className={styles.supportBanner} aria-label={c("Your local demo support")}>
@@ -185,7 +189,7 @@ export default function CircleDetailScreen({ circle, initialTab = "story" }: {
     {tab === "story" && <section key="story" id="circle-panel-story" role="tabpanel" tabIndex={0} aria-labelledby="circle-tab-story" className={`${styles.panel} sl-state-enter`}>
       <div className={styles.storyHeading}><div><span className={styles.eyebrow}>{c("People helping people")}</span><h2>{c("About this example")}</h2></div>
         <Image src="/illustrations/giving.png" width={86} height={78} alt="" className={styles.storyDoodle} /></div>
-      {circle.summary && <p className={styles.storySummary}>{circle.summary}</p>}
+      {display.summary && <p className={styles.storySummary}>{display.summary}</p>}
       <p className={styles.storyPreview} data-testid="circle-story-preview">{storyPreview}{storyRemainder ? "…" : ""}</p>
       {storyRemainder && <details className={styles.storyMore} data-testid="circle-story-more">
         <summary>{c("Read more")}</summary>
@@ -237,7 +241,7 @@ export default function CircleDetailScreen({ circle, initialTab = "story" }: {
       <p className={styles.timelineNotice}>{c("Synthetic updates and AI illustrations. No spending, donation or delivery is verified.")}</p>
       {seenNotice && <p className={styles.seenNotice} role="status">{seenNotice}</p>}
       {updates.length === 0 ? <div className={styles.panel}><h2>{c("No example updates yet")}</h2><p>{c("This cause has no seeded updates. No activity is being invented.")}</p></div> : <ol className={styles.timeline}>
-        {updates.map(update => <li key={update.id} className={styles.timelineItem}>
+        {displayUpdates.map(update => <li key={update.id} className={styles.timelineItem}>
           <div className={styles.updateDate}><time dateTime={update.date}>{exampleDate(update.date, locale)}</time></div>
           <article className={styles.updateBody}>
             <h3>{update.title}</h3><p className={styles.updateKind}>{c(updateLabels[update.kind])}{update.amountPHP !== undefined && ` · ${formatLocal(update.amountPHP, currency)}`}</p>
@@ -266,12 +270,12 @@ export default function CircleDetailScreen({ circle, initialTab = "story" }: {
         <li><span className={styles.proofNumber} aria-hidden="true">4</span><div><h3>{c("Wallet approvals and release")}</h3><p>{c("No approval request or payout exists for this concept. D4 separately requires its configured wallets to approve submitted proof before release.")}</p><span>{c("Not requested")}</span></div></li>
       </ol>
       </>}
-      {circle.gallery && circle.gallery.length > 0 && <section className={styles.proofPhotos} aria-labelledby="circle-proof-photos-title">
+      {display.gallery && display.gallery.length > 0 && <section className={styles.proofPhotos} aria-labelledby="circle-proof-photos-title">
         <h3 id="circle-proof-photos-title">{c("Illustrative photo context")}</h3>
-        <div>{circle.gallery.map(photo => <figure key={photo.src}><div><ExampleImage circle={circle} src={photo.src} /></div><figcaption>{c("AI illustration · not proof")}</figcaption></figure>)}</div>
+        <div>{display.gallery.map(photo => <figure key={photo.src}><div><ExampleImage circle={circle} src={photo.src} /></div><figcaption>{c("AI illustration · not proof")}</figcaption></figure>)}</div>
       </section>}
       <h3 className={styles.separateHeading}>{c("Mock documents, not verified evidence")}</h3>
-      <div className={styles.documentList}>{updates.filter(update => update.proofLabel).map(update => <details key={update.id} className={styles.document}>
+      <div className={styles.documentList}>{displayUpdates.filter(update => update.proofLabel).map(update => <details key={update.id} className={styles.document}>
         <summary><span aria-hidden="true">{Ico.link({ size: 18, c: T.action })}</span><div><strong>{update.proofLabel}</strong><small>{exampleDate(update.date, locale)} {c("· Example document")}</small></div>
           <span className={styles.expandIcon} aria-hidden="true">{Ico.chev({ size: 16, c: T.slate })}</span></summary>
         <div className={styles.documentBody}><p>{update.body}</p><p className={styles.hint}>{c("No real receipt or transaction exists for this note.")}</p></div>

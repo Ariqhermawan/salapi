@@ -10,6 +10,7 @@ import * as homeCircles from "../lib/home-circles.ts";
 import { DICTS } from "../lib/i18n/dictionaries.ts";
 import { LOCALES, type Locale } from "../lib/i18n/config.ts";
 import type { Circle, CircleCategory } from "../lib/circles/types.ts";
+import * as contentCopy from "../lib/i18n/circles-content.ts";
 
 type Category = CircleCategory | "all";
 type Element = { type: unknown; props: Record<string, unknown>; key?: string };
@@ -168,6 +169,7 @@ function discovery(locale: Locale, preview: boolean, campaignEntry: boolean) {
     "@/lib/circles/seed": { SEED_CIRCLES }, "@/lib/circles/types": circleTypes,
     "@/lib/circles/organizers": fixture("../lib/circles/organizers.ts"),
     "@/lib/i18n/revamp-circles": copy, "@/lib/i18n/revamp-campaign-discovery": discoveryCopy,
+    "@/lib/i18n/circles-content": contentCopy,
     "@/lib/home-circles": homeCircles,
     "@/lib/ui/useNavigationViewState": { useNavigationViewState: (key: string) => navigationViews.get(key) ?? "" },
     "@/lib/ui/app-navigation": { writeNavigationViewState(key: string, value: Record<string, unknown>) {
@@ -203,7 +205,7 @@ test("integrated Discover preserves all category/sort combinations, full counts 
       if (sort === "trending") expected.sort((a, b) => b.donorCount - a.donorCount);
       else if (sort === "closeToGoal") expected.sort((a, b) => circleTypes.progressPct(b) - circleTypes.progressPct(a));
       else if (sort === "justLaunched") expected.sort((a, b) => b.daysRemaining - a.daysRemaining);
-      assert.deepEqual(articleTitles(screen.tree), Array.from(expected, circle => circle.title));
+      assert.deepEqual(articleTitles(screen.tree), Array.from(expected, circle => contentCopy.circleDisplayContent(circle, locale).title));
       assert.equal(tile(screen.tree, category).props["aria-pressed"], true);
       assert.equal(tiles(screen.tree).filter(node => node.props["aria-pressed"] === true).length, 1);
       assert.equal(countText(tile(screen.tree, "all")), c("{count} examples", { count: 27 }));

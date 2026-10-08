@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import * as copy from "../lib/i18n/revamp-circles.ts";
+import * as content from "../lib/i18n/circles-content.ts";
 import * as draftGallery from "../lib/ui/circle-draft-gallery.ts";
 import * as discoveryCopy from "../lib/i18n/revamp-campaign-discovery.ts";
 import * as homeCircles from "../lib/home-circles.ts";
@@ -88,7 +89,7 @@ test("all 27 concept proof flows expose photos, missing documents, missing hash 
 
 // This harness executes actual TSX handlers with deterministic isolated hooks.
 // No browser, provider, database, credential, navigation or live action exists.
-function setup(name: ScreenName, locale: Locale = "en", preview = true, circleId = "tino-relief", qaState: "unmapped" | "ready" | "loading" | "unavailable" = "unmapped") {
+function setup(name: ScreenName, locale: Locale = "en", preview = true, circleId = "tino-relief", qaState: "unmapped" | "ready" | "loading" | "unavailable" = "unmapped", circleInput?: Circle) {
   const states: unknown[] = [];
   let cursor = 0;
   const pending: Promise<unknown>[] = [];
@@ -131,6 +132,7 @@ function setup(name: ScreenName, locale: Locale = "en", preview = true, circleId
         return value;
       } }) };
       if (module === "@/lib/i18n/revamp-circles") return copy;
+      if (module === "@/lib/i18n/circles-content") return content;
       if (module === "@/components/CirclesSignupEmail") return signupEmail;
       if (module === "@/lib/ui/useCirclesSignupIdentity") return { useCirclesSignupIdentity: () => ({ identity: { status: "guest" }, refresh: () => {}, captureOwnerRevision: () => 0, isCurrentOwner: () => true }) };
       if (module === "@/lib/ui/useCircleTestnet") return { useCircleTestnet: () => ({ result: qaState === "loading" ? null : qaState === "ready" ? { ok: true, circleId, mapping: { campaignId: "6" } } : { ok: false, code: qaState, circleId }, loading: qaState === "loading", refresh: forbidden("action") }) };
@@ -169,7 +171,7 @@ function setup(name: ScreenName, locale: Locale = "en", preview = true, circleId
       throw Error(`Unexpected actual screen dependency: ${module}`);
     },
   });
-  const render = () => { cursor = 0; return (name === "CirclesDonateScreen" ? exports.CirclesPreviewDonateScreen : exports.default)({ circle: seed.getCircle(circleId) }); };
+  const render = () => { cursor = 0; return (name === "CirclesDonateScreen" ? exports.CirclesPreviewDonateScreen : exports.default)({ circle: circleInput ?? seed.getCircle(circleId) }); };
   let tree = render();
   function input(id: string, value: string) {
     const node = nodes(tree).find(node => node.props.id === id); assert.ok(node, `Missing input ${id}`);
@@ -190,7 +192,7 @@ function setup(name: ScreenName, locale: Locale = "en", preview = true, circleId
     (form.props.onSubmit as (event: unknown) => void)({ preventDefault() {} });
     while (pending.length) await Promise.all(pending.splice(0)); tree = render();
   }
-  return { exports, calls, input, click, check, submit, refresh() { tree = render(); }, get tree() { return tree; } };
+  return { exports, calls, input, click, check, submit, setLocale(next: Locale) { locale = next; tree = render(); }, refresh() { tree = render(); }, get tree() { return tree; } };
 }
 
 test("every linked campaign presents a short expandable story before its actual funding and donor history", () => {
@@ -278,7 +280,7 @@ test("all category and original sort combinations render membership and baseline
       if (sort === "closeToGoal") expected.sort((a, b) => types.progressPct(b) - types.progressPct(a));
       if (sort === "justLaunched") expected.sort((a, b) => b.daysRemaining - a.daysRemaining);
       const actual = nodes(screen.tree).filter(node => node.type === "article").map(article => text(nodes(article).find(node => node.type === "h2")));
-      assert.deepEqual(actual, Array.from(expected, circle => circle.title), `${category}:${sort}`);
+      assert.deepEqual(actual, Array.from(expected, circle => content.circleDisplayContent(circle, "en").title), `${category}:${sort}`);
       assert.equal(JSON.stringify(seed.SEED_CIRCLES), original);
       assert.equal(nodes(screen.tree).find(node => node.props.id === "circles-sort")?.props.value, sort);
     }
@@ -329,12 +331,16 @@ test("four locales render translated catalog, detail, donor, manager and creator
     assert.equal(nodes(discovery.tree).filter(node => node.type === "option").length, 4);
     assert.equal(nodes(discovery.tree).filter(node => node.type === "button" && typeof node.props["data-category"] === "string").length, 10);
     assert.ok(nodes(discovery.tree).some(node => node.type === "button" && node.props.type === "button" && text(node).trim() === c("Back")));
+    assert.deepEqual(nodes(discovery.tree).filter(node => node.type === "h2").map(text).slice(1), Array.from(seed.SEED_CIRCLES, circle => content.circleDisplayContent(circle, locale).title));
     const detail = setup("CircleDetailScreen", locale, preview);
+    const display = content.circleDisplayContent(seed.getCircle("tino-relief"), locale);
     const tabs = nodes(detail.tree).filter(node => node.props.role === "tab");
     assert.deepEqual(tabs.map(text), [c("Story"), c("Updates") + "3", c("Public proof")]);
     assert.ok(text(detail.tree).includes(c(preview ? "Preview a pledge" : "Donate Testnet XLM")));
-    assert.ok(text(detail.tree).includes(seed.getCircle("tino-relief").story.split("\n\n")[0]), "Authored fictional fixture text is retained");
+    assert.equal(text(nodes(detail.tree).find(node => node.props.id === "circle-title")), display.title);
+    assert.ok(text(detail.tree).includes(display.story.slice(0, 80)), "Authored fictional fixture story is displayed in the selected locale");
     const donate = setup("CirclesDonateScreen", locale, preview);
+    assert.equal(text(nodes(donate.tree).find(node => node.type === "h2")), display.title);
     assert.ok(text(donate.tree).includes(c("Where your pledge would go")));
     assert.ok(text(donate.tree).includes(c(preview ? "Review local donation" : "Continue to optional signup")));
     const manager = setup("CircleManageScreen", locale, preview);
@@ -345,6 +351,66 @@ test("four locales render translated catalog, detail, donor, manager and creator
     assert.ok(text(creator.tree).includes(c("Give the cause a title with at least 6 characters.")));
     for (const screen of [discovery, detail, donate, manager, creator]) assert.deepEqual(screen.calls, { storage: 0, network: 0, action: 0 });
   }
+});
+
+test("localized fixture updates and image descriptions preserve canonical IDs and leave storage untouched", () => {
+  const original = JSON.stringify(seed.SEED_CIRCLES);
+  for (const locale of LOCALES) {
+    const circle = seed.getCircle("tino-relief");
+    const display = content.circleDisplayContent(circle, locale);
+    const screen = setup("CircleDetailScreen", locale);
+    const tab = nodes(screen.tree).find(node => node.props.id === "circle-tab-updates");
+    assert.ok(tab);
+    screen.click(text(tab));
+    const items = nodes(screen.tree).filter(node => node.type === "li");
+    assert.deepEqual(items.map(node => node.key), Array.from(circle.updates!, update => update.id));
+    for (const update of display.updates ?? []) {
+      assert.ok(text(screen.tree).includes(update.title));
+      assert.ok(text(screen.tree).includes(update.body));
+      if (update.proofLabel) assert.ok(text(screen.tree).includes(update.proofLabel));
+    }
+    const proofTab = nodes(screen.tree).find(node => node.props.id === "circle-tab-proof");
+    assert.ok(proofTab);
+    screen.click(text(proofTab));
+    const photos = nodes(screen.tree).filter(node => node.type === "Image");
+    for (const photo of display.gallery ?? []) assert.ok(photos.some(node => node.props.src === photo.src && node.props.alt === photo.alt));
+    assert.equal(JSON.stringify(seed.SEED_CIRCLES), original);
+    assert.deepEqual(screen.calls, { storage: 0, network: 0, action: 0 });
+  }
+});
+
+test("custom or modified content keeps its authored title and story in each locale", () => {
+  const canonical = seed.getCircle("tino-relief");
+  const modified = { ...canonical, title: "Our own community cause", summary: "My original summary", story: "My original story, written by its organizer." };
+  const cases = [modified, { ...modified, ephemeral: true }, { ...modified, id: "custom-circle" }];
+  for (const authored of cases) for (const locale of LOCALES) {
+    const screen = setup("CircleDetailScreen", locale, true, canonical.id, "unmapped", authored);
+    assert.equal(text(nodes(screen.tree).find(node => node.props.id === "circle-title")), authored.title);
+    assert.ok(text(screen.tree).includes(authored.summary));
+    assert.ok(text(screen.tree).includes(authored.story));
+    assert.deepEqual(screen.calls, { storage: 0, network: 0, action: 0 });
+  }
+});
+
+test("switching display locale keeps the selected detail tab and donor review amount", () => {
+  const circle = seed.getCircle("tino-relief");
+  const detail = setup("CircleDetailScreen", "en");
+  detail.click("Updates3");
+  const donate = setup("CirclesDonateScreen", "en");
+  donate.input("circle-preview-amount", "123.45");
+  donate.click("Review local donation");
+  for (const locale of ["id", "tl", "vi", "en"] as const) {
+    const display = content.circleDisplayContent(circle, locale);
+    detail.setLocale(locale);
+    assert.equal(nodes(detail.tree).find(node => node.props.id === "circle-tab-updates")?.props["aria-selected"], true);
+    assert.equal(text(nodes(detail.tree).find(node => node.type === "h1")), display.title);
+    assert.ok(text(detail.tree).includes(display.updates![0].body));
+    donate.setLocale(locale);
+    assert.equal(text(nodes(donate.tree).find(node => node.type === "h2")), display.title);
+    assert.ok(text(donate.tree).includes(currency.formatLocalAmount(123.45, "en")));
+    assert.ok(text(donate.tree).includes(copy.circlesCopy(locale)("Check your cause and amount.")));
+  }
+  for (const screen of [detail, donate]) assert.deepEqual(screen.calls, { storage: 0, network: 0, action: 0 });
 });
 
 test("translated detail tabs retain keyboard navigation and accessible selected panel", () => {

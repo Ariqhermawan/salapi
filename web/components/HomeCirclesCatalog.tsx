@@ -15,6 +15,7 @@ import { useNavigationViewState } from "@/lib/ui/useNavigationViewState";
 import { getNavigationEntrySnapshot, subscribeNavigationViewState, writeNavigationViewState } from "@/lib/ui/app-navigation";
 import { homeCopy } from "@/lib/i18n/revamp-home";
 import { circlesCopy, circlesCategory } from "@/lib/i18n/revamp-circles";
+import { circleDisplayContent } from "@/lib/i18n/circles-content";
 import { homeCatalogCopy, type HomeCatalogKey } from "@/lib/i18n/revamp-home-catalog";
 import ExampleOrganizerAvatar from "@/components/ui/ExampleOrganizerAvatar";
 import styles from "./HomeCirclesCatalog.module.css";
@@ -136,16 +137,17 @@ export default function HomeCirclesCatalog({ campaigns = [], circleLinks = {}, l
     <div key={category} className={styles.strip} ref={strip} onScroll={syncScrollPosition} aria-label={copy("Example causes carousel")}>
       {examples.map((circle, position) => {
         const organizer = getOrganizerForCircle(circle);
+        const display = circleDisplayContent(circle, locale);
         return <article key={circle.id} className={styles.card} data-example-cause={circle.id}>
-          <Link href={`/circles/${circle.id}`} prefetch={false} className={styles.photo} aria-label={copy("View example cause: {title}", { title: circle.title })}>
-            <Image src={circle.coverImage ?? "/illustrations/giving.png"} alt={circle.imageAlt ?? c("AI-generated fictional campaign illustration")} width={600} height={340} sizes="(max-width: 500px) 82vw, 384px" loading={position === 0 ? "eager" : "lazy"} />
+          <Link href={`/circles/${circle.id}`} prefetch={false} className={styles.photo} aria-label={copy("View example cause: {title}", { title: display.title })}>
+            <Image src={circle.coverImage ?? "/illustrations/giving.png"} alt={display.imageAlt ?? c("AI-generated fictional campaign illustration")} width={600} height={340} sizes="(max-width: 500px) 82vw, 384px" loading={position === 0 ? "eager" : "lazy"} />
             <span className={styles.category}>{circlesCategory(locale, circle.category)}</span>
             <span className={styles.example}>{c("Example cause")}</span>
             <small className={styles.ai}>{c("AI illustration")}</small>
             <span className={styles.donationMark}><CampaignDonationBadge support={forCircle(circle.id)} /></span>
           </Link>
           <div className={styles.body}>
-            <h2><Link href={`/circles/${circle.id}`} prefetch={false} title={circle.title}><span>{circle.title}</span></Link></h2>
+            <h2><Link href={`/circles/${circle.id}`} prefetch={false} title={display.title}><span>{display.title}</span></Link></h2>
             <div className={styles.organizer} data-testid="home-campaign-organizer">
               {organizer ? <ExampleOrganizerAvatar organizer={organizer} size={34} /> : <span className={styles.avatar} aria-hidden="true">{circle.organizer.charAt(0)}</span>}
               <span className={styles.identity}><strong>{circle.organizer}</strong><small>{circle.organizerLocation}{" "}{c("· Example organizer")}</small></span>

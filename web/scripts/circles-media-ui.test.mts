@@ -8,6 +8,7 @@ import type { CircleOrganizer } from "../lib/circles/organizers.ts";
 import type { LocalSupportRecord } from "../lib/circles/local-support.ts";
 import { circlePhotos, galleryIndex, circleDonorExamples } from "../lib/ui/circle-media.ts";
 import * as copy from "../lib/i18n/revamp-circles.ts";
+import * as contentCopy from "../lib/i18n/circles-content.ts";
 import * as currency from "../lib/ui/currency.ts";
 import { LOCALES, type Locale } from "../lib/i18n/config.ts";
 
@@ -65,6 +66,7 @@ function mount(path: string, props: unknown, locale: Locale = "en", initiallyHyd
       if (name === "next/image") return { default: "Image" };
       if (name === "@/components/I18nProvider") return { useT: () => ({ locale, currency: "en" }) };
       if (name === "@/lib/i18n/revamp-circles") return copy;
+      if (name === "@/lib/i18n/circles-content") return contentCopy;
       if (name === "@/lib/ui/circle-media") return { circlePhotos, galleryIndex, circleDonorExamples };
       if (name === "@/lib/ui/currency") return currency;
       if (name.endsWith(".module.css")) return { default: new Proxy({}, { get: (_target, key) => String(key) }) };
