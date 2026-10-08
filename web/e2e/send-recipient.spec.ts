@@ -32,6 +32,7 @@ async function fixture(page: Page, options: { result?: object; slowLookup?: bool
   const main = page.locator("#app-content");
   await expect(main.getByRole("heading", { name: "Send by name.", exact: true })).toBeVisible();
   await expect(main.getByText("@ariqhermawan", { exact: true })).toBeVisible(); // hydration + own read
+  await page.evaluate(() => document.fonts.ready); // assert layout after font metrics settle, not fallback-only
   await main.getByLabel("Amount · USD", { exact: true }).fill("5");
   return { main, calls, releaseLookup, releasePhoto };
 }

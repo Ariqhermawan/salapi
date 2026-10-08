@@ -265,6 +265,11 @@
 .preset:focus-visible,
 .explorerLink:focus-visible { outline: 2px solid #2563eb; outline-offset: 3px; }
 
+@container (max-width: 410px) {
+  .transferParty { gap: 6px; }
+  .transferParty strong { font-size: 11px; }
+}
+
 @container (max-width: 370px) {
   .content { padding: 0 14px; }
   .intro { grid-template-columns: minmax(0, 1fr) 78px; gap: 9px; padding-bottom: 14px; }
