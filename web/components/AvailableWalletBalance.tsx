@@ -17,7 +17,7 @@ function valid(value: unknown): value is Response {
   const v = value as Response;
   return v.ok === true && typeof v.ownerId === "string" && !!v.balance && [v.balance.availableStroops, v.balance.nativeStroops, v.balance.reserveStroops, v.balance.liabilitiesStroops].every(x => typeof x === "string" && /^\d{1,20}$/.test(x));
 }
-export default function AvailableWalletBalance({ amountStroops }: { amountStroops?: bigint | null }) {
+export default function AvailableWalletBalance({ amountStroops, compact = false }: { amountStroops?: bigint | null; compact?: boolean }) {
   const { locale } = useT(), c = COPY[locale];
   const state = useOwnedAccountRead("/api/account/spending", valid);
   if (isLocalPreview) return <p className={styles.demo}>{c.demo}</p>;
@@ -28,6 +28,6 @@ export default function AvailableWalletBalance({ amountStroops }: { amountStroop
       : <span role="status">{state.status === "loading" ? c.loading : c.unavailable}</span>}
       <button type="button" onClick={state.refresh} disabled={state.status === "loading"} aria-label={c.retry}>↻</button></div>
     {balance ? <><p>{c.note}</p>{amountStroops != null && amountStroops > BigInt(balance.availableStroops) ? <p className={styles.error} role="alert">{c.over}</p> : null}
-      <details><summary>{c.reserve}: {formatStroops(balance.reserveStroops)} XLM</summary><span>{formatStroops(balance.nativeStroops)} XLM total · {formatStroops(balance.liabilitiesStroops)} XLM liabilities</span></details></> : null}
+      {!compact && <details><summary>{c.reserve}: {formatStroops(balance.reserveStroops)} XLM</summary><span>{formatStroops(balance.nativeStroops)} XLM total · {formatStroops(balance.liabilitiesStroops)} XLM liabilities</span></details>}</> : null}
   </aside>;
 }

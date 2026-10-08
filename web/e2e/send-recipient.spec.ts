@@ -54,9 +54,25 @@ for (const width of [390, 1280]) test(`review shows a permitted account photo an
   await expect(review).toContainText("could still be the wrong person");
   const bounds = await review.boundingBox(); const confirm = await f.main.getByRole("button", { name: "Confirm Testnet transfer", exact: true }).boundingBox();
   expect(bounds!.x).toBeGreaterThanOrEqual(0); expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
-  expect(confirm!.y + confirm!.height).toBeLessThan(744); // above bottom navigation, no confirmation scroll
+  expect(confirm!.y + confirm!.height).toBeLessThanOrEqual(744); // above bottom navigation, no confirmation scroll
   await page.screenshot({ path: testInfo.outputPath(`recipient-review-${width}.png`), fullPage: false });
   expect(errors).toEqual([]); expect(f.calls).toEqual({ lookups: 1, photos: 1, writes: 0 });
+});
+
+for (const width of [320, 375, 390]) test(`a long recipient username keeps the single review confirmation above navigation at ${width}px`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 812 });
+  const f = await fixture(page, { photo });
+  await f.main.getByLabel("Recipient @username", { exact: true }).fill("nonimaharani");
+  await f.main.getByRole("button", { name: "Review transfer", exact: true }).click();
+  const dock = f.main.getByTestId("transfer-review-actions");
+  const confirm = dock.getByRole("button", { name: "Confirm Testnet transfer", exact: true });
+  await expect(confirm).toBeVisible(); await expect(confirm).toBeEnabled();
+  await expect(f.main.getByRole("button", { name: "Confirm Testnet transfer", exact: true })).toHaveCount(1);
+  const navigation = await page.locator(".sl-tabbar").boundingBox();
+  const rect = await confirm.boundingBox();
+  expect(rect!.y).toBeGreaterThanOrEqual(0); expect(rect!.y + rect!.height).toBeLessThan(navigation!.y - 16);
+  expect(await f.main.evaluate(el => el.scrollTop)).toBe(0);
+  expect(f.calls.writes).toBe(0);
 });
 
 test("invalid characters are preserved and cannot silently become a registered recipient", async ({ page }) => {

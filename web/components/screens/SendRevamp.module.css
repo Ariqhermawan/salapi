@@ -6,6 +6,12 @@
 }
 
 .content { padding: 0 18px; }
+.reviewContent { padding-bottom: 230px; }
+/* The app frame contains fixed elements. Keep the reviewed wallet balance
+   and only submit control above the persistent nav and its raised Send icon. */
+.reviewDock { position: fixed; inset: auto 0 calc(env(safe-area-inset-bottom, 0px) + 90px); z-index: 21; padding: 8px 18px 10px; background: #f3f7fc; border-top: 1px solid #dfe6f0; box-shadow: 0 -6px 18px #12213a08; }
+.reviewDock .actions { display: grid; grid-template-columns: minmax(0, 1fr) 80px; gap: 8px; margin-top: 6px; }
+.reviewDock .actions > :last-child { padding: 5px; font-size: 12px !important; line-height: 1.35; }
 
 .intro {
   display: grid;

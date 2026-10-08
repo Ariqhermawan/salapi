@@ -214,7 +214,7 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
   return (
     <div className={styles.screen}>
       <AppBar leading={transferPhase ? undefined : <IconButton ariaLabel={m("Back")} onClick={() => recipient && !done && !unresolved ? setRecipient(null) : goBack()}>{Ico.back({})}</IconButton>} title={transferPhase ? m("Waiting for network confirmation") : done ? m("Transfer receipt") : unresolved ? m("Check submitted transaction") : recipient ? m("Review transfer") : t("send.title")} trailing={transferPhase ? undefined : <IconButton ariaLabel={m("Receive")} onClick={() => router.push("/receive")}>{Ico.qr({})}</IconButton>} />
-      <div className={styles.content}>
+      <div className={`${styles.content} ${recipient && !done && !unresolved ? styles.reviewContent : ""}`}>
         <section className={styles.intro} aria-labelledby="send-heading">
           <div>
             <span className={styles.eyebrow}>{isLocalPreview ? m("LOCAL PREVIEW") : m("STELLAR TESTNET")}</span>
@@ -295,10 +295,12 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
               {!isLocalPreview ? <details className={styles.photoNote}><summary>{m("About profile photos")}</summary><p>{photoLoading ? m("Loading the permitted account photo…") : m("Photos appear only when available and permitted by their owner. Otherwise, initials are shown. A photo is not proof of identity.")}</p></details> : null}
             </div>
           </article>
-          <AvailableWalletBalance amountStroops={units} />
-          <div className={styles.actions}>
-            <Btn kind="primary" disabled={pending || !valid} loading={pending} onClick={doSend}>{isLocalPreview ? m("Confirm local demo") : m("Confirm Testnet transfer")}</Btn>
-            <Btn kind="ghost" size="md" disabled={pending} onClick={() => setRecipient(null)}>{m("Edit transfer")}</Btn>
+          <div className={styles.reviewDock} data-testid="transfer-review-actions">
+            <AvailableWalletBalance amountStroops={units} compact />
+            <div className={styles.actions}>
+              <Btn kind="primary" disabled={pending || !valid} loading={pending} onClick={doSend}>{isLocalPreview ? m("Confirm local demo") : m("Confirm Testnet transfer")}</Btn>
+              <Btn kind="ghost" size="md" disabled={pending} onClick={() => setRecipient(null)}>{m("Edit transfer")}</Btn>
+            </div>
           </div>
           <p className={styles.notice}>{m("Testnet forms use fixed demo conversion, not the CoinGecko market estimate. Review the exact XLM before confirming.")}</p>
         </> : <>
