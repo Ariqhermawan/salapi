@@ -1636,3 +1636,161 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* The app frame already reserves bottom navigation space. Do not reserve it twice. */
+.disasterScreen {
+  padding: 16px 20px;
+}
+.disasterScreen .publicBack {
+  margin-bottom: 10px;
+  gap: 10px;
+}
+.disasterScreen .backLink {
+  min-height: 44px;
+}
+.disasterHero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 108px;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0 16px;
+}
+.disasterHero > div {
+  min-width: 0;
+}
+.disasterHero h1 {
+  font-size: 30px;
+  line-height: 1.12;
+  letter-spacing: -1px;
+}
+.disasterHero p {
+  margin-top: 9px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #61718b;
+  text-wrap: pretty;
+}
+.disasterHero img {
+  width: 108px;
+  height: 108px;
+  object-fit: contain;
+}
+.disasterScreen .testnetNote {
+  margin-bottom: 14px;
+}
+.disasterScreen .poolCard {
+  padding: 18px;
+  border-radius: 18px;
+}
+.disasterScreen .poolCard::after {
+  content: none;
+}
+.disasterScreen .poolAmount {
+  flex-wrap: wrap;
+  font-size: 30px;
+  overflow-wrap: anywhere;
+}
+.disasterScreen .poolMeta {
+  margin-top: 12px;
+  padding-top: 10px;
+  flex-wrap: wrap;
+  gap: 7px 12px;
+}
+.disasterScreen .tabs {
+  margin: 18px 0 14px;
+}
+.disasterScreen .tab {
+  min-height: 44px;
+}
+.disasterScreen .rulesSection {
+  padding: 18px;
+  border-radius: 18px;
+}
+.vaultSteps {
+  list-style: none;
+  counter-reset: vault-step;
+  display: grid;
+  gap: 14px;
+  padding: 0;
+  margin: 16px 0 0;
+}
+.vaultSteps li {
+  counter-increment: vault-step;
+  position: relative;
+  padding-left: 38px;
+}
+.vaultSteps li::before {
+  content: counter(vault-step);
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: grid;
+  place-items: center;
+  width: 27px;
+  height: 27px;
+  border: 1px solid #d4dcee;
+  border-radius: 50%;
+  background: #fffdf9;
+  color: #31558a;
+  font-size: 12px;
+  font-weight: 700;
+}
+.vaultSteps strong {
+  font-size: 13px;
+  line-height: 1.5;
+}
+.disasterScreen .vaultSteps p {
+  margin-top: 3px;
+  color: #61718b;
+  font-size: 11px;
+  line-height: 1.55;
+}
+.disasterScreen .pauseNote {
+  border-top: 1px solid #e0ded5;
+  margin-top: 14px;
+  padding-top: 11px;
+  font-size: 10px;
+  line-height: 1.5;
+  color: #61718b;
+}
+.disasterScreen .statList {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 9px 12px;
+}
+.disasterScreen .statList dd {
+  margin: 0;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.disasterScreen .technicalDetails > summary,
+.disasterScreen .evidenceAppendix > summary {
+  min-height: 44px;
+}
+.disasterScreen .footer {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid #dfe6f0;
+}
+@media (max-width: 370px) {
+  .disasterScreen {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+  .disasterHero {
+    grid-template-columns: minmax(0, 1fr) 80px;
+    gap: 8px;
+  }
+  .disasterHero img {
+    width: 80px;
+    height: 88px;
+  }
+  .disasterHero h1 {
+    font-size: 27px;
+  }
+  .disasterHero .eyebrow {
+    font-size: 9px;
+  }
+  .disasterScreen .poolAmount {
+    font-size: 27px;
+  }
+}

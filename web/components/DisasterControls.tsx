@@ -248,30 +248,24 @@ export default function DisasterControls({
           className={styles.panel}
         >
           <section className={styles.rulesSection}>
-            <h2>Shared control. Clear rules.</h2>
-            <p>
-              Each payout follows the same review process on Stellar Testnet.
+            <h2>How this vault works</h2>
+            <ol className={styles.vaultSteps}>
+              <li>
+                <strong>Pool contributions</strong>
+                <p>Contributions gather in one shared Testnet fund, separate from personal wallets.</p>
+              </li>
+              <li>
+                <strong>Review a payout</strong>
+                <p>A configured signer requests a payment. Two of the three different signer wallets must approve it.</p>
+              </li>
+              <li>
+                <strong>Wait, then pay</strong>
+                <p>After the second approval, wait {pool.config.timelock_ledgers} ledgers. Execution must fit the {pool.config.cap_bps / 100}% rolling 24h spending cap.</p>
+              </li>
+            </ol>
+            <p className={styles.pauseNote}>
+              Two approvals can pause or resume payouts. Contributions stay open.
             </p>
-            <div className={styles.ruleGrid}>
-              <div className={styles.ruleTile}>
-                <strong>2 of 3</strong>
-                <span>Different signer wallets approve each payout.</span>
-              </div>
-              <div className={styles.ruleTile}>
-                <strong>{pool.config.timelock_ledgers} ledgers</strong>
-                <span>Review time starts after the second approval.</span>
-              </div>
-              <div className={styles.ruleTile}>
-                <strong>20% cap</strong>
-                <span>
-                  Rolling 24h spending is limited by the balance at execution.
-                </span>
-              </div>
-              <div className={styles.ruleTile}>
-                <strong>Quorum pause</strong>
-                <span>Two approvals to pause or resume payouts.</span>
-              </div>
-            </div>
           </section>
           <div className={styles.detailCard}>
             <h3>Available for payouts</h3>
@@ -284,7 +278,7 @@ export default function DisasterControls({
               <dd>{formatStroops(state.balance)} XLM</dd>
               <dt>Paid out in the last 24h</dt>
               <dd>{formatStroops(state.spent_24h)} XLM</dd>
-              <dt>20% of the current balance</dt>
+              <dt>{pool.config.cap_bps / 100}% of the current balance</dt>
               <dd>{formatStroops(state.cap)} XLM</dd>
               <dt>Remaining allowance now</dt>
               <dd>{formatStroops(state.allowance)} XLM</dd>

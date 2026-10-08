@@ -173,7 +173,7 @@ export default function TransparencyScreen() {
 
   if (phase === "processing")
     return (
-      <div className={styles.screen}>
+      <div className={`${styles.screen} ${styles.disasterScreen}`}>
         <SubmissionStatusPanel guard={submission} onRefresh={refresh} />
         <div className={styles.publicBack}>
           <span className={styles.publicBadge}>Stellar Testnet</span>
@@ -205,7 +205,7 @@ export default function TransparencyScreen() {
     );
   if (phase === "done" && done)
     return (
-      <div className={styles.screen}>
+      <div className={`${styles.screen} ${styles.disasterScreen}`}>
         <SubmissionStatusPanel guard={submission} onRefresh={refresh} />
         <div className={styles.publicBack}>
           <button
@@ -266,7 +266,7 @@ export default function TransparencyScreen() {
     );
   if (phase === "amount")
     return (
-      <div className={styles.screen}>
+      <div className={`${styles.screen} ${styles.disasterScreen}`}>
         <SubmissionStatusPanel guard={submission} onRefresh={refresh} />
         <div className={styles.publicBack}>
           <button
@@ -429,26 +429,28 @@ export default function TransparencyScreen() {
     </>
   );
   return (
-    <div className={styles.screen}>
+    <div className={`${styles.screen} ${styles.disasterScreen}`}>
       <div className={styles.publicBack}>
         <button type="button" className={styles.backLink} onClick={goBack}>
           {Ico.back({ size: 14, c: T.action })} Vaults
         </button>
         <span className={styles.publicBadge}>Public · no login needed</span>
       </div>
-      <header className={styles.publicHeader}>
+      <header className={styles.disasterHero}>
         <div>
-          <span className={styles.eyebrow}>Community Disaster Vault</span>
-          <h1>Care, with shared control.</h1>
+          <span className={styles.eyebrow}>Community relief fund</span>
+          <h1>Disaster Vault</h1>
           <p>
-            A public pool for disaster relief. Follow each request from approval
-            to payout.
+            One shared fund for disaster relief. Contribute together;
+            configured signers review each payout, and everyone can follow it.
           </p>
         </div>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/illustrations/disaster.png"
-          alt="Hands holding a community shelter"
+          src="/illustrations/disaster-safe.webp"
+          alt="Caring hands holding a blue community safe"
+          width={120}
+          height={120}
         />
       </header>
       <div className={styles.testnetNote}>
@@ -499,8 +501,7 @@ export default function TransparencyScreen() {
         </div>
       </section>
       <p className={styles.amountNote}>
-        This is the community pool, separate from your personal wallet. Testnet
-        XLM has no real value.
+        Shared pool, not your personal balance. Testnet XLM has no real value.
       </p>
       <div className={styles.donateRow}>
         <Btn

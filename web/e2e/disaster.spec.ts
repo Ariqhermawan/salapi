@@ -25,7 +25,7 @@ const state = {
 type Proposal = { id: string; kind: string; amount: string | null; recipient: string | null;
   approvals: string[]; readyLedger: number | null; epoch: string; executed: boolean };
 
-async function fixture(page: Page, options: { viewer?: string; unavailable?: boolean; proposals?: Proposal[] } = {}) {
+async function fixture(page: Page, options: { viewer?: string; unavailable?: boolean; proposals?: Proposal[]; funded?: boolean } = {}) {
   const names = actionNames();
   const writes: { name: string; args: unknown[] }[] = [];
   await page.addInitScript(() => localStorage.setItem("salapi_currency", "tl"));
@@ -35,7 +35,8 @@ async function fixture(page: Page, options: { viewer?: string; unavailable?: boo
     if (!name?.startsWith("disaster")) return route.continue();
     let value: unknown;
     if (name === "disasterState") value = options.unavailable
-      ? { ok: false, error: "Configured contract does not match the D3 Testnet controls" } : state;
+      ? { ok: false, error: "Configured contract does not match the D3 Testnet controls" }
+      : options.funded ? { ...state, status: { ...state.status, balance: "80307692", cap: "16061538", allowance: "16061538" } } : state;
     else if (name === "disasterProposals") value = { ok: true, viewer: options.viewer ?? null, proposals: options.proposals ?? [] };
     else if (name === "disasterEvents") value = { ok: true, events: [] };
     else {
@@ -76,6 +77,57 @@ test.describe("D3 local UI and HTTP authorization", () => {
     await expect(page.getByRole("button", { name: "Contribute to the pool", exact: true })).toBeDisabled();
     await expect(page.getByRole("button", { name: /Approve #|Execute #|Review payout/ })).toHaveCount(0);
   });
+
+  for (const viewport of [{ width: 320, height: 740 }, { width: 390, height: 844 }, { width: 430, height: 900 }, { width: 1280, height: 900 }]) {
+    test(`compact Disaster Vault explains the fund and bounds trailing scroll at ${viewport.width}px`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      const appErrors: string[] = [];
+      page.on("pageerror", error => appErrors.push(error.message));
+      const writes = await fixture(page, { funded: true });
+      await expect(page.getByRole("heading", { name: "Disaster Vault", exact: true })).toBeVisible();
+      await expect(page.getByRole("region", { name: "Community pool balance" })).toContainText("8.0307692");
+      await expect(page.getByRole("img", { name: "Caring hands holding a blue community safe" })).toBeVisible();
+      const art = await page.getByRole("img", { name: "Caring hands holding a blue community safe" })
+        .evaluate((img: HTMLImageElement) => ({ loaded: img.complete && img.naturalWidth > 0, width: img.getBoundingClientRect().width }));
+      expect(art.loaded).toBe(true);
+      expect(art.width).toBeLessThanOrEqual(120);
+      await expect(page.getByRole("heading", { name: "How this vault works" })).toBeVisible();
+      await expect(page.getByText(/Two of the three different signer wallets/)).toBeVisible();
+      await expect(page.getByText(/wait 20 ledgers/)).toBeVisible();
+
+      for (const tab of ["Overview", "Payout requests", "Public proof"]) {
+        await page.getByRole("tab", { name: tab, exact: true }).click();
+        await expect(page.getByRole("tabpanel", { name: tab, exact: true })).toBeVisible();
+        await expect(page.getByRole("tabpanel")).toHaveCount(1);
+        const geometry = await page.locator("#app-content").evaluate(main => {
+          const footer = main.querySelector("footer")!;
+          const rect = main.getBoundingClientRect();
+          const footerBottom = footer.getBoundingClientRect().bottom - rect.top + main.scrollTop;
+          return { trailing: main.scrollHeight - footerBottom, scrolling: main.scrollHeight > main.clientHeight,
+            horizontal: main.scrollWidth - main.clientWidth };
+        });
+        if (geometry.scrolling) expect(geometry.trailing).toBeLessThanOrEqual(112);
+        expect(geometry.horizontal).toBeLessThanOrEqual(1);
+      }
+
+      await page.getByRole("tab", { name: "Overview", exact: true }).click();
+      await page.getByText("The three signer wallets and custody details", { exact: true }).click();
+      for (const signer of signers) await expect(page.getByRole("link", { name: signer, exact: true })).toBeVisible();
+      await page.getByText("The three signer wallets and custody details", { exact: true }).click();
+      if (process.env.DISASTER_QA_SCREENSHOTS) {
+        await page.locator("#app-content").evaluate(main => { main.scrollTo({ top: 0, behavior: "instant" }); });
+        await page.screenshot({ path: `${process.env.DISASTER_QA_SCREENSHOTS}/disaster-${viewport.width}-top.png` });
+        await page.locator("#app-content").evaluate(main => { main.scrollTo({ top: main.scrollHeight, behavior: "instant" }); });
+        await page.screenshot({ path: `${process.env.DISASTER_QA_SCREENSHOTS}/disaster-${viewport.width}-bottom.png` });
+      }
+      await page.getByRole("button", { name: "Contribute to the pool", exact: true }).click();
+      await expect(page.getByLabel("Contribution amount (PHP)")).toBeVisible();
+      await page.getByRole("button", { name: "Disaster Vault", exact: true }).click();
+      await expect(page.getByRole("heading", { name: "Disaster Vault", exact: true })).toBeVisible();
+      expect(writes).toHaveLength(0);
+      expect(appErrors).toEqual([]);
+    });
+  }
 
   test("signer UI reviews exact 6.50 PHP before sending a proposal (mocked responses)", async ({ page }) => {
     const writes = await fixture(page, { viewer: signers[0] });
