@@ -13,6 +13,29 @@ export type WalletActivityFee =
   | { status: "unavailable" }
   | { status: "available"; amountStroops: string; payer: string; paidByWallet: boolean; transactionHash: string; feeBump: boolean };
 
+/** Optional purpose, corroborated by a successful configured-contract invocation
+ * and the actual asset movement. Never a source of balances or token amounts. */
+export type WalletActivityContext = {
+  type: "campaign-donation" | "campaign-refund" | "campaign-payout" | "arisan-funding" | "arisan-win" | "arisan-refund" | "paluwagan-funding" | "paluwagan-payout" | "disaster-contribution" | "disaster-payout" | "savings-deposit" | "savings-withdrawal";
+  contractId: string;
+  referenceId: string | null;
+  title: string | null;
+  circleId?: string;
+};
+
+/** Internal routes are constructed from typed purposes, never provider URLs. */
+export function activityContextHref(context: WalletActivityContext | undefined): string | null {
+  if (!context) return null;
+  const id = context.referenceId && /^[1-9]\d{0,19}$/.test(context.referenceId) ? context.referenceId : null;
+  if (context.type.startsWith("campaign-")) return context.circleId && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(context.circleId) && context.circleId.length <= 80
+    ? `/circles/${context.circleId}` : id ? `/campaigns?id=${id}` : "/campaigns";
+  if (context.type.startsWith("arisan-")) return id ? `/arisan/${id}` : "/arisan";
+  if (context.type.startsWith("disaster-")) return "/transparency";
+  if (context.type.startsWith("paluwagan-")) return "/paluwagan";
+  if (context.type.startsWith("savings-")) return "/savings";
+  return null;
+}
+
 /** Public, confirmed allowlisted asset movements. No fiat or balance guesses. */
 export type WalletActivityItem = {
   id: string;
@@ -24,6 +47,7 @@ export type WalletActivityItem = {
   fee: WalletActivityFee;
   counterparty: string | null;
   kind: "payment" | "soroban-transfer" | "account-created" | "path-payment";
+  context?: WalletActivityContext;
 };
 
 export type WalletActivityErrorCode = "unauthenticated" | "unavailable" | "invalid-cursor" | "invalid-wallet" | "local-preview";

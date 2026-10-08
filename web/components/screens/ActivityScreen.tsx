@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import Link from "next/link";
 import { walletActivity } from "@/app/actions";
-import { activityUsdcEquivalent, type WalletActivityIdentity, type WalletActivityItem } from "@/lib/wallet-activity";
+import { activityContextHref, activityUsdcEquivalent, type WalletActivityIdentity, type WalletActivityItem } from "@/lib/wallet-activity";
 import AccountAvatar from "@/components/AccountAvatar";
 import { useMarketPrices } from "@/components/MarketPricesProvider";
 import { createSupabaseBrowser } from "@/lib/supabase/client";
@@ -315,6 +315,7 @@ export default function ActivityScreen() {
   // including the frame before the new account request has started.
   const personal = owner && history.owner === owner ? history : emptyHistory;
   const address = isLocalPreview ? PREVIEW_WALLET.address : personal.address;
+  const identitiesByAddress = new Map(personal.identities.map(identity => [identity.address, identity]));
   const loading = !isLocalPreview && !authError && (owner === undefined || Boolean(owner && personal.status === "loading"));
   const shortAddress = address
     ? `${address.slice(0, 6)}…${address.slice(-6)}`
@@ -483,12 +484,18 @@ export default function ActivityScreen() {
                     <ol className={`${styles.timeline} ${styles.personalTimeline}`} aria-label={m("Confirmed wallet transfers")}>
                       {personal.items.map((receipt) => {
                         const received = receipt.direction === "received";
+                        const context = receipt.context;
+                        const purposeHref = activityContextHref(context);
+                        const referenceLabel = context?.referenceId ? context.type.startsWith("campaign-") ? h("campaignName", { id: context.referenceId })
+                          : context.type.startsWith("arisan-") ? h("arisanName", { id: context.referenceId }) : null : null;
+                        const purposeName = context?.title ?? referenceLabel ?? (context?.type.startsWith("disaster-") ? h("disasterPool")
+                          : context?.type.startsWith("savings-") ? h("savingsPool") : h("arisanPool"));
                         const counterparty = shortCounterparty(receipt.counterparty);
                         const explorerReceipt = transactionUrl(receipt.hash);
-                        const identityFor = (wallet: string | null) => personal.identities.find(identity => identity.address === wallet);
+                        const identityFor = (wallet: string | null) => wallet ? identitiesByAddress.get(wallet) : undefined;
                         const nameFor = (wallet: string | null) => {
                           const handle = identityFor(wallet)?.handle;
-                          return handle && /^[a-z0-9_]{3,32}$/.test(handle) ? `@${handle}` : wallet === address ? h("you") : h("wallet");
+                          return handle && /^[a-z0-9_]{3,32}$/.test(handle) ? `@${handle}` : wallet === address ? h("you") : wallet?.startsWith("C") ? h("contractWallet") : h("wallet");
                         };
                         const counterpartIdentity = identityFor(receipt.counterparty);
                         const equivalent = activityUsdcEquivalent(receipt.amountStroops, receipt.asset, prices);
@@ -499,20 +506,21 @@ export default function ActivityScreen() {
                           <span><strong>{nameFor(wallet)}</strong><span className={styles.address}>{wallet ?? h("wallet")}</span></span>
                         </span>;
                         return (
-                          <li key={receipt.id} className={styles.timelineItem}>
+                          <li key={receipt.id} className={styles.timelineItem} data-activity-purpose={context?.type ?? "transfer"}>
                             <span className={`${styles.timelineIcon} ${received ? styles.incomingIcon : ""}`} aria-hidden="true">
                               {received ? Ico.arrowDown({ size: 19, c: "#00866a" }) : Ico.arrowUp({ size: 19, c: T.action })}
                             </span>
                             <div className={styles.receiptBody}>
                               <button type="button" className={`${styles.receiptButton} ${styles.transferButton}`} aria-expanded={expanded === receipt.id} aria-controls={`activity-receipt-${receipt.id}`} onClick={() => setExpanded((current) => current === receipt.id ? null : receipt.id)}>
                                 <div className={styles.transferHeading}>
-                                  <strong>{h(received ? "received" : "sent", { asset: receipt.asset.code })}</strong>
+                                  <strong>{context ? h(context.type) : h(received ? "received" : "sent", { asset: receipt.asset.code })}</strong>
                                   <time dateTime={receipt.createdAt}>{receiptDate(receipt.createdAt, false, locale)}</time>
                                 </div>
                                 <div className={styles.transferIdentity}>
                                   {counterparty ? <span className={styles.counterparty}>
-                                    <AccountAvatar name={nameFor(receipt.counterparty).replace(/^@/, "")} photoUrl={counterpartIdentity?.photoUrl ?? null} size={28} alt={h("photo", { name: nameFor(receipt.counterparty) })} />
-                                    <span><strong>{h(received ? "from" : "to", { name: nameFor(receipt.counterparty) })}</strong><span>{counterparty}</span></span>
+                                    {context ? <span className={styles.purposeIcon} aria-hidden="true">{Ico.vault({ size: 20, c: T.action })}</span>
+                                      : <AccountAvatar name={nameFor(receipt.counterparty).replace(/^@/, "")} photoUrl={counterpartIdentity?.photoUrl ?? null} size={32} alt={h("photo", { name: nameFor(receipt.counterparty) })} />}
+                                    <span><strong>{context ? purposeName : h(received ? "from" : "to", { name: nameFor(receipt.counterparty) })}</strong><span>{context?.title && referenceLabel ? `${referenceLabel} · ` : ""}{counterparty}</span></span>
                                   </span> : <span>{m("On-chain wallet activity")}</span>}
                                 </div>
                                 <div className={`${styles.receiptAmount} ${received ? styles.incomingAmount : ""}`}>
@@ -529,6 +537,7 @@ export default function ActivityScreen() {
                               {expanded === receipt.id ? (
                                 <div id={`activity-receipt-${receipt.id}`} className={styles.receiptDetails}>
                                   <dl>
+                                    {context ? <><dt>{h("purpose")}</dt><dd>{h(context.type)}<br />{purposeName}</dd></> : null}
                                     <dt>{h("amount")}</dt><dd>{nativeAmount(receipt.amountStroops)} Testnet {receipt.asset.code}</dd>
                                     <dt>{h("units")}</dt><dd>{receipt.amountStroops} units</dd>
                                     {receipt.asset.code === "XLM" ? <>
@@ -547,6 +556,7 @@ export default function ActivityScreen() {
                                   <p>{receipt.fee.status === "available" ? h("feeScope") : h("feeMissing")}</p>
                                   {receipt.fee.status === "available" && receipt.fee.feeBump ? <p>{h("feeBump")}</p> : null}
                                   {receipt.fee.status === "available" && receipt.fee.transactionHash !== receipt.hash && transactionUrl(receipt.fee.transactionHash) ? <a className={styles.transactionLink} href={transactionUrl(receipt.fee.transactionHash)!} target="_blank" rel="noopener noreferrer">{h("feeReceipt")}</a> : null}
+                                  {purposeHref ? <Link href={purposeHref} className={styles.transactionLink}>{h("viewPurpose")} {Ico.chev({ size: 12, c: T.action })}</Link> : null}
                                   {explorerReceipt ? <a className={styles.transactionLink} href={explorerReceipt} target="_blank" rel="noopener noreferrer">{m("View transaction on Stellar ↗")}</a> : null}
                                 </div>
                               ) : null}

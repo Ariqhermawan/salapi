@@ -57,7 +57,7 @@ function safeSignedPhoto(value: unknown, path: string): string | null {
 export async function readActivityIdentities(viewer: string, items: WalletActivityItem[], donationPhotoOwners?: ReadonlyMap<string, string>): Promise<WalletActivityIdentity[]> {
   if (!validAddress(viewer)) return [];
   const addresses = [...new Set([viewer, ...items.flatMap(item => [item.counterparty, item.fee.status === "available" ? item.fee.payer : null])].filter(validAddress))].slice(0, MAX_IDENTITIES);
-  return readVerifiedIdentities(addresses, MAX_IDENTITIES, true, donationPhotoOwners);
+  return readVerifiedIdentities(addresses, MAX_IDENTITIES, true, donationPhotoOwners, false, true);
 }
 
 /** Addresses must be derived from a validated contract membership read, never
@@ -74,34 +74,42 @@ async function readVerifiedIdentities(addresses: string[], limit: number, allowP
   const deadline = Date.now() + DEADLINE_MS;
   const owners = new Map<string, string>();
   let admin: ReturnType<typeof createSupabaseAdmin> | null = null;
-  if (allowPhotos) {
-  try {
-    admin = createSupabaseAdmin();
-    const { data, error } = await beforeDeadline(admin.from("wallets").select("public_key,user_id").in("public_key", addresses)
-      .limit(limit + 1).abortSignal(AbortSignal.timeout(DEADLINE_MS)), deadline);
-    if (!error && Array.isArray(data) && data.length <= limit) {
-      const duplicates = new Set<string>();
-      for (const row of data) {
-        if (!addresses.includes(row.public_key) || typeof row.user_id !== "string" || !UUID.test(row.user_id)) continue;
-        if (owners.has(row.public_key)) duplicates.add(row.public_key);
-        owners.set(row.public_key, row.user_id);
+  let photoDatabaseFailed = false;
+  const ownersRead = (async () => {
+    if (!allowPhotos) return;
+    try {
+      admin = createSupabaseAdmin();
+      const { data, error } = await beforeDeadline(admin.from("wallets").select("public_key,user_id").in("public_key", addresses)
+        .limit(limit + 1).abortSignal(AbortSignal.timeout(DEADLINE_MS)), deadline);
+      if (!error && Array.isArray(data) && data.length <= limit) {
+        const duplicates = new Set<string>();
+        for (const row of data) {
+          if (!addresses.includes(row.public_key) || typeof row.user_id !== "string" || !UUID.test(row.user_id)) continue;
+          if (owners.has(row.public_key)) duplicates.add(row.public_key);
+          owners.set(row.public_key, row.user_id);
+        }
+        for (const duplicate of duplicates) owners.delete(duplicate);
       }
-      for (const duplicate of duplicates) owners.delete(duplicate);
+    } catch {
+      photoDatabaseFailed = true;
+      // A missing photo database cannot suppress public registry verification.
+      admin = null; owners.clear();
     }
-  } catch {
-    if (!publicFallbackOnPhotoFailure) return result;
-    // A missing photo database cannot suppress public registry verification.
-    admin = null; owners.clear();
-  }
-  }
-  let next = 0;
-  await Promise.all(Array.from({ length: Math.min(WORKERS, addresses.length) }, async () => {
-    for (;;) {
-      const index = next++;
-      if (index >= result.length || Date.now() >= deadline) return;
-      const identity = result[index];
-      const handleRead = publicHandle(identity.address, deadline).then(handle => { identity.handle = handle; });
-      const photoRead = (async () => {
+  })();
+  // Public usernames are independent of optional photo database availability.
+  // In particular, a slow DB must not consume their entire shared deadline.
+  if (!publicFallbackOnPhotoFailure) await ownersRead;
+  if (photoDatabaseFailed && !publicFallbackOnPhotoFailure) return result;
+  const workers = async (read: (identity: WalletActivityIdentity) => Promise<void>) => {
+    let next = 0;
+    await Promise.all(Array.from({ length: Math.min(WORKERS, addresses.length) }, async () => {
+      while (next < result.length && Date.now() < deadline) await read(result[next++]);
+    }));
+  };
+  const handlesRead = workers(async identity => { identity.handle = await publicHandle(identity.address, deadline); });
+  const photosRead = (async () => {
+    await ownersRead;
+    await workers(async identity => {
         const ownerId = owners.get(identity.address);
         if (!admin || !ownerId || Date.now() >= deadline) return;
         try {
@@ -121,11 +129,10 @@ async function readVerifiedIdentities(addresses: string[], limit: number, allowP
           }
           identity.photoUrl ??= googleAccountPhoto(user);
         } catch { /* No consent/readable photo means initials, never a fake face. */ }
-      })();
-      // The registry handle and consent-bound photo are independent optional
-      // projections. Neither can weaken the other's verification or deadline.
-      await Promise.all([handleRead, photoRead]);
-    }
-  }));
+    });
+  })();
+  // Separate bounded queues: a slow photo service cannot hold up registry
+  // verification for the remaining receipt participants.
+  await Promise.all([handlesRead, photosRead]);
   return result;
 }

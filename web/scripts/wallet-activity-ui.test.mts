@@ -5,7 +5,7 @@ import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import * as copy from "../lib/i18n/revamp-money.ts";
 import { activityCopy } from "../lib/i18n/wallet-activity.ts";
-import { XLM_ACTIVITY_ASSET, USDC_ACTIVITY_ASSET, activityUsdcEquivalent } from "../lib/wallet-activity.ts";
+import { XLM_ACTIVITY_ASSET, USDC_ACTIVITY_ASSET, activityContextHref, activityUsdcEquivalent } from "../lib/wallet-activity.ts";
 import type { MarketPriceResult } from "../lib/market-prices.ts";
 import { PREVIEW_WALLET } from "../lib/local-preview.ts";
 import { formatLocal } from "../lib/ui/currency.ts";
@@ -92,7 +92,7 @@ function mount(options: { preview?: boolean; configured?: boolean; locale?: "en"
       if (dependency === "@/components/I18nProvider") return { useT: () => ({ currency: "en", locale: options.locale ?? "en" }) };
       if (dependency === "@/components/AccountAvatar") return { default: "AccountAvatar" };
       if (dependency === "@/components/MarketPricesProvider") return { useMarketPrices: () => ({ prices: options.prices ?? { status: "unavailable", source: "CoinGecko", reason: "provider-unavailable" } }) };
-      if (dependency === "@/lib/wallet-activity") return { activityUsdcEquivalent };
+      if (dependency === "@/lib/wallet-activity") return { activityContextHref, activityUsdcEquivalent };
       if (dependency === "@/lib/i18n/revamp-money") return copy;
       if (dependency === "@/lib/i18n/wallet-activity") return { activityCopy };
       if (dependency === "@/lib/ui/currency") return { formatLocal };
@@ -369,6 +369,21 @@ test("confirmed receipt shows matched participant handle/photo plus both public 
   assert.match(text(h.tree), /Sender@sender_handle/); assert.match(text(h.tree), /Recipient@recipient_handle/);
   assert.ok(text(h.tree).includes(address) && text(h.tree).includes(counterparty));
   assert.match(text(h.tree), /0\.00001 Testnet XLM/); assert.match(text(h.tree), /Fee payer@sender_handle/);
+  h.unmount();
+});
+
+test("personal history names campaign donations, arisan winnings and disaster contributions without fake user profiles", async () => {
+  const fixtures = (["campaign-donation", "arisan-win", "disaster-contribution"] as const).map((type, index) => ({ ...item(String(index + 11)),
+    direction: type === "arisan-win" ? "received" as const : "sent" as const,
+    context: { type, referenceId: type === "disaster-contribution" ? null : "7", contractId: "C" + "A".repeat(55), title: type === "campaign-donation" ? "Dialysis - 12 sessions" : null } }));
+  const h = mount(); h.emitAuth("owner-a"); await h.flush(); h.historyRequests[0].deferred.resolve(pageResult(fixtures)); await h.flush();
+  for (const fixture of fixtures) assert.ok(text(h.tree).includes(activityCopy("en")(fixture.context.type)));
+  assert.match(text(h.tree), /Dialysis - 12 sessions/); assert.match(text(h.tree), /Shared disaster relief pool/);
+  const first = nodes(h.tree).find(node => node.props["aria-controls"] === `activity-receipt-${fixtures[0].id}`)!;
+  (first.props.onClick as () => void)(); h.render();
+  assert.ok(nodes(h.tree).some(node => node.type === "Link" && node.props.href === "/campaigns?id=7"));
+  assert.match(text(h.tree), /PurposeCampaign donation/);
+  h.emitAuth("owner-b"); await h.flush(); assert.doesNotMatch(text(h.tree), /Dialysis - 12 sessions|Campaign donation|Arisan winnings/);
   h.unmount();
 });
 

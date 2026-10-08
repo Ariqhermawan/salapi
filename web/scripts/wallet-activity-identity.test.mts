@@ -22,7 +22,7 @@ const source = readFileSync(new URL("../lib/server/walletActivityIdentity.ts", i
 const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
 
 function harness(options: { rows?: { public_key: string; user_id: string }[]; users?: Record<string, ReturnType<typeof user>>;
-  handles?: Record<string, string>; resolves?: Record<string, string>; dbError?: boolean; adminThrows?: boolean; authError?: boolean; authThrows?: boolean; signUrl?: string; signError?: boolean; deadline?: boolean; registryGate?: Promise<void> } = {}) {
+  handles?: Record<string, string>; resolves?: Record<string, string>; dbError?: boolean; dbGate?: Promise<void>; adminThrows?: boolean; authError?: boolean; authThrows?: boolean; signUrl?: string; signError?: boolean; deadline?: boolean; registryGate?: Promise<void> } = {}) {
   const calls = { columns: [] as string[], targets: [] as string[][], limit: 0, auth: [] as string[], sign: [] as string[],
     registry: [] as { method: string; argument: unknown }[], active: 0, maxActive: 0 };
   let now = Date.now();
@@ -34,7 +34,7 @@ function harness(options: { rows?: { public_key: string; user_id: string }[]; us
     select(columns: string) { assert.equal(columns, "public_key,user_id"); calls.columns.push(columns); return query; },
     in(column: string, addresses: string[]) { assert.equal(column, "public_key"); calls.targets.push(Array.from(addresses)); return query; },
     limit(limit: number) { calls.limit = limit; return query; },
-    async abortSignal(signal: AbortSignal) { assert.ok(signal instanceof AbortSignal); return { data: rows, error: options.dbError ? {} : null }; },
+    async abortSignal(signal: AbortSignal) { assert.ok(signal instanceof AbortSignal); if (options.dbGate) await options.dbGate; return { data: rows, error: options.dbError ? {} : null }; },
   };
   const admin = {
     from(table: string) { assert.equal(table, "wallets"); return query; },
@@ -215,6 +215,27 @@ test("Arisan public registry handles remain available when optional photo databa
     assert.equal(result[0].handle, "verified_handle"); assert.equal(result[0].photoUrl, null);
     assert.deepEqual(h.calls.sign, []);
   }
+});
+
+test("Activity keeps verified public usernames during optional photo database outages", async () => {
+  for (const failure of [{ adminThrows: true }, { dbError: true }, { authError: true }]) {
+    const h = harness(failure), result = await h.readActivityIdentities(address, [item()]);
+    assert.equal(result[1].handle, "verified_handle"); assert.equal(result[1].photoUrl, null);
+    assert.deepEqual(h.calls.sign, []);
+  }
+});
+
+test("a slow photo DB cannot serialize the remaining receipt username verifications", async () => {
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const addresses = [20, 21, 22, 23, 24].map(wallet);
+  const handles = Object.fromEntries(addresses.map((address, i) => [address, `verified_${i}`]));
+  const h = harness({ dbGate: gate, handles });
+  const pending = h.readActivityIdentities(address, addresses.map(address => item(address)));
+  for (let index = 0; index < 45; index++) await Promise.resolve();
+  assert.equal(h.calls.registry.filter(call => call.method === "resolve").length, 5);
+  assert.ok(h.calls.maxActive <= 3); assert.deepEqual(h.calls.auth, []);
+  release(); const result = await pending; assert.equal(result.filter(identity => identity.handle).length, 5);
 });
 
 test("private Arisan photos bind mapped nonanonymous owners and preserve their existing photo consent", async () => {

@@ -6,6 +6,7 @@ import { supabaseConfigured, supabaseAdminConfigured } from "@/lib/supabase/env"
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { readActivityIdentities } from "./walletActivityIdentity";
+import { attachActivityContexts, readActivityContextTitles } from "./walletActivityContext";
 import { isWalletActivityCursor, normalizeWalletActivity, normalizeWalletActivityFee, WALLET_ACTIVITY_PAGE_SIZE, type WalletActivityItem, type WalletActivityPageResult, type WalletActivityResult } from "../wallet-activity";
 
 const HORIZON_ACTIVITY = "https://horizon-testnet.stellar.org";
@@ -84,7 +85,7 @@ export async function readWalletActivityPage(address: string, cursor: string | n
       if (previous !== null && current >= previous) return unavailable(address);
       previous = current;
     }
-    const items = await attachOuterFees(normalizeWalletActivity(records, address), records, address);
+    const items = attachActivityContexts(await attachOuterFees(normalizeWalletActivity(records, address), records, address), records, address);
     const nextCursor = records.length === WALLET_ACTIVITY_PAGE_SIZE ? records.at(-1).paging_token as string : null;
     return { ok: true, address, items, nextCursor };
   } catch { return unavailable(address); }
@@ -120,7 +121,10 @@ export async function currentWalletActivity(cursor: unknown = null): Promise<Wal
     if (typeof data?.public_key !== "string" || !StrKey.isValidEd25519PublicKey(data.public_key)) return { ok: false, ownerId: userId, address: null, code: "invalid-wallet", error: "Your saved wallet address is invalid." };
     const page = await readWalletActivityPage(data.public_key, cursor as string | null ?? null);
     if (!page.ok) return { ...page, ownerId: userId };
-    const identities = await readActivityIdentities(page.address, page.items).catch(() => []);
-    return { ...page, ownerId: userId, identities };
+    const [identities, items] = await Promise.all([
+      readActivityIdentities(page.address, page.items).catch(() => []),
+      readActivityContextTitles(page.items, page.address).catch(() => page.items),
+    ]);
+    return { ...page, items, ownerId: userId, identities };
   } catch { return sessionUnavailable(userId); }
 }

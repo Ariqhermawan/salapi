@@ -111,6 +111,7 @@ function setup(options: Options = {}) {
   const api = isolated<{ currentWalletActivity(cursor?: unknown): Promise<WalletActivityResult>; readWalletActivityPage(address: string, cursor?: string | null): Promise<WalletActivityPageResult> }>(serverCode, {
     "server-only": {}, "@stellar/stellar-sdk": { StrKey }, "@supabase/supabase-js": { isAuthSessionMissingError }, "../wallet-activity": activity,
     "./walletActivityIdentity": { readActivityIdentities: async () => [] },
+    "./walletActivityContext": { attachActivityContexts: (items: unknown) => items, readActivityContextTitles: async (items: unknown) => items },
     "@/lib/local-preview": { isLocalPreview: options.preview ?? false },
     "@/lib/supabase/env": { supabaseConfigured: () => options.configured ?? true, supabaseAdminConfigured: () => options.adminConfigured ?? true },
     "@/lib/supabase/server": { async createSupabaseServer() { if ("clientThrow" in options) throw options.clientThrow;
