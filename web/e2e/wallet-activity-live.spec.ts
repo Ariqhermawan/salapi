@@ -22,6 +22,7 @@ const sources = {
   "@/lib/ui/watchWalletActivity": compile("lib/ui/watchWalletActivity.ts"),
   "@/lib/i18n/revamp-money": compile("lib/i18n/revamp-money.ts"),
   "@/lib/i18n/wallet-activity": compile("lib/i18n/wallet-activity.ts"),
+  "@/lib/i18n/circles-content": compile("lib/i18n/circles-content.ts"),
   screen: compile("components/screens/ActivityScreen.tsx"),
 };
 const css = readFileSync(join(process.cwd(), "components/screens/ActivityRevamp.module.css"), "utf8");
