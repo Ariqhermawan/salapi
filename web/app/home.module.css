@@ -72,6 +72,7 @@
 .tile:active { filter: brightness(.97); }
 .tile.unavailable { cursor: not-allowed; color: #526478; font-family: inherit; gap: 2px; padding-block: 4px; }
 .tile.unavailable > div { gap: 1px; }
+.tile.unavailable strong { font-size: 10px; }
 .tile.unavailable:active { filter: none; }
 .tile.unavailable img { opacity: .65; }
 .blue { background: #eaf3ff; }
