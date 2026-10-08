@@ -8,6 +8,7 @@ import { formatLocal } from "../lib/ui/currency.ts";
 import { formatStroops } from "../lib/format-stroops.ts";
 import type { Campaign } from "../lib/campaign.ts";
 import type { Locale } from "../lib/i18n/config.ts";
+import { homeCopy } from "../lib/i18n/revamp-home.ts";
 
 type Media = { coverSrc: string; gallery: { src: string; alt: string; caption: string }[]; organizerName: string; organizerPhotoSrc: string; organizerHref: string };
 type Element = { type: string; props: Record<string, unknown> };
@@ -75,6 +76,7 @@ function screen(options: { preview?: boolean; campaigns?: Campaign[]; locale?: L
       if (name === "next/link") return { default: "Link" };
       if (name === "next/image") return { default: "Image" };
       if (name === "@/components/I18nProvider") return { useT: () => ({ currency: "en", locale }) };
+      if (name === "@/lib/i18n/revamp-home") return { homeCopy };
       if (name === "@/components/ui/kit") return { Ico: icons, T: {}, PoweredByStellar: "PoweredByStellar" };
       if (name === "@/lib/ui/currency") return { formatLocal };
       if (name === "@/lib/format-stroops") return { formatStroops };

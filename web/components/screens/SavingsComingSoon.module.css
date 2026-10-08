@@ -1,0 +1,9 @@
+.screen { padding: 20px; color: #19243b; }
+.back { display: inline-flex; align-items: center; min-height: 44px; color: #3755bd; font-size: 14px; font-weight: 600; }
+.back:focus-visible { outline: 2px solid #3755bd; outline-offset: 4px; border-radius: 4px; }
+.card { margin-top: 24px; padding: 32px 24px; border-radius: 24px; background: #eff8f3; text-align: center; }
+.card img { display: block; margin: 0 auto 20px; object-fit: contain; }
+.badge { display: inline-block; padding: 5px 9px; border-radius: 6px; background: #dfe9e3; color: #405b50; font-size: 12px; font-weight: 600; }
+.card h1 { margin: 14px 0 12px; font-size: 28px; line-height: 1.2; letter-spacing: -.04em; }
+.card p { max-width: 32ch; margin: 0 auto; color: #526478; font-size: 14px; line-height: 1.6; text-wrap: pretty; }
+.footer { display: flex; justify-content: center; margin-top: 24px; }

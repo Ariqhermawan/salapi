@@ -7,6 +7,7 @@ import type { arisanList, disasterState, paluwaganState } from "@/app/actions";
 import type { campaignState } from "@/app/campaign-actions";
 import { vaultOverview } from "@/app/vault-read-actions";
 import { useT } from "@/components/I18nProvider";
+import { homeCopy } from "@/lib/i18n/revamp-home";
 import { Ico, T, PoweredByStellar } from "@/components/ui/kit";
 import { formatLocal } from "@/lib/ui/currency";
 import { formatStroops } from "@/lib/format-stroops";
@@ -573,14 +574,11 @@ export default function VaultsScreen() {
         </div>
       </section>
       </div>
-        <Link href="/savings" className={styles.resourceLink}>
-          <span className={styles.legacyIcon}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/illustrations/savings.png" alt="" width={32} height={34} />
-          </span>
-          <div><h3>Smart Savings</h3><p>{PREVIEW ? "Personal saving goals · local demo" : "Personal saving goals · Stellar Testnet"}</p></div>
-          {Ico.chev({ size: 15, c: T.action })}
-        </Link>
+      <div className={styles.comingSoon} aria-disabled="true" data-testid="vault-savings-coming-soon">
+        <Image src="/illustrations/savings.png" alt="" width={32} height={34} />
+        <div><strong>Smart Savings</strong></div>
+        <span className={styles.softLabel}>{homeCopy(locale, "Coming soon")}</span>
+      </div>
       <footer className={styles.footer}>
         <PoweredByStellar />
         <span>Public proof on Stellar Testnet.</span>

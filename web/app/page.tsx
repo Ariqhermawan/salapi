@@ -115,13 +115,16 @@ export default function Home() {
     <HomeCirclesCatalog campaigns={campaigns} circleLinks={circleLinks} loading={loading} error={error} onRetry={loadCampaigns} />
     <section className={s.quick} aria-label={copy("QUICK ACTIONS")}><div className={s.quickGrid}>
       {[
-        { title: "Smart Savings", sub: isLocalPreview ? "Create a local saving goal" : "Lock toward a goal", art: "savings", demo: isLocalPreview, to: "/savings", tone: "mint" },
+        { title: "Smart Savings", sub: "Coming soon", art: "savings", coming: true, to: "/savings", tone: "mint" },
         { title: "Arisan", sub: "Fund together, upfront", art: "arisan", to: "/arisan", tone: "blue" },
         { title: "Send by @", sub: "Send to anyone by name", art: "send", to: "/send", tone: "blue" },
         { title: "Disaster Vault", sub: "Shared payout approvals", art: "disaster", to: "/transparency", tone: "cream" },
-      ].map(tile => <Link key={tile.art} href={tile.to} className={`${s.tile} ${s[tile.tone]}`}>
-        <Image src={`/illustrations/${tile.art}.png`} alt="" width="78" height="78" /><div><strong>{copy(tile.title)}</strong><small>{copy(tile.sub)}</small>{tile.demo && <span className={s.coming}>{copy("Local demo")}</span>}</div>
-      </Link>)}
+      ].map(tile => {
+        const content = <><Image src={`/illustrations/${tile.art}.png`} alt="" width="78" height="78" /><div><strong>{copy(tile.title)}</strong><small>{copy(tile.sub)}</small>{tile.coming && <span className={s.coming}>{copy("Coming soon")}</span>}</div></>;
+        return tile.coming
+          ? <button key={tile.art} type="button" disabled data-testid="smart-savings-coming-soon" aria-label={`${copy(tile.title)}: ${copy(tile.sub)}`} className={`${s.tile} ${s[tile.tone]} ${s.unavailable}`}>{content}</button>
+          : <Link key={tile.art} href={tile.to} className={`${s.tile} ${s[tile.tone]}`}>{content}</Link>;
+      })}
     </div></section>
     <footer className={s.stellar}><PoweredByStellarV2 /><small>{copy("Public proof on Stellar Testnet")}</small><Link href="/docs">{copy("How Salapi works")}</Link></footer>
   </div>;

@@ -132,9 +132,9 @@ test("an existing goal's denied save keeps its exact prior snapshot and no succe
 test("switching display currency during review changes only the illustrative display, not stored exact units",()=>{
   const env=setup(); const ui=env.mount(); ui.change("Local goal name","Currency"); ui.change("Local goal target","10.25"); ui.click("Review local goal"); env.currency("id"); ui.render(); ui.click("Confirm local savings demo"); assert.equal(current(env).goals[0].target,money.moneyInputToStroops({amount:"10.25",currency:"en"})!.toString()); noExternal(env);
 });
-test("Home and Vaults expose the local savings route only with clear demo labels",()=>{
+test("Home and Vaults mark savings coming soon while retaining isolated development code",()=>{
   const home=readFileSync(new URL("../app/page.tsx",import.meta.url),"utf8");
-  assert.match(home,/title: "Smart Savings".*demo: isLocalPreview.*to: "\/savings"/); assert.doesNotMatch(home,/title: "Smart Savings".*coming:/); assert.match(home,/tile\.demo && <span[^>]+>\{copy\("Local demo"\)\}<\/span>/);
-  const vaults=readFileSync(new URL("../components/screens/VaultsScreen.tsx",import.meta.url),"utf8"); assert.match(vaults,/<Link href="\/savings"/); assert.match(vaults,/Personal saving goals · local demo/);
+  assert.match(home,/title: "Smart Savings".*coming: true/); assert.match(home,/tile\.coming && <span[^>]+>\{copy\("Coming soon"\)\}<\/span>/);
+  const vaults=readFileSync(new URL("../components/screens/VaultsScreen.tsx",import.meta.url),"utf8"); assert.doesNotMatch(vaults,/<Link href="\/savings"/); assert.match(vaults,/vault-savings-coming-soon/);
   const savings=readFileSync(new URL("../components/screens/SavingsScreen.tsx",import.meta.url),"utf8"); assert.match(savings,/return isLocalPreview \? <PreviewSavingsScreen \/> : <LiveSavingsScreen \/>/); assert.match(savings,/useUnresolvedSubmission\("savings:experimental"\)/); assert.match(savings,/submission\.run\(\(\) => smartSavingsDeposit/);
 });

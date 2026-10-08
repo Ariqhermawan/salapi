@@ -19,14 +19,19 @@ test("home copy covers four languages and keeps currency separate from language"
   assert.match(home, /homeCopy\(locale, phrase\)/);
   assert.doesNotMatch(home, /homeCopy\(currency/);
 });
-test("Savings remains navigable from Home and Vaults outside preview with no coming-soon gate", () => {
+test("Savings stays coming soon in Home, Vaults and the direct route without mounting money controls", () => {
   const home = readFileSync(new URL("../app/page.tsx", import.meta.url), "utf8");
   const vaults = readFileSync(new URL("../components/screens/VaultsScreen.tsx", import.meta.url), "utf8");
-  assert.match(home, /title: "Smart Savings"[^\n]*to: "\/savings"/);
-  assert.doesNotMatch(home, /coming: !isLocalPreview/);
-  assert.match(vaults, /<Link href="\/savings"/);
-  assert.doesNotMatch(vaults, /PREVIEW \? <Link href="\/savings"/);
-  assert.doesNotMatch(vaults, /Coming soon/);
+  assert.match(home, /title: "Smart Savings"[^\n]*coming: true/);
+  assert.match(home, /<button[^>]*disabled[^>]*data-testid="smart-savings-coming-soon"/);
+  assert.doesNotMatch(vaults, /<Link href="\/savings"/);
+  assert.match(vaults, /aria-disabled="true" data-testid="vault-savings-coming-soon"/);
+  const route = readFileSync(new URL("../app/savings/page.tsx", import.meta.url), "utf8");
+  assert.match(route, /return <SavingsComingSoonScreen \/>/);
+  assert.doesNotMatch(route, /import SavingsScreen|isLocalPreview/);
+  const placeholder = readFileSync(new URL("../components/screens/SavingsComingSoonScreen.tsx", import.meta.url), "utf8");
+  assert.match(placeholder, /copy\("Coming soon"\)/);
+  assert.doesNotMatch(placeholder, /@\/app\/actions|SavingsScreen|useEffect|smartSavings|localStorage|sessionStorage/);
 });
 
 test("compact Home keeps four equal quick actions, readable labels and scroll fallback instead of clipping the page", () => {

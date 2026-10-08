@@ -70,10 +70,13 @@
 .tile small { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .tile:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
 .tile:active { filter: brightness(.97); }
+.tile.unavailable { cursor: not-allowed; color: #526478; font-family: inherit; }
+.tile.unavailable:active { filter: none; }
+.tile.unavailable img { opacity: .65; }
 .blue { background: #eaf3ff; }
 .mint { background: #edf9f4; }
 .cream { background: #fff7e9; }
-.coming { background: #dfe6ee; color: #536785; border-radius: 20px; font-size: 9px; padding: 3px 7px; width: fit-content; font-weight: 600; }
+.coming { background: #dfe6ee; color: #40536b; border-radius: 6px; font-size: 10px; line-height: 1.2; padding: 2px 5px; width: fit-content; font-weight: 600; }
 .stellar { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 4px 8px; color: #586985; font-size: 11px; text-align: center; }
 .stellar small { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .stellar > a { display: inline-flex; align-items: center; min-height: 44px; font-size: 10px; color: #2563eb; }

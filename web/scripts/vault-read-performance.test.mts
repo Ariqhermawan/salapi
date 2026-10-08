@@ -163,6 +163,7 @@ function screenSetup(read: () => Promise<Overview>, preview = false, storage: { 
     "next/link": { default: "Link" }, "next/image": { default: "Image" },
     "@/app/vault-read-actions": { vaultOverview: () => { calls++; return read(); } },
     "@/components/I18nProvider": { useT: () => ({ currency: "en", locale: "en" }) },
+    "@/lib/i18n/revamp-home": { homeCopy: (_locale: string, phrase: string) => phrase },
     "@/components/ui/kit": { Ico: new Proxy({}, { get: () => () => null }), T: {}, PoweredByStellar: "PoweredByStellar" },
     "@/lib/ui/currency": { formatLocal }, "@/lib/format-stroops": { formatStroops },
     "@/lib/vault-campaign-media": { vaultCampaignMedia: () => null },
@@ -289,7 +290,10 @@ test("Arisan and Crowdfund keep their own cards, empty states, actions and legac
   assert.equal(nodes(crowdfunding).some(node => String(node.props.className).includes("arisanVault")), false);
   for (const href of ["/arisan/new", "/arisan/join", "/paluwagan"]) assert.ok(nodes(arisan).some(node => node.props.href === href));
   for (const href of ["/campaigns?mode=examples", "/campaigns?create=1", "/campaigns?id=101", "/transparency", "/circles"]) assert.ok(nodes(crowdfunding).some(node => node.props.href === href));
-  assert.ok(nodes(tree).some(node => node.props.href === "/savings"));
+  assert.equal(nodes(tree).some(node => node.props.href === "/savings"), false);
+  const savings = nodes(tree).find(node => node.props["data-testid"] === "vault-savings-coming-soon")!;
+  assert.equal(savings.props["aria-disabled"], "true");
+  assert.match(text(savings), /Smart SavingsComing soon/);
   assert.match(text(arisan), /Your rooms could not be loaded/);
   assert.doesNotMatch(text(crowdfunding), /Your rooms could not be loaded/);
   const before = JSON.stringify(ui.states.slice(0, 4));
