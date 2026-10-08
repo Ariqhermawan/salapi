@@ -192,17 +192,24 @@ function review(h: ReturnType<typeof setup>, amount = "1.0000001", comment = "Te
   assert.equal(h.donations.length, 0, "Review never moves money"); assert.equal(h.metadata.length, 0, "Review never writes donor metadata");
 }
 
-test("native form defaults anonymous true and public profile false, with honest QA/XLM rail copy", () => {
-  const h = setup(); assert.equal(h.checkbox("Display anonymously in the donor feed").props.checked, true);
-  assert.ok(!h.all().some(node => node.type === "input" && node.props.type === "checkbox" && node.props.checked === false));
+test("new donation defaults to a public permitted profile and discloses it before collapsed options", () => {
+  const h = setup(); assert.equal(h.checkbox("Display anonymously in the donor feed").props.checked, false);
+  assert.equal(h.checkbox("Also publish my available @username and permitted profile photo for this donation").props.checked, true);
   const html = h.html(); assert.match(html, /QA wallets receive test tokens/); assert.match(html, /does not send USDC/); assert.match(html, /up to 7 decimal places/);
+  assert.match(html, /Your wallet, available @username and permitted profile photo will be public/);
+  assert.ok(html.indexOf('data-testid="donor-privacy-notice"') < html.indexOf('<details class="options">'));
   assert.equal(h.donations.length, 0); assert.equal(h.metadata.length, 0);
 });
-test("public-profile checkbox is explicit false default and reset when anonymous is reenabled", () => {
-  const h = setup(); h.change(h.checkbox("Display anonymously in the donor feed"), false);
+test("public-profile publication can be disabled and anonymity clears it without silently reenabling it", () => {
+  const h = setup();
+  h.change(h.checkbox("Also publish my available @username and permitted profile photo for this donation"), false);
   assert.equal(h.checkbox("Also publish my available @username and permitted profile photo for this donation").props.checked, false);
+  assert.match(h.html(), /Only your wallet and receipt link will appear/);
   h.change(h.checkbox("Also publish my available @username and permitted profile photo for this donation"), true);
-  h.change(h.checkbox("Display anonymously in the donor feed"), true); h.change(h.checkbox("Display anonymously in the donor feed"), false);
+  h.change(h.checkbox("Display anonymously in the donor feed"), true);
+  assert.match(h.html(), /Your donor entry will be anonymous/);
+  assert.ok(!h.all().some(node => node.type === "input" && node.props.type === "checkbox" && node.props.checked === false));
+  h.change(h.checkbox("Display anonymously in the donor feed"), false);
   assert.equal(h.checkbox("Also publish my available @username and permitted profile photo for this donation").props.checked, false);
 });
 for (const amount of ["0", "-1", "1e2", "1.00000001", "0.00000001", "NaN", "Infinity", "", "1,5", "17014118346046923173168730371588.4105728"]) {
@@ -223,7 +230,7 @@ test("review captures exact terms, amount, owner and donor preferences rather th
   const h = setup(); const mapping = readyMapping();
   const amountInput = h.field("circle-testnet-amount"), commentInput = h.field("circle-testnet-comment"), anonInput = h.checkbox("Display anonymously in the donor feed");
   h.change(anonInput, false); const publicInput = h.checkbox("Also publish my available @username and permitted profile photo for this donation"); h.change(publicInput, true);
-  review(h, "1.0000001", "  Original public comment  "); assert.match(h.html(), /Wallet and opted-in profile/);
+  review(h, "1.0000001", "  Original public comment  "); assert.match(h.html(), /Wallet, @username and permitted photo/);
   h.change(amountInput, "99"); h.change(commentInput, "Changed after review"); h.change(anonInput, true); h.setMapping(readyMapping("101"));
   h.click("Confirm Testnet donation"); assert.equal(h.donations.length, 1);
   assert.deepEqual(h.donations[0].payload, { circleId: circle.id, expectedOwnerId: owner, termsKey: circleDonationTerms(mapping), amount: "1.0000001" });
@@ -244,9 +251,19 @@ test("pending hash is not success, retry calls metadata verification only, never
   html = h.html(); assert.doesNotMatch(html, /data-success-motion/); assert.match(html, /retry metadata only/); assert.equal(h.donations.length, 1);
 });
 
-test("default donor metadata is anonymous with no public-profile consent", async () => {
+test("new donation review snapshots the default public profile into confirmed donor metadata", async () => {
   const h = setup(); review(h); h.click("Confirm Testnet donation"); h.donations[0].response.resolve(confirmed()); await flush();
-  assert.equal(h.metadata.length, 1); assert.deepEqual(h.metadata[0].input, { hash, expectedOwnerId: owner, comment: "Test donation", anonymous: true, publicProfileOk: false });
+  assert.equal(h.metadata.length, 1); assert.deepEqual(h.metadata[0].input, { hash, expectedOwnerId: owner, comment: "Test donation", anonymous: false, publicProfileOk: true });
+  h.metadata[0].response.resolve(saved()); await settle(h); assert.equal(h.donations.length, 1);
+});
+
+for (const anonymous of [true, false]) test(`explicit ${anonymous ? "anonymous" : "wallet-only"} choice survives review and confirmed metadata`, async () => {
+  const h = setup();
+  if (anonymous) h.change(h.checkbox("Display anonymously in the donor feed"), true);
+  else h.change(h.checkbox("Also publish my available @username and permitted profile photo for this donation"), false);
+  review(h); assert.match(h.html(), anonymous ? /<dd>Anonymous<\/dd>/ : /<dd>Wallet only<\/dd>/);
+  h.click("Confirm Testnet donation"); h.donations[0].response.resolve(confirmed()); await flush();
+  assert.deepEqual(h.metadata[0].input, { hash, expectedOwnerId: owner, comment: "Test donation", anonymous, publicProfileOk: false });
   h.metadata[0].response.resolve(saved()); await settle(h); assert.equal(h.donations.length, 1);
 });
 
@@ -512,7 +529,8 @@ test("definitive donation failure cannot display success or attach metadata", as
 test("account switch suppresses late financial receipt and never attaches former owner's metadata", async () => {
   const h = setup(); review(h); h.click("Confirm Testnet donation"); h.setIdentity(verified(other)); h.donations[0].response.resolve(confirmed()); await settle(h);
   const html = h.html(); assert.doesNotMatch(html, /data-success-motion|View Testnet receipt/); assert.equal(h.metadata.length, 0); assert.equal(h.calls.mappingRefresh, 0);
-  assert.equal(h.checkbox("Display anonymously in the donor feed").props.checked, true);
+  assert.equal(h.checkbox("Display anonymously in the donor feed").props.checked, false);
+  assert.equal(h.checkbox("Also publish my available @username and permitted profile photo for this donation").props.checked, true);
 });
 test("account switch while metadata is in flight removes prior receipt and ignores its saved result", async () => {
   const h = setup(); review(h); h.click("Confirm Testnet donation"); h.donations[0].response.resolve(confirmed()); await flush(); assert.equal(h.metadata.length, 1);
@@ -578,7 +596,12 @@ test("all used native donation strings have explicit translation output in four 
   for (const locale of ["en", "id", "tl", "vi"] as const) {
     const text = circleTestnetDonateCopy(locale);
     for (const message of messages) assert.ok(typeof text(message) === "string" && text(message).length > 0, `${locale}: ${message}`);
-    const h = setup({ locale }); assert.ok(h.html().includes(text("Fictional cause, real Testnet transaction"))); review(h);
+    const h = setup({ locale }); assert.ok(h.html().includes(text("Fictional cause, real Testnet transaction")));
+    assert.equal(h.checkbox("Display anonymously in the donor feed").props.checked, false);
+    assert.equal(h.checkbox("Also publish my available @username and permitted profile photo for this donation").props.checked, true);
+    assert.ok(h.html().includes(text("Your wallet, available @username and permitted profile photo will be public. Choose anonymous below to hide them from this feed.")));
+    review(h);
+    assert.ok(h.html().includes(text("Wallet, @username and permitted photo")));
     assert.ok(h.html().includes(text("Review before sending"))); assert.equal(h.donations.length, 0);
   }
 });

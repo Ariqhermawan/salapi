@@ -34,8 +34,8 @@ export default function CircleTestnetDonate({ circle }: { circle: Circle }) {
   const guard = useUnresolvedSubmission(`circle-donate:${circle.id}`, { keepSuccessLocked: true });
   const [amount, setAmount] = useState("1");
   const [comment, setComment] = useState("");
-  const [anonymous, setAnonymous] = useState(true);
-  const [publicProfileOk, setPublicProfileOk] = useState(false);
+  const [anonymous, setAnonymous] = useState(false);
+  const [publicProfileOk, setPublicProfileOk] = useState(true);
   const [review, setReview] = useState<Review | null>(null);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [recorded, setRecorded] = useState(false);
@@ -47,7 +47,7 @@ export default function CircleTestnetDonate({ circle }: { circle: Circle }) {
   const [feedRevision, setFeedRevision] = useState(0);
   const { identity, refresh: refreshIdentity, captureOwnerRevision, isCurrentOwner } = useCirclesSignupIdentity(() => {
     setReview(null); setReceipt(null); setConfirmed(false); setRecorded(false); setMetadataRetry(true); setError("");
-    setComment(""); setAnonymous(true); setPublicProfileOk(false);
+    setComment(""); setAnonymous(false); setPublicProfileOk(true);
   });
   const native = circleDonationAmount(amount);
   const commentValid = campaignDonorComment(comment) !== null;
@@ -160,7 +160,7 @@ export default function CircleTestnetDonate({ circle }: { circle: Circle }) {
       <dl><div><dt>{text("Campaign")}</dt><dd>#{review.terms.mapping.campaignId}</dd></div>
         <div><dt>{text("QA beneficiary")}</dt><dd className={styles.address}>{review.terms.mapping.beneficiaryWallet}</dd></div>
         <div><dt>{text("Creator share")}</dt><dd>{review.terms.mapping.creatorCutBps / 100}%</dd></div>
-        <div><dt>{text("Public display")}</dt><dd>{review.anonymous ? text("Anonymous") : review.publicProfileOk ? text("Wallet and opted-in profile") : text("Wallet only")}</dd></div></dl>
+        <div><dt>{text("Public display")}</dt><dd>{review.anonymous ? text("Anonymous") : review.publicProfileOk ? text("Wallet, @username and permitted photo") : text("Wallet only")}</dd></div></dl>
       <p>{text("Two configured reviewers must approve the exact proof before release. No timely approval means the contract's refund rules apply. No real-world delivery is guaranteed.")}</p>
       {review.comment && <blockquote>{review.comment}</blockquote>}
       <button type="button" className={styles.primary} disabled={busy || guard.locked || identity.status !== "verified" || identity.ownerId !== review.ownerId} aria-busy={busy} onClick={send}>{busy ? text("Waiting for Testnet…") : text("Confirm Testnet donation")}</button>
@@ -173,6 +173,11 @@ export default function CircleTestnetDonate({ circle }: { circle: Circle }) {
       <p>{text("Positive amounts, up to 7 decimal places. No dollar-to-XLM simulation.")}</p>
       {native && mapping.result?.ok ? <dl><div><dt>{text("Beneficiary share")}</dt><dd>{formatStroops(campaignSplit(native, BigInt(mapping.result.mapping.creatorCutBps)).beneficiary)} XLM</dd></div>
         <div><dt>{text("Creator share")}</dt><dd>{formatStroops(campaignSplit(native, BigInt(mapping.result.mapping.creatorCutBps)).creator)} XLM</dd></div></dl> : null}
+      <p className={styles.privacyNotice} data-testid="donor-privacy-notice" aria-live="polite">{anonymous
+        ? text("Your donor entry will be anonymous. Stellar transactions remain public.")
+        : publicProfileOk
+          ? text("Your wallet, available @username and permitted profile photo will be public. Choose anonymous below to hide them from this feed.")
+          : text("Only your wallet and receipt link will appear in this feed. Your name and photo will not be published.")}</p>
       <details className={styles.options}><summary>{text("Privacy and comment (optional)")}</summary><div className={styles.optionFields}>
       <label className={styles.check}><input type="checkbox" checked={anonymous} disabled={busy} onChange={event => { setAnonymous(event.target.checked); setPublicProfileOk(false); }} />{text("Display anonymously in the donor feed")}</label>
       <p className={styles.hint}>{text("Anonymous hides your wallet, name, photo and receipt link here. Transactions remain public on Stellar and timing or amounts can still identify you.")}</p>

@@ -162,26 +162,51 @@ test("native QA donation with missing setup neither offers payment nor the old m
   await expect(page.getByText("Testnet donation confirmed", { exact: true })).toHaveCount(0);
 });
 
-test("unverified user cannot review or submit an open QA campaign; privacy defaults remain anonymous", async ({ page }, testInfo) => {
+for (const width of [320, 390, 1280]) test(`new donation defaults to public profile, respects anonymity and denies unverified payment at ${width}px`, async ({ page }, testInfo) => {
   await readFixture(page, { readCircleTestnetCampaign: openMappingFixture(),
     campaignDonorActivity: { ok: false, campaignId: "100", code: "not_configured" } });
-  await page.setViewportSize({ width: 320, height: 844 });
+  await page.setViewportSize({ width, height: width === 1280 ? 800 : 844 });
   await page.goto("/circles/tino-relief/donate", { waitUntil: "domcontentloaded" });
   await expect(page.getByTestId("circle-testnet-summary")).toContainText("Funding open");
   await expectIdentityDenied(page);
   const review = page.getByRole("button", { name: "Review Testnet donation", exact: true });
   await expect(review).toBeDisabled();
   await page.locator("#circle-testnet-amount").fill("2.5");
+  const notice = page.getByTestId("donor-privacy-notice");
+  const options = page.locator("details").filter({ has: page.getByText("Privacy and comment (optional)", { exact: true }) });
+  await expect(options).not.toHaveAttribute("open");
+  await expect(notice).toContainText("Your wallet, available @username and permitted profile photo will be public.");
+  await notice.scrollIntoViewIfNeeded();
+  await expect(notice).toBeVisible();
   await page.getByText("Privacy and comment (optional)", { exact: true }).click();
-  await expect(page.getByRole("checkbox", { name: "Display anonymously in the donor feed", exact: true })).toBeChecked();
-  await expect(page.getByRole("checkbox", { name: "Also publish my available @username and permitted profile photo for this donation", exact: true })).toHaveCount(0);
+  const anonymous = page.getByRole("checkbox", { name: "Display anonymously in the donor feed", exact: true });
+  const publicProfile = page.getByRole("checkbox", { name: "Also publish my available @username and permitted profile photo for this donation", exact: true });
+  await expect(anonymous).not.toBeChecked();
+  await expect(publicProfile).toBeChecked();
+  await publicProfile.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath(`donor-public-default-${width}.png`) });
+  await publicProfile.uncheck();
+  await expect(notice).toContainText("Your name and photo will not be published.");
+  await publicProfile.check();
+  await anonymous.check();
+  await expect(publicProfile).toHaveCount(0);
+  await expect(notice).toContainText("Your donor entry will be anonymous.");
+  await anonymous.uncheck();
+  await expect(publicProfile).not.toBeChecked();
   await review.evaluate(element => (element as HTMLButtonElement).click());
   await expect(page.getByRole("heading", { name: "Review before sending", exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Confirm Testnet donation", exact: true })).toHaveCount(0);
   await expect(page.locator('input[type="email"]')).toHaveCount(0);
   await expect(page.getByText("Testnet donation confirmed", { exact: true })).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
-  await page.screenshot({ path: testInfo.outputPath("native-qa-identity-denied-320.png") });
+  // A fresh form gets the new defaults. This is not pending receipt recovery,
+  // whose separate metadata path must retain anonymous/no-profile safeguards.
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(notice).toContainText("Your wallet, available @username and permitted profile photo will be public.");
+  await page.getByText("Privacy and comment (optional)", { exact: true }).click();
+  await expect(anonymous).not.toBeChecked();
+  await expect(publicProfile).toBeChecked();
+  await expect(review).toBeDisabled();
 });
 
 for (const width of [320, 390, 1280]) test(`Story precedes confirmed donor amounts and market progress updates at ${width}px`, async ({ page }, testInfo) => {

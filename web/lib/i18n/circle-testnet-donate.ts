@@ -41,8 +41,20 @@ const messages = {
   "Creator share": { id: "Bagian pembuat", tl: "Bahagi ng creator", vi: "Phần của người tạo" },
   "Public display": { id: "Tampilan publik", tl: "Pampublikong pagpapakita", vi: "Hiển thị công khai" },
   "Anonymous": { id: "Anonim", tl: "Hindi nagpapakilala", vi: "Ẩn danh" },
-  "Wallet and opted-in profile": { id: "Wallet dan profil yang diizinkan", tl: "Wallet at profile na may pahintulot", vi: "Ví và hồ sơ đã cho phép" },
+  "Wallet, @username and permitted photo": { id: "Wallet, @username dan foto yang diizinkan", tl: "Wallet, @username at pinahintulutang larawan", vi: "Ví, @username và ảnh được cho phép" },
   "Wallet only": { id: "Wallet saja", tl: "Wallet lamang", vi: "Chỉ ví" },
+  "Your wallet, available @username and permitted profile photo will be public. Choose anonymous below to hide them from this feed.": {
+    id: "Wallet, @username yang tersedia dan foto profil yang diizinkan akan tampil publik. Pilih anonim di bawah untuk menyembunyikannya dari catatan donor ini.",
+    tl: "Magiging pampubliko ang wallet, available na @username at pinahintulutang profile photo mo. Piliin ang anonymous sa ibaba para itago ang mga ito sa feed na ito.",
+    vi: "Ví, @username có sẵn và ảnh hồ sơ được cho phép sẽ hiển thị công khai. Chọn ẩn danh bên dưới để ẩn chúng khỏi danh sách này." },
+  "Your donor entry will be anonymous. Stellar transactions remain public.": {
+    id: "Catatan donor Anda akan anonim. Transaksi Stellar tetap publik.",
+    tl: "Anonymous ang donor entry mo. Pampubliko pa rin ang Stellar transactions.",
+    vi: "Bản ghi nhà tài trợ của bạn sẽ ẩn danh. Giao dịch Stellar vẫn công khai." },
+  "Only your wallet and receipt link will appear in this feed. Your name and photo will not be published.": {
+    id: "Hanya wallet dan tautan bukti transaksi yang tampil di catatan donor ini. Nama dan foto Anda tidak dipublikasikan.",
+    tl: "Wallet at receipt link mo lamang ang makikita sa feed na ito. Hindi ipapakita ang pangalan at larawan mo.",
+    vi: "Chỉ ví và liên kết biên nhận của bạn xuất hiện trong danh sách này. Tên và ảnh của bạn không được công khai." },
   "Two configured reviewers must approve the exact proof before release. No timely approval means the contract's refund rules apply. No real-world delivery is guaranteed.": {
     id: "Dua reviewer terkonfigurasi harus menyetujui bukti yang sama sebelum release. Jika tidak disetujui tepat waktu, aturan refund kontrak berlaku. Tidak menjamin penyaluran dunia nyata.",
     tl: "Dalawang naka-configure na reviewer ang dapat sumang-ayon sa eksaktong proof bago release. Kung walang napapanahong approval, susundin ang refund rules ng contract. Walang garantiyang aktuwal na delivery.",
