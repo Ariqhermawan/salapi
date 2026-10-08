@@ -97,6 +97,9 @@ jobs:
       - name: Revamp parity, four-language UI, storage failures and submission guards
         run: npm run test:revamp
 
+      - name: Exact transfer recipient lookup and authenticated preview identity guards
+        run: node --experimental-strip-types --test scripts/transfer-recipient.test.mts
+
       - name: Parallel display reads, fresh transport and lightweight navigation
         run: npm run test:performance
 
