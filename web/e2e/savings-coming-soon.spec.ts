@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-for (const width of [390, 1280]) test(`Savings is coming soon at ${width}px without opening a savings flow`, async ({ page }, testInfo) => {
+for (const width of [375, 390, 1280]) test(`Savings is coming soon at ${width}px without opening a savings flow`, async ({ page }, testInfo) => {
   await page.setViewportSize({ width, height: 900 });
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
@@ -13,6 +13,19 @@ for (const width of [390, 1280]) test(`Savings is coming soon at ${width}px with
   await expect(savings).toContainText("Coming soon");
   await expect(home.locator('a[href="/savings"]')).toHaveCount(0);
   await savings.scrollIntoViewIfNeeded();
+  // Both visible labels must fit on one line, including the Linux CI fonts.
+  // Wrapping here would grow the whole quick-action row and push the footer down.
+  for (const label of [savings.locator("strong"), savings.locator(":scope > div > span")]) {
+    const geometry = await label.evaluate(node => {
+      const labelRect = node.getBoundingClientRect();
+      const cardRect = node.closest("button")!.getBoundingClientRect();
+      return { left: labelRect.left, right: labelRect.right, height: labelRect.height,
+        cardLeft: cardRect.left, cardRight: cardRect.right, lineHeight: parseFloat(getComputedStyle(node).lineHeight) };
+    });
+    expect(geometry.height).toBeLessThanOrEqual(geometry.lineHeight + 5);
+    expect(geometry.left).toBeGreaterThanOrEqual(geometry.cardLeft);
+    expect(geometry.right).toBeLessThanOrEqual(geometry.cardRight);
+  }
   const tiles = home.locator('section[aria-label="QUICK ACTIONS"]');
   await expect(tiles.getByRole("link")).toHaveCount(3);
   await tiles.screenshot({ path: testInfo.outputPath(`savings-coming-soon-${width}.png`) });
