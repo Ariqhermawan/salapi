@@ -44,6 +44,7 @@ for (const width of [390, 1280]) test(`review shows a permitted account photo an
   await f.main.getByRole("button", { name: "Review transfer", exact: true }).click();
   const review = f.main.getByRole("article", { name: "Transfer review details" });
   await expect(review).toContainText("@imam"); await expect(review).toContainText(address);
+  expect((await review.getByText("@ariqhermawan", { exact: true }).boundingBox())!.height).toBeLessThan(20);
   await expect(review).toContainText("Username registered on Stellar Testnet");
   await expect(f.main.getByRole("button", { name: "Confirm Testnet transfer", exact: true })).toBeEnabled();
   f.releasePhoto();
