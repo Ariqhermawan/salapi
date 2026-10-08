@@ -9,6 +9,7 @@ import { createSupabaseBrowser } from "@/lib/supabase/client";
 import { supabaseConfigured } from "@/lib/supabase/env";
 import { isLocalPreview } from "@/lib/local-preview";
 import { normalizedUsername, usernameGateExempt, type UsernameStatus } from "@/lib/username-onboarding";
+import { usernameOnboardingReader } from "@/lib/username-onboarding-client";
 import { usernameOnboardingCopy } from "@/lib/i18n/username-onboarding";
 import { useT } from "@/components/I18nProvider";
 import styles from "./UsernameOnboarding.module.css";
@@ -42,21 +43,21 @@ export default function UsernameOnboarding() {
   const dialog = useRef<HTMLDialogElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const currentState = preview && state === "idle" ? "required" : state;
-  const blocked = hydrated && (enabled || preview) && !usernameGateExempt(pathname) && !["idle", "ready"].includes(currentState);
+  // An outstanding read is not evidence that a registered user needs to claim.
+  // Only confirmed missing/recovery states open a modal. Unknown submissions stay locked.
+  const claimRequired = currentState === "required" || uncertain;
+  const blocked = hydrated && (enabled || preview) && !usernameGateExempt(pathname)
+    && (uncertain || !["idle", "ready", "checking"].includes(currentState));
 
-  const check = useCallback(async () => {
+  const check = useCallback(async (refresh = false) => {
     const expected = owner.current;
     if (!expected || !alive.current) return;
     const request = ++version.current;
     setState("checking");
     try {
-      const response = await fetch("/api/account/username-onboarding", {
-        cache: "no-store", credentials: "same-origin", headers: { "X-Salapi-Owner": expected },
-        signal: AbortSignal.timeout(15000),
-      });
-      const result: UsernameStatus = await response.json();
+      const result: UsernameStatus = await usernameOnboardingReader.read(expected, refresh);
       if (!alive.current || request !== version.current || owner.current !== expected) return;
-      if (!response.ok || !("ownerId" in result) || result.ownerId !== expected) { setState("unavailable"); return; }
+      if (!("ownerId" in result) || result.ownerId !== expected) { setState("unavailable"); return; }
       if (result.status === "ready" && normalizedUsername(result.handle)) {
         setUncertain(false); pendingHash.current = null; setState("ready");
         return result;
@@ -76,6 +77,7 @@ export default function UsernameOnboarding() {
       const { data } = createSupabaseBrowser().auth.onAuthStateChange((event, session) => {
         if (!alive.current) return;
         const nextOwner = event === "SIGNED_OUT" || session?.user.is_anonymous !== false ? null : session.user.id;
+        usernameOnboardingReader.setOwner(nextOwner);
         if (nextOwner === owner.current) return; // Token refresh/focus does not repeat registry work.
         owner.current = nextOwner; version.current++;
         setValue(""); setError(null); setUncertain(false); setBusy(false); pendingHash.current = null;
@@ -151,7 +153,7 @@ export default function UsernameOnboarding() {
           setUncertain(false); pendingHash.current = null;
         }
       }
-      const confirmed = await check();
+      const confirmed = await check(true);
       if (confirmed?.status === "ready" && alive.current && owner.current === expected) window.location.reload();
     } catch {
       if (alive.current && owner.current === expected) setState("unavailable");
@@ -162,9 +164,9 @@ export default function UsernameOnboarding() {
   return <dialog ref={dialog} className={styles.dialog} aria-labelledby="username-title" aria-describedby="username-intro" onCancel={event => event.preventDefault()}>
     <div className={styles.content} aria-busy={busy || currentState === "checking"}>
       <span className={styles.mark} aria-hidden="true">@</span>
-      <p className={styles.step}>{c.step}</p>
-      <h2 id="username-title">{c.title}</h2>
-      <p id="username-intro" className={styles.intro}>{c.intro}</p>
+      <p className={styles.step}>{claimRequired ? c.step : c.verifyStep}</p>
+      <h2 id="username-title">{claimRequired ? c.title : c.verifyTitle}</h2>
+      <p id="username-intro" className={styles.intro}>{claimRequired ? c.intro : c.verifyIntro}</p>
       {currentState === "checking" ? <p className={styles.status} role="status">{c.checking}</p>
         : currentState === "required" && !uncertain ? <form onSubmit={save}>
           <label className={styles.label} htmlFor="required-username">{c.label}</label>

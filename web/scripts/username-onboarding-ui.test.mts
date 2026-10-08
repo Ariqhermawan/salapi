@@ -66,6 +66,11 @@ function setup(locale: Locale = "en", preview = false) {
       if (name === "@/lib/supabase/env") return { supabaseConfigured: () => true };
       if (name === "@/lib/local-preview") return { isLocalPreview: preview };
       if (name === "@/lib/username-onboarding") return { normalizedUsername, usernameGateExempt };
+      if (name === "@/lib/username-onboarding-client") return { usernameOnboardingReader: {
+        setOwner() {}, async read(owner: string) {
+          const result = deferred<UsernameStatus>(); reads.push({ owner, result }); return result.promise;
+        },
+      } };
       if (name === "@/lib/i18n/username-onboarding") return { usernameOnboardingCopy };
       if (name === "@/components/I18nProvider") return { useT: () => ({ locale }) };
       if (name.endsWith(".module.css")) return { __esModule: true, default: new Proxy({}, { get: (_, key) => key }) };
@@ -96,6 +101,29 @@ test("guest and anonymous visitors do not claim usernames or trigger owner reads
 });
 test("existing username removes the gate without an extra redirect or write", async () => {
   const h = setup(); await load(h, ready()); assert.equal(h.html(), ""); assert.equal(h.writes.length, 0); assert.equal(h.calls.reloads, 0);
+});
+
+test("a slow initial username read never flashes the claim popup for an existing account", async () => {
+  const h = setup(); h.render(); h.auth(ownerId); await flush();
+  assert.equal(h.reads.length, 1);
+  assert.equal(h.html(), "", "checking is not evidence that a username needs claiming");
+  h.path("/vaults"); h.render(); h.auth(ownerId, "TOKEN_REFRESHED"); await flush();
+  assert.equal(h.html(), ""); assert.equal(h.reads.length, 1);
+  h.reads[0].result.resolve(ready()); await flush(); assert.equal(h.html(), "");
+});
+
+test("new users see the mandatory claim only after the registry confirms it is missing", async () => {
+  const h = setup(); h.render(); h.auth(ownerId); await flush();
+  assert.equal(h.html(), "");
+  h.reads[0].result.resolve(required()); await flush();
+  assert.match(h.html(), /<dialog/); assert.match(h.html(), /<form/);
+});
+
+test("verification failures offer recovery without falsely asking to claim an existing username", async () => {
+  const h = setup(); await load(h, { status: "unavailable" });
+  assert.match(h.html(), /<dialog/); assert.doesNotMatch(h.html(), /<form/);
+  assert.ok(!h.html().includes(usernameOnboardingCopy("en").title));
+  assert.ok(h.html().includes(usernameOnboardingCopy("en").unavailable));
 });
 for (const locale of LOCALES) test(`${locale}: required popup renders a labelled native dialog with no skip or dismiss control`, async () => {
   const h = setup(locale); await load(h); const html = h.html(); assert.ok(html.includes(usernameOnboardingCopy(locale).title));
