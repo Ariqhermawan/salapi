@@ -133,8 +133,15 @@ for (const { viewport, locale } of viewportCases) {
 
     if (viewport.width < 1024 && viewport.height >= 812) {
       const quick = page.getByRole("region", { name: homeCopy(locale, "QUICK ACTIONS"), exact: true });
-      await expect(quick.getByRole("link")).toHaveCount(4);
-      for (const action of await quick.getByRole("link").all()) {
+      await expect(quick.getByRole("link")).toHaveCount(3);
+      const savings = quick.getByTestId("smart-savings-coming-soon");
+      await expect(savings).toBeDisabled();
+      await expect(savings).toContainText(homeCopy(locale, "Coming soon"));
+      await expect(quick.locator('a[href="/savings"]')).toHaveCount(0);
+      // Keep measuring all four cards, including the unavailable placeholder.
+      const tiles = quick.locator("a, button");
+      await expect(tiles).toHaveCount(4);
+      for (const action of await tiles.all()) {
         await expectFullyInside(action, settledBounds, "Quick action");
         await expectTouchTarget(action, "Quick action");
       }
