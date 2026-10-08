@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 
 // Read-only discovery checks. No join, deposit, donation or payout is submitted.
-test("Vault tabs wait for hydration, then the first Crowdfund click works with delayed JavaScript", async ({ page }) => {
+test("Vault tabs wait for hydration, then keyboard navigation and the first Crowdfund click work with delayed JavaScript", async ({ page }) => {
   let release!: () => void;
   const scriptsReady = new Promise<void>(resolve => { release = resolve; });
   const errors: string[] = [];
@@ -17,8 +17,20 @@ test("Vault tabs wait for hydration, then the first Crowdfund click works with d
     await expect(arisan).toBeVisible();
     await expect(arisan).toBeDisabled();
     await expect(crowdfund).toBeDisabled();
+    // Locator.press does not wait for an enabled target. Before hydration the
+    // intentionally disabled tab cannot receive focus or handle arrow keys.
+    await arisan.press("ArrowRight");
+    await expect(crowdfund).not.toBeFocused();
+    await expect(arisan).toHaveAttribute("aria-selected", "true");
   } finally { release(); }
+  await expect(arisan).toBeEnabled();
   await expect(crowdfund).toBeEnabled();
+  await arisan.press("ArrowRight");
+  await expect(crowdfund).toBeFocused();
+  await expect(crowdfund).toHaveAttribute("aria-selected", "true");
+  await crowdfund.press("Home");
+  await expect(arisan).toBeFocused();
+  await expect(arisan).toHaveAttribute("aria-selected", "true");
   await crowdfund.click();
   await expect(crowdfund).toHaveAttribute("aria-selected", "true");
   await expect(page.getByRole("link", { name: /Salapi Circles · prototype/ })).toHaveAttribute("href", "/circles");
@@ -64,6 +76,10 @@ test("Vault tabs support keyboard navigation, reload and Back to the selected ca
   await page.goto("/vaults", { waitUntil: "domcontentloaded", timeout: 45000 });
   const arisan = page.getByRole("tab", { name: "Arisan", exact: true });
   const crowdfund = page.getByRole("tab", { name: "Crowdfund", exact: true });
+  // DOMContentLoaded is not proof that React attached keyboard handlers.
+  // Keep all focus/selection assertions, but wait for the UI's readiness gate.
+  await expect(arisan).toBeEnabled();
+  await expect(crowdfund).toBeEnabled();
   await arisan.press("ArrowRight");
   await expect(crowdfund).toBeFocused();
   await expect(crowdfund).toHaveAttribute("aria-selected", "true");
