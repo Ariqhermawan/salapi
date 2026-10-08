@@ -84,13 +84,14 @@ function harness(options: Options = {}) {
   const admin = {
     from(table: string) {
       let inserted: Record<string, unknown> | null = null;
+      let limit = 0, before = "";
       const query = {
         select(columns: string) { calls.columns.push(columns); if (table === "wallets") assert.equal(columns, "public_key", "No custody secrets"); else assert.equal(table, "campaign_donors"); return query; },
         eq(key: string, value: unknown) { calls.filters.push([key, value]); return query; },
         abortSignal(signal: AbortSignal) { assert.ok(signal); return query; },
         order(key: string, options: unknown) { assert.equal(key, "id"); assert.deepEqual(structuredClone(options), { ascending: false }); return query; },
-        limit(count: number) { assert.equal(count, 11); return query; },
-        lt(key: string, value: string) { assert.equal(key, "id"); calls.cursors.push(value); return query; },
+        limit(count: number) { assert.ok(count === 11 || count === 250); limit = count; return query; },
+        lt(key: string, value: string) { assert.equal(key, "id"); calls.cursors.push(value); before = value; return query; },
         insert(value: Record<string, unknown>) { inserted = structuredClone(value); calls.inserts.push(inserted); return query; },
         async maybeSingle() {
           if (table === "wallets") { calls.wallet++; return { data: options.wallet === null ? null : { public_key: options.wallet ?? wallet }, error: options.walletError ?? null }; }
@@ -104,7 +105,11 @@ function harness(options: Options = {}) {
           if (options.saveThrowsAfterPersist) throw Error("Save response interrupted");
           return { data: options.corruptSaved ? { ...(stored as object), amount_stroops: "900000000" } : stored, error: null };
         },
-        then(resolve: (value: unknown) => unknown) { return Promise.resolve({ data: options.rows ?? [], error: options.rowError ?? null }).then(resolve); },
+        then(resolve: (value: unknown) => unknown) {
+          const rows = options.rows ?? [];
+          const data = limit === 250 ? rows.filter(row => !before || BigInt((row as { id: number }).id) < BigInt(before)).slice(0, limit) : rows;
+          return Promise.resolve({ data, error: options.rowError ?? null }).then(resolve);
+        },
       };
       return query;
     },
@@ -113,6 +118,7 @@ function harness(options: Options = {}) {
     verifyCampaignDonationReceipt: typeof import("../lib/server/campaignDonors.ts").verifyCampaignDonationReceipt;
     recordCampaignDonor(inputId: unknown, input: unknown): Promise<donor.CampaignDonorRecordResult>;
     readCampaignDonors(inputId: unknown, before?: unknown): Promise<donor.CampaignDonorFeedResult>;
+    readCampaignDonorSummary(inputId: unknown, total: unknown): Promise<donor.CampaignDonorSummaryResult>;
   };
   runInNewContext(compiled, { exports, Buffer, URL, TextEncoder, AbortSignal, Date, setTimeout, clearTimeout, fetch: () => { throw Error("No real network"); },
     require(name: string) {
@@ -325,4 +331,43 @@ test("schema recipe denies client reads, no public view, immutable unique receip
   assert.match(sql, /unique \(network, contract_id, transaction_hash\)/i); assert.match(sql, /grant select, insert on public\.campaign_donors to service_role/i);
   assert.match(sql, /revoke update, delete on public\.campaign_donors from service_role/i); assert.doesNotMatch(sql, /create (?:or replace )?(?:view|function)/i);
   assert.match(sql, /public_profile_ok boolean not null default false/i);
+});
+
+test("summary scans beyond the feed page and counts one account across repeated and anonymous confirmed receipts", async () => {
+  const rows = Array.from({ length: 251 }, (_, index) => ({ ...defaultRow(), id: 251 - index,
+    transaction_hash: (251 - index).toString(16).padStart(64, "0"), anonymous: index % 2 === 0 }));
+  const h = harness({ rows }); const result = await h.readCampaignDonorSummary("1", String(251n * 10_000_001n));
+  assert.ok(result.ok); assert.equal(result.count, 1); assert.equal(result.basis, "accounts"); assert.equal(result.coverage, "complete");
+  assert.deepEqual(h.calls.cursors, ["2"]); assert.equal(h.calls.auth, 0); assert.equal(h.calls.profiles.length, 0); assert.equal(h.calls.rpc, 0);
+  for (const secret of [wallet, owner, rows[0].transaction_hash, "comment", "email", "photo"]) assert.ok(!JSON.stringify(result).includes(secret));
+  const queries = h.calls.columns.length;
+  assert.deepEqual(await h.readCampaignDonorSummary("1", String(251n * 10_000_001n)), result); assert.equal(h.calls.columns.length, queries, "Same total uses bounded count-only cache");
+});
+
+test("summary includes anonymous accounts and merges ownerless historical wallet rows safely", async () => {
+  const rows = [{ ...defaultRow(), id: 4, transaction_hash: "4".padStart(64, "0"), owner_id: null },
+    { ...defaultRow(), id: 3, transaction_hash: "3".padStart(64, "0"), anonymous: true },
+    { ...defaultRow(), id: 2, transaction_hash: "2".padStart(64, "0"), owner_id: other, donor_wallet: otherWallet, anonymous: true },
+    { ...defaultRow(), id: 1, transaction_hash: "1".padStart(64, "0") }];
+  const result = await harness({ rows }).readCampaignDonorSummary("1", String(4n * 10_000_001n));
+  assert.ok(result.ok); assert.equal(result.count, 2); assert.equal(result.basis, "accounts"); assert.equal(result.coverage, "complete");
+  const fallback = await harness({ rows: [{ ...defaultRow(), owner_id: null }] }).readCampaignDonorSummary("1", "10000001");
+  assert.ok(fallback.ok); assert.equal(fallback.count, 1); assert.equal(fallback.basis, "wallets");
+});
+
+test("metadata coverage is exact only when all recorded amounts reconcile with confirmed cumulative total", async () => {
+  const empty = await harness().readCampaignDonorSummary("1", "0"); assert.ok(empty.ok); assert.equal(empty.count, 0); assert.equal(empty.coverage, "complete");
+  const missing = await harness().readCampaignDonorSummary("1", "10000001"); assert.ok(missing.ok); assert.equal(missing.count, 0); assert.equal(missing.coverage, "recorded");
+  const partial = await harness({ rows: [defaultRow()] }).readCampaignDonorSummary("1", "20000002"); assert.ok(partial.ok); assert.equal(partial.count, 1); assert.equal(partial.coverage, "recorded");
+  const ahead = await harness({ rows: [defaultRow()] }).readCampaignDonorSummary("1", "0"); assert.ok(!ahead.ok); assert.equal(ahead.code, "unavailable");
+});
+
+test("incomplete bounded scans and corrupt donor records never become an exact public count", async () => {
+  const rows = Array.from({ length: 5000 }, (_, index) => ({ ...defaultRow(), id: 5000 - index, transaction_hash: (5000 - index).toString(16).padStart(64, "0") }));
+  const result = await harness({ rows }).readCampaignDonorSummary("1", String(5000n * 10_000_001n)); assert.ok(!result.ok); assert.equal(result.code, "unavailable");
+  for (const rows of [[{ ...defaultRow(), campaign_id: "2" }], [{ ...defaultRow(), amount_stroops: "01" }],
+    [{ ...defaultRow(), id: 2 }, defaultRow()]]) {
+    const result = await harness({ rows }).readCampaignDonorSummary("1", "20000002"); assert.ok(!result.ok); assert.equal(result.code, "unavailable");
+  }
+  const missing = await harness({ rowError: { code: "PGRST205" } }).readCampaignDonorSummary("1", "0"); assert.ok(!missing.ok); assert.equal(missing.code, "not_configured");
 });

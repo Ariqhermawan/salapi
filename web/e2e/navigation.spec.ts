@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { LOCALE_COOKIE } from "../lib/i18n/config";
 import { getCircle } from "../lib/circles/seed";
+import { chooseHomeCauseCategory } from "./helpers/home-catalog";
 
 const browserHealth = new WeakMap<Page, { errors: string[]; console: string[] }>();
 const donationEntry = /^(Preview a pledge|Donate Testnet XLM)$/;
@@ -68,7 +69,7 @@ async function home(page: Page, route = "/") {
   await appReady(page);
   const catalog = page.getByTestId("home-circles-catalog");
   await expect(catalog).toHaveAttribute("data-catalog-ready", "true");
-  await expect(catalog.locator("#home-cause-category")).toBeEnabled();
+  await expect(catalog.locator("#home-cause-category")).toHaveAttribute("aria-disabled", "false");
   return catalog;
 }
 
@@ -114,7 +115,7 @@ test("hard Home load hydrates one catalog without hidden duplicates or React hyd
   const catalog = page.getByTestId("home-circles-catalog");
   await expect(catalog).toHaveCount(1, { timeout: 20000 });
   await expect(catalog).toHaveAttribute("data-catalog-ready", "true", { timeout: 20000 });
-  await expect(catalog.locator("#home-cause-category")).toBeEnabled();
+  await expect(catalog.locator("#home-cause-category")).toHaveAttribute("aria-disabled", "false");
   await expect(catalog).toHaveCount(1);
   const health = browserHealth.get(page);
   expect(health, "Browser health listeners are installed before the hard load").toBeDefined();
@@ -335,23 +336,19 @@ test("Discovery Back restores the full query, category, sort and main scroll pos
 });
 
 test("Home animals second-card pledge Back restores category, carousel and main scroll", async ({ page }) => {
-  // The default dashboard now fits a standard phone. Use a short scrollport
-  // to exercise real Back scroll restoration without artificially tall UI.
+  // Exercise the richer card through the app's actual small-screen scrollport.
   await page.setViewportSize({ width: 390, height: 640 });
   const catalog = await home(page);
   const category = catalog.locator("#home-cause-category");
-  await category.selectOption("animals");
+  await chooseHomeCauseCategory(catalog, "animals");
   await catalog.getByRole("button", { name: "Next example cause", exact: true }).click();
   await expect(catalog.getByLabel("2 of 3 example causes", { exact: true })).toHaveText("02 / 03");
   const pledge = catalog.locator("article[data-example-cause]").nth(1).getByRole("link", { name: "View campaign", exact: true });
   const href = await pledge.getAttribute("href");
   expect(href).toMatch(/^\/circles\/[a-z0-9-]+$/);
-  await pledge.scrollIntoViewIfNeeded();
+  await pledge.evaluate(element => element.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" }));
   const main = page.locator("#app-content");
-  const scrollTop = await main.evaluate(element => {
-    element.scrollTop = Math.min(60, element.scrollHeight - element.clientHeight);
-    return element.scrollTop;
-  });
+  const scrollTop = await main.evaluate(element => element.scrollTop);
   expect(scrollTop).toBeGreaterThan(0);
   const strip = catalog.getByLabel("Example causes carousel", { exact: true });
   const scrollLeft = await strip.evaluate(element => element.scrollLeft);
@@ -365,7 +362,7 @@ test("Home animals second-card pledge Back restores category, carousel and main 
   await headerBack(page);
   await expectRoute(page, "/");
   await expect(catalog).toHaveAttribute("data-catalog-ready", "true");
-  await expect(category).toHaveValue("animals");
+  await expect(category).toContainText("Animal care");
   await expect(catalog.locator("article[data-example-cause]")).toHaveCount(3);
   await expect(catalog.getByLabel("2 of 3 example causes", { exact: true })).toHaveText("02 / 03");
   await expect.poll(async () => Math.abs(await strip.evaluate(element => element.scrollLeft) - scrollLeft)).toBeLessThanOrEqual(2);
@@ -375,7 +372,7 @@ test("Home animals second-card pledge Back restores category, carousel and main 
 test("same-path Home query entries restore their separate category and carousel without a component remount", async ({ page }) => {
   const priorRoute = "/?entry=back-regression-same-path";
   const catalog = await home(page, priorRoute);
-  await catalog.locator("#home-cause-category").selectOption("animals");
+  await chooseHomeCauseCategory(catalog, "animals");
   await catalog.getByRole("button", { name: "Next example cause", exact: true }).click();
   await expect(catalog.getByLabel("2 of 3 example causes", { exact: true })).toHaveText("02 / 03");
   const strip = catalog.getByLabel("Example causes carousel", { exact: true });
@@ -383,15 +380,15 @@ test("same-path Home query entries restore their separate category and carousel 
   expect(priorLeft).toBeGreaterThan(0);
   await page.getByRole("navigation", { name: "Main navigation", exact: true }).getByRole("button", { name: "Home", exact: true }).click();
   await expectRoute(page, "/");
-  await expect(catalog.locator("#home-cause-category")).toHaveValue("all");
+  await expect(catalog.locator("#home-cause-category")).toContainText("All campaigns");
   await page.goBack();
   await expectRoute(page, priorRoute);
-  await expect(catalog.locator("#home-cause-category")).toHaveValue("animals");
+  await expect(catalog.locator("#home-cause-category")).toContainText("Animal care");
   await expect(catalog.getByLabel("2 of 3 example causes", { exact: true })).toHaveText("02 / 03");
   await expect.poll(async () => Math.abs(await strip.evaluate(element => element.scrollLeft) - priorLeft)).toBeLessThanOrEqual(2);
   await page.reload({ waitUntil: "domcontentloaded" });
   await appReady(page);
-  await expect(catalog.locator("#home-cause-category")).toHaveValue("animals");
+  await expect(catalog.locator("#home-cause-category")).toContainText("Animal care");
   await expect(catalog.getByLabel("2 of 3 example causes", { exact: true })).toHaveText("02 / 03");
   await expect.poll(async () => Math.abs(await strip.evaluate(element => element.scrollLeft) - priorLeft)).toBeLessThanOrEqual(2);
 });

@@ -6,8 +6,9 @@ import React from "react";
 import * as jsxRuntime from "react/jsx-runtime";
 import { renderToStaticMarkup } from "react-dom/server";
 import ts from "typescript";
-import { marketGoalProgress, validateMarketPrices } from "../lib/market-prices.ts";
-import { pesoToUsdc } from "../lib/ui/currency.ts";
+import { validateMarketPrices } from "../lib/market-prices.ts";
+import { exampleGoalUsd, fundingUsdProgress } from "../lib/home-circle-funding.ts";
+import { formatStroops } from "../lib/format-stroops.ts";
 import { progressPct, type Circle } from "../lib/circles/types.ts";
 import { homeCatalogCopy } from "../lib/i18n/revamp-home-catalog.ts";
 import type { MarketPriceResult } from "../lib/market-prices.ts";
@@ -26,6 +27,7 @@ const unavailable: MarketPriceResult = { status: "unavailable", source: "CoinGec
 const ready = (total = "1000000000", circleId = circle.id): CircleTestnetCampaignResult => ({
   ok: true, available: true, network: "testnet", contractId: "isolated-contract", circleId,
   qaLabel: "QA Testnet · fictional cause", status: "ready", donationOpen: true, now: "100",
+  donorSummary: { ok: true, campaignId: "6", count: 2, basis: "accounts", coverage: "complete", confirmedTotalStroops: total },
   mapping: { campaignId: "6", creatorWallet: "isolated-creator", beneficiaryWallet: "isolated-recipient", approverWallets: [], creatorCutBps: 0, fundingDeadline: "200", reviewDeadline: "300" },
   campaign: { id: "6", title: `QA Circles: ${circleId}`, state: "Funding", total, escrow: total, proofHash: null, proofUrl: "", approvals: [],
     config: { creator: "isolated-creator", beneficiary: "isolated-recipient", token: "isolated-token", creator_cut_bps: 0, approvers: [], funding_deadline: "200", review_deadline: "300" } },
@@ -43,13 +45,15 @@ function fixture(options: { preview?: boolean; locale?: Locale; result?: CircleT
   const exports = {} as { default: React.ComponentType<{ circle: Circle; active: boolean }> };
   runInNewContext(compiled, { exports, BigInt, Date, require(name: string) {
     if (name === "react/jsx-runtime") return jsxRuntime;
+    if (name === "@phosphor-icons/react/dist/csr/Users") return { Users: () => React.createElement("svg", { "aria-hidden": true }) };
     if (name === "@/components/I18nProvider") return { useT: () => ({ locale }) };
     if (name === "@/components/MarketPricesProvider") return { useMarketPrices: () => { calls.prices++; return { prices: options.prices ?? quote() }; } };
     if (name === "@/lib/ui/useCircleTestnet") return { useCircleTestnet(slug: string, enabled: boolean) {
       calls.readers.push([slug, enabled]); return { result: options.result ?? null, loading: options.loading ?? options.result == null };
     } };
-    if (name === "@/lib/market-prices") return { marketGoalProgress, validateMarketPrices };
-    if (name === "@/lib/ui/currency") return { pesoToUsdc };
+    if (name === "@/lib/market-prices") return { validateMarketPrices };
+    if (name === "@/lib/home-circle-funding") return { exampleGoalUsd, fundingUsdProgress };
+    if (name === "@/lib/format-stroops") return { formatStroops };
     if (name === "@/lib/circles/types") return { progressPct };
     if (name === "@/lib/i18n/revamp-home-catalog") return { homeCatalogCopy };
     if (name === "@/lib/local-preview") return { isLocalPreview: options.preview ?? false };
@@ -72,26 +76,28 @@ test("all 27 catalog cards mount exactly one public reader, while preview and co
   }
 });
 
-test("linked totals replace fixture progress and use both XLM and USDC market prices", () => {
+test("USD primary uses XLM/USD directly, never the USDC price, and contributors stay beside XLM", () => {
   const h = fixture({ result: ready() }); const html = h.render();
   assert.match(html, /data-funding-kind="testnet"/); assert.match(html, /100 XLM/);
-  assert.match(html, /≈ 50\.00 USDC/); assert.match(html, /QA goal: 172\.41 USDC/); assert.match(html, /29%/);
+  assert.match(html, /≈ \$25\.00 <small>USD/); assert.match(html, /Example goal: \$172\.41 USD/); assert.match(html, /14\.5%/);
+  assert.match(html, /2 contributors/); assert.match(html, /Based on confirmed donor records/);
+  assert.doesNotMatch(html, /USDC/);
   assert.doesNotMatch(html, /74%|Example progress/);
   const moved = fixture({ result: ready(), prices: quote(.5) }).render();
-  assert.match(moved, /≈ 100\.00 USDC/); assert.match(moved, /58%/);
+  assert.match(moved, /≈ \$50\.00 <small>USD/); assert.match(moved, /29%/);
 });
 
 test("unavailable prices preserve exact totals and fixed QA goal without fake percentage", () => {
   const html = fixture({ result: ready("95538290085"), prices: unavailable }).render();
-  assert.match(html, /9553\.8290085 XLM/); assert.match(html, /USDC estimate unavailable/);
-  assert.match(html, /QA goal: 172\.41 USDC/); assert.doesNotMatch(html, /<progress|74%|0%/);
+  assert.match(html, /9553\.8290085 XLM/); assert.match(html, /USD estimate unavailable/);
+  assert.match(html, /Example goal: \$172\.41 USD/); assert.doesNotMatch(html, /<progress|74%|0%/);
 });
 
 test("expired CoinGecko quote removes the market estimate and percentage while preserving native contributions", () => {
   const html = fixture({ result: ready("123456789"), prices: quote(.25, 301000) }).render();
   assert.match(html, /data-market-status="unavailable"/);
-  assert.match(html, /12\.3456789 XLM/); assert.match(html, /QA goal: 172\.41 USDC/);
-  assert.match(html, /USDC estimate unavailable/);
+  assert.match(html, /12\.3456789 XLM/); assert.match(html, /Example goal: \$172\.41 USD/);
+  assert.match(html, /USD estimate unavailable/);
   assert.doesNotMatch(html, /≈|<progress|[0-9]+%|74%|0 XLM/);
 });
 
@@ -109,8 +115,8 @@ test("loading, wrong campaign and unavailable linkage never display old or fixtu
 });
 
 test("zero, overfunding and stale estimates are truthfully distinguished", () => {
-  const zero = fixture({ result: ready("0") }).render(); assert.match(zero, /0 XLM/); assert.match(zero, /0\.00 USDC/); assert.match(zero, /0%/);
-  const over = fixture({ result: ready("20000000000") }).render(); assert.match(over, /580%/); assert.match(over, /<progress value="100"/);
+  const zero = fixture({ result: ready("0") }).render(); assert.match(zero, /0 XLM/); assert.match(zero, /\$0\.00 <small>USD/); assert.match(zero, /0%/);
+  const over = fixture({ result: ready("20000000000") }).render(); assert.match(over, /290%/); assert.match(over, /<progress value="100"/);
   const stale = fixture({ result: ready(), prices: quote(.25, 121000) }).render();
   assert.match(stale, /data-market-status="stale"/); assert.match(stale, /Last known price/);
 });
@@ -118,8 +124,33 @@ test("zero, overfunding and stale estimates are truthfully distinguished", () =>
 test("four locales retain exact XLM and localized QA goal/market estimates", () => {
   for (const locale of ["en", "id", "tl", "vi"] as const) {
     const html = fixture({ locale, result: ready("123456789") }).render();
-    assert.match(html, /12\.3456789 XLM/); assert.match(html, /USDC/);
-    assert.match(html, new RegExp({ en: "QA goal", id: "Target QA", tl: "QA goal", vi: "Mục tiêu QA" }[locale]));
+    assert.match(html, /12\.3456789 XLM/); assert.match(html, /USD/);
+    assert.match(html, new RegExp({ en: "Example goal", id: "Target contoh", tl: "Halimbawang goal", vi: "Mục tiêu minh họa" }[locale]));
     assert.doesNotMatch(html, /74%|Example progress/);
   }
+});
+
+test("missing or incomplete contributor metadata never turns into a fictional exact count or zero", () => {
+  for (const donorSummary of [undefined, { ok: false, campaignId: "6", code: "unavailable" } as const,
+    { ok: true, campaignId: "6", count: 0, basis: "accounts", coverage: "recorded", confirmedTotalStroops: "1000000000" } as const,
+    { ok: true, campaignId: "6", count: 12, basis: "accounts", coverage: "complete", confirmedTotalStroops: "other-total" } as const]) {
+    const result = ready(); assert.ok(result.ok);
+    const html = fixture({ result: { ...result, donorSummary } }).render();
+    assert.match(html, /Contributors unavailable/); assert.match(html, /100 XLM/); assert.match(html, /\$25\.00/);
+    assert.doesNotMatch(html, /0 contributors|12 contributors/);
+  }
+  const result = ready(); assert.ok(result.ok);
+  const html = fixture({ result: { ...result, donorSummary: { ok: true, campaignId: "6", count: 2, basis: "wallets", coverage: "recorded", confirmedTotalStroops: result.campaign.total } } }).render();
+  assert.match(html, /2\+/); assert.match(html, /contributor wallets/); assert.match(html, /minimum recorded count/);
+});
+
+test("USD calculations preserve canonical confirmed amounts and reject expired quotes or invalid goals", () => {
+  assert.deepEqual(fundingUsdProgress("1000000000", quote(), 50, now), { usd: 25, percentage: 50 });
+  assert.deepEqual(fundingUsdProgress("1000000000", quote(), null, now), { usd: 25, percentage: null });
+  assert.deepEqual(fundingUsdProgress("0", quote(), 50, now), { usd: 0, percentage: 0 });
+  assert.equal(fundingUsdProgress("1000000000", quote(.25, 301000), 50, now), null);
+  assert.equal(fundingUsdProgress("1000000000", unavailable, 50, now), null);
+  for (const total of ["-1", "01", "1.0", "170141183460469231731687303715884105728"]) assert.equal(fundingUsdProgress(total, quote(), 50, now), null);
+  assert.equal(exampleGoalUsd(0), null); assert.equal(exampleGoalUsd(Number.NaN), null);
+  assert.equal(exampleGoalUsd(580), 10);
 });

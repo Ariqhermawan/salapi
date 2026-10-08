@@ -11,6 +11,7 @@ import { campaignDonorComment } from "../../lib/campaign-donor";
 import { campaignSplit } from "../../lib/campaign-money";
 import { formatStroops } from "../../lib/format-stroops";
 import { circleTestnetDonateCopy } from "../../lib/i18n/circle-testnet-donate";
+import { circleDisplayContent } from "../../lib/i18n/circles-content";
 import type { Locale } from "../../lib/i18n/config";
 import type { Circle } from "../../lib/circles/types";
 import type { CircleTestnetCampaignResult } from "../../lib/circles/testnet";
@@ -57,6 +58,7 @@ export function donationReviewMarkup(circle: Circle, terms: Extract<CircleTestne
     if (name === "@/lib/ui/useGoBack") return { useGoBack: () => forbidden };
     if (name === "@/components/I18nProvider") return { useT: () => ({ locale }) };
     if (name === "@/lib/i18n/circle-testnet-donate") return { circleTestnetDonateCopy };
+    if (name === "@/lib/i18n/circles-content") return { circleDisplayContent };
     if (name.startsWith("@/components/")) return { __esModule: true, default: () => null };
     throw Error(`Unreviewed layout fixture dependency: ${name}`);
   } });

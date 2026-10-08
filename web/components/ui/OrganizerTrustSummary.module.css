@@ -1,0 +1,54 @@
+.summary {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  color: #bfd0e0;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.rating {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px 5px;
+  min-width: 0;
+}
+
+.rating > svg {
+  flex: 0 0 auto;
+}
+
+.star {
+  color: #e2c391;
+}
+
+.emptyStar {
+  color: #9eb7ce;
+}
+
+.rating strong {
+  color: #f1f5fb;
+  font-size: 12px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.rating strong span {
+  margin-left: 1px;
+  color: #bfd0e0;
+  font-size: 10px;
+  font-weight: 450;
+}
+
+.rating small {
+  flex-basis: 100%;
+  font-size: 10px;
+}
+
+.verification {
+  color: #b0c5d9;
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}

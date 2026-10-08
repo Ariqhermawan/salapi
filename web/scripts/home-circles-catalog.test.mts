@@ -90,8 +90,12 @@ function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: bo
   const dependenciesEqual = (a: readonly unknown[], b: readonly unknown[]) => a.length === b.length && a.every((value, index) => Object.is(value, b[index]));
   const component = {} as { default(): Element };
   const catalog = {} as { default(props: CatalogProps): Element };
+  const categoryPicker = {} as { default(props: Record<string, unknown>): Element };
+  const trustSummary = {} as { default(props: Record<string, unknown>): Element };
   const navigationViewHook = {} as { useNavigationViewState(key: string): string };
   const jsx = (type: unknown, props: Record<string, unknown>, key?: string): Element => {
+    if (type === categoryPicker.default) return { type: "CauseCategoryPicker", props: { ...props, children: categoryPicker.default(props) }, key };
+    if (type === trustSummary.default) return trustSummary.default(props);
     if (type !== catalog.default) return { type, props, key };
     const parentStates = states, parentCursor = cursor;
     states = catalogStates; cursor = 0;
@@ -107,6 +111,9 @@ function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: bo
     matchMedia: () => ({ get matches() { return mediaReduced; }, addEventListener(_event: string, callback: () => void) { mediaListeners.add(callback); }, removeEventListener(_event: string, callback: () => void) { mediaListeners.delete(callback); } }),
     require(name: string) {
       if (name === "@/components/ui/ExampleOrganizerAvatar") return { default: "ExampleOrganizerAvatar" };
+      if (name === "@/components/ui/OrganizerTrustSummary") return trustSummary;
+      if (name === "@/components/CauseCategoryPicker") return categoryPicker;
+      if (name === "@/components/ui/CauseCategoryDoodle") return { default: "CauseCategoryDoodle" };
       if (name === "react/jsx-runtime") return { jsx, jsxs: jsx, Fragment: "Fragment" };
       if (name === "react") return {
         useState(initial: unknown) { const index = cursor++, hookStates = states; if (!(index in hookStates)) hookStates[index] = typeof initial === "function" ? initial() : initial; return [hookStates[index], (value: unknown) => { hookStates[index] = typeof value === "function" ? value(hookStates[index]) : value; }]; },
@@ -135,7 +142,7 @@ function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: bo
       if (name.startsWith("@phosphor-icons/")) return new Proxy({}, { get: (_target, key) => String(key) });
       if (name === "@/components/I18nProvider") return { useT: () => ({ locale, currency: "tl" }) };
       if (name === "@/components/HomeCirclesCatalog") return { default: catalog.default };
-      if (name === "@/components/HomeCircleFundingProgress") return { default: "HomeCircleFundingProgress" };
+      if (name === "@/components/HomeCircleFundingProgress") return { default: "HomeCircleFundingProgress", ConfirmedFundingProgress: "ConfirmedFundingProgress" };
       if (name === "@/components/AccountAvatar") return { default: "AccountAvatar" };
       if (name === "@/components/MarketValue") return { default: "MarketValue" };
       if (name === "@/components/useAccountPhoto") return { useAccountPhoto: () => ({ status: "ready", profile: null }) };
@@ -175,6 +182,8 @@ function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: bo
     },
   };
   runInNewContext(compile("../lib/ui/useNavigationViewState.ts"), { ...context, exports: navigationViewHook });
+  runInNewContext(compile("../components/CauseCategoryPicker.tsx"), { ...context, exports: categoryPicker });
+  runInNewContext(compile("../components/ui/OrganizerTrustSummary.tsx"), { ...context, exports: trustSummary });
   runInNewContext(compile("../components/HomeCirclesCatalog.tsx"), { ...context, exports: catalog });
   runInNewContext(code, { ...context, exports: component });
   function render() {
@@ -197,7 +206,12 @@ function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: bo
     }
     return tree!;
   }
-  function select(category: string) { const field = nodes(tree).find(node => node.props.id === "home-cause-category"); assert.ok(field); assert.notEqual(field.props.disabled, true, "The native category control must hydrate before accepting a choice"); (field.props.onChange as (event: unknown) => void)({ target: { value: category } }); render(); }
+  function select(category: string) {
+    const field = nodes(tree).find(node => node.type === "fieldset" && hasClass(node, "categoryChoices")); assert.ok(field);
+    assert.notEqual(field.props.disabled, true, "The category picker must hydrate before accepting a choice");
+    const picker = nodes(field).find(node => node.type === "CauseCategoryPicker"); assert.ok(picker);
+    (picker.props.onSelect as (category: string) => void)(category); render();
+  }
   function click(ariaLabel: string) { const button = nodes(tree).find(node => node.type === "button" && node.props["aria-label"] === ariaLabel); assert.ok(button, `Missing Home control ${ariaLabel}`); assert.notEqual(button.props.disabled, true); (button.props.onClick as () => void)(); render(); }
   return { calls, render, flush, select, click, scrolls, intervals, document,
     cleanup() { for (const state of [...homeStates, ...catalogStates]) (state as { cleanup?: () => void; unsubscribe?: () => void } | undefined)?.cleanup?.(); },
@@ -274,9 +288,9 @@ test("Home waits for a valid navigation entry after hydration and restores the s
   assert.equal(ui.cards.length, 27); await ui.flush();
   assert.equal(String(ui.catalog.props["data-catalog-ready"]), "false");
   assert.equal(ui.scrolls.length, 0); assert.throws(() => ui.select("animals"), /hydrate before accepting/);
-  const select = nodes(ui.catalog).find(node => node.props.id === "home-cause-category")!;
-  (select.props.onChange as (event: unknown) => void)({ target: { value: "animals" } });
-  const arrow = nodes(ui.catalog).find(node => node.type === "button")!;
+  const picker = nodes(ui.catalog).find(node => node.type === "CauseCategoryPicker")!;
+  (picker.props.onSelect as (category: string) => void)("animals");
+  const arrow = nodes(ui.catalog).find(node => node.type === "button" && node.props["aria-label"] === catalogCopy.homeCatalogCopy("en", "Next example cause"))!;
   (arrow.props.onClick as () => void)(); assert.equal(ui.calls.viewStateWrites, 0);
   ui.changeNavigationEntry("isolated-home-entry:1"); await ui.flush();
   assert.equal(String(ui.catalog.props["data-catalog-ready"]), "true");
@@ -397,7 +411,7 @@ test("Home prototype UI phrases cover all four locales and preserve interpolatio
   }
 });
 
-for (const preview of [true, false]) for (const locale of LOCALES) test(`${locale}: ${preview ? "preview" : "live"} compact Home retains all 27 covers, organizers and funding without duplicating synthetic ratings`, async () => {
+for (const preview of [true, false]) for (const locale of LOCALES) test(`${locale}: ${preview ? "preview" : "live"} Home retains all 27 covers and identifies example ratings without inventing verification`, async () => {
   const ui = mount({ locale, preview }); await ui.flush();
   assert.equal(ui.cards.length, 27);
   const c = circlesCopy.circlesCopy(locale);
@@ -419,7 +433,9 @@ for (const preview of [true, false]) for (const locale of LOCALES) test(`${local
     assert.ok(cardLinks.filter(node => text(node).trim() !== c("View campaign")).every(node => node.props.prefetch === false));
     assert.ok(text(card).includes(contentCopy.circleDisplayContent(circle, locale).title)); assert.ok(text(card).includes(circle.organizer));
     assert.ok(text(card).includes(c("Example cause")));
-    assert.equal(nodes(card).some(node => hasClass(node, "rating")), false, "Home summarizes funding; synthetic ratings remain in the organizer detail");
+    const trust = nodes(card).find(node => node.props["data-testid"] === "organizer-trust-summary"); assert.ok(trust);
+    assert.equal(trust.props["data-rating-source"], "example"); assert.equal(trust.props["data-kyc-status"], "unverified");
+    assert.ok(text(trust).includes(catalogCopy.homeCatalogCopy(locale, "Example rating")));
     const funding = nodes(card).find(node => node.type === "HomeCircleFundingProgress"); assert.ok(funding);
     assert.equal(funding.props.circle, circle);
     assert.equal(funding.props.active, index === 0, "Only the selected card may read Testnet funding");
@@ -429,9 +445,13 @@ for (const preview of [true, false]) for (const locale of LOCALES) test(`${local
   assert.ok(nodes(ui.tree).some(node => node.props.href === "/campaigns?mode=testnet"));
   assert.ok(nodes(ui.tree).some(node => node.props.href === "/circles/create"));
   assert.ok(nodes(ui.catalog).some(node => node.props.href === "/campaigns?mode=examples" && node.props["aria-label"] === catalogCopy.homeCatalogCopy(locale, "Browse all example causes")));
-  const options = nodes(ui.catalog).filter(node => node.type === "option"); assert.equal(options.length, 10);
-  assert.equal(text(options[0]), catalogCopy.homeCatalogCopy(locale, "All campaigns"));
-  for (const option of options.slice(1)) assert.equal(text(option), circlesCopy.circlesCategory(locale, option.props.value as CircleCategory));
+  const options = nodes(ui.catalog).filter(node => node.type === "button" && "data-category" in node.props); assert.equal(options.length, 10);
+  assert.equal(options[0].props["aria-label"], c("All examples"));
+  for (const option of options.slice(1)) assert.equal(option.props["aria-label"], circlesCopy.circlesCategory(locale, option.props["data-category"] as CircleCategory));
+  assert.equal(nodes(ui.catalog).find(node => node.props.id === "home-cause-category")?.props["aria-disabled"], false);
+  const start = nodes(ui.catalog).find(node => hasClass(node, "startCampaign")); assert.ok(start);
+  assert.equal(start.props.href, preview ? "/circles/create" : "/campaigns?create=1");
+  assert.ok(text(start).includes(catalogCopy.homeCatalogCopy(locale, "Start a campaign")));
   assert.equal(ui.calls.wallet, preview ? 0 : 1); assert.equal(ui.calls.handle, preview ? 0 : 1);
   assert.deepEqual(ui.calls.campaigns, preview ? [] : ["0", "809"]);
   assert.equal(ui.calls.network, 0); assert.equal(ui.calls.writes, 0);
@@ -488,18 +508,21 @@ test("actual category changes reset the manual catalog and expose three causes i
   assert.equal(ui.calls.wallet, 0); assert.equal(ui.calls.handle, 0); assert.deepEqual(ui.calls.campaigns, []);
 });
 
-test("server-rendered native catalog controls wait for hydration, then accept category and carousel events", async () => {
+test("server-rendered category picker and carousel controls wait for hydration, then accept events", async () => {
   for (const preview of [true, false]) {
     const ui = mount({ preview });
     assert.equal(ui.cards.length, 27, "SSR must still expose the complete read-only example catalog");
     assert.equal(String(ui.catalog.props["data-catalog-ready"]), "false");
-    const controls = nodes(ui.catalog).filter(node => node.type === "select" || node.type === "button");
-    assert.equal(controls.length, 3); assert.ok(controls.every(control => control.props.disabled === true));
+    const controls = nodes(ui.catalog).filter(node => node.type === "button" && !node.props["data-category"]);
+    assert.equal(controls.length, 2); assert.ok(controls.every(control => control.props.disabled === true));
+    assert.equal(nodes(ui.catalog).find(node => node.type === "fieldset")?.props.disabled, true);
+    assert.equal(nodes(ui.catalog).find(node => node.props.id === "home-cause-category")?.props["aria-disabled"], true);
     assert.throws(() => ui.select("animals"), /hydrate before accepting/);
     assert.equal(ui.calls.wallet, 0); assert.deepEqual(ui.calls.campaigns, []); assert.equal(ui.calls.writes, 0);
     await ui.flush();
     assert.equal(String(ui.catalog.props["data-catalog-ready"]), "true");
-    assert.ok(nodes(ui.catalog).filter(node => node.type === "select" || node.type === "button").every(control => control.props.disabled !== true));
+    assert.ok(nodes(ui.catalog).filter(node => node.type === "button").every(control => control.props.disabled !== true));
+    assert.equal(nodes(ui.catalog).find(node => node.type === "fieldset")?.props.disabled, false);
     ui.select("animals"); await ui.flush(); assert.equal(ui.cards.length, 3);
     ui.click(catalogCopy.homeCatalogCopy("en", "Next example cause")); assert.ok(text(ui.catalog).includes("02 / 03"));
     assert.equal(ui.calls.wallet, preview ? 0 : 1); assert.equal(ui.calls.writes, 0);
@@ -528,7 +551,9 @@ test("flag0 Home appends paginated standalone D4 after stories in one catalog wi
   assert.match(text(ui.catalog), /01 \/ 39/);
   for (const [index, card] of ui.d4Cards.entries()) {
     assert.ok(text(card).includes(`Isolated Testnet campaign ${index + 1}`));
-    assert.ok(text(card).includes(`exact-source-units:${PREVIEW_CAMPAIGNS[0].total} XLM`));
+    const funding = nodes(card).find(node => node.type === "ConfirmedFundingProgress"); assert.ok(funding);
+    assert.equal(funding.props.totalStroops, PREVIEW_CAMPAIGNS[0].total);
+    assert.equal(funding.props.goalUsd, undefined); assert.equal(funding.props.donorSummary, undefined, "Unmapped cards must not borrow a fictional goal or contributor count");
     assert.ok(nodes(card).some(node => node.props.href === `/campaigns?id=${800 + index}`));
     assert.equal(nodes(card).filter(node => String(node.props.href ?? "").startsWith("/circles/")).length, 0);
     assert.equal(nodes(card).some(node => String(node.props.src ?? "").startsWith("/circles/generated/")), false);
@@ -703,7 +728,7 @@ test("closed D4 campaigns remain honest read-only cards, never fictional pledge 
 test("Home catalog responsive styles retain compact controls and persistent truth framing", () => {
   const css = source("../components/HomeCirclesCatalog.module.css");
   const sheet = parse(css);
-  for (const [selector, property] of [[".tools select", "min-height"], [".body h2 a", "min-height"], [".pledge", "min-height"], [".controls button", "height"]]) {
+  for (const [selector, property] of [[".categoryPicker summary", "min-height"], [".startCampaign", "min-height"], [".body h2 a", "min-height"], [".pledge", "min-height"], [".controls button", "height"]]) {
     const values: string[] = [];
     sheet.walkRules(rule => { if (rule.selectors.includes(selector)) for (const node of rule.nodes) if (node.type === "decl" && (node as Declaration).prop === property) values.push((node as Declaration).value); });
     assert.ok(values.some(value => Number.parseFloat(value) >= 44), `${selector} must retain a 44px touch target`);
@@ -738,17 +763,16 @@ test("short Home windows reclaim decorative space without shrinking or hiding in
   compact.walkRules(rule => {
     touched.push(...rule.selectors);
     for (const node of rule.nodes) if (node.type === "decl") {
-      const badge = rule.selectors.every(selector => [".category", ".example", ".ai"].includes(selector));
-      assert.ok(["margin-top", "padding-bottom", "margin-bottom", "height", "padding-top", "gap", ...(badge ? ["top", "bottom", "padding", "line-height"] : [])].includes(node.prop));
+      assert.ok(["margin-top", "padding-bottom", "margin-bottom", "height", "padding-top", "gap"].includes(node.prop));
       assert.ok(Number.parseFloat(node.value) >= 0);
       assert.notEqual(node.prop, "font-size");
     }
   });
-  assert.deepEqual(touched, [".catalog", ".header", ".notice", ".tools", ".strip", ".photo", ".category", ".example", ".ai", ".body", ".footer"]);
-  assert.equal(touched.some(selector => /pledge|button|select|organizer|explore/.test(selector)), false);
+  assert.ok(touched.includes(".photo"));
+  assert.equal(touched.some(selector => /pledge|button|summary|organizer|explore/.test(selector)), false);
 });
 
-test("compact thumbnail badges keep their readable font sizes and a positive vertical gap", () => {
+test("editorial campaign card centers the title while keeping metadata away from image truth labels", () => {
   const sheet = parse(source("../components/HomeCirclesCatalog.module.css"));
   const base: Record<string, Record<string, string>> = {};
   const compact: Record<string, Record<string, string>> = {};
@@ -756,23 +780,27 @@ test("compact thumbnail badges keep their readable font sizes and a positive ver
     const atRule = rule.parent?.type === "atrule" ? rule.parent : null;
     const target = atRule?.params === "(max-height: 900px)" ? compact : atRule === null ? base : null;
     if (!target) return;
-    for (const selector of rule.selectors.filter(selector => [".photo", ".category", ".example", ".ai"].includes(selector))) {
+    for (const selector of rule.selectors.filter(selector => [".photo", ".category", ".example", ".ai", ".body h2", ".body h2 a", ".card"].includes(selector))) {
       target[selector] ??= {};
       for (const node of rule.nodes) if (node.type === "decl") target[selector][node.prop] = node.value;
     }
   });
   assert.equal(base[".category"]["font-size"], "10px");
   for (const selector of [".example", ".ai"]) assert.equal(base[selector]["font-size"], "9px");
-  for (const selector of [".category", ".example", ".ai"]) assert.equal(compact[selector]["font-size"], undefined, "Compact spacing must not shrink the readable badge font");
-  const photoHeight = Number.parseFloat(compact[".photo"].height);
-  const categoryBottom = Number.parseFloat(compact[".category"].top)
-    + Number.parseFloat(base[".category"]["font-size"]) * Number.parseFloat(compact[".category"]["line-height"])
-    + 2 * Number.parseFloat(compact[".category"].padding);
-  for (const selector of [".example", ".ai"]) {
-    const badgeTop = photoHeight - Number.parseFloat(compact[selector].bottom)
-      - Number.parseFloat(base[selector]["font-size"]) * Number.parseFloat(compact[selector]["line-height"])
-      - 2 * Number.parseFloat(compact[selector].padding);
-    assert.ok(badgeTop - categoryBottom >= 4, `${selector} needs a positive decorative gap from the category badge`);
+  for (const selector of [".category", ".example", ".ai"]) assert.equal(compact[selector]?.["font-size"], undefined, "Compact spacing must not shrink the readable badge font");
+  assert.ok(Number.parseFloat(compact[".photo"].height) >= 100, "Short screens must retain an editorial cover rather than a tiny thumbnail");
+  assert.equal(base[".body h2"]["text-align"], "center");
+  assert.equal(base[".body h2 a"]["justify-content"], "center");
+  assert.equal(base[".card"].background, "#0b1f36");
+  assert.doesNotMatch(source("../components/HomeCirclesCatalog.module.css"), /line-clamp/, "Campaign titles must not be cut off in the narrow editorial panel");
+  const split = sheet.nodes.find(node => node.type === "atrule" && node.name === "container" && node.params === "(min-width: 430px)");
+  assert.ok(split && split.type === "atrule", "The photo/content split must work within the app's 500px frame");
+  const ui = mount();
+  for (const card of ui.cards) {
+    const photo = nodes(card).find(node => hasClass(node, "photo")); assert.ok(photo);
+    assert.equal(nodes(photo).some(node => hasClass(node, "category") || hasClass(node, "donationMark")), false);
+    assert.ok(nodes(photo).some(node => hasClass(node, "example")));
+    assert.ok(nodes(photo).some(node => hasClass(node, "ai")));
   }
 });
 

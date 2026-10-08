@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { chooseHomeCauseCategory } from "./helpers/home-catalog";
 
 // Home keeps all fictional Circles stories first in one manual carousel and
 // appends standalone D4 campaigns only when no verified story represents them.
@@ -57,8 +58,12 @@ test("Home exposes one ordered campaign carousel and keeps explicit D4 browsing 
   await expect(catalogSection).toHaveAttribute("data-catalog-ready", "true", { timeout: 20000 });
   const catalog = catalogSection.getByRole("link", { name: "Browse all example causes", exact: true });
   await expect(catalog).toHaveAttribute("href", "/campaigns?mode=examples");
-  await expect(page.locator("#home-cause-category option")).toHaveCount(10);
-  await expect(catalogSection.locator('#home-cause-category option[value="all"]')).toHaveText("All campaigns");
+  await expect(catalogSection.locator("summary#home-cause-category")).toContainText("All campaigns");
+  await catalogSection.locator("summary#home-cause-category").click();
+  const categories = catalogSection.getByRole("group", { name: "Example cause categories", exact: true });
+  await expect(categories.getByRole("button")).toHaveCount(10);
+  await expect(categories.getByRole("button", { name: "All examples", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await catalogSection.locator("summary#home-cause-category").click();
   await expect(catalogSection.locator("article[data-example-cause]")).toHaveCount(27);
   await catalogSection.locator("summary").filter({ hasText: "Campaign tools" }).click();
   await expect(catalogSection.getByRole("link", { name: "Sketch your own cause", exact: true })).toHaveAttribute("href", "/circles/create");
@@ -79,32 +84,34 @@ test("Home exposes one ordered campaign carousel and keeps explicit D4 browsing 
   await expect(page.getByRole("link", { name: donationEntry })).toBeVisible();
 });
 
-test("Home categories show three compact examples per sector while organizer details retain ratings and histories", async ({ page }) => {
+test("Home category tiles show three examples per sector with explicit sample organizer ratings", async ({ page }) => {
   await page.goto("/", { waitUntil: "domcontentloaded", timeout: 45000 });
   const catalog = page.getByTestId("home-circles-catalog");
   const category = catalog.locator("#home-cause-category");
-  const liveMode = await catalog.getByText("Fictional causes · Testnet XLM only.", { exact: true }).count() > 0;
-  await expect(catalog.getByText(liveMode ? "Fictional causes · Testnet XLM only." : "Fictional causes · no payment.", { exact: true })).toBeVisible();
+  const liveMode = await catalog.getByText("Fictional causes · Testnet XLM only. No real money.", { exact: true }).count() > 0;
+  await expect(catalog.getByText(liveMode ? "Fictional causes · Testnet XLM only. No real money." : "Fictional causes · no payment.", { exact: true })).toBeVisible();
   await expect(catalog).toHaveAttribute("data-catalog-ready", "true", { timeout: 20000 });
-  await expect(category).toBeEnabled();
-  for (const sector of ["disaster", "medical", "education", "community", "family", "creator", "animals", "care", "volunteer"]) {
-    await category.selectOption(sector);
+  await expect(category).toHaveAttribute("aria-disabled", "false");
+  for (const sector of ["disaster", "medical", "education", "community", "family", "creator", "animals", "care", "volunteer"] as const) {
+    await chooseHomeCauseCategory(catalog, sector);
     await expect(catalog.locator("article[data-example-cause]")).toHaveCount(3);
     await expect(catalog.locator("article[data-standalone-campaign]")).toHaveCount(0);
     await expect(catalog.getByRole("status").filter({ hasText: /^3 examples$/ })).toHaveText("3 examples");
-    await expect(catalog.getByText("Example rating", { exact: true })).toHaveCount(0);
+    await expect(catalog.getByText("Example rating", { exact: true })).toHaveCount(3);
+    await expect(catalog.getByText("KYC not verified", { exact: true })).toHaveCount(3);
+    await expect(catalog.getByTestId("organizer-trust-summary")).toHaveCount(3);
     await expect(catalog.getByTestId("home-campaign-organizer")).toHaveCount(3);
     const covers = catalog.locator("article[data-example-cause] > a img");
     await expect(covers).toHaveCount(3);
     for (const cover of await covers.all()) await expect(cover).toHaveAttribute("src", /(?:\/circles\/generated\/|circles%2Fgenerated%2F)/);
   }
-  await category.selectOption("all");
+  await chooseHomeCauseCategory(catalog, "all");
   await expect(catalog.locator("article[data-example-cause]")).toHaveCount(27);
   await expect(catalog.getByText("Checking other Testnet campaigns", { exact: true })).toHaveCount(0, { timeout: 30000 });
   const cardCount = await catalog.locator("article").count();
   await catalog.getByRole("button", { name: "Next example cause", exact: true }).click();
   await expect(catalog.getByLabel(`2 of ${cardCount} example causes`, { exact: true })).toHaveText(`02 / ${String(cardCount).padStart(2, "0")}`);
-  await category.selectOption("animals");
+  await chooseHomeCauseCategory(catalog, "animals");
   await catalog.getByRole("link", { name: "View campaign", exact: true }).first().click();
   await expect(page).toHaveURL(/\/circles\/[a-z0-9-]+$/);
   const organizerLink = page.getByRole("link", { name: /^View example organizer profile:/ });

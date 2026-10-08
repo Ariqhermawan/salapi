@@ -10,7 +10,7 @@ import { XLM_ACTIVITY_ASSET, type WalletActivityItem } from "@/lib/wallet-activi
 import {
   CAMPAIGN_DONOR_ANONYMITY_NOTICE, CAMPAIGN_DONOR_PAGE_SIZE, canonicalDonorCampaignId, campaignDonorComment,
   campaignDonorCursor, campaignDonorHash, parseCampaignDonorInput,
-  type CampaignDonorCode, type CampaignDonorEntry, type CampaignDonorFeedResult, type CampaignDonorRecordResult,
+  type CampaignDonorCode, type CampaignDonorEntry, type CampaignDonorFeedResult, type CampaignDonorRecordResult, type CampaignDonorSummaryResult,
 } from "@/lib/campaign-donor";
 
 const TABLE = "campaign_donors";
@@ -268,4 +268,72 @@ export async function readCampaignDonors(inputId: unknown, before: unknown = "")
     return { ok: true, campaignId, entries, nextCursor: data.length > CAMPAIGN_DONOR_PAGE_SIZE ? entries.at(-1)!.id : null,
       anonymityNotice: CAMPAIGN_DONOR_ANONYMITY_NOTICE };
   } catch { return fail("unavailable"); }
+}
+
+const SUMMARY_PAGE_SIZE = 250;
+const SUMMARY_MAX_PAGES = 20;
+const SUMMARY_TIMEOUT_MS = 2_500;
+const SUMMARY_CACHE_MS = 30_000;
+const summaryCache = new Map<string, { expires: number; value: Promise<CampaignDonorSummaryResult> }>();
+
+/** Called only after the public Circle reader verified this configured D4
+ * deployment and its cumulative total. No auth/profile lookup or raw identity
+ * leaves this function. Scan all metadata pages, not the ten-row public feed.
+ * Missing metadata never invents donors or turns a partial scan into an exact
+ * count. A bounded scan that cannot finish is explicitly unavailable. */
+export async function readCampaignDonorSummary(inputId: unknown, confirmedTotal: unknown): Promise<CampaignDonorSummaryResult> {
+  const campaignId = canonicalDonorCampaignId(inputId) ?? "";
+  const fail = (code: CampaignDonorCode): CampaignDonorSummaryResult => ({ ok: false, campaignId, code });
+  if (!campaignId || typeof confirmedTotal !== "string" || !/^(?:0|[1-9]\d{0,38})$/.test(confirmedTotal)
+    || BigInt(confirmedTotal) > 170_141_183_460_469_231_731_687_303_715_884_105_727n) return fail("invalid_input");
+  if (isLocalPreview) return fail("local_preview");
+  const contractId = donationCampaignId(), admin = context();
+  if (!contractId || !StrKey.isValidContract(contractId) || !admin) return fail("not_configured");
+  const now = Date.now(), key = `${contractId}:${campaignId}:${confirmedTotal}`;
+  for (const [cacheKey, cached] of summaryCache) if (cached.expires <= now) summaryCache.delete(cacheKey);
+  const cached = summaryCache.get(key);
+  if (cached) return cached.value;
+  while (summaryCache.size >= 64) summaryCache.delete(summaryCache.keys().next().value!);
+  const value = (async (): Promise<CampaignDonorSummaryResult> => {
+    const signal = AbortSignal.timeout(SUMMARY_TIMEOUT_MS);
+    try {
+      let before = "", total = 0n, finished = false;
+      const owners = new Set<string>(), walletOwners = new Map<string, Set<string>>(), unownedWallets = new Set<string>();
+      const hashes = new Set<string>();
+      for (let page = 0; page < SUMMARY_MAX_PAGES; page++) {
+        let query = admin.from(TABLE).select(COLUMNS).eq("network", "testnet").eq("contract_id", contractId).eq("campaign_id", campaignId)
+          .order("id", { ascending: false }).limit(SUMMARY_PAGE_SIZE);
+        if (before) query = query.lt("id", before);
+        const { data, error } = await query.abortSignal(signal);
+        if (error) return fail(schemaMissing(error) ? "not_configured" : "unavailable");
+        if (!Array.isArray(data) || data.length > SUMMARY_PAGE_SIZE || data.some(row => !validRow(row, contractId, campaignId))) return fail("unavailable");
+        for (let index = 0; index < data.length; index++) {
+          const row = data[index];
+          if (before && BigInt(row.id) >= BigInt(before) || index > 0 && BigInt(row.id) >= BigInt(data[index - 1].id)
+            || hashes.has(row.transaction_hash)) return fail("unavailable");
+          hashes.add(row.transaction_hash);
+          total += BigInt(row.amount_stroops);
+          if (row.owner_id) {
+            const ownerId = row.owner_id.toLowerCase();
+            owners.add(ownerId);
+            const known = walletOwners.get(row.donor_wallet) ?? new Set<string>();
+            known.add(ownerId); walletOwners.set(row.donor_wallet, known);
+          } else unownedWallets.add(row.donor_wallet);
+        }
+        if (data.length < SUMMARY_PAGE_SIZE) { finished = true; break; }
+        before = String(data.at(-1)!.id);
+      }
+      if (!finished || signal.aborted || total > BigInt(confirmedTotal)) return fail("unavailable");
+      // A deleted owner can leave earlier rows without an owner. Fold these
+      // into their single known account when possible; ambiguous bindings must
+      // not claim an exact contributor count.
+      if ([...unownedWallets].some(wallet => (walletOwners.get(wallet)?.size ?? 0) > 1)) return fail("unavailable");
+      const walletFallbacks = [...unownedWallets].filter(wallet => !walletOwners.has(wallet)).length;
+      return { ok: true, campaignId, count: owners.size + walletFallbacks,
+        basis: walletFallbacks === 0 ? "accounts" : owners.size === 0 ? "wallets" : "mixed",
+        coverage: total === BigInt(confirmedTotal) ? "complete" : "recorded", confirmedTotalStroops: confirmedTotal };
+    } catch { return fail("unavailable"); }
+  })();
+  summaryCache.set(key, { expires: now + SUMMARY_CACHE_MS, value });
+  return value;
 }
