@@ -110,6 +110,7 @@ function mount(name: typeof names[number], locale: Locale, options: { preview?: 
       if (dependency === "@/components/ui/mascot") return { SalapiMascot: "SalapiMascot" };
       if (dependency === "@/components/ui/SuccessMotion" || dependency === "@/components/ui/TransferMotion" || dependency === "@/components/ui/SubmissionStatusPanel") return { default: dependency };
       if (dependency === "@/lib/ui/useGoBack") return { useGoBack: () => () => calls.navigations.push("back") };
+      if (dependency === "@/components/AvailableWalletBalance") return { __esModule: true, default: () => null };
       if (dependency === "@/lib/ui/useUnresolvedSubmission") return { useUnresolvedSubmission: () => ({ locked: false, state: { kind: "clear" }, run() { throw Error("Real submission forbidden"); } }) };
       if (dependency === "@/lib/ui/currency") return { CURRENCY, formatLocal, formatLocalAmount, pesoFromLocal };
       if (dependency === "@/lib/wallet-state") return { requireWalletState };

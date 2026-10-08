@@ -90,6 +90,7 @@ function setup(options: { preview?: boolean; storageUnavailable?: boolean } = {}
       if (name === "@/components/ui/SuccessMotion") return { default: "SuccessMotion" };
       if (name === "@/components/ui/TransferMotion") return { default: "TransferMotion" };
       if (name === "@/lib/ui/useGoBack") return { useGoBack: () => () => {} };
+      if (name === "@/components/AvailableWalletBalance") return { __esModule: true, default: () => null };
       if (name === "@/lib/ui/currency") return { CURRENCY, formatLocalAmount, pesoFromLocal };
       if (name === "@/lib/money") return { localToStroops, pesosToStroopsExact };
       if (name === "@/lib/local-preview") return localPreview;

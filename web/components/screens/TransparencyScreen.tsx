@@ -14,6 +14,8 @@ import type { Locale } from "@/lib/i18n/config";
 import styles from "./VaultsRevamp.module.css";
 import { useUnresolvedSubmission } from "@/lib/ui/useUnresolvedSubmission";
 import SubmissionStatusPanel from "@/components/ui/SubmissionStatusPanel";
+import AvailableWalletBalance from "@/components/AvailableWalletBalance";
+import { localToStroops } from "@/lib/money";
 
 const EXPLORER = "https://stellar.expert/explorer/testnet";
 const PREVIEW = process.env.NEXT_PUBLIC_LOCAL_PREVIEW === "1";
@@ -338,6 +340,7 @@ export default function TransparencyScreen() {
             Display currencies use an indicative conversion. The transaction
             sends valueless Stellar Testnet XLM, not real money.
           </p>
+          <AvailableWalletBalance amountStroops={localToStroops(amount, currency)} />
         </div>
         <div className={styles.readOnlyNotice} style={{ marginTop: 17 }}>
           Contributions remain open even if payouts are paused. Two different

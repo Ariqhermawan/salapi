@@ -6,7 +6,7 @@ import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseConfigured, supabaseAdminConfigured } from "@/lib/supabase/env";
 import { isLocalPreview } from "@/lib/local-preview";
 import { CONTRACTS, readContract, sc } from "@/lib/server/stellar";
-import { RECEIPT_PHOTO_CONSENT, TRANSFER_PREVIEW_PHOTO_CONSENT, type AccountDetailsResult, type ReceiptPhotoResult } from "@/lib/account-details";
+import { accountPhotoSharingEnabled, RECEIPT_PHOTO_CONSENT, TRANSFER_PREVIEW_PHOTO_CONSENT, type AccountDetailsResult, type ReceiptPhotoResult } from "@/lib/account-details";
 
 type Owner = { ok: true; user: User; supabase: SupabaseClient } | { ok: false; code: "unavailable" | "unauthenticated" | "account_changed" | "invalid_input" };
 async function requestOwner(expectedOwner: unknown): Promise<Owner> {
@@ -33,8 +33,8 @@ export async function readAccountDetails(expectedOwner: unknown): Promise<Accoun
   const account = {
     ownerId: owner.user.id, email: typeof owner.user.email === "string" ? owner.user.email.trim() : "",
     address: null as string | null, handle: null as string | null,
-    receiptPhotoConsent: owner.user.user_metadata?.[RECEIPT_PHOTO_CONSENT] === true,
-    transferPreviewPhotoConsent: owner.user.user_metadata?.[TRANSFER_PREVIEW_PHOTO_CONSENT] === true,
+    receiptPhotoConsent: accountPhotoSharingEnabled(owner.user.user_metadata, RECEIPT_PHOTO_CONSENT),
+    transferPreviewPhotoConsent: accountPhotoSharingEnabled(owner.user.user_metadata, TRANSFER_PREVIEW_PHOTO_CONSENT),
     identityUnavailable: false,
   };
   if (!supabaseAdminConfigured()) return { ok: true, account: { ...account, identityUnavailable: true } };

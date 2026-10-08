@@ -20,6 +20,9 @@ import ExampleOrganizerAvatar from "@/components/ui/ExampleOrganizerAvatar";
 import styles from "./HomeCirclesCatalog.module.css";
 import { isLocalPreview } from "@/lib/local-preview";
 import HomeCircleFundingProgress from "@/components/HomeCircleFundingProgress";
+import CampaignDonationBadge from "@/components/CampaignDonationBadge";
+import { useOwnedAccountRead } from "@/lib/ui/useOwnedAccountRead";
+import { validCampaignSupport } from "@/lib/campaign-support";
 
 // Native selects can be changed before React attaches their handlers. Keep
 // interactive controls disabled in SSR/hydration, then enable at client commit.
@@ -47,6 +50,13 @@ export default function HomeCirclesCatalog({ campaigns = [], circleLinks = {}, l
   const standalone = !isLocalPreview && category === "all" ? homeStandaloneCampaigns(SEED_CIRCLES, campaigns, circleLinks) : [];
   const cardCount = examples.length + standalone.length;
   const index = Math.min(savedIndex, Math.max(0, cardCount - 1));
+  // Load private evidence independently from public discovery. Keep the
+  // selected card first so a large catalog never excludes its donation mark.
+  const activeCampaign = index < examples.length
+    ? Object.keys(circleLinks).find(id => circleLinks[id] === examples[index]?.id) : standalone[index - examples.length]?.id;
+  const supportIds = [...new Set([activeCampaign, ...campaigns.map(c => c.id)].filter((id): id is string => !!id))].slice(0, 40);
+  const support = useOwnedAccountRead(supportIds.length ? `/api/account/campaign-support?ids=${supportIds.join(",")}` : null, validCampaignSupport);
+  const forCircle = (slug: string) => support.value?.contributions[Object.keys(circleLinks).find(id => circleLinks[id] === slug) ?? ""];
 
   useLayoutEffect(() => {
     const element = strip.current;
@@ -126,6 +136,7 @@ export default function HomeCirclesCatalog({ campaigns = [], circleLinks = {}, l
             <span className={styles.category}>{circlesCategory(locale, circle.category)}</span>
             <span className={styles.example}>{c("Example cause")}</span>
             <small className={styles.ai}>{c("AI illustration")}</small>
+            <span className={styles.donationMark}><CampaignDonationBadge support={forCircle(circle.id)} /></span>
           </Link>
           <div className={styles.body}>
             <h2><Link href={`/circles/${circle.id}`} prefetch={false} title={circle.title}><span>{circle.title}</span></Link></h2>
@@ -142,6 +153,7 @@ export default function HomeCirclesCatalog({ campaigns = [], circleLinks = {}, l
         <Link href={`/campaigns?id=${campaign.id}`} prefetch={false} className={`${styles.photo} ${styles.testnetPhoto}`} aria-label={campaign.title}>
           <Image src="/illustrations/giving.png" alt="" width={600} height={340} sizes="(max-width: 500px) 82vw, 384px" loading="lazy" />
           <span className={styles.category}>{copy("D4 Testnet campaigns")}</span>
+          <span className={styles.donationMark}><CampaignDonationBadge support={support.value?.contributions[campaign.id]} /></span>
         </Link>
         <div className={styles.body}>
           <h2><Link href={`/campaigns?id=${campaign.id}`} prefetch={false} title={campaign.title}><span>{campaign.title}</span></Link></h2>

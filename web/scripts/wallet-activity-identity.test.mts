@@ -5,6 +5,7 @@ import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import * as sdk from "@stellar/stellar-sdk";
 import * as photo from "../lib/account-photo.ts";
+import * as details from "../lib/account-details.ts";
 import { XLM_ACTIVITY_ASSET, activityUsdcEquivalent, USDC_ACTIVITY_ASSET } from "../lib/wallet-activity.ts";
 import type { WalletActivityIdentity, WalletActivityItem } from "../lib/wallet-activity.ts";
 import type { MarketPriceResult } from "../lib/market-prices.ts";
@@ -75,6 +76,7 @@ function harness(options: { rows?: { public_key: string; user_id: string }[]; us
       if (dependency === "@/lib/supabase/admin") return { createSupabaseAdmin: () => { if (options.adminThrows) throw Error("Photo database unavailable"); return admin; } };
       if (dependency === "@/lib/supabase/env") return { SUPABASE_URL: "https://project.supabase.co" };
       if (dependency === "@/lib/account-photo") return photo;
+      if (dependency === "@/lib/account-details") return details;
       if (dependency === "./stellar") return { RPC_URL: "https://soroban-testnet.stellar.org", CONTRACTS: { usernameRegistry: "CDDINUQXTF6SHZN2ZJ36IT7P4YOJ3OZN3H6LTYHVCQ35YYO7YTAWM4G3" } };
       throw Error(`Forbidden identity dependency ${dependency}`);
     },
@@ -87,7 +89,7 @@ test("transfer review photos require an exact mapped nonanonymous owner's consen
   const identity = await permitted.readTransferWalletIdentity(other);
   assert.equal(identity?.photoUrl, googleUrl); assert.equal(identity?.handle, "verified_handle");
   assert.equal(permitted.calls.limit, 2); assert.deepEqual(permitted.calls.auth, [uid(1)]);
-  for (const current of [user(uid(1), true), user(uid(1), false), user(uid(1), false, { salapi_transfer_preview_photo_consent: "true" }), user(uid(2), true, { salapi_transfer_preview_photo_consent: true }), { ...user(uid(1), true, { salapi_transfer_preview_photo_consent: true }), is_anonymous: true }]) {
+  for (const current of [user(uid(1), true, { salapi_transfer_preview_photo_consent: false }), user(uid(1), false, { salapi_transfer_preview_photo_consent: false }), user(uid(1), false, { salapi_transfer_preview_photo_consent: "true" }), user(uid(2), true, { salapi_transfer_preview_photo_consent: true }), { ...user(uid(1), true, { salapi_transfer_preview_photo_consent: true }), is_anonymous: true }]) {
     const h = harness({ users: { [uid(1)]: current } });
     assert.equal((await h.readTransferWalletIdentity(other))?.photoUrl, null); assert.deepEqual(h.calls.sign, []);
   }
@@ -105,12 +107,29 @@ test("receipt identity is reverse+forward registry verified, never inferred from
   assert.deepEqual(h.calls.sign, []);
 });
 
-test("consent must be boolean true; absent, false, string true and numeric flags expose no photo or signed Storage URL", async () => {
+test("saved false and malformed photo preferences expose no photo or signed Storage URL", async () => {
   for (const consent of [undefined, false, "true", 1]) {
     const h = harness({ users: { [uid(1)]: user(uid(1), consent, { salapi_avatar_path: `${uid(1)}/${uid(10)}.jpg` }) } });
     const result = await h.readActivityIdentities(address, [item()]);
     assert.ok(result.every(identity => identity.photoUrl === null)); assert.deepEqual(h.calls.sign, []);
   }
+});
+
+test("default photo sharing covers both confirmed transfer participants and exact recipient review", async () => {
+  const sender = user(uid(1)), recipient = user(uid(2));
+  delete (sender.user_metadata as Record<string, unknown>).salapi_receipt_photo_consent;
+  delete (recipient.user_metadata as Record<string, unknown>).salapi_receipt_photo_consent;
+  const h = harness({ rows: [{ public_key: address, user_id: uid(1) }, { public_key: other, user_id: uid(2) }], users: { [uid(1)]: sender, [uid(2)]: recipient } });
+  assert.ok((await h.readActivityIdentities(address, [item()])).every(identity => identity.photoUrl === googleUrl));
+  const review = harness({ users: { [uid(1)]: { ...sender } } });
+  assert.equal((await review.readTransferWalletIdentity(other))?.photoUrl, googleUrl);
+});
+
+test("default receipt sharing never overrides an anonymous or non-profile donation grant", async () => {
+  const donor = user(); delete (donor.user_metadata as Record<string, unknown>).salapi_receipt_photo_consent;
+  const h = harness({ users: { [uid(1)]: donor } });
+  assert.ok((await h.readActivityIdentities(address, [item()], new Map())).every(identity => identity.photoUrl === null));
+  assert.deepEqual(h.calls.sign, []);
 });
 
 test("consented verified Google account returns only the allowlisted actual photo and public identity", async () => {

@@ -1,0 +1,2 @@
+.badge { display: inline-flex; align-items: center; gap: 3px; max-width: 100%; padding: 3px 6px; border-radius: 7px; color: #21694f; background: #e4f5eb; font-size: 10px; font-weight: 750; line-height: 1.3; }
+.refunded { color: #775517; background: #fff2d8; }

@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import sharp from "sharp";
 import { isAuthSessionMissingError, type SupabaseClient, type User } from "@supabase/supabase-js";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseConfigured } from "@/lib/supabase/env";
 import { isLocalPreview } from "@/lib/local-preview";
 import {
@@ -35,14 +36,16 @@ function baseProfile(user: User): AccountPhoto {
     photoUrl: googlePhotoUrl, googlePhotoUrl, source: googlePhotoUrl ? "google" : "initials" };
 }
 
-async function profileFor(supabase: SupabaseClient, user: User): Promise<AccountPhoto> {
+async function profileFor(user: User): Promise<AccountPhoto> {
   const profile = baseProfile(user);
   const rawPath = user.user_metadata?.[ACCOUNT_AVATAR_METADATA_KEY];
   if (!rawPath) return profile;
   const path = ownedAccountPhotoPath(rawPath, user.id);
   if (!path) return { ...profile, warning: "storage_unavailable" };
   try {
-    const { data, error } = await supabase.storage.from(ACCOUNT_AVATAR_BUCKET).createSignedUrl(path, 3600);
+    // Private, server-managed storage. The session and exact owner-prefixed
+    // path are verified before privileged storage is accessed.
+    const { data, error } = await createSupabaseAdmin().storage.from(ACCOUNT_AVATAR_BUCKET).createSignedUrl(path, 3600);
     if (error || !data?.signedUrl) return { ...profile, warning: "storage_unavailable" };
     return { ...profile, photoUrl: data.signedUrl, source: "custom" };
   } catch { return { ...profile, warning: "storage_unavailable" }; }
@@ -51,7 +54,7 @@ async function profileFor(supabase: SupabaseClient, user: User): Promise<Account
 export async function readAccountPhoto(): Promise<AccountPhotoResult> {
   const owner = await requestOwner();
   if (!owner.ok) return owner;
-  return { ok: true, profile: await profileFor(owner.supabase, owner.user) };
+  return { ok: true, profile: await profileFor(owner.user) };
 }
 
 async function removeOwnedPhoto(supabase: SupabaseClient, path: string | null) {
@@ -83,15 +86,20 @@ export async function uploadAccountPhoto(expectedOwner: string, formData: FormDa
   } catch { return { ok: false, code: "invalid_file" }; }
 
   const path = `${owner.user.id}/${randomUUID()}.jpg`;
-  const bucket = owner.supabase.storage.from(ACCOUNT_AVATAR_BUCKET);
   let updateStarted = false;
+  let storage: SupabaseClient | null = null;
   try {
+    // No direct browser bucket access is needed. getUser(), expectedOwner and
+    // the raster have been verified; paths are server-generated, not input.
+    // Preference updates still use the authenticated owner's JWT, not admin.
+    storage = createSupabaseAdmin();
+    const bucket = storage.storage.from(ACCOUNT_AVATAR_BUCKET);
     const uploaded = await bucket.upload(path, image, { contentType: "image/jpeg", cacheControl: "3600", upsert: false });
     if (uploaded.error || uploaded.data?.path !== path) return { ok: false, code: "storage_unavailable" };
     // Confirm readability before changing the profile preference.
     const signed = await bucket.createSignedUrl(path, 3600);
     if (signed.error || !signed.data?.signedUrl) {
-      await removeOwnedPhoto(owner.supabase, path);
+      await removeOwnedPhoto(storage, path);
       return { ok: false, code: "storage_unavailable" };
     }
     updateStarted = true;
@@ -102,10 +110,10 @@ export async function uploadAccountPhoto(expectedOwner: string, formData: FormDa
       // deleting it here could break a change that did reach the Auth server.
       return { ok: false, code: "save_failed" };
     }
-    await removeOwnedPhoto(owner.supabase, ownedAccountPhotoPath(owner.user.user_metadata?.[ACCOUNT_AVATAR_METADATA_KEY], owner.user.id));
+    await removeOwnedPhoto(storage, ownedAccountPhotoPath(owner.user.user_metadata?.[ACCOUNT_AVATAR_METADATA_KEY], owner.user.id));
     return { ok: true, profile: { ...baseProfile(saved.data.user), photoUrl: signed.data.signedUrl, source: "custom" } };
   } catch {
-    if (!updateStarted) await removeOwnedPhoto(owner.supabase, path);
+    if (!updateStarted && storage) await removeOwnedPhoto(storage, path);
     return { ok: false, code: "save_failed" };
   }
 }
@@ -119,7 +127,10 @@ export async function restoreGoogleAccountPhoto(expectedOwner: string): Promise<
     const saved = await owner.supabase.auth.updateUser({ data: { [ACCOUNT_AVATAR_METADATA_KEY]: null } });
     if (saved.error || saved.data.user?.id !== owner.user.id || saved.data.user.user_metadata?.[ACCOUNT_AVATAR_METADATA_KEY])
       return { ok: false, code: "save_failed" };
-    await removeOwnedPhoto(owner.supabase, ownedAccountPhotoPath(owner.user.user_metadata?.[ACCOUNT_AVATAR_METADATA_KEY], owner.user.id));
+    const previous = ownedAccountPhotoPath(owner.user.user_metadata?.[ACCOUNT_AVATAR_METADATA_KEY], owner.user.id);
+    if (previous) {
+      try { await removeOwnedPhoto(createSupabaseAdmin(), previous); } catch { /* Private orphan cleanup is best effort. */ }
+    }
     return { ok: true, profile: baseProfile(saved.data.user) };
   } catch { return { ok: false, code: "save_failed" }; }
 }

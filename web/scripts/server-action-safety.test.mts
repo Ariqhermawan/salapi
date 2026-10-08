@@ -34,6 +34,7 @@ function moduleFrom<T>(code: string, dependencies: Record<string, unknown>, glob
     setTimeout: (fn: () => void) => { fn(); return 1; },
     fetch: () => { throw new Error("No external request is authorized"); },
     require: (name: string) => {
+      if (name === "@/components/AvailableWalletBalance") return { default: () => null };
       if (!(name in dependencies)) throw new Error(`Unstubbed dependency: ${name}`);
       return dependencies[name];
     }, ...globals });

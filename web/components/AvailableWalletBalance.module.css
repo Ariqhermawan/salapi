@@ -1,0 +1,11 @@
+.balance { margin: 8px 0; padding: 10px 12px; border: 1px solid #dce8f4; border-radius: 14px; background: #edf5ff; color: #233c5d; font-size: 12px; }
+.balance > div { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; }
+.balance strong { margin-left: auto; font-size: 15px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.balance strong small { font-size: 11px; }
+.balance button { flex-shrink: 0; min-width: 44px; min-height: 44px; margin-block: -8px; border-radius: 10px; color: #2563eb; font-size: 22px; }
+.balance p { margin: 5px 0 0; font-size: 10px; line-height: 1.5; }
+.balance details { margin-top: 4px; font-size: 10px; line-height: 1.5; }
+.balance details > span { display: block; margin-top: 5px; }
+.balance .error { color: #b42332; font-size: 12px; font-weight: 650; }
+.balance button:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+.demo { color: #586985; font-size: 11px; }

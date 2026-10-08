@@ -2,8 +2,10 @@
 -- Supabase project after reviewing its existing storage policies. For CLI
 -- migration tracking, run `supabase migration new account_avatars` first and
 -- copy this recipe into the generated file. Nothing is applied by the app.
--- Private bucket: short-lived signed URLs, no service-role upload, no public
--- read policy. The request JWT and its auth.uid() own each UUID folder.
+-- Optional direct-JWT policies. The app uses server-managed private storage
+-- after getUser/expectedOwner checks, so these policies are not required for
+-- its upload flow. scripts/setup-account-avatars.mjs configures that bucket
+-- through the Storage API. No public read policy; each path is owner-prefixed.
 
 begin;
 

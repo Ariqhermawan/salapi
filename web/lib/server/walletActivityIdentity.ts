@@ -3,6 +3,7 @@ import { Account, Address, BASE_FEE, Contract, nativeToScVal, Networks, rpc, scV
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { SUPABASE_URL } from "@/lib/supabase/env";
 import { ACCOUNT_AVATAR_BUCKET, ACCOUNT_AVATAR_METADATA_KEY, googleAccountPhoto, ownedAccountPhotoPath } from "@/lib/account-photo";
+import { accountPhotoSharingEnabled, RECEIPT_PHOTO_CONSENT, TRANSFER_PREVIEW_PHOTO_CONSENT } from "@/lib/account-details";
 import { CONTRACTS, RPC_URL } from "./stellar";
 import type { WalletActivityIdentity, WalletActivityItem } from "../wallet-activity";
 
@@ -70,7 +71,7 @@ export async function readArisanWalletIdentities(addresses: readonly string[], a
 }
 
 /** Called after a signed-in request resolves the exact reviewed username to
- * this address. Public handle verification and opt-in photos run in parallel.
+ * this address. Public handle verification and permitted photos run in parallel.
  * Never use arbitrary request addresses without that registry binding.
  */
 export async function readTransferWalletIdentity(address: string): Promise<WalletActivityIdentity | null> {
@@ -129,8 +130,7 @@ async function readVerifiedIdentities(addresses: string[], limit: number, allowP
           if (nonanonymousOwners && user.is_anonymous !== false) return;
           const photoAllowed = donationPhotoOwners !== undefined
             ? donationPhotoOwners.get(identity.address) === ownerId
-            : previewPhotos ? user.user_metadata?.salapi_transfer_preview_photo_consent === true
-            : user.user_metadata?.salapi_receipt_photo_consent === true;
+            : accountPhotoSharingEnabled(user.user_metadata, previewPhotos ? TRANSFER_PREVIEW_PHOTO_CONSENT : RECEIPT_PHOTO_CONSENT);
           if (!photoAllowed) return;
           const path = ownedAccountPhotoPath(user.user_metadata?.[ACCOUNT_AVATAR_METADATA_KEY], ownerId);
           if (path) {

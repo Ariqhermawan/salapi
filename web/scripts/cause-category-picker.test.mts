@@ -176,6 +176,9 @@ function discovery(locale: Locale, preview: boolean, campaignEntry: boolean) {
       navigationViews.set(key, JSON.stringify(value));
     } },
     "@/lib/ui/useGoBack": { useGoBack: (fallback: string) => () => { backCalls.push(fallback); } },
+    "@/components/CampaignDonationBadge": { __esModule: true, default: () => null },
+    "@/lib/ui/useOwnedAccountRead": { useOwnedAccountRead: () => ({ status: "guest", value: null }) },
+    "@/lib/campaign-support": { validCampaignSupport: () => false },
     "@/lib/local-preview": { isLocalPreview: preview }, "./CirclesDiscoverRevamp.module.css": styleModule,
   });
   function render() { cursor = 0; return screenModule.default({ campaignEntry }); }

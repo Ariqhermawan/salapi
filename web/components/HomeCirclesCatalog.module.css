@@ -15,6 +15,8 @@
 .strip::-webkit-scrollbar { display: none; }
 .card { flex: 0 0 min(86%, 384px); min-width: 0; display: flex; flex-direction: column; overflow: hidden; background: #fff; border-radius: 19px; box-shadow: 0 3px 8px #17365f0a; scroll-snap-align: start; }
 .photo { position: relative; display: block; height: clamp(72px, 10svh, 112px); flex-shrink: 0; overflow: hidden; background: #e3eaf3; }
+.donationMark { position: absolute; top: 4px; right: 6px; max-width: 48%; text-align: right; }
+.photo:has(.donationMark > span) .category { max-width: calc(50% - 12px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .photo img { width: 100%; height: 100%; object-fit: cover; transition: transform .25s ease; }
 .category { position: absolute; top: 8px; left: 8px; max-width: calc(100% - 16px); color: #fff; background: #13233de6; padding: 4px 8px; border-radius: 9px; font-size: 10px; line-height: 1.4; font-weight: 700; }
 .ai { position: absolute; right: 8px; bottom: 8px; padding: 4px 6px; border-radius: 5px; color: #fff; background: #13233de6; font-size: 9px; }

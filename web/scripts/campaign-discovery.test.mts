@@ -161,6 +161,9 @@ function catalog(preview = true, campaignEntry = true) {
         navigationViews.set(key, JSON.stringify(value));
       } };
       if (name === "@/lib/ui/useGoBack") return { useGoBack: (fallback: string) => () => { backCalls.push(fallback); } };
+      if (name === "@/components/CampaignDonationBadge") return { __esModule: true, default: () => null };
+      if (name === "@/lib/ui/useOwnedAccountRead") return { useOwnedAccountRead: () => ({ status: "guest", value: null }) };
+      if (name === "@/lib/campaign-support") return { validCampaignSupport: () => false };
       if (name === "@/lib/local-preview") return previewModule(preview);
       if (name.endsWith(".module.css")) return { default: {} };
       if (name === "@/app/actions") return new Proxy({}, { get: () => forbidden("action") });
@@ -256,6 +259,7 @@ function campaignCard(campaign: Campaign, preview: boolean, locale: Locale = "en
       if (name === "@/lib/i18n/revamp-circles") return circlesCopy;
       if (name === "@/lib/ui/testnet-donor") return { campaignDonorBadge };
       if (name === "@/lib/ui/useGoBack") return { useGoBack: () => forbidden("action") };
+      if (["@/components/AvailableWalletBalance", "@/components/CampaignDonationBadge"].includes(name)) return { __esModule: true, default: () => null };
       if (name === "@/app/campaign-actions") return new Proxy({}, { get: () => forbidden("action") });
       if (name === "@/lib/ui/useUnresolvedSubmission") return { useUnresolvedSubmission: forbidden("action") };
       if (name === "@/lib/campaign-preview-storage") return { saveCampaignPreview: forbidden("storage") };

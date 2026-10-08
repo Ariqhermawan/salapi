@@ -17,6 +17,7 @@ import type { Locale } from "@/lib/i18n/config";
 import styles from "./SendRevamp.module.css";
 import SuccessMotion from "@/components/ui/SuccessMotion";
 import TransferMotion from "@/components/ui/TransferMotion";
+import AvailableWalletBalance from "@/components/AvailableWalletBalance";
 
 const QUICK: Record<Locale, string[]> = { en: ["2", "5", "10", "20"], tl: ["100", "500", "1000", "2000"], id: ["20000", "50000", "100000", "200000"], vi: ["50000", "100000", "200000", "500000"] };
 const MAX_TRANSFER_STROOPS = pesosToStroopsExact("1000000000")!;
@@ -294,6 +295,7 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
               {!isLocalPreview ? <details className={styles.photoNote}><summary>{m("About profile photos")}</summary><p>{photoLoading ? m("Loading the permitted account photo…") : m("Photos appear only when available and permitted by their owner. Otherwise, initials are shown. A photo is not proof of identity.")}</p></details> : null}
             </div>
           </article>
+          <AvailableWalletBalance amountStroops={units} />
           <div className={styles.actions}>
             <Btn kind="primary" disabled={pending || !valid} loading={pending} onClick={doSend}>{isLocalPreview ? m("Confirm local demo") : m("Confirm Testnet transfer")}</Btn>
             <Btn kind="ghost" size="md" disabled={pending} onClick={() => setRecipient(null)}>{m("Edit transfer")}</Btn>
@@ -304,6 +306,7 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
             <label className={styles.fieldLabel} htmlFor="send-amount">{m("Amount ·")} {CURRENCY[currency].code}</label>
             <input className={styles.amountInput} id="send-amount" aria-describedby="send-unit" value={amount} maxLength={64} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder="0.00" />
             <p id="send-unit" className={styles.nativeUnit}>{xlm} {m("Testnet XLM · illustrative rate")}</p>
+            <AvailableWalletBalance amountStroops={units} />
             <div className={styles.presets} aria-label={m("Quick amounts")}>
               {QUICK[currency].map(q => <button className={styles.preset} key={q} type="button" aria-pressed={amount === q} onClick={() => setAmount(q)}>{formatLocalAmount(Number(q), currency)}</button>)}
             </div>

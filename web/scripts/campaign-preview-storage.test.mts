@@ -104,6 +104,7 @@ function screen(mode: Mode) {
     if (name === "@/lib/i18n/revamp-circles") return circlesCopy;
     if (name === "@/lib/ui/testnet-donor") return { campaignDonorBadge };
     if (name === "@/lib/ui/useGoBack") return { useGoBack: () => () => { throw Error("Navigation forbidden in isolated campaign storage tests"); } };
+    if (["@/components/AvailableWalletBalance", "@/components/CampaignDonationBadge"].includes(name)) return { __esModule: true, default: () => null };
     if (name === "@/lib/local-preview") return { isLocalPreview: true, PREVIEW_WALLET, PREVIEW_CAMPAIGNS };
     if (name === "@/lib/campaign-preview-storage") return { saveCampaignPreview };
     if (name === "@/lib/campaign-money") return { campaignAmount, campaignSplit };

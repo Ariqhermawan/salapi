@@ -154,6 +154,9 @@ function setup(name: ScreenName, locale: Locale = "en", preview = true, circleId
       if (module === "@/lib/circles/local-support") return { readLocalSupports: () => [], markCircleUpdatesSeen: forbidden("action"), recordLocalSupport: forbidden("action"), unreadSupportUpdates: () => 0 };
       if (module === "@/lib/local-preview") return { isLocalPreview: preview };
       if (module === "@/lib/ui/useGoBack") return { useGoBack: () => forbidden("network") };
+      if (module === "@/components/CampaignDonationBadge") return { default: () => null };
+      if (module === "@/lib/ui/useOwnedAccountRead") return { useOwnedAccountRead: () => ({ status: "guest", value: null }) };
+      if (module === "@/lib/campaign-support") return { validCampaignSupport: () => false };
       if (module === "@/components/ui/kit") return { Ico: icons, T: {}, Btn: "Btn", PoweredByStellar: "PoweredByStellar", Progress: "Progress" };
       if (module === "@/components/ui/OrganizerVerification") return { default: "OrganizerVerification" };
       if (module === "@/components/ui/ExampleOrganizerAvatar") return { default: "ExampleOrganizerAvatar" };

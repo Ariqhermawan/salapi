@@ -22,6 +22,7 @@ import SuccessMotion from "@/components/ui/SuccessMotion";
 import { useT } from "@/components/I18nProvider";
 import { circleTestnetDonateCopy } from "@/lib/i18n/circle-testnet-donate";
 import styles from "./CircleTestnetDonate.module.css";
+import AvailableWalletBalance from "@/components/AvailableWalletBalance";
 
 type Receipt = { campaignId: string; ownerId: string; ownerRevision: number; hash: string; amountStroops?: bigint; comment: string; anonymous: boolean; publicProfileOk: boolean };
 type Review = { terms: Extract<CircleTestnetCampaignResult, { ok: true }>; amount: string; ownerId: string; ownerRevision: number; comment: string; anonymous: boolean; publicProfileOk: boolean };
@@ -173,6 +174,7 @@ export default function CircleTestnetDonate({ circle }: { circle: Circle }) {
         <div><dt>{text("Creator share")}</dt><dd>{formatStroops(reviewedSplit.creator)} XLM <small>({review.terms.mapping.creatorCutBps / 100}%)</small></dd></div>
       </dl>}
       <p className={styles.reviewFee}>{text("Your wallet also pays a Stellar network fee in XLM. The actual fee is on the receipt.")}</p>
+      <AvailableWalletBalance amountStroops={reviewedAmount} />
       <dl className={styles.reviewPrivacy}><div><dt>{text("Public display")}</dt><dd>{review.anonymous ? text("Anonymous") : review.publicProfileOk ? text("Wallet, @username and permitted photo") : text("Wallet only")}</dd></div></dl>
       <p className={styles.reviewBoundary}>{text("Test tokens go to a QA wallet. Fictional cause, no real money.")}</p>
       <details className={styles.options}><summary>{text("Transaction details")}</summary><div className={styles.optionFields}>
@@ -192,6 +194,7 @@ export default function CircleTestnetDonate({ circle }: { circle: Circle }) {
       <label htmlFor="circle-testnet-amount">{text("Amount in native Testnet XLM")}</label>
       <div className={styles.amountInput}><input id="circle-testnet-amount" inputMode="decimal" autoComplete="off" value={amount} disabled={busy || guard.locked}
         onChange={event => { setAmount(event.target.value); setError(""); }} aria-invalid={native === null} /><strong>XLM</strong></div>
+      <AvailableWalletBalance amountStroops={native} />
       <div className={styles.presets}>{[1, 5, 10, 50].map(value => <button key={value} type="button" aria-pressed={amount === String(value)} disabled={busy || guard.locked} onClick={() => { setAmount(String(value)); setError(""); }}>{value} XLM</button>)}</div>
       <p>{text("Positive amounts, up to 7 decimal places. No dollar-to-XLM simulation.")}</p>
       {native && mapping.result?.ok ? <dl><div><dt>{text("Beneficiary share")}</dt><dd>{formatStroops(campaignSplit(native, BigInt(mapping.result.mapping.creatorCutBps)).beneficiary)} XLM</dd></div>

@@ -63,6 +63,10 @@ function harness(options: {
       if (dependency === "@/lib/local-preview") return { isLocalPreview: options.preview ?? false };
       if (dependency === "@/lib/supabase/env") return { supabaseConfigured: () => options.configured ?? true };
       if (dependency === "@/lib/supabase/server") return { createSupabaseServer: async () => { if (options.factoryThrows) throw new AuthSessionMissingError(); return supabase; } };
+      if (dependency === "@/lib/supabase/admin") return { createSupabaseAdmin: () => {
+        assert.ok(calls.auth > 0 && current?.id === ownerId, "Storage requires a verified owner");
+        return { storage: supabase.storage };
+      } };
       throw new Error(`Unexpected dependency ${dependency}`);
     },
   });
@@ -181,12 +185,15 @@ test("restore is not offered as a fake provider operation when Google photo is a
   assert.equal(!result.ok && result.code, "google_unavailable"); assert.deepEqual(h.calls.save, []);
 });
 
-test("private bucket recipe has owner SELECT/INSERT/DELETE checks and no broad read or service-role dependency", () => {
+test("private bucket recipe retains owner policies, while server-managed storage requires verified ownership", () => {
   const sql = readFileSync(new URL("../supabase/account_avatars.sql", import.meta.url), "utf8");
   assert.match(sql, /'account-avatars', 'account-avatars', false, 524288/);
   for (const operation of ["select", "insert", "delete"]) assert.match(sql, new RegExp(`for ${operation} to authenticated`));
   assert.equal((sql.match(/\(select auth\.uid\(\)\)::text/g) ?? []).length, 3);
-  assert.doesNotMatch(source, /createSupabaseAdmin|service_role|SUPABASE_SERVICE_ROLE/);
+  assert.match(source, /const owner = await requestOwner\(expectedOwner\)/);
+  assert.match(source, /const path = `\$\{owner.user.id\}\/\$\{randomUUID\(\)\}\.jpg`/);
+  assert.match(source, /owner.supabase.auth.updateUser/);
+  assert.doesNotMatch(source, /admin.updateUserById|createBucket|listUsers/);
   assert.match(sql, /raise exception 'account-avatars must be private/);
 });
 

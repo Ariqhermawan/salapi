@@ -144,6 +144,9 @@ function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: bo
       if (name === "@/lib/local-preview") return { isLocalPreview: preview, PREVIEW_WALLET, PREVIEW_TIME, PREVIEW_CAMPAIGNS, normalizePreviewCampaigns: (rows: Campaign[]) => rows };
       if (name === "@/lib/circles/seed") return seed;
       if (name === "@/lib/circles/types") return fixture("../lib/circles/types.ts");
+      if (name === "@/components/CampaignDonationBadge") return { __esModule: true, default: () => null };
+      if (name === "@/lib/ui/useOwnedAccountRead") return { useOwnedAccountRead: () => ({ status: "guest", value: null }) };
+      if (name === "@/lib/campaign-support") return { validCampaignSupport: () => false };
       if (name === "@/lib/circles/organizers") return fixture("../lib/circles/organizers.ts");
       if (name === "@/lib/home-circles") return homeCircles;
       if (name === "@/lib/ui/useNavigationViewState") return navigationViewHook;

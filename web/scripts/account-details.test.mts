@@ -5,7 +5,7 @@ import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import { AuthSessionMissingError, isAuthSessionMissingError } from "@supabase/supabase-js";
 import { StrKey } from "@stellar/stellar-sdk";
-import { RECEIPT_PHOTO_CONSENT, TRANSFER_PREVIEW_PHOTO_CONSENT, type AccountDetailsResult, type ReceiptPhotoResult } from "../lib/account-details.ts";
+import { accountPhotoSharingEnabled, RECEIPT_PHOTO_CONSENT, TRANSFER_PREVIEW_PHOTO_CONSENT, type AccountDetailsResult, type ReceiptPhotoResult } from "../lib/account-details.ts";
 
 const ownerId = "00000000-0000-4000-8000-000000000001";
 const otherId = "00000000-0000-4000-8000-000000000002";
@@ -41,7 +41,7 @@ function setup(options: Options = {}) {
       if (name === "server-only") return {};
       if (name === "@supabase/supabase-js") return { isAuthSessionMissingError };
       if (name === "@stellar/stellar-sdk") return { StrKey };
-      if (name === "@/lib/account-details") return { RECEIPT_PHOTO_CONSENT, TRANSFER_PREVIEW_PHOTO_CONSENT };
+      if (name === "@/lib/account-details") return { accountPhotoSharingEnabled, RECEIPT_PHOTO_CONSENT, TRANSFER_PREVIEW_PHOTO_CONSENT };
       if (name === "@/lib/local-preview") return { isLocalPreview: options.preview ?? false };
       if (name === "@/lib/supabase/env") return {
         supabaseConfigured: () => options.configured ?? true, supabaseAdminConfigured: () => options.adminConfigured ?? true,
@@ -99,7 +99,7 @@ function setup(options: Options = {}) {
 test("account reads authenticate with getUser and select only the current owner's public wallet", async () => {
   const h = setup(); const result = await h.api.readAccountDetails(ownerId);
   assert.deepEqual(clone(result), { ok: true, account: {
-    ownerId, email: "fixture@example.invalid", address: publicKey, handle: "fixture_user", receiptPhotoConsent: false, transferPreviewPhotoConsent: false, identityUnavailable: false,
+    ownerId, email: "fixture@example.invalid", address: publicKey, handle: "fixture_user", receiptPhotoConsent: true, transferPreviewPhotoConsent: true, identityUnavailable: false,
   } });
   assert.equal(h.calls.auth, 1);
   assert.deepEqual(h.calls.tables, ["wallets"]); assert.deepEqual(h.calls.selections, ["public_key"]);
@@ -108,8 +108,8 @@ test("account reads authenticate with getUser and select only the current owner'
   assert.deepEqual(h.calls.updates, []); assert.equal(h.calls.logs, 0);
 });
 
-test("transfer preview sharing is a separate explicit consent, never inherited from receipt consent", async () => {
-  const h = setup({ currentUser: user({ [RECEIPT_PHOTO_CONSENT]: true }) });
+test("transfer preview preserves its separate explicit opt-out, never inherited from receipt consent", async () => {
+  const h = setup({ currentUser: user({ [RECEIPT_PHOTO_CONSENT]: true, [TRANSFER_PREVIEW_PHOTO_CONSENT]: false }) });
   const result = await h.api.readAccountDetails(ownerId); assert.equal(result.ok, true);
   if (result.ok) { assert.equal(result.account.receiptPhotoConsent, true); assert.equal(result.account.transferPreviewPhotoConsent, false); }
   assert.deepEqual(clone(await h.api.saveTransferPreviewPhotoConsent(otherId, true)), { ok: false, code: "account_changed" });
@@ -117,6 +117,19 @@ test("transfer preview sharing is a separate explicit consent, never inherited f
   assert.deepEqual(h.calls.updates, []);
   assert.deepEqual(clone(await h.api.saveTransferPreviewPhotoConsent(ownerId, true)), { ok: true, ownerId, enabled: true });
   assert.deepEqual(h.calls.updates, [{ data: { [TRANSFER_PREVIEW_PHOTO_CONSENT]: true } }]);
+});
+
+test("absent photo preferences default on without mutating existing account metadata", async () => {
+  for (const metadata of [{}, { [RECEIPT_PHOTO_CONSENT]: false }, { [TRANSFER_PREVIEW_PHOTO_CONSENT]: false }]) {
+    const h = setup({ currentUser: user(metadata) });
+    const result = await h.api.readAccountDetails(ownerId);
+    assert.equal(result.ok, true);
+    if (result.ok) {
+      assert.equal(result.account.receiptPhotoConsent, metadata[RECEIPT_PHOTO_CONSENT] !== false);
+      assert.equal(result.account.transferPreviewPhotoConsent, metadata[TRANSFER_PREVIEW_PHOTO_CONSENT] !== false);
+    }
+    assert.deepEqual(h.calls.updates, []);
+  }
 });
 
 for (const consent of [undefined, null, false, "true", 1, {}, true]) {

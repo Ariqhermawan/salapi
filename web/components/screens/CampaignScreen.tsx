@@ -30,6 +30,8 @@ import { accountCopy } from "@/lib/i18n/revamp-account";
 import { useGoBack } from "@/lib/ui/useGoBack";
 import { campaignDonorBadge } from "@/lib/ui/testnet-donor";
 import { circlesCopy } from "@/lib/i18n/revamp-circles";
+import AvailableWalletBalance from "@/components/AvailableWalletBalance";
+import CampaignDonationBadge from "@/components/CampaignDonationBadge";
 const styles = { ...baseStyles, ...detailStyles };
 const PREVIEW_WALLET = PREVIEW_ACCOUNT.address;
 const previewCopy: Record<Locale, { failed: string; unavailable: string; saved: string; title: string }> = {
@@ -147,6 +149,7 @@ function CampaignCard({ c, viewer, now, run, busy, detail, onPreviewUpdate }: { 
       <div><span>{photoCopy("Illustrative campaign photo")}</span><Link href={`/campaigns?id=${c.id}`}><h2>{c.title}</h2></Link></div>
     </header> : null}
     <div className={`${styles.stack} ${media ? styles.photoCardBody : ""}`}>
+    <CampaignDonationBadge support={viewer && !isLocalPreview && BigInt(c.contribution.amount) > 0n ? { amount: c.contribution.amount, status: c.contribution.refunded ? "refunded" : "donated" } : undefined} />
     {media ? <Link className={styles.organizerProfile} href={media.organizerHref} aria-label={`${photoCopy("View example organizer profile")}: ${media.organizerName}`}>
       <Image src={media.organizerPhotoSrc} width={44} height={44} alt={photoCopy("Illustrative profile photo, not a verified identity")} />
       <span><small>{photoCopy("Fictional organizer example")}</small><strong>{media.organizerName}</strong></span>{Ico.chev({size:16,c:T.action})}
@@ -160,6 +163,7 @@ function CampaignCard({ c, viewer, now, run, busy, detail, onPreviewUpdate }: { 
       <div><small>Remaining escrow</small><strong>{formatStroops(c.escrow)} <span>Testnet XLM</span></strong></div>
     </div>
     {viewer && fundingOpen && <div className={styles.donationForm}>
+      {detail && <AvailableWalletBalance />}
       <div className={styles.formGrid}><Field label="Donation amount"><input className={`${styles.input} ${styles.amountInput}`} placeholder="0.00" inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)} disabled={busy} /></Field>
       <Field label="Display currency"><select aria-label="Display currency" className={styles.input} value={currency} onChange={e => setCurrency(e.target.value)} disabled={busy}><option value="XLM">Testnet XLM</option><option value="tl">PHP (illustrative)</option><option value="id">IDR (illustrative)</option></select></Field></div>
       <div className={styles.presets}>{(currency === "id" ? ["20000","50000","100000","200000"] : currency === "tl" ? ["50","100","200","500"] : ["5","10","25","50"]).map(value => <button key={value} type="button" disabled={busy} aria-pressed={amount === value} onClick={() => setAmount(value)}>{currency === "id" ? "Rp " : currency === "tl" ? "₱" : ""}{Number(value).toLocaleString(currency === "id" ? "id-ID" : "en-US")}{currency === "XLM" ? " XLM" : ""}</button>)}</div>

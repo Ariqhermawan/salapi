@@ -87,3 +87,5 @@
   .screen * { transition: none !important; }
   .screen a:active, .screen button:active { transform: none; }
 }
+.donationMark { position: absolute; top: 8px; right: 8px; max-width: 48%; text-align: right; }
+.photo:has(.donationMark > span) .photoLabel { max-width: calc(50% - 20px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

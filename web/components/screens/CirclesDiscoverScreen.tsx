@@ -18,6 +18,9 @@ import { parseCauseViewState } from "@/lib/home-circles";
 import { useNavigationViewState } from "@/lib/ui/useNavigationViewState";
 import { writeNavigationViewState } from "@/lib/ui/app-navigation";
 import { useGoBack } from "@/lib/ui/useGoBack";
+import CampaignDonationBadge from "@/components/CampaignDonationBadge";
+import { useOwnedAccountRead } from "@/lib/ui/useOwnedAccountRead";
+import { validCampaignSupport } from "@/lib/campaign-support";
 
 const photos: Partial<Record<CircleCategory, string>> = {
   disaster: "/circles/disaster.jpg",
@@ -54,6 +57,7 @@ export default function CirclesDiscoverScreen({ campaignEntry = false }: { campa
   const setFilter = (category: CircleCategory | "all") => writeNavigationViewState("circles-discovery", { category, sort });
   const setSort = (nextSort: Sort) => writeNavigationViewState("circles-discovery", { category: filter, sort: nextSort });
   const visible = selectCircleExamples(SEED_CIRCLES, filter, sort);
+  const support = useOwnedAccountRead(`/api/account/campaign-support?circles=${SEED_CIRCLES.map(circle => circle.id).join(",")}`, validCampaignSupport);
   return (
     <div className={styles.screen}>
       <div className={styles.top}>
@@ -117,6 +121,7 @@ export default function CirclesDiscoverScreen({ campaignEntry = false }: { campa
                 {circlesCategory(locale, circle.category)}
               </span>
               <span className={styles.aiLabel}>{c("AI illustration")}</span>
+              <span className={styles.donationMark}><CampaignDonationBadge support={support.value?.contributions[support.value.circleCampaigns?.[circle.id] ?? ""]} /></span>
             </div>
             <div className={styles.cardBody}>
               <span className={styles.exampleLabel}>{c("Example cause")}</span>

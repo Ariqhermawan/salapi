@@ -138,6 +138,7 @@ function setup(options: Options = {}) {
       if (name === "@/lib/format-stroops") return { formatStroops };
       if (name === "@/lib/campaign-money") return { campaignSplit };
       if (name === "@/components/CircleTestnetSummary") return { __esModule: true, default: dummy("mapping-summary") };
+      if (name === "@/components/AvailableWalletBalance") return { __esModule: true, default: () => null };
       if (name === "@/components/CampaignDonorActivity") return { __esModule: true, default: dummy("donor-feed") };
       if (name === "@/components/CampaignUpdateSubscription") return { __esModule: true, default: dummy("updates-subscription") };
       if (name === "@/components/ui/SubmissionStatusPanel") return { __esModule: true, default: StatusPanel };
