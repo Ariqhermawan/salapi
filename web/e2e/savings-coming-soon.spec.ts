@@ -12,6 +12,7 @@ for (const width of [375, 390, 1280]) test(`Savings is coming soon at ${width}px
   await expect(savings).toBeDisabled();
   await expect(savings).toContainText("Coming soon");
   await expect(home.locator('a[href="/savings"]')).toHaveCount(0);
+  await page.evaluate(async () => { await document.fonts.ready; });
   await savings.scrollIntoViewIfNeeded();
   // Both visible labels must fit on one line, including the Linux CI fonts.
   // Wrapping here would grow the whole quick-action row and push the footer down.
