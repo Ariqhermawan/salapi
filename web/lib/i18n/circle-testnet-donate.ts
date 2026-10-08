@@ -32,6 +32,15 @@ const messages = {
   "Back to campaign": { id: "Kembali ke campaign", tl: "Bumalik sa campaign", vi: "Quay lại chiến dịch" },
   "Review Testnet donation": { id: "Tinjau donasi Testnet", tl: "Suriin ang Testnet donation", vi: "Xem lại quyên góp Testnet" },
   "Review before sending": { id: "Tinjau sebelum mengirim", tl: "Suriin bago ipadala", vi: "Xem lại trước khi gửi" },
+  "Transaction details": { id: "Detail transaksi", tl: "Mga detalye ng transaksyon", vi: "Chi tiết giao dịch" },
+  "Your wallet also pays a Stellar network fee in XLM. The actual fee is on the receipt.": {
+    id: "Wallet Anda juga membayar biaya jaringan Stellar dalam XLM. Biaya aktual ada di bukti transaksi.",
+    tl: "Magbabayad din ang wallet mo ng Stellar network fee sa XLM. Nasa receipt ang aktuwal na fee.",
+    vi: "Ví của bạn cũng trả phí mạng Stellar bằng XLM. Phí thực tế có trên biên nhận." },
+  "Test tokens go to a QA wallet. Fictional cause, no real money.": {
+    id: "Token uji masuk ke wallet QA. Tujuan fiktif, bukan uang nyata.",
+    tl: "Sa QA wallet mapupunta ang test tokens. Kathang-isip ang layunin, hindi totoong pera.",
+    vi: "Token thử nghiệm chuyển vào ví QA. Mục tiêu hư cấu, không phải tiền thật." },
   "Native Testnet XLM moves into this campaign's escrow. Your wallet also pays the Stellar network fee in XLM; the actual fee is on the receipt.": {
     id: "XLM Testnet masuk ke escrow campaign ini. Wallet Anda juga membayar biaya jaringan Stellar dalam XLM; biaya aktual ada di bukti transaksi.",
     tl: "Papasok ang native Testnet XLM sa escrow ng campaign na ito. Magbabayad din ang wallet mo ng Stellar network fee sa XLM; nasa receipt ang aktuwal na fee.",

@@ -192,6 +192,46 @@ function review(h: ReturnType<typeof setup>, amount = "1.0000001", comment = "Te
   assert.equal(h.donations.length, 0, "Review never moves money"); assert.equal(h.metadata.length, 0, "Review never writes donor metadata");
 }
 
+test("compact review preserves exact splits, privacy and fee while retaining full technical details", () => {
+  const h = setup(); review(h, "10", "Review comment");
+  const all = h.all(), card = all.find(node => node.type === "section" && node.props["aria-label"] === "Review Testnet donation");
+  assert.ok(card);
+  const detail = h.nodes(card).find(node => node.type === "details"); assert.ok(detail);
+  assert.equal(detail.props.open, undefined);
+  const html = h.html(), detailHtml = renderToStaticMarkup(detail);
+  assert.match(html, /9\.5 XLM/); assert.match(html, /0\.5 XLM/); assert.match(html, /\(5%\)/);
+  assert.match(html, /Your wallet also pays a Stellar network fee in XLM/);
+  assert.match(html, /Wallet, @username and permitted photo/);
+  assert.match(html, /Test tokens go to a QA wallet/);
+  assert.match(detailHtml, /Review comment/); assert.ok(detailHtml.includes(beneficiary));
+  assert.match(detailHtml, /does not send USDC/); assert.match(detailHtml, /refund rules apply/);
+  assert.doesNotMatch(html, /<h1>Test a donation/);
+  const dock = all.find(node => node.props["data-testid"] === "donation-review-actions"); assert.ok(dock);
+  assert.equal(h.nodes(dock).filter(node => node.type === "button").length, 2);
+  assert.equal(all.filter(node => node.type === "button" && node.props.children === "Confirm Testnet donation").length, 1);
+  h.click("Change amount");
+  assert.equal(h.field("circle-testnet-amount").props.value, "10");
+  assert.equal(h.field("circle-testnet-comment").props.value, "Review comment");
+  assert.ok(!h.all().some(node => node.props["data-testid"] === "donation-review-actions"));
+  assert.equal(h.donations.length, 0); assert.equal(h.metadata.length, 0);
+});
+
+test("entering review resets the app scroller and focuses its heading, never confirm or finance", () => {
+  const h = setup(); review(h);
+  const heading = h.all().find(node => node.type === "h1"); assert.ok(heading);
+  assert.equal(heading.props.children, "Review before sending"); assert.equal(heading.props.tabIndex, -1);
+  const effects: unknown[] = [];
+  const ref = heading.props.ref as (node: unknown) => void;
+  ref({ focus: (options: unknown) => effects.push(["focus", options]), closest: (selector: string) => {
+    effects.push(["closest", selector]); return { scrollTo: (options: unknown) => effects.push(["scroll", options]) };
+  } });
+  assert.deepEqual(JSON.parse(JSON.stringify(effects)), [
+    ["focus", { preventScroll: true }], ["closest", "main"], ["scroll", { top: 0, behavior: "instant" }],
+  ]);
+  ref(null); assert.equal(effects.length, 3);
+  assert.equal(h.donations.length, 0); assert.equal(h.metadata.length, 0);
+});
+
 test("new donation defaults to a public permitted profile and discloses it before collapsed options", () => {
   const h = setup(); assert.equal(h.checkbox("Display anonymously in the donor feed").props.checked, false);
   assert.equal(h.checkbox("Also publish my available @username and permitted profile photo for this donation").props.checked, true);

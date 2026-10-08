@@ -36,4 +36,26 @@
 .address { overflow-wrap:anywhere; font-size:12px!important; max-width:100%; }
 .error { color:#a22930; padding:16px; border-radius:16px; background:#fff0f0; }
 .screen blockquote { margin:0; padding:12px; background:#f4f7fb; border-radius:10px; white-space:pre-wrap; overflow-wrap:anywhere; }
+.reviewScreen { padding:16px 18px 110px; gap:12px; }
+.reviewCard { padding:18px; gap:12px; }
+.reviewCard h1 { font-size:24px; line-height:1.2; letter-spacing:-.5px; }
+.reviewCard h1:focus { outline:none; }
+.reviewTitle { color:#5b6f8e; font-size:13px!important; line-height:1.4!important; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.reviewAmount { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.reviewAmount .amount { font-variant-numeric:tabular-nums; line-height:1.2; overflow-wrap:anywhere; }
+.reviewAmount .steps { flex-shrink:0; font-size:12px; }
+.reviewSplit { grid-template-columns:repeat(2,minmax(0,1fr)); padding:12px; background:#f4f7fb; border-radius:12px; }
+.screen .reviewSplit>div { display:grid; justify-content:start; gap:4px; }
+.reviewSplit dd { font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+.reviewSplit small { font-weight:500; font-size:12px; color:#5b6f8e; }
+.reviewFee { color:#5b6f8e; font-size:12px!important; }
+.reviewPrivacy dd { max-width:65%; text-align:right; }
+.reviewBoundary { color:#836021; font-size:12px!important; }
+/* The app frame establishes the fixed containing block (contain:layout).
+   Keep the only confirm button above the app nav, including its raised Send.
+   Reserve scroll space so expanded details never disappear behind this dock. */
+.reviewActions { position:fixed; inset:auto 0 calc(env(safe-area-inset-bottom,0px) + 90px); z-index:21; display:grid; grid-template-columns:minmax(0,1fr) 88px; gap:10px; padding:12px 18px; background:#f3f7fc; border-top:1px solid #dbe4f0; box-shadow:0 -6px 18px #12213a08; }
+.reviewActions .primary { min-height:52px; font-size:14px; line-height:1.35; }
+.reviewActions .secondary { min-height:44px; padding:6px; background:transparent; font-size:12px; line-height:1.4; }
 @media(max-width:350px) { .screen { padding:18px 12px 32px; } .card { padding:16px; } .screen h1 { font-size:27px; } }
+@media(max-width:350px) { .reviewScreen { padding:12px 12px 110px; gap:10px; } .reviewCard { padding:14px; gap:10px; } .reviewCard h1 { font-size:22px; } .reviewActions { padding:10px 12px; gap:8px; grid-template-columns:minmax(0,1fr) 76px; } .reviewSplit { padding:10px; gap:8px; } .reviewSplit dd { font-size:13px; } }

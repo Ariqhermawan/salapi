@@ -26,6 +26,14 @@ import styles from "./CircleTestnetDonate.module.css";
 type Receipt = { campaignId: string; ownerId: string; ownerRevision: number; hash: string; amountStroops?: bigint; comment: string; anonymous: boolean; publicProfileOk: boolean };
 type Review = { terms: Extract<CircleTestnetCampaignResult, { ok: true }>; amount: string; ownerId: string; ownerRevision: number; comment: string; anonymous: boolean; publicProfileOk: boolean };
 
+function focusReviewHeading(node: HTMLHeadingElement | null) {
+  if (!node) return;
+  node.focus({ preventScroll: true });
+  // This app scrolls inside its phone frame, not the browser document.
+  // Enter review at the top instead of retaining the amount form's scroll.
+  node.closest("main")?.scrollTo({ top: 0, behavior: "instant" });
+}
+
 export default function CircleTestnetDonate({ circle }: { circle: Circle }) {
   const { locale } = useT();
   const text = circleTestnetDonateCopy(locale);
@@ -53,6 +61,9 @@ export default function CircleTestnetDonate({ circle }: { circle: Circle }) {
   const commentValid = campaignDonorComment(comment) !== null;
   const available = mapping.result?.ok && mapping.result.donationOpen;
   const busy = pending;
+  const reviewing = !!review && !receipt;
+  const reviewedAmount = review ? circleDonationAmount(review.amount) : null;
+  const reviewedSplit = review && reviewedAmount !== null ? campaignSplit(reviewedAmount, BigInt(review.terms.mapping.creatorCutBps)) : null;
   const signIn = `/signin?next=${encodeURIComponent(`/circles/${circle.id}/donate`)}`;
 
   async function attach(entry: Receipt, revision: number) {
@@ -135,13 +146,13 @@ export default function CircleTestnetDonate({ circle }: { circle: Circle }) {
     await attach(entry, entry.ownerRevision);
   }
 
-  return <div className={styles.screen}>
+  return <div className={`${styles.screen}${reviewing ? ` ${styles.reviewScreen}` : ""}`}>
     <header className={styles.header}><button type="button" onClick={() => review && !receipt ? setReview(null) : goBack()} disabled={busy}>{text("Back")}</button>
       <span>QA · Stellar Testnet</span></header>
-    <h1>{text("Test a donation")}</h1><h2>{circle.title}</h2>
-    <p className={styles.steps} aria-live="polite">{receipt ? text("3 · Receipt") : review ? text("2 · Review") : text("1 · Amount")}</p>
+    {!reviewing && <><h1>{text("Test a donation")}</h1><h2>{circle.title}</h2>
+    <p className={styles.steps} aria-live="polite">{receipt ? text("3 · Receipt") : text("1 · Amount")}</p>
     <aside className={styles.boundary}><strong>{text("Fictional cause, real Testnet transaction")}</strong>
-      <p>{text("QA wallets receive test tokens, not the pictured organizer or NGO. Testnet XLM has no monetary value. This D4 contract does not send USDC.")}</p></aside>
+      <p>{text("QA wallets receive test tokens, not the pictured organizer or NGO. Testnet XLM has no monetary value. This D4 contract does not send USDC.")}</p></aside></>}
     <SubmissionStatusPanel guard={guard} onRefresh={refreshSubmission} confirmedHash={confirmed ? receipt?.hash : undefined} />
     {guard.state.kind === "locked" && !receipt && <p className={styles.hint}>{text("After reload, a recovered donor record defaults to anonymous with no comment or profile permission. Existing saved records are not changed. Recovery never resends funds.")}</p>}
     {identity.status === "guest" ? <Link className={styles.primary} href={signIn}>{text("Sign in with Google")}</Link>
@@ -153,18 +164,30 @@ export default function CircleTestnetDonate({ circle }: { circle: Circle }) {
       <a className={styles.address} href={`https://stellar.expert/explorer/testnet/tx/${receipt.hash}`} target="_blank" rel="noopener noreferrer">{text("View Testnet receipt")}: {receipt.hash}</a>
       {recorded ? <p role="status">{text("Your donor record is saved.")}</p> : <button type="button" className={styles.secondary} disabled={busy || !metadataRetry || identity.status !== "verified" || identity.ownerId !== receipt.ownerId} onClick={retryMetadata}>{text("Verify and retry donor record only")}</button>}
       <button type="button" className={styles.secondary} onClick={goBack} disabled={busy}>{text("Back to campaign")}</button>
-    </section> : review ? <section className={styles.card} aria-label={text("Review Testnet donation")}>
-      <h2>{text("Review before sending")}</h2>
-      <strong className={styles.amount}>{formatStroops(circleDonationAmount(review.amount)!)} XLM</strong>
-      <p>{text("Native Testnet XLM moves into this campaign's escrow. Your wallet also pays the Stellar network fee in XLM; the actual fee is on the receipt.")}</p>
+    </section> : review ? <section className={`${styles.card} ${styles.reviewCard}`} aria-label={text("Review Testnet donation")}>
+      <h1 ref={focusReviewHeading} tabIndex={-1}>{text("Review before sending")}</h1>
+      <p className={styles.reviewTitle} title={circle.title}>{circle.title}</p>
+      <div className={styles.reviewAmount}><strong className={styles.amount}>{formatStroops(reviewedAmount!)} XLM</strong><span className={styles.steps}>{text("2 · Review")}</span></div>
+      {reviewedSplit && <dl className={styles.reviewSplit}>
+        <div><dt>{text("Beneficiary share")}</dt><dd>{formatStroops(reviewedSplit.beneficiary)} XLM</dd></div>
+        <div><dt>{text("Creator share")}</dt><dd>{formatStroops(reviewedSplit.creator)} XLM <small>({review.terms.mapping.creatorCutBps / 100}%)</small></dd></div>
+      </dl>}
+      <p className={styles.reviewFee}>{text("Your wallet also pays a Stellar network fee in XLM. The actual fee is on the receipt.")}</p>
+      <dl className={styles.reviewPrivacy}><div><dt>{text("Public display")}</dt><dd>{review.anonymous ? text("Anonymous") : review.publicProfileOk ? text("Wallet, @username and permitted photo") : text("Wallet only")}</dd></div></dl>
+      <p className={styles.reviewBoundary}>{text("Test tokens go to a QA wallet. Fictional cause, no real money.")}</p>
+      <details className={styles.options}><summary>{text("Transaction details")}</summary><div className={styles.optionFields}>
       <dl><div><dt>{text("Campaign")}</dt><dd>#{review.terms.mapping.campaignId}</dd></div>
         <div><dt>{text("QA beneficiary")}</dt><dd className={styles.address}>{review.terms.mapping.beneficiaryWallet}</dd></div>
-        <div><dt>{text("Creator share")}</dt><dd>{review.terms.mapping.creatorCutBps / 100}%</dd></div>
-        <div><dt>{text("Public display")}</dt><dd>{review.anonymous ? text("Anonymous") : review.publicProfileOk ? text("Wallet, @username and permitted photo") : text("Wallet only")}</dd></div></dl>
+      </dl>
+      <p>{text("QA wallets receive test tokens, not the pictured organizer or NGO. Testnet XLM has no monetary value. This D4 contract does not send USDC.")}</p>
+      <p>{text("Native Testnet XLM moves into this campaign's escrow. Your wallet also pays the Stellar network fee in XLM; the actual fee is on the receipt.")}</p>
       <p>{text("Two configured reviewers must approve the exact proof before release. No timely approval means the contract's refund rules apply. No real-world delivery is guaranteed.")}</p>
       {review.comment && <blockquote>{review.comment}</blockquote>}
+      </div></details>
+      <div className={styles.reviewActions} data-testid="donation-review-actions">
       <button type="button" className={styles.primary} disabled={busy || guard.locked || identity.status !== "verified" || identity.ownerId !== review.ownerId} aria-busy={busy} onClick={send}>{busy ? text("Waiting for Testnet…") : text("Confirm Testnet donation")}</button>
       <button type="button" className={styles.secondary} disabled={busy} onClick={() => setReview(null)}>{text("Change amount")}</button>
+      </div>
     </section> : available ? <section className={styles.card}>
       <label htmlFor="circle-testnet-amount">{text("Amount in native Testnet XLM")}</label>
       <div className={styles.amountInput}><input id="circle-testnet-amount" inputMode="decimal" autoComplete="off" value={amount} disabled={busy || guard.locked}

@@ -2,6 +2,10 @@ import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { Keypair } from "@stellar/stellar-sdk";
 import type { CircleTestnetCampaignResult } from "../lib/circles/testnet";
+import { donationReviewCss, donationReviewMarkup } from "./fixtures/circle-donation-review";
+import { circleTestnetDonateCopy } from "../lib/i18n/circle-testnet-donate";
+import { getCircle } from "../lib/circles/seed";
+import type { Locale } from "../lib/i18n/config";
 
 // Read-only candidate browser coverage. This is not authenticated Gmail,
 // Supabase persistence or a Testnet payment acceptance test.
@@ -66,6 +70,35 @@ function openMappingFixture(): Extract<CircleTestnetCampaignResult, { ok: true }
       config: { creator: mapping.creatorWallet, beneficiary: mapping.beneficiaryWallet, approvers: mapping.approverWallets, creator_cut_bps: 0,
         funding_deadline: mapping.fundingDeadline, review_deadline: mapping.reviewDeadline, token: "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC" } } };
 }
+
+async function reviewDockGeometry(page: Page) {
+  return page.getByTestId("donation-review-actions").evaluate(dock => {
+    const frame = dock.closest(".sl-app-frame")!.getBoundingClientRect();
+    const rect = dock.getBoundingClientRect();
+    const nav = document.querySelector('.sl-tabbar')!;
+    const navTop = Math.min(...[nav, ...nav.querySelectorAll("button, button > span")].map(node => node.getBoundingClientRect().top));
+    const buttons = [...dock.querySelectorAll("button")].map(button => {
+      const bounds = button.getBoundingClientRect();
+      const hit = document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+      return { top: bounds.top, bottom: bounds.bottom, left: bounds.left, right: bounds.right,
+        height: bounds.height, hit: !!hit && button.contains(hit) };
+    });
+    return { top: rect.top, bottom: rect.bottom, frameTop: frame.top, frameBottom: frame.bottom,
+      frameLeft: frame.left, frameRight: frame.right, navTop, buttons, viewportHeight: innerHeight };
+  });
+}
+
+function expectVisibleReviewDock(geometry: Awaited<ReturnType<typeof reviewDockGeometry>>) {
+  expect(geometry.top).toBeGreaterThanOrEqual(geometry.frameTop);
+  expect(geometry.bottom).toBeLessThanOrEqual(Math.min(geometry.frameBottom, geometry.viewportHeight));
+  expect(geometry.bottom).toBeLessThanOrEqual(geometry.navTop);
+  for (const button of geometry.buttons) {
+    expect(button.left).toBeGreaterThanOrEqual(geometry.frameLeft);
+    expect(button.right).toBeLessThanOrEqual(geometry.frameRight);
+    expect(button.height).toBeGreaterThanOrEqual(44);
+    expect(button.hit, "Review action must not be covered by content or navigation").toBe(true);
+  }
+}
 test.beforeEach(async ({ page, baseURL }) => {
   test.skip(!["localhost", "127.0.0.1"].includes(new URL(baseURL!).hostname), "Candidate screenshots and action allowlist only run locally");
   const manifest = JSON.parse(readFileSync(".next/server/server-reference-manifest.json", "utf8"));
@@ -95,6 +128,71 @@ test.afterEach(({ page }, testInfo) => {
   expect(state, "Health monitor must exist for every exercised test").toBeDefined();
   expect(state?.blocked, "No auth, signup, donor metadata or financial mutation was attempted").toEqual([]);
   expect(state?.errors, "No app runtime or console error").toEqual([]);
+});
+
+for (const locale of ["en", "id", "tl", "vi"] as const) for (const viewport of [
+  { width: 320, height: 568 }, { width: 390, height: 844 }, { width: 1280, height: 800 },
+]) test(`isolated ${locale} donation review keeps confirm visible without scrolling at ${viewport.width}x${viewport.height}`, async ({ page }, testInfo) => {
+  // Geometry only: actual review JSX/CSS inside the real app frame and nav.
+  // This is not authenticated/hydrated payment acceptance. No Auth session is
+  // invented and no confirm handler is clicked. All external writes are denied.
+  await page.setViewportSize(viewport);
+  const mapping = openMappingFixture();
+  mapping.mapping.creatorCutBps = mapping.campaign.config.creator_cut_bps = 500;
+  await readFixture(page, { readCircleTestnetCampaign: mapping });
+  await page.goto("/circles/tino-relief/donate", { waitUntil: "domcontentloaded" });
+  await expectIdentityDenied(page);
+  await expect(page.locator("#circle-testnet-amount")).toBeVisible();
+  const circle = getCircle("tino-relief")!;
+  const html = donationReviewMarkup(circle, mapping, locale);
+  await page.addStyleTag({ content: donationReviewCss });
+  await page.locator("#app-content").evaluate((main, markup) => {
+    const fixture = document.createElement("div");
+    fixture.dataset.donationLayoutFixture = "true";
+    fixture.innerHTML = markup;
+    main.replaceChildren(fixture);
+    main.scrollTo({ top: 0, behavior: "instant" });
+  }, html);
+  await page.evaluate(async () => { await document.fonts.ready; });
+  const text = circleTestnetDonateCopy(locale as Locale);
+  const fixture = page.locator("[data-donation-layout-fixture]");
+  const region = fixture.getByRole("region", { name: text("Review Testnet donation"), exact: true });
+  const confirm = fixture.getByRole("button", { name: text("Confirm Testnet donation"), exact: true });
+  await expect(region.getByRole("heading", { name: text("Review before sending"), exact: true })).toBeVisible();
+  await expect(confirm).toHaveCount(1);
+  await expect(confirm).toBeEnabled();
+  await expect(region.getByText("10 XLM", { exact: true })).toBeVisible();
+  await expect(region.getByText("9.5 XLM", { exact: true })).toBeVisible();
+  await expect(region.locator(".reviewSplit")).toContainText("0.5 XLM (5%)");
+  const details = region.locator("details");
+  await expect(details).not.toHaveAttribute("open");
+  expect(await page.locator("#app-content").evaluate(main => main.scrollTop)).toBe(0);
+  const initial = await reviewDockGeometry(page);
+  expectVisibleReviewDock(initial);
+  if (viewport.height >= 800) {
+    for (const selector of [".reviewPrivacy", ".reviewFee", ".reviewBoundary"]) {
+      const bounds = await region.locator(selector).boundingBox();
+      expect(bounds!.y + bounds!.height, `${selector} stays above confirm dock`).toBeLessThanOrEqual(initial.top);
+    }
+  }
+  expect(await fixture.evaluate(node => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+  if (locale === "en" && viewport.width !== 320) await page.screenshot({ path: testInfo.outputPath(`review-first-view-${viewport.width}.png`) });
+
+  // Long optional comment/full recipient stay reachable while the single
+  // confirm action remains in the same position, including short screens.
+  await details.locator("summary").click();
+  await expect(details).toHaveAttribute("open");
+  await page.locator("#app-content").evaluate(main => main.scrollTo({ top: main.scrollHeight, behavior: "instant" }));
+  await expect(details.getByText(mapping.mapping.beneficiaryWallet, { exact: true })).toBeAttached();
+  const comment = details.locator("blockquote");
+  await expect(comment).toBeVisible();
+  const expanded = await reviewDockGeometry(page);
+  expectVisibleReviewDock(expanded);
+  expect(expanded.top).toBe(initial.top);
+  expect(expanded.bottom).toBe(initial.bottom);
+  const commentBounds = await comment.boundingBox();
+  expect(commentBounds!.y + commentBounds!.height, "Last detail is not trapped behind action dock").toBeLessThanOrEqual(expanded.top);
 });
 
 for (const code of ["not_configured", "unmapped"] as const) for (const width of [320, 390, 1280]) test(`public proof ${code} keeps mock evidence separate at ${width}px`, async ({ page }, testInfo) => {
