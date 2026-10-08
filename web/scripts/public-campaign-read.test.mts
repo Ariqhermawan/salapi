@@ -30,8 +30,10 @@ function harness(options: { preview?: boolean; contractId?: string | null; versi
   mappings?: StoredCircleTestnetMapping[]; mappingError?: boolean; mappingGate?: Promise<void> } = {}) {
   const calls = { rpc: [] as { method: string; args: unknown[] }[], auth: 0, mapping: 0, financial: 0, active: 0, peak: 0 };
   const forbidden = (kind: "auth" | "financial") => () => { calls[kind]++; throw Error(`Forbidden ${kind} access`); };
-  const exports = {} as typeof Actions;
-  runInNewContext(code, { exports, Buffer, Uint8Array, TextEncoder, require(name: string) {
+  const exports = {} as typeof Actions & { isPlainObject(value: unknown): boolean };
+  // Compare the actual return object's prototype in its own VM realm. Cloning
+  // through JSON/structuredClone would conceal a null-prototype transport bug.
+  runInNewContext(`${code}\nexports.isPlainObject = value => Object.getPrototypeOf(value) === Object.prototype;`, { exports, Buffer, Uint8Array, TextEncoder, require(name: string) {
     if (name === "@stellar/stellar-sdk") return { StrKey, rpc: {}, scValToNative: forbidden("financial") };
     if (name === "@/lib/server/stellar") return { CONTRACTS: { tokenXlmSac: token }, RPC_URL: "https://fixture.invalid",
       donationCampaignId: () => options.contractId === undefined ? contract : options.contractId,
@@ -167,4 +169,24 @@ test("native campaign metadata overlaps ledger and contribution reads and failur
     assert.equal(result.campaigns[0].title, "Actual QA campaign 7"); assert.deepEqual(structuredClone(result.circleLinks ?? {}), {});
     assert.equal(h.calls.rpc.length, 5); assert.equal(h.calls.financial, 0); assert.doesNotMatch(JSON.stringify(result), /Private catalog/);
   }
+});
+
+test("native campaign Server Action projects null-prototype catalog links into a plain own-key object", async () => {
+  const value = raw(7n); value.title = "QA Circles: tino-relief";
+  const mapping: StoredCircleTestnetMapping = { circleId: "tino-relief", campaignId: "7", campaignTitle: value.title,
+    creatorWallet: value.config.creator, beneficiaryWallet: value.config.beneficiary, approverWallets: value.config.approvers,
+    creatorCutBps: value.config.creator_cut_bps, fundingDeadline: value.config.funding_deadline.toString(), reviewDeadline: value.config.review_deadline.toString() };
+  const h = harness({ viewer: wallet(8), mappings: [mapping], rows: [value] });
+  const result = await h.campaignState("7"); assert.equal(result.ok, true); if (!result.ok) return;
+  assert.equal(Object.getPrototypeOf(associations.circleDiscoveryLinks(result.campaigns, [mapping])), null,
+    "The shared JSON-route helper must retain its null-prototype safety");
+  assert.equal(h.isPlainObject(result.circleLinks), true);
+  assert.deepEqual(Reflect.ownKeys(result.circleLinks!), ["7"]);
+  assert.equal(Object.hasOwn(result.circleLinks!, "7"), true);
+  assert.equal(Object.hasOwn(result.circleLinks!, "__proto__"), false);
+  assert.equal(Object.hasOwn(result.circleLinks!, "constructor"), false);
+  assert.equal(Object.getOwnPropertyDescriptor(result.circleLinks, "7")?.enumerable, true);
+  assert.equal(result.circleLinks?.["7"], "tino-relief");
+  assert.equal(result.campaigns[0].total, value.total.toString()); assert.equal(result.campaigns[0].contribution.amount, "5000000");
+  assert.equal(h.calls.mapping, 1); assert.equal(h.calls.auth, 1); assert.equal(h.calls.rpc.length, 5); assert.equal(h.calls.financial, 0);
 });

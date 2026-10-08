@@ -36,8 +36,10 @@ function harness(options: Options = {}) {
   const calls = { owner: 0, mapping: 0, rpc: [] as { method: string; args: unknown[] }[], peak: 0, active: 0 };
   let milliseconds = 0, pendingRead = false;
   const late: ((error: Error) => void)[] = [];
-  const exports = {} as { readVaultCampaignHistory(before?: unknown, expectedOwnerId?: unknown): Promise<VaultCampaignHistory> };
-  runInNewContext(code, { exports, Buffer, Uint8Array, TextEncoder, URL,
+  const exports = {} as { readVaultCampaignHistory(before?: unknown, expectedOwnerId?: unknown): Promise<VaultCampaignHistory>; isPlainObject(value: unknown): boolean };
+  // Keep the check in the source realm; structuredClone normalizes prototypes
+  // and would falsely accept an object that React Server Actions reject.
+  runInNewContext(`${code}\nexports.isPlainObject = value => Object.getPrototypeOf(value) === Object.prototype;`, { exports, Buffer, Uint8Array, TextEncoder, URL,
     Date: { now: () => milliseconds },
     setTimeout: (callback: () => void, delay: number) => pendingRead ? setTimeout(callback, 0) : setTimeout(callback, delay), clearTimeout,
     fetch: () => { throw Error("No network is authorized in history fixtures"); },
@@ -302,6 +304,28 @@ test("missing, failed or timed-out mapping metadata never discards verified hist
       await new Promise(resolve => setTimeout(resolve, 0));
       assert.deepEqual(structuredClone(result.circleLinks), {});
     }
+  }
+});
+
+test("history Server Action projects both mapped and empty catalog links into plain own-key objects", async () => {
+  const value = raw(1n); value.title = "QA Circles: tino-relief";
+  const mapping: StoredCircleTestnetMapping = { circleId: "tino-relief", campaignId: "1", campaignTitle: value.title,
+    creatorWallet: value.config.creator, beneficiaryWallet: value.config.beneficiary, approverWallets: value.config.approvers,
+    creatorCutBps: value.config.creator_cut_bps, fundingDeadline: value.config.funding_deadline.toString(), reviewDeadline: value.config.review_deadline.toString() };
+  for (const mappings of [[mapping], []]) {
+    const h = harness({ total: 1, donations: [1], mappings, row: row => ({ ...row, title: value.title }) });
+    const result = ok(await h.readVaultCampaignHistory());
+    assert.equal(Object.getPrototypeOf(associations.circleDiscoveryLinks(result.campaigns, mappings)), null);
+    assert.equal(h.isPlainObject(result.circleLinks), true);
+    assert.deepEqual(Reflect.ownKeys(result.circleLinks!), mappings.length ? ["1"] : []);
+    assert.equal(Object.hasOwn(result.circleLinks!, "1"), mappings.length > 0);
+    assert.equal(Object.hasOwn(result.circleLinks!, "__proto__"), false); assert.equal(Object.hasOwn(result.circleLinks!, "constructor"), false);
+    if (mappings.length) {
+      assert.equal(result.circleLinks?.["1"], "tino-relief"); assert.equal(Object.getOwnPropertyDescriptor(result.circleLinks, "1")?.enumerable, true);
+    }
+    assert.equal(result.ownerId, ownerId); assert.equal(result.viewer, viewer); assert.equal(result.complete, true);
+    assert.equal(result.campaigns[0].total, value.total.toString()); assert.equal(result.campaigns[0].contribution.amount, "1000000000");
+    assert.equal(h.calls.mapping, 1); assert.equal(h.calls.owner, 1); assert.equal(h.calls.rpc.length, 5);
   }
 });
 

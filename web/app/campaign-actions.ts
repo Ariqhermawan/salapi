@@ -89,7 +89,9 @@ export async function campaignState(id = "", before = "0") {
     // Titles and full immutable config establish a display association only.
     // Campaign payloads remain the exact ledger and contribution projection.
     let circleLinks: Record<string, string> = {};
-    try { circleLinks = circleDiscoveryLinks(campaigns, await mappingsRead); }
+    // The JSON helper uses a null-prototype map. Server Actions require a
+    // plain object, so project its own validated keys at this boundary.
+    try { circleLinks = { ...circleDiscoveryLinks(campaigns, await mappingsRead) }; }
     catch { /* Optional catalog metadata cannot hide a live campaign. */ }
     return { ok: true as const, contractId, viewer, now: String(now), campaigns,
       ...(Object.keys(circleLinks).length ? { circleLinks } : {}) };

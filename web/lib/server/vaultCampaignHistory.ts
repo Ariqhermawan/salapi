@@ -101,7 +101,9 @@ export async function readVaultCampaignHistory(before: unknown = "0", expectedOw
     let cursor = BigInt(before), completedPages = 0;
     const result = async (complete: boolean): Promise<VaultCampaignHistory> => {
       let circleLinks: Record<string, string> = {};
-      try { circleLinks = circleDiscoveryLinks(campaigns, await mappingsRead); }
+      // Keep the shared JSON helper's null-prototype map off the Server Action
+      // transport, which requires plain objects with Object.prototype.
+      try { circleLinks = { ...circleDiscoveryLinks(campaigns, await mappingsRead) }; }
       catch { /* Display association is optional, never a history requirement. */ }
       return { ok: true, ownerId: owner.ownerId, viewer: owner.address, contractId, now: now.toString(),
         campaigns, nextCursor: complete ? null : cursor.toString(), complete, circleLinks };
