@@ -17,7 +17,7 @@ const otherId = "00000000-0000-4000-8000-000000000002";
 const publicKey = "GCUBT6T7SMQKJE5L2TJLUQQPSBBU5GVHALGLWWECEJUIV2YFFCSXGHY7";
 const profile = (id = ownerId): AccountPhoto => ({ ownerId: id, email: "fixture@example.invalid", photoUrl: null, googlePhotoUrl: null, source: "google" });
 const account = (id = ownerId, enabled = false): AccountDetails => ({ ownerId: id, email: `${id === ownerId ? "fixture" : "other"}@example.invalid`,
-  address: publicKey, handle: "fixture_user", receiptPhotoConsent: enabled, identityUnavailable: false });
+  address: publicKey, handle: "fixture_user", receiptPhotoConsent: enabled, transferPreviewPhotoConsent: false, identityUnavailable: false });
 const forbidden = () => { throw Error("External boundary forbidden in isolated Account Details UI tests"); };
 const compile = (path: string) => ts.transpileModule(readFileSync(new URL(path, import.meta.url), "utf8"), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true },
@@ -40,7 +40,7 @@ function setup({ locale = "en", initialPhoto = { status: "ready", profile: profi
   const cells: unknown[] = []; const effects = new Map<number, Effect>(); const scheduled = new Map<number, Effect>();
   const reads: { owner: string; result: ReturnType<typeof deferred<AccountDetailsResult>> }[] = [];
   const writes: { owner: string; enabled: boolean; result: ReturnType<typeof deferred<ReceiptPhotoResult>> }[] = [];
-  const calls = { reloads: 0, backs: 0 }; let cursor = 0;
+  const calls = { reloads: 0, backs: 0, previewWrites: 0 }; let cursor = 0;
   const hooks = {
     useState(initial: unknown) {
       const n = cursor++; if (!(n in cells)) cells[n] = typeof initial === "function" ? initial() : initial;
@@ -88,6 +88,7 @@ function setup({ locale = "en", initialPhoto = { status: "ready", profile: profi
     if (name === "@/app/account-details-actions") return {
       accountDetails(owner: string) { const result = deferred<AccountDetailsResult>(); reads.push({ owner, result }); return result.promise; },
       setReceiptPhotoConsent(owner: string, enabled: boolean) { const result = deferred<ReceiptPhotoResult>(); writes.push({ owner, enabled, result }); return result.promise; },
+      setTransferPreviewPhotoConsent(owner: string, enabled: boolean) { calls.previewWrites++; const result = deferred<ReceiptPhotoResult>(); writes.push({ owner, enabled, result }); return result.promise; },
     };
     if (name === "@/lib/i18n/account-details") return { accountDetailsCopy };
     if (name === "@/components/I18nProvider") return { useT: () => ({ locale }) };
@@ -129,6 +130,18 @@ async function ready(h: ReturnType<typeof setup>, value = account()) {
 }
 const change = (input: React.ReactElement<Record<string, unknown>>, enabled: boolean) =>
   (input.props.onChange as (event: { target: { checked: boolean } }) => void)({ target: { checked: enabled } });
+
+test("preview photo checkbox has explicit broader disclosure, starts off, and does not change receipt permission", async () => {
+  const h = setup(); await ready(h, account(ownerId, true));
+  const boxes = h.nodes(h.render()).filter(node => node.type === "input" && node.props.type === "checkbox");
+  assert.equal(boxes.length, 2); assert.equal(boxes[0].props.checked, true); assert.equal(boxes[1].props.checked, false);
+  assert.ok(h.html().includes(accountDetailsCopy("en").previewShareHint));
+  change(boxes[1], true); change(boxes[1], true);
+  assert.equal(h.calls.previewWrites, 1); assert.equal(h.writes[0].owner, ownerId);
+  h.writes[0].result.resolve({ ok: true, ownerId, enabled: true }); await flush();
+  const saved = h.nodes(h.render()).filter(node => node.type === "input" && node.props.type === "checkbox");
+  assert.equal(saved[0].props.checked, true); assert.equal(saved[1].props.checked, true);
+});
 
 test("loading and confirmed guest stay neutral without reading or exposing any account", () => {
   for (const status of ["loading", "ready"] as const) {

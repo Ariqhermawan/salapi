@@ -19,7 +19,7 @@ const otherId = "00000000-0000-4000-8000-000000000002";
 const address = "GCUBT6T7SMQKJE5L2TJLUQQPSBBU5GVHALGLWWECEJUIV2YFFCSXGHY7";
 const otherAddress = "GAVWJIZ45MHV2KWBHNBBB7YHU5CPTIDD3YONC4ZNP7IGE6Z3C777OV4H";
 const account = (handle: string | null = "fixture_user", id = ownerId, publicKey: string | null = address): AccountDetailsResult => ({ ok: true,
-  account: { ownerId: id, email: "private@example.invalid", address: publicKey, handle, receiptPhotoConsent: false, identityUnavailable: false } });
+  account: { ownerId: id, email: "private@example.invalid", address: publicKey, handle, receiptPhotoConsent: false, transferPreviewPhotoConsent: false, identityUnavailable: false } });
 function deferred<T>() {
   let resolve!: (value: T) => void;
   let reject!: (error: unknown) => void;

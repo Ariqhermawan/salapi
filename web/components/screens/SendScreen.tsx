@@ -4,7 +4,10 @@ import { useRouter } from "next/navigation";
 import { registerUsername, myHandle, sendByUsername, lookupRecipient, checkSubmittedTransfer } from "@/app/actions";
 import { useT } from "@/components/I18nProvider";
 import { moneyCopy, moneyMessage } from "@/lib/i18n/revamp-money";
-import { T, Ico, AppBar, IconButton, Btn, Avatar, PoweredByStellar } from "@/components/ui/kit";
+import { T, Ico, AppBar, IconButton, Btn, PoweredByStellar } from "@/components/ui/kit";
+import AccountAvatar from "@/components/AccountAvatar";
+import { useAccountPhoto } from "@/components/useAccountPhoto";
+import { recipientUsername, RECIPIENT_USERNAME_PATTERN } from "@/lib/recipient-review";
 import { useGoBack } from "@/lib/ui/useGoBack";
 import { CURRENCY, formatLocalAmount, pesoFromLocal } from "@/lib/ui/currency";
 import { localToStroops, pesosToStroopsExact } from "@/lib/money";
@@ -36,9 +39,14 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
   const goBack = useGoBack("/");
   const [mine, setMine] = useState<string | null>(isLocalPreview ? PREVIEW_WALLET.handle : null);
   const [claim, setClaim] = useState("");
-  const [to, setTo] = useState((initialTo ?? "").replace(/[^a-zA-Z0-9_]/g, "").slice(0, 32));
+  const [to, setTo] = useState(initialTo ?? "");
   const [amount, setAmount] = useState("");
   const [recipient, setRecipient] = useState<{ username: string; address: string } | null>(null);
+  const accountPhoto = useAccountPhoto();
+  const [identity, setIdentity] = useState<{ username: string; address: string; handle: string | null; photoUrl: string | null } | null>(null);
+  const [photoLoading, setPhotoLoading] = useState(false);
+  const [lookupError, setLookupError] = useState("");
+  const lookupVersion = useRef(0);
   const [pending, start] = useTransition();
   const [transferPhase, setTransferPhase] = useState<"send" | "check" | null>(null);
   const submitting = useRef(false);
@@ -46,12 +54,15 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
   const [err, setErr] = useState("");
   const [unresolved, setUnresolved] = useState<UnresolvedSend | null>(null);
   const unresolvedRef = useRef<UnresolvedSend | null>(null);
-  const clean = to.trim().toLowerCase();
+  const clean = recipientUsername(to);
   const units = localToStroops(amount, currency);
   const displayPesos = pesoFromLocal(Number(amount), currency);
   const withinAmountLimit = Number.isFinite(displayPesos) && displayPesos <= 1_000_000_000 && (units === null || units <= MAX_TRANSFER_STROOPS);
   const self = !!mine && clean === mine.toLowerCase();
-  const valid = /^[a-z0-9_]{3,32}$/.test(clean) && units !== null && units > 0n && !self && withinAmountLimit;
+  const validUsername = RECIPIENT_USERNAME_PATTERN.test(clean);
+  const valid = validUsername && units !== null && units > 0n && !self && withinAmountLimit;
+  const shownIdentity = recipient && identity?.username === recipient.username && identity.address === recipient.address ? identity : null;
+  const recipientHandle = shownIdentity?.handle ?? recipient?.username ?? clean;
   const xlm = units === null ? "0" : String(units / 10_000_000n) + "." + String(units % 10_000_000n).padStart(7, "0");
 
   useEffect(() => {
@@ -62,7 +73,37 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setUnresolved(saved);
     myHandle().then(setMine).catch(() => setErr("Your username could not be loaded. Please try again."));
+    const requestVersion = lookupVersion;
+    return () => { requestVersion.current++; };
   }, []);
+
+  useEffect(() => {
+    if (isLocalPreview || !recipient) return;
+    let active = true;
+    const controller = new AbortController();
+    const query = new URLSearchParams({ username: recipient.username, address: recipient.address });
+    // Optional photos never delay registry review or share the Server Action
+    // queue with a send. Editing/unmounting discards late recipient responses.
+    void fetch(`/api/transfers/recipient-identity?${query}`, {
+      credentials: "same-origin", cache: "no-store",
+      signal: AbortSignal.any([controller.signal, AbortSignal.timeout(8_000)]),
+    }).then(async response => {
+      if (!response.ok) return;
+      const result = await response.json();
+      if (!active) return;
+      if (result.ok === false && result.code === "changed") {
+        lookupVersion.current++;
+        setRecipient(null);
+        setLookupError(moneyCopy(locale)("The recipient changed. Check the username again before sending."));
+      } else if (result.ok === true && result.username === recipient.username && result.address === recipient.address) {
+        setIdentity({ username: recipient.username, address: recipient.address,
+          handle: typeof result.handle === "string" && RECIPIENT_USERNAME_PATTERN.test(result.handle) ? result.handle : null,
+          photoUrl: typeof result.photoUrl === "string" ? result.photoUrl : null });
+      }
+    }).catch(() => { /* Optional photo failure keeps the verified wallet and initials. */ })
+      .finally(() => { if (active) setPhotoLoading(false); });
+    return () => { active = false; controller.abort(); };
+  }, [recipient, locale]);
 
   function retainUnresolved(value: UnresolvedSend): boolean {
     if (isLocalPreview) return false;
@@ -95,15 +136,22 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
 
   function reviewTransfer() {
     if (!valid || pending || unresolvedRef.current || storedUnresolvedSend()) return;
+    const request = ++lookupVersion.current;
     start(async () => {
       setErr("");
+      setLookupError("");
       try {
         const r = await lookupRecipient(clean);
+        if (request !== lookupVersion.current) return;
         if (r.ok) {
           if (r.address === PREVIEW_WALLET.address && isLocalPreview) { setErr(m("You cannot send to yourself.")); return; }
+          setIdentity(null);
+          setPhotoLoading(!isLocalPreview);
           setRecipient({ username: r.username, address: r.address });
-        } else setErr(r.error);
-      } catch { setErr(m("We could not check this recipient. Please try again when the service is available.")); }
+        } else setLookupError(r.code === "not_found"
+          ? m("@{username} is not registered. Check the spelling or ask the recipient for their exact username.", { username: clean })
+          : r.code === "unavailable" ? m("We could not verify this username. This does not mean it is unregistered. Try again.") : moneyMessage(locale, r.error));
+      } catch { if (request === lookupVersion.current) setLookupError(m("We could not verify this username. This does not mean it is unregistered. Try again.")); }
     });
   }
 
@@ -183,8 +231,8 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
               <dl className={styles.details}><div className={styles.addressRow}><dt>{m("Transaction hash")}</dt><dd className={styles.address}>{done.hash}</dd></div></dl>
             </> : <>
             <div className={styles.recipientSummary}>
-              <Avatar name={clean} size={42} />
-              <div><span>{m("To")}</span><strong>@{clean}</strong></div>
+              <AccountAvatar name={recipientHandle} photoUrl={shownIdentity?.photoUrl ?? null} size={42} alt={`@${recipientHandle}`} />
+              <div><span>{m("To")}</span><strong>@{recipientHandle}</strong></div>
               <span className={styles.receiptMark} aria-hidden="true">{Ico.check({ c: T.moneyIn, size: 24 })}</span>
             </div>
             <div className={styles.receiptAmount}>{formatLocalAmount(Number(amount), currency)}</div>
@@ -223,23 +271,27 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
               <p className={styles.summaryNative}><span>{m("Token amount")}</span>{xlm} Testnet XLM</p>
               <div className={styles.transferBridge}>
                 <div className={styles.transferParty}>
-                  {mine ? <Avatar name={mine} size={30} /> : null}
+                  <AccountAvatar name={mine ?? "?"} photoUrl={accountPhoto.profile?.photoUrl ?? null} size={38} alt={mine ? `@${mine}` : m("Your account")} />
                   <div><span>{m("From")}</span><strong>{mine ? `@${mine}` : m("Your account")}</strong></div>
                 </div>
                 <span className={styles.bridgeArrow} aria-hidden="true">{Ico.chev({ c: "#BED4F5", size: 18 })}</span>
                 <div className={styles.transferParty}>
-                  <Avatar name={recipient.username} size={30} />
-                  <div><span>{isLocalPreview ? m("Example recipient") : m("Registry recipient")}</span><strong>@{recipient.username}</strong></div>
+                  <AccountAvatar name={recipientHandle} photoUrl={shownIdentity?.photoUrl ?? null} size={38} alt={`@${recipientHandle}`} />
+                  <div><span>{isLocalPreview ? m("Example recipient") : m("To")}</span><strong>@{recipientHandle}</strong>
+                    {recipientHandle !== recipient.username ? <small>{m("Via alias @{username}", { username: recipient.username })}</small> : null}
+                  </div>
                 </div>
               </div>
             </div>
             <div className={styles.reviewTear} aria-hidden="true"><span /></div>
             <div className={styles.reviewEvidence}>
+              <p className={styles.verifiedRecipient}>{Ico.check({ c: T.moneyIn, size: 14 })}{isLocalPreview ? m("Example recipient") : m("Username registered on Stellar Testnet")}</p>
               <dl>
                 <div className={styles.reviewNetwork}><dt>{m("Network")}</dt><dd><span aria-hidden="true" />Stellar Testnet</dd></div>
                 <div className={styles.reviewWallet}><dt>{m("Recipient wallet")}</dt><dd>{recipient.address}</dd></div>
               </dl>
-              <p>{isLocalPreview ? m("This recipient is an example. Confirming shows a local receipt only.") : m("Check the username and wallet with your recipient. Network fees may apply.")}</p>
+              <p>{isLocalPreview ? m("This recipient is an example. Confirming shows a local receipt only.") : m("A registered username could still be the wrong person. Match this username and wallet with your recipient before confirming.")}</p>
+              {!isLocalPreview ? <details className={styles.photoNote}><summary>{m("About profile photos")}</summary><p>{photoLoading ? m("Loading the permitted account photo…") : m("Photos appear only when available and permitted by their owner. Otherwise, initials are shown. A photo is not proof of identity.")}</p></details> : null}
             </div>
           </article>
           <div className={styles.actions}>
@@ -259,8 +311,13 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
               <label className={styles.fieldLabel} htmlFor="send-recipient">{m("Recipient @username")}</label>
               <div className={styles.usernameInput}>
                 <span aria-hidden="true">@</span>
-                <input id="send-recipient" value={to} onChange={e => setTo(e.target.value.replace(/^@/, "").replace(/[^a-zA-Z0-9_]/g, "").slice(0, 32))} placeholder={m("e.g. jamamam")} autoCapitalize="none" autoComplete="off" />
+                <input id="send-recipient" value={to} maxLength={33} aria-describedby="send-recipient-help" aria-invalid={!!clean && !validUsername || !!lookupError}
+                  onChange={e => { lookupVersion.current++; setTo(e.target.value); setLookupError(""); }}
+                  placeholder={m("e.g. jamamam")} autoCapitalize="none" autoComplete="off" spellCheck={false} />
               </div>
+              <p id="send-recipient-help" className={styles.recipientHelp}>{m("Use 3–32 letters, numbers or underscores. We check the exact username when you review.")}</p>
+              {clean && !validUsername ? <p role="alert" className={styles.inlineError}>{m("Enter a username with 3–32 letters, numbers or underscores.")}</p> : null}
+              {lookupError ? <p role="alert" className={styles.inlineError}>{lookupError}</p> : null}
               {self ? <p role="alert" className={styles.inlineError}>{m("Choose a different recipient. You cannot send to yourself.")}</p> : null}
             </div>
             {mine ? <p className={styles.sender}><span>{m("Your username")}</span><strong>@{mine}</strong></p> : <div className={styles.claim}>

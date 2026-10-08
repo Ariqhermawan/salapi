@@ -69,7 +69,16 @@ export async function readArisanWalletIdentities(addresses: readonly string[], a
   return readVerifiedIdentities([...addresses], 20, allowPhotos, undefined, true, true);
 }
 
-async function readVerifiedIdentities(addresses: string[], limit: number, allowPhotos: boolean, donationPhotoOwners?: ReadonlyMap<string, string>, nonanonymousOwners = false, publicFallbackOnPhotoFailure = false): Promise<WalletActivityIdentity[]> {
+/** Called after a signed-in request resolves the exact reviewed username to
+ * this address. Public handle verification and opt-in photos run in parallel.
+ * Never use arbitrary request addresses without that registry binding.
+ */
+export async function readTransferWalletIdentity(address: string): Promise<WalletActivityIdentity | null> {
+  if (!validAddress(address)) return null;
+  return (await readVerifiedIdentities([address], 1, true, undefined, true, true, true))[0] ?? null;
+}
+
+async function readVerifiedIdentities(addresses: string[], limit: number, allowPhotos: boolean, donationPhotoOwners?: ReadonlyMap<string, string>, nonanonymousOwners = false, publicFallbackOnPhotoFailure = false, previewPhotos = false): Promise<WalletActivityIdentity[]> {
   const result = addresses.map(address => ({ address, handle: null, photoUrl: null } as WalletActivityIdentity));
   const deadline = Date.now() + DEADLINE_MS;
   const owners = new Map<string, string>();
@@ -120,6 +129,7 @@ async function readVerifiedIdentities(addresses: string[], limit: number, allowP
           if (nonanonymousOwners && user.is_anonymous !== false) return;
           const photoAllowed = donationPhotoOwners !== undefined
             ? donationPhotoOwners.get(identity.address) === ownerId
+            : previewPhotos ? user.user_metadata?.salapi_transfer_preview_photo_consent === true
             : user.user_metadata?.salapi_receipt_photo_consent === true;
           if (!photoAllowed) return;
           const path = ownedAccountPhotoPath(user.user_metadata?.[ACCOUNT_AVATAR_METADATA_KEY], ownerId);

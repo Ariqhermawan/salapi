@@ -5,6 +5,7 @@ import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import * as revampMoney from "../lib/i18n/revamp-money.ts";
 import * as money from "../lib/money.ts";
+import * as recipientReview from "../lib/recipient-review.ts";
 import * as feePolicy from "../lib/arisan-funding-fees.ts";
 import { CURRENCY, formatLocalAmount, pesoFromLocal } from "../lib/ui/currency.ts";
 import { AuthSessionMissingError, isAuthSessionMissingError } from "@supabase/supabase-js";
@@ -448,6 +449,9 @@ function sendSetup(options: { storage?: Map<string, string>; unavailable?: boole
     "next/navigation": { useRouter: () => ({ push() {} }) },
     "@/components/I18nProvider": { useT: () => ({ currency: "tl", t: (v: string) => v }) },
     "@/lib/i18n/revamp-money": revampMoney,
+    "@/lib/recipient-review": recipientReview,
+    "@/components/AccountAvatar": { default: "AccountAvatar" },
+    "@/components/useAccountPhoto": { useAccountPhoto: () => ({ profile: null }) },
     "@/components/ui/kit": { ...Object.fromEntries(["AppBar", "IconButton", "Btn", "Avatar", "PoweredByStellar"].map(v => [v, v])), T: {}, Ico: new Proxy({}, { get: () => () => null }) },
     "@/components/ui/SuccessMotion": { default: "SuccessMotion" }, "./SendRevamp.module.css": { default: {} },
     "@/components/ui/TransferMotion": { default: "TransferMotion" },

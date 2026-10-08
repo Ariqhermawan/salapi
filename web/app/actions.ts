@@ -29,7 +29,7 @@ import type { ArisanReviewedInvitation } from "@/lib/arisan-invitation";
 import { disasterContribute as contributeToDisaster, disasterState as readDisasterState } from "./disaster-actions";
 import { isLocalPreview, PREVIEW_RECIPIENT, PREVIEW_WALLET } from "@/lib/local-preview";
 import { arisanRoomPage } from "@/lib/arisan-list";
-import { recipientReviewError } from "@/lib/recipient-review";
+import { recipientReviewError, recipientUsername, RECIPIENT_USERNAME_PATTERN, recipientLookupFailure } from "@/lib/recipient-review";
 import { xlmDepositDetails } from "@/lib/server/xlmDeposit";
 import { currentWalletActivity } from "@/lib/server/walletActivity";
 import type { WalletActivityResult } from "@/lib/wallet-activity";
@@ -209,21 +209,22 @@ export async function myHandle(): Promise<string | null> {
 
 /** Resolves the recipient without creating a wallet or submitting a transfer. */
 export async function lookupRecipient(name: string) {
-  const clean = name.trim().replace(/^@/, "").toLowerCase();
-  if (!/^[a-z0-9_]{3,32}$/.test(clean)) return { ok: false as const, error: "Enter a username with 3–32 letters, numbers or underscores." };
+  const clean = recipientUsername(name);
+  if (!RECIPIENT_USERNAME_PATTERN.test(clean)) return { ok: false as const, code: "invalid" as const, error: "Enter a username with 3–32 letters, numbers or underscores." };
   if (isLocalPreview) {
-    if (clean === PREVIEW_WALLET.handle) return { ok: false as const, error: "Choose someone other than yourself." };
+    if (clean === PREVIEW_WALLET.handle) return { ok: false as const, code: "self" as const, error: "Choose someone other than yourself." };
     return { ok: true as const, username: clean, address: PREVIEW_RECIPIENT, localPreview: true };
   }
   try {
-    const address = await readContract(CONTRACTS.usernameRegistry, "resolve", [sc.str(clean)]);
-    if (typeof address !== "string") return { ok: false as const, error: `@${clean} was not found.` };
-    const own = await currentWalletPublicKey();
-    if (own === address) return { ok: false as const, error: "Choose someone other than yourself." };
+    const [address, own] = await Promise.all([
+      readContract(CONTRACTS.usernameRegistry, "resolve", [sc.str(clean)]), currentWalletPublicKey(),
+    ]);
+    if (typeof address !== "string" || !StrKey.isValidEd25519PublicKey(address)) return { ok: false as const, code: "unavailable" as const, error: "Recipient lookup is unavailable. Try again before sending." };
+    if (own === address) return { ok: false as const, code: "self" as const, error: "Choose someone other than yourself." };
     return { ok: true as const, username: clean, address };
   } catch (error) {
-    const message = error instanceof Error ? error.message : "";
-    return { ok: false as const, error: /Error\(Contract, #/.test(message) ? `@${clean} was not found.` : "Recipient lookup is unavailable. Try again before sending." };
+    const code = recipientLookupFailure(error);
+    return { ok: false as const, code, error: code === "not_found" ? `@${clean} was not found.` : "Recipient lookup is unavailable. Try again before sending." };
   }
 }
 
@@ -243,8 +244,8 @@ export async function sendByUsername(name: string, input: MoneyInput, expectedAd
     );
     if (typeof resolved !== "string") throw new Error("not found");
     to = resolved;
-  } catch {
-    return { ok: false as const, error: `@${clean} not found` };
+  } catch (error) {
+    return { ok: false as const, error: recipientLookupFailure(error) === "not_found" ? `@${clean} not found` : "Recipient lookup is unavailable. Try again before sending." };
   }
   const reviewError = recipientReviewError(to, expectedAddress);
   if (reviewError) return { ok: false as const, error: reviewError };

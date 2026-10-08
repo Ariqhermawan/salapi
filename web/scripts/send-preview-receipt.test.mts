@@ -6,6 +6,7 @@ import ts from "typescript";
 import * as revampMoney from "../lib/i18n/revamp-money.ts";
 import { localToStroops, pesosToStroopsExact } from "../lib/money.ts";
 import { CURRENCY, formatLocalAmount, pesoFromLocal } from "../lib/ui/currency.ts";
+import * as recipientReview from "../lib/recipient-review.ts";
 import type { PreviewTransferInput } from "../lib/local-preview-history.ts";
 
 type Element = { type: string; props: Record<string, unknown> };
@@ -64,6 +65,9 @@ function setup(options: { preview?: boolean; storageUnavailable?: boolean } = {}
     require(name: string) {
       if (name === "react/jsx-runtime") return { jsx, jsxs: jsx, Fragment: "Fragment" };
       if (name === "@/lib/i18n/revamp-money") return revampMoney;
+      if (name === "@/lib/recipient-review") return recipientReview;
+      if (name === "@/components/AccountAvatar") return { default: "AccountAvatar" };
+      if (name === "@/components/useAccountPhoto") return { useAccountPhoto: () => ({ profile: null }) };
       if (name === "react") return {
         useState(initial: unknown) {
           const index = cursor++;

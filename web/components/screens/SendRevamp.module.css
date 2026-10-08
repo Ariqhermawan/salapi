@@ -118,6 +118,7 @@
 .preset:active { transform: translateY(1px); }
 
 .recipientField { margin-top: 14px; padding-top: 14px; border-top: 1px solid #e7ecf4; }
+.recipientHelp { margin: 7px 0 0; color: #586985; font-size: 11px; line-height: 1.5; }
 
 .usernameInput {
   display: flex;
@@ -231,6 +232,7 @@
 .transferParty > div:last-child { min-width: 0; }
 .transferParty span { display: block; color: #adc3e2; font-size: 10px; line-height: 1.45; }
 .transferParty strong { display: block; overflow-wrap: anywhere; color: #fff; font-size: 12px; font-weight: 650; line-height: 1.5; }
+.transferParty small { display: block; overflow-wrap: anywhere; color: #adc3e2; font-size: 9px; line-height: 1.5; }
 .bridgeArrow { display: flex; align-items: center; justify-content: center; }
 
 .reviewTear { position: relative; display: flex; align-items: center; height: 16px; margin-top: -8px; padding: 0 13px; background: linear-gradient(#10284c 0 50%, #f5f1e9 50% 100%); }
@@ -249,6 +251,10 @@
 .reviewWallet { display: grid; gap: 5px; margin-top: 11px; }
 .reviewWallet dd { overflow-wrap: anywhere; font-family: var(--font-geist-mono), ui-monospace, monospace; font-size: 10px; line-height: 1.65; word-break: break-all; }
 .reviewEvidence p { margin: 11px 0 0; color: #586985; font-size: 11px; line-height: 1.5; text-wrap: pretty; }
+.reviewEvidence .verifiedRecipient { display: flex; align-items: center; gap: 6px; margin: 0 0 4px; color: #367965; font-weight: 650; }
+.photoNote { margin-top: 9px; color: #586985; font-size: 10px; line-height: 1.5; }
+.photoNote summary { min-height: 24px; cursor: pointer; }
+.photoNote p { margin: 4px 0 0; font-size: 10px; }
 
 .inlineError { margin: 9px 0 0; color: #b91c1c; font-size: 12px; line-height: 1.5; }
 .error { margin: 12px 0 0; padding: 12px 14px; border: 1px solid #fecaca; border-radius: 13px; background: #fef2f2; color: #b91c1c; font-size: 12px; line-height: 1.6; }
@@ -275,7 +281,7 @@
   .reviewSummary { padding: 16px 16px 15px; }
   .summaryAmount { font-size: 36px; }
   .summaryNative { font-size: 11px; }
-  .transferBridge { grid-template-columns: minmax(0, 1fr) 14px minmax(0, 1fr); gap: 5px; margin-top: 15px; padding-top: 12px; }
+  .transferBridge { grid-template-columns: minmax(0, 1.15fr) 14px minmax(0, 1fr); gap: 5px; margin-top: 15px; padding-top: 12px; }
   .transferParty { gap: 5px; }
   .transferParty strong { font-size: 11px; }
   .transferParty span { font-size: 9px; }

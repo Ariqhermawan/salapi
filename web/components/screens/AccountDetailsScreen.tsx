@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { accountDetails, setReceiptPhotoConsent } from "@/app/account-details-actions";
+import { accountDetails, setReceiptPhotoConsent, setTransferPreviewPhotoConsent } from "@/app/account-details-actions";
 import type { AccountDetails } from "@/lib/account-details";
 import { accountDetailsCopy } from "@/lib/i18n/account-details";
 import { useT } from "@/components/I18nProvider";
@@ -43,7 +43,7 @@ export default function AccountDetailsScreen() {
   const account = state.account?.ownerId === ownerId ? state.account : null;
   const ready = !!account && photo.status === "ready";
 
-  function toggle(enabled: boolean) {
+  function toggle(enabled: boolean, preview = false) {
     const expectedOwner = owner.current;
     if (!expectedOwner || !ready || pending || photo.pending || writeInFlight.current) return;
     writeInFlight.current = true;
@@ -51,11 +51,11 @@ export default function AccountDetailsScreen() {
     setFeedback(null);
     start(async () => {
       try {
-        const result = await setReceiptPhotoConsent(expectedOwner, enabled);
+        const result = await (preview ? setTransferPreviewPhotoConsent : setReceiptPhotoConsent)(expectedOwner, enabled);
         if (version.current !== request || owner.current !== expectedOwner) return;
         if (!result.ok || result.ownerId !== expectedOwner || result.enabled !== enabled) { setFeedback("saveError"); return; }
         setState(previous => previous.account?.ownerId === expectedOwner
-          ? { ...previous, account: { ...previous.account, receiptPhotoConsent: result.enabled } } : previous);
+          ? { ...previous, account: { ...previous.account, [preview ? "transferPreviewPhotoConsent" : "receiptPhotoConsent"]: result.enabled } } : previous);
         setFeedback("saved");
       } catch { if (version.current === request && owner.current === expectedOwner) setFeedback("saveError"); }
       finally { writeInFlight.current = false; }
@@ -89,6 +89,9 @@ export default function AccountDetailsScreen() {
         <label className={styles.preference}><input type="checkbox" checked={account.receiptPhotoConsent}
           disabled={pending || photo.pending} onChange={event => toggle(event.target.checked)} /> <span>{c.share}</span></label>
         <p>{c.shareHint}</p>
+        <label className={styles.preference}><input type="checkbox" checked={account.transferPreviewPhotoConsent === true}
+          disabled={pending || photo.pending} onChange={event => toggle(event.target.checked, true)} /> <span>{c.previewShare}</span></label>
+        <p>{c.previewShareHint}</p>
         {pending ? <p role="status">{c.saving}</p> : null}
         {feedback ? <p role={feedback === "saved" ? "status" : "alert"}>{c[feedback]}</p> : null}
         {feedback === "saveError" ? <button type="button" onClick={() => start(() => { void load(); })}>{c.retry}</button> : null}

@@ -9,6 +9,7 @@ import * as copy from "../lib/i18n/revamp-money.ts";
 import * as activityCopyModule from "../lib/i18n/wallet-activity.ts";
 import { activityUsdcEquivalent } from "../lib/wallet-activity.ts";
 import * as money from "../lib/money.ts";
+import * as recipientReview from "../lib/recipient-review.ts";
 import { CURRENCY, formatLocal, formatLocalAmount, pesoFromLocal } from "../lib/ui/currency.ts";
 import { authRedirectPath } from "../lib/authRedirect.ts";
 import { PREVIEW_WALLET, PREVIEW_RECIPIENT } from "../lib/local-preview.ts";
@@ -98,6 +99,8 @@ function mount(name: typeof names[number], locale: Locale, options: { preview?: 
       if (dependency === "@/lib/i18n/wallet-activity") return activityCopyModule;
       if (dependency === "@/lib/wallet-activity") return { activityUsdcEquivalent };
       if (dependency === "@/components/AccountAvatar") return { default: "AccountAvatar" };
+      if (dependency === "@/components/useAccountPhoto") return { useAccountPhoto: () => ({ profile: null }) };
+      if (dependency === "@/lib/recipient-review") return recipientReview;
       if (dependency === "@/components/MarketPricesProvider") return { useMarketPrices: () => ({ prices: { status: "unavailable", source: "CoinGecko", reason: "preview" } }) };
       if (dependency === "next/navigation") return { useRouter: () => ({ push: (value: string) => calls.navigations.push(value) }), useSearchParams: () => ({ get: (key: string) => key === "next" ? options.next ?? "/vaults" : null }) };
       if (dependency === "next/image" || dependency === "next/link") return { default: dependency };

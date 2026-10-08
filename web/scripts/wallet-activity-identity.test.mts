@@ -66,7 +66,8 @@ function harness(options: { rows?: { public_key: string; user_id: string }[]; us
     }
   }
   const exports = {} as { readActivityIdentities(viewer: string, items: WalletActivityItem[], donationPhotoOwners?: ReadonlyMap<string, string>): Promise<WalletActivityIdentity[]>;
-    readArisanWalletIdentities(addresses: readonly string[], allowPhotos: boolean): Promise<WalletActivityIdentity[]> };
+    readArisanWalletIdentities(addresses: readonly string[], allowPhotos: boolean): Promise<WalletActivityIdentity[]>;
+    readTransferWalletIdentity(address: string): Promise<WalletActivityIdentity | null> };
   runInNewContext(compiled, { exports, URL, AbortSignal, setTimeout, clearTimeout, Date: class extends Date { static now() { return now; } },
     require(dependency: string) {
       if (dependency === "server-only") return {};
@@ -80,6 +81,20 @@ function harness(options: { rows?: { public_key: string; user_id: string }[]; us
   });
   return { ...exports, calls };
 }
+
+test("transfer review photos require an exact mapped nonanonymous owner's consent, with a public verified handle fallback", async () => {
+  const permitted = harness({ users: { [uid(1)]: user(uid(1), false, { salapi_transfer_preview_photo_consent: true }) } });
+  const identity = await permitted.readTransferWalletIdentity(other);
+  assert.equal(identity?.photoUrl, googleUrl); assert.equal(identity?.handle, "verified_handle");
+  assert.equal(permitted.calls.limit, 2); assert.deepEqual(permitted.calls.auth, [uid(1)]);
+  for (const current of [user(uid(1), true), user(uid(1), false), user(uid(1), false, { salapi_transfer_preview_photo_consent: "true" }), user(uid(2), true, { salapi_transfer_preview_photo_consent: true }), { ...user(uid(1), true, { salapi_transfer_preview_photo_consent: true }), is_anonymous: true }]) {
+    const h = harness({ users: { [uid(1)]: current } });
+    assert.equal((await h.readTransferWalletIdentity(other))?.photoUrl, null); assert.deepEqual(h.calls.sign, []);
+  }
+  const offline = harness({ dbError: true });
+  assert.equal((await offline.readTransferWalletIdentity(other))?.handle, "verified_handle");
+  assert.equal(await offline.readTransferWalletIdentity("invalid"), null);
+});
 
 test("receipt identity is reverse+forward registry verified, never inferred from email or editable nicknames", async () => {
   const h = harness(); const result = await h.readActivityIdentities(address, [item()]);
