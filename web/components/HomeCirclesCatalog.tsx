@@ -54,7 +54,13 @@ export default function HomeCirclesCatalog({ campaigns = [], circleLinks = {}, l
   // selected card first so a large catalog never excludes its donation mark.
   const activeCampaign = index < examples.length
     ? Object.keys(circleLinks).find(id => circleLinks[id] === examples[index]?.id) : standalone[index - examples.length]?.id;
-  const supportIds = [...new Set([activeCampaign, ...campaigns.map(c => c.id)].filter((id): id is string => !!id))].slice(0, 40);
+  const supportIds = [...new Set(campaigns.map(c => c.id))].slice(0, 40);
+  // Keep the query stable when a slide changes inside the same batch. Only
+  // fetch a new subset when its selected campaign falls outside the bound.
+  if (activeCampaign && !supportIds.includes(activeCampaign)) {
+    if (supportIds.length === 40) supportIds.pop();
+    supportIds.push(activeCampaign);
+  }
   const support = useOwnedAccountRead(supportIds.length ? `/api/account/campaign-support?ids=${supportIds.join(",")}` : null, validCampaignSupport);
   const forCircle = (slug: string) => support.value?.contributions[Object.keys(circleLinks).find(id => circleLinks[id] === slug) ?? ""];
 
