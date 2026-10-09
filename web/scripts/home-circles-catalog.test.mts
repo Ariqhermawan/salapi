@@ -230,6 +230,82 @@ function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: bo
     }, set campaignFailure(value: boolean) { campaignFailure = value; }, get tree() { return tree!; }, get catalog() { return nodes(tree).find(node => node.props["data-testid"] === "home-circles-catalog")!; }, get cards() { return nodes(tree).filter(node => node.type === "article" && "data-example-cause" in node.props); }, get d4Cards() { return nodes(tree).filter(node => node.type === "article" && "data-standalone-campaign" in node.props); }, get orderedCards() { const strip = nodes(tree).find(node => hasClass(node, "strip")); return nodes(strip).filter(node => node.type === "article"); }, changeReducedMotion(value: boolean) { mediaReduced = value; for (const listener of mediaListeners) listener(); render(); } };
 }
 
+function expectSingleActiveSlide(cards: Element[], expectedIndex: number) {
+  assert.ok(cards.length > 0 && expectedIndex >= 0 && expectedIndex < cards.length);
+  assert.equal(cards.filter(card => card.props["data-active-card"] === true).length, 1, "Exactly one campaign may determine the visible slide");
+  assert.equal(cards.filter(card => card.props.inert !== true).length, 1, "Off-screen campaign links must not remain interactive");
+  for (const [index, card] of cards.entries()) {
+    assert.equal(card.props["data-active-card"], index === expectedIndex, `Slide ${index} must match the selected index`);
+    assert.equal(card.props.inert, index !== expectedIndex, `Only selected slide ${expectedIndex} may escape inert`);
+  }
+}
+
+test("only the selected story is active and non-inert through next, previous, filtering and history restoration", async () => {
+  const ui = mount();
+  expectSingleActiveSlide(ui.orderedCards, 0);
+  await ui.flush(); expectSingleActiveSlide(ui.orderedCards, 0);
+  const next = catalogCopy.homeCatalogCopy("en", "Next example cause");
+  const previous = catalogCopy.homeCatalogCopy("en", "Previous example cause");
+  ui.click(next); await ui.flush(); expectSingleActiveSlide(ui.orderedCards, 1);
+  ui.click(previous); await ui.flush(); expectSingleActiveSlide(ui.orderedCards, 0);
+  ui.click(previous); await ui.flush(); expectSingleActiveSlide(ui.orderedCards, 26);
+  ui.click(next); await ui.flush(); expectSingleActiveSlide(ui.orderedCards, 0);
+  assert.equal(ui.orderedCards.length, 27, "Inert slides must retain their horizontal snap positions");
+
+  ui.select("animals"); await ui.flush(); assert.equal(ui.orderedCards.length, 3);
+  expectSingleActiveSlide(ui.orderedCards, 0);
+  ui.click(next); await ui.flush(); expectSingleActiveSlide(ui.orderedCards, 1);
+  const selectedAnimal = ui.orderedCards[1].props["data-example-cause"];
+  ui.changeNavigationEntry("active-slide-medical-entry:2", { category: "medical", index: 2 });
+  await ui.flush(); expectSingleActiveSlide(ui.orderedCards, 2);
+  assert.ok(ui.orderedCards.every(card => text(card).includes(circlesCopy.circlesCategory("en", "medical"))));
+  ui.remountCatalog(); await ui.flush(); expectSingleActiveSlide(ui.orderedCards, 2);
+  ui.changeNavigationEntry("isolated-home-entry:3"); await ui.flush();
+  expectSingleActiveSlide(ui.orderedCards, 1);
+  assert.equal(ui.orderedCards[1].props["data-example-cause"], selectedAnimal, "Back must restore the same selected campaign, not only its index");
+  assert.equal(ui.calls.network, 0); assert.equal(ui.calls.writes, 0);
+  ui.cleanup();
+});
+
+test("native catalog transfers the single active non-inert slide between stories and standalone campaigns", async () => {
+  const ui = mount({ preview: false }); await ui.flush();
+  assert.equal(ui.orderedCards.length, 39); expectSingleActiveSlide(ui.orderedCards, 0);
+  const next = catalogCopy.homeCatalogCopy("en", "Next example cause");
+  const previous = catalogCopy.homeCatalogCopy("en", "Previous example cause");
+  ui.click(previous); await ui.flush(); expectSingleActiveSlide(ui.orderedCards, 38);
+  assert.equal(ui.orderedCards[38].props["data-standalone-campaign"], "811");
+  assert.ok(ui.cards.every(card => card.props.inert === true));
+  ui.click(next); await ui.flush(); expectSingleActiveSlide(ui.orderedCards, 0);
+  assert.ok(ui.d4Cards.every(card => card.props.inert === true));
+
+  ui.changeNavigationEntry("active-standalone-entry:2", { category: "all", index: 29 }); await ui.flush();
+  expectSingleActiveSlide(ui.orderedCards, 29);
+  assert.equal(ui.orderedCards[29].props["data-standalone-campaign"], "802");
+  ui.click(next); await ui.flush(); expectSingleActiveSlide(ui.orderedCards, 30);
+  ui.click(previous); await ui.flush(); expectSingleActiveSlide(ui.orderedCards, 29);
+  ui.remountCatalog(); await ui.flush(); expectSingleActiveSlide(ui.orderedCards, 29);
+  ui.select("animals"); await ui.flush();
+  assert.equal(ui.d4Cards.length, 0); expectSingleActiveSlide(ui.orderedCards, 0);
+  ui.select("all"); await ui.flush();
+  assert.equal(ui.orderedCards.length, 39); expectSingleActiveSlide(ui.orderedCards, 0);
+  assert.deepEqual(ui.calls.campaigns, ["0", "809"], "Changing active slides must not reload campaign discovery");
+  assert.equal(ui.calls.network, 0); assert.equal(ui.calls.writes, 0);
+  ui.cleanup();
+});
+
+test("inactive campaign slides collapse only vertically without removing their horizontal snap slots", () => {
+  const sheet = parse(source("../components/HomeCirclesCatalog.module.css"));
+  const inactive: Record<string, string> = {};
+  sheet.walkRules(rule => {
+    if (!rule.selectors.includes(".card[data-active-card=false]")) return;
+    for (const node of rule.nodes) if (node.type === "decl") inactive[node.prop] = node.value;
+  });
+  assert.equal(inactive.height, "0");
+  assert.equal(inactive.visibility, "hidden");
+  assert.notEqual(inactive.display, "none", "Removing inactive slide boxes would break indexed scroll-snap offsets");
+  for (const property of ["width", "min-width", "max-width", "flex", "flex-basis"]) assert.equal(inactive[property], undefined, "Inactive slides must keep the same horizontal size as the active slide");
+});
+
 test("history view state accepts only bounded discovery fields and ignores corrupt or financial values", () => {
   const neutral = { category: "all", index: 0, sort: "all" };
   for (const snapshot of ["", "{", "null", "[]", JSON.stringify("animals"), " ".repeat(2049)]) assert.deepEqual(homeCircles.parseCauseViewState(snapshot), neutral);
@@ -255,12 +331,12 @@ test("Home restores category, selected card and horizontal position after a rout
   assert.equal(ui.calls.network, 0); assert.equal(ui.calls.writes, 0); assert.equal(ui.calls.wallet, 0);
 });
 
-test("same-path Home entry switches restore each saved index without remounting or cancelling manual smooth scroll", async () => {
+test("same-path Home entry switches restore each saved index without remounting or duplicating instant arrow paging", async () => {
   const ui = mount({ reducedMotion: false, savedCatalogView: { category: "animals", index: 1 } });
   await ui.flush(); assert.equal(ui.scrolls.at(-1)?.left, 264);
   let before = ui.scrolls.length;
   ui.click(catalogCopy.homeCatalogCopy("en", "Next example cause")); await ui.flush();
-  assert.equal(ui.scrolls.length, before + 1); assert.equal(ui.scrolls.at(-1)?.behavior, "smooth");
+  assert.equal(ui.scrolls.length, before + 1); assert.equal(ui.scrolls.at(-1)?.behavior, "instant");
   assert.equal(ui.scrolls.at(-1)?.left, 528); assert.ok(text(ui.catalog).includes("03 / 03"));
 
   // Only the history entry changes. Home/catalog hook state and the same
@@ -271,7 +347,7 @@ test("same-path Home entry switches restore each saved index without remounting 
   assert.equal(ui.scrolls.at(-1)?.behavior, "instant"); assert.ok(text(ui.catalog).includes("01 / 03"));
   before = ui.scrolls.length;
   ui.click(catalogCopy.homeCatalogCopy("en", "Next example cause")); await ui.flush();
-  assert.equal(ui.scrolls.length, before + 1); assert.equal(ui.scrolls.at(-1)?.behavior, "smooth");
+  assert.equal(ui.scrolls.length, before + 1); assert.equal(ui.scrolls.at(-1)?.behavior, "instant");
   assert.equal(ui.scrolls.at(-1)?.left, 264);
 
   ui.changeNavigationEntry("isolated-home-entry:3"); await ui.flush();
@@ -529,11 +605,11 @@ test("server-rendered category picker and carousel controls wait for hydration, 
   }
 });
 
-test("example catalog is manual-only, wraps correctly and respects reduced-motion changes", async () => {
+test("example catalog is manual-only, wraps correctly and pages instantly for every motion preference", async () => {
   const reduced = mount({ reducedMotion: true }); await reduced.flush(); assert.equal(reduced.intervals.size, 0);
   reduced.click(catalogCopy.homeCatalogCopy("en", "Previous example cause")); assert.equal(reduced.scrolls.at(-1)?.left, 26 * 264); assert.equal(reduced.scrolls.at(-1)?.behavior, "instant");
   const ui = mount({ reducedMotion: false }); await ui.flush(); assert.equal(ui.intervals.size, 0);
-  ui.click(catalogCopy.homeCatalogCopy("en", "Next example cause")); await ui.flush(); assert.equal(ui.scrolls.at(-1)?.behavior, "smooth"); assert.ok(text(ui.tree).includes("02 / 27"));
+  ui.click(catalogCopy.homeCatalogCopy("en", "Next example cause")); await ui.flush(); assert.equal(ui.scrolls.at(-1)?.behavior, "instant"); assert.ok(text(ui.tree).includes("02 / 27"));
   ui.changeReducedMotion(true); await ui.flush(); ui.click(catalogCopy.homeCatalogCopy("en", "Next example cause")); assert.equal(ui.scrolls.at(-1)?.behavior, "instant");
   assert.equal(nodes(ui.catalog).some(node => node.props["aria-label"] === homeCopy("en", "Pause campaign carousel")), false);
 });
@@ -575,7 +651,7 @@ test("flag0 D4 discovery failure remains visible and retryable within the same a
   assert.equal(ui.calls.network, 0); assert.equal(ui.calls.writes, 0);
 });
 
-test("background discovery status and retry remain after the primary footer in every locale", async () => {
+test("background discovery status and retry remain after the primary carousel controls in every locale", async () => {
   for (const locale of LOCALES) {
     const pending = deferred<PublicCampaignPage>();
     const loading = mount({ preview: false, locale, campaignReader: () => pending.promise });
@@ -583,11 +659,13 @@ test("background discovery status and retry remain after the primary footer in e
     for (const screen of [loading, failed]) {
       await screen.flush();
       const elements = nodes(screen.catalog);
-      const footer = elements.findIndex(node => hasClass(node, "footer"));
+      const controls = elements.findIndex(node => hasClass(node, "controls"));
+      const strip = elements.findIndex(node => hasClass(node, "strip"));
       const status = elements.findIndex(node => hasClass(node, "discoveryStatus"));
-      assert.ok(footer >= 0 && status > footer, "A slow or failed background lookup must not add a loading or 44px retry row before the main carousel controls");
-      assert.ok(elements.slice(footer, status).some(node => node.props.href === "/circles/create"));
-      assert.equal(elements.slice(footer, status).filter(node => node.type === "button").length, 2);
+      assert.ok(strip >= 0 && controls > strip && status > controls, "A slow or failed background lookup must remain after the campaign cards and primary carousel controls");
+      assert.equal(nodes(elements[controls]).filter(node => node.type === "button").length, 2);
+      const menu = elements.find(node => node.type === "details" && hasClass(node, "campaignTools")); assert.ok(menu);
+      assert.ok(nodes(menu).some(node => node.props.href === "/circles/create"), "Compact header tools must retain the secondary campaign destinations");
       assert.equal(screen.cards.length, 27); assert.equal(screen.calls.network, 0); assert.equal(screen.calls.writes, 0);
       screen.cleanup();
     }
@@ -728,10 +806,10 @@ test("closed D4 campaigns remain honest read-only cards, never fictional pledge 
 test("Home catalog responsive styles retain compact controls and persistent truth framing", () => {
   const css = source("../components/HomeCirclesCatalog.module.css");
   const sheet = parse(css);
-  for (const [selector, property] of [[".categoryPicker summary", "min-height"], [".startCampaign", "min-height"], [".body h2 a", "min-height"], [".pledge", "min-height"], [".controls button", "height"]]) {
+  for (const [selector, property] of [[".categoryPicker summary", "min-height"], [".startCampaign", "min-height"], [".body h2 a", "min-height"], [".pledge", "min-height"], [".campaignTools summary", "min-height"], [".otherActions a", "min-height"], [".tools > a", "min-height"], [".controls button", "height"]]) {
     const values: string[] = [];
     sheet.walkRules(rule => { if (rule.selectors.includes(selector)) for (const node of rule.nodes) if (node.type === "decl" && (node as Declaration).prop === property) values.push((node as Declaration).value); });
-    assert.ok(values.some(value => Number.parseFloat(value) >= 44), `${selector} must retain a 44px touch target`);
+    assert.ok(values.length > 0 && values.every(value => Number.parseFloat(value) >= 44), `${selector} must retain a 44px touch target in every responsive rule`);
   }
   assert.match(css, /:focus-visible[^}]*outline:\s*2px/);
   assert.doesNotMatch(css, /\.notice\s*\{[^}]*display:\s*none/);
@@ -744,8 +822,13 @@ test("secondary campaign destinations remain in a closed native disclosure in al
     const disclosure = nodes(ui.catalog).find(node => node.type === "details" && hasClass(node, "campaignTools"))!;
     assert.ok(disclosure);
     assert.equal(disclosure.props.open, undefined, "The default dashboard must not reserve three secondary navigation rows");
+    const header = nodes(ui.catalog).find(node => node.type === "header"); assert.ok(header);
+    assert.ok(nodes(header).includes(disclosure), "Secondary campaign tools must stay in the compact header disclosure");
     const summary = nodes(disclosure).find(node => node.type === "summary")!;
-    assert.equal(text(summary), catalogCopy.homeCatalogCopy(locale, "Campaign tools"));
+    const label = nodes(summary).find(node => hasClass(node, "srOnly")); assert.ok(label);
+    assert.equal(text(label), catalogCopy.homeCatalogCopy(locale, "Campaign tools"));
+    assert.equal(summary.props.title, catalogCopy.homeCatalogCopy(locale, "Campaign tools"));
+    assert.ok(nodes(summary).some(node => node.props["aria-hidden"] === "true" && text(node) === "···"), "The compact menu decoration must not enter its accessible name");
     assert.deepEqual(nodes(disclosure).filter(node => node.type === "Link").map(node => node.props.href), ["/circles/create", "/campaigns?mode=testnet", "/campaigns?create=1"]);
     ui.cleanup();
   }
@@ -755,46 +838,65 @@ test("secondary campaign destinations remain in a closed native disclosure in al
   assert.match(source("../components/screens/CirclesOrganizerScreen.tsx"), /Example rating/);
 });
 
-test("short Home windows reclaim decorative space without shrinking or hiding interactive controls", () => {
+test("compact Home styling preserves natural scrolling and readable campaign truth labels", () => {
   const sheet = parse(source("../components/HomeCirclesCatalog.module.css"));
-  const compact = sheet.nodes.find(node => node.type === "atrule" && node.name === "media" && node.params === "(max-height: 900px)");
-  assert.ok(compact && compact.type === "atrule");
-  const touched: string[] = [];
-  compact.walkRules(rule => {
-    touched.push(...rule.selectors);
+  sheet.walkRules(rule => {
     for (const node of rule.nodes) if (node.type === "decl") {
-      assert.ok(["margin-top", "padding-bottom", "margin-bottom", "height", "padding-top", "gap"].includes(node.prop));
-      assert.ok(Number.parseFloat(node.value) >= 0);
-      assert.notEqual(node.prop, "font-size");
+      if (rule.selectors.some(selector => [".catalog", ".strip", ".body"].includes(selector))) {
+        if (["overflow", "overflow-y"].includes(node.prop)) assert.doesNotMatch(node.value, /hidden|clip/, "Home must not hide overflowing content to simulate first-screen fit");
+        if (node.prop === "transform") assert.doesNotMatch(node.value, /scale\s*\(/, "Home must not scale the whole layout to simulate first-screen fit");
+        assert.notEqual(node.prop, "zoom", "Home must keep normal text and control scaling");
+      }
+      if (rule.selectors.some(selector => [".category", ".example", ".ai"].includes(selector))) {
+        if (node.prop === "font-size") assert.ok(Number.parseFloat(node.value) >= 9, "Truth labels must stay readable in every responsive layout");
+        if (node.prop === "display") assert.notEqual(node.value, "none", "Compact styling must not remove campaign truth labels");
+      }
     }
   });
-  assert.ok(touched.includes(".photo"));
-  assert.equal(touched.some(selector => /pledge|button|summary|organizer|explore/.test(selector)), false);
+});
+
+test("adaptive Home height cannot hide overflow or scale the whole dashboard to manufacture fit", () => {
+  const sheet = parse(source("../app/home.module.css"));
+  let scopedScrollportRule = false;
+  sheet.walkRules(rule => {
+    if (!rule.selectors.some(selector => selector === ".home" || selector.includes(":has(.home)"))) return;
+    if (rule.selectors.some(selector => selector.includes(":has(.home)"))) scopedScrollportRule = true;
+    for (const node of rule.nodes) if (node.type === "decl") {
+      if (["overflow", "overflow-y"].includes(node.prop)) assert.doesNotMatch(node.value, /hidden|clip/, "Expanded Home must retain natural scrolling for text zoom or unsupported heights");
+      if (node.prop === "transform") assert.doesNotMatch(node.value, /scale\s*\(/, "The larger campaign must be actual readable layout, not a scaled dashboard");
+      assert.notEqual(node.prop, "zoom", "Home must keep browser text and touch target scaling intact");
+    }
+  });
+  assert.ok(scopedScrollportRule, "Any adjusted bottom reserve must remain scoped to the Home main scrollport");
 });
 
 test("editorial campaign card centers the title while keeping metadata away from image truth labels", () => {
   const sheet = parse(source("../components/HomeCirclesCatalog.module.css"));
   const base: Record<string, Record<string, string>> = {};
-  const compact: Record<string, Record<string, string>> = {};
   sheet.walkRules(rule => {
     const atRule = rule.parent?.type === "atrule" ? rule.parent : null;
-    const target = atRule?.params === "(max-height: 900px)" ? compact : atRule === null ? base : null;
+    const target = atRule === null ? base : null;
     if (!target) return;
     for (const selector of rule.selectors.filter(selector => [".photo", ".category", ".example", ".ai", ".body h2", ".body h2 a", ".card"].includes(selector))) {
       target[selector] ??= {};
       for (const node of rule.nodes) if (node.type === "decl") target[selector][node.prop] = node.value;
     }
   });
-  assert.equal(base[".category"]["font-size"], "10px");
-  for (const selector of [".example", ".ai"]) assert.equal(base[selector]["font-size"], "9px");
-  for (const selector of [".category", ".example", ".ai"]) assert.equal(compact[selector]?.["font-size"], undefined, "Compact spacing must not shrink the readable badge font");
-  assert.ok(Number.parseFloat(compact[".photo"].height) >= 100, "Short screens must retain an editorial cover rather than a tiny thumbnail");
+  assert.ok(Number.parseFloat(base[".category"]["font-size"]) >= 10);
+  for (const selector of [".example", ".ai"]) assert.ok(Number.parseFloat(base[selector]["font-size"]) >= 9);
   assert.equal(base[".body h2"]["text-align"], "center");
   assert.equal(base[".body h2 a"]["justify-content"], "center");
   assert.equal(base[".card"].background, "#0b1f36");
   assert.doesNotMatch(source("../components/HomeCirclesCatalog.module.css"), /line-clamp/, "Campaign titles must not be cut off in the narrow editorial panel");
   const split = sheet.nodes.find(node => node.type === "atrule" && node.name === "container" && node.params === "(min-width: 430px)");
   assert.ok(split && split.type === "atrule", "The photo/content split must work within the app's 500px frame");
+  for (const breakpoint of ["(min-width: 351px)", "(max-width: 350px)"]) {
+    const narrow = sheet.nodes.find(node => node.type === "atrule" && node.name === "container" && node.params === breakpoint);
+    assert.ok(narrow && narrow.type === "atrule", "Narrow Home frames need an explicit photo/content split rather than a cropped campaign");
+    const columns: string[] = [];
+    narrow.walkRules(rule => { if (rule.selectors.includes(".card")) for (const node of rule.nodes) if (node.type === "decl" && node.prop === "grid-template-columns") columns.push(node.value); });
+    assert.ok(columns.length > 0, "Compact campaign photos must remain a distinct column alongside their full content");
+  }
   const ui = mount();
   for (const card of ui.cards) {
     const photo = nodes(card).find(node => hasClass(node, "photo")); assert.ok(photo);
@@ -815,11 +917,11 @@ test("Home wires discovery into one manual catalog and renders the shared Stella
   assert.doesNotMatch(catalog, /setInterval\s*\(/);
 });
 
-test("the unified carousel remains manual, wraps all stories and standalone campaigns and respects reduced motion", async () => {
+test("the unified carousel remains manual and pages instantly across stories and standalone campaigns for every motion preference", async () => {
   const ui = mount({ preview: false, reducedMotion: false }); await ui.flush(); assert.equal(ui.intervals.size, 0);
   assert.equal(ui.orderedCards.length, 39);
   ui.click(catalogCopy.homeCatalogCopy("en", "Previous example cause")); await ui.flush();
-  assert.equal(ui.scrolls.at(-1)?.left, 38 * 264); assert.equal(ui.scrolls.at(-1)?.behavior, "smooth"); assert.match(text(ui.catalog), /39 \/ 39/);
+  assert.equal(ui.scrolls.at(-1)?.left, 38 * 264); assert.equal(ui.scrolls.at(-1)?.behavior, "instant"); assert.match(text(ui.catalog), /39 \/ 39/);
   assert.equal(nodes(ui.catalog).filter(node => node.type === "HomeCircleFundingProgress" && node.props.active).length, 0, "Selecting a standalone campaign must not fan out story funding reads");
   const count = ui.scrolls.length; ui.document.hidden = true; await ui.flush(); assert.equal(ui.scrolls.length, count); assert.equal(ui.intervals.size, 0);
   assert.equal(nodes(ui.catalog).some(node => /(?:Pause|Play) campaign carousel/.test(String(node.props["aria-label"] ?? ""))), false);

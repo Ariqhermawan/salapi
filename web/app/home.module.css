@@ -1,4 +1,7 @@
-.home { padding: 6px 12px 0; color: #0c1730; }
+.home { display: flex; flex-direction: column; min-height: 100cqh; padding: 4px 12px 0; color: #0c1730; }
+/* The raised Send control occupies 80px, plus a small content gap. Scope this
+   reserve to Home so spare bottom padding cannot create a phantom scroll. */
+:global(.sl-main):has(.home) { container: home-viewport / size; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 84px); }
 .wallet { background: #092247; color: white; border-radius: 24px; padding: 6px 12px; box-shadow: 0 14px 34px -25px #0c2e5c; }
 .identity { display: flex; align-items: center; gap: 8px; padding-bottom: 2px; border-bottom: 1px solid #ffffff26; }
 .avatar { width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0; display: grid; place-items: center; background: #fff; color: #2563eb; font-size: 22px; font-weight: 750; }
@@ -113,7 +116,7 @@
 .testnetBridge small { font-size: 10px; line-height: 1.4; color: #586985; }
 .catalogTools select:focus-visible, .catalogTools > a:focus-visible, .catalogTitle:focus-visible, .catalogOrganizer:focus-visible, .catalogCard .photo:focus-visible, .testnetBridge:focus-visible { outline: 2px solid #2563eb; outline-offset: 3px; }
 @container (max-width: 420px) {
-  .home { padding: 6px 12px 0; } .wallet { padding: 6px 12px; }
+  .home { padding: 4px 12px 0; } .wallet { padding: 6px 12px; }
   .identity { padding-bottom: 2px; } .avatar { width: 44px; height: 44px; }
   .name > span { display: none; }
   .walletContent { grid-template-columns: minmax(0,1fr); gap: 6px; padding-top: 2px; align-items: center; }
@@ -220,7 +223,7 @@
    quote timestamp. Desktop app frames are only 94vh, so an 800px browser also
    needs this compact spacing. Keep navigation touch targets unchanged. */
 @media (max-height: 820px) {
-  .home { padding-top: 6px; }
+  .home { padding-top: 4px; }
   .wallet { padding-top: 6px; padding-bottom: 6px; }
   .identity { padding-bottom: 2px; }
   .walletContent { padding-top: 2px; }
@@ -229,47 +232,48 @@
   .walletCaption { margin-top: 1px; }
 }
 
-/* Selected Navy Minimal card. The USD market reference is primary, with
-   exact Testnet XLM below. On phones the two actions move below the balance. */
-.home .wallet { container-type: inline-size; background: #172544; border-radius: 28px; padding: 20px 24px 10px; box-shadow: 0 12px 28px -24px #0c1730; }
-.wallet .identity { gap: 16px; padding-bottom: 0; border-bottom: 0; }
-.wallet .avatar { width: 64px; height: 64px; overflow: hidden; border: 1px solid #ffffff50; }
+/* Keep the complete Home summary readable in one ordinary app viewport.
+   Expanding price details and larger text can still grow the scrollable page. */
+.home .wallet { container-type: inline-size; background: #172544; border-radius: 22px; padding: 5px 12px; box-shadow: 0 12px 28px -24px #0c1730; }
+.wallet .identity { gap: 8px; padding-bottom: 0; border-bottom: 0; }
+.wallet .avatar { width: 44px; height: 44px; overflow: hidden; border: 1px solid #ffffff50; }
 .wallet .avatar > span, .wallet .avatar img { width: 100% !important; height: 100% !important; }
-.wallet .name { gap: 5px; }
-.wallet .name strong { font-size: clamp(18px, 3.7cqw, 27px); font-weight: 750; line-height: 1.2; }
-.wallet .name small { font-size: clamp(12px, 2.5cqw, 17px); color: #b7c9eb; line-height: 1.4; }
-.wallet .round { width: 54px; height: 54px; border-color: #ffffff26; background: #ffffff0a; }
-.wallet .round svg { width: 25px; height: 25px; }
+.wallet .name { gap: 2px; }
+.wallet .name strong { font-size: 17px; font-weight: 750; line-height: 1.2; }
+.wallet .name small { font-size: 12px; color: #b7c9eb; line-height: 1.25; }
+.wallet .round { width: 44px; height: 44px; border-color: #ffffff26; background: #ffffff0a; }
+.wallet .round svg { width: 20px; height: 20px; }
 .wallet .round:focus-visible, .wallet .avatar:focus-visible { outline: 2px solid #a9cbff; outline-offset: 3px; }
-.wallet .walletMinimal { display: block; padding-top: 24px; }
-.walletMinimal .balanceLabel { justify-content: flex-start; margin-bottom: 9px; text-align: left; }
-.walletMinimal .balanceLabel > span:first-child { padding: 0; border: 0; border-radius: 0; background: none; color: #b7c9eb; font-size: 14px; font-weight: 650; letter-spacing: .055em; }
+.wallet .walletMinimal { display: block; padding-top: 0; }
+.walletMinimal .balanceLabel { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+.walletMinimal .balanceLabel > span:first-child { padding: 0; border: 0; border-radius: 0; background: none; color: #b7c9eb; font-size: 12px; line-height: 1.2; font-weight: 650; letter-spacing: .045em; }
 .walletMinimal .amount { display: block; margin-top: 0; text-align: left; white-space: normal; }
-.wallet .walletActions { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0; padding: 0; border-radius: 0; background: none; box-shadow: none; }
-.wallet .walletAction { flex-direction: row; gap: 10px; min-height: 52px; padding: 8px 12px; border-radius: 999px; background: #2b3e65; }
+.wallet .walletActions { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; margin: 0; padding: 0; border-radius: 0; background: none; box-shadow: none; }
+.wallet .walletAction { flex-direction: column; gap: 2px; min-height: 44px; padding: 3px 2px; border-radius: 12px; background: #2b3e65; }
 .wallet .walletAction + .walletAction::before { content: none; }
-.wallet .walletActionIcon, .wallet .walletAction:first-child .walletActionIcon { width: 25px; height: 28px; color: #d3e3ff; background: none; border-radius: 0; box-shadow: none; padding-right: 9px; border-right: 1px solid #ffffff35; box-sizing: content-box; }
-.wallet .walletActionIcon svg { width: 24px; height: 24px; }
-.wallet .walletActionLabel { font-size: 13px; font-weight: 650; line-height: 1.3; }
+.wallet .walletActionIcon, .wallet .walletAction:first-child .walletActionIcon { width: 16px; height: 16px; color: #d3e3ff; background: none; border-radius: 0; box-shadow: none; padding-right: 0; border: 0; }
+.wallet .walletActionIcon svg { width: 16px; height: 16px; }
+.wallet .walletActionLabel { font-size: 12px; font-weight: 650; line-height: 1.2; }
 .wallet .walletRetry { margin: 0; min-height: 44px; font-size: 12px; text-align: left; }
 @media (hover: hover) { .wallet .walletAction:hover, .wallet .round:hover { background: #354b76; } }
-@container (max-width: 540px) {
-  .home .wallet { padding: 14px 18px 6px; border-radius: 25px; }
-  .wallet .identity { gap: 9px; }
-  .wallet .avatar { width: 48px; height: 48px; }
-  .wallet .round { width: 44px; height: 44px; }
-  .wallet .round svg { width: 21px; height: 21px; }
-  .wallet .name strong { font-size: 18px; }
-  .wallet .name small { font-size: 12px; }
-  .wallet .walletMinimal { padding-top: 12px; }
-  .walletMinimal .balanceLabel { margin-bottom: 6px; }
-  .wallet .walletAction { min-height: 44px; }
-  .walletMinimal .balanceLabel > span:first-child { font-size: 10px; }
-}
 @container (max-width: 320px) {
   .wallet .identity { gap: 6px; }
   .wallet .name strong { font-size: 16px; }
-  .wallet .name small { font-size: 11px; }
-  .wallet .walletAction { padding-inline: 8px; gap: 7px; }
-  .wallet .walletActionLabel { font-size: 12px; }
+  .wallet .name small { font-size: 12px; }
 }
+
+.home .quick { margin-top: 4px; }
+.home .quickGrid { gap: 4px; }
+.home .tile { min-height: 58px; padding: 3px 2px; gap: 1px; border-width: 1px; border-radius: 12px; }
+.home .tile img { position: static; width: 18px; height: 18px; }
+.home .tile > div, .home .tile.unavailable > div { width: 100%; gap: 2px; }
+.home .tile strong, .home .tile.unavailable strong { font-size: 12px; line-height: 1.2; letter-spacing: -.02em; overflow-wrap: anywhere; }
+.home .coming { max-width: 100%; padding: 1px 3px; font-size: 12px; line-height: 1.2; white-space: normal; text-wrap: balance; }
+.home .tile.unavailable { display: grid; grid-template-columns: 18px minmax(0, 1fr); align-content: center; gap: 2px; padding-inline: 3px; }
+.home .tile.unavailable > div { display: contents; }
+.home .tile.unavailable img { grid-column: 1; }
+.home .tile.unavailable strong { grid-column: 2; }
+.home .tile.unavailable .coming { grid-column: 1 / -1; justify-self: center; padding: 1px; font-size: 11px; white-space: nowrap; }
+.home .stellar { gap: 0 6px; margin-top: 0; font-size: 12px; line-height: 1.3; }
+.home .stellar > span { font-size: 12px !important; }
+.home .stellar > a { min-height: 44px; padding: 2px 0; font-size: 12px; line-height: 1.3; }
