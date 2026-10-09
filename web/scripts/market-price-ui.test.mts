@@ -543,7 +543,7 @@ test("Home wallet failure replaces numeric balance without duplicating the error
   assert.equal(nodes(failure).find(node => node.type === "button")?.props.type, "button");
 });
 
-test("dashboard styles make the USD amount larger than secondary XLM and provide a narrow action row", () => {
+test("compact dashboard keeps USD beside touch-sized actions and exact XLM below with readable labels", () => {
   const css = parse(readFileSync(new URL("../components/MarketValue.module.css", import.meta.url), "utf8"));
   const rules = (selector: string) => {
     const result: Rule[] = []; css.walkRules(rule => { if (rule.selectors.includes(selector)) result.push(rule); }); return result;
@@ -560,16 +560,19 @@ test("dashboard styles make the USD amount larger than secondary XLM and provide
   assert.equal(declaration(tokenContext, "display"), "flex");
   assert.equal(declaration(tokenContext, "flex-wrap"), "wrap", "The Testnet warning can wrap beside a long exact XLM balance");
   assert.equal(declaration(tokenContext, "align-items"), "baseline");
-  assert.equal(declaration(tokenContext, "gap"), "4px 6px");
   const caption = rules(".caption")[0];
-  assert.equal(declaration(caption, "font-size"), "10px");
+  assert.ok(lowerBound(declaration(caption, "font-size")) >= 12, "The Testnet warning remains readable in the compact wallet");
   assert.equal(declaration(caption, "grid-row"), undefined, "Token framing is no longer positioned in its own footer row");
   assert.equal(rules(".detailSpace").length, 0, "The obsolete extra-row spacer has no remaining CSS");
   for (const selector of [".attribution", ".details"]) {
-    assert.ok(rules(selector).some(rule => declaration(rule, "grid-row") === "4"), `${selector} follows the narrow action row directly, without a warning-only row`);
+    assert.ok(rules(selector).some(rule => declaration(rule, "grid-row") === "3"), `${selector} shares the provider footer directly below the secondary balance context`);
   }
   assert.ok(rules(".native").some(rule => declaration(rule, "overflow-wrap") === "anywhere"), "Long exact XLM stays readable through wrapping, never rounding");
-  assert.ok(rules(".actions").some(rule => declaration(rule, "grid-column") === "1 / -1" && declaration(rule, "grid-row") === "3"), "Narrow cards get a complete action row rather than squeezing native balance beside the pills");
+  assert.ok(rules(".actions").some(rule => declaration(rule, "grid-column") === "2" && declaration(rule, "grid-row") === "1"), "Ordinary wallet widths put both actions beside the primary USD estimate");
+  assert.ok(rules(".actions").some(rule => declaration(rule, "grid-column") === "1 / -1" && declaration(rule, "grid-row") === "3"), "Very narrow or enlarged-text layouts can use a full action row without clipping");
+  for (const selector of [".native", ".native span", ".quoteStatus", ".caption", ".attribution", ".details"]) {
+    assert.ok(rules(selector).every(rule => !declaration(rule, "font-size") || lowerBound(declaration(rule, "font-size")) >= 12), `${selector} keeps ordinary wallet labels at least 12px`);
+  }
   for (const selector of [".details summary", ".attribution a", ".refresh"]) {
     assert.ok(rules(selector).some(rule => lowerBound(declaration(rule, "min-height")) >= 44), `${selector} retains a touch-sized hit area`);
   }

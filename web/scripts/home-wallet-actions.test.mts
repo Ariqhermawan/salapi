@@ -227,16 +227,16 @@ function insideReducedMotion(rule: Rule) {
   return false;
 }
 
-test("selected wallet CSS uses equal separate pills, icon-label separators and minimum touch height", () => {
+test("compact wallet CSS retains equal labelled actions with readable labels and minimum touch height", () => {
   const rail = rules(".walletActions").find(rule => declaration(rule, "display") === "grid")!; assert.ok(rail);
   assert.equal(declaration(rail, "grid-template-columns")?.replace(/\s/g, ""), "repeat(2,minmax(0,1fr))");
   assert.ok(declaration(rail, "border-radius"));
   const action = rules(".wallet .walletAction").find(rule => declaration(rule, "min-height"))!; assert.ok(action);
   assert.ok(Number.parseFloat(declaration(action, "min-height")!) >= 44);
-  assert.equal(declaration(action, "border-radius"), "999px");
-  assert.equal(declaration(action, "flex-direction"), "row");
-  assert.ok(rules(".wallet .walletAction + .walletAction::before").some(rule => declaration(rule, "content") === "none"), "Separate pills replace the old shared divider");
-  assert.ok(rules(".wallet .walletActionIcon").some(rule => /^1px solid /.test(declaration(rule, "border-right") ?? "")), "Each pill separates its icon from the visible label");
+  assert.ok(Number.parseFloat(declaration(action, "border-radius")!) > 0);
+  assert.equal(declaration(action, "flex-direction"), "column", "A small icon above each label leaves readable action labels beside the USD amount");
+  assert.ok(rules(".wallet .walletAction + .walletAction::before").some(rule => declaration(rule, "content") === "none"), "The two actions remain distinct buttons without a shared divider");
+  assert.ok(rules(".wallet .walletActionLabel").every(rule => Number.parseFloat(declaration(rule, "font-size") ?? "12") >= 12), "Compact action labels must remain at least 12px");
 });
 
 test("wallet CSS never hides labels or disables links at narrow breakpoints", () => {

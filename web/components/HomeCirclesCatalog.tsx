@@ -94,8 +94,9 @@ export default function HomeCirclesCatalog({ campaigns = [], circleLinks = {}, l
     const card = element.children[current] as HTMLElement | undefined;
     const first = element.children[0] as HTMLElement | undefined;
     if (!card || !first) return;
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    element.scrollTo({ left: card.offsetLeft - first.offsetLeft, behavior: reducedMotion ? "instant" : "smooth" });
+    // Only the active slide reserves height. Page directly to it so the user
+    // never sees an empty, collapsed neighbouring slot during a smooth pan.
+    element.scrollTo({ left: card.offsetLeft - first.offsetLeft, behavior: "instant" });
     setIndex(current);
   }
 
@@ -121,6 +122,14 @@ export default function HomeCirclesCatalog({ campaigns = [], circleLinks = {}, l
       </div>
       <Link href={isLocalPreview ? "/circles/create" : "/campaigns?create=1"} prefetch={false} className={styles.startCampaign}>{Ico.plus({ size: 17 })}<span>{copy("Start a campaign")}</span></Link>
       <Image className={styles.givingArt} src="/illustrations/crowdfund-together.png" alt="" width={160} height={100} />
+      <details className={styles.campaignTools}>
+        <summary title={copy("Campaign tools")}><span className={styles.srOnly}>{copy("Campaign tools")}</span><span aria-hidden="true">···</span></summary>
+        <nav className={styles.otherActions} aria-label={copy("Campaign tools")}>
+          <Link href="/circles/create" prefetch={false} className={styles.explore}>{c("Sketch your own cause")}{Ico.chev({ size: 15 })}</Link>
+          <Link href="/campaigns?mode=testnet" prefetch={false}>{copy("D4 Testnet campaigns")}{Ico.chev({ size: 12 })}</Link>
+          {!isLocalPreview ? <Link href="/campaigns?create=1" prefetch={false}>{copy("Start a campaign")}</Link> : null}
+        </nav>
+      </details>
     </header>
     <p className={styles.notice}>{copy(isLocalPreview ? "Fictional causes · no payment." : "Fictional causes · Testnet XLM only. No real money.")}</p>
     <div className={styles.tools}>
@@ -141,14 +150,14 @@ export default function HomeCirclesCatalog({ campaigns = [], circleLinks = {}, l
       </details>
       <Link href="/campaigns?mode=examples" prefetch={false} aria-label={copy("Browse all example causes")}>{homeCopy(locale, "See all")}<ArrowRight size={17} aria-hidden="true" /></Link>
     </div>
-    {/* The visible carousel counter already gives the total. Announce filter
-        results without adding another full row to the first viewport. */}
+    {/* Announce filter results without adding another full dashboard row. */}
     <div className={styles.srOnly} role="status">{c(examples.length === 1 ? "{count} example" : "{count} examples", { count: examples.length })}</div>
+    <div className={styles.carousel}>
     <div key={category} className={styles.strip} ref={strip} onScroll={syncScrollPosition} aria-label={copy("Example causes carousel")}>
       {examples.map((circle, position) => {
         const organizer = getOrganizerForCircle(circle);
         const display = circleDisplayContent(circle, locale);
-        return <article key={circle.id} className={styles.card} data-testid="home-crowdfunding-card" data-example-cause={circle.id}>
+        return <article key={circle.id} className={styles.card} data-testid="home-crowdfunding-card" data-example-cause={circle.id} data-active-card={position === index} inert={position !== index}>
           <Link href={`/circles/${circle.id}`} prefetch={false} className={styles.photo} aria-label={copy("View example cause: {title}", { title: display.title })}>
             <Image src={circle.coverImage ?? "/illustrations/giving.png"} alt={display.imageAlt ?? c("AI-generated fictional campaign illustration")} width={600} height={340} sizes="(max-width: 500px) 90vw, 430px" loading={position === 0 ? "eager" : "lazy"} />
             <span className={styles.example}>{c("Example cause")}</span>
@@ -169,7 +178,7 @@ export default function HomeCirclesCatalog({ campaigns = [], circleLinks = {}, l
           </div>
         </article>;
       })}
-      {standalone.map(campaign => <article key={`d4-${campaign.id}`} className={styles.card} data-testid="home-crowdfunding-card" data-standalone-campaign={campaign.id}>
+      {standalone.map((campaign, position) => <article key={`d4-${campaign.id}`} className={styles.card} data-testid="home-crowdfunding-card" data-standalone-campaign={campaign.id} data-active-card={examples.length + position === index} inert={examples.length + position !== index}>
         <Link href={`/campaigns?id=${campaign.id}`} prefetch={false} className={`${styles.photo} ${styles.testnetPhoto}`} aria-label={campaign.title}>
           <Image src="/illustrations/giving.png" alt="" width={600} height={340} sizes="(max-width: 500px) 90vw, 430px" loading="lazy" />
         </Link>
@@ -187,18 +196,9 @@ export default function HomeCirclesCatalog({ campaigns = [], circleLinks = {}, l
         </div>
       </article>)}
     </div>
-    <div className={styles.footer}>
-      <details className={styles.campaignTools}>
-        <summary>{copy("Campaign tools")}</summary>
-        <nav className={styles.otherActions} aria-label={copy("Campaign tools")}>
-          <Link href="/circles/create" prefetch={false} className={styles.explore}>{c("Sketch your own cause")}{Ico.chev({ size: 15 })}</Link>
-          <Link href="/campaigns?mode=testnet" prefetch={false}>{copy("D4 Testnet campaigns")}{Ico.chev({ size: 12 })}</Link>
-          {!isLocalPreview ? <Link href="/campaigns?create=1" prefetch={false}>{copy("Start a campaign")}</Link> : null}
-        </nav>
-      </details>
       <div className={styles.controls}>
         <button type="button" aria-label={copy("Previous example cause")} onClick={() => move(index - 1)} disabled={!ready || cardCount < 2}>{Ico.back({ size: 17 })}</button>
-        <span aria-label={copy("{current} of {count} example causes", { current: Math.min(index + 1, cardCount), count: cardCount })}>{String(Math.min(index + 1, cardCount)).padStart(2, "0")} / {String(cardCount).padStart(2, "0")}</span>
+        <span className={styles.srOnly} aria-label={copy("{current} of {count} example causes", { current: Math.min(index + 1, cardCount), count: cardCount })}>{String(Math.min(index + 1, cardCount)).padStart(2, "0")} / {String(cardCount).padStart(2, "0")}</span>
         <button type="button" aria-label={copy("Next example cause")} onClick={() => move(index + 1)} disabled={!ready || cardCount < 2}>{Ico.chev({ size: 17 })}</button>
       </div>
     </div>
