@@ -806,7 +806,7 @@ test("closed D4 campaigns remain honest read-only cards, never fictional pledge 
 test("Home catalog responsive styles retain compact controls and persistent truth framing", () => {
   const css = source("../components/HomeCirclesCatalog.module.css");
   const sheet = parse(css);
-  for (const [selector, property] of [[".categoryPicker summary", "min-height"], [".startCampaign", "min-height"], [".body h2 a", "min-height"], [".pledge", "min-height"], [".campaignTools summary", "min-height"], [".otherActions a", "min-height"], [".tools > a", "min-height"], [".controls button", "height"]]) {
+  for (const [selector, property] of [[".categoryPicker summary", "min-height"], [".startCampaign", "min-height"], [".heroCaption h2 a", "min-height"], [".pledge", "min-height"], [".campaignTools summary", "min-height"], [".otherActions a", "min-height"], [".tools > a", "min-height"], [".controls button", "height"]]) {
     const values: string[] = [];
     sheet.walkRules(rule => { if (rule.selectors.includes(selector)) for (const node of rule.nodes) if (node.type === "decl" && (node as Declaration).prop === property) values.push((node as Declaration).value); });
     assert.ok(values.length > 0 && values.every(value => Number.parseFloat(value) >= 44), `${selector} must retain a 44px touch target in every responsive rule`);
@@ -870,40 +870,53 @@ test("adaptive Home height cannot hide overflow or scale the whole dashboard to 
   assert.ok(scopedScrollportRule, "Any adjusted bottom reserve must remain scoped to the Home main scrollport");
 });
 
-test("editorial campaign card centers the title while keeping metadata away from image truth labels", () => {
+test("photo-first campaign hero spans the card and overlays a full centered title with honest image labels", () => {
   const sheet = parse(source("../components/HomeCirclesCatalog.module.css"));
   const base: Record<string, Record<string, string>> = {};
   sheet.walkRules(rule => {
     const atRule = rule.parent?.type === "atrule" ? rule.parent : null;
     const target = atRule === null ? base : null;
     if (!target) return;
-    for (const selector of rule.selectors.filter(selector => [".photo", ".category", ".example", ".ai", ".body h2", ".body h2 a", ".card"].includes(selector))) {
+    for (const selector of rule.selectors.filter(selector => [".hero", ".hero::after", ".photo", ".photo img", ".category", ".example", ".ai", ".heroCaption", ".heroCaption h2", ".heroCaption h2 a", ".card"].includes(selector))) {
       target[selector] ??= {};
       for (const node of rule.nodes) if (node.type === "decl") target[selector][node.prop] = node.value;
     }
   });
   assert.ok(Number.parseFloat(base[".category"]["font-size"]) >= 10);
   for (const selector of [".example", ".ai"]) assert.ok(Number.parseFloat(base[selector]["font-size"]) >= 9);
-  assert.equal(base[".body h2"]["text-align"], "center");
-  assert.equal(base[".body h2 a"]["justify-content"], "center");
+  assert.equal(base[".heroCaption h2"]["text-align"], "center");
+  assert.equal(base[".heroCaption h2 a"]["justify-content"], "center");
   assert.equal(base[".card"].background, "#0b1f36");
-  assert.doesNotMatch(source("../components/HomeCirclesCatalog.module.css"), /line-clamp/, "Campaign titles must not be cut off in the narrow editorial panel");
-  const split = sheet.nodes.find(node => node.type === "atrule" && node.name === "container" && node.params === "(min-width: 430px)");
-  assert.ok(split && split.type === "atrule", "The photo/content split must work within the app's 500px frame");
-  for (const breakpoint of ["(min-width: 351px)", "(max-width: 350px)"]) {
-    const narrow = sheet.nodes.find(node => node.type === "atrule" && node.name === "container" && node.params === breakpoint);
-    assert.ok(narrow && narrow.type === "atrule", "Narrow Home frames need an explicit photo/content split rather than a cropped campaign");
-    const columns: string[] = [];
-    narrow.walkRules(rule => { if (rule.selectors.includes(".card")) for (const node of rule.nodes) if (node.type === "decl" && node.prop === "grid-template-columns") columns.push(node.value); });
-    assert.ok(columns.length > 0, "Compact campaign photos must remain a distinct column alongside their full content");
-  }
+  assert.equal(base[".hero"].position, "relative", "The image and caption need one full-width overlay context");
+  assert.equal(base[".photo"].position, "absolute", "The real source image fills the hero behind the caption");
+  assert.equal(base[".photo"].inset, "0");
+  assert.equal(base[".photo img"].width, "100%");
+  assert.equal(base[".photo img"].height, "100%");
+  assert.equal(base[".photo img"]["object-fit"], "cover");
+  assert.match(base[".hero::after"].background ?? "", /linear-gradient/, "An actual dark gradient, not changed artwork, keeps the overlaid title legible");
+  assert.doesNotMatch(source("../components/HomeCirclesCatalog.module.css"), /line-clamp/, "Campaign titles must not be cut off to manufacture photo-first fit");
+  sheet.walkRules(rule => {
+    if (!rule.selectors.includes(".card")) return;
+    for (const node of rule.nodes) if (node.type === "decl" && node.prop === "grid-template-columns") {
+      assert.match(node.value, /^(?:none|minmax\(0,\s*1fr\)|1fr)$/, "No breakpoint may turn the full-width hero back into a thumbnail side column");
+    }
+  });
   const ui = mount();
-  for (const card of ui.cards) {
-    const photo = nodes(card).find(node => hasClass(node, "photo")); assert.ok(photo);
-    assert.equal(nodes(photo).some(node => hasClass(node, "category") || hasClass(node, "donationMark")), false);
-    assert.ok(nodes(photo).some(node => hasClass(node, "example")));
-    assert.ok(nodes(photo).some(node => hasClass(node, "ai")));
+  for (const [index, card] of ui.cards.entries()) {
+    const hero = nodes(card).find(node => node.props["data-testid"] === "home-campaign-hero"); assert.ok(hero);
+    const photo = nodes(hero).find(node => node.props["data-testid"] === "home-campaign-cover"); assert.ok(photo);
+    const caption = nodes(hero).find(node => hasClass(node, "heroCaption")); assert.ok(caption);
+    const title = nodes(caption).find(node => node.type === "h2"); assert.ok(title);
+    assert.equal(text(title), contentCopy.circleDisplayContent(seed.SEED_CIRCLES[index], "en").title, "The complete localized campaign title must remain in its image overlay");
+    assert.equal(nodes(photo).find(node => node.type === "Image")?.props.src, seed.SEED_CIRCLES[index].coverImage, "Hero must reuse each actual source asset, not substitute generated mockup artwork");
+    for (const label of ["category", "example", "ai"]) assert.ok(nodes(hero).some(node => hasClass(node, label)), `${label} must remain in the full-width hero`);
+    assert.equal(nodes(photo).some(node => node.type === "h2"), false, "The photo and full heading have separate links without nested anchors");
+    const body = nodes(card).find(node => hasClass(node, "body")); assert.ok(body);
+    assert.equal(nodes(body).some(node => node.type === "h2"), false, "The body must not repeat a large competing title");
+    assert.ok(nodes(body).some(node => node.props["data-testid"] === "home-campaign-organizer"));
+    assert.ok(nodes(body).some(node => hasClass(node, "pledge")), "The campaign CTA stays outside the decorative hero");
   }
+  ui.cleanup();
 });
 
 test("Home wires discovery into one manual catalog and renders the shared Stellar footer", () => {

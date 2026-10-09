@@ -14,18 +14,23 @@ for (const width of [375, 390, 1280]) test(`Savings is coming soon at ${width}px
   await expect(home.locator('a[href="/savings"]')).toHaveCount(0);
   await page.evaluate(async () => { await document.fonts.ready; });
   await savings.scrollIntoViewIfNeeded();
-  // Both visible labels must fit on one line, including the Linux CI fonts.
-  // Wrapping here would grow the whole quick-action row and push the footer down.
+  // Compact quick actions deliberately allow two lines. Test the actual
+  // label bounds and clipping, not a single-line typography assumption.
   for (const label of [savings.locator("strong"), savings.locator(":scope > div > span")]) {
     const geometry = await label.evaluate(node => {
       const labelRect = node.getBoundingClientRect();
       const cardRect = node.closest("button")!.getBoundingClientRect();
-      return { left: labelRect.left, right: labelRect.right, height: labelRect.height,
-        cardLeft: cardRect.left, cardRight: cardRect.right, lineHeight: parseFloat(getComputedStyle(node).lineHeight) };
+      return { left: labelRect.left, right: labelRect.right, top: labelRect.top, bottom: labelRect.bottom,
+        height: labelRect.height, contentHeight: node.scrollHeight, visibleHeight: node.clientHeight,
+        cardLeft: cardRect.left, cardRight: cardRect.right, cardTop: cardRect.top, cardBottom: cardRect.bottom,
+        lineHeight: parseFloat(getComputedStyle(node).lineHeight) };
     });
-    expect(geometry.height).toBeLessThanOrEqual(geometry.lineHeight + 5);
+    expect(geometry.height).toBeLessThanOrEqual(geometry.lineHeight * 2 + 1);
+    expect(geometry.contentHeight).toBeLessThanOrEqual(geometry.visibleHeight + 1);
     expect(geometry.left).toBeGreaterThanOrEqual(geometry.cardLeft);
     expect(geometry.right).toBeLessThanOrEqual(geometry.cardRight);
+    expect(geometry.top).toBeGreaterThanOrEqual(geometry.cardTop);
+    expect(geometry.bottom).toBeLessThanOrEqual(geometry.cardBottom);
   }
   const tiles = home.locator('section[aria-label="QUICK ACTIONS"]');
   await expect(tiles.getByRole("link")).toHaveCount(3);

@@ -65,7 +65,8 @@ test("Home exposes one ordered campaign carousel and keeps explicit D4 browsing 
   await expect(categories.getByRole("button", { name: "All examples", exact: true })).toHaveAttribute("aria-pressed", "true");
   await catalogSection.locator("summary#home-cause-category").click();
   await expect(catalogSection.locator("article[data-example-cause]")).toHaveCount(27);
-  await catalogSection.locator("summary").filter({ hasText: "Campaign tools" }).click();
+  const campaignTools = catalogSection.locator("summary").filter({ hasText: "Campaign tools" });
+  await campaignTools.click();
   await expect(catalogSection.getByRole("link", { name: "Sketch your own cause", exact: true })).toHaveAttribute("href", "/circles/create");
   await expect(page.getByLabel("Example causes carousel", { exact: true })).toHaveCount(1);
   await expect(page.locator('section[aria-labelledby="testnet-campaign-title"]')).toHaveCount(0);
@@ -76,6 +77,10 @@ test("Home exposes one ordered campaign carousel and keeps explicit D4 browsing 
   expect(cards[0].story).toBe("tino-relief");
   expect(cards.slice(0, 27).every(card => card.story !== null && card.campaign === null)).toBe(true);
   expect(cards.slice(27).every(card => card.story === null && /^\d+$/.test(card.campaign ?? ""))).toBe(true);
+  // The menu intentionally floats over the category row. Close it before
+  // exercising the separate See all link instead of clicking through it.
+  await campaignTools.click();
+  await expect(campaignTools.locator("..")).not.toHaveAttribute("open", "");
   await catalog.click();
   await expect(page).toHaveURL(/\/campaigns\?mode=examples$/);
   await expect(page.getByRole("heading", { name: "A cause can bring us closer.", exact: true })).toBeVisible();
@@ -101,7 +106,7 @@ test("Home category tiles show three examples per sector with explicit sample or
     await expect(catalog.getByText("KYC not verified", { exact: true })).toHaveCount(3);
     await expect(catalog.getByTestId("organizer-trust-summary")).toHaveCount(3);
     await expect(catalog.getByTestId("home-campaign-organizer")).toHaveCount(3);
-    const covers = catalog.locator("article[data-example-cause] > a img");
+    const covers = catalog.locator('article[data-example-cause] [data-testid="home-campaign-hero"] > a img');
     await expect(covers).toHaveCount(3);
     for (const cover of await covers.all()) await expect(cover).toHaveAttribute("src", /(?:\/circles\/generated\/|circles%2Fgenerated%2F)/);
   }
