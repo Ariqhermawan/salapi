@@ -158,17 +158,21 @@ export default function HomeCirclesCatalog({ campaigns = [], circleLinks = {}, l
         const organizer = getOrganizerForCircle(circle);
         const display = circleDisplayContent(circle, locale);
         return <article key={circle.id} className={styles.card} data-testid="home-crowdfunding-card" data-example-cause={circle.id} data-active-card={position === index} inert={position !== index}>
-          <Link href={`/circles/${circle.id}`} prefetch={false} className={styles.photo} aria-label={copy("View example cause: {title}", { title: display.title })}>
-            <Image src={circle.coverImage ?? "/illustrations/giving.png"} alt={display.imageAlt ?? c("AI-generated fictional campaign illustration")} width={600} height={340} sizes="(max-width: 500px) 90vw, 430px" loading={position === 0 ? "eager" : "lazy"} />
-            <span className={styles.example}>{c("Example cause")}</span>
-            <small className={styles.ai}>{c("AI illustration")}</small>
-          </Link>
-          <div className={styles.body}>
+          <div className={styles.hero} data-testid="home-campaign-hero">
+            <Link href={`/circles/${circle.id}`} prefetch={false} className={styles.photo} data-testid="home-campaign-cover" aria-label={copy("View example cause: {title}", { title: display.title })}>
+              <Image src={circle.coverImage ?? "/illustrations/giving.png"} alt={display.imageAlt ?? c("AI-generated fictional campaign illustration")} width={600} height={340} sizes="(max-width: 500px) 90vw, 700px" loading={position === 0 ? "eager" : "lazy"} />
+            </Link>
             <div className={styles.cardMeta}>
+              <span className={styles.example}>{c("Example cause")}</span>
               <span className={styles.category}>{circlesCategory(locale, circle.category)}</span>
-              <span className={styles.donationMark}><CampaignDonationBadge support={forCircle(circle.id)} /></span>
             </div>
-            <h2><Link href={`/circles/${circle.id}`} prefetch={false} title={display.title}><span>{display.title}</span></Link></h2>
+            <span className={styles.donationMark}><CampaignDonationBadge support={forCircle(circle.id)} /></span>
+            <div className={styles.heroCaption}>
+              <small className={styles.ai}>{c("AI illustration")}</small>
+              <h2><Link href={`/circles/${circle.id}`} prefetch={false} title={display.title}><span>{display.title}</span></Link></h2>
+            </div>
+          </div>
+          <div className={styles.body}>
             <div className={styles.organizer} data-testid="home-campaign-organizer">
               {organizer ? <ExampleOrganizerAvatar organizer={organizer} size={40} /> : <span className={styles.avatar} aria-hidden="true">{circle.organizer.charAt(0)}</span>}
               <div className={styles.identity}><strong>{circle.organizer}</strong><small>{circle.organizerLocation}{" "}{c("· Example organizer")}</small><OrganizerTrustSummary exampleOrganizer={organizer} /></div>
@@ -179,15 +183,19 @@ export default function HomeCirclesCatalog({ campaigns = [], circleLinks = {}, l
         </article>;
       })}
       {standalone.map((campaign, position) => <article key={`d4-${campaign.id}`} className={styles.card} data-testid="home-crowdfunding-card" data-standalone-campaign={campaign.id} data-active-card={examples.length + position === index} inert={examples.length + position !== index}>
-        <Link href={`/campaigns?id=${campaign.id}`} prefetch={false} className={`${styles.photo} ${styles.testnetPhoto}`} aria-label={campaign.title}>
-          <Image src="/illustrations/giving.png" alt="" width={600} height={340} sizes="(max-width: 500px) 90vw, 430px" loading="lazy" />
-        </Link>
-        <div className={styles.body}>
+        <div className={`${styles.hero} ${styles.testnetHero}`} data-testid="home-campaign-hero">
+          <Link href={`/campaigns?id=${campaign.id}`} prefetch={false} className={`${styles.photo} ${styles.testnetPhoto}`} data-testid="home-campaign-cover" aria-label={campaign.title}>
+            <Image src="/illustrations/giving.png" alt="" width={600} height={340} sizes="(max-width: 500px) 90vw, 700px" loading="lazy" />
+          </Link>
           <div className={styles.cardMeta}>
             <span className={styles.category}>{copy("D4 Testnet campaigns")}</span>
-            <span className={styles.donationMark}><CampaignDonationBadge support={support.value?.contributions[campaign.id]} /></span>
           </div>
-          <h2><Link href={`/campaigns?id=${campaign.id}`} prefetch={false} title={campaign.title}><span>{campaign.title}</span></Link></h2>
+          <span className={styles.donationMark}><CampaignDonationBadge support={support.value?.contributions[campaign.id]} /></span>
+          <div className={styles.heroCaption}>
+            <h2><Link href={`/campaigns?id=${campaign.id}`} prefetch={false} title={campaign.title}><span>{campaign.title}</span></Link></h2>
+          </div>
+        </div>
+        <div className={styles.body}>
           <span className={styles.testnetState}>#{campaign.id} · {campaign.state}</span>
           <OrganizerTrustSummary />
           <p className={styles.testnetNote}>{homeCopy(locale, "test XLM · no real money")}</p>
