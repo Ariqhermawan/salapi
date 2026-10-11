@@ -34,6 +34,7 @@ function setup() {
   const effects = new Map<number, Effect>();
   const scheduled = new Map<number, Effect>();
   const timers: (() => void)[] = [];
+  const intervals: (() => void)[] = [];
   const reads: ReturnType<typeof deferred<Room | { ready: false }>>[] = [];
   const actions: { name: string; result: ReturnType<typeof deferred<{ ok: boolean; error?: string; errorKey?: string; pending?: boolean }>> }[] = [];
   let cursor = 0;
@@ -54,12 +55,14 @@ function setup() {
   const Button = ({ children, onClick, disabled, ariaLabel }: { children: React.ReactNode; onClick?: () => void; disabled?: boolean; ariaLabel?: string }) => React.createElement("button", { onClick, disabled, "aria-label": ariaLabel }, children);
   const exports = {} as { default: (props: { roomId: number }) => React.ReactElement };
   const t = (key: string) => key.split(".").reduce<unknown>((value, part) => (value as Record<string, unknown>)?.[part], DICTS.en) ?? key;
-  runInNewContext(source, { exports, Date: { now: () => now * 1000 },
-    setTimeout(callback: () => void) { timers.push(callback); return timers.length; }, clearTimeout() {}, setInterval() { return 1; }, clearInterval() {},
+  class FixtureDate extends Date { static now() { return now * 1000; } }
+  runInNewContext(source, { exports, Date: FixtureDate,
+    setTimeout(callback: () => void) { timers.push(callback); return timers.length; }, clearTimeout() {}, setInterval(callback: () => void) { intervals.push(callback); return intervals.length; }, clearInterval() {},
     require(name: string) {
       if (name === "react") return hooks;
       if (name === "react/jsx-runtime") return jsxRuntime;
       if (name === "next/image") return { __esModule: true, default: (props: Record<string, unknown>) => React.createElement("img", props) };
+      if (name === "next/link") return { __esModule: true, default: (props: Record<string, unknown>) => React.createElement("a", props) };
       if (name === "@/components/I18nProvider") return { useT: () => ({ currency: "en", locale: "en", t }) };
       if (name === "@/components/ui/kit") return { T: {}, Ico: new Proxy({}, { get: () => () => null }), AppBar: ({ leading, title }: { leading: React.ReactNode; title: string }) => React.createElement("header", null, leading, title), IconButton: Button, Btn: Button, Chip: Container, Avatar: () => null, PoweredByStellar: () => null };
       if (name === "@/lib/ui/useGoBack") return { useGoBack: () => () => {} };
@@ -76,6 +79,8 @@ function setup() {
       if (name === "@/lib/money") return { pesosToStroopsExact: () => 0n };
       if (name === "@/lib/ui/currency") return { formatLocal: (amount: number) => `PHP ${amount}` };
       if (name === "./arisan-preview") return {};
+      if (name === "./ArisanGatheringPanel") return { __esModule: true, default: () => null };
+      if (name === "@/components/ArisanInboxLink") return { __esModule: true, default: () => null };
       if (name === "@/app/actions") return new Proxy({}, { get: (_, method: string) => () => {
         if (method === "arisanRoomState") { const result = deferred<Room | { ready: false }>(); reads.push(result); return result.promise; }
         const result = deferred<{ ok: boolean; error?: string; errorKey?: string; pending?: boolean }>(); actions.push({ name: method, result }); return result.promise;
@@ -105,12 +110,15 @@ function setup() {
   return { reads, actions, html: () => renderToStaticMarkup(render()),
     control(label: string) { const node = nodes(render()).find(node => node.type === "button" && content(node) === label); assert.ok(node, `Missing room control ${label}`); return node; },
     click(label: string) { const control = this.control(label); assert.equal(control.props.disabled, false); (control.props.onClick as () => void)(); },
+    invoke(label: string) { (this.control(label).props.onClick as () => void)(); },
+    poll() { intervals.at(-1)!(); },
+    acknowledge(value: boolean) { const checkbox = nodes(render()).find(node => node.type === "input" && node.props.type === "checkbox"); assert.ok(checkbox); (checkbox.props.onChange as (event: unknown) => void)({ target: { checked: value } }); },
   };
 }
 async function loaded(value = room()) { const ui = setup(); ui.reads[0].resolve(value); await flush(); ui.html(); return ui; }
 
 test("late reveal error refreshes the authoritative phase, shows payout guidance, and never resubmits", async () => {
-  const ui = await loaded(); ui.click(DICTS.en.arisan.draw.revealCta);
+  const ui = await loaded(); ui.click(arisanRoomCopy("en").completeEntry);
   assert.equal(ui.actions.length, 1); assert.equal(ui.actions[0].name, "arisanReveal");
   ui.actions[0].result.resolve({ ok: false, errorKey: "arisan.somethingWrong" }); await flush();
   assert.equal(ui.reads.length, 2);
@@ -120,7 +128,7 @@ test("late reveal error refreshes the authoritative phase, shows payout guidance
 });
 
 test("unrelated reveal failure in the same authoritative phase preserves the error without deadline speculation", async () => {
-  const ui = await loaded(); ui.click(DICTS.en.arisan.draw.revealCta);
+  const ui = await loaded(); ui.click(arisanRoomCopy("en").completeEntry);
   ui.actions[0].result.resolve({ ok: false, error: "Authentication is unavailable." }); await flush();
   // A stale browser deadline does not override the phase returned by the server.
   ui.reads[1].resolve(room({ revealAt: now - 1 })); await flush();
@@ -128,7 +136,7 @@ test("unrelated reveal failure in the same authoritative phase preserves the err
 });
 
 test("a pending reveal does not acquire a definitive deadline explanation from a refreshed phase", async () => {
-  const ui = await loaded(); ui.click(DICTS.en.arisan.draw.revealCta);
+  const ui = await loaded(); ui.click(arisanRoomCopy("en").completeEntry);
   ui.actions[0].result.resolve({ ok: false, pending: true, error: "Status unknown." }); await flush();
   ui.reads[1].resolve(room({ drawPhase: "Finalizable", canFinalize: true })); await flush();
   assert.match(ui.html(), /Status unknown/); assert.doesNotMatch(ui.html(), /window has closed/); assert.equal(ui.actions.length, 1);
@@ -166,4 +174,30 @@ test("personal, shared-demo, unverified and local-example roles stay distinct", 
   assert.equal(arisanViewerRole({ isHost: false, isMember: true, viewerIdentity: "demo" }, false, "en"), "Guest view · shared demo member");
   assert.equal(arisanViewerRole({ isHost: true, isMember: true }, false, "en"), "Public view · personal wallet not verified");
   assert.equal(arisanViewerRole({ isHost: true, isMember: true, viewerIdentity: "personal" }, true, "en"), "Local example host");
+});
+
+test("fallback handler fails closed without acknowledgement and cannot inherit another account's acknowledgement", async () => {
+  const fallback = room({ drawPhase: "Finalizable", canReveal: false, canFinalize: true });
+  const ui = await loaded(fallback);
+  const label = `${arisanRoomCopy("en").fallbackCta} · PHP 300`;
+  assert.equal(ui.control(label).props.disabled, true);
+  ui.invoke(label);
+  assert.equal(ui.actions.length, 0);
+  ui.acknowledge(true);
+  assert.equal(ui.control(label).props.disabled, false);
+  ui.poll();
+  ui.reads[1].resolve(room({ ...fallback, viewer: "different-authenticated-member" }));
+  await flush();
+  assert.equal(ui.control(label).props.disabled, true);
+  ui.invoke(label);
+  assert.equal(ui.actions.length, 0);
+});
+
+test("a refunded zero deposit is an after-refund record, never proof of zero original contribution", async () => {
+  const ui = await loaded(room({ status: "Dissolved", drawPhase: null, canReveal: false, seats: [{ ...room().seats[0], fundedStroops: "0" }] }));
+  const html = ui.html();
+  assert.match(html, /Contract deposit record after any refund/);
+  assert.match(html, /0\.0000000 XLM/);
+  assert.match(html, /Zero does not prove that a member originally contributed nothing/);
+  assert.doesNotMatch(html, /Upfront deposit recorded/);
 });

@@ -119,7 +119,9 @@ test("a failed read or unconfirmed zero share fails the whole page instead of mo
     const { api, calls } = actionSetup(options); const page = await api.arisanList();
     assert.equal(page.ready, false); assert.equal("nextCursor" in page, false);
     if (!page.ready) assert.match(page.error!, /page was not advanced/);
-    assert.equal(calls.ids.includes(170), false); assert.ok(calls.ids.length <= 6); assert.equal(calls.signers, 0);
+    // Other bounded room jobs may already be running when one fails. None of
+    // their partial results may commit or move this page's retry cursor.
+    assert.ok(calls.ids.includes(171)); assert.ok(calls.ids.length <= 50); assert.equal(calls.signers, 0);
   }
 });
 
@@ -135,7 +137,7 @@ function text(value: unknown): string {
   return value && typeof value === "object" && "props" in value ? text((value as Element).props.children) : "";
 }
 function room(id: number, name = `Room ${id}`): Room { return { id, name, status: "Open", memberCount: 1, memberTarget: 3, sharePesos: 6.5, potPesos: 19.5, cadence: "Weekly", isHost: false }; }
-function screenSetup(fetchPage: (cursor?: number) => Promise<Page>, preview = false) {
+function screenSetup(fetchPage: (cursor?: number) => Promise<Page>, preview = false, scheduled = false) {
   const state: unknown[] = []; const effects: (() => void)[] = []; const transitions: Promise<unknown>[] = []; const cursors: (number | undefined)[] = []; let index = 0;
   const jsx = (type: string, props: Record<string, unknown>) => ({ type, props });
   const api = loadModule<{ default(): Element }>(componentCode, {
@@ -147,12 +149,13 @@ function screenSetup(fetchPage: (cursor?: number) => Promise<Page>, preview = fa
       useTransition: () => [false, (action: () => Promise<unknown>) => transitions.push(action())],
     },
     "next/navigation": { useRouter: () => ({ push() {} }) }, "next/link": { default: "Link" }, "next/image": { default: "Image" },
-    "@/lib/ui/useGoBack": { useGoBack: () => () => {} }, "@/components/I18nProvider": { useT: () => ({ currency: "tl", t: (value: string) => value }) },
+    "@/lib/ui/useGoBack": { useGoBack: () => () => {} }, "@/components/I18nProvider": { useT: () => ({ locale: "en", currency: "tl", t: (value: string) => value }) },
     "@/components/ui/kit": { ...Object.fromEntries(["AppBar", "IconButton", "Card", "Btn", "Chip", "PoweredByStellar"].map(name => [name, name])), T: {}, Ico: new Proxy({}, { get: () => () => null }) },
     "@/lib/ui/currency": { formatLocal: (value: number) => String(value) }, "@/lib/local-preview": { isLocalPreview: preview },
     "./CampaignArisan.module.css": { default: {} }, "./arisan-preview": { readPreviewArisanRoom: () => null },
+    "@/components/ArisanInboxLink": { default: "InboxLink" },
     "@/app/actions": { arisanList: async (cursor?: number) => { cursors.push(cursor); return fetchPage(cursor); } },
-  }, { sessionStorage: { getItem: () => null } });
+  }, { sessionStorage: { getItem: () => null }, process: { env: { NEXT_PUBLIC_ARISAN_SCHEDULED: scheduled ? "1" : "0" } } });
   const render = () => { index = 0; return api.default(); }; let tree = render(); for (const effect of effects.splice(0)) effect();
   async function settle() { while (transitions.length) await Promise.all(transitions.splice(0)); tree = render(); }
   function button(label: string) { return nodes(tree).find(node => ["button", "Btn"].includes(node.type) && text(node) === label); }
@@ -161,6 +164,13 @@ function screenSetup(fetchPage: (cursor?: number) => Promise<Page>, preview = fa
   };
 }
 function roomLinks(tree: Element) { return nodes(tree).filter(node => node.type === "Link" && /^\/arisan\/\d+$/.test(String(node.props.href))); }
+test("scheduled rooms are discoverable from the arisan list only with the separate feature enabled", async () => {
+  for (const enabled of [false, true]) {
+    const ui = screenSetup(async () => ({ ready: true, mine: [], total: 0, nextCursor: null }), false, enabled); await ui.settle();
+    const links = nodes(ui.tree).filter(node => node.type === "Link" && node.props.href === "/arisan/scheduled"); assert.equal(links.length, enabled ? 1 : 0);
+    if (enabled) assert.match(text(links[0]), /Your scheduled arisan rooms/);
+  }
+});
 test("the real list UI continues through empty membership pages until an older member is reachable", async () => {
   const { api } = actionSetup({ count: 123, memberIds: [6] }); const screen = screenSetup(cursor => api.arisanList(cursor));
   await screen.settle(); assert.equal(roomLinks(screen.tree).length, 0); assert.ok(screen.button("Load older rooms"));

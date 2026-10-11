@@ -14,13 +14,14 @@ const wallet = (index: number) => sdk.StrKey.encodeEd25519PublicKey(Buffer.alloc
 const member = wallet(1), other = wallet(2), foreign = wallet(3);
 const legacy = sdk.StrKey.encodeContract(Buffer.alloc(32, 4));
 const installments = sdk.StrKey.encodeContract(Buffer.alloc(32, 5));
+const scheduled = sdk.StrKey.encodeContract(Buffer.alloc(32, 6));
 const photo = "https://lh3.googleusercontent.com/a/fixture=s96-c";
 const compile = (path: string) => ts.transpileModule(readFileSync(new URL(path, import.meta.url), "utf8"), {
   compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true },
 }).outputText;
 const helperSource = compile("../lib/server/arisanMemberIdentity.ts");
 
-function server(options: { preview?: boolean; legacy?: string; installments?: string; rawRoom?: unknown; rawMembers?: unknown;
+function server(options: { preview?: boolean; legacy?: string; installments?: string; scheduled?: string; rawRoom?: unknown; rawMembers?: unknown;
   owner?: { ok: true; publicKey: string } | { ok: false }; authThrows?: boolean; readFails?: boolean } = {}) {
   const calls = { auth: 0, projections: [] as { addresses: string[]; photos: boolean }[], simulations: [] as { method: string; id: number; contract: string }[] };
   class ReadOnlyRpc {
@@ -41,7 +42,7 @@ function server(options: { preview?: boolean; legacy?: string; installments?: st
   }
   const exports = {} as { readArisanMemberIdentities: (kind: ArisanRoomKind, roomId: number) => Promise<ArisanMemberIdentityResult> };
   runInNewContext(helperSource, { exports, Buffer, setTimeout, clearTimeout,
-    process: { env: { ARISAN_INSTALLMENTS_CONTRACT: options.installments ?? installments } },
+    process: { env: { ARISAN_INSTALLMENTS_CONTRACT: options.installments ?? installments, ARISAN_SCHEDULED_CONTRACT: options.scheduled ?? scheduled } },
     require(name: string) {
       if (name === "server-only") return {};
       if (name === "@stellar/stellar-sdk") return { ...sdk, rpc: { Server: ReadOnlyRpc, Api: { isSimulationSuccess: (value: { result?: unknown }) => !!value.result } } };
@@ -62,7 +63,7 @@ function server(options: { preview?: boolean; legacy?: string; installments?: st
 }
 
 test("room identity derives only validated on-chain members, for the correct deployment, through unsigned reads", async () => {
-  for (const [kind, contract] of [["upfront", legacy], ["installments", installments]] as const) {
+  for (const [kind, contract] of [["upfront", legacy], ["installments", installments], ["scheduled", scheduled]] as const) {
     const h = server(); const result = await h.readArisanMemberIdentities(kind, 9);
     assert.equal(result.ok, true); if (!result.ok) continue;
     assert.equal(result.kind, kind); assert.equal(result.roomId, 9);
@@ -88,6 +89,9 @@ test("local preview, invalid room/type and misconfigured deployment cannot read 
     { options: { legacy: "not-a-contract" }, kind: "upfront", id: 9 },
     { options: { installments: legacy }, kind: "installments", id: 9 },
     { options: { installments: "not-a-contract" }, kind: "installments", id: 9 },
+    { options: { scheduled: legacy }, kind: "scheduled", id: 9 },
+    { options: { scheduled: installments }, kind: "scheduled", id: 9 },
+    { options: { scheduled: "not-a-contract" }, kind: "scheduled", id: 9 },
     ...[0, -1, 1.5, Number.NaN, 0x1_0000_0000, "9", { roomId: 9, wallets: [foreign] }].map(id => ({ options: {}, kind: "upfront", id })),
     { options: {}, kind: "caller-wallets", id: 9 },
   ];
@@ -220,4 +224,11 @@ test("identity failures, mismatched room results, preview and invalid client bou
   for (const [id, members] of [[undefined, []], [9, []], [9, Array.from({ length: 21 }, (_, i) => wallet(i + 20))]] as const) {
     const h = hook(); assert.equal(h.render(id, [...members]).size, 0); assert.equal(h.calls.length, 0);
   }
+});
+
+test("same numbered scheduled room cannot reuse installment profile projections", async () => {
+  const h = hook(); h.render(9, [member, other], member, "installments"); h.calls[0].response.resolve(response(9, "installments")); await flush();
+  assert.equal(h.render(9, [member, other], member, "installments").size, 2);
+  assert.equal(h.render(9, [member, other], member, "scheduled").size, 0); assert.equal(h.calls[1].kind, "scheduled");
+  h.calls[1].response.resolve(response(9, "installments")); await flush(); assert.equal(h.render(9, [member, other], member, "scheduled").size, 0); h.unmount();
 });

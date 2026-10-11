@@ -1,7 +1,7 @@
 "use client";
 import { announceSuccessMotion } from "@/lib/ui/success-feedback";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { arisanJoin, arisanResolveCode, arisanRoomState } from "@/app/actions";
@@ -20,6 +20,9 @@ import { pesosToStroopsExact } from "@/lib/money";
 
 // Invite codes are 6 chars from {digits 2–9, A–Z minus O/I}.
 const INVITE_CODE = /^[A-HJ-NP-Z2-9]{6}$/;
+const subscribeHydration = () => () => {};
+const clientHydrationSnapshot = () => true;
+const serverHydrationSnapshot = () => false;
 type JoinRoom = { id: number; name: string; memberTarget: number; memberCount: number; sharePesos: number; cadence: string; cadenceSecs?: number; status: string; isMember: boolean; joinDeadline: number; shareStroops?: string; depositStroops?: string; viewer?: string | null };
 type ReviewedInvite = Readonly<{ room: Readonly<JoinRoom>; invitation: Readonly<ArisanReviewedInvitation> }>;
 function formatXlm(stroops: string) {
@@ -32,6 +35,7 @@ export default function ArisanJoinScreen() {
   const { t, currency } = useT();
   const router = useRouter();
   const goBack = useGoBack("/arisan");
+  const hydrated = useSyncExternalStore(subscribeHydration, clientHydrationSnapshot, serverHydrationSnapshot);
   const [code, setCode] = useState("");
   const [, start] = useTransition();
   const [activeOperation, setActiveOperation] = useState<"review" | "join" | null>(null);
@@ -104,7 +108,7 @@ export default function ArisanJoinScreen() {
             const saved = readPreviewArisanRoom(acceptedRoom.id, true);
             const changes = [{ key: "salapi.preview.arisan-left", value: null }, { key: "salapi.preview.arisan-joined", value: "1" }];
             if (saved && !saved.isMember) {
-              const seats = [...saved.seats.filter(seat => !seat.isYou), { addr: PREVIEW_WALLET.address, label: "Ariqhermawan", won: false, committed: false, revealed: false, isYou: true }];
+              const seats = [...saved.seats.filter(seat => !seat.isYou), { addr: PREVIEW_WALLET.address, label: "Ariqhermawan", won: false, committed: false, revealed: false, isYou: true, fundedStroops: saved.depositStroops }];
               if (!savePreviewArisanRoom({ ...saved, seats, memberCount: seats.length, isMember: true, isHost: false, canUseDemoFriends: false, readyToStart: false, code: "FAM234" }, changes)) throw new Error("Preview membership could not be saved.");
             } else if (!commitPreviewArisanSession(changes)) throw new Error("Preview membership could not be saved.");
             if (!mounted.current) return;
@@ -202,7 +206,7 @@ export default function ArisanJoinScreen() {
             spellCheck={false}
             placeholder="FAM234"
             aria-label={t("arisan.join.codeLabel")}
-            disabled={pending}
+            disabled={!hydrated || pending}
             onChange={(e) => { if (!mounted.current || operation.current || submission.locked) return; reviewRequest.current++; reviewedRef.current = null; setReviewed(null); setCode(clean(e.target.value)); setError(null); }}
             style={{
               width: "100%",
@@ -236,7 +240,7 @@ export default function ArisanJoinScreen() {
         <Btn
           kind="primary"
           onClick={review}
-          disabled={!canSubmit || pending}
+          disabled={!hydrated || !canSubmit || pending}
           loading={pending}
         >
           Review invitation

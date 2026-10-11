@@ -30,10 +30,14 @@ function count(value: unknown): number | null {
  * This never accepts caller-selected wallet/owner IDs, provisions, or signs.
  */
 export async function readArisanMemberIdentities(kind: ArisanRoomKind, roomId: number): Promise<ArisanMemberIdentityResult> {
-  if (isLocalPreview || (kind !== "upfront" && kind !== "installments") || !Number.isSafeInteger(roomId) || roomId < 1 || roomId > 0xffff_ffff) return failed;
+  if (isLocalPreview || !["upfront", "installments", "scheduled"].includes(kind) || !Number.isSafeInteger(roomId) || roomId < 1 || roomId > 0xffff_ffff) return failed;
   const legacy = arisanRoomsId()?.trim();
-  const contractId = kind === "upfront" ? legacy : process.env.ARISAN_INSTALLMENTS_CONTRACT?.trim();
-  if (!contractId || !StrKey.isValidContract(contractId) || (kind === "installments" && contractId === legacy)) return failed;
+  const installment = process.env.ARISAN_INSTALLMENTS_CONTRACT?.trim();
+  const scheduled = process.env.ARISAN_SCHEDULED_CONTRACT?.trim();
+  const contractId = kind === "upfront" ? legacy : kind === "installments" ? installment : scheduled;
+  if (!contractId || !StrKey.isValidContract(contractId)
+    || kind === "installments" && contractId === legacy
+    || kind === "scheduled" && (contractId === legacy || contractId === installment)) return failed;
   try {
     const server = new rpc.Server(RPC_URL, { timeout: TIMEOUT_MS });
     const read = async (method: string) => {

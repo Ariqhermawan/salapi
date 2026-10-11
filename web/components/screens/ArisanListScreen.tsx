@@ -21,6 +21,7 @@ import Image from "next/image";
 import { isLocalPreview } from "@/lib/local-preview";
 import styles from "./CampaignArisan.module.css";
 import { readPreviewArisanRoom } from "./arisan-preview";
+import ArisanInboxLink from "@/components/ArisanInboxLink";
 
 type State = Awaited<ReturnType<typeof arisanList>>;
 const previewRooms: Extract<State, { ready: true }> = { ready: true, total: 2, nextCursor: null, mine: [
@@ -36,7 +37,7 @@ const STATUS_TONE = {
 };
 
 export default function ArisanListScreen() {
-  const { t, currency } = useT();
+  const { t, currency, locale } = useT();
   const router = useRouter();
   const goBack = useGoBack("/vaults");
   const [st, setSt] = useState<State | null>(null);
@@ -112,8 +113,10 @@ export default function ArisanListScreen() {
           </IconButton>
         }
         title={t("arisan.title")}
+        trailing={<ArisanInboxLink locale={locale} />}
       />
 
+      {(isLocalPreview || process.env.NEXT_PUBLIC_ARISAN_SCHEDULED === "1") && <div className={styles.body}><Link href="/arisan/scheduled" className={styles.roomLink}><span className={styles.eyebrow}>{({ en: "SCHEDULED ROOMS · TESTNET", id: "RUANG TERJADWAL · TESTNET", tl: "MGA SCHEDULED ROOM · TESTNET", vi: "PHÒNG CÓ LỊCH · TESTNET" })[locale]}</span><h2>{({ en: "Your scheduled arisan rooms", id: "Ruang arisan terjadwalmu", tl: "Iyong mga scheduled arisan room", vi: "Phòng arisan có lịch của bạn" })[locale]} →</h2><p className={styles.muted}>{({ en: "Agree on dates before joining. Pay your full cycle before Start. Existing rooms below retain their original terms.", id: "Sepakati tanggal sebelum bergabung. Lunasi satu siklus sebelum Mulai. Ruang lama di bawah tetap memakai aturan semula.", tl: "Pagkasunduan ang petsa bago sumali. Bayaran ang buong cycle bago Start. Hindi nagbabago ang lumang room sa ibaba.", vi: "Thống nhất ngày trước khi tham gia. Góp đủ cả chu kỳ trước khi bắt đầu. Phòng cũ bên dưới giữ nguyên điều khoản." })[locale]}</p></Link></div>}
       {(isLocalPreview || process.env.NEXT_PUBLIC_ARISAN_INSTALLMENTS === "1") && <div className={styles.body}><Link href="/arisan/funding" className={styles.roomLink}><span className={styles.eyebrow}>Separate installment candidate · Testnet</span><h2>Join first. Pay in steps.</h2><p className={styles.muted}>No deposit at join. Fund in smaller amounts before the deadline. Start only after every member is fully funded. Existing rooms below keep their original terms.</p></Link></div>}
 
       <div className={styles.body} style={{ paddingTop: 20, paddingBottom: 20, gap: 12 }}>

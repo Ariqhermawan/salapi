@@ -34,7 +34,7 @@ function setup(screen: typeof screens[number], options: { roomId?: number; mode?
     removeItem(key: string) { if (mode === "set" || key === failKey) throw new Error("Denied removal"); data.delete(key); },
   };
   const helper = { exports: {} as Api };
-  runInNewContext(helperCode, { exports: helper.exports, module: helper, sessionStorage: storage, window: {}, require(name: string) {
+  runInNewContext(helperCode, { exports: helper.exports, module: helper, sessionStorage: storage, window: {}, crypto: { getRandomValues(values: Uint32Array) { values[0] = 1; return values; } }, require(name: string) {
     if (name === "@/lib/local-preview") return { isLocalPreview: preview, PREVIEW_WALLET };
     if (name === "@/lib/money") return { pesosToStroopsExact };
     throw Error(`Unexpected preview helper import ${name}`);
@@ -43,6 +43,7 @@ function setup(screen: typeof screens[number], options: { roomId?: number; mode?
   const component = { exports: {} as { default(props: { roomId: number }): Element } };
   const forbidden = (kind: "network" | "action") => () => { calls[kind]++; throw new Error(`Unexpected ${kind}`); };
   const react = {
+    useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) => snapshot(),
     useState(value: unknown) { const index = cursor++; if (!(index in state)) state[index] = typeof value === "function" ? value() : value; return [state[index], (next: unknown) => { state[index] = typeof next === "function" ? next(state[index]) : next; }]; },
     useRef(value: unknown) { const index = cursor++; if (!(index in state)) state[index] = { current: value }; return state[index]; },
     useEffect(effect: () => void | (() => void), deps: readonly unknown[]) { const index = cursor++; const previous = effects.get(index); if (!previous || previous.deps.length !== deps.length || deps.some((value, i) => !Object.is(value, previous.deps[i]))) scheduled.push({ index, effect, deps }); }, useMemo: (fn: () => unknown) => fn(),
@@ -55,6 +56,7 @@ function setup(screen: typeof screens[number], options: { roomId?: number; mode?
       if (name === "react") return react;
       if (name === "next/navigation") return { useRouter: () => ({ replace: (path: string) => calls.navigation.push(path), push: (path: string) => calls.navigation.push(path) }) };
       if (name === "next/image") return { default: "Image" };
+      if (name === "next/link") return { default: "a" };
       if (name === "@/components/I18nProvider") return { useT: () => ({ locale: "en", currency: "en", t: (key: string) => key }) };
       if (name === "@/lib/i18n/revamp-account") return accountCopy;
       if (name === "@/lib/arisan-room-guidance") return arisanRoomGuidance;
@@ -71,6 +73,8 @@ function setup(screen: typeof screens[number], options: { roomId?: number; mode?
       if (name === "@/lib/money") return { moneyInputToStroops, pesosToStroopsExact };
       if (name === "@/lib/ui/currency") return { CURRENCY, formatLocal, formatLocalAmount, pesoFromLocal };
       if (name === "./arisan-preview") return helper.exports;
+      if (name === "./ArisanGatheringPanel") return { default: "GatheringPanel" };
+      if (name === "@/components/ArisanInboxLink") return { default: "InboxLink" };
       if (name === "@/app/actions") return new Proxy({}, { get: (_, method) => method === "arisanRoomState" && !preview ? async () => serverRoom : preview ? forbidden("action") : async () => { calls.action++; calls.operations.push(String(method)); return { ok: false, error: "Isolated fixture response. No transaction submitted." }; } });
       if (name.endsWith(".module.css")) return { default: {} };
       throw new Error(`Unexpected dependency ${name}`);
@@ -149,13 +153,24 @@ test("oversized digit-only shares and sub-stroop values cannot create a local ro
 for (const mode of ["get", "set", "drop"] as const) test(`finalize ${mode}: storage failure never claims an example payout saved`, async () => {
   const base = setup("ArisanRoomScreen"); await base.click("arisan.room.startCta");
   const snapshot = JSON.parse(base.data.get("salapi.preview.arisan-room.1")!); snapshot.room.drawPhase = "Finalizable"; snapshot.room.canFinalize = true; snapshot.room.canCommit = false; snapshot.room.commitCount = 5; snapshot.room.revealCount = 5; snapshot.room.seats = snapshot.room.seats.map((seat: object) => ({ ...seat, committed: true, revealed: true }));
-  const data = new Map([["salapi.preview.arisan-room.1", JSON.stringify(snapshot)]]); const before = new Map(data); const ui = setup("ArisanRoomScreen", { data }); ui.mode(mode); await ui.click("arisan.draw.finalizeCta"); assert.deepEqual(data, before); errorOnly(ui); assert.doesNotMatch(text(ui.tree), /Example payout saved locally/);
+  const data = new Map([["salapi.preview.arisan-room.1", JSON.stringify(snapshot)]]); const before = new Map(data); const ui = setup("ArisanRoomScreen", { data }); ui.mode(mode); await ui.click(`${arisanRoomGuidance.arisanRoomCopy("en").drawWinner} · ${formatLocal(snapshot.room.potPesos, "en")}`); assert.deepEqual(data, before); errorOnly(ui); assert.doesNotMatch(text(ui.tree), /Example payout saved locally/);
 });
 
 async function exampleRoom() {
   const host = setup("ArisanRoomScreen"); await host.click("arisan.room.startCta");
   return JSON.parse(host.data.get("salapi.preview.arisan-room.1")!).room as Record<string, unknown>;
 }
+
+test("gathering panel binds only the live room contract, never preview or missing metadata", async () => {
+  const base = await exampleRoom(); const contractId = "C" + "A".repeat(55);
+  for (const [preview, contract] of [[true, contractId], [false, undefined], [false, "not-a-contract"], [false, contractId]] as const) {
+    const ui = setup("ArisanRoomScreen", { preview, serverRoom: { ...base, contractId: contract } }); await ui.settle();
+    const panels = nodes(ui.tree).filter(node => node.type === "GatheringPanel");
+    assert.equal(panels.length, !preview && contract === contractId ? 1 : 0);
+    if (panels.length) { assert.equal(panels[0].props.kind, "upfront"); assert.equal(panels[0].props.roomId, base.id); assert.equal(panels[0].props.contractId, contractId); }
+    assert.equal(ui.calls.action, 0); assert.equal(ui.calls.network, 0);
+  }
+});
 function phaseRoom(base: Record<string, unknown>, phase: "Open" | "Commit" | "Reveal") {
   const room = structuredClone(base);
   room.cadenceSecs = 60;

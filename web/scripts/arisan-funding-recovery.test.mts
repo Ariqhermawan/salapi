@@ -127,6 +127,26 @@ test("receipt decoder validates an actual fee-bump inner transaction without ass
   assert.equal((await api.fundingRecoverCreate(receipt.hash)).ok, true);
   assert.equal(calls.signers, 0); assert.equal(calls.submits, 0);
 });
+
+test("scheduled receipt verifies exact SDK eight-argument envelope and immutable interval metadata", () => {
+  const decoder = setup().decoder;
+  for (const intervalDays of [7, 30, 12]) {
+    const args = fixture().args.slice(0, 5).concat([
+      sdk.nativeToScVal(BigInt(intervalDays * 86400), { type: "u64" }),
+      sdk.nativeToScVal(BigInt(now + 86400 + 108000), { type: "u64" }),
+      sdk.nativeToScVal(BigInt(now + 86400), { type: "u64" }),
+    ]);
+    const receipt = fixture({ method: "create_scheduled_room", args });
+    const verified = decoder.verifyArisanFundingCreateReceipt(receipt.response, receipt.hash, contractId, wallet) as Record<string, unknown>;
+    assert.ok(verified); assert.equal(verified.scheduledIntervalDays, intervalDays);
+    assert.equal(verified.scheduledFirstDrawAt, now + 86400 + 108000);
+    assert.equal(verified.cadence, intervalDays === 30 ? "Monthly" : "Weekly");
+    for (const index of [5, 6, 7]) {
+      const bad = fixture({ method: "create_scheduled_room", args: args.map((arg, i) => i === index ? sdk.nativeToScVal(0n, { type: "u64" }) : arg) });
+      assert.equal(decoder.verifyArisanFundingCreateReceipt(bad.response, bad.hash, contractId, wallet), null);
+    }
+  }
+});
 test("recovery rejects guest, invalidhash, absent candidate, legacy target or preview before any RPC or custody", async () => {
   for (const options of [{ authenticated: false }, { configured: "" }, { configured: legacy }, { preview: true }]) {
     const { api, calls, receipt } = setup(options); assert.equal((await api.fundingRecoverCreate(receipt.hash)).ok, false);

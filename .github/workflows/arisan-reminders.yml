@@ -1,0 +1,30 @@
+name: Arisan member reminders
+
+on:
+  schedule:
+    - cron: '7,22,37,52 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+concurrency:
+  group: arisan-member-reminders
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Dispatch persistent in-app reminders
+        env:
+          ARISAN_CRON_SECRET: ${{ secrets.ARISAN_CRON_SECRET }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARISAN_CRON_SECRET=$(printf '%s' "$ARISAN_CRON_SECRET" | tr -d '\r\n')
+          test "${#ARISAN_CRON_SECRET}" -ge 32
+          response=$(curl --fail --silent --show-error --max-time 65 \
+            -H "Authorization: Bearer ${ARISAN_CRON_SECRET}" \
+            https://salapi.app/api/cron/arisan-reminders)
+          printf '%s\n' "$response"
+          printf '%s' "$response" | jq -e '.ok == true and .failed == 0 and .keepalive.ok == true and .keepalive.failed == 0 and .discovery.ok == true and .discovery.failed == 0' >/dev/null

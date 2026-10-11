@@ -756,50 +756,60 @@ export async function arisanList(cursor?: number) {
       isHost: boolean;
       code: string | null;
     };
-    const rooms: Row[] = [];
-    for (const i of page.ids) {
-      try {
-        // Same Rp 0 cold-load guard the disaster/paluwagan reads already have:
-        // a transient zero shareStroops would make this room's tile flash
-        // "Rp 0" on Vaults. The share is set in create_room and never goes to
-        // zero, so a 0 here is a degraded RPC read — retry a few times.
-        let r: Awaited<ReturnType<typeof readArisanRoom>> | null = null;
-        for (let attempt = 0; attempt < 4; attempt++) {
-          const candidate = await readArisanRoom(id, i);
-          if (candidate.shareStroops > 0n) {
-            r = candidate;
-            break;
+    // Rooms are independent read-only jobs. Bound RPC fan-out instead of
+    // serializing up to 100 reads, but keep the original newest-first order.
+    // A failed job stops scheduling new rooms and fails the whole page below.
+    const rooms: Row[] = new Array(page.ids.length);
+    let nextRoom = 0;
+    let failed = false;
+    await Promise.all(Array.from({ length: Math.min(4, page.ids.length) }, async () => {
+      while (!failed && nextRoom < page.ids.length) {
+        const index = nextRoom++;
+        const i = page.ids[index];
+        try {
+          // Same Rp 0 cold-load guard the disaster/paluwagan reads already have:
+          // a transient zero shareStroops would make this room's tile flash
+          // "Rp 0" on Vaults. The share is set in create_room and never goes to
+          // zero, so a 0 here is a degraded RPC read. Retry a few times.
+          let r: Awaited<ReturnType<typeof readArisanRoom>> | null = null;
+          for (let attempt = 0; attempt < 4; attempt++) {
+            const candidate = await readArisanRoom(id, i);
+            if (candidate.shareStroops > 0n) {
+              r = candidate;
+              break;
+            }
+            if (attempt < 3) await new Promise((res) => setTimeout(res, 300));
           }
-          if (attempt < 3) await new Promise((res) => setTimeout(res, 300));
+          if (r == null) throw new Error("Room share could not be confirmed");
+          const members =
+            ((await readContract(id, "get_members", [sc.u32(i)])) as string[]) ||
+            [];
+          const isMember = verifiedPersonal && me != null && members.includes(me);
+          const isHost = verifiedPersonal && r.host === me;
+          const pot = r.shareStroops * BigInt(r.memberTarget);
+          rooms[index] = {
+            id: i,
+            name: r.name,
+            status: r.status,
+            memberCount: r.memberCount,
+            memberTarget: r.memberTarget,
+            sharePesos: stroopsToPesos(r.shareStroops),
+            potPesos: stroopsToPesos(pot),
+            sharePeso: fmtPeso(stroopsToPesos(r.shareStroops)),
+            potPeso: fmtPeso(stroopsToPesos(pot)),
+            cadence: r.cadence,
+            firstKocok: r.firstKocok,
+            round: r.round,
+            isMember,
+            isHost,
+            code: isMember ? r.code : null,
+          };
+        } catch {
+          failed = true;
+          throw new Error("A room could not be loaded. This page was not advanced. Please retry.");
         }
-        if (r == null) throw new Error("Room share could not be confirmed");
-        const members =
-          ((await readContract(id, "get_members", [sc.u32(i)])) as string[]) ||
-          [];
-        const isMember = verifiedPersonal && me != null && members.includes(me);
-        const isHost = verifiedPersonal && r.host === me;
-        const pot = r.shareStroops * BigInt(r.memberTarget);
-        rooms.push({
-          id: i,
-          name: r.name,
-          status: r.status,
-          memberCount: r.memberCount,
-          memberTarget: r.memberTarget,
-          sharePesos: stroopsToPesos(r.shareStroops),
-          potPesos: stroopsToPesos(pot),
-          sharePeso: fmtPeso(stroopsToPesos(r.shareStroops)),
-          potPeso: fmtPeso(stroopsToPesos(pot)),
-          cadence: r.cadence,
-          firstKocok: r.firstKocok,
-          round: r.round,
-          isMember,
-          isHost,
-          code: isMember ? r.code : null,
-        });
-      } catch {
-        throw new Error("A room could not be loaded. This page was not advanced. Please retry.");
       }
-    }
+    }));
     // Hide dev-test rooms that were created by automated scripts during
     // verification (verify-arisan.mts seed room, the postpone UI exercise).
     // They live on-chain forever but shouldn't clutter a real user's
@@ -1330,7 +1340,7 @@ export async function arisanRoomState(roomId: number) {
 
     const seats = await Promise.all(
       members.map(async (addr) => {
-        const [won, committed, revealed] = await Promise.all([
+        const [won, committed, revealed, fundedStroops] = await Promise.all([
           readContract(id, "has_won", [sc.u32(rid), sc.addr(addr)]).then(Boolean),
           room.status === "Active"
             ? readContract(id, "has_committed", [
@@ -1346,6 +1356,12 @@ export async function arisanRoomState(roomId: number) {
                 sc.addr(addr),
               ]).then(Boolean)
             : false,
+          // locked_of is a historical contribution, not the unspent pool.
+          // An unavailable or malformed read must never invent a zero deposit.
+          readContract(id, "locked_of", [sc.u32(rid), sc.addr(addr)])
+            .then((value: unknown) => typeof value === "bigint"
+              && value >= 0n && value <= (1n << 127n) - 1n ? value.toString() : null)
+            .catch(() => null),
         ]);
         return {
           addr,
@@ -1353,6 +1369,7 @@ export async function arisanRoomState(roomId: number) {
           won,
           committed,
           revealed,
+          fundedStroops,
           isYou: verifiedPersonal && addr === me,
         };
       })
@@ -1401,6 +1418,9 @@ export async function arisanRoomState(roomId: number) {
     return {
       ready: true as const,
       id: rid,
+      // Optional in the DTO only for old local-preview snapshots. Live reads
+      // always expose the exact configured deployment for social-panel binding.
+      ...({ contractId: id } as { contractId?: string }),
       viewer: me,
       viewerIdentity: verifiedPersonal ? "personal" as const : "unverified" as const,
       name: room.name,

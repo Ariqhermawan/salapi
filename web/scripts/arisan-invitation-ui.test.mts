@@ -30,7 +30,7 @@ const source = ts.transpileModule(readFileSync(new URL("../components/screens/Ar
 // Execute the actual component's handlers and lifecycle with deferred action
 // boundaries, and render its JSX with React SSR. No RPC, signer, cloud writes,
 // or financial operation can run here. This is component proof, not chain E2E.
-function setup() {
+function setup(initialHydrated = true) {
   const cells: unknown[] = [];
   const effects = new Map<number, Effect>();
   const scheduled = new Map<number, Effect>();
@@ -44,7 +44,9 @@ function setup() {
   let nextTimer = 0;
   let unmounted = false;
   let locked = false;
+  let hydrated = initialHydrated;
   const hooks = {
+    useSyncExternalStore(_subscribe: unknown, snapshot: () => unknown, serverSnapshot: () => unknown) { return hydrated ? snapshot() : serverSnapshot(); },
     useState(initial: unknown) {
       const index = cursor++;
       if (!(index in cells)) cells[index] = typeof initial === "function" ? initial() : initial;
@@ -121,6 +123,7 @@ function setup() {
     click(label: string) { (control(label).props.onClick as () => void)(); },
     code(value: string) { (input().props.onChange as (event: { target: { value: string } }) => void)({ target: { value } }); },
     setLocked(value: boolean) { locked = value; },
+    hydrate() { hydrated = true; render(); },
     advance(ms: number, fireTimers = true) { now += ms; if (fireTimers) for (const [id, timer] of [...timers]) if (timer.at <= now) { timers.delete(id); timer.callback(); } },
     cleanup() { for (const effect of effects.values()) effect.cleanup?.(); unmounted = true; },
   };
@@ -132,6 +135,19 @@ async function resolvedReview(ui: ReturnType<typeof setup>, code = "FAM234", val
 }
 const invoke = (node: Element) => (node.props.onClick as () => void)();
 const expected = (code = "FAM234", id = 11): ArisanReviewedInvitation => ({ code, roomId: id, memberTarget: 5, shareStroops: "384615385", depositStroops: "1923076925", viewer });
+
+test("server form is inert until hydration and the first accepted invite updates the ready client", () => {
+  const ui = setup(false);
+  assert.equal(ui.input().props.disabled, true);
+  assert.equal(ui.control("Review invitation").props.disabled, true);
+  assert.equal(ui.lookups.length, 0);
+  ui.hydrate();
+  assert.equal(ui.input().props.disabled, false);
+  ui.code("FAM234");
+  assert.equal(ui.input().props.value, "FAM234");
+  assert.equal(ui.control("Review invitation").props.disabled, false);
+  assert.equal(ui.lookups.length, 0); assert.equal(ui.joins.length, 0);
+});
 
 test("pending review disables input and rejects the editable A-to-B race before submitting exact reviewed terms", async () => {
   const ui = setup(); ui.code("FAM234"); const input = ui.input(); const review = ui.control("Review invitation"); invoke(review); invoke(review);

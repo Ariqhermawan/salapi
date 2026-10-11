@@ -10,6 +10,44 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const finiteNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
 
+type PreviewArisanSeat = PreviewArisanRoom["seats"][number];
+type PreviewRandomFill = (values: Uint32Array) => void;
+
+// Local demonstration only. This does not predict, choose or authorize a live
+// contract winner. A sole eligible member is returned without pretending a draw
+// is needed. Missing entropy or malformed snapshots never use a weaker fallback.
+export function choosePreviewArisanWinner<T extends PreviewArisanSeat>(
+  seats: readonly T[],
+  fillRandom?: PreviewRandomFill,
+): T | null {
+  if (!isLocalPreview || !Array.isArray(seats) || seats.length > 20) return null;
+  const addresses = new Set<string>();
+  for (const seat of seats) {
+    if (!isRecord(seat) || typeof seat.addr !== "string" || !seat.addr.trim()
+      || typeof seat.label !== "string"
+      || !["won", "committed", "revealed", "isYou"].every(key => typeof seat[key] === "boolean")
+      || seat.revealed && !seat.committed || addresses.has(seat.addr)) return null;
+    addresses.add(seat.addr);
+  }
+  const eligible = seats.filter(seat => !seat.won && seat.committed && seat.revealed);
+  if (eligible.length < 2) return eligible[0] ?? null;
+
+  // All 2^32 input values must map equally often to each eligible seat. Discard
+  // the incomplete upper bucket instead of biasing the result with raw modulo.
+  const range = 0x1_0000_0000;
+  const limit = range - range % eligible.length;
+  const fill = fillRandom ?? ((values: Uint32Array) => { globalThis.crypto.getRandomValues(values); });
+  const sample = new Uint32Array(1);
+  try {
+    // Bound a defective/injected entropy source; never hang or silently fall back.
+    for (let attempt = 0; attempt < 128; attempt++) {
+      fill(sample);
+      if (sample[0] < limit) return eligible[sample[0] % eligible.length];
+    }
+  } catch { /* An unavailable crypto source must not select a first-seat fallback. */ }
+  return null;
+}
+
 // These are local example snapshots, never contract state or signing inputs.
 // Ignore old or malformed browser data instead of trusting arbitrary JSON.
 function isRoom(value: unknown, id: number): value is PreviewArisanRoom {
@@ -31,6 +69,7 @@ function isRoom(value: unknown, id: number): value is PreviewArisanRoom {
   if (!booleanFields.every(key => typeof value[key] === "boolean")) return false;
   if (!Array.isArray(value.seats) || value.seats.length > target || value.memberCount !== value.seats.length) return false;
   if (!value.seats.every(seat => isRecord(seat) && typeof seat.addr === "string" && typeof seat.label === "string" && ["won", "committed", "revealed", "isYou"].every(key => typeof seat[key] === "boolean"))) return false;
+  if (!value.seats.every(seat => seat.fundedStroops === null || typeof seat.fundedStroops === "string" && /^(0|[1-9]\d{0,38})$/.test(seat.fundedStroops) && BigInt(seat.fundedStroops) <= (1n << 127n) - 1n)) return false;
   if (!Array.isArray(value.winners) || !value.winners.every(winner => isRecord(winner) && finiteNumber(winner.round) && finiteNumber(winner.ts) && typeof winner.addr === "string" && typeof winner.label === "string")) return false;
   if (typeof value.shareStroops !== "string" || !/^[1-9]\d{0,38}$/.test(value.shareStroops) || typeof value.depositStroops !== "string" || !/^[1-9]\d{0,38}$/.test(value.depositStroops) || BigInt(value.depositStroops) !== BigInt(value.shareStroops) * BigInt(target)) return false;
   if (value.viewer !== PREVIEW_WALLET.address || typeof value.canUseDemoFriends !== "boolean") return false;
@@ -46,7 +85,11 @@ function localRoom(value: unknown, id: number): PreviewArisanRoom | null {
   const share = pesosToStroopsExact(String(value.sharePesos));
   if (share === null || share <= 0n) return null;
   const canUseDemoFriends = value.isHost === true && value.isMember === true && value.host === PREVIEW_WALLET.address && Array.isArray(value.seats) && value.seats.some(seat => isRecord(seat) && seat.isYou === true && seat.addr === PREVIEW_WALLET.address);
-  const migrated = { ...value, shareStroops: share.toString(), depositStroops: (share * BigInt(value.memberTarget)).toString(), viewer: PREVIEW_WALLET.address, canUseDemoFriends };
+  const depositStroops = (share * BigInt(value.memberTarget)).toString();
+  // Historical local examples were fully prefunded. Upgrade only missing local
+  // fields, preserve explicit unknown amounts, and never infer live deposits.
+  const seats = Array.isArray(value.seats) ? value.seats.map(seat => isRecord(seat) ? { ...seat, fundedStroops: seat.fundedStroops === undefined ? depositStroops : seat.fundedStroops } : seat) : value.seats;
+  const migrated = { ...value, seats, shareStroops: share.toString(), depositStroops, viewer: PREVIEW_WALLET.address, canUseDemoFriends };
   return isRoom(migrated, id) ? migrated : null;
 }
 

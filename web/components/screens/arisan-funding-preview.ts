@@ -14,7 +14,7 @@ export function savePreviewFundingActor(actor: number) {
   if (![0,1,2].includes(actor)) throw new Error("Invalid local actor.");
   sessionStorage.setItem(`${KEY}.actor`, String(actor));
 }
-type SavedRoom = { id: number; name: string; code: string; host: string; memberTarget: number; shareStroops: string; cadence: "Weekly" | "Biweekly" | "Monthly"; fundingDeadline: number; status: "Open" | "Active" | "Done" | "Dissolved"; round: number; paid: Record<string, string>; members: string[]; winners: string[]; firstKocok: number };
+type SavedRoom = { id: number; name: string; code: string; host: string; memberTarget: number; shareStroops: string; cadence: "Weekly" | "Biweekly" | "Monthly"; fundingDeadline: number; status: "Open" | "Active" | "Done" | "Dissolved"; round: number; paid: Record<string, string>; members: string[]; winners: string[]; firstKocok: number; schedule?: import("@/lib/arisan-schedule").ArisanSchedule };
 type Store = { nextId: number; rooms: SavedRoom[] };
 
 function store(): Store {
@@ -44,12 +44,15 @@ function state(room: SavedRoom, viewer: string): FundingRoomState {
   const pooled = seats.reduce((sum, seat) => sum + BigInt(seat.paidStroops), 0n) - BigInt(room.winners.length) * obligation;
   return { ready: true, contractId: FUNDING_PREVIEW_CONTRACT, id: room.id, name: room.name, status: room.status,
     code: isMember ? room.code : null, viewer, viewerIdentity: "personal", host: room.host, isHost, isMember,
-    memberTarget: room.memberTarget, memberCount: seats.length, shareStroops: room.shareStroops, obligationStroops: obligation.toString(), pooledStroops: pooled.toString(), fullyFundedCount, fundingDeadline: room.fundingDeadline, firstKocok: room.firstKocok, cadence: room.cadence, cadenceSecs: { Weekly: 60, Biweekly: 120, Monthly: 300 }[room.cadence], round: room.round, seats,
+    memberTarget: room.memberTarget, memberCount: seats.length, shareStroops: room.shareStroops, obligationStroops: obligation.toString(), pooledStroops: pooled.toString(), fullyFundedCount, fundingDeadline: room.fundingDeadline, firstKocok: room.firstKocok, cadence: room.cadence, cadenceSecs: room.schedule ? room.schedule.intervalDays * 86400 : { Weekly: 60, Biweekly: 120, Monthly: 300 }[room.cadence],
+    ...(room.schedule ? { scheduledFirstDrawAt: room.schedule.firstDrawAt, scheduledIntervalDays: room.schedule.intervalDays } : {}), round: room.round, seats,
     winners: room.winners.map((addr,index) => ({ round: index+1, addr })),
-    drawPhase: room.status === "Active" ? "Finalizable" : null, commitAt: room.firstKocok, revealAt: room.firstKocok, commitCount: 0, revealCount: 0,
+    drawPhase: room.status === "Active" && (!room.schedule || Date.now()/1000 >= room.schedule.firstDrawAt + room.winners.length * room.schedule.intervalDays * 86400) ? "Finalizable" : room.status === "Active" ? "Commit" : null,
+    commitAt: room.firstKocok, revealAt: room.schedule ? room.schedule.firstDrawAt + room.winners.length * room.schedule.intervalDays * 86400 : room.firstKocok, commitCount: 0, revealCount: 0,
     canJoin: open && inTime && !isMember && seats.length < room.memberTarget, canDeposit: open && inTime && !!my && !my.fullyFunded,
     readyToStart: open && inTime && isHost && seats.length === room.memberTarget && fullyFundedCount === room.memberTarget,
-    canLeave: open && isMember && !isHost, canCancel: open && (isHost || !inTime), canCommit: false, canReveal: false, canFinalize: room.status === "Active" && isMember };
+    canLeave: open && isMember && !isHost, canCancel: open && (isHost || !inTime), canCommit: false, canReveal: false,
+    canFinalize: room.status === "Active" && isMember && (!room.schedule || Date.now()/1000 >= room.schedule.firstDrawAt + room.winners.length * room.schedule.intervalDays * 86400) };
 }
 export function previewFundingList(viewer: string) { return store().rooms.filter(room => room.members.includes(viewer)).map(room => state(room, viewer)); }
 export function previewFundingState(id: number, viewer: string): FundingRoomState {
@@ -57,13 +60,16 @@ export function previewFundingState(id: number, viewer: string): FundingRoomStat
   if (!room) throw new Error("Local room not found. Create one first.");
   return state(room, viewer);
 }
-export function previewFundingCreate(input: { name: string; memberTarget: number; shareStroops: string; cadence: SavedRoom["cadence"]; fundingDays: number }, viewer: string) {
+export function previewFundingCreate(input: { name: string; memberTarget: number; shareStroops: string; cadence: SavedRoom["cadence"]; fundingDays: number; schedule?: import("@/lib/arisan-schedule").ArisanSchedule }, viewer: string) {
   const data = store();
   if (!input.name.trim() || !Number.isInteger(input.memberTarget) || input.memberTarget < 3 || input.memberTarget > 20 || BigInt(input.shareStroops) <= 0n || ![1,3,7,14,30].includes(input.fundingDays)) throw new Error("Invalid local room terms.");
   const id = data.nextId++;
   const alphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
   const code = `QA${[0,5,10,15].map(shift => alphabet[(id >>> shift)&31]).join("")}`;
-  data.rooms.push({ id, name: input.name, code, host: viewer, memberTarget: input.memberTarget, shareStroops: input.shareStroops, cadence: input.cadence, fundingDeadline: Math.floor(Date.now()/1000)+input.fundingDays*86400, status: "Open", round: 0, paid: { [viewer]: "0" }, members: [viewer], winners: [], firstKocok: 0 });
+  if (input.schedule && (!Number.isInteger(input.schedule.intervalDays) || input.schedule.intervalDays < 1 || input.schedule.intervalDays > 365
+    || !Number.isSafeInteger(input.schedule.fundingDeadlineAt) || input.schedule.fundingDeadlineAt <= Date.now()/1000
+    || input.schedule.firstDrawAt - input.schedule.fundingDeadlineAt < 86400 + 21600)) throw new Error("Invalid local scheduled dates.");
+  data.rooms.push({ id, name: input.name, code, host: viewer, memberTarget: input.memberTarget, shareStroops: input.shareStroops, cadence: input.cadence, fundingDeadline: input.schedule?.fundingDeadlineAt ?? Math.floor(Date.now()/1000)+input.fundingDays*86400, status: "Open", round: 0, paid: { [viewer]: "0" }, members: [viewer], winners: [], firstKocok: input.schedule ? input.schedule.firstDrawAt - 21600 : 0, ...(input.schedule ? { schedule: input.schedule } : {}) });
   save(data);
   return { ok: true as const, id };
 }
@@ -71,7 +77,8 @@ export function previewFundingResolve(code: string, viewer: string) {
   const room = store().rooms.find(room => room.code === code);
   if (!room) throw new Error("Local invite not found. Use the code shown in your local room.");
   const current = state(room, viewer);
-  const review: FundingJoinReview = { contractId: FUNDING_PREVIEW_CONTRACT, roomId: room.id, code, viewer, shareStroops: current.shareStroops, obligationStroops: current.obligationStroops, memberTarget: room.memberTarget, fundingDeadline: room.fundingDeadline, cadence: room.cadence };
+  const review: FundingJoinReview = { contractId: FUNDING_PREVIEW_CONTRACT, roomId: room.id, code, viewer, shareStroops: current.shareStroops, obligationStroops: current.obligationStroops, memberTarget: room.memberTarget, fundingDeadline: room.fundingDeadline, cadence: room.cadence,
+    ...(room.schedule ? { scheduledFirstDrawAt: room.schedule.firstDrawAt, scheduledIntervalDays: room.schedule.intervalDays } : {}) };
   return { ok: true as const, id: room.id, code, room: current, review };
 }
 export function previewFundingMutate(id: number, viewer: string, kind: "join" | "deposit" | "start" | "leave" | "cancel" | "finalize", review?: FundingJoinReview | FundingDepositReview) {
@@ -80,7 +87,8 @@ export function previewFundingMutate(id: number, viewer: string, kind: "join" | 
   if (!room) throw new Error("Local room not found.");
   const current = state(room, viewer);
   if (kind === "join" || kind === "deposit") {
-    if (!review || review.viewer !== viewer || review.contractId !== FUNDING_PREVIEW_CONTRACT || review.roomId !== id || review.shareStroops !== current.shareStroops || review.obligationStroops !== current.obligationStroops || review.memberTarget !== current.memberTarget || review.fundingDeadline !== current.fundingDeadline || review.cadence !== room.cadence) throw new Error("Terms changed. Review again.");
+    if (!review || review.viewer !== viewer || review.contractId !== FUNDING_PREVIEW_CONTRACT || review.roomId !== id || review.shareStroops !== current.shareStroops || review.obligationStroops !== current.obligationStroops || review.memberTarget !== current.memberTarget || review.fundingDeadline !== current.fundingDeadline || review.cadence !== room.cadence
+      || review.scheduledFirstDrawAt !== current.scheduledFirstDrawAt || review.scheduledIntervalDays !== current.scheduledIntervalDays) throw new Error("Terms changed. Review again.");
   }
   if (kind === "join") {
     if (!current.canJoin || review?.code !== room.code) throw new Error("Joining is unavailable.");
@@ -93,7 +101,7 @@ export function previewFundingMutate(id: number, viewer: string, kind: "join" | 
     room.paid[viewer] = (BigInt(my.paidStroops)+amount).toString();
   } else if (kind === "start") {
     if (!current.readyToStart) throw new Error("Every member must be fully funded before Start.");
-    room.status = "Active"; room.round = 1; room.firstKocok = Math.floor(Date.now()/1000)+300;
+    room.status = "Active"; room.round = 1; room.firstKocok = room.schedule ? room.schedule.firstDrawAt - 21600 : Math.floor(Date.now()/1000)+300;
   } else if (kind === "leave") {
     if (!current.canLeave) throw new Error("Leaving is unavailable.");
     room.members = room.members.filter(addr => addr !== viewer); delete room.paid[viewer];
@@ -105,6 +113,7 @@ export function previewFundingMutate(id: number, viewer: string, kind: "join" | 
     const winner = room.members.find(addr => !room.winners.includes(addr))!;
     room.winners.push(winner); room.round++;
     if (room.winners.length === room.memberTarget) room.status = "Done";
+    else if (room.schedule) room.firstKocok = room.schedule.firstDrawAt - 21600 + room.winners.length * room.schedule.intervalDays * 86400;
   }
   save(data);
   return { ok: true as const, id };
