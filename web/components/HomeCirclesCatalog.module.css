@@ -121,7 +121,9 @@
   .catalog { padding-top: 7px; }
   .notice { margin-bottom: 4px; }
   .tools { margin-bottom: 7px; }
-  .hero { min-height: clamp(170px, 24cqh, 220px); }
+  /* This is a floor, not a fixed height: flex growth still fills spare room.
+     Leave a little budget for settled funding and its stale-price warning. */
+  .hero { min-height: clamp(170px, 22cqh, 220px); }
   .heroCaption h2 { font-size: 19px; line-height: 1.12; }
   .organizer { gap: 8px; padding-bottom: 5px; }
   .identity { gap: 2px 8px; }
@@ -147,9 +149,14 @@
 /* Ordinary phone scrollports also include the wallet and tab-bar reserve.
    Keep a wide photographic stage rather than sacrificing it to a thumbnail. */
 @container home-viewport (max-height: 800px) {
-  .hero { min-height: 140px; }
+  /* The full caption supplies its own intrinsic minimum. A flexible floor
+     lets a precise XLM balance and stale quote wrap without hiding the footer. */
+  .hero { min-height: 124px; }
+  /* Longer localized titles need more photographic context, not smaller or
+     clamped text. These pages retain natural main scrolling when needed. */
+  .hero:lang(tl) { min-height: 160px; }
   .heroCaption, .heroCaption:lang(tl) { padding-top: 48px; }
-  .body { gap: 4px; padding-top: 3px; padding-bottom: 8px; }
+  .body { gap: 4px; padding-top: 3px; padding-bottom: 6px; }
   .organizer { padding-bottom: 4px; }
   .controls, .controls:lang(tl) { bottom: 11px; }
   @container (max-width: 429px) {

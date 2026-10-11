@@ -30,7 +30,8 @@ function ExampleProgress({ circle }: { circle: Circle }) {
   const goal = exampleGoalUsd(circle.pesoTarget);
   const amount = Number.isFinite(circle.pesoRaised) && circle.pesoRaised >= 0 ? circle.pesoRaised / 58 : null;
   return <div className={styles.progress} data-funding-kind="example" aria-label={homeCatalogCopy(locale, "{percent}% example progress. No donations collected.", { percent })}>
-    <div className={styles.amounts}><span>{copy.exampleAmount}</span>{amount !== null ? <strong>${format(amount)} <small>USD</small></strong> : null}</div>
+    <span className={styles.label}>{copy.exampleAmount}</span>
+    <div className={styles.amounts}>{amount !== null ? <strong>${format(amount)} <small>USD</small></strong> : null}</div>
     <div className={styles.secondary}><span>{homeCatalogCopy(locale, "Example progress")}</span>
       {Number.isSafeInteger(circle.donorCount) && circle.donorCount >= 0 ? <span className={styles.contributors}><Users size={17} aria-hidden="true" />{circle.donorCount.toLocaleString(NUMBER_LOCALES[locale])} {copy.exampleContributors}</span> : null}</div>
     <progress value={percent} max={100} aria-hidden="true" />
@@ -52,7 +53,8 @@ export function ConfirmedFundingProgress({ totalStroops, goalUsd = null, donorSu
   const summary = donorSummary?.ok && donorSummary.confirmedTotalStroops === totalStroops && Number.isSafeInteger(donorSummary.count)
     && donorSummary.count >= 0 && (donorSummary.count > 0 || donorSummary.coverage === "complete") ? donorSummary : null;
   return <div className={styles.progress} data-funding-kind="testnet" data-market-status={quote.status} aria-label={copy.confirmed}>
-    <div className={styles.amounts}><span>{copy.collected}</span>
+    <span className={styles.label}>{copy.collected}</span>
+    <div className={styles.amounts}>
       {progress ? <strong>≈ ${format(progress.usd)} <small>USD</small></strong> : <span className={styles.unknown}>{copy.marketUnavailable}</span>}
       {progress && quote.status === "stale" ? <span className={styles.stale}>{copy.stale}</span> : null}</div>
     <div className={styles.secondary}><span data-confirmed-stroops={totalStroops}>{formatStroops(totalStroops)} XLM <small>· Testnet</small></span>
