@@ -101,6 +101,9 @@ async function openHome(page: Page) {
   await expect(page.locator("nextjs-portal")).toHaveCount(0);
   const market = page.locator('[data-market-value]');
   await expect(market).toHaveCount(1);
+  // Wallet loading has its own status. Select the market estimate explicitly
+  // while retaining its accessibility contract, rather than racing both.
+  await expect(market.locator("[data-market-estimate]")).toHaveAttribute("role", "status");
   return market;
 }
 
@@ -113,7 +116,7 @@ test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () =>
     const fixture = await setup(page, () => quote(Date.now(), price));
     const market = await openHome(page);
     await expect(market).toHaveAttribute("data-market-value", "fresh");
-    await expect(market.getByRole("status")).toHaveText("≈ $2,500.00");
+    await expect(market.locator("[data-market-estimate]")).toHaveText("≈ $2,500.00 USD");
     await expect(market.locator("[data-native-balance]")).toBeVisible();
     await expect(market.locator("[data-native-balance]")).toHaveText("10000 XLM");
     const attribution = market.getByRole("link", { name: "CoinGecko", exact: true });
@@ -149,7 +152,7 @@ test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () =>
     expect(await market.locator("summary").innerText()).not.toMatch(/\d{2}:\d{2}/);
     price = .3;
     await market.getByRole("button", { name: "Refresh prices", exact: true }).click();
-    await expect(market.getByRole("status")).toHaveText("≈ $3,000.00");
+    await expect(market.locator("[data-market-estimate]")).toHaveText("≈ $3,000.00 USD");
     await expect(market).toContainText("XLM $0.30 · USDC $0.9998");
     expect(fixture.calls.quotes).toBe(2); expect(fixture.calls.walletFailuresVerified).toBe(1);
     expect(fixture.calls.forbidden).toEqual([]); expect(fixture.errors).toEqual([]);
@@ -161,10 +164,10 @@ test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () =>
     await page.clock.install({ time: new Date(now) });
     const fixture = await setup(page, () => quote(now, price));
     const market = await openHome(page);
-    await expect(market.getByRole("status")).toHaveText("≈ $2,500.00");
+    await expect(market.locator("[data-market-estimate]")).toHaveText("≈ $2,500.00 USD");
     now += 61_000; price = .4;
     await page.clock.fastForward(61_000);
-    await expect(market.getByRole("status")).toHaveText("≈ $4,000.00");
+    await expect(market.locator("[data-market-estimate]")).toHaveText("≈ $4,000.00 USD");
     expect(fixture.calls.quotes).toBe(2); expect(fixture.calls.walletFailuresVerified).toBe(1);
     expect(fixture.calls.forbidden).toEqual([]); expect(fixture.errors).toEqual([]);
   });
@@ -200,7 +203,7 @@ test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () =>
     const fixture = await setup(page, () => body);
     const market = await openHome(page);
     await expect(market).toHaveAttribute("data-market-value", "stale");
-    await expect(market.getByRole("status")).toHaveText("≈ $2,500.00");
+    await expect(market.locator("[data-market-estimate]")).toHaveText("≈ $2,500.00 USD");
     await expect(market.locator("summary")).toContainText("Last known price");
     await market.locator("summary").click();
     body = { status: "unavailable", source: "CoinGecko", reason: "provider-unavailable" };
@@ -210,8 +213,8 @@ test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () =>
     // must remove the last known quote once its 5-minute lifetime has passed.
     now += 181_000; await page.clock.fastForward(181_000);
     await expect(market).toHaveAttribute("data-market-value", "unavailable");
-    await expect(market.getByRole("status")).toHaveText("Market price unavailable");
-    await expect(market.getByRole("status")).not.toContainText("$0");
+    await expect(market.locator("[data-market-estimate]")).toHaveText("USD · Market price unavailable");
+    await expect(market.locator("[data-market-estimate]")).not.toContainText("$0");
     await expect(market.locator("[data-native-balance]")).toBeVisible();
     await expect(market.locator("[data-native-balance]")).toHaveText("10000 XLM");
     expect(fixture.calls.forbidden).toEqual([]); expect(fixture.errors).toEqual([]);
@@ -222,9 +225,9 @@ test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () =>
     const fixture = await setup(page, () => ({ status: "unavailable", source: "CoinGecko", reason: "not-configured" }));
     const market = await openHome(page);
     await expect(market).toHaveAttribute("data-market-value", "unavailable");
-    await expect(market.getByRole("status")).toHaveText("Market price unavailable");
-    await expect(market.getByRole("status")).not.toContainText("$1,120");
-    await expect(market.getByRole("status")).not.toContainText("$0");
+    await expect(market.locator("[data-market-estimate]")).toHaveText("USD · Market price unavailable");
+    await expect(market.locator("[data-market-estimate]")).not.toContainText("$1,120");
+    await expect(market.locator("[data-market-estimate]")).not.toContainText("$0");
     expect(fixture.calls.forbidden).toEqual([]); expect(fixture.errors).toEqual([]);
   });
 
@@ -244,7 +247,7 @@ test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () =>
       await page.emulateMedia({ reducedMotion: "reduce" });
       const market = await openHome(page);
       await expect(market).toHaveAttribute("data-market-value", state);
-      await expect(market.getByRole("status")).toHaveText(state === "unavailable" ? "Harga pasar tidak tersedia" : "≈ $2,500.00");
+      await expect(market.locator("[data-market-estimate]")).toHaveText(state === "unavailable" ? "USD · Harga pasar tidak tersedia" : "≈ $2,500.00 USD");
       await expect(market.getByRole("link", { name: "CoinGecko", exact: true })).toBeVisible();
       const catalog = page.getByTestId("home-circles-catalog");
       await expect(catalog).toHaveAttribute("data-catalog-ready", "true");
@@ -278,7 +281,7 @@ test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () =>
     await expect(page).toHaveURL(/\/withdraw$/); await expect(page).toHaveTitle(/Salapi/);
     const main = page.locator("#app-content"), market = main.locator('[data-market-value]');
     await expect(main).not.toBeEmpty(); await expect(page.locator("nextjs-portal")).toHaveCount(0);
-    await expect(market.getByRole("status")).toHaveText("≈ $2,500.00");
+    await expect(market.locator("[data-market-estimate]")).toHaveText("≈ $2,500.00");
     await expect(market.getByRole("link", { name: "CoinGecko", exact: true })).toBeVisible();
     await expect(main.getByText(/^Fixed demo form limit/)).toBeVisible();
     await expect(main).toContainText("$1,120.69");
@@ -289,12 +292,14 @@ test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () =>
     await page.screenshot({ path: testInfo.outputPath("market-withdraw-demo-limit.png"), fullPage: false });
   });
 
-  for (const width of [320, 390, 1280]) test(`independent IDR display currency and expanded details have no overflow at ${width}px`, async ({ page }, testInfo) => {
+  for (const width of [320, 390, 1280]) test(`Home keeps its USD reference while Withdraw honors independent IDR currency, without overflow at ${width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: width === 1280 ? 800 : 844 });
     const fixture = await setup(page, () => quote(Date.now()), "id");
     const market = await openHome(page);
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
-    await expect(market.getByRole("status")).toHaveText("≈ Rp 40.000.000");
+    // Home is explicitly a USD reference. The saved currency still applies to
+    // non-dashboard values; changing it must not silently switch UI language.
+    await expect(market.locator("[data-market-estimate]")).toHaveText("≈ $2,500.00 USD");
     await market.getByLabel("CoinGecko prices", { exact: true }).click();
     await expect(market.getByText("Testnet tokens have no monetary value.", { exact: true })).toBeVisible();
     await page.evaluate(async () => { await document.fonts.ready; });
@@ -306,7 +311,11 @@ test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () =>
     expect(geometry.mainOverflow).toBeLessThanOrEqual(geometry.mainWidth + 1);
     expect(geometry.valueOverflow).toBeLessThanOrEqual(geometry.valueWidth + 1);
     expect(geometry.left).toBeGreaterThanOrEqual(geometry.frameLeft); expect(geometry.right).toBeLessThanOrEqual(geometry.frameRight);
+    if (width !== 320) await page.screenshot({ path: testInfo.outputPath(`market-usd-with-idr-preference-${width}.png`), fullPage: false });
+    await page.goto("/withdraw", { waitUntil: "domcontentloaded" });
+    await expect(page).toHaveURL(/\/withdraw$/);
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
+    await expect(page.locator("#app-content [data-market-estimate]")).toHaveText("≈ Rp 40.000.000");
     expect(fixture.calls.forbidden).toEqual([]); expect(fixture.errors).toEqual([]);
-    if (width !== 320) await page.screenshot({ path: testInfo.outputPath(`market-idr-${width}.png`), fullPage: false });
   });
 });
