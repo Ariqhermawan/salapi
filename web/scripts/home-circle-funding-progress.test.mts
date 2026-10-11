@@ -63,6 +63,79 @@ function fixture(options: { preview?: boolean; locale?: Locale; result?: CircleT
   return { calls, render: (active = true, selected = circle) => renderToStaticMarkup(React.createElement(exports.default, { circle: selected, active })) };
 }
 
+const localizedFunding = {
+  en: { collected: "Total collected · USD estimate", example: "Illustrative amount", exampleContributors: "example contributors", contributors: "contributors", wallets: "contributor wallets", unknownContributors: "Contributors unavailable", marketUnavailable: "USD estimate unavailable", stale: "Last known price", goal: "Example goal", nativeUsd: "3.09", exampleUsd: "127.59", goalUsd: "172.41", percentage: "1.79" },
+  id: { collected: "Total terkumpul · estimasi USD", example: "Nominal ilustrasi", exampleContributors: "kontributor contoh", contributors: "kontributor", wallets: "dompet kontributor", unknownContributors: "Kontributor belum tersedia", marketUnavailable: "Estimasi USD belum tersedia", stale: "Harga terakhir diketahui", goal: "Target contoh", nativeUsd: "3,09", exampleUsd: "127,59", goalUsd: "172,41", percentage: "1,79" },
+  tl: { collected: "Kabuuang nakolekta · USD estimate", example: "Halimbawang halaga", exampleContributors: "halimbawang contributors", contributors: "contributors", wallets: "contributor wallets", unknownContributors: "Hindi available ang contributors", marketUnavailable: "Hindi available ang USD estimate", stale: "Huling alam na presyo", goal: "Halimbawang goal", nativeUsd: "3.09", exampleUsd: "127.59", goalUsd: "172.41", percentage: "1.79" },
+  vi: { collected: "Tổng đóng góp · ước tính USD", example: "Số tiền minh họa", exampleContributors: "người đóng góp minh họa", contributors: "người đóng góp", wallets: "ví đóng góp", unknownContributors: "Chưa có số người đóng góp", marketUnavailable: "Chưa có ước tính USD", stale: "Giá gần nhất đã biết", goal: "Mục tiêu minh họa", nativeUsd: "3,09", exampleUsd: "127,59", goalUsd: "172,41", percentage: "1,79" },
+} satisfies Record<Locale, Record<string, string>>;
+
+function expectDirectFundingLabel(html: string, label: string, context: string) {
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  assert.match(html, new RegExp(`^<div class="progress"[^>]*><span class="label">${escaped}</span><div class="amounts">`), `${context}: the descriptive label must be a direct grid child, not trapped inside the half-width amount column`);
+  assert.equal((html.match(/class="label"/g) ?? []).length, 1, `${context}: the descriptive label must not be duplicated`);
+}
+
+test("funding descriptive labels span the full grid instead of the amount half-column", () => {
+  const css = readFileSync(new URL("../components/HomeCircleFundingProgress.module.css", import.meta.url), "utf8");
+  assert.match(css, /\.label\s*\{[^}]*grid-column:\s*1\s*\/\s*-1\s*;/, "The direct label child must span both funding grid columns; rendered viewport fit is checked separately by Playwright");
+});
+
+test("preview and completed examples retain full-width labels, localized amounts and contributor counts", () => {
+  for (const locale of ["en", "id", "tl", "vi"] as const) {
+    const copy = localizedFunding[locale];
+    for (const preview of [true, false]) {
+      const h = fixture({ locale, preview });
+      const html = h.render(true, { ...circle, donorCount: 312, status: preview ? "funding" : "completed" });
+      const context = `${locale} ${preview ? "preview" : "completed"} example`;
+      expectDirectFundingLabel(html, copy.example, context);
+      assert.ok(html.includes(`<strong>$${copy.exampleUsd} <small>USD</small></strong>`), `${context}: illustrative USD amount must not change with label placement`);
+      assert.ok(html.includes(`312 ${copy.exampleContributors}`), `${context}: the example contributor count remains explicitly illustrative`);
+      assert.ok(html.includes(`${copy.goal}: $${copy.goalUsd} USD`), `${context}: fixed example goal remains localized`);
+      assert.match(html, /<progress value="74" max="100" aria-hidden="true"><\/progress>/);
+      assert.match(html, /<strong>74%<\/strong>/);
+      assert.doesNotMatch(html, /data-confirmed-stroops|data-funding-kind="testnet"| XLM/);
+      assert.deepEqual(h.calls.readers, []); assert.equal(h.calls.prices, 0);
+    }
+  }
+});
+
+test("full-width confirmed labels preserve exact native funding and contributor semantics in every quote state and locale", () => {
+  const states = { fresh: quote(), stale: quote(.25, 121000), unavailable, expired: quote(.25, 301000) };
+  for (const locale of ["en", "id", "tl", "vi"] as const) {
+    const copy = localizedFunding[locale];
+    for (const [state, prices] of Object.entries(states)) {
+      for (const basis of ["accounts", "wallets", "unavailable"] as const) {
+        const result = ready("123456789"); assert.ok(result.ok);
+        const donorSummary = basis === "unavailable" ? undefined : {
+          ok: true as const, campaignId: "6", count: 2, basis,
+          coverage: basis === "wallets" ? "recorded" as const : "complete" as const,
+          confirmedTotalStroops: "123456789",
+        };
+        const html = fixture({ locale, prices, result: { ...result, donorSummary } }).render();
+        const context = `${locale} ${state} ${basis}`;
+        expectDirectFundingLabel(html, copy.collected, context);
+        assert.match(html, /data-confirmed-stroops="123456789">12\.3456789 XLM <small>· Testnet<\/small>/, `${context}: native precision and Testnet framing must remain exact`);
+        const secondary = html.match(/<div class="secondary">([\s\S]*?)<\/div>/)?.[1];
+        assert.ok(secondary, `${context}: native funding and contributors retain their shared secondary row`);
+        assert.match(secondary, /12\.3456789 XLM/);
+        assert.ok(secondary.includes(basis === "unavailable" ? copy.unknownContributors : basis === "wallets" ? `2+ ${copy.wallets}` : `2 ${copy.contributors}`), `${context}: account, minimum wallet count or unavailable wording must not change`);
+        assert.ok(html.includes(`${copy.goal}: $${copy.goalUsd} USD`), `${context}: the fixed example target must not depend on quote availability`);
+        if (state === "fresh" || state === "stale") {
+          assert.ok(html.includes(`<strong>≈ $${copy.nativeUsd} <small>USD</small></strong>`), `${context}: canonical funding still uses XLM/USD`);
+          assert.ok(html.includes(`aria-valuetext="${copy.percentage}%"`), `${context}: truthful localized progress is preserved`);
+          assert.equal(html.includes(`<span class="stale">${copy.stale}</span>`), state === "stale", `${context}: only stale quotes display the stale warning`);
+        } else {
+          assert.ok(html.includes(`<span class="unknown">${copy.marketUnavailable}</span>`), `${context}: unavailable or expired quotes must stay explicit`);
+          assert.match(html, /data-market-status="unavailable"/);
+          assert.doesNotMatch(html, /≈|<progress|[0-9]+%|\$0/);
+        }
+        assert.doesNotMatch(html, /USDC|74%|data-funding-kind="example"/);
+      }
+    }
+  }
+});
+
 test("all 27 catalog cards mount exactly one public reader, while preview and completed examples mount none", () => {
   const h = fixture({ result: ready() });
   for (let i = 0; i < 27; i++) h.render(i === 4, { ...circle, id: i === 4 ? circle.id : `isolated-card-${i}` });

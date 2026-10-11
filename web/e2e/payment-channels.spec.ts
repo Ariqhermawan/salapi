@@ -8,6 +8,9 @@ test("GCash and QRIS remain discoverable but disconnected outside local preview"
   page.on("pageerror", error => errors.push(error.message));
   await page.goto("/topup", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("button", { name: "Deposit XLM", exact: true })).toHaveAttribute("aria-pressed", "true");
+  // The default tab is also server-rendered. Its settled address control is
+  // client-only, so wait for real hydration before testing the first tab click.
+  await expect(page.getByRole("button", { name: "Refresh address", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "GCash / QRIS", exact: true }).click();
   await expect(page.getByText("Providers not connected", { exact: true })).toBeVisible();
   await expect(page.locator('[data-payment-channel="gcash"]')).toBeDisabled();

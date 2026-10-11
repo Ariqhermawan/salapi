@@ -156,7 +156,7 @@
      clamped text. These pages retain natural main scrolling when needed. */
   .hero:lang(tl) { min-height: 160px; }
   .heroCaption, .heroCaption:lang(tl) { padding-top: 48px; }
-  .body { gap: 4px; padding-top: 3px; padding-bottom: 8px; }
+  .body { gap: 4px; padding-top: 3px; padding-bottom: 6px; }
   .organizer { padding-bottom: 4px; }
   .controls, .controls:lang(tl) { bottom: 11px; }
   @container (max-width: 429px) {
