@@ -1,11 +1,12 @@
 import { test, expect, type Page } from "@playwright/test";
 import { arisanRoomCopy } from "../lib/arisan-room-guidance";
-import { installGuidanceFixture, guidanceRoom, type GuidancePhase } from "./helpers/arisan-guidance";
+import { assertLocalArisanFixtureTarget, isLocalArisanFixtureTarget, installGuidanceFixture, guidanceRoom, type GuidancePhase } from "./helpers/arisan-guidance";
 
 // Real production React screen with isolated read responses. No login, signing,
 // membership writes, Testnet payments or winner-selection actions are executed.
 test.beforeEach(async ({ baseURL }) => {
-  expect(["localhost", "127.0.0.1"]).toContain(new URL(baseURL!).hostname);
+  test.skip(!isLocalArisanFixtureTarget(baseURL), "Isolated Arisan fixtures must not target a live deployment");
+  assertLocalArisanFixtureTarget(baseURL);
   test.skip(process.env.E2E_ARISAN_PREVIEW === "1", "Production-route fixture suite, not local-preview acceptance");
 });
 
