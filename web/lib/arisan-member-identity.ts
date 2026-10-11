@@ -1,6 +1,6 @@
 import type { WalletActivityIdentity } from "./wallet-activity";
 
-export type ArisanRoomKind = "upfront" | "installments";
+export type ArisanRoomKind = "upfront" | "installments" | "scheduled";
 export type ArisanMemberIdentity = WalletActivityIdentity;
 export type ArisanMemberIdentityResult =
   | { ok: true; kind: ArisanRoomKind; roomId: number; identities: ArisanMemberIdentity[] }

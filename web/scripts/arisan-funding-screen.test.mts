@@ -5,6 +5,7 @@ import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import * as domain from "../lib/arisan-funding.ts";
 import * as feePolicy from "../lib/arisan-funding-fees.ts";
+import * as scheduleDomain from "../lib/arisan-schedule.ts";
 
 // These tests execute the actual screen, status panel, hook and storage helper.
 // React scheduling, browser storage and server action transports are isolated
@@ -50,7 +51,7 @@ function deferred<T>() {
   return { promise, resolve, reject };
 }
 
-function setup({ lockedHash, storageRemovalDenied = false }: { lockedHash?: string | null; storageRemovalDenied?: boolean } = {}) {
+function setup({ lockedHash, storageRemovalDenied = false, scheduled = false }: { lockedHash?: string | null; storageRemovalDenied?: boolean; scheduled?: boolean } = {}) {
   const data = new Map<string, string>(), cells: unknown[] = [];
   const effects = new Map<number, Effect>(), queuedEffects = new Map<number, Effect>();
   const timers = new Map<number, () => void>(), intervals = new Map<number, () => void>();
@@ -62,6 +63,7 @@ function setup({ lockedHash, storageRemovalDenied = false }: { lockedHash?: stri
   let recovery: (reported: string) => Promise<Result> = async reported => ({ ok: true, hash: reported, id: 42, link });
   let status: (reported: string) => Promise<Result> = async reported => ({ ok: true, hash: reported });
   let create: (input: unknown) => Promise<Result> = async () => ({ ok: false, pending: true, hash, link, error: "Creation confirmed; room verification is pending." });
+  let invitationResult: Record<string, unknown> = { ok: false, error: "No fixture invitation" };
   const globals = {
     window: browser, Event, sessionStorage: {
       getItem: (key: string) => data.get(key) ?? null,
@@ -133,8 +135,10 @@ function setup({ lockedHash, storageRemovalDenied = false }: { lockedHash?: stri
   for (const name of ["fundingState", "fundingResolveCode", "fundingJoin", "fundingDeposit", "fundingStart", "fundingLeave", "fundingCancel", "fundingCommit", "fundingReveal", "fundingFinalize"]) {
     actions[name] = async (...args: unknown[]) => { calls.mutations.push({ method: name, args }); throw Error(`Unexpected mutation ${name}`); };
   }
-  const screen = load<{ default(props: { roomId?: number }): unknown }>(sources.screen, {
+  actions.fundingResolveCode = async () => invitationResult;
+  const screen = load<{ default(props: { roomId?: number; scheduled?: boolean }): unknown }>(sources.screen, {
     react, "react/jsx-runtime": jsxRuntime,
+    "@/components/I18nProvider": { useT: () => ({ locale: "en" }) },
     "next/link": { default: (props: Record<string, unknown>) => jsx("a", props) },
     "next/navigation": { useRouter: () => ({ push: (path: string) => { calls.paths.push(path); } }) },
     "@/components/ui/kit": { AppBar: (props: Record<string, unknown>) => jsx("header", props), Btn: (props: Record<string, unknown>) => jsx("button", props),
@@ -146,8 +150,11 @@ function setup({ lockedHash, storageRemovalDenied = false }: { lockedHash?: stri
     "@/components/ui/SubmissionStatusPanel": panel,
     "@/lib/local-preview": localPreview, "@/lib/arisan-funding": domain,
     "@/lib/arisan-funding-fees": feePolicy,
+    "@/lib/arisan-schedule": scheduleDomain,
     "@/app/arisan-funding-actions": actions,
     "./ArisanFundingReminder": { default: () => null },
+    "./ArisanGatheringPanel": { default: () => null },
+    "@/components/ArisanInboxLink": { default: () => null },
     "./arisan-funding-preview": { FUNDING_PREVIEW_ACTORS: [viewer, otherViewer], FUNDING_PREVIEW_CONTRACT: contractId },
     "./ArisanFundingScreen.module.css": css,
   });
@@ -157,7 +164,7 @@ function setup({ lockedHash, storageRemovalDenied = false }: { lockedHash?: stri
   }
   function render() {
     dirty = false; cursor = 0;
-    tree = screen.default({});
+    tree = screen.default({ scheduled });
     for (const [index, effect] of queuedEffects) {
       effects.get(index)?.cleanup?.();
       effects.set(index, { ...effect, cleanup: effect.callback() || undefined });
@@ -187,9 +194,16 @@ function setup({ lockedHash, storageRemovalDenied = false }: { lockedHash?: stri
       assert.equal(!!input.props.disabled, false);
       (input.props.onChange as (event: unknown) => void)({ target: { value } });
     },
+    select(label: string, value: string) {
+      const field = nodes(tree).find(node => node.type === "label" && content(node).startsWith(label)); assert.ok(field, label);
+      const input = nodes(field).find(node => node.type === "select"); assert.ok(input, label);
+      assert.equal(!!input.props.disabled, false);
+      (input.props.onChange as (event: unknown) => void)({ target: { value } });
+    },
     recover(next: typeof recovery) { recovery = next; },
     status(next: typeof status) { status = next; },
     create(next: typeof create) { create = next; },
+    invitation(next: Record<string, unknown>) { invitationResult = next; },
     list(next: Record<string, unknown>) { listResult = { ...listResult, ...next }; },
     state() { return library.readSubmissionState(context); },
     unmount() { for (const effect of effects.values()) effect.cleanup?.(); effects.clear(); },
@@ -207,6 +221,16 @@ test("a locked create still exposes read-only recovery and opens only its origin
   assert.equal(ui.state().kind, "clear");
   assert.match(ui.text, /No transaction was resubmitted/);
   ui.unmount();
+});
+
+test("scheduled invitation displays the agreed UTC first payout and exact interval before acceptance", async () => {
+  const ui = setup({ scheduled: true }); await ui.settle();
+  const first = Math.floor(Date.now() / 1000) + 5 * 86400;
+  ui.invitation({ ok: true, room: { ready: true, name: "Agreed circle", memberCount: 1, memberTarget: 3, canJoin: true }, review: { contractId, roomId: 9, viewer, code: "ABC234", memberTarget: 3, shareStroops: "10000000", obligationStroops: "30000000", cadence: "Weekly", fundingDeadline: first - 2 * 86400, scheduledFirstDrawAt: first, scheduledIntervalDays: 14 } });
+  ui.input("Invite code", "ABC234"); await ui.settle(); ui.click("Review invitation"); await ui.settle();
+  const schedule = nodes(ui.tree).find(node => node.props["data-testid"] === "agreed-join-schedule"); assert.ok(schedule); assert.match(content(schedule), /UTC/); assert.match(content(schedule), /14 days/);
+  assert.ok(ui.text.indexOf("First draw opens (UTC)") < ui.text.indexOf("Accept terms and join without deposit"));
+  assert.equal(ui.calls.mutations.length, 0); ui.unmount();
 });
 
 for (const outcome of ["pending", "mismatch", "failure", "throw"] as const) {
@@ -308,4 +332,40 @@ test("unconfigured and subsequently failed reads disable create review, confirma
   stale.click("Review room terms"); await stale.settle();
   stale.list({ ready: false, error: "Verified state unavailable." }); stale.click("Refresh verified state"); await stale.settle();
   assert.equal(stale.button("Confirm room without deposit").props.disabled, true); assert.deepEqual(stale.calls.mutations, []); stale.unmount();
+});
+
+const futureDate = (days: number) => new Date(Date.now() + days * 86400_000).toISOString().slice(0, 10);
+const verifiedSchedule = { minIntervalDays: 1, maxIntervalDays: 365, firstCommitWindow: 86400, revealWindow: 21600, maxFirstDrawDelay: 366 * 86400 };
+async function scheduledForm(customDays = "7") {
+  const ui = setup({ scheduled: true }); ui.list({ scheduleInfo: verifiedSchedule }); await ui.settle();
+  ui.input("Room name", "Agreed schedule");
+  ui.input("Funding closes on", futureDate(2)); ui.input("First draw date", futureDate(5)); ui.input("Agreed timezone", "Asia/Jakarta");
+  ui.select("Draw interval", "Custom"); await ui.settle(); ui.input("Days between draws", customDays); await ui.settle();
+  return ui;
+}
+
+test("scheduled creation requires verified limits and explicit agreed dates", async () => {
+  const ui = setup({ scheduled: true }); await ui.settle(); ui.input("Room name", "Scheduled"); await ui.settle();
+  assert.equal(ui.button("Review room terms").props.disabled, true);
+  assert.match(ui.text, /timing limits are verified/);
+  assert.deepEqual(ui.calls.mutations, []); ui.unmount();
+});
+
+test("scheduled create reviews exact timezone/UTC terms and uses its isolated destination", async () => {
+  const ui = await scheduledForm("30");
+  assert.equal(ui.button("Review room terms").props.disabled, false);
+  ui.click("Review room terms"); await ui.settle();
+  assert.match(ui.text, /Asia\/Jakarta/); assert.match(ui.text, /30 days/); assert.match(ui.text, /Full cycle per member3 XLM/);
+  ui.create(async () => ({ ok: true, id: 42, hash, link })); ui.click("Confirm room without deposit"); await ui.settle();
+  const input = ui.calls.mutations[0].args[0] as domain.FundingCreateReview;
+  assert.equal(input.cadence, "Monthly"); assert.equal(input.schedule?.intervalDays, 30);
+  assert.equal(input.schedule?.firstDrawAt, scheduleDomain.parseArisanZonedDateTime(futureDate(5), "19:00", "Asia/Jakarta"));
+  assert.equal(input.schedule?.fundingDeadlineAt, scheduleDomain.parseArisanZonedDateTime(futureDate(2), "19:00", "Asia/Jakarta"));
+  assert.deepEqual(ui.calls.paths, ["/arisan/scheduled/42"]); ui.unmount();
+});
+
+test("custom intervals and funding cutoff errors cannot be reviewed or submitted", async () => {
+  const ui = await scheduledForm("366"); assert.equal(ui.button("Review room terms").props.disabled, true);
+  ui.input("Days between draws", "1"); ui.input("Funding closes on", futureDate(5)); await ui.settle();
+  assert.equal(ui.button("Review room terms").props.disabled, true); assert.deepEqual(ui.calls.mutations, []); ui.unmount();
 });

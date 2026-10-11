@@ -1,6 +1,7 @@
 /** Serializable terms for the isolated, Testnet-XLM installment contract.
  * Amounts are integer stroop strings, never floats, fiat quotes or USDC. */
 export type FundingCadence = "Weekly" | "Biweekly" | "Monthly";
+export type FundingContractKind = "installments" | "scheduled";
 export type FundingStatus = "Open" | "Active" | "Done" | "Dissolved";
 export type FundingDrawPhase = "Commit" | "Reveal" | "Finalizable";
 export const FUNDING_DAYS = [1, 3, 7, 14, 30] as const;
@@ -14,6 +15,7 @@ export type FundingCreateReview = {
   shareXlm: string;
   cadence: FundingCadence;
   fundingDays: FundingDays;
+  schedule?: import("./arisan-schedule").ArisanSchedule;
 };
 
 export type FundingJoinReview = {
@@ -26,6 +28,8 @@ export type FundingJoinReview = {
   obligationStroops: string;
   fundingDeadline: number;
   cadence: FundingCadence;
+  scheduledFirstDrawAt?: number;
+  scheduledIntervalDays?: number;
 };
 export type FundingDepositReview = FundingJoinReview & {
   paidBeforeStroops: string;
@@ -64,6 +68,8 @@ export type FundingRoom = {
   firstKocok: number;
   cadence: FundingCadence;
   cadenceSecs: number;
+  scheduledFirstDrawAt?: number;
+  scheduledIntervalDays?: number;
   round: number;
   seats: FundingSeat[];
   winners: { round: number; addr: string }[];
@@ -126,6 +132,9 @@ export function validFundingReview(value: unknown): value is FundingJoinReview {
     || !validFundingAmount(input.shareStroops) || !validFundingAmount(input.obligationStroops)
     || typeof input.fundingDeadline !== "number" || !Number.isSafeInteger(input.fundingDeadline)
     || input.fundingDeadline <= 0) return false;
+  if ((input.scheduledFirstDrawAt !== undefined || input.scheduledIntervalDays !== undefined)
+    && (!Number.isSafeInteger(input.scheduledFirstDrawAt) || input.scheduledFirstDrawAt! <= 0
+      || !Number.isInteger(input.scheduledIntervalDays) || input.scheduledIntervalDays! < 1 || input.scheduledIntervalDays! > 365)) return false;
   return BigInt(input.shareStroops) <= BigInt(MAX_FUNDING_SHARE_STROOPS)
     && BigInt(input.obligationStroops) === BigInt(input.shareStroops) * BigInt(input.memberTarget);
 }
@@ -142,16 +151,21 @@ export function validFundingDepositReview(value: unknown): value is FundingDepos
 export function fundingReviewMatches(review: FundingJoinReview, room: {
   contractId: string; id: number; code: string | null; memberTarget: number;
   shareStroops: string; obligationStroops: string; fundingDeadline: number; cadence: FundingCadence;
+  scheduledFirstDrawAt?: number; scheduledIntervalDays?: number;
 }): boolean {
   return review.contractId === room.contractId && review.roomId === room.id && review.code === room.code
     && review.memberTarget === room.memberTarget && review.shareStroops === room.shareStroops
     && review.obligationStroops === room.obligationStroops && review.fundingDeadline === room.fundingDeadline
-    && review.cadence === room.cadence;
+    && review.cadence === room.cadence
+    && review.scheduledFirstDrawAt === room.scheduledFirstDrawAt
+    && review.scheduledIntervalDays === room.scheduledIntervalDays;
 }
 
 export function fundingReview(room: FundingRoom): FundingJoinReview | null {
   if (!room.viewer || !room.code || room.viewerIdentity !== "personal") return null;
   return { contractId: room.contractId, roomId: room.id, code: room.code, viewer: room.viewer,
     memberTarget: room.memberTarget, shareStroops: room.shareStroops,
-    obligationStroops: room.obligationStroops, fundingDeadline: room.fundingDeadline, cadence: room.cadence };
+    obligationStroops: room.obligationStroops, fundingDeadline: room.fundingDeadline, cadence: room.cadence,
+    ...(room.scheduledFirstDrawAt === undefined ? {} : { scheduledFirstDrawAt: room.scheduledFirstDrawAt,
+      scheduledIntervalDays: room.scheduledIntervalDays }) };
 }

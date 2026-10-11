@@ -75,6 +75,29 @@ const FIRST_COMMIT_WINDOW: u64 = 24 * 60 * 60;
 const MIN_MEMBERS: u32 = 3;
 const MAX_MEMBERS: u32 = 20;
 const MAX_FUNDING_WINDOW: u64 = 30 * 24 * 60 * 60;
+const SECONDS_PER_DAY: u64 = 24 * 60 * 60;
+const MIN_INTERVAL_DAYS: u32 = 1;
+const MAX_INTERVAL_DAYS: u32 = 365;
+const MAX_SCHEDULED_SHARE: i128 = 10_000_000_000_000_000;
+// Scheduled rooms must leave a real commitment window between daily draws.
+// Keep the original reveal window for existing legacy/installment rooms.
+#[cfg(not(feature = "production-cadences"))]
+const SCHEDULED_REVEAL_WINDOW: u64 = REVEAL_WINDOW;
+#[cfg(feature = "production-cadences")]
+const SCHEDULED_REVEAL_WINDOW: u64 = 6 * 60 * 60;
+const MAX_FIRST_DRAW_DELAY: u64 =
+    MAX_FUNDING_WINDOW + FIRST_COMMIT_WINDOW + SCHEDULED_REVEAL_WINDOW;
+
+// TTL uses ledgers, not seconds. At the usual five-second ledger cadence these
+// are 30/21 days of room data and 7/6 days of instance plus WASM-code retention.
+// Extending an instance ALSO rents its whole code entry. Never renew code to
+// the network maximum on every room operation: that can exceed transaction
+// fee limits. A submitted daily keeper is needed for bounded code renewals.
+const LEDGERS_PER_DAY: u32 = 17_280;
+const DATA_TTL_TARGET: u32 = 30 * LEDGERS_PER_DAY;
+const DATA_TTL_THRESHOLD: u32 = 21 * LEDGERS_PER_DAY;
+const CODE_TTL_TARGET: u32 = 7 * LEDGERS_PER_DAY;
+const CODE_TTL_THRESHOLD: u32 = 6 * LEDGERS_PER_DAY;
 
 #[contracttype]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -149,6 +172,31 @@ pub struct InstallmentContractInfo {
     pub max_funding_window: u64,
 }
 
+/// Isolated metadata, deliberately not a change to the deployed Room layout.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RoomSchedule {
+    pub version: u32,
+    pub interval_seconds: u64,
+    /// Earliest first payout/finalization, not a guaranteed automatic payment.
+    pub first_draw_at: u64,
+    pub first_commit_at: u64,
+    pub funding_deadline: u64,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ScheduledContractInfo {
+    pub version: u32,
+    pub token: Address,
+    pub min_interval_days: u32,
+    pub max_interval_days: u32,
+    pub first_commit_window: u64,
+    pub reveal_window: u64,
+    pub max_first_draw_delay: u64,
+    pub max_funding_window: u64,
+}
+
 #[contracttype]
 pub enum DataKey {
     Token,
@@ -167,6 +215,8 @@ pub enum DataKey {
     RevealCount(u32, u32),
     Installment(u32),
     RoomPool(u32),
+    RoomSchedule(u32),
+    ScheduledOnly,
 }
 
 #[contracterror]
@@ -204,6 +254,10 @@ impl ArisanRooms {
         1
     }
 
+    pub fn scheduled_version(_env: Env) -> u32 {
+        1
+    }
+
     pub fn token_address(env: Env) -> Result<Address, Error> {
         env.storage()
             .instance()
@@ -229,6 +283,28 @@ impl ArisanRooms {
         })
     }
 
+    pub fn scheduled_contract_info(env: Env) -> Result<ScheduledContractInfo, Error> {
+        let token = Self::token_address(env)?;
+        Ok(ScheduledContractInfo {
+            version: 1,
+            token,
+            min_interval_days: MIN_INTERVAL_DAYS,
+            max_interval_days: MAX_INTERVAL_DAYS,
+            first_commit_window: FIRST_COMMIT_WINDOW,
+            reveal_window: SCHEDULED_REVEAL_WINDOW,
+            max_first_draw_delay: MAX_FIRST_DRAW_DELAY,
+            max_funding_window: MAX_FUNDING_WINDOW,
+        })
+    }
+
+    /// NotFound means this is an unscheduled legacy/installment room.
+    pub fn scheduled_room_info(env: Env, room_id: u32) -> Result<RoomSchedule, Error> {
+        env.storage()
+            .persistent()
+            .get(&DataKey::RoomSchedule(room_id))
+            .ok_or(Error::NotFound)
+    }
+
     pub fn initialize(env: Env, token: Address) -> Result<(), Error> {
         let inst = env.storage().instance();
         if inst.has(&DataKey::Token) {
@@ -237,6 +313,18 @@ impl ArisanRooms {
         inst.set(&DataKey::Token, &token);
         inst.set(&DataKey::RoomCount, &0u32);
         Ok(())
+    }
+
+    /// A fresh scheduled-only deployment cannot be polluted by unscheduled
+    /// rooms through the retained legacy creation ABIs.
+    pub fn initialize_scheduled(env: Env, token: Address) -> Result<(), Error> {
+        Self::initialize(env.clone(), token)?;
+        env.storage().instance().set(&DataKey::ScheduledOnly, &true);
+        Ok(())
+    }
+
+    pub fn scheduled_only(env: Env) -> bool {
+        is_scheduled_only(&env)
     }
 
     /// Create a room and lock the host's full cycle commitment (N × share).
@@ -256,6 +344,9 @@ impl ArisanRooms {
         first_kocok: u64,
         join_deadline: u64,
     ) -> Result<u32, Error> {
+        if is_scheduled_only(&env) {
+            return Err(Error::WrongStatus);
+        }
         host.require_auth();
         let now = env.ledger().timestamp();
         if member_target < MIN_MEMBERS
@@ -340,85 +431,107 @@ impl ArisanRooms {
         cadence: Cadence,
         funding_deadline: u64,
     ) -> Result<u32, Error> {
-        host.require_auth();
-        let now = env.ledger().timestamp();
-        if member_target < MIN_MEMBERS
-            || member_target > MAX_MEMBERS
-            || share <= 0
-            || funding_deadline <= now
-            || funding_deadline - now > MAX_FUNDING_WINDOW
-            || funding_deadline.checked_add(FIRST_COMMIT_WINDOW).is_none()
-        {
-            return Err(Error::InvalidParams);
+        if is_scheduled_only(&env) {
+            return Err(Error::WrongStatus);
         }
-        // TTL is measured in ledgers, not wall-clock seconds. Reserve at least
-        // one ledger per funding second plus the first commitment window and
-        // extend all funding state to the network maximum. Networks unable to
-        // retain that conservative funding horizon reject this room instead.
-        let retention_horizon = (funding_deadline - now)
-            .checked_add(FIRST_COMMIT_WINDOW)
-            .ok_or(Error::InvalidParams)?;
-        if retention_horizon > env.storage().max_ttl() as u64 {
-            return Err(Error::InvalidParams);
-        }
-        // Validate both one member's obligation and the entire prefunded pool.
-        // Every later addition is bounded by this checked maximum.
-        let obligation = share
-            .checked_mul(member_target as i128)
-            .ok_or(Error::InvalidParams)?;
-        obligation
-            .checked_mul(member_target as i128)
-            .ok_or(Error::InvalidParams)?;
-        if env
-            .storage()
-            .persistent()
-            .has(&DataKey::RoomByCode(code.clone()))
-        {
-            return Err(Error::InvalidParams);
-        }
-        if !env.storage().instance().has(&DataKey::Token) {
-            return Err(Error::NotInitialized);
-        }
-        let prev: u32 = env
-            .storage()
-            .instance()
-            .get(&DataKey::RoomCount)
-            .unwrap_or(0);
-        let room_id = prev.checked_add(1).ok_or(Error::InvalidParams)?;
-        let room = Room {
-            host: host.clone(),
+        create_installment_room_inner(
+            &env,
+            host,
+            code,
             name,
-            code: code.clone(),
             member_target,
             share,
             cadence,
-            // There is no draw clock before Start in installment mode.
-            first_kocok: 0,
-            join_deadline: funding_deadline,
-            status: RoomStatus::Open,
-            member_count: 1,
-            round: 0,
+            funding_deadline,
+        )
+    }
+
+    /// Reserve a seat with immutable day-based draw terms agreed at creation.
+    /// Every member must still fully prefund before Start. first_draw_at is
+    /// the earliest finalization time; a member must submit finalization.
+    pub fn create_scheduled_room(
+        env: Env,
+        host: Address,
+        code: Symbol,
+        name: String,
+        member_target: u32,
+        share: i128,
+        interval_seconds: u64,
+        first_draw_at: u64,
+        funding_deadline: u64,
+    ) -> Result<u32, Error> {
+        // The shared creation path below requires host auth once in this
+        // invocation frame, bound to all create_scheduled_room arguments.
+        // Calling require_auth twice for the same frame is rejected by Soroban.
+        let now = env.ledger().timestamp();
+        if !valid_scheduled_name(&name)
+            || !valid_scheduled_code(&env, &code)
+            || share > MAX_SCHEDULED_SHARE
+            || (is_scheduled_only(&env) && !is_account_address(&host))
+            || interval_seconds % SECONDS_PER_DAY != 0
+            || interval_seconds < MIN_INTERVAL_DAYS as u64 * SECONDS_PER_DAY
+            || interval_seconds > MAX_INTERVAL_DAYS as u64 * SECONDS_PER_DAY
+            || funding_deadline <= now
+            || funding_deadline - now > MAX_FUNDING_WINDOW
+            || first_draw_at <= now
+            || first_draw_at - now > MAX_FIRST_DRAW_DELAY
+        {
+            return Err(Error::InvalidParams);
+        }
+        let first_commit_at = first_draw_at
+            .checked_sub(SCHEDULED_REVEAL_WINDOW)
+            .ok_or(Error::InvalidParams)?;
+        let minimum_commit_at = funding_deadline
+            .checked_add(FIRST_COMMIT_WINDOW)
+            .ok_or(Error::InvalidParams)?;
+        if first_commit_at < minimum_commit_at {
+            return Err(Error::InvalidParams);
+        }
+        // Validate the whole immutable schedule, including emergency refunds,
+        // before creating a room or accepting any contributions.
+        let remaining_intervals = member_target.checked_sub(1).ok_or(Error::InvalidParams)?;
+        interval_seconds
+            .checked_mul(remaining_intervals as u64)
+            .and_then(|offset| first_draw_at.checked_add(offset))
+            .and_then(|last_draw| last_draw.checked_add(GRACE_PERIOD))
+            .ok_or(Error::InvalidParams)?;
+        // Preserve the existing Room cadence field for older decoders. The
+        // schedule getter, not this compatibility enum, defines custom days.
+        let cadence = if interval_seconds == 30 * SECONDS_PER_DAY {
+            Cadence::Monthly
+        } else {
+            Cadence::Weekly
+        };
+        let room_id = create_installment_room_inner(
+            &env,
+            host,
+            code,
+            name,
+            member_target,
+            share,
+            cadence,
+            funding_deadline,
+        )?;
+        let schedule = RoomSchedule {
+            version: 1,
+            interval_seconds,
+            first_draw_at,
+            first_commit_at,
+            funding_deadline,
         };
         env.storage()
             .persistent()
+            .set(&DataKey::RoomSchedule(room_id), &schedule);
+        let mut room: Room = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Room(room_id))
+            .ok_or(Error::NotFound)?;
+        room.first_kocok = first_commit_at;
+        env.storage()
+            .persistent()
             .set(&DataKey::Room(room_id), &room);
-        env.storage()
-            .persistent()
-            .set(&DataKey::RoomByCode(code), &room_id);
-        env.storage().persistent().set(
-            &DataKey::Members(room_id),
-            &Vec::from_array(&env, [host.clone()]),
-        );
-        env.storage()
-            .persistent()
-            .set(&DataKey::Installment(room_id), &true);
-        env.storage()
-            .persistent()
-            .set(&DataKey::RoomPool(room_id), &0i128);
-        env.storage().instance().set(&DataKey::RoomCount, &room_id);
         refresh_installment_state(&env, room_id, &room);
-        env.events()
-            .publish((symbol_short!("create"), host), room_id);
         Ok(room_id)
     }
 
@@ -485,6 +598,9 @@ impl ArisanRooms {
 
     /// Join a room by its code before the join deadline, locking N × share.
     pub fn join_room(env: Env, room_id: u32, code: Symbol, member: Address) -> Result<(), Error> {
+        if is_scheduled_only(&env) && !is_account_address(&member) {
+            return Err(Error::InvalidParams);
+        }
         member.require_auth();
         let mut room: Room = env
             .storage()
@@ -656,9 +772,16 @@ impl ArisanRooms {
             if room_pool(&env, room_id) != expected_pool {
                 return Err(Error::NotFullyFunded);
             }
-            room.first_kocok = now
-                .checked_add(FIRST_COMMIT_WINDOW)
-                .ok_or(Error::InvalidParams)?;
+            if let Some(schedule) = room_schedule(&env, room_id) {
+                if now >= schedule.first_commit_at {
+                    return Err(Error::WrongStatus);
+                }
+                room.first_kocok = schedule.first_commit_at;
+            } else {
+                room.first_kocok = now
+                    .checked_add(FIRST_COMMIT_WINDOW)
+                    .ok_or(Error::InvalidParams)?;
+            }
         }
         room.status = RoomStatus::Active;
         room.member_count = room.member_target;
@@ -920,7 +1043,10 @@ impl ArisanRooms {
         if room.round >= room.member_count {
             room.status = RoomStatus::Done;
         } else {
-            let next_at = deadline + cadence_seconds(room.cadence);
+            let interval = room_schedule(&env, room_id)
+                .map(|schedule| schedule.interval_seconds)
+                .unwrap_or_else(|| cadence_seconds(room.cadence));
+            let next_at = deadline.checked_add(interval).ok_or(Error::InvalidParams)?;
             env.storage()
                 .persistent()
                 .set(&DataKey::KocokAt(room_id, room.round + 1), &next_at);
@@ -947,6 +1073,11 @@ impl ArisanRooms {
             return Err(Error::NotHost);
         }
         if room.status != RoomStatus::Active {
+            return Err(Error::WrongStatus);
+        }
+        // Members agreed to immutable dates before funding a scheduled room.
+        // A unilateral host delay would violate those terms.
+        if room_schedule(&env, room_id).is_some() {
             return Err(Error::WrongStatus);
         }
         // Changing the deadline after a commitment exists would change the
@@ -1017,7 +1148,11 @@ impl ArisanRooms {
             .persistent()
             .get(&DataKey::KocokAt(room_id, room.round))
             .ok_or(Error::NotFound)?;
-        if now < deadline + REVEAL_WINDOW + GRACE_PERIOD {
+        let dissolve_at = deadline
+            .checked_add(reveal_window(&env, room_id))
+            .and_then(|reveal_at| reveal_at.checked_add(GRACE_PERIOD))
+            .ok_or(Error::InvalidParams)?;
+        if now < dissolve_at {
             return Err(Error::NotYet);
         }
         let token: Address = env
@@ -1181,7 +1316,9 @@ impl ArisanRooms {
             .persistent()
             .get(&DataKey::KocokAt(room_id, round))
             .ok_or(Error::NotFound)?;
-        Ok(commit_at + REVEAL_WINDOW)
+        commit_at
+            .checked_add(reveal_window(&env, room_id))
+            .ok_or(Error::InvalidParams)
     }
     pub fn draw_phase(env: Env, room_id: u32) -> Result<DrawPhase, Error> {
         let room: Room = env
@@ -1221,11 +1358,159 @@ impl ArisanRooms {
     }
 }
 
+fn is_scheduled_only(env: &Env) -> bool {
+    env.storage()
+        .instance()
+        .get(&DataKey::ScheduledOnly)
+        .unwrap_or(false)
+}
+
+fn is_account_address(address: &Address) -> bool {
+    let encoded = address.to_string();
+    if encoded.len() != 56 {
+        return false;
+    }
+    let mut bytes = [0u8; 56];
+    encoded.copy_into_slice(&mut bytes);
+    bytes[0] == b'G'
+}
+
+fn valid_scheduled_code(env: &Env, code: &Symbol) -> bool {
+    // SDK22 exposes Symbol::to_string only on the host, not WASM. Canonical
+    // ScVal symbol XDR has a four-byte discriminant, u32 byte length, then
+    // padded bytes. Symbols are at most32bytes, so the low length byte suffices.
+    let encoded = code.to_xdr(env);
+    if encoded.len() != 16 || encoded.get(7) != Some(6) {
+        return false;
+    }
+    (8..14).all(|index| b"23456789ABCDEFGHJKLMNPQRSTUVWXYZ".contains(&encoded.get(index).unwrap()))
+}
+
+fn valid_scheduled_name(name: &String) -> bool {
+    let length = name.len() as usize;
+    if length == 0 || length > 120 {
+        return false;
+    }
+    let mut bytes = [0u8; 120];
+    name.copy_into_slice(&mut bytes[..length]);
+    let Ok(text) = core::str::from_utf8(&bytes[..length]) else {
+        return false;
+    };
+    !text.trim().is_empty()
+        && text.trim() == text
+        && text
+            .chars()
+            .all(|c| !c.is_control() && c != '<' && c != '>')
+}
+
+// Called within the original creation invocation frame, so require_auth binds
+// all entry-point arguments exactly once. No public bypass or storage toggle.
+fn create_installment_room_inner(
+    env: &Env,
+    host: Address,
+    code: Symbol,
+    name: String,
+    member_target: u32,
+    share: i128,
+    cadence: Cadence,
+    funding_deadline: u64,
+) -> Result<u32, Error> {
+    host.require_auth();
+    let now = env.ledger().timestamp();
+    if member_target < MIN_MEMBERS
+        || member_target > MAX_MEMBERS
+        || share <= 0
+        || funding_deadline <= now
+        || funding_deadline - now > MAX_FUNDING_WINDOW
+        || funding_deadline.checked_add(FIRST_COMMIT_WINDOW).is_none()
+    {
+        return Err(Error::InvalidParams);
+    }
+    // Preserve the old network retention-capability bound. Actual renewal uses
+    // bounded TTLs and requires submitted operational upkeep.
+    let retention_horizon = (funding_deadline - now)
+        .checked_add(FIRST_COMMIT_WINDOW)
+        .ok_or(Error::InvalidParams)?;
+    if retention_horizon > env.storage().max_ttl() as u64 {
+        return Err(Error::InvalidParams);
+    }
+    let obligation = share
+        .checked_mul(member_target as i128)
+        .ok_or(Error::InvalidParams)?;
+    obligation
+        .checked_mul(member_target as i128)
+        .ok_or(Error::InvalidParams)?;
+    if env
+        .storage()
+        .persistent()
+        .has(&DataKey::RoomByCode(code.clone()))
+    {
+        return Err(Error::InvalidParams);
+    }
+    if !env.storage().instance().has(&DataKey::Token) {
+        return Err(Error::NotInitialized);
+    }
+    let prev: u32 = env
+        .storage()
+        .instance()
+        .get(&DataKey::RoomCount)
+        .unwrap_or(0);
+    let room_id = prev.checked_add(1).ok_or(Error::InvalidParams)?;
+    let room = Room {
+        host: host.clone(),
+        name,
+        code: code.clone(),
+        member_target,
+        share,
+        cadence,
+        first_kocok: 0,
+        join_deadline: funding_deadline,
+        status: RoomStatus::Open,
+        member_count: 1,
+        round: 0,
+    };
+    env.storage()
+        .persistent()
+        .set(&DataKey::Room(room_id), &room);
+    env.storage()
+        .persistent()
+        .set(&DataKey::RoomByCode(code), &room_id);
+    env.storage().persistent().set(
+        &DataKey::Members(room_id),
+        &Vec::from_array(env, [host.clone()]),
+    );
+    env.storage()
+        .persistent()
+        .set(&DataKey::Installment(room_id), &true);
+    env.storage()
+        .persistent()
+        .set(&DataKey::RoomPool(room_id), &0i128);
+    env.storage().instance().set(&DataKey::RoomCount, &room_id);
+    refresh_installment_state(env, room_id, &room);
+    env.events()
+        .publish((symbol_short!("create"), host), room_id);
+    Ok(room_id)
+}
+
 fn is_installment(env: &Env, room_id: u32) -> bool {
     env.storage()
         .persistent()
         .get(&DataKey::Installment(room_id))
         .unwrap_or(false)
+}
+
+fn room_schedule(env: &Env, room_id: u32) -> Option<RoomSchedule> {
+    env.storage()
+        .persistent()
+        .get(&DataKey::RoomSchedule(room_id))
+}
+
+fn reveal_window(env: &Env, room_id: u32) -> u64 {
+    if room_schedule(env, room_id).is_some() {
+        SCHEDULED_REVEAL_WINDOW
+    } else {
+        REVEAL_WINDOW
+    }
 }
 
 fn room_pool(env: &Env, room_id: u32) -> i128 {
@@ -1235,11 +1520,11 @@ fn room_pool(env: &Env, room_id: u32) -> i128 {
         .unwrap_or(0)
 }
 
-fn extend_entry(env: &Env, key: DataKey, max_ttl: u32) {
+fn extend_entry(env: &Env, key: DataKey, threshold: u32, target: u32) {
     if env.storage().persistent().has(&key) {
         env.storage()
             .persistent()
-            .extend_ttl(&key, max_ttl, max_ttl);
+            .extend_ttl(&key, threshold, target);
     }
 }
 
@@ -1248,13 +1533,20 @@ fn refresh_installment_state(env: &Env, room_id: u32, room: &Room) {
         return;
     }
     let max_ttl = env.storage().max_ttl();
-    env.storage().instance().extend_ttl(max_ttl, max_ttl);
+    let data_target = DATA_TTL_TARGET.min(max_ttl);
+    let data_threshold = DATA_TTL_THRESHOLD.min(data_target);
+    let code_target = CODE_TTL_TARGET.min(max_ttl);
+    let code_threshold = CODE_TTL_THRESHOLD.min(code_target);
+    env.storage()
+        .instance()
+        .extend_ttl(code_threshold, code_target);
     let token: Address = env
         .storage()
         .instance()
         .get(&DataKey::Token)
         .expect("initialized");
-    env.deployer().extend_ttl(token.clone(), max_ttl, max_ttl);
+    env.deployer()
+        .extend_ttl(token.clone(), code_threshold, code_target);
     if room_pool(env, room_id) > 0 {
         // The native SAC owns the contract's token-balance entry. Its balance
         // getter renews that entry to its own 30-day ledger TTL; we cannot
@@ -1262,33 +1554,90 @@ fn refresh_installment_state(env: &Env, room_id: u32, room: &Room) {
         // that entry expires, or the caller must restore it first.
         token::Client::new(env, &token).balance(&env.current_contract_address());
     }
-    extend_entry(env, DataKey::Room(room_id), max_ttl);
-    extend_entry(env, DataKey::Members(room_id), max_ttl);
-    extend_entry(env, DataKey::RoomByCode(room.code.clone()), max_ttl);
-    extend_entry(env, DataKey::Installment(room_id), max_ttl);
-    extend_entry(env, DataKey::RoomPool(room_id), max_ttl);
+    extend_entry(env, DataKey::Room(room_id), data_threshold, data_target);
+    extend_entry(env, DataKey::Members(room_id), data_threshold, data_target);
+    extend_entry(
+        env,
+        DataKey::RoomByCode(room.code.clone()),
+        data_threshold,
+        data_target,
+    );
+    extend_entry(
+        env,
+        DataKey::Installment(room_id),
+        data_threshold,
+        data_target,
+    );
+    extend_entry(env, DataKey::RoomPool(room_id), data_threshold, data_target);
+    extend_entry(
+        env,
+        DataKey::RoomSchedule(room_id),
+        data_threshold,
+        data_target,
+    );
     let members: Vec<Address> = env
         .storage()
         .persistent()
         .get(&DataKey::Members(room_id))
         .unwrap_or_else(|| Vec::new(env));
     for member in members.iter() {
-        extend_entry(env, DataKey::Locked(room_id, member.clone()), max_ttl);
-        extend_entry(env, DataKey::Won(room_id, member.clone()), max_ttl);
+        extend_entry(
+            env,
+            DataKey::Locked(room_id, member.clone()),
+            data_threshold,
+            data_target,
+        );
+        extend_entry(
+            env,
+            DataKey::Won(room_id, member.clone()),
+            data_threshold,
+            data_target,
+        );
         extend_entry(
             env,
             DataKey::Commitment(room_id, room.round, member.clone()),
-            max_ttl,
+            data_threshold,
+            data_target,
         );
-        extend_entry(env, DataKey::Reveal(room_id, room.round, member), max_ttl);
+        extend_entry(
+            env,
+            DataKey::Reveal(room_id, room.round, member),
+            data_threshold,
+            data_target,
+        );
     }
     for round in 1..=room.member_target {
-        extend_entry(env, DataKey::Winner(room_id, round), max_ttl);
-        extend_entry(env, DataKey::KocokAt(room_id, round), max_ttl);
+        extend_entry(
+            env,
+            DataKey::Winner(room_id, round),
+            data_threshold,
+            data_target,
+        );
+        extend_entry(
+            env,
+            DataKey::KocokAt(room_id, round),
+            data_threshold,
+            data_target,
+        );
     }
-    extend_entry(env, DataKey::Postponed(room_id, room.round), max_ttl);
-    extend_entry(env, DataKey::CommitCount(room_id, room.round), max_ttl);
-    extend_entry(env, DataKey::RevealCount(room_id, room.round), max_ttl);
+    extend_entry(
+        env,
+        DataKey::Postponed(room_id, room.round),
+        data_threshold,
+        data_target,
+    );
+    extend_entry(
+        env,
+        DataKey::CommitCount(room_id, room.round),
+        data_threshold,
+        data_target,
+    );
+    extend_entry(
+        env,
+        DataKey::RevealCount(room_id, room.round),
+        data_threshold,
+        data_target,
+    );
 }
 
 fn draw_phase_for(env: &Env, room_id: u32, room: &Room) -> Result<DrawPhase, Error> {
@@ -1303,7 +1652,11 @@ fn draw_phase_for(env: &Env, room_id: u32, room: &Room) -> Result<DrawPhase, Err
     let now = env.ledger().timestamp();
     if now < commit_at {
         Ok(DrawPhase::Commit)
-    } else if now < commit_at + REVEAL_WINDOW {
+    } else if now
+        < commit_at
+            .checked_add(reveal_window(env, room_id))
+            .ok_or(Error::InvalidParams)?
+    {
         Ok(DrawPhase::Reveal)
     } else {
         Ok(DrawPhase::Finalizable)

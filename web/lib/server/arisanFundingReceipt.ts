@@ -12,6 +12,8 @@ export type FundingCreateReceipt = {
   shareStroops: string;
   cadence: FundingCadence;
   fundingDeadline: number;
+  scheduledFirstDrawAt?: number;
+  scheduledIntervalDays?: number;
 };
 
 /** Query only the original envelope. No preparation, custody access or send. */
@@ -50,21 +52,31 @@ export function verifyArisanFundingCreateReceipt(response: rpc.Api.GetTransactio
     if (operation.type !== "invokeHostFunction" || (operation.source && operation.source !== wallet)
       || operation.func.switch().name !== "hostFunctionTypeInvokeContract") return null;
     const invocation = operation.func.invokeContract();
+    const method = invocation.functionName().toString();
     if (Address.fromScAddress(invocation.contractAddress()).toString() !== contractId
-      || invocation.functionName().toString() !== "create_installment_room") return null;
+      || (method !== "create_installment_room" && method !== "create_scheduled_room")) return null;
     const args = invocation.args();
-    const expectedTypes = ["scvAddress", "scvSymbol", "scvString", "scvU32", "scvI128", "scvVec", "scvU64"];
+    const scheduled = method === "create_scheduled_room";
+    const expectedTypes = ["scvAddress", "scvSymbol", "scvString", "scvU32", "scvI128",
+      ...(scheduled ? ["scvU64", "scvU64", "scvU64"] : ["scvVec", "scvU64"])];
     if (args.length !== expectedTypes.length || args.some((arg, index) => arg.switch().name !== expectedTypes[index])) return null;
     if (Address.fromScVal(args[0]).toString() !== wallet) return null;
     const code = scValToNative(args[1]), name = scValToNative(args[2]), memberTarget = scValToNative(args[3]);
-    const share = scValToNative(args[4]), rawCadence = args[5].vec(), deadline = scValToNative(args[6]);
+    const share = scValToNative(args[4]), rawCadence = scheduled ? null : args[5].vec(), deadline = scValToNative(args[scheduled ? 7 : 6]);
     if (typeof code !== "string" || !/^[A-HJ-NP-Z2-9]{6}$/.test(code) || typeof name !== "string"
       || !name.trim() || Buffer.byteLength(name, "utf8") > 80 || typeof memberTarget !== "number"
       || !Number.isInteger(memberTarget) || memberTarget < 3 || memberTarget > 20
       || typeof share !== "bigint" || share <= 0n || share > BigInt(MAX_FUNDING_SHARE_STROOPS)
-      || !rawCadence || rawCadence.length !== 1 || rawCadence[0].switch().name !== "scvSymbol"
+      || (!scheduled && (!rawCadence || rawCadence.length !== 1 || rawCadence[0].switch().name !== "scvSymbol"))
       || typeof deadline !== "bigint" || deadline <= 0n || deadline > BigInt(Number.MAX_SAFE_INTEGER)) return null;
-    const cadence = scValToNative(rawCadence[0]);
+    if (scheduled) {
+      const interval = scValToNative(args[5]), first = scValToNative(args[6]);
+      if (typeof interval !== "bigint" || interval < 86400n || interval > 365n * 86400n || interval % 86400n !== 0n
+        || typeof first !== "bigint" || first <= deadline || first > BigInt(Number.MAX_SAFE_INTEGER)) return null;
+      return { host: wallet, code, name, memberTarget, shareStroops: share.toString(), cadence: interval === 30n * 86400n ? "Monthly" : "Weekly",
+        fundingDeadline: Number(deadline), scheduledFirstDrawAt: Number(first), scheduledIntervalDays: Number(interval / 86400n) };
+    }
+    const cadence = scValToNative(rawCadence![0]);
     if (cadence !== "Weekly" && cadence !== "Biweekly" && cadence !== "Monthly") return null;
     return { host: wallet, code, name, memberTarget, shareStroops: share.toString(), cadence,
       fundingDeadline: Number(deadline) };

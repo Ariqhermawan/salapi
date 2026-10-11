@@ -24,7 +24,8 @@ const createInput = { contractId: contract, expectedViewer: caller,
 type Core = { status?: string; memberCount?: number; members?: string[]; paid?: bigint[];
   deadline?: number; mode?: string; share?: bigint; code?: string; host?: string; round?: number;
   firstKocok?: number; pooled?: bigint; fullyFundedCount?: number; name?: string };
-type Options = { preview?: boolean; env?: string; legacyEnv?: string; auth?: boolean; authSequence?: boolean[];
+type Options = { preview?: boolean; env?: string; scheduled?: boolean; scheduledEnv?: string; scheduledOnly?: unknown;
+  scheduleReadThrows?: boolean; intervalDays?: number; scheduleVersion?: number; legacyEnv?: string; auth?: boolean; authSequence?: boolean[];
   viewer?: string; signerViewer?: string; signerDemo?: boolean; signerThrows?: boolean; infoToken?: string;
   infoVersion?: number; readThrows?: boolean; cores?: Core[]; core?: Core; resolvedIds?: number[];
   result?: unknown; phase?: string; roomCount?: number; listThrowsRoom?: number;
@@ -62,12 +63,20 @@ function setup(options: Options = {}) {
       sc: Object.fromEntries(["u32", "u64", "addr", "sym", "str", "i128", "bytes", "unitVariant"].map(name => [name, (value: unknown) => value])),
       txLink: (value: string) => `https://stellar.expert/explorer/testnet/tx/${value}`,
       readContract: async (id: string, method: string, args: unknown[]) => {
-        assert.equal(id, options.env ?? contract); calls.reads.push(method);
+        assert.equal(id, options.scheduled ? options.scheduledEnv ?? contract : options.env ?? contract); calls.reads.push(method);
         if (options.readThrows) throw new Error(diagnostics);
         if (method === "installment_contract_info") return { version: options.infoVersion ?? 1, token: options.infoToken ?? "native-testnet-sac",
           cadence_weekly: options.infoCadence?.Weekly ?? 60, cadence_biweekly: options.infoCadence?.Biweekly ?? 120,
           cadence_monthly: options.infoCadence?.Monthly ?? 300, max_postpone: 300,
           first_commit_window: options.infoFirstCommitWindow === undefined ? 300 : options.infoFirstCommitWindow, max_funding_window: 30 * 86400 };
+        if (method === "scheduled_only") return options.scheduledOnly === undefined ? true : options.scheduledOnly;
+        if (method === "scheduled_contract_info") return { version: options.scheduleVersion ?? 1, token: "native-testnet-sac",
+          min_interval_days: 1, max_interval_days: 365, first_commit_window: 86400, reveal_window: 21600,
+          max_first_draw_delay: 30 * 86400 + 108000 };
+        if (method === "scheduled_room_info" && options.scheduleReadThrows) throw new Error(diagnostics);
+        if (method === "scheduled_room_info") return { version: 1, interval_seconds: (options.intervalDays ?? 7) * 86400,
+          first_draw_at: (currentCore.firstKocok ?? now + 172800) + 21600,
+          first_commit_at: currentCore.firstKocok ?? now + 172800, funding_deadline: currentCore.deadline ?? now + 86400 };
         if (method === "room_by_code") return options.resolvedIds?.shift() ?? 1;
         if (method === "room_count") return options.roomCount ?? 1;
         if (method === "get_room") {
@@ -76,7 +85,7 @@ function setup(options: Options = {}) {
           calls.core++;
           return { host: currentCore.host ?? currentCore.members?.[0] ?? other, name: currentCore.name ?? "Isolated installment QA", code: currentCore.code ?? "FAM234",
             member_target: 3, member_count: currentCore.memberCount ?? currentCore.members?.length ?? 1,
-            share: currentCore.share ?? 10_000_000n, cadence: ["Weekly"], first_kocok: currentCore.firstKocok ?? 0,
+            share: currentCore.share ?? 10_000_000n, cadence: [options.intervalDays === 30 ? "Monthly" : "Weekly"], first_kocok: currentCore.firstKocok ?? (options.scheduled ? now + 172800 : 0),
             join_deadline: currentCore.deadline ?? now + 86400, status: [currentCore.status ?? "Open"], round: currentCore.round ?? 0 };
         }
         const members = currentCore.members ?? [other], paid = currentCore.paid ?? members.map(() => 0n);
@@ -105,7 +114,8 @@ function setup(options: Options = {}) {
     },
   };
   runInNewContext(compiled, { module: sandboxModule, exports: sandboxModule.exports, Buffer, console,
-    process: { env: { ARISAN_INSTALLMENTS_CONTRACT: options.env === undefined ? contract : options.env } },
+    process: { env: { ARISAN_INSTALLMENTS_CONTRACT: options.scheduled ? legacy : options.env === undefined ? contract : options.env,
+      ARISAN_SCHEDULED_CONTRACT: options.scheduled ? options.scheduledEnv ?? contract : options.scheduledEnv } },
     Date: class extends Date { static now() { return now * 1000; } },
     require(name: string) {
       if (!(name in dependencies)) throw new Error(`Unexpected import ${name}`);
@@ -124,6 +134,76 @@ test("XLM decimal parsing is exact, bounded and never rounds", () => {
   assert.equal(domain.formatFundingXlm("30000000"), "3");
   assert.equal(domain.formatFundingXlm("0"), "0");
   assert.equal(domain.formatFundingXlm("-1"), "Unavailable");
+});
+
+test("scheduled creation uses isolated deployment and exact eight-argument ABI for 7, 30 and custom days", async () => {
+  for (const intervalDays of [7, 30, 12]) {
+    const { api, calls } = setup({ scheduled: true, intervalDays });
+    const input = { ...createInput, cadence: intervalDays === 30 ? "Monthly" : "Weekly",
+      schedule: { intervalDays, fundingDeadlineAt: now + 86400, firstDrawAt: now + 86400 + 108000, timeZone: "Asia/Jakarta" } };
+    const result = await api.fundingCreate(input);
+    assert.equal(result.ok, true, JSON.stringify(result));
+    assert.equal(calls.sends[0].method, "create_scheduled_room");
+    assert.deepEqual(Array.from(calls.sends[0].args).slice(5), [intervalDays * 86400, input.schedule.firstDrawAt, input.schedule.fundingDeadlineAt]);
+    assert.equal(calls.sends[0].args.length, 8);
+  }
+});
+
+test("scheduled invalid dates, timezone, cadence, capability and mixed deployment fail before custody", async () => {
+  const schedule = { intervalDays: 7, fundingDeadlineAt: now + 86400, firstDrawAt: now + 86400 + 108000, timeZone: "Asia/Jakarta" };
+  for (const change of [{ intervalDays: 0 }, { intervalDays: 366 }, { intervalDays: 1.5 }, { fundingDeadlineAt: now },
+    { firstDrawAt: schedule.firstDrawAt - 1 }, { firstDrawAt: now + 40 * 86400 }, { timeZone: "Not/AZone" }]) {
+    const { api, calls } = setup({ scheduled: true });
+    assert.equal((await api.fundingCreate({ ...createInput, schedule: { ...schedule, ...change } })).ok, false);
+    assert.equal(calls.signers, 0); assert.equal(calls.sends.length, 0);
+  }
+  for (const options of [{ scheduled: true, scheduleVersion: 2 }, { scheduled: true, scheduledEnv: legacy }]) {
+    const { api, calls } = setup(options);
+    assert.equal((await api.fundingCreate({ ...createInput, contractId: options.scheduledEnv ?? contract, schedule })).ok, false);
+    assert.equal(calls.signers, 0);
+  }
+  const old = setup(); assert.equal((await old.api.fundingCreate({ ...createInput, schedule })).ok, false);
+  assert.equal(old.calls.signers, 0);
+});
+
+test("scheduled state preserves agreed timestamps, interval and full prefunding guard", async () => {
+  for (const partial of [true, false]) {
+    const { api, calls } = setup({ scheduled: true, intervalDays: 12, core: { host: caller,
+      members: [caller, other, third], paid: [30_000_000n, 30_000_000n, partial ? 29_999_999n : 30_000_000n] } });
+    const state = await api.fundingState(1, "scheduled");
+    assert.equal(state.ready, true, JSON.stringify(state));
+    assert.equal(state.scheduledIntervalDays, 12); assert.equal(state.scheduledFirstDrawAt, now + 172800 + 21600);
+    assert.equal(state.readyToStart, !partial); assert.equal(calls.signers, 0);
+  }
+});
+
+test("scheduled deployment requires a strict scheduled-only marker before custody or room reads", async () => {
+  const schedule = { intervalDays: 7, fundingDeadlineAt: now + 86400, firstDrawAt: now + 86400 + 108000, timeZone: "Asia/Jakarta" };
+  for (const scheduledOnly of [false, null, 0, "true", []]) {
+    const { api, calls } = setup({ scheduled: true, scheduledOnly });
+    assert.equal((await api.fundingCreate({ ...createInput, schedule })).ok, false);
+    assert.equal((await api.fundingList(undefined, "scheduled")).ready, false);
+    assert.equal((await api.fundingState(1, "scheduled")).ready, false);
+    assert.equal(calls.signers, 0); assert.equal(calls.sends.length, 0);
+    assert.equal(calls.reads.includes("get_room"), false);
+    assert.equal(calls.reads.includes("scheduled_contract_info"), false);
+  }
+  const legacy = setup({ scheduledOnly: false });
+  assert.equal((await legacy.api.fundingCreate(createInput)).ok, true);
+  assert.equal(legacy.calls.reads.includes("scheduled_only"), false);
+});
+
+test("scheduled names reject controls and markup before custody while preserving legacy validation", async () => {
+  const schedule = { intervalDays: 7, fundingDeadlineAt: now + 86400, firstDrawAt: now + 86400 + 108000, timeZone: "Asia/Jakarta" };
+  for (const name of ["Family\u0000Circle", "Family\tCircle", "Family\nCircle", "Family\u007fCircle", "Family\u0085Circle", "Family\u009fCircle", "<Family>", "Family > Circle", "é".repeat(41)]) {
+    const { api, calls } = setup({ scheduled: true });
+    assert.equal((await api.fundingCreate({ ...createInput, name, schedule })).ok, false);
+    assert.equal(calls.auth, 0); assert.equal(calls.signers, 0); assert.equal(calls.sends.length, 0);
+  }
+  const scheduled = setup({ scheduled: true });
+  assert.equal((await scheduled.api.fundingCreate({ ...createInput, name: "Café & friends", schedule })).ok, true);
+  const legacy = setup();
+  assert.equal((await legacy.api.fundingCreate({ ...createInput, name: "Family <3" })).ok, true);
 });
 test("review fixes the original contract, room, account, obligation and deadline", () => {
   assert.equal(domain.validFundingReview(review), true);
@@ -262,6 +342,19 @@ test("list skips a positively confirmed LegacyFull room, but does not skip unkno
   const unknown = setup({ core: { mode: "Unrecognized", members: [caller] } });
   assert.equal((await unknown.api.fundingList()).ready, false);
   const unavailable = setup({ readThrows: true }); assert.equal((await unavailable.api.fundingList()).ready, false);
+});
+
+test("scheduled list skips positive LegacyFull before its unavailable schedule getter, never unknown getter failures", async () => {
+  const legacyRoom = setup({ scheduled: true, roomCount: 12, scheduleReadThrows: true,
+    core: { mode: "LegacyFull", members: [caller] } });
+  const result = await legacyRoom.api.fundingList(undefined, "scheduled");
+  assert.equal(result.ready, true); assert.equal((result.rooms as unknown[]).length, 0); assert.equal(result.nextCursor, 2);
+  assert.equal(legacyRoom.calls.reads.includes("scheduled_room_info"), false);
+  assert.equal(legacyRoom.calls.signers, 0); assert.equal(legacyRoom.calls.sends.length, 0);
+  const unavailable = setup({ scheduled: true, roomCount: 12, scheduleReadThrows: true, core: { members: [caller] } });
+  assert.equal((await unavailable.api.fundingList(undefined, "scheduled")).ready, false);
+  assert.equal(unavailable.calls.reads.includes("scheduled_room_info"), true);
+  assert.equal(unavailable.calls.signers, 0); assert.equal(unavailable.calls.sends.length, 0);
 });
 
 test("Start requires a full roster, every exact obligation and unexpired funding, before custody", async () => {

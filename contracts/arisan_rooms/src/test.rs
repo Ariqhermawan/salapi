@@ -38,6 +38,20 @@ fn fresh_env() -> Env {
     env
 }
 
+fn account_address(env: &Env, tag: u8) -> Address {
+    use soroban_sdk::{
+        xdr::{AccountId, PublicKey, ScAddress, Uint256},
+        TryFromVal,
+    };
+    Address::try_from_val(
+        env,
+        &ScAddress::Account(AccountId(PublicKey::PublicKeyTypeEd25519(Uint256(
+            [tag; 32],
+        )))),
+    )
+    .unwrap()
+}
+
 fn active_room(
     env: &Env,
     host: &Address,
@@ -1208,8 +1222,8 @@ fn installment_funding_state_ttl_is_extended_and_keepalive_renews_token_pool() {
     client.deposit_room(&room_id, &host, &80);
     client.deposit_room(&room_id, &m1, &125);
     env.as_contract(&contract_id, || {
-        let maximum = env.storage().max_ttl();
-        assert_eq!(env.storage().instance().get_ttl(), maximum);
+        assert!(env.storage().instance().get_ttl() <= CODE_TTL_TARGET);
+        assert!(env.storage().instance().get_ttl() >= CODE_TTL_THRESHOLD);
         for key in [
             DataKey::Room(room_id),
             DataKey::Members(room_id),
@@ -1219,33 +1233,35 @@ fn installment_funding_state_ttl_is_extended_and_keepalive_renews_token_pool() {
             DataKey::Locked(room_id, host.clone()),
             DataKey::Locked(room_id, m1.clone()),
         ] {
-            assert_eq!(env.storage().persistent().get_ttl(&key), maximum);
+            assert_eq!(env.storage().persistent().get_ttl(&key), DATA_TTL_TARGET);
         }
     });
-    // The SAC's balance TTL is30days in ledgers. Renew it before expiry, then
-    // refund after57days. Without the keeper that balance would be archived.
-    env.ledger().with_mut(|ledger| {
-        ledger.timestamp = start_ts + 29 * DAY;
-        ledger.sequence_number = start_sequence + 29 * 17_280;
-    });
-    assert_eq!(client.funding_state(&room_id).pooled, 205);
-    client.keepalive_room(&room_id);
-    // Address::generate fixtures are contract addresses, unlike the app's
-    // classic G-wallets. Renew those fixture-recipient balances separately;
-    // the room keeper is responsible for only its own pooled token balance.
-    token.balance(&host);
-    token.balance(&m1);
-    env.as_contract(&contract_id, || {
-        assert_eq!(
-            env.storage()
+    // Daily submitted keepalives bound code rent increments. Room data and the
+    // SAC balance last longer, but code expiry cannot be ignored for 29 days.
+    for elapsed_days in 1..57 {
+        env.ledger().with_mut(|ledger| {
+            ledger.timestamp = start_ts + elapsed_days * DAY;
+            ledger.sequence_number = start_sequence + elapsed_days as u32 * LEDGERS_PER_DAY;
+        });
+        assert_eq!(client.funding_state(&room_id).pooled, 205);
+        client.keepalive_room(&room_id);
+        // Address::generate fixtures own separate contract SAC balances.
+        token.balance(&host);
+        token.balance(&m1);
+        env.as_contract(&contract_id, || {
+            assert!(env.storage().instance().get_ttl() >= CODE_TTL_THRESHOLD);
+            assert!(env.storage().instance().get_ttl() <= CODE_TTL_TARGET);
+            let ttl = env
+                .storage()
                 .persistent()
-                .get_ttl(&DataKey::Locked(room_id, host.clone())),
-            env.storage().max_ttl()
-        );
-    });
+                .get_ttl(&DataKey::Locked(room_id, host.clone()));
+            assert!(ttl >= DATA_TTL_THRESHOLD);
+            assert!(ttl <= DATA_TTL_TARGET);
+        });
+    }
     env.ledger().with_mut(|ledger| {
         ledger.timestamp = start_ts + 57 * DAY;
-        ledger.sequence_number = start_sequence + 57 * 17_280;
+        ledger.sequence_number = start_sequence + 57 * LEDGERS_PER_DAY;
     });
     client.cancel_room(&room_id, &m2);
     assert_eq!(client.get_room(&room_id).status, RoomStatus::Dissolved);
@@ -1253,6 +1269,82 @@ fn installment_funding_state_ttl_is_extended_and_keepalive_renews_token_pool() {
     assert_eq!(token.balance(&host), 1_000);
     assert_eq!(token.balance(&m1), 1_000);
     assert_eq!(token.balance(&contract_id), 0);
+}
+
+#[test]
+fn installment_keepalive_uses_bounded_thresholds_without_renting_network_maximum() {
+    let env = fresh_env();
+    let host = Address::generate(&env);
+    let m1 = Address::generate(&env);
+    let m2 = Address::generate(&env);
+    let (contract_id, _, id, _) = installment_room(&env, &host, &m1, &m2, false);
+    let client = ArisanRoomsClient::new(&env, &contract_id);
+    let start_sequence = env.ledger().sequence();
+    let start_ts = env.ledger().timestamp();
+    env.as_contract(&contract_id, || {
+        assert!(env.storage().max_ttl() > DATA_TTL_TARGET);
+        assert_eq!(env.storage().instance().get_ttl(), CODE_TTL_TARGET);
+        assert_eq!(
+            env.storage().persistent().get_ttl(&DataKey::Room(id)),
+            DATA_TTL_TARGET
+        );
+    });
+    // A sub-day call must not rent the code or room back to their targets.
+    env.ledger().with_mut(|ledger| {
+        ledger.sequence_number = start_sequence + LEDGERS_PER_DAY / 2;
+        ledger.timestamp = start_ts + DAY / 2;
+    });
+    client.keepalive_room(&id);
+    env.as_contract(&contract_id, || {
+        assert_eq!(
+            env.storage().instance().get_ttl(),
+            CODE_TTL_TARGET - LEDGERS_PER_DAY / 2
+        );
+        assert_eq!(
+            env.storage().persistent().get_ttl(&DataKey::Room(id)),
+            DATA_TTL_TARGET - LEDGERS_PER_DAY / 2
+        );
+    });
+    env.ledger().with_mut(|ledger| {
+        ledger.sequence_number = start_sequence + LEDGERS_PER_DAY + 1;
+        ledger.timestamp = start_ts + DAY + 5;
+    });
+    client.keepalive_room(&id);
+    env.as_contract(&contract_id, || {
+        assert_eq!(env.storage().instance().get_ttl(), CODE_TTL_TARGET);
+        assert_eq!(
+            env.storage().persistent().get_ttl(&DataKey::Room(id)),
+            DATA_TTL_TARGET - LEDGERS_PER_DAY - 1
+        );
+    });
+}
+
+#[test]
+fn installment_bounded_ttl_clamps_to_lower_network_maximum() {
+    let env = fresh_env();
+    let host = Address::generate(&env);
+    let admin = Address::generate(&env);
+    let (token_id, _, _) = setup(&env, &admin);
+    let contract_id = env.register(ArisanRooms, ());
+    let client = ArisanRoomsClient::new(&env, &contract_id);
+    client.initialize(&token_id);
+    env.ledger().set_max_entry_ttl(100_000);
+    let id = client.create_installment_room(
+        &host,
+        &Symbol::new(&env, "TTL003"),
+        &SorobanString::from_str(&env, "Bounded retention"),
+        &3,
+        &100,
+        &Cadence::Weekly,
+        &(env.ledger().timestamp() + 60),
+    );
+    env.as_contract(&contract_id, || {
+        assert_eq!(env.storage().instance().get_ttl(), env.storage().max_ttl());
+        assert_eq!(
+            env.storage().persistent().get_ttl(&DataKey::Room(id)),
+            env.storage().max_ttl()
+        );
+    });
 }
 
 #[test]
@@ -1430,4 +1522,989 @@ fn installment_maximum_roster_can_fund_and_complete_all_twenty_payouts() {
         assert_eq!(token.balance(&member), 1_000);
     }
     assert_eq!(token.balance(&contract_id), 0);
+}
+
+fn scheduled_room(
+    env: &Env,
+    host: &Address,
+    m1: &Address,
+    m2: &Address,
+    interval_days: u64,
+) -> (Address, Address, u32, RoomSchedule) {
+    let admin = Address::generate(env);
+    let (token_id, token_admin, _) = setup(env, &admin);
+    for member in [host, m1, m2] {
+        token_admin.mint(member, &1_000);
+    }
+    let contract_id = env.register(ArisanRooms, ());
+    let client = ArisanRoomsClient::new(env, &contract_id);
+    // These historical financial fixtures deliberately use contract-address
+    // token recipients. The isolated web deployment's G-wallet gate is tested
+    // separately below and in independent-wallet live Testnet QA.
+    client.initialize(&token_id);
+    let funding_deadline = env.ledger().timestamp() + 7 * DAY;
+    let first_commit_at = funding_deadline + FIRST_COMMIT_WINDOW;
+    let first_draw_at = first_commit_at + SCHEDULED_REVEAL_WINDOW;
+    let room_id = client.create_scheduled_room(
+        host,
+        &Symbol::new(env, "SCHED2"),
+        &SorobanString::from_str(env, "Agreed draw schedule"),
+        &3,
+        &100,
+        &(interval_days * DAY),
+        &first_draw_at,
+        &funding_deadline,
+    );
+    let schedule = client.scheduled_room_info(&room_id);
+    (contract_id, token_id, room_id, schedule)
+}
+
+#[test]
+fn scheduled_only_initializer_blocks_public_legacy_creates_without_state_or_tokens() {
+    let env = fresh_env();
+    let host = account_address(&env, 1);
+    let admin = Address::generate(&env);
+    let (token_id, _, _) = setup(&env, &admin);
+    let contract_id = env.register(ArisanRooms, ());
+    let client = ArisanRoomsClient::new(&env, &contract_id);
+    client.initialize_scheduled(&token_id);
+    let token = TokenClient::new(&env, &token_id);
+    assert!(client.scheduled_only());
+    let deadline = env.ledger().timestamp() + DAY;
+    let draw = deadline + FIRST_COMMIT_WINDOW + SCHEDULED_REVEAL_WINDOW;
+    let id = client.create_scheduled_room(
+        &host,
+        &Symbol::new(&env, "GHAST2"),
+        &SorobanString::from_str(&env, "Supported G host"),
+        &3,
+        &100,
+        &(7 * DAY),
+        &draw,
+        &deadline,
+    );
+    let count = client.room_count();
+    let first = env.ledger().timestamp() + 4 * DAY;
+    assert_eq!(
+        client.try_create_room(
+            &host,
+            &Symbol::new(&env, "BADOLD"),
+            &SorobanString::from_str(&env, "Legacy bypass"),
+            &3,
+            &100,
+            &Cadence::Weekly,
+            &first,
+            &(first - DAY),
+        ),
+        Err(Ok(Error::WrongStatus))
+    );
+    assert_eq!(
+        client.try_create_installment_room(
+            &host,
+            &Symbol::new(&env, "BADINS"),
+            &SorobanString::from_str(&env, "Installment bypass"),
+            &3,
+            &100,
+            &Cadence::Weekly,
+            &(env.ledger().timestamp() + DAY),
+        ),
+        Err(Ok(Error::WrongStatus))
+    );
+    assert_eq!(client.room_count(), count);
+    assert_eq!(token.balance(&contract_id), 0);
+    assert_eq!(client.funding_state(&id).pooled, 0);
+    assert_eq!(
+        client.try_initialize(&token_id),
+        Err(Ok(Error::AlreadyInitialized))
+    );
+    assert_eq!(
+        client.try_initialize_scheduled(&token_id),
+        Err(Ok(Error::AlreadyInitialized))
+    );
+    assert!(client.scheduled_only());
+
+    // Old initialization cannot be changed into scheduled-only after rooms
+    // exist, and its old entry points retain the original behavior.
+    let legacy_id = env.register(ArisanRooms, ());
+    let legacy = ArisanRoomsClient::new(&env, &legacy_id);
+    assert!(!legacy.scheduled_only());
+    legacy.initialize(&token_id);
+    assert!(!legacy.scheduled_only());
+    assert_eq!(
+        legacy.try_initialize_scheduled(&token_id),
+        Err(Ok(Error::AlreadyInitialized))
+    );
+    assert!(!legacy.scheduled_only());
+    let old_host = Address::generate(&env);
+    let (other_token, admin_client, _) = setup(&env, &old_host);
+    admin_client.mint(&old_host, &1_000);
+    let compatible_id = env.register(ArisanRooms, ());
+    let compatible = ArisanRoomsClient::new(&env, &compatible_id);
+    compatible.initialize(&other_token);
+    compatible.create_installment_room(
+        &old_host,
+        &Symbol::new(&env, "OLDINS"),
+        &SorobanString::from_str(&env, "Old room"),
+        &3,
+        &100,
+        &Cadence::Weekly,
+        &(env.ledger().timestamp() + DAY),
+    );
+    compatible.create_room(
+        &old_host,
+        &Symbol::new(&env, "OLDROO"),
+        &SorobanString::from_str(&env, "Old prefund"),
+        &3,
+        &100,
+        &Cadence::Weekly,
+        &first,
+        &(first - DAY),
+    );
+    assert_eq!(compatible.room_count(), 2);
+}
+
+#[test]
+fn scheduled_only_rejects_contract_addresses_and_accepts_classic_free_joins() {
+    let env = fresh_env();
+    let host = account_address(&env, 1);
+    let m1 = account_address(&env, 2);
+    let m2 = account_address(&env, 3);
+    let contract_actor = Address::generate(&env);
+    let admin = Address::generate(&env);
+    let (token, _, _) = setup(&env, &admin);
+    let contract_id = env.register(ArisanRooms, ());
+    let client = ArisanRoomsClient::new(&env, &contract_id);
+    client.initialize_scheduled(&token);
+    let deadline = env.ledger().timestamp() + DAY;
+    let draw = deadline + FIRST_COMMIT_WINDOW + SCHEDULED_REVEAL_WINDOW;
+    let code = Symbol::new(&env, "GWAL22");
+    let name = SorobanString::from_str(&env, "G wallets only");
+    assert_eq!(
+        client.try_create_scheduled_room(
+            &contract_actor,
+            &code,
+            &name,
+            &3,
+            &100,
+            &(7 * DAY),
+            &draw,
+            &deadline
+        ),
+        Err(Ok(Error::InvalidParams))
+    );
+    assert_eq!(client.room_count(), 0);
+    let id =
+        client.create_scheduled_room(&host, &code, &name, &3, &100, &(7 * DAY), &draw, &deadline);
+    assert_eq!(
+        client.try_join_room(&id, &code, &contract_actor),
+        Err(Ok(Error::InvalidParams))
+    );
+    assert_eq!(
+        client.get_members(&id),
+        Vec::from_array(&env, [host.clone()])
+    );
+    client.join_room(&id, &code, &m1);
+    client.join_room(&id, &code, &m2);
+    assert_eq!(
+        client.get_members(&id),
+        Vec::from_array(&env, [host.clone(), m1.clone(), m2.clone()])
+    );
+    assert_eq!(client.funding_state(&id).pooled, 0);
+    for member in [&host, &m1, &m2] {
+        assert_eq!(client.locked_of(&id, member), 0);
+    }
+}
+
+#[test]
+fn scheduled_codes_and_share_bound_match_supported_web_read_domain() {
+    let env = fresh_env();
+    let host = account_address(&env, 1);
+    let admin = Address::generate(&env);
+    let (token, _, _) = setup(&env, &admin);
+    let contract_id = env.register(ArisanRooms, ());
+    let client = ArisanRoomsClient::new(&env, &contract_id);
+    client.initialize_scheduled(&token);
+    let deadline = env.ledger().timestamp() + DAY;
+    let draw = deadline + FIRST_COMMIT_WINDOW + SCHEDULED_REVEAL_WINDOW;
+    let name = SorobanString::from_str(&env, "Safe public terms");
+    for code in [
+        "", "ABCDE", "ABCDEFG", "ABC0EF", "ABC1EF", "ABIDEF", "ABODEF", "ABCdEF", "ABC_EF",
+    ] {
+        assert_eq!(
+            client.try_create_scheduled_room(
+                &host,
+                &Symbol::new(&env, code),
+                &name,
+                &3,
+                &100,
+                &(7 * DAY),
+                &draw,
+                &deadline
+            ),
+            Err(Ok(Error::InvalidParams))
+        );
+        assert_eq!(client.room_count(), 0);
+    }
+    assert_eq!(
+        client.try_create_scheduled_room(
+            &host,
+            &Symbol::new(&env, "MAXSHR"),
+            &name,
+            &3,
+            &(MAX_SCHEDULED_SHARE + 1),
+            &(7 * DAY),
+            &draw,
+            &deadline
+        ),
+        Err(Ok(Error::InvalidParams))
+    );
+    assert_eq!(client.room_count(), 0);
+    let id = client.create_scheduled_room(
+        &host,
+        &Symbol::new(&env, "MAXSHR"),
+        &name,
+        &20,
+        &MAX_SCHEDULED_SHARE,
+        &(7 * DAY),
+        &draw,
+        &deadline,
+    );
+    assert_eq!(client.get_room(&id).share, MAX_SCHEDULED_SHARE);
+    assert_eq!(
+        client.funding_state(&id).obligation,
+        MAX_SCHEDULED_SHARE * 20
+    );
+    assert_eq!(client.funding_state(&id).pooled, 0);
+}
+
+#[test]
+fn scheduled_names_reject_discovery_poisoning_and_enforce_utf8_byte_bound() {
+    let env = fresh_env();
+    let host = Address::generate(&env);
+    let m1 = Address::generate(&env);
+    let m2 = Address::generate(&env);
+    let (contract_id, _, _, schedule) = scheduled_room(&env, &host, &m1, &m2, 7);
+    let client = ArisanRoomsClient::new(&env, &contract_id);
+    let count = client.room_count();
+    let oversized = "x".repeat(121);
+    let oversized_unicode = "é".repeat(61);
+    for bad in [
+        "",
+        " ",
+        " leading",
+        "trailing ",
+        "line\nbreak",
+        "tab\tname",
+        "bad\0name",
+        "bad\u{7f}name",
+        "bad\u{85}name",
+        "<room>",
+        "bad>name",
+        "\u{2003}",
+        oversized.as_str(),
+        oversized_unicode.as_str(),
+    ] {
+        assert_eq!(
+            client.try_create_scheduled_room(
+                &host,
+                &Symbol::new(&env, "BADNAM"),
+                &SorobanString::from_str(&env, bad),
+                &3,
+                &100,
+                &(7 * DAY),
+                &schedule.first_draw_at,
+                &schedule.funding_deadline,
+            ),
+            Err(Ok(Error::InvalidParams)),
+            "unexpected accepted name {bad:?}"
+        );
+        assert_eq!(client.room_count(), count);
+    }
+    let maximum = "é".repeat(60);
+    let id = client.create_scheduled_room(
+        &host,
+        &Symbol::new(&env, "UTF228"),
+        &SorobanString::from_str(&env, &maximum),
+        &3,
+        &100,
+        &(7 * DAY),
+        &schedule.first_draw_at,
+        &schedule.funding_deadline,
+    );
+    assert_eq!(
+        client.get_room(&id).name,
+        SorobanString::from_str(&env, &maximum)
+    );
+    let visible = SorobanString::from_str(&env, "Keluarga 嘉 - tabungan bersama");
+    let other = client.create_scheduled_room(
+        &host,
+        &Symbol::new(&env, "UTFKK2"),
+        &visible,
+        &3,
+        &100,
+        &(7 * DAY),
+        &schedule.first_draw_at,
+        &schedule.funding_deadline,
+    );
+    assert_eq!(client.get_room(&other).name, visible);
+}
+
+#[test]
+fn scheduled_create_records_agreed_dates_without_payment_and_preserves_room_layout() {
+    for interval_days in [1, 7, 13, 30, 365] {
+        let env = fresh_env();
+        let host = Address::generate(&env);
+        let m1 = Address::generate(&env);
+        let m2 = Address::generate(&env);
+        let (contract_id, token_id, id, schedule) =
+            scheduled_room(&env, &host, &m1, &m2, interval_days);
+        let client = ArisanRoomsClient::new(&env, &contract_id);
+        let room = client.get_room(&id);
+        assert_eq!(schedule.version, 1);
+        assert_eq!(schedule.interval_seconds, interval_days * DAY);
+        assert_eq!(schedule.first_commit_at, room.first_kocok);
+        assert_eq!(schedule.funding_deadline, room.join_deadline);
+        assert_eq!(
+            schedule.first_draw_at,
+            schedule.first_commit_at + SCHEDULED_REVEAL_WINDOW
+        );
+        assert_eq!(room.status, RoomStatus::Open);
+        assert_eq!(room.round, 0);
+        assert_eq!(
+            room.cadence,
+            if interval_days == 30 {
+                Cadence::Monthly
+            } else {
+                Cadence::Weekly
+            }
+        );
+        assert_eq!(client.funding_state(&id).mode, FundingMode::Installments);
+        assert_eq!(
+            client.funding_state(&id).deadline,
+            schedule.funding_deadline
+        );
+        assert_eq!(client.funding_state(&id).pooled, 0);
+        assert_eq!(client.locked_of(&id, &host), 0);
+        assert_eq!(TokenClient::new(&env, &token_id).balance(&host), 1_000);
+        assert_eq!(TokenClient::new(&env, &token_id).balance(&contract_id), 0);
+    }
+}
+
+#[test]
+fn scheduled_start_requires_single_member_full_payment_and_exact_aggregate_pool() {
+    let env = fresh_env();
+    let host = Address::generate(&env);
+    let m1 = Address::generate(&env);
+    let m2 = Address::generate(&env);
+    let (contract_id, token_id, id, schedule) = scheduled_room(&env, &host, &m1, &m2, 7);
+    let client = ArisanRoomsClient::new(&env, &contract_id);
+    let token = TokenClient::new(&env, &token_id);
+    let code = client.get_room(&id).code;
+    client.join_room(&id, &code, &m1);
+    client.join_room(&id, &code, &m2);
+    client.deposit_room(&id, &host, &300);
+    client.deposit_room(&id, &m1, &300);
+    client.deposit_room(&id, &m2, &299);
+    assert_eq!(
+        client.try_start_room(&id, &host),
+        Err(Ok(Error::NotFullyFunded))
+    );
+    assert_eq!(client.get_room(&id).status, RoomStatus::Open);
+    assert_eq!(client.get_room(&id).first_kocok, schedule.first_commit_at);
+    assert_eq!(client.funding_state(&id).fully_funded_count, 2);
+    assert_eq!(token.balance(&contract_id), 899);
+    client.deposit_room(&id, &m2, &1);
+    // Prove that every fully paid seat alone is insufficient if the attributed
+    // pool does not reconcile. An unrelated/global token balance is not used.
+    env.as_contract(&contract_id, || {
+        env.storage()
+            .persistent()
+            .set(&DataKey::RoomPool(id), &899i128);
+    });
+    assert_eq!(
+        client.try_start_room(&id, &host),
+        Err(Ok(Error::NotFullyFunded))
+    );
+    assert_eq!(token.balance(&contract_id), 900);
+    env.as_contract(&contract_id, || {
+        env.storage()
+            .persistent()
+            .set(&DataKey::RoomPool(id), &900i128);
+    });
+    assert_eq!(client.try_start_room(&id, &m1), Err(Ok(Error::NotHost)));
+    client.start_room(&id, &host);
+    assert_eq!(client.get_room(&id).status, RoomStatus::Active);
+    assert_eq!(client.kocok_at(&id, &1), schedule.first_commit_at);
+    assert_eq!(client.reveal_at(&id, &1), schedule.first_draw_at);
+}
+
+#[test]
+fn scheduled_start_does_not_reset_agreed_future_clock_and_cutoffs_fail_closed() {
+    let env = fresh_env();
+    let host = Address::generate(&env);
+    let m1 = Address::generate(&env);
+    let m2 = Address::generate(&env);
+    let (contract_id, token_id, id, schedule) = scheduled_room(&env, &host, &m1, &m2, 30);
+    let client = ArisanRoomsClient::new(&env, &contract_id);
+    seat_and_fund_installment_members(&client, id, &host, &m1, &m2);
+    set_ts(&env, schedule.funding_deadline);
+    assert_eq!(
+        client.try_start_room(&id, &host),
+        Err(Ok(Error::WrongStatus))
+    );
+    set_ts(&env, schedule.first_commit_at);
+    assert_eq!(
+        client.try_start_room(&id, &host),
+        Err(Ok(Error::WrongStatus))
+    );
+    assert_eq!(client.get_room(&id).status, RoomStatus::Open);
+    assert_eq!(TokenClient::new(&env, &token_id).balance(&contract_id), 900);
+    set_ts(&env, schedule.funding_deadline - 1);
+    client.start_room(&id, &host);
+    assert_eq!(client.kocok_at(&id, &1), schedule.first_commit_at);
+    assert_ne!(
+        client.kocok_at(&id, &1),
+        env.ledger().timestamp() + FIRST_COMMIT_WINDOW
+    );
+    assert_eq!(client.draw_phase(&id), DrawPhase::Commit);
+    assert_eq!(client.scheduled_room_info(&id), schedule);
+    assert_eq!(
+        client.try_postpone_kocok(&id, &host, &1),
+        Err(Ok(Error::WrongStatus))
+    );
+    assert_eq!(client.reveal_at(&id, &1), schedule.first_draw_at);
+}
+
+#[test]
+fn scheduled_one_day_and_manual_interval_complete_normal_reveals_without_drift() {
+    for interval_days in [1, 13, 30] {
+        let env = fresh_env();
+        let host = Address::generate(&env);
+        let m1 = Address::generate(&env);
+        let m2 = Address::generate(&env);
+        let members = [&host, &m1, &m2];
+        let (contract_id, token_id, id, schedule) =
+            scheduled_room(&env, &host, &m1, &m2, interval_days);
+        let client = ArisanRoomsClient::new(&env, &contract_id);
+        seat_and_fund_installment_members(&client, id, &host, &m1, &m2);
+        client.start_room(&id, &host);
+        let mut winners: Vec<Address> = Vec::new(&env);
+        for round in 1..=3 {
+            assert_eq!(
+                client.kocok_at(&id, &round),
+                schedule.first_commit_at + (round as u64 - 1) * interval_days * DAY
+            );
+            assert_eq!(
+                client.reveal_at(&id, &round),
+                schedule.first_draw_at + (round as u64 - 1) * interval_days * DAY
+            );
+            let winner = complete_round(&env, &client, &contract_id, id, &host, &members, 151);
+            assert!(!winners.iter().any(|previous| previous == winner));
+            winners.push_back(winner);
+            assert_eq!(client.funding_state(&id).pooled, 900 - 300 * round as i128);
+            if round < 3 {
+                assert_eq!(client.draw_phase(&id), DrawPhase::Commit);
+                assert_eq!(
+                    client.kocok_at(&id, &(round + 1)) - env.ledger().timestamp(),
+                    interval_days * DAY - SCHEDULED_REVEAL_WINDOW
+                );
+            }
+        }
+        assert_eq!(client.get_room(&id).status, RoomStatus::Done);
+        assert_eq!(client.scheduled_room_info(&id), schedule);
+        assert_eq!(TokenClient::new(&env, &token_id).balance(&contract_id), 0);
+        for member in members {
+            assert_eq!(TokenClient::new(&env, &token_id).balance(member), 1_000);
+            assert_eq!(client.locked_of(&id, member), 300); // Historical contribution.
+        }
+    }
+}
+
+#[test]
+fn scheduled_late_finalize_does_not_shift_agreed_later_dates_or_change_fallback() {
+    let env = fresh_env();
+    let host = Address::generate(&env);
+    let m1 = Address::generate(&env);
+    let m2 = Address::generate(&env);
+    let (contract_id, _, id, schedule) = scheduled_room(&env, &host, &m1, &m2, 1);
+    let client = ArisanRoomsClient::new(&env, &contract_id);
+    seat_and_fund_installment_members(&client, id, &host, &m1, &m2);
+    client.start_room(&id, &host);
+    let second_commit_at = schedule.first_commit_at + DAY;
+    set_ts(&env, second_commit_at + 1);
+    // The fallback context and immutable roster are the existing protocol.
+    let mut entropy = Bytes::new(&env);
+    entropy.append(&contract_id.clone().to_xdr(&env));
+    entropy.append(&id.to_xdr(&env));
+    entropy.append(&1u32.to_xdr(&env));
+    let hash = env.crypto().sha256(&entropy).to_array();
+    let mut ticket = 0u64;
+    for byte in hash.iter().take(8) {
+        ticket = (ticket << 8) | *byte as u64;
+    }
+    let expected = client.get_members(&id).get((ticket % 3) as u32).unwrap();
+    assert_eq!(client.finalize_draw(&id, &host), expected);
+    assert_eq!(client.kocok_at(&id, &2), second_commit_at);
+    assert_eq!(client.draw_phase(&id), DrawPhase::Reveal);
+    assert_eq!(client.commit_count(&id, &1), 0);
+    assert_eq!(client.reveal_count(&id, &1), 0);
+}
+
+#[test]
+fn scheduled_creation_rejects_bad_intervals_dates_counts_and_amounts_without_state() {
+    let env = fresh_env();
+    let host = Address::generate(&env);
+    let admin = Address::generate(&env);
+    let (token_id, _, _) = setup(&env, &admin);
+    let contract_id = env.register(ArisanRooms, ());
+    let client = ArisanRoomsClient::new(&env, &contract_id);
+    client.initialize(&token_id);
+    let now = env.ledger().timestamp();
+    let funding = now + DAY;
+    let draw = funding + FIRST_COMMIT_WINDOW + SCHEDULED_REVEAL_WINDOW;
+    for interval in [0, DAY - 1, DAY + 1, 366 * DAY, u64::MAX] {
+        assert_eq!(
+            client.try_create_scheduled_room(
+                &host,
+                &Symbol::new(&env, "BAD222"),
+                &SorobanString::from_str(&env, "Bad interval"),
+                &3,
+                &100,
+                &interval,
+                &draw,
+                &funding
+            ),
+            Err(Ok(Error::InvalidParams))
+        );
+    }
+    for (first_draw, deadline) in [
+        (draw - 1, funding),
+        (draw, now),
+        (now, funding),
+        (now + MAX_FIRST_DRAW_DELAY + 1, funding),
+        (draw, now + MAX_FUNDING_WINDOW + 1),
+        (u64::MAX, funding),
+        (SCHEDULED_REVEAL_WINDOW - 1, funding),
+    ] {
+        assert_eq!(
+            client.try_create_scheduled_room(
+                &host,
+                &Symbol::new(&env, "BAD222"),
+                &SorobanString::from_str(&env, "Bad dates"),
+                &3,
+                &100,
+                &(7 * DAY),
+                &first_draw,
+                &deadline
+            ),
+            Err(Ok(Error::InvalidParams))
+        );
+    }
+    for (target, share) in [(2, 100), (21, 100), (3, 0), (3, -1), (3, i128::MAX)] {
+        assert_eq!(
+            client.try_create_scheduled_room(
+                &host,
+                &Symbol::new(&env, "BAD222"),
+                &SorobanString::from_str(&env, "Bad obligation"),
+                &target,
+                &share,
+                &(7 * DAY),
+                &draw,
+                &funding
+            ),
+            Err(Ok(Error::InvalidParams))
+        );
+    }
+    assert_eq!(client.room_count(), 0);
+    assert_eq!(
+        client.try_room_by_code(&Symbol::new(&env, "BAD222")),
+        Err(Ok(Error::NotFound))
+    );
+    assert_eq!(TokenClient::new(&env, &token_id).balance(&contract_id), 0);
+}
+
+#[test]
+fn scheduled_exact_maximum_first_draw_and_funding_bounds_are_accepted() {
+    let env = fresh_env();
+    let host = Address::generate(&env);
+    let admin = Address::generate(&env);
+    let (token_id, _, _) = setup(&env, &admin);
+    let contract_id = env.register(ArisanRooms, ());
+    let client = ArisanRoomsClient::new(&env, &contract_id);
+    client.initialize(&token_id);
+    let now = env.ledger().timestamp();
+    let id = client.create_scheduled_room(
+        &host,
+        &Symbol::new(&env, "MAXDAY"),
+        &SorobanString::from_str(&env, "Maximum schedule"),
+        &20,
+        &1,
+        &(365 * DAY),
+        &(now + MAX_FIRST_DRAW_DELAY),
+        &(now + MAX_FUNDING_WINDOW),
+    );
+    let schedule = client.scheduled_room_info(&id);
+    assert_eq!(schedule.first_draw_at, now + MAX_FIRST_DRAW_DELAY);
+    assert_eq!(schedule.funding_deadline, now + MAX_FUNDING_WINDOW);
+    assert_eq!(schedule.interval_seconds, 365 * DAY);
+    assert_eq!(client.get_room(&id).member_target, 20);
+}
+
+#[test]
+fn scheduled_creation_checks_whole_cycle_timestamp_overflow_and_host_authorization() {
+    let env = fresh_env();
+    let host = Address::generate(&env);
+    let admin = Address::generate(&env);
+    let (token_id, _, _) = setup(&env, &admin);
+    let contract_id = env.register(ArisanRooms, ());
+    let client = ArisanRoomsClient::new(&env, &contract_id);
+    client.initialize(&token_id);
+    let now = env.ledger().timestamp();
+    env.mock_auths(&[]);
+    assert!(client
+        .try_create_scheduled_room(
+            &host,
+            &Symbol::new(&env, "AUTH22"),
+            &SorobanString::from_str(&env, "No consent"),
+            &3,
+            &100,
+            &(7 * DAY),
+            &(now + DAY + FIRST_COMMIT_WINDOW + SCHEDULED_REVEAL_WINDOW),
+            &(now + DAY)
+        )
+        .is_err());
+    assert_eq!(client.room_count(), 0);
+    env.mock_all_auths();
+    let near_limit = u64::MAX - MAX_FIRST_DRAW_DELAY - 10;
+    set_ts(&env, near_limit);
+    assert_eq!(
+        client.try_create_scheduled_room(
+            &host,
+            &Symbol::new(&env, "KVFL22"),
+            &SorobanString::from_str(&env, "Last round overflow"),
+            &3,
+            &100,
+            &(365 * DAY),
+            &(near_limit + DAY + FIRST_COMMIT_WINDOW + SCHEDULED_REVEAL_WINDOW),
+            &(near_limit + DAY)
+        ),
+        Err(Ok(Error::InvalidParams))
+    );
+    assert_eq!(client.room_count(), 0);
+}
+
+#[test]
+fn scheduled_partial_leave_and_expired_cancel_refund_exact_actual_contributions() {
+    let env = fresh_env();
+    let host = Address::generate(&env);
+    let m1 = Address::generate(&env);
+    let m2 = Address::generate(&env);
+    let (contract_id, token_id, id, schedule) = scheduled_room(&env, &host, &m1, &m2, 7);
+    let client = ArisanRoomsClient::new(&env, &contract_id);
+    let token = TokenClient::new(&env, &token_id);
+    let code = client.get_room(&id).code;
+    client.join_room(&id, &code, &m1);
+    client.join_room(&id, &code, &m2);
+    client.deposit_room(&id, &host, &80);
+    client.deposit_room(&id, &m1, &125);
+    client.leave_room(&id, &m1);
+    assert_eq!(token.balance(&m1), 1_000);
+    assert_eq!(client.locked_of(&id, &m1), 0);
+    assert_eq!(client.funding_state(&id).pooled, 80);
+    set_ts(&env, schedule.first_commit_at);
+    assert_eq!(
+        client.try_deposit_room(&id, &host, &1),
+        Err(Ok(Error::WrongStatus))
+    );
+    assert_eq!(
+        client.try_start_room(&id, &host),
+        Err(Ok(Error::WrongStatus))
+    );
+    client.cancel_room(&id, &m2);
+    assert_eq!(client.get_room(&id).status, RoomStatus::Dissolved);
+    assert_eq!(client.funding_state(&id).pooled, 0);
+    assert_eq!(client.scheduled_room_info(&id), schedule);
+    for member in [&host, &m1, &m2] {
+        assert_eq!(token.balance(member), 1_000);
+        assert_eq!(client.locked_of(&id, member), 0);
+    }
+    assert_eq!(token.balance(&contract_id), 0);
+}
+
+#[test]
+fn scheduled_emergency_refund_uses_scheduled_reveal_deadline_not_legacy_window() {
+    let env = fresh_env();
+    let host = Address::generate(&env);
+    let m1 = Address::generate(&env);
+    let m2 = Address::generate(&env);
+    let (contract_id, token_id, id, schedule) = scheduled_room(&env, &host, &m1, &m2, 1);
+    let client = ArisanRoomsClient::new(&env, &contract_id);
+    seat_and_fund_installment_members(&client, id, &host, &m1, &m2);
+    client.start_room(&id, &host);
+    set_ts(&env, schedule.first_draw_at + GRACE_PERIOD - 1);
+    assert_eq!(
+        client.try_emergency_dissolve(&id, &m1),
+        Err(Ok(Error::NotYet))
+    );
+    set_ts(&env, schedule.first_draw_at + GRACE_PERIOD);
+    client.emergency_dissolve(&id, &m1);
+    assert_eq!(client.get_room(&id).status, RoomStatus::Dissolved);
+    assert_eq!(client.funding_state(&id).pooled, 0);
+    let token = TokenClient::new(&env, &token_id);
+    for member in [&host, &m1, &m2] {
+        assert_eq!(token.balance(member), 1_000);
+    }
+    assert_eq!(token.balance(&contract_id), 0);
+}
+
+#[test]
+fn scheduled_year_interval_keepalive_retains_schedule_and_escrow_until_finalization() {
+    let env = fresh_env();
+    let host = Address::generate(&env);
+    let m1 = Address::generate(&env);
+    let m2 = Address::generate(&env);
+    let (contract_id, token_id, id, schedule) = scheduled_room(&env, &host, &m1, &m2, 365);
+    let client = ArisanRoomsClient::new(&env, &contract_id);
+    let token = TokenClient::new(&env, &token_id);
+    seat_and_fund_installment_members(&client, id, &host, &m1, &m2);
+    client.start_room(&id, &host);
+    set_ts(&env, schedule.first_draw_at);
+    client.finalize_draw(&id, &host);
+    let initial_sequence = env.ledger().sequence();
+    // Advance real ledger TTL as well as seconds, with a daily keeper. Reading
+    // alone is not claimed to submit rent renewal. Contract fixtures own their
+    // recipient SAC balances, so renew those separately as in the existing test.
+    for elapsed_days in 1..=364 {
+        env.ledger().with_mut(|ledger| {
+            ledger.timestamp = schedule.first_draw_at + elapsed_days * DAY;
+            ledger.sequence_number = initial_sequence + elapsed_days as u32 * LEDGERS_PER_DAY;
+        });
+        client.keepalive_room(&id);
+        for member in [&host, &m1, &m2] {
+            token.balance(member);
+        }
+        assert_eq!(client.scheduled_room_info(&id), schedule);
+        env.as_contract(&contract_id, || {
+            let ttl = env
+                .storage()
+                .persistent()
+                .get_ttl(&DataKey::RoomSchedule(id));
+            assert!(ttl >= DATA_TTL_THRESHOLD);
+            assert!(ttl <= DATA_TTL_TARGET);
+            assert!(env.storage().instance().get_ttl() >= CODE_TTL_THRESHOLD);
+            assert!(env.storage().instance().get_ttl() <= CODE_TTL_TARGET);
+        });
+    }
+    env.ledger().with_mut(|ledger| {
+        ledger.timestamp = schedule.first_draw_at + 365 * DAY;
+        ledger.sequence_number = initial_sequence + 365 * LEDGERS_PER_DAY;
+    });
+    assert_eq!(
+        client.reveal_at(&id, &2),
+        schedule.first_draw_at + 365 * DAY
+    );
+    client.finalize_draw(&id, &m1);
+    assert_eq!(client.funding_state(&id).pooled, 300);
+    assert_eq!(token.balance(&contract_id), 300);
+}
+
+#[test]
+fn scheduled_capabilities_are_separate_and_old_create_abis_still_work() {
+    let env = fresh_env();
+    let host = Address::generate(&env);
+    let m1 = Address::generate(&env);
+    let m2 = Address::generate(&env);
+    let (contract_id, token_id, old_id, _) = installment_room(&env, &host, &m1, &m2, true);
+    let client = ArisanRoomsClient::new(&env, &contract_id);
+    assert_eq!(client.installments_version(), 1);
+    assert_eq!(client.installment_contract_info().version, 1);
+    assert_eq!(client.scheduled_version(), 1);
+    assert_eq!(
+        client.try_scheduled_room_info(&old_id),
+        Err(Ok(Error::NotFound))
+    );
+    assert_eq!(client.get_room(&old_id).first_kocok, 0);
+    let info = client.scheduled_contract_info();
+    assert_eq!(info.version, 1);
+    assert_eq!(info.token, token_id);
+    assert_eq!(info.min_interval_days, 1);
+    assert_eq!(info.max_interval_days, 365);
+    assert_eq!(info.first_commit_window, FIRST_COMMIT_WINDOW);
+    assert_eq!(info.reveal_window, SCHEDULED_REVEAL_WINDOW);
+    assert_eq!(info.max_first_draw_delay, MAX_FIRST_DRAW_DELAY);
+    assert_eq!(info.max_funding_window, MAX_FUNDING_WINDOW);
+    seat_and_fund_installment_members(&client, old_id, &host, &m1, &m2);
+    client.start_room(&old_id, &host);
+    assert_eq!(
+        client.kocok_at(&old_id, &1),
+        env.ledger().timestamp() + FIRST_COMMIT_WINDOW
+    );
+    assert_eq!(
+        client.reveal_at(&old_id, &1),
+        env.ledger().timestamp() + FIRST_COMMIT_WINDOW + REVEAL_WINDOW
+    );
+    let first = env.ledger().timestamp() + 4 * DAY;
+    let legacy_id = client.create_room(
+        &host,
+        &Symbol::new(&env, "OLDABI"),
+        &SorobanString::from_str(&env, "Original full-deposit ABI"),
+        &3,
+        &100,
+        &Cadence::Monthly,
+        &first,
+        &(first - DAY),
+    );
+    assert_eq!(
+        client.try_scheduled_room_info(&legacy_id),
+        Err(Ok(Error::NotFound))
+    );
+    assert_eq!(
+        client.funding_state(&legacy_id).mode,
+        FundingMode::LegacyFull
+    );
+    assert_eq!(client.locked_of(&legacy_id, &host), 300);
+    assert_eq!(client.get_room(&legacy_id).first_kocok, first);
+    let uninitialized_id = env.register(ArisanRooms, ());
+    let uninitialized = ArisanRoomsClient::new(&env, &uninitialized_id);
+    assert_eq!(
+        uninitialized.try_scheduled_contract_info(),
+        Err(Ok(Error::NotInitialized))
+    );
+}
+
+#[test]
+fn scheduled_generated_abi() {
+    use soroban_sdk::xdr::{Limits, ReadXdr, ScSpecEntry, ScSpecTypeDef};
+    let ScSpecEntry::FunctionV0(creation) = ScSpecEntry::from_xdr(
+        ArisanRooms::spec_xdr_create_scheduled_room(),
+        Limits::none(),
+    )
+    .unwrap() else {
+        panic!("function spec")
+    };
+    assert_eq!(creation.inputs.len(), 8);
+    let expected = [
+        ScSpecTypeDef::Address,
+        ScSpecTypeDef::Symbol,
+        ScSpecTypeDef::String,
+        ScSpecTypeDef::U32,
+        ScSpecTypeDef::I128,
+        ScSpecTypeDef::U64,
+        ScSpecTypeDef::U64,
+        ScSpecTypeDef::U64,
+    ];
+    for (input, expected) in creation.inputs.iter().zip(expected) {
+        assert_eq!(input.type_, expected);
+    }
+    let entries: &[&[u8]] = &[
+        &ArisanRooms::spec_xdr_create_scheduled_room(),
+        &ArisanRooms::spec_xdr_scheduled_version(),
+        &ArisanRooms::spec_xdr_scheduled_contract_info(),
+        &ArisanRooms::spec_xdr_scheduled_room_info(),
+        &ArisanRooms::spec_xdr_initialize_scheduled(),
+        &ArisanRooms::spec_xdr_scheduled_only(),
+        &RoomSchedule::spec_xdr(),
+        &ScheduledContractInfo::spec_xdr(),
+    ];
+    std::print!("SCHEDULED_SPEC_HEX=");
+    for entry in entries {
+        for byte in *entry {
+            std::print!("{byte:02x}");
+        }
+    }
+    std::println!();
+}
+
+#[test]
+fn scheduled_creation_authorization_binds_all_eight_new_arguments() {
+    use soroban_sdk::{testutils::AuthorizedFunction, IntoVal};
+    let env = fresh_env();
+    let host = account_address(&env, 1);
+    let admin = Address::generate(&env);
+    let (token_id, _, _) = setup(&env, &admin);
+    let contract_id = env.register(ArisanRooms, ());
+    let client = ArisanRoomsClient::new(&env, &contract_id);
+    client.initialize_scheduled(&token_id);
+    let code = Symbol::new(&env, "AUTH88");
+    let name = SorobanString::from_str(&env, "Authorize agreed terms");
+    let deadline = env.ledger().timestamp() + DAY;
+    let draw = deadline + FIRST_COMMIT_WINDOW + SCHEDULED_REVEAL_WINDOW;
+    client.create_scheduled_room(&host, &code, &name, &3, &100, &(13 * DAY), &draw, &deadline);
+    let auths = env.auths();
+    assert_eq!(auths.len(), 1);
+    assert_eq!(auths[0].0, host);
+    assert!(auths[0].1.sub_invocations.is_empty());
+    assert_eq!(
+        auths[0].1.function,
+        AuthorizedFunction::Contract((
+            contract_id,
+            Symbol::new(&env, "create_scheduled_room"),
+            (host, code, name, 3u32, 100i128, 13 * DAY, draw, deadline).into_val(&env),
+        ))
+    );
+}
+
+#[test]
+fn scheduled_all_overdue_rounds_can_catch_up_to_done_without_new_commitments() {
+    let env = fresh_env();
+    let host = Address::generate(&env);
+    let m1 = Address::generate(&env);
+    let m2 = Address::generate(&env);
+    let (contract_id, token_id, id, schedule) = scheduled_room(&env, &host, &m1, &m2, 1);
+    let client = ArisanRoomsClient::new(&env, &contract_id);
+    let token = TokenClient::new(&env, &token_id);
+    seat_and_fund_installment_members(&client, id, &host, &m1, &m2);
+    client.start_room(&id, &host);
+    set_ts(&env, schedule.first_draw_at + 2 * DAY + 1);
+    let mut winners: Vec<Address> = Vec::new(&env);
+    for round in 1..=3 {
+        assert_eq!(client.draw_phase(&id), DrawPhase::Finalizable);
+        assert_eq!(client.commit_count(&id, &round), 0);
+        assert_eq!(client.reveal_count(&id, &round), 0);
+        let winner = client.finalize_draw(&id, &m1);
+        assert!(!winners.iter().any(|previous| previous == winner));
+        winners.push_back(winner);
+        assert_eq!(client.funding_state(&id).pooled, 900 - 300 * round as i128);
+        // Advancing KocokAt never rewrites the original creation agreement.
+        assert_eq!(client.get_room(&id).first_kocok, schedule.first_commit_at);
+        assert_eq!(client.scheduled_room_info(&id), schedule);
+        assert_eq!(
+            client.kocok_at(&id, &round),
+            schedule.first_commit_at + (round as u64 - 1) * DAY
+        );
+    }
+    assert_eq!(client.get_room(&id).status, RoomStatus::Done);
+    assert_eq!(token.balance(&contract_id), 0);
+    for member in [&host, &m1, &m2] {
+        assert_eq!(token.balance(member), 1_000);
+    }
+    assert_eq!(
+        client.try_finalize_draw(&id, &host),
+        Err(Ok(Error::WrongStatus))
+    );
+}
+
+#[test]
+fn scheduled_late_payout_then_emergency_refund_cannot_strand_remaining_escrow() {
+    let env = fresh_env();
+    let host = Address::generate(&env);
+    let m1 = Address::generate(&env);
+    let m2 = Address::generate(&env);
+    let (contract_id, token_id, id, schedule) = scheduled_room(&env, &host, &m1, &m2, 1);
+    let client = ArisanRoomsClient::new(&env, &contract_id);
+    let token = TokenClient::new(&env, &token_id);
+    seat_and_fund_installment_members(&client, id, &host, &m1, &m2);
+    client.start_room(&id, &host);
+    set_ts(&env, schedule.first_draw_at + DAY + GRACE_PERIOD);
+    client.finalize_draw(&id, &host);
+    assert_eq!(client.get_room(&id).round, 2);
+    assert_eq!(client.draw_phase(&id), DrawPhase::Finalizable);
+    assert_eq!(client.funding_state(&id).pooled, 600);
+    client.emergency_dissolve(&id, &m2);
+    assert_eq!(client.get_room(&id).status, RoomStatus::Dissolved);
+    assert_eq!(client.get_room(&id).first_kocok, schedule.first_commit_at);
+    assert_eq!(client.funding_state(&id).pooled, 0);
+    assert_eq!(token.balance(&contract_id), 0);
+    for member in [&host, &m1, &m2] {
+        assert_eq!(token.balance(member), 1_000);
+    }
 }

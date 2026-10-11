@@ -448,6 +448,11 @@ export default function VaultsScreen() {
           <Link href="/arisan/new" className={styles.primaryLink}>{vaultCopy.create}</Link>
           <Link href="/arisan/join" className={styles.secondaryLink}>{vaultCopy.join}</Link>
         </div>
+        {process.env.NEXT_PUBLIC_ARISAN_SCHEDULED === "1" && <Link href="/arisan/scheduled" className={styles.resourceLink}>
+          <div><h3>{{ en: "Scheduled arisan rooms", id: "Room arisan terjadwal", tl: "Mga naka-iskedyul na arisan", vi: "Phòng Arisan theo lịch" }[locale]}</h3>
+          <p>{{ en: "Full funding with an agreed 7, 30 or custom-day schedule.", id: "Pendanaan penuh dengan jadwal 7, 30, atau jumlah hari pilihan.", tl: "Buong pondo na may napagkasunduang iskedyul.", vi: "Đầy đủ tiền với lịch đã thống nhất." }[locale]}</p></div>
+          {Ico.chev({ size: 15, c: T.action })}
+        </Link>}
         {loading && myRooms.length === 0 ? (
           <div
             role="status"

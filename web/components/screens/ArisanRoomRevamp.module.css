@@ -40,9 +40,31 @@
 .sectionHeader h2 { font-size: 14px; font-weight: 700; letter-spacing: -.025em; margin: 0; line-height: 1.5; white-space: nowrap; }
 .sectionHeader h2 span { font-weight: 550; }
 .sectionHeader > span { color: #6e7c93; font-size: 9px; line-height: 1.4; text-align: right; }
-.memberRow { display: flex; align-items: center; gap: 9px; min-height: 43px; padding: 6px 0; }
+.memberRow { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 8px 12px; min-height: 43px; padding: 10px 0; }
 .memberRow + .memberRow { border-top: 1px solid #e8edf5; }
-.memberRow > span:last-child { flex-shrink: 0; }
+.memberPerson { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.memberDeposit { grid-column: 1; display: grid; gap: 3px; padding-left: 39px; min-width: 0; }
+.memberDeposit > span { color: #61708a; font-size: 11px; }
+.memberDeposit > strong { color: #18324f; font-size: 13px; line-height: 1.35; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.memberDeposit > small { color: #61708a; font-size: 10px; line-height: 1.45; overflow-wrap: anywhere; }
+.memberRow > span:last-child { grid-column: 2; grid-row: 1 / span 2; justify-self: end; max-width: 110px; text-align: center; }
+.depositNote { color: #61708a; font-size: 11px; line-height: 1.5; margin: 10px 0 0; padding-top: 10px; border-top: 1px solid #e8edf5; }
+.nextStep { display: grid; gap: 5px; padding: 12px; background: #eaf2ff; border: 1px solid #d4e2f8; border-radius: 18px; }
+.nextStep > span { color: #385a89; font-size: 11px; font-weight: 650; }
+.nextStep h2 { margin: 0; font-size: 18px; font-weight: 750; line-height: 1.3; letter-spacing: -.025em; }
+.nextStep p { margin: 0; color: #455d7c; font-size: 12px; line-height: 1.5; }
+.nextStep > small { font-size: 10px; line-height: 1.5; color: #61708a; }
+.schedule { display: grid; gap: 4px; margin: 4px 0; }
+.schedule > div { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.3fr); gap: 12px; padding: 5px 8px; border-radius: 8px; font-size: 11px; line-height: 1.45; }
+.schedule > div[data-current=true] { color: #164cbc; background: #fff; font-weight: 650; }
+.schedule dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.fallbackWarning { padding: 14px; border: 1px solid #e5c585; border-radius: 16px; color: #79500f; background: #fff5df; font-size: 12px; line-height: 1.6; }
+.fallbackWarning strong { font-size: 13px; }
+.fallbackWarning p { margin: 7px 0; }
+.fallbackWarning label { display: flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer; }
+.fallbackWarning input { width: 20px; height: 20px; flex-shrink: 0; accent-color: #2563eb; }
+.completedActions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; margin-top: 8px; }
+.completedActions :is(a,button) { display: flex; align-items: center; justify-content: center; min-height: 44px; padding: 8px; border-radius: 10px; color: #164cbc; background: #fff; border: 1px solid #c7d9ed; text-align: center; font-size: 12px; line-height: 1.4; font-weight: 650; }
 .history { padding: 13px; background: #eaf2ff; border: 1px solid #dce6f5; border-radius: 17px; }
 .history summary { display: flex; justify-content: space-between; align-items: center; gap: 10px; list-style: none; cursor: pointer; }
 .history summary::-webkit-details-marker { display: none; }

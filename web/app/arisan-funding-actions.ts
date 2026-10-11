@@ -13,7 +13,7 @@ import { FUNDING_FEE_LIMIT_ERROR, FUNDING_INVOKE_OPTIONS } from "@/lib/arisan-fu
 import {
   FUNDING_DAYS, MAX_FUNDING_SHARE_STROOPS, fundingReview, fundingReviewMatches,
   parseFundingXlm, validFundingAmount, validFundingDepositReview, validFundingReview, validFundingRoomId,
-  type FundingCadence, type FundingCreateReview, type FundingDepositReview, type FundingDrawPhase,
+  type FundingCadence, type FundingContractKind, type FundingCreateReview, type FundingDepositReview, type FundingDrawPhase,
   type FundingFailure, type FundingJoinReview, type FundingMutation, type FundingOperationReview, type FundingRoom,
   type FundingStateResult, type FundingStatus,
 } from "@/lib/arisan-funding";
@@ -23,9 +23,20 @@ const REVIEW_CHANGED = "The room, account or payment changed. Reload and review 
 const CODE_ALPHA = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
 
 /** No fallback to the legacy deployment, even if the candidate is unset. */
-function contractId(): string | null {
-  const id = process.env.ARISAN_INSTALLMENTS_CONTRACT?.trim();
-  return id && StrKey.isValidContract(id) && id !== arisanRoomsId()?.trim() ? id : null;
+function contractId(kind: FundingContractKind = "installments"): string | null {
+  if (kind !== "installments" && kind !== "scheduled") return null;
+  const id = (kind === "scheduled" ? process.env.ARISAN_SCHEDULED_CONTRACT : process.env.ARISAN_INSTALLMENTS_CONTRACT)?.trim();
+  return id && StrKey.isValidContract(id) && id !== arisanRoomsId()?.trim()
+    && (kind !== "scheduled" || id !== process.env.ARISAN_INSTALLMENTS_CONTRACT?.trim()) ? id : null;
+}
+function reviewedContractId(value: unknown): string | null {
+  return typeof value === "string" && (value === contractId() || value === contractId("scheduled")) ? value : null;
+}
+function contractKind(id: string): FundingContractKind { return id === contractId("scheduled") ? "scheduled" : "installments"; }
+async function notifyConfirmed(id: string, roomId: number): Promise<void> {
+  // Notification availability must never change a confirmed financial result.
+  try { const { syncArisanRoomNotifications } = await import("@/lib/server/arisanGatherings");
+    await syncArisanRoomNotifications(contractKind(id), roomId); } catch { /* retry through room watch/cron */ }
 }
 function failure(error = UNAVAILABLE): FundingFailure { return { ok: false, error }; }
 function unavailable(): { ready: false; error: string } { return { ready: false, error: UNAVAILABLE }; }
@@ -57,16 +68,26 @@ function validAddress(raw: unknown): raw is string {
 /** Capability and native asset checked before signer access. A valid address
  * alone is not evidence that the installed contract is the candidate. */
 type ContractInfo = { cadenceSecs: Record<FundingCadence, number>; firstCommitWindow: number;
-  maxPostponeSeconds: number; maxFundingWindow: number };
+  maxPostponeSeconds: number; maxFundingWindow: number;
+  scheduleInfo?: import("@/lib/arisan-schedule").ArisanScheduleLimits };
 async function checkContract(id: string): Promise<ContractInfo> {
   const info = record(await readContract(id, "installment_contract_info"));
   if (integer(info.version, 1, 1) !== 1 || info.token !== CONTRACTS.tokenXlmSac)
     throw new Error("Unsupported installment contract");
+  let scheduleInfo: ContractInfo["scheduleInfo"];
+  if (contractKind(id) === "scheduled") {
+    if (await readContract(id, "scheduled_only") !== true) throw new Error("Unsupported scheduled deployment");
+    const scheduled = record(await readContract(id, "scheduled_contract_info"));
+    if (integer(scheduled.version, 1, 1) !== 1 || scheduled.token !== CONTRACTS.tokenXlmSac) throw new Error("Unsupported scheduled contract");
+    scheduleInfo = { minIntervalDays: integer(scheduled.min_interval_days, 1, 365), maxIntervalDays: integer(scheduled.max_interval_days, 1, 365),
+      firstCommitWindow: integer(scheduled.first_commit_window, 1, 86400 * 30), revealWindow: integer(scheduled.reveal_window, 1, 86400 * 30),
+      maxFirstDrawDelay: integer(scheduled.max_first_draw_delay, 1, 86400 * 365) };
+  }
   return { cadenceSecs: { Weekly: integer(info.cadence_weekly, 1, 86400 * 365),
     Biweekly: integer(info.cadence_biweekly, 1, 86400 * 365), Monthly: integer(info.cadence_monthly, 1, 86400 * 365) },
     firstCommitWindow: integer(info.first_commit_window, 1, 86400 * 365),
     maxPostponeSeconds: integer(info.max_postpone, 1, 86400 * 30),
-    maxFundingWindow: integer(info.max_funding_window, 86400, 86400 * 365) };
+    maxFundingWindow: integer(info.max_funding_window, 86400, 86400 * 365), ...(scheduleInfo ? { scheduleInfo } : {}) };
 }
 
 type Core = {
@@ -75,6 +96,7 @@ type Core = {
   cadence: FundingCadence; fundingDeadline: number; firstKocok: number;
   status: FundingStatus; round: number; pooledStroops: string; fullyFundedCount: number;
   members: string[]; paid: Map<string, string>;
+  scheduledFirstDrawAt?: number; scheduledIntervalDays?: number;
 };
 class LegacyFundingRoom extends Error {}
 async function readCore(id: string, roomId: number): Promise<Core> {
@@ -86,6 +108,16 @@ async function readCore(id: string, roomId: number): Promise<Core> {
   const room = record(rawRoom), funding = record(rawFunding);
   if (tag(funding.mode) === "LegacyFull") throw new LegacyFundingRoom("This room uses the legacy full-prefund mode.");
   if (tag(funding.mode) !== "Installments") throw new Error("Not an installment room");
+  let scheduledFirstDrawAt: number | undefined, scheduledIntervalDays: number | undefined;
+  if (contractKind(id) === "scheduled") {
+    const schedule = record(await readContract(id, "scheduled_room_info", [sc.u32(roomId)]));
+    if (integer(schedule.version, 1, 1) !== 1) throw new Error("Invalid scheduled room");
+    scheduledFirstDrawAt = integer(schedule.first_draw_at, 1, Number.MAX_SAFE_INTEGER);
+    const seconds = integer(schedule.interval_seconds, 86400, 365 * 86400);
+    if (seconds % 86400 !== 0 || integer(schedule.first_commit_at, 1, Number.MAX_SAFE_INTEGER) !== integer(room.first_kocok, 1, Number.MAX_SAFE_INTEGER)
+      || schedule.funding_deadline !== room.join_deadline) throw new Error("Invalid scheduled terms");
+    scheduledIntervalDays = seconds / 86400;
+  }
   const memberTarget = integer(room.member_target, 3, 20), memberCount = integer(room.member_count, 0, 20);
   if (!Array.isArray(rawMembers) || rawMembers.length !== memberCount || rawMembers.some(value => !validAddress(value))
     || new Set(rawMembers).size !== rawMembers.length || memberCount > memberTarget)
@@ -103,7 +135,7 @@ async function readCore(id: string, roomId: number): Promise<Core> {
   const fundingDeadline = integer(funding.deadline, 1, Number.MAX_SAFE_INTEGER);
   if (integer(room.join_deadline, 1, Number.MAX_SAFE_INTEGER) !== fundingDeadline) throw new Error("Deadline mismatch");
   const firstKocok = integer(room.first_kocok, 0, Number.MAX_SAFE_INTEGER), round = integer(room.round, 0, 21);
-  if (status === "Open" && (firstKocok !== 0 || round !== 0)) throw new Error("Invalid open room");
+  if (status === "Open" && ((scheduledFirstDrawAt === undefined ? firstKocok !== 0 : firstKocok === 0) || round !== 0)) throw new Error("Invalid open room");
   if (status === "Active" && (firstKocok === 0 || round < 1 || round > memberTarget)) throw new Error("Invalid active room");
   const fullyFundedCount = integer(funding.fully_funded_count, 0, memberCount), pooledStroops = amount(funding.pooled);
   const paidRows = await Promise.all(members.map(async member => [member,
@@ -115,7 +147,8 @@ async function readCore(id: string, roomId: number): Promise<Core> {
     || paidRows.reduce((total, [, paid]) => total + BigInt(paid), 0n) !== BigInt(pooledStroops))) throw new Error("Funding changed during read");
   return { contractId: id, id: roomId, host: room.host, name: room.name, code: room.code,
     memberTarget, memberCount, shareStroops, obligationStroops, cadence, fundingDeadline,
-    firstKocok, status, round, pooledStroops, fullyFundedCount, members, paid: new Map(paidRows) };
+    firstKocok, status, round, pooledStroops, fullyFundedCount, members, paid: new Map(paidRows),
+    ...(scheduledFirstDrawAt === undefined ? {} : { scheduledFirstDrawAt, scheduledIntervalDays }) };
 }
 
 function txResult(result: TxResult): FundingMutation {
@@ -183,7 +216,9 @@ async function roomDto(core: Core, viewer: string | null, info: ContractInfo, sh
     shareStroops: core.shareStroops, obligationStroops: core.obligationStroops,
     pooledStroops: core.pooledStroops, fullyFundedCount: core.fullyFundedCount,
     fundingDeadline: core.fundingDeadline, firstKocok: core.firstKocok, cadence: core.cadence,
-    cadenceSecs: info.cadenceSecs[core.cadence], round: core.round, seats, winners,
+    cadenceSecs: core.scheduledIntervalDays ? core.scheduledIntervalDays * 86400 : info.cadenceSecs[core.cadence],
+    ...(core.scheduledFirstDrawAt === undefined ? {} : { scheduledFirstDrawAt: core.scheduledFirstDrawAt, scheduledIntervalDays: core.scheduledIntervalDays }),
+    round: core.round, seats, winners,
     drawPhase, commitAt, revealAt, commitCount, revealCount,
     canJoin: !!viewer && !isMember && open && beforeDeadline && core.memberCount < core.memberTarget,
     canDeposit: isMember && open && beforeDeadline && !!mySeat && !mySeat.fullyFunded,
@@ -196,8 +231,8 @@ async function roomDto(core: Core, viewer: string | null, info: ContractInfo, sh
     canFinalize: isMember && drawPhase === "Finalizable" };
 }
 
-export async function fundingState(roomId: number): Promise<FundingStateResult> {
-  const id = contractId();
+export async function fundingState(roomId: number, kind: FundingContractKind = "installments"): Promise<FundingStateResult> {
+  const id = contractId(kind);
   if (isLocalPreview || !id || !validFundingRoomId(roomId)) return unavailable();
   try {
     const [owner, info] = await Promise.all([authenticatedArisanWallet(), checkContract(id)]);
@@ -205,10 +240,11 @@ export async function fundingState(roomId: number): Promise<FundingStateResult> 
   } catch { return unavailable(); }
 }
 
-export async function fundingList(cursor?: number): Promise<{ ready: true; contractId: string; viewer: string | null;
+export async function fundingList(cursor?: number, kind: FundingContractKind = "installments"): Promise<{ ready: true; contractId: string; viewer: string | null;
   cadenceSecs: Record<FundingCadence, number>; firstCommitWindow: number;
+  scheduleInfo?: import("@/lib/arisan-schedule").ArisanScheduleLimits;
   total: number; rooms: FundingRoom[]; nextCursor: number | null } | { ready: false; error: string }> {
-  const id = contractId();
+  const id = contractId(kind);
   if (isLocalPreview || !id) return unavailable();
   try {
     const [owner, info] = await Promise.all([authenticatedArisanWallet(), checkContract(id)]);
@@ -233,14 +269,14 @@ export async function fundingList(cursor?: number): Promise<{ ready: true; contr
       rooms.push(...batch.filter((room): room is FundingRoom => room !== null));
     }
     return { ready: true, contractId: id, viewer: owner.ok ? owner.publicKey : null,
-      cadenceSecs: info.cadenceSecs, firstCommitWindow: info.firstCommitWindow,
+      cadenceSecs: info.cadenceSecs, firstCommitWindow: info.firstCommitWindow, ...(info.scheduleInfo ? { scheduleInfo: info.scheduleInfo } : {}),
       total: count, rooms, nextCursor: page.nextCursor };
   } catch { return unavailable(); }
 }
 
-export async function fundingResolveCode(rawCode: string): Promise<{ ok: true; id: number; code: string;
+export async function fundingResolveCode(rawCode: string, kind: FundingContractKind = "installments"): Promise<{ ok: true; id: number; code: string;
   room: FundingRoom; review: FundingJoinReview | null } | FundingFailure> {
-  const id = contractId();
+  const id = contractId(kind);
   if (isLocalPreview || !id) return failure();
   if (typeof rawCode !== "string" || !/^[A-HJ-NP-Z2-9]{6}$/.test(rawCode.trim().toUpperCase()))
     return failure("Enter the 6-character installment room code.");
@@ -256,11 +292,12 @@ export async function fundingResolveCode(rawCode: string): Promise<{ ok: true; i
 }
 
 export async function fundingCreate(input: FundingCreateReview): Promise<({ ok: true; id: number; code: string; hash: string; link: string }) | FundingFailure> {
-  const id = contractId();
+  const id = reviewedContractId(input?.contractId);
   if (isLocalPreview || !id) return failure();
   if (!input || typeof input !== "object" || typeof input.name !== "string"
     || input.contractId !== id || !validAddress(input.expectedViewer)
     || input.name.trim().length < 1 || Buffer.byteLength(input.name.trim(), "utf8") > 80
+    || (contractKind(id) === "scheduled" && /[\p{Cc}<>]/u.test(input.name.trim()))
     || !Number.isInteger(input.memberTarget) || input.memberTarget < 3 || input.memberTarget > 20
     || !FUNDING_DAYS.includes(input.fundingDays)
     || !["Weekly", "Biweekly", "Monthly"].includes(input.cadence)) return failure("Review valid room terms before creating.");
@@ -272,13 +309,28 @@ export async function fundingCreate(input: FundingCreateReview): Promise<({ ok: 
   try {
     const info = await checkContract(id);
     if (input.fundingDays * 86400 > info.maxFundingWindow) return failure("The contract does not support this funding window.");
+    const now = Math.floor(Date.now() / 1000);
+    const schedule = input.schedule;
+    if (contractKind(id) === "scheduled") {
+      const limits = info.scheduleInfo;
+      if (!schedule || !limits || !Number.isInteger(schedule.intervalDays)
+        || schedule.intervalDays < limits.minIntervalDays || schedule.intervalDays > limits.maxIntervalDays
+        || !Number.isSafeInteger(schedule.firstDrawAt) || !Number.isSafeInteger(schedule.fundingDeadlineAt)
+        || schedule.fundingDeadlineAt <= now || schedule.fundingDeadlineAt - now > info.maxFundingWindow
+        || schedule.firstDrawAt - schedule.fundingDeadlineAt < limits.firstCommitWindow + limits.revealWindow
+        || schedule.firstDrawAt - now > limits.maxFirstDrawDelay
+        || typeof schedule.timeZone !== "string" || schedule.timeZone.length > 80
+        || input.cadence !== (schedule.intervalDays === 30 ? "Monthly" : "Weekly")) return failure("Review valid funding and draw dates, timezone and day interval.");
+      try { new Intl.DateTimeFormat("en", { timeZone: schedule.timeZone }).format(0); } catch { return failure("Choose a valid timezone."); }
+    } else if (schedule) return failure("This contract does not support scheduled rooms.");
     const resolved = await savedSigner(input.expectedViewer);
     if (!resolved.ok) return resolved;
     const code = [...randomBytes(6)].map(byte => CODE_ALPHA[byte & 31]).join("");
-    const deadline = Math.floor(Date.now() / 1000) + input.fundingDays * 86400;
-    const result = await invokeAs(resolved.signer.secret, id, "create_installment_room", [sc.addr(owner.publicKey),
-      sc.sym(code), sc.str(input.name.trim()), sc.u32(input.memberTarget), sc.i128(BigInt(share)),
-      sc.unitVariant(input.cadence), sc.u64(deadline)], FUNDING_INVOKE_OPTIONS);
+    const deadline = schedule ? schedule.fundingDeadlineAt : now + input.fundingDays * 86400;
+    const args = [sc.addr(owner.publicKey), sc.sym(code), sc.str(input.name.trim()), sc.u32(input.memberTarget), sc.i128(BigInt(share))];
+    if (schedule) args.push(sc.u64(schedule.intervalDays * 86400), sc.u64(schedule.firstDrawAt), sc.u64(deadline));
+    else args.push(sc.unitVariant(input.cadence), sc.u64(deadline));
+    const result = await invokeAs(resolved.signer.secret, id, schedule ? "create_scheduled_room" : "create_installment_room", args, FUNDING_INVOKE_OPTIONS);
     if (!result.ok) return { ...txResult(result), code } as FundingFailure;
     let roomId: number;
     try { roomId = integer(result.value, 1); }
@@ -288,21 +340,23 @@ export async function fundingCreate(input: FundingCreateReview): Promise<({ ok: 
         const core = await readCore(id, recoveredId);
         if (core.host !== owner.publicKey || core.code !== code || core.name !== input.name.trim()
           || core.memberTarget !== input.memberTarget || core.shareStroops !== share
-          || core.cadence !== input.cadence || core.fundingDeadline !== deadline) throw new Error("Created room could not be verified");
+          || core.cadence !== input.cadence || core.fundingDeadline !== deadline
+          || (schedule && (core.scheduledFirstDrawAt !== schedule.firstDrawAt || core.scheduledIntervalDays !== schedule.intervalDays))) throw new Error("Created room could not be verified");
         roomId = recoveredId;
       } catch {
         return { ok: false, pending: true, hash: result.hash, link: txLink(result.hash), code,
           error: `The transaction is confirmed, but verifying the new room is pending. Do not create it again. Resolve invite ${code} or check the original receipt.` };
       }
     }
+    await notifyConfirmed(id, roomId);
     return { ok: true, id: roomId, code, hash: result.hash, link: txLink(result.hash) };
   } catch { return failure(); }
 }
 
 /** Independently recover a submitted create from its original committed
  * envelope. A successful status alone never unlocks another create attempt. */
-export async function fundingRecoverCreate(hash: string): Promise<({ ok: true; id: number; code: string; hash: string; link: string }) | FundingFailure> {
-  const id = contractId();
+export async function fundingRecoverCreate(hash: string, kind: FundingContractKind = "installments"): Promise<({ ok: true; id: number; code: string; hash: string; link: string }) | FundingFailure> {
+  const id = contractId(kind);
   if (isLocalPreview || !id) return failure();
   if (typeof hash !== "string" || !/^[a-f0-9]{64}$/.test(hash)) return failure("Invalid original transaction hash.");
   const owner = await authenticatedArisanWallet();
@@ -317,7 +371,8 @@ export async function fundingRecoverCreate(hash: string): Promise<({ ok: true; i
     const core = await readCore(id, roomId);
     if (core.host !== receipt.host || core.code !== receipt.code || core.name !== receipt.name
       || core.memberTarget !== receipt.memberTarget || core.shareStroops !== receipt.shareStroops
-      || core.cadence !== receipt.cadence || core.fundingDeadline !== receipt.fundingDeadline)
+      || core.cadence !== receipt.cadence || core.fundingDeadline !== receipt.fundingDeadline
+      || core.scheduledFirstDrawAt !== receipt.scheduledFirstDrawAt || core.scheduledIntervalDays !== receipt.scheduledIntervalDays)
       return unresolved("The original room's immutable terms could not be verified. Retry recovery only, not creation.");
     const currentOwner = await authenticatedArisanWallet();
     if (!currentOwner.ok || currentOwner.publicKey !== owner.publicKey) return unresolved(REVIEW_CHANGED);
@@ -343,7 +398,7 @@ async function checkedReview(id: string, review: FundingJoinReview, purpose: "jo
 }
 
 async function reviewedMutation(review: FundingJoinReview, purpose: "join" | "deposit"): Promise<FundingMutation> {
-  const id = contractId();
+  const id = reviewedContractId(review?.contractId);
   if (isLocalPreview || !id) return failure();
   if (!(purpose === "join" ? validFundingReview(review) : validFundingDepositReview(review))
     || review.contractId !== id || !validAddress(review.viewer)) return failure(REVIEW_CHANGED);
@@ -361,6 +416,7 @@ async function reviewedMutation(review: FundingJoinReview, purpose: "join" | "de
     const result = txResult(await invokeAs(resolved.signer.secret, id, purpose === "join" ? "join_room" : "deposit_room",
       purpose === "join" ? [sc.u32(review.roomId), sc.sym(review.code), sc.addr(review.viewer)]
         : [sc.u32(review.roomId), sc.addr(review.viewer), sc.i128(BigInt((review as FundingDepositReview).amountStroops))], FUNDING_INVOKE_OPTIONS));
+    if (result.ok) await notifyConfirmed(id, review.roomId);
     return result.ok && purpose === "join" ? { ...result, id: review.roomId } : result;
   } catch { return failure(); }
 }
@@ -406,7 +462,7 @@ async function drawOperationError(core: Core, viewer: string, operation: RoomOpe
   return null;
 }
 async function roomMutation(review: FundingOperationReview, operation: RoomOperation, delaySeconds?: number): Promise<FundingMutation> {
-  const id = contractId();
+  const id = reviewedContractId(review?.contractId);
   if (isLocalPreview || !id) return failure();
   if (!validFundingReview(review) || review.contractId !== id || !validAddress(review.viewer)
     || !Number.isSafeInteger(review.round) || review.round < 0 || review.round > 21
@@ -444,7 +500,9 @@ async function roomMutation(review: FundingOperationReview, operation: RoomOpera
         round: current.round, participant: signer.publicKey, secret }) : secret));
     }
     if (operation === "postpone") args.push(sc.u64(delaySeconds!));
-    return txResult(await invokeAs(signer.secret, id, method[operation], args, FUNDING_INVOKE_OPTIONS));
+    const result = txResult(await invokeAs(signer.secret, id, method[operation], args, FUNDING_INVOKE_OPTIONS));
+    if (result.ok) await notifyConfirmed(id, roomId);
+    return result;
   } catch { return failure(); }
 }
 export async function fundingStart(review: FundingOperationReview): Promise<FundingMutation> { return roomMutation(review, "start"); }
