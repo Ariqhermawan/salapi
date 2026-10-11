@@ -1,9 +1,11 @@
 import { test, expect } from "@playwright/test";
+import { assertLocalArisanFixtureTarget, isLocalArisanFixtureTarget } from "./helpers/arisan-guidance";
 
 // The browser must not accept an invite code before React can record onChange.
 // No invite lookup, membership, signer, or financial action is submitted.
 test("invite input waits for hydration and retains the first accepted code", async ({ page, baseURL }, testInfo) => {
-  expect(["localhost", "127.0.0.1"]).toContain(new URL(baseURL!).hostname);
+  test.skip(!isLocalArisanFixtureTarget(baseURL), "Isolated hydration QA must not target a live deployment");
+  assertLocalArisanFixtureTarget(baseURL);
   await page.setViewportSize({ width: 390, height: 844 });
   let release!: () => void;
   const scriptsReady = new Promise<void>(resolve => { release = resolve; });

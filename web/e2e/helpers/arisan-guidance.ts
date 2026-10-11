@@ -6,6 +6,19 @@ export type GuidancePhase = "Open" | "Commit" | "Reveal" | "Finalizable" | "Done
 const addresses = ["G" + "A".repeat(55), "G" + "B".repeat(55), "G" + "C".repeat(55), "G" + "D".repeat(55), "G" + "E".repeat(55)];
 const handles = ["ariqhermawan", "nonimaharani", "maya_test", "rina_test", "bayu_test"];
 
+export function isLocalArisanFixtureTarget(target: string | undefined): boolean {
+  try {
+    const url = new URL(target ?? "");
+    return ["http:", "https:"].includes(url.protocol)
+      && ["localhost", "127.0.0.1"].includes(url.hostname)
+      && !url.username && !url.password;
+  } catch { return false; }
+}
+
+export function assertLocalArisanFixtureTarget(target: string | undefined): asserts target is string {
+  if (!isLocalArisanFixtureTarget(target)) throw new Error("Isolated Arisan fixtures require an explicit localhost or 127.0.0.1 target");
+}
+
 export function guidanceRoom(phase: GuidancePhase, now = Math.floor(Date.now() / 1000)) {
   const active = !["Open", "Done"].includes(phase), done = phase === "Done";
   const seats = addresses.map((addr, index) => ({ addr, label: handles[index], won: done || active && index === 1,
@@ -24,6 +37,9 @@ export function guidanceRoom(phase: GuidancePhase, now = Math.floor(Date.now() /
 // Actual production React route, display-only transport doubles. No session,
 // signer, account mutation, membership write or Testnet transaction is used.
 export async function installGuidanceFixture(page: Page, phase: GuidancePhase, target: string, locale = "en") {
+  // Keep this independent of the suite's skip: direct helper calls must fail
+  // closed before reading action IDs, setting cookies or installing routes.
+  assertLocalArisanFixtureTarget(target);
   const manifest = JSON.parse(readFileSync(join(process.cwd(), ".next/server/server-reference-manifest.json"), "utf8"));
   const names: Record<string, string> = Object.fromEntries(Object.entries(manifest.node).map(([id, entry]) => [id, (entry as { exportedName: string }).exportedName]));
   let room = guidanceRoom(phase);
