@@ -1,7 +1,11 @@
 import { readFileSync } from "node:fs";
-import { test, expect, type Page } from "@playwright/test";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { test, expect, type Locator, type Page } from "@playwright/test";
 import { Keypair } from "@stellar/stellar-sdk";
 import { homeCatalogCopy } from "../lib/i18n/revamp-home-catalog";
+import { homeCopy } from "../lib/i18n/revamp-home";
+import { circlesCopy } from "../lib/i18n/revamp-circles";
 import type { Locale } from "../lib/i18n/config";
 import type { CircleTestnetCampaignResult } from "../lib/circles/testnet";
 import { expectHomeControlReachable } from "./helpers/home-catalog";
@@ -43,7 +47,7 @@ function quote(now: number, price = .25, status: "fresh" | "stale" = "fresh", ag
   } };
 }
 
-async function setup(page: Page, priceBody: () => object, currency = "en", locale: Locale = "en", linkedFunding = false) {
+async function setup(page: Page, priceBody: () => object, currency = "en", locale: Locale = "en", linkedFunding = false, nativeStroops = fixtureWallet.nativeStroops) {
   const manifest = JSON.parse(readFileSync(".next/server/server-reference-manifest.json", "utf8"));
   const names = new Map(Object.entries(manifest.node as Record<string, { exportedName: string }>).map(([id, value]) => [id, value.exportedName]));
   expect([...names.values()]).toContain("walletState");
@@ -82,7 +86,7 @@ async function setup(page: Page, priceBody: () => object, currency = "en", local
       const failure = '{"ok":false,"error":"Your wallet balance is unavailable."}';
       expect(body).toContain(failure);
       calls.walletFailuresVerified++;
-      return route.fulfill({ response, body: body.replace(failure, JSON.stringify(fixtureWallet)) });
+      return route.fulfill({ response, body: body.replace(failure, JSON.stringify({ ...fixtureWallet, nativeStroops })) });
     }
     // These existing read-only actions retain their actual response, including
     // myHandle:null. No identity is invented or account switched by these tests.
@@ -105,6 +109,58 @@ async function openHome(page: Page) {
   // while retaining its accessibility contract, rather than racing both.
   await expect(market.locator("[data-market-estimate]")).toHaveAttribute("role", "status");
   return market;
+}
+
+async function homeUsableBounds(page: Page) {
+  return page.evaluate(() => {
+    const frame = document.querySelector<HTMLElement>(".sl-app-frame");
+    const main = document.querySelector<HTMLElement>("#app-content");
+    const nav = document.querySelector<HTMLElement>(".sl-tabbar");
+    if (!frame || !main || !nav) throw new Error("Home must render its actual app frame, main scrollport and persistent navigation");
+    const frameRect = frame.getBoundingClientRect(), mainRect = main.getBoundingClientRect();
+    const navControls = [...nav.querySelectorAll("button, button span")].map(control => control.getBoundingClientRect()).filter(rect => rect.width > 0 && rect.height > 0);
+    return {
+      top: Math.max(0, frameRect.top, mainRect.top),
+      bottom: Math.min(innerHeight, frameRect.bottom, mainRect.bottom, nav.getBoundingClientRect().top, ...navControls.map(rect => rect.top)),
+      left: Math.max(0, frameRect.left, mainRect.left),
+      right: Math.min(innerWidth, frameRect.right, mainRect.right),
+    };
+  });
+}
+
+async function expectHomeFirstScreenBox(page: Page, control: Locator, label: string, touchTarget = false) {
+  await expect(control, `${label} must stay rendered`).toBeVisible();
+  const rect = await control.boundingBox(), bounds = await homeUsableBounds(page);
+  expect(rect, `${label} must have a rendered box`).not.toBeNull();
+  expect(rect!.y, `${label} must not clip above the app scrollport`).toBeGreaterThanOrEqual(bounds.top - 1);
+  expect(rect!.y + rect!.height, `${label} must clear the raised Send control without scrolling`).toBeLessThanOrEqual(bounds.bottom + 1);
+  expect(rect!.x, `${label} must stay inside the left app edge`).toBeGreaterThanOrEqual(bounds.left - 1);
+  expect(rect!.x + rect!.width, `${label} must stay inside the right app edge`).toBeLessThanOrEqual(bounds.right + 1);
+  expect(await control.evaluate(element => {
+    const box = element.getBoundingClientRect();
+    return element.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2));
+  }), `${label} must not be covered at its center`).toBe(true);
+  if (touchTarget) {
+    expect(rect!.height, `${label} must keep its 44px touch target`).toBeGreaterThanOrEqual(43.5);
+    expect(rect!.width, `${label} must keep its 44px touch target`).toBeGreaterThanOrEqual(43.5);
+  }
+}
+
+async function expectFundingPhotoDominance(card: Locator) {
+  const hero = card.getByTestId("home-campaign-hero"), photo = hero.locator(":scope > a"), title = hero.getByRole("heading", { level: 2 });
+  const [cardBox, heroBox, photoBox, titleBox] = await Promise.all([card.boundingBox(), hero.boundingBox(), photo.boundingBox(), title.boundingBox()]);
+  expect(cardBox && heroBox && photoBox && titleBox, "Card, full-width campaign photo and complete title must have rendered boxes").toBeTruthy();
+  expect(heroBox!.width, "Campaign hero must remain full width, not a thumbnail").toBeGreaterThanOrEqual(cardBox!.width - 2);
+  expect(photoBox!.width, "Campaign photo must span its hero").toBeGreaterThanOrEqual(heroBox!.width - 2);
+  expect(photoBox!.height, "Campaign photo must retain a legible scene").toBeGreaterThanOrEqual(96);
+  expect(photoBox!.width * photoBox!.height, "Campaign photo must remain at least 2.5 times as prominent as its full title").toBeGreaterThanOrEqual(titleBox!.width * titleBox!.height * 2.5);
+  expect(titleBox!.y, "Title must stay inside the photographic stage").toBeGreaterThanOrEqual(photoBox!.y - 1);
+  expect(titleBox!.y + titleBox!.height, "The full title must stay inside the photographic stage").toBeLessThanOrEqual(photoBox!.y + photoBox!.height + 1);
+  expect(Math.abs(titleBox!.x + titleBox!.width / 2 - heroBox!.x - heroBox!.width / 2), "Title must be geometrically centered").toBeLessThanOrEqual(1);
+  const text = await title.evaluate(element => ({ height: element.clientHeight, contentHeight: element.scrollHeight, clamp: getComputedStyle(element).webkitLineClamp, align: getComputedStyle(element).textAlign }));
+  expect(text.contentHeight, "The complete localized campaign title must not be cropped").toBeLessThanOrEqual(text.height + 1);
+  expect(["none", "", "0"], "Title clamping must not manufacture a fit").toContain(text.clamp);
+  expect(text.align).toBe("center");
 }
 
 test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () => {
@@ -271,6 +327,89 @@ test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () =>
       await footerControls[2].click();
       await expect(catalog.getByLabel(homeCatalogCopy(locale, "{current} of {count} example causes", { current: 2, count: fixtureCatalogCount }), { exact: true })).toHaveText("02 / 28");
       await expectHomeControlReachable(page, footerControls[2], "Next campaign after slide change");
+      expect(fixture.calls.forbidden).toEqual([]); expect(fixture.errors).toEqual([]);
+    });
+  });
+
+  const budgetCases: { state: "fresh" | "stale" | "unavailable"; locale: "en" | "tl"; viewport: { width: number; height: number } }[] = [
+    ...[{ width: 390, height: 844 }, { width: 1440, height: 950 }].flatMap(viewport => (["fresh", "stale", "unavailable"] as const).map(state => ({ state, locale: "en" as const, viewport }))),
+    ...(["fresh", "stale", "unavailable"] as const).map(state => ({ state, locale: "tl" as const, viewport: { width: 390, height: 844 } })),
+  ];
+  for (const { state, locale, viewport } of budgetCases) test.describe(`${locale} ${viewport.width}x${viewport.height} ${state} settled Home budget`, () => {
+    test.use({ viewport, isMobile: viewport.width < 1024, hasTouch: viewport.width < 1024 });
+    test("settled linked funding preserves the photo, full title and usable Home footer", async ({ page }) => {
+      const body = () => state === "unavailable"
+        ? { status: "unavailable", source: "CoinGecko", reason: "provider-unavailable" }
+        : quote(Date.now(), .25, state, state === "stale" ? 121_000 : 0);
+      // Realistic native precision exercises wrapping that a round 10000 XLM
+      // display can miss. It remains an isolated UI fixture, never a live read.
+      const fixture = await setup(page, body, "en", locale, true, "157268986112");
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      const market = await openHome(page);
+      await expect(market).toHaveAttribute("data-market-value", state);
+      await expect(market.locator("[data-native-balance]")).toHaveText("15726.8986112 XLM");
+      const catalog = page.getByTestId("home-circles-catalog");
+      await expect(catalog).toHaveAttribute("data-catalog-ready", "true");
+      await expect(page.locator("html")).toHaveAttribute("lang", locale);
+      await expect(catalog.locator("article[data-example-cause]")).toHaveCount(27);
+      await expect(catalog.locator("article[data-standalone-campaign]")).toHaveCount(1);
+      const card = catalog.locator('article[data-example-cause="tino-relief"][data-active-card=true]');
+      const funding = card.locator('[data-funding-kind="testnet"]');
+      await expect(funding).toHaveAttribute("data-market-status", state);
+      await expect(funding.locator("[data-confirmed-stroops]")).toHaveText("100 XLM · Testnet");
+      if (state === "unavailable") {
+        await expect(market.locator("[data-market-estimate]")).not.toContainText("$0");
+        await expect(funding.getByText(locale === "en" ? "USD estimate unavailable" : "Hindi available ang USD estimate", { exact: true })).toBeVisible();
+        await expect(funding.locator("progress")).toHaveCount(0);
+        await expect(funding).not.toContainText("≈ $0");
+      } else {
+        await expect(market.locator("[data-market-estimate]")).toHaveText("≈ $3,931.72 USD");
+        await expect(funding).toContainText("≈ $25.00 USD");
+        await expect(funding.locator("progress")).toHaveAttribute("aria-valuetext", "0.58%");
+        if (state === "stale") await expect(funding.getByText(locale === "en" ? "Last known price" : "Huling alam na presyo", { exact: true })).toBeVisible();
+      }
+      await page.evaluate(async () => { await document.fonts.ready; });
+      await expect.poll(() => card.getByTestId("home-campaign-hero").locator(":scope > a").getByRole("img").evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true);
+      await expectFundingPhotoDominance(card);
+      const main = page.locator("#app-content");
+      const dimensions = await main.evaluate(element => ({ width: element.clientWidth, contentWidth: element.scrollWidth, height: element.clientHeight, contentHeight: element.scrollHeight, top: element.scrollTop, overflow: getComputedStyle(element).overflowY }));
+      expect(dimensions.contentWidth, "Home must never overflow horizontally").toBeLessThanOrEqual(dimensions.width + 1);
+      expect(dimensions.top, "Budget measurements must begin before any app scrolling").toBe(0);
+      expect(["hidden", "clip"], "Long localized content must retain natural main scrolling").not.toContain(dimensions.overflow);
+      const carousel = await card.evaluate(element => ({ height: element.clientHeight, contentHeight: element.scrollHeight, stripHeight: element.parentElement!.clientHeight, stripContentHeight: element.parentElement!.scrollHeight, stripTop: element.parentElement!.scrollTop }));
+      expect(carousel.contentHeight, "The card must not crop its content").toBeLessThanOrEqual(carousel.height + 1);
+      expect(carousel.stripContentHeight, "The carousel must not become a second vertical scrollport").toBeLessThanOrEqual(carousel.stripHeight + 1);
+      expect(carousel.stripTop).toBe(0);
+      const footer = page.getByTestId("home-dashboard").locator(":scope > footer");
+      const controls = [
+        card.getByRole("link", { name: circlesCopy(locale)("View campaign"), exact: true }),
+        catalog.locator("#home-cause-category"),
+        catalog.getByRole("button", { name: homeCatalogCopy(locale, "Previous example cause"), exact: true }),
+        catalog.getByRole("button", { name: homeCatalogCopy(locale, "Next example cause"), exact: true }),
+      ];
+      // EN comfortable frames must fit with no scroll intervention. The longer
+      // TL title may grow naturally, but may never shrink to a clipped thumbnail.
+      if (locale === "en") {
+        expect(dimensions.contentHeight, "Settled funding, including stale/unavailable copy, must fit the comfortable Home scrollport").toBeLessThanOrEqual(dimensions.height + 1);
+        await expectHomeFirstScreenBox(page, page.getByRole("region", { name: homeCopy(locale, "Your Testnet wallet"), exact: true }), "Wallet and actions");
+        await expectHomeFirstScreenBox(page, card, "Complete campaign card");
+        await expectHomeFirstScreenBox(page, page.getByRole("region", { name: homeCopy(locale, "QUICK ACTIONS"), exact: true }), "Quick actions");
+        await expectHomeFirstScreenBox(page, footer, "Stellar and documentation footer");
+        for (const control of controls) await expectHomeFirstScreenBox(page, control, "Home control", true);
+        expect(await main.evaluate(element => element.scrollTop), "No scroll helper may manufacture first-screen fit").toBe(0);
+      }
+      await page.screenshot({ path: join(tmpdir(), "salapi-home-responsive-20261011", `home-budget-${locale}-${viewport.width}x${viewport.height}-${state}.png`), fullPage: false });
+      if (locale === "tl") {
+        for (const control of controls) await expectHomeControlReachable(page, control, "Localized Home control");
+        await expectHomeControlReachable(page, footer, "Localized Stellar and documentation footer");
+        for (const control of controls) {
+          const rect = await control.boundingBox();
+          expect(rect).not.toBeNull();
+          expect(rect!.height).toBeGreaterThanOrEqual(43.5); expect(rect!.width).toBeGreaterThanOrEqual(43.5);
+        }
+      }
+      expect(await page.evaluate(() => document.scrollingElement?.scrollTop ?? 0), "Only the app main may scroll").toBe(0);
+      expect(fixture.calls.walletFailuresVerified).toBe(1);
       expect(fixture.calls.forbidden).toEqual([]); expect(fixture.errors).toEqual([]);
     });
   });
