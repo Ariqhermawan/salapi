@@ -53,9 +53,8 @@ async function expectIdentityDenied(page: Page) {
   // A clean context has no verified account. A configured client can confirm
   // guest; missing client configuration stays unavailable. Both must deny
   // payment rather than invent a user or enable a confirmation button.
-  await expect(signin.or(unavailable)).toBeVisible();
+  await expect(signin.or(unavailable.getByRole("button", { name: "Check account", exact: true }))).toBeVisible();
   if (await signin.isVisible()) await expect(signin).toHaveAttribute("href", "/signin?next=%2Fcircles%2Ftino-relief%2Fdonate");
-  else await expect(unavailable.getByRole("button", { name: "Check account", exact: true })).toBeVisible();
 }
 
 function openMappingFixture(): Extract<CircleTestnetCampaignResult, { ok: true }> {
@@ -161,9 +160,10 @@ for (const locale of ["en", "id", "tl", "vi"] as const) for (const viewport of [
   await expect(region.getByRole("heading", { name: text("Review before sending"), exact: true })).toBeVisible();
   await expect(confirm).toHaveCount(1);
   await expect(confirm).toBeEnabled();
-  await expect(region.getByText("10 XLM", { exact: true })).toBeVisible();
-  await expect(region.getByText("9.5 XLM", { exact: true })).toBeVisible();
-  await expect(region.locator(".reviewSplit")).toContainText("0.5 XLM (5%)");
+  await expect(region.getByText("$10", { exact: true })).toBeVisible();
+  await expect(region.getByText("89.2307692 Testnet XLM to send", { exact: true })).toBeVisible();
+  await expect(region.locator(".reviewSplit")).toContainText("84.7692308 XLM");
+  await expect(region.locator(".reviewSplit")).toContainText("4.4615384 XLM · 5%");
   const details = region.locator("details");
   await expect(details).not.toHaveAttribute("open");
   expect(await page.locator("#app-content").evaluate(main => main.scrollTop)).toBe(0);
@@ -332,7 +332,8 @@ for (const width of [320, 390, 1280]) test(`Story precedes confirmed donor amoun
   const summary = page.getByTestId("circle-testnet-summary");
   const donors = page.getByRole("region", { name: "Testnet donor activity", exact: true });
   await expect(summary.getByText("100 XLM", { exact: true })).toHaveCount(2);
-  await expect(summary.getByText("≈ 25.00 USDC", { exact: true })).toHaveCount(2);
+  await expect(summary.getByText("≈ $11.21", { exact: true })).toHaveCount(2);
+  await expect(summary.getByText("Market reference: ≈ 25.00 USDC", { exact: true })).toHaveCount(2);
   await expect(summary.getByRole("progressbar")).toHaveAttribute("aria-valuetext", "0.58% of QA goal");
   await expect(donors).toContainText("50 XLM");
   await expect(donors).toContainText("≈ 12.50 USDC");
@@ -356,7 +357,8 @@ for (const width of [320, 390, 1280]) test(`Story precedes confirmed donor amoun
   await address.click();
   now += 61_000; price = .5; await page.clock.fastForward(61_000);
   await expect(summary.getByText("100 XLM", { exact: true })).toHaveCount(2);
-  await expect(summary.getByText("≈ 50.00 USDC", { exact: true })).toHaveCount(2);
+  await expect(summary.getByText("≈ $11.21", { exact: true })).toHaveCount(2);
+  await expect(summary.getByText("Market reference: ≈ 50.00 USDC", { exact: true })).toHaveCount(2);
   await expect(summary.getByRole("progressbar")).toHaveAttribute("aria-valuetext", "1.16% of QA goal");
   await expect(donors).toContainText("≈ 25.00 USDC");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);

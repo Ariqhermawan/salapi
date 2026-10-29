@@ -7,6 +7,7 @@ import { useT } from "@/components/I18nProvider";
 import { useMarketPrices } from "@/components/MarketPricesProvider";
 import { activityStroopsToXlm } from "@/lib/wallet-activity";
 import { estimateUsdc, validateMarketPrices } from "@/lib/market-prices";
+import { formatIllustrativeUsd } from "@/lib/money";
 import type { CampaignDonorCode, CampaignDonorEntry, CampaignDonorFeedResult } from "@/lib/campaign-donor";
 import styles from "./CampaignDonorActivity.module.css";
 
@@ -18,10 +19,10 @@ const COPY = {
   vi: { title: "Hoạt động nhà tài trợ Testnet", about: "Chỉ gồm khoản quyên góp trong ứng dụng đã xác nhận. Đây không phải toàn bộ lịch sử blockchain.", badge: "Testnet đã xác nhận", anonymous: "Ẩn danh", supporter: "Người ủng hộ", loading: "Đang tải hồ sơ nhà tài trợ đã xác nhận…", refresh: "Làm mới hoạt động nhà tài trợ", retry: "Thử lại", more: "Tải hồ sơ cũ hơn", empty: "Chưa có hồ sơ quyên góp trong ứng dụng đã xác nhận.", emptyNote: "Khoản quyên góp cũ có thể tồn tại trên Stellar mà chưa được ghi ở đây. Điều này không có nghĩa chiến dịch chưa nhận tiền.", unavailable: "Tạm thời không thể tải hồ sơ nhà tài trợ.", setup: "Nhật ký nhà tài trợ chưa được cấu hình.", errorNote: "Màn hình này chưa thể xác nhận hồ sơ có tồn tại. Kiểm tra tổng chiến dịch và biên lai giao dịch riêng.", receipt: "Xem biên lai", privacy: "Về hiển thị ẩn danh", privacyNote: "Ẩn danh giấu tên, ảnh, ví và liên kết biên lai trong bảng này. Giao dịch Stellar vẫn công khai; số tiền hoặc thời gian có thể xác định khoản quyên góp.", limit: "Đang hiển thị 50 hồ sơ ứng dụng mới nhất. Làm mới để xem khoản quyên góp mới.", wallet: "Ví", count: "hồ sơ hiển thị" },
 } as const;
 const MARKET_COPY = {
-  en: { note: "Current USDC estimates follow CoinGecko prices. Donations remain Testnet XLM.", stale: "Last known price", unavailable: "USDC estimate unavailable", fullWallet: "Full wallet address" },
-  id: { note: "Estimasi USDC saat ini mengikuti harga CoinGecko. Donasi tetap berupa Testnet XLM.", stale: "Harga terakhir diketahui", unavailable: "Estimasi USDC belum tersedia", fullWallet: "Alamat wallet lengkap" },
-  tl: { note: "Sumusunod sa kasalukuyang presyo ng CoinGecko ang USDC estimate. Testnet XLM pa rin ang mga donasyon.", stale: "Huling alam na presyo", unavailable: "Hindi available ang USDC estimate", fullWallet: "Buong wallet address" },
-  vi: { note: "Ước tính USDC hiện tại thay đổi theo giá CoinGecko. Khoản quyên góp vẫn là Testnet XLM.", stale: "Giá gần nhất đã biết", unavailable: "Chưa có ước tính USDC", fullWallet: "Địa chỉ ví đầy đủ" },
+  en: { note: "Current USDC estimates follow CoinGecko prices. Donations remain Testnet XLM.", stale: "Last known price", unavailable: "USDC estimate unavailable", fullWallet: "Full wallet address", reference: "Market reference" },
+  id: { note: "Estimasi USDC saat ini mengikuti harga CoinGecko. Donasi tetap berupa Testnet XLM.", stale: "Harga terakhir diketahui", unavailable: "Estimasi USDC belum tersedia", fullWallet: "Alamat wallet lengkap", reference: "Referensi pasar" },
+  tl: { note: "Sumusunod sa kasalukuyang presyo ng CoinGecko ang USDC estimate. Testnet XLM pa rin ang mga donasyon.", stale: "Huling alam na presyo", unavailable: "Hindi available ang USDC estimate", fullWallet: "Buong wallet address", reference: "Market reference" },
+  vi: { note: "Ước tính USDC hiện tại thay đổi theo giá CoinGecko. Khoản quyên góp vẫn là Testnet XLM.", stale: "Giá gần nhất đã biết", unavailable: "Chưa có ước tính USDC", fullWallet: "Địa chỉ ví đầy đủ", reference: "Tham chiếu thị trường" },
 } as const;
 type FeedState = { scope: string; entries: CampaignDonorEntry[]; cursor: string | null; error: CampaignDonorCode | null; loaded: boolean; loadingMore: boolean };
 
@@ -87,8 +88,9 @@ export default function CampaignDonorActivity({ campaignId, refreshKey = "" }: {
       const usdcText = usdc?.toLocaleString(dateLocale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       return <li className={styles.entry} key={item.id}>
         <DonorPhoto key={`${item.id}:${item.anonymous ? "anonymous" : item.donor?.photoUrl ?? "initial"}`} src={item.anonymous ? null : item.donor?.photoUrl ?? null} initial={item.anonymous ? "A" : name.replace(/^@/, "")[0].toUpperCase()} />
-        <div className={styles.body}><div className={styles.row}><strong>{name}</strong><span className={styles.amount}>{activityStroopsToXlm(item.amountStroops)} <small>XLM</small>
-          {usdc !== null ? <span className={styles.estimate}>≈ {usdcText} USDC</span> : null}</span></div>
+        <div className={styles.body}><div className={styles.row}><strong>{name}</strong><span className={styles.amount}>≈ {formatIllustrativeUsd(item.amountStroops)}
+          <span className={styles.estimate}>{activityStroopsToXlm(item.amountStroops)} XLM</span>
+          {usdc !== null ? <span className={styles.estimate}>{marketCopy.reference}: ≈ {usdcText} USDC</span> : null}</span></div>
           <span className={styles.badge}>{copy.badge}</span>
           <time dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleString(dateLocale, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</time>
           {!item.anonymous && item.donor ? <details className={styles.address}>

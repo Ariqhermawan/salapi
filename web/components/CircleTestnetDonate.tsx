@@ -4,7 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { donateCircleTestnet } from "@/app/circle-donation-actions";
 import { campaignDonorRecord } from "@/app/campaign-donor-actions";
-import { circleDonationAmount, circleDonationTerms } from "@/lib/circles/donation";
+import { circleDonationTerms, circleUsdDonationAmount } from "@/lib/circles/donation";
 import { campaignDonorComment, type CampaignDonorInput } from "@/lib/campaign-donor";
 import type { Circle } from "@/lib/circles/types";
 import type { CircleTestnetCampaignResult } from "@/lib/circles/testnet";
@@ -13,6 +13,7 @@ import { useCirclesSignupIdentity } from "@/lib/ui/useCirclesSignupIdentity";
 import { useUnresolvedSubmission } from "@/lib/ui/useUnresolvedSubmission";
 import { useGoBack } from "@/lib/ui/useGoBack";
 import { formatStroops } from "@/lib/format-stroops";
+import { formatIllustrativeUsd } from "@/lib/money";
 import { campaignSplit } from "@/lib/campaign-money";
 import CircleTestnetSummary from "@/components/CircleTestnetSummary";
 import CampaignDonorActivity from "@/components/CampaignDonorActivity";
@@ -26,7 +27,7 @@ import styles from "./CircleTestnetDonate.module.css";
 import AvailableWalletBalance from "@/components/AvailableWalletBalance";
 
 type Receipt = { campaignId: string; ownerId: string; ownerRevision: number; hash: string; amountStroops?: bigint; comment: string; anonymous: boolean; publicProfileOk: boolean };
-type Review = { terms: Extract<CircleTestnetCampaignResult, { ok: true }>; amount: string; ownerId: string; ownerRevision: number; comment: string; anonymous: boolean; publicProfileOk: boolean };
+type Review = { terms: Extract<CircleTestnetCampaignResult, { ok: true }>; amount: string; amountStroops: bigint; ownerId: string; ownerRevision: number; comment: string; anonymous: boolean; publicProfileOk: boolean };
 
 function focusReviewHeading(node: HTMLHeadingElement | null) {
   if (!node) return;
@@ -60,12 +61,12 @@ export default function CircleTestnetDonate({ circle }: { circle: Circle }) {
     setReview(null); setReceipt(null); setConfirmed(false); setRecorded(false); setMetadataRetry(true); setError("");
     setComment(""); setAnonymous(false); setPublicProfileOk(true);
   });
-  const native = circleDonationAmount(amount);
+  const native = circleUsdDonationAmount(amount);
   const commentValid = campaignDonorComment(comment) !== null;
   const available = mapping.result?.ok && mapping.result.donationOpen;
   const busy = pending;
   const reviewing = !!review && !receipt;
-  const reviewedAmount = review ? circleDonationAmount(review.amount) : null;
+  const reviewedAmount = review?.amountStroops ?? null;
   const reviewedSplit = review && reviewedAmount !== null ? campaignSplit(reviewedAmount, BigInt(review.terms.mapping.creatorCutBps)) : null;
   const amountSplit = native !== null && mapping.result?.ok ? campaignSplit(native, BigInt(mapping.result.mapping.creatorCutBps)) : null;
   const signIn = `/signin?next=${encodeURIComponent(`/circles/${circle.id}/donate`)}`;
@@ -105,17 +106,17 @@ export default function CircleTestnetDonate({ circle }: { circle: Circle }) {
     inFlight.current = true; setError(""); setMetadataRetry(true);
     startTransition(async () => {
       try {
-        const result = await guard.run(() => donateCircleTestnet({ circleId: circle.id, expectedOwnerId: entry.ownerId, termsKey, amount: entry.amount }));
+        const result = await guard.run(() => donateCircleTestnet({ circleId: circle.id, expectedOwnerId: entry.ownerId, termsKey, amount: formatStroops(entry.amountStroops) }));
         if (!isCurrentOwner(revision)) return;
         if (!result) { setError(text("Submission status is unknown. Inspect Activity without sending again.")); return; }
         if (!result.ok) {
           setError(result.error);
           if (result.pending && result.hash) setReceipt({ campaignId: entry.terms.mapping.campaignId, ownerId: entry.ownerId,
-            ownerRevision: revision, hash: result.hash, amountStroops: circleDonationAmount(entry.amount)!, comment: entry.comment, anonymous: entry.anonymous, publicProfileOk: entry.publicProfileOk });
+            ownerRevision: revision, hash: result.hash, amountStroops: entry.amountStroops, comment: entry.comment, anonymous: entry.anonymous, publicProfileOk: entry.publicProfileOk });
           return;
         }
         const saved = { campaignId: result.campaignId, ownerId: result.ownerId, ownerRevision: revision, hash: result.hash,
-          amountStroops: circleDonationAmount(entry.amount)!, comment: entry.comment, anonymous: entry.anonymous, publicProfileOk: entry.publicProfileOk };
+          amountStroops: entry.amountStroops, comment: entry.comment, anonymous: entry.anonymous, publicProfileOk: entry.publicProfileOk };
         setReceipt(saved); setConfirmed(true); setReview(null);
         await attach(saved, revision);
         if (isCurrentOwner(revision)) await mapping.refresh();
@@ -165,7 +166,7 @@ export default function CircleTestnetDonate({ circle }: { circle: Circle }) {
     {receipt ? <section className={`${styles.card} ${styles.receiptCard}`}>
       {confirmed ? <SuccessMotion title={text("Testnet donation confirmed")}><p>{text("Confirmed Testnet donor. Not a fiat donation or proof of delivery.")}</p></SuccessMotion>
         : <p role="status">{text("A hash was returned. Confirmation is not established yet.")}</p>}
-      {confirmed && receipt.amountStroops && <strong className={styles.amount}>{formatStroops(receipt.amountStroops)} XLM</strong>}
+      {confirmed && receipt.amountStroops && <div><strong className={styles.amount}>≈ {formatIllustrativeUsd(receipt.amountStroops)}</strong><p className={styles.hint}>{formatStroops(receipt.amountStroops)} Testnet XLM sent</p></div>}
       <a className={styles.address} href={`https://stellar.expert/explorer/testnet/tx/${receipt.hash}`} target="_blank" rel="noopener noreferrer">{text("View Testnet receipt")}: {receipt.hash}</a>
       {recorded ? <p role="status">{text("Your donor record is saved.")}</p> : <button type="button" className={styles.secondary} disabled={busy || !metadataRetry || identity.status !== "verified" || identity.ownerId !== receipt.ownerId} onClick={retryMetadata}>{text("Verify and retry donor record only")}</button>}
       <div className={styles.receiptActions} data-testid="donation-receipt-actions">
@@ -175,10 +176,10 @@ export default function CircleTestnetDonate({ circle }: { circle: Circle }) {
     </section> : review ? <section className={`${styles.card} ${styles.reviewCard}`} aria-label={text("Review Testnet donation")}>
       <h1 ref={focusReviewHeading} tabIndex={-1}>{text("Review before sending")}</h1>
       <p className={styles.reviewTitle} title={display.title}>{display.title}</p>
-      <div className={styles.reviewAmount}><strong className={styles.amount}>{formatStroops(reviewedAmount!)} XLM</strong><span className={styles.steps}>{text("2 · Review")}</span></div>
+      <div className={styles.reviewAmount}><div><strong className={styles.amount}>${review.amount.trim()}</strong><p className={styles.hint}>{formatStroops(reviewedAmount!)} Testnet XLM to send</p></div><span className={styles.steps}>{text("2 · Review")}</span></div>
       {reviewedSplit && <dl className={styles.reviewSplit}>
-        <div><dt>{text("Beneficiary share")}</dt><dd>{formatStroops(reviewedSplit.beneficiary)} XLM</dd></div>
-        <div><dt>{text("Creator share")}</dt><dd>{formatStroops(reviewedSplit.creator)} XLM <small>({review.terms.mapping.creatorCutBps / 100}%)</small></dd></div>
+        <div><dt>{text("Beneficiary share")}</dt><dd>≈ {formatIllustrativeUsd(reviewedSplit.beneficiary)}<small>{formatStroops(reviewedSplit.beneficiary)} XLM</small></dd></div>
+        <div><dt>{text("Creator share")}</dt><dd>≈ {formatIllustrativeUsd(reviewedSplit.creator)}<small>{formatStroops(reviewedSplit.creator)} XLM · {review.terms.mapping.creatorCutBps / 100}%</small></dd></div>
       </dl>}
       <p className={styles.reviewFee}>{text("Your wallet also pays a Stellar network fee in XLM. The actual fee is on the receipt.")}</p>
       <AvailableWalletBalance amountStroops={reviewedAmount} />
@@ -198,16 +199,18 @@ export default function CircleTestnetDonate({ circle }: { circle: Circle }) {
       <button type="button" className={styles.secondary} disabled={busy} onClick={() => setReview(null)}>{text("Change amount")}</button>
       </div>
     </section> : available ? <section className={`${styles.card} ${styles.amountCard}`} data-testid="donation-amount-form">
-      <label htmlFor="circle-testnet-amount">{text("Amount in native Testnet XLM")}</label>
-      <div className={styles.amountInput}><input id="circle-testnet-amount" inputMode="decimal" autoComplete="off" value={amount} disabled={busy || guard.locked}
-        onChange={event => { setAmount(event.target.value); setError(""); }} aria-invalid={native === null} /><strong>XLM</strong></div>
+      <label htmlFor="circle-testnet-amount">{text("Donation amount in USD")}</label>
+      <div className={styles.amountInput}><input id="circle-testnet-amount" inputMode="decimal" autoComplete="off" maxLength={64} value={amount} disabled={busy || guard.locked}
+        onChange={event => { setAmount(event.target.value); setError(""); }} aria-invalid={native === null} /><strong>USD</strong></div>
+      {native !== null && <p className={styles.hint}>{text("Token amount")}: {formatStroops(native)} Testnet XLM</p>}
       <AvailableWalletBalance amountStroops={native} compact />
-      <div className={styles.presets}>{[1, 5, 10, 50].map(value => <button key={value} type="button" aria-pressed={amount === String(value)} disabled={busy || guard.locked} onClick={() => { setAmount(String(value)); setError(""); }}>{value} XLM</button>)}</div>
-      {native === null ? <p className={styles.hint} role="alert">{text("Positive amounts, up to 7 decimal places. No dollar-to-XLM simulation.")}</p> : null}
+      <div className={styles.presets}>{[2, 5, 10, 20].map(value => <button key={value} type="button" aria-pressed={amount === String(value)} disabled={busy || guard.locked} onClick={() => { setAmount(String(value)); setError(""); }}>${value}</button>)}</div>
+      {native === null ? <p className={styles.hint} role="alert">{text("Enter a positive USD amount. The fixed Testnet conversion must produce at least one stroop.")}</p> : null}
       {amountSplit && mapping.result?.ok ? <dl className={styles.reviewSplit}>
-        <div><dt>{text("Beneficiary share")}</dt><dd>{formatStroops(amountSplit.beneficiary)} XLM</dd></div>
-        <div><dt>{text("Creator share")}</dt><dd>{formatStroops(amountSplit.creator)} XLM <small>({mapping.result.mapping.creatorCutBps / 100}%)</small></dd></div>
+        <div><dt>{text("Beneficiary share")}</dt><dd>≈ {formatIllustrativeUsd(amountSplit.beneficiary)}<small>{formatStroops(amountSplit.beneficiary)} XLM</small></dd></div>
+        <div><dt>{text("Creator share")}</dt><dd>≈ {formatIllustrativeUsd(amountSplit.creator)}<small>{formatStroops(amountSplit.creator)} XLM · {mapping.result.mapping.creatorCutBps / 100}%</small></dd></div>
       </dl> : null}
+      <p className={styles.hint}>{text("Fixed Testnet conversion, not a live price. Only valueless XLM moves; no USD or USDC payment occurs.")}</p>
       <p className={styles.privacyNotice} data-testid="donor-privacy-notice" aria-live="polite">{anonymous
         ? text("Your donor entry will be anonymous. Stellar transactions remain public.")
         : publicProfileOk
@@ -219,13 +222,13 @@ export default function CircleTestnetDonate({ circle }: { circle: Circle }) {
       {!anonymous && <label className={styles.check}><input type="checkbox" checked={publicProfileOk} disabled={busy} onChange={event => setPublicProfileOk(event.target.checked)} />{text("Also publish my available @username and permitted profile photo for this donation")}</label>}
       <label htmlFor="circle-testnet-comment">{text("Optional public comment")}</label><textarea id="circle-testnet-comment" rows={3} maxLength={500} value={comment} disabled={busy} onChange={event => setComment(event.target.value)} aria-invalid={!commentValid} />
       <p className={styles.hint}>{text("Maximum 500 UTF-8 bytes. Do not include private information; anonymous comments are still public.")}</p>
-      <p className={styles.hint}>{text("Positive amounts, up to 7 decimal places. No dollar-to-XLM simulation.")}</p>
+      <p className={styles.hint}>{text("Fixed Testnet conversion, not a live price. Only valueless XLM moves; no USD or USDC payment occurs.")}</p>
       <p className={styles.hint}>{anonymous ? text("Your donor entry will be anonymous. Stellar transactions remain public.") : publicProfileOk ? text("Your wallet, available @username and permitted profile photo will be public. Choose anonymous below to hide them from this feed.") : text("Only your wallet and receipt link will appear in this feed. Your name and photo will not be published.")}</p>
       </div></details>
       <div className={styles.amountActions} data-testid="donation-amount-actions">
       <button type="button" className={styles.primary} disabled={!native || !commentValid || busy || guard.locked || identity.status !== "verified"} onClick={() => {
         if (identity.status !== "verified" || !mapping.result?.ok || !mapping.result.donationOpen || !native || !commentValid) return;
-        setError(""); setReview({ terms: mapping.result, amount, ownerId: identity.ownerId, ownerRevision: captureOwnerRevision(), comment: campaignDonorComment(comment)!, anonymous, publicProfileOk });
+        setError(""); setReview({ terms: mapping.result, amount, amountStroops: native, ownerId: identity.ownerId, ownerRevision: captureOwnerRevision(), comment: campaignDonorComment(comment)!, anonymous, publicProfileOk });
       }}>{text("Review Testnet donation")}</button>
       </div>
     </section> : !mapping.loading ? <button type="button" className={styles.secondary} disabled={busy} onClick={() => void mapping.refresh()}>{text("Check campaign availability")}</button> : null}

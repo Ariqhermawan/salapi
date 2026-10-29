@@ -10,6 +10,7 @@ import { activityStroopsToXlm } from "../lib/wallet-activity.ts";
 import type { CampaignDonorEntry, CampaignDonorFeedResult } from "../lib/campaign-donor.ts";
 import type { Locale } from "../lib/i18n/config.ts";
 import { estimateUsdc, validateMarketPrices, type MarketPriceResult } from "../lib/market-prices.ts";
+import { formatIllustrativeUsd } from "../lib/money.ts";
 
 const unavailablePrices: MarketPriceResult = { status: "unavailable", source: "CoinGecko", reason: "provider-unavailable" };
 function prices(xlmUsd = .25, status: "fresh" | "stale" = "fresh", age = 0): MarketPriceResult {
@@ -57,6 +58,7 @@ function setup(locale: Locale = "en", initialPrices: MarketPriceResult = unavail
       if (name === "@/components/I18nProvider") return { useT: () => ({ locale }) };
       if (name === "@/components/MarketPricesProvider") return { useMarketPrices: () => ({ prices: marketPrices }) };
       if (name === "@/lib/market-prices") return { estimateUsdc, validateMarketPrices };
+      if (name === "@/lib/money") return { formatIllustrativeUsd };
       if (name === "@/lib/wallet-activity") return { activityStroopsToXlm };
       if (name === "@/lib/ui/public-read") return { readPublicCampaignDonors(id: string, cursor?: string) { const result = deferred<CampaignDonorFeedResult>(); calls.push({ id, cursor, result }); return result.promise; } };
       if (name.endsWith(".module.css")) return { __esModule: true, default: new Proxy({}, { get: (_, key) => key }) };
@@ -111,7 +113,7 @@ test("stale donor estimate is labelled and expired quote disappears while XLM re
   const h = setup("en", prices(.25, "stale", 180_000)); await ready(h);
   assert.match(h.html(), /Last known price/); assert.match(h.html(), /≈ 0\.50 USDC/);
   h.setPrices(prices(.25, "fresh", 301_000)); const html = h.html();
-  assert.match(html, /USDC estimate unavailable/); assert.match(html, /1\.0000001/); assert.doesNotMatch(html, /≈|Last known price/);
+  assert.match(html, /USDC estimate unavailable/); assert.match(html, /1\.0000001/); assert.match(html, /≈ \$0\.11/); assert.doesNotMatch(html, /≈ [0-9,.]+ USDC|Last known price/);
 });
 test("anonymous component presentation discards even contradictory response identities", async () => {
   const h = setup("en", prices()); const malicious = { ...entry(), anonymous: true, donor: { address: wallet, handle: "confirmed_user", photoUrl: "https://lh3.googleusercontent.com/hidden-photo" } }; await ready(h, response([malicious]));

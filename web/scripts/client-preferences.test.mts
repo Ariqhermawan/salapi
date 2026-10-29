@@ -270,7 +270,7 @@ test("denied storage still restores cookie and independently persists language t
   preferences(runtime).setCurrency("vi"); runtime.render();
   assert.equal(preferences(runtime).currency, "vi");
   preferences(runtime).setCurrency(null); runtime.render();
-  assert.equal(preferences(runtime).currency, "id");
+  assert.equal(preferences(runtime).currency, "en");
 });
 
 test("cookie denial does not block valid storage or in-memory choices", () => {
@@ -282,7 +282,7 @@ test("cookie denial does not block valid storage or in-memory choices", () => {
   assert.equal(runtime.storage.get("salapi_locale"), "vi");
 });
 
-test("language and explicit currency persist separately and Follow language removes its key", () => {
+test("language and explicit currency persist separately and Default USD removes its key", () => {
   const runtime = setup("i18n");
   runtime.mount(() => runtime.exports.I18nProvider({ children: null }));
   preferences(runtime).setCurrency("tl"); preferences(runtime).setLocale("id"); runtime.render();
@@ -291,7 +291,7 @@ test("language and explicit currency persist separately and Follow language remo
   assert.equal(runtime.storage.get("salapi_locale"), "id");
   preferences(runtime).setCurrency(null); runtime.render();
   assert.equal(preferences(runtime).currencyPref, null);
-  assert.equal(preferences(runtime).currency, "id");
+  assert.equal(preferences(runtime).currency, "en");
   assert.equal(runtime.storage.has("salapi_currency"), false);
 });
 

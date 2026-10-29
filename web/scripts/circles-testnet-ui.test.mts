@@ -10,6 +10,7 @@ import type { CircleTestnetCampaignResult, CircleTestnetCode } from "../lib/circ
 import type { Locale } from "../lib/i18n/config.ts";
 import { circleTestnetDonateCopy, type CircleTestnetDonateMessage } from "../lib/i18n/circle-testnet-donate.ts";
 import { estimateUsdc, marketGoalProgress, validateMarketPrices, type MarketPriceResult } from "../lib/market-prices.ts";
+import { formatIllustrativeUsd } from "../lib/money.ts";
 
 const unavailablePrices: MarketPriceResult = { status: "unavailable", source: "CoinGecko", reason: "provider-unavailable" };
 function prices(xlmUsd = .25, status: "fresh" | "stale" = "fresh", age = 0): MarketPriceResult {
@@ -50,6 +51,7 @@ function summary(locale: Locale = "en", ownResult: CircleTestnetCampaignResult |
     if (name === "@/components/I18nProvider") return { useT: () => ({ locale }) };
     if (name === "@/components/MarketPricesProvider") return { useMarketPrices: () => ({ prices: marketPrices }) };
     if (name === "@/lib/market-prices") return { estimateUsdc, marketGoalProgress, validateMarketPrices };
+    if (name === "@/lib/money") return { formatIllustrativeUsd };
     if (name === "@/lib/ui/useCircleTestnet") return { useCircleTestnet(slug: string, enabled: boolean) {
       calls.hooks.push([slug, enabled]); return { result: ownResult, loading: ownResult === null, refresh: async () => { calls.refresh++; return ownResult; } };
     } };
@@ -67,10 +69,11 @@ for (const locale of ["en", "id", "tl", "vi"] as const) test(`${locale}: summary
   assert.match(html, new RegExp(locale === "id" || locale === "vi" ? "12,3456789 XLM" : "12.3456789 XLM"));
   assert.match(html, new RegExp(locale === "id" || locale === "vi" ? "2,3456789 XLM" : "2.3456789 XLM"));
   assert.match(html, /href="\/circles\/tino-relief\/donate"/);
+  assert.match(html, /\$1\.38/);
   assert.match(html, /href="\/campaigns\?id=9"/); assert.match(html, /0 \/ 3/); assert.match(html, /UTC/);
   assert.ok(html.includes(wallet)); for (const reviewer of reviewers) assert.ok(html.includes(reviewer));
   assert.deepEqual(h.calls.hooks, [["tino-relief", false]], "Supplied result must not trigger another fetch");
-  assert.doesNotMatch(html, /≈|pesoRaised|salapi user|email|1000|184500/i);
+  assert.doesNotMatch(html, /pesoRaised|salapi user|email|1000|184500/i);
 });
 
 for (const locale of ["en", "id", "tl", "vi"] as const) test(`${locale}: current USDC estimates use actual totals and a fixed QA goal`, () => {
@@ -99,7 +102,7 @@ test("stale estimates are labelled and expired prices never render estimates or 
   const expired = summary("en", null, prices(.25, "fresh", 301_000));
   const expiredHtml = renderToStaticMarkup(React.createElement(expired.component, { circleId: "tino-relief", result: ready(), goalUsdc: 10 }));
   assert.match(expiredHtml, /12\.3456789 XLM/); assert.match(expiredHtml, /10\.00 USDC/);
-  assert.match(expiredHtml, /USDC estimate unavailable/); assert.doesNotMatch(expiredHtml, /≈|role="progressbar"|61\.73%/);
+  assert.match(expiredHtml, /USDC estimate unavailable/); assert.doesNotMatch(expiredHtml, /≈ [0-9,.]+ USDC|role="progressbar"|61\.73%/);
 });
 
 test("unverified campaign data and invalid goals cannot create market progress", () => {

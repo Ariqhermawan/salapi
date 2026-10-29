@@ -48,16 +48,15 @@ test.describe("D4 isolated local UI and HTTP authorization", () => {
     await expect(page.getByRole("alert").filter({ hasText: "does not match D4" })).toBeVisible();
     await expect(page.getByRole("button", { name: /Confirm|Review|Approve|Release|Claim/ })).toHaveCount(0);
   });
-  test("donation confirms exact 6.50 PHP and retains raw decimal payload", async ({ page }) => {
+  test("donation confirms exact USD to XLM conversion and retains raw decimal payload", async ({ page }) => {
     const writes = await fixture(page, { viewer: wallets[2] });
-    await page.getByLabel("Donation amount", { exact: true }).fill("6.50");
-    await page.getByLabel("Display currency", { exact: true }).selectOption("tl");
+    await page.getByLabel("Donation amount (USD)", { exact: true }).fill("6.50");
     await page.getByRole("button", { name: "Donate · Review amount", exact: true }).click();
-    await expect(page.getByRole("dialog")).toContainText("Donate 1 Testnet XLM");
+    await expect(page.getByRole("dialog")).toContainText("Donate 6.50 USD (58 Testnet XLM)");
     expect(writes).toHaveLength(0);
     await page.getByRole("button", { name: "Confirm transaction", exact: true }).click();
     await expect(page.getByRole("status")).toContainText("Testnet transaction confirmed");
-    expect(writes).toEqual([{ name: "campaignDonate", args: ["1", { amount: "6.50", currency: "tl" }] }]);
+    expect(writes).toEqual([{ name: "campaignDonate", args: ["1", { amount: "6.50", currency: "en" }] }]);
   });
   for (const variant of [
     { name: "desktop instant-open", viewport: { width: 1280, height: 720 }, reduced: false, create: false },
@@ -76,8 +75,7 @@ test.describe("D4 isolated local UI and HTTP authorization", () => {
         await page.getByLabel("Review closes", { exact: true }).fill("2030-01-02T12:00");
         for (let i = 0; i < 3; i++) await page.getByLabel(`${i === 0 ? "3. " : ""}Approver ${i + 1} public wallet`, { exact: true }).fill(wallets[i]);
       } else {
-        await page.getByLabel("Donation amount", { exact: true }).fill("6.50");
-        await page.getByLabel("Display currency", { exact: true }).selectOption("tl");
+        await page.getByLabel("Donation amount (USD)", { exact: true }).fill("6.50");
       }
       const review = page.getByRole("button", { name: variant.create ? "Review campaign terms" : "Donate · Review amount", exact: true });
       await review.scrollIntoViewIfNeeded();
@@ -146,10 +144,10 @@ test.describe("D4 isolated local UI and HTTP authorization", () => {
   });
   test("campaign navigation clears drafts and prior page state", async ({ page }) => {
     await fixture(page, { viewer: wallets[0] });
-    await page.getByLabel("Donation amount", { exact: true }).fill("6.50");
+    await page.getByLabel("Donation amount (USD)", { exact: true }).fill("6.50");
     await page.getByRole("link", { name: "UI fixture campaign", exact: true }).click();
     await expect(page).toHaveURL(/\/campaigns\?id=1$/);
-    await expect(page.getByLabel("Donation amount", { exact: true })).toHaveValue("");
+    await expect(page.getByLabel("Donation amount (USD)", { exact: true })).toHaveValue("");
   });
   test("only configured reviewer sees proof approval and duplicate is disabled", async ({ page }) => {
     await fixture(page, { viewer: wallets[0], now: "1150", campaign: { ...campaign, state: "PendingProof", proofHash: "a".repeat(64), approvals: [wallets[0]] } });
@@ -165,7 +163,7 @@ test.describe("D4 isolated local UI and HTTP authorization", () => {
   test("expired incomplete review allows only the original donor refund", async ({ page }) => {
     const writes = await fixture(page, { viewer: wallets[0], now: "1200" });
     await page.getByRole("button", { name: "Claim full refund" }).click();
-    await expect(page.getByRole("dialog")).toContainText("full 30 XLM");
+    await expect(page.getByRole("dialog")).toContainText("30 XLM");
     await page.getByRole("button", { name: "Confirm transaction", exact: true }).click();
     await expect(page.getByRole("status")).toBeVisible();
     expect(writes).toEqual([{ name: "campaignRefund", args: ["1"] }]);

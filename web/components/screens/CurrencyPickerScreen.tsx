@@ -1,7 +1,7 @@
 "use client";
 
 // Display-currency picker — opened from Kamu › Preferensi › Mata uang
-// tampilan. "Otomatis" follows the chosen language (the default); a
+// tampilan. The default is USD in every language; a
 // specific pick overrides it. The choice drives every amount the
 // currency-aware Money component renders across the app.
 
@@ -35,7 +35,7 @@ export default function CurrencyPickerScreen() {
     {
       key: null,
       title: t("settings.currencyAuto"),
-      sub: t("settings.currencySub") + " · " + CURRENCY[locale].code,
+      sub: t("settings.currencySub") + " · " + CURRENCY.en.code,
       badge: Ico.globe({
         size: 20,
         c: currencyPref === null ? T.action : T.slate,

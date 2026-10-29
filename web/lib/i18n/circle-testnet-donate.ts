@@ -80,8 +80,10 @@ const messages = {
   "Waiting for Testnet…": { id: "Menunggu Testnet…", tl: "Naghihintay sa Testnet…", vi: "Đang chờ Testnet…" },
   "Confirm Testnet donation": { id: "Konfirmasi donasi Testnet", tl: "Kumpirmahin ang Testnet donation", vi: "Xác nhận quyên góp Testnet" },
   "Change amount": { id: "Ubah jumlah", tl: "Baguhin ang halaga", vi: "Đổi số lượng" },
-  "Amount in native Testnet XLM": { id: "Jumlah dalam XLM Testnet", tl: "Halaga sa native Testnet XLM", vi: "Số lượng Testnet XLM gốc" },
-  "Positive amounts, up to 7 decimal places. No dollar-to-XLM simulation.": { id: "Jumlah positif, maksimal 7 desimal. Tanpa simulasi konversi dolar ke XLM.", tl: "Positibong halaga, hanggang 7 decimal places. Walang simulasyon ng dollar-to-XLM.", vi: "Số lượng dương, tối đa 7 chữ số thập phân. Không mô phỏng chuyển đổi đô la sang XLM." },
+  "Donation amount in USD": { id: "Jumlah donasi dalam USD", tl: "Halaga ng donasyon sa USD", vi: "Số tiền quyên góp bằng USD" },
+  "Token amount": { id: "Jumlah token", tl: "Halaga ng token", vi: "Số lượng token" },
+  "Enter a positive USD amount. The fixed Testnet conversion must produce at least one stroop.": { id: "Masukkan jumlah USD positif. Konversi tetap Testnet harus menghasilkan setidaknya satu stroop.", tl: "Maglagay ng positibong USD amount. Dapat may kahit isang stroop ang fixed Testnet conversion.", vi: "Nhập số USD dương. Quy đổi Testnet cố định phải tạo ít nhất một stroop." },
+  "Fixed Testnet conversion, not a live price. Only valueless XLM moves; no USD or USDC payment occurs.": { id: "Konversi tetap Testnet, bukan harga live. Hanya XLM tanpa nilai uang yang berpindah; tidak ada pembayaran USD atau USDC.", tl: "Nakapirming Testnet conversion, hindi live na presyo. XLM na walang halagang pera lang ang nalilipat; walang USD o USDC na bayad.", vi: "Quy đổi Testnet cố định, không phải giá trực tiếp. Chỉ XLM không có giá trị tiền tệ được chuyển; không có thanh toán USD hoặc USDC." },
   "Beneficiary share": { id: "Bagian penerima", tl: "Bahagi ng beneficiary", vi: "Phần của người nhận" },
   "Display anonymously in the donor feed": { id: "Tampilkan anonim di catatan donor", tl: "Ipakita nang hindi nagpapakilala sa donor feed", vi: "Hiển thị ẩn danh trong danh sách nhà tài trợ" },
   "Anonymous hides your wallet, name, photo and receipt link here. Transactions remain public on Stellar and timing or amounts can still identify you.": {

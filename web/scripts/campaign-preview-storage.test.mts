@@ -4,8 +4,9 @@ import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import { saveCampaignPreview, CAMPAIGN_PREVIEW_KEY } from "../lib/campaign-preview-storage.ts";
-import { PREVIEW_CAMPAIGNS, PREVIEW_WALLET } from "../lib/local-preview.ts";
+import { PREVIEW_CAMPAIGNS, PREVIEW_TIME, PREVIEW_WALLET } from "../lib/local-preview.ts";
 import { campaignAmount, campaignSplit } from "../lib/campaign-money.ts";
+import { formatIllustrativeUsd } from "../lib/money.ts";
 import { formatStroops } from "../lib/format-stroops.ts";
 import * as discoveryCopy from "../lib/i18n/revamp-campaign-discovery.ts";
 import * as accountCopy from "../lib/i18n/revamp-account.ts";
@@ -87,7 +88,8 @@ function screen(mode: Mode) {
   let states = rootStates, cursor = 0;
   const forbidden = () => { throw Error("No network or server actions permitted in campaign UI tests"); };
   const jsx = (type: unknown, props: Record<string, unknown>) => ({ type, props });
-  runInNewContext(code, { exports: component, sessionStorage: store, require(name: string) {
+  const FixtureDate = class extends Date { static now() { return PREVIEW_TIME * 1000; } };
+  runInNewContext(code, { exports: component, Date: FixtureDate, sessionStorage: store, require(name: string) {
     if (name === "react/jsx-runtime") return { jsx, jsxs: jsx, Fragment: "Fragment" };
     if (name === "react") return {
       useState(initial: unknown) { const index = cursor++, active = states; if (!(index in active)) active[index] = typeof initial === "function" ? initial() : initial;
@@ -110,6 +112,7 @@ function screen(mode: Mode) {
     if (name === "@/lib/local-preview") return { isLocalPreview: true, PREVIEW_WALLET, PREVIEW_CAMPAIGNS };
     if (name === "@/lib/campaign-preview-storage") return { saveCampaignPreview };
     if (name === "@/lib/campaign-money") return { campaignAmount, campaignSplit };
+    if (name === "@/lib/money") return { formatIllustrativeUsd };
     if (name === "@/lib/format-stroops") return { formatStroops };
     if (name === "@/lib/vault-campaign-media") return media;
     if (name === "@/lib/i18n/revamp-campaign-discovery") return discoveryCopy;
@@ -267,7 +270,8 @@ test("actual campaign donation announces success only after verified storage and
   assert.ok(nodes(ui.root).some(node => node.type === "SuccessMotion"));
   assert.match(text(ui.root), /Local preview saved for this browser session/);
   const saved = JSON.parse(ui.store.getItem(CAMPAIGN_PREVIEW_KEY)!);
-  assert.equal(saved[0].total, "7450000000"); assert.equal(saved[0].escrow, "7450000000");
-  assert.equal(saved[0].contribution.amount, "50000000");
+  const donated = campaignAmount({ amount: "5", currency: "en" });
+  assert.equal(saved[0].total, String(7400000000n + donated)); assert.equal(saved[0].escrow, String(7400000000n + donated));
+  assert.equal(saved[0].contribution.amount, String(donated));
   assert.equal(nodes(ui.card).find(node => node.type === "input" && node.props.inputMode === "decimal")?.props.value, "");
 });

@@ -15,6 +15,9 @@ export function circleDonationTerms(result: CircleTestnetCampaignResult): string
 export function circleDonationAmount(value: unknown): bigint | null {
   try { return campaignAmount({ currency: "XLM", amount: value }); } catch { return null; }
 }
+export function circleUsdDonationAmount(value: unknown): bigint | null {
+  try { return campaignAmount({ currency: "en", amount: value }); } catch { return null; }
+}
 export function parseCircleDonation(input: unknown): CircleDonationInput | null {
   if (!input || typeof input !== "object" || Array.isArray(input)) return null;
   const v = input as Record<string, unknown>;

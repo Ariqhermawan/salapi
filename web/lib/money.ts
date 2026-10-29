@@ -96,3 +96,12 @@ export function moneyInputToStroops(input: unknown): bigint | null {
   return localToStroops(value.amount, value.currency);
 }
 
+/** Fixed Testnet demo equivalent, not a market quote or fiat balance. */
+export function formatIllustrativeUsd(stroops: string | bigint): string {
+  const amount = BigInt(stroops);
+  if (amount < 0n) throw new Error("Amount cannot be negative");
+  // 1 XLM = 6.5 PHP and 1 USD = 58 PHP in the existing demo conversion.
+  const cents = roundHalfUp(amount * 1_300n, STROOPS_PER_XLM * 116n);
+  return `$${(cents / 100n).toLocaleString("en-US")}.${(cents % 100n).toString().padStart(2, "0")}`;
+}
+

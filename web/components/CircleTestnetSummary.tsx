@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useT } from "@/components/I18nProvider";
 import { useMarketPrices } from "@/components/MarketPricesProvider";
 import { estimateUsdc, marketGoalProgress, validateMarketPrices } from "@/lib/market-prices";
+import { formatIllustrativeUsd } from "@/lib/money";
 import { useCircleTestnet } from "@/lib/ui/useCircleTestnet";
 import type { CircleTestnetCampaignResult } from "@/lib/circles/testnet";
 import type { Locale } from "@/lib/i18n/config";
@@ -14,7 +15,7 @@ const COPY = {
     loading: "Checking the configured on-chain campaign…", setup: "Testnet donations are not configured for this cause yet.",
     unmapped: "This fictional cause has no reviewed Testnet campaign yet.", unavailable: "The Testnet campaign could not be verified. No recipient or balance is assumed.",
     local: "Local preview does not read or move live Testnet funds.", invalid: "This cause is not in the supported Testnet QA catalog.",
-    raised: "Confirmed contributions", escrow: "Held in escrow", separation: "These on-chain amounts are separate from example donor entries.",
+    raised: "Confirmed contributions", escrow: "Held in escrow", separation: "These on-chain amounts are separate from example donor entries.", usdDisplay: "USD display", marketReference: "Market reference",
     goal: "QA goal", progress: "of QA goal", marketNote: "USDC estimates and progress follow CoinGecko prices. Donations remain Testnet XLM.", marketUnavailable: "USDC estimate unavailable", stale: "Last known price", progressUnavailable: "Progress unavailable until a price is available",
     open: "Funding open", expired: "Funding deadline passed", closed: "Not accepting donations", deadline: "Funding deadline", rawTime: "Ledger timestamp", creator: "QA campaign creator", beneficiary: "QA beneficiary wallet", reviewers: "Three QA reviewer wallets",
     terms: "Inspect the exact recipient and terms before confirming. These wallets do not verify the fictional organizer's identity.",
@@ -23,7 +24,7 @@ const COPY = {
     loading: "Memeriksa campaign on-chain yang dikonfigurasi…", setup: "Donasi Testnet untuk tujuan ini belum dikonfigurasi.",
     unmapped: "Tujuan fiktif ini belum memiliki campaign Testnet yang direview.", unavailable: "Campaign Testnet belum bisa diverifikasi. Penerima dan saldo tidak diasumsikan.",
     local: "Preview lokal tidak membaca atau memindahkan dana Testnet live.", invalid: "Tujuan ini tidak ada dalam katalog QA Testnet yang didukung.",
-    raised: "Kontribusi terkonfirmasi", escrow: "Ditahan di escrow", separation: "Nominal on-chain ini terpisah dari entri donor contoh.",
+    raised: "Kontribusi terkonfirmasi", escrow: "Ditahan di escrow", separation: "Nominal on-chain ini terpisah dari entri donor contoh.", usdDisplay: "tampilan USD", marketReference: "Referensi pasar",
     goal: "Target QA", progress: "dari target QA", marketNote: "Estimasi USDC dan progres mengikuti harga CoinGecko. Donasi tetap berupa Testnet XLM.", marketUnavailable: "Estimasi USDC belum tersedia", stale: "Harga terakhir diketahui", progressUnavailable: "Progres belum tersedia sampai harga tersedia",
     open: "Pendanaan terbuka", expired: "Batas pendanaan sudah lewat", closed: "Tidak menerima donasi", deadline: "Batas pendanaan", rawTime: "Timestamp ledger", creator: "Pembuat campaign QA", beneficiary: "Wallet penerima QA", reviewers: "Tiga wallet reviewer QA",
     terms: "Periksa penerima dan ketentuan persis sebelum konfirmasi. Wallet ini tidak membuktikan identitas organizer fiktif.",
@@ -32,7 +33,7 @@ const COPY = {
     loading: "Sinusuri ang naka-configure na on-chain campaign…", setup: "Hindi pa naka-configure ang Testnet donation para rito.",
     unmapped: "Wala pang na-review na Testnet campaign ang kathang-isip na layuning ito.", unavailable: "Hindi ma-verify ang Testnet campaign. Walang ipinapalagay na tatanggap o balanse.",
     local: "Hindi bumabasa o naglilipat ng live Testnet funds ang local preview.", invalid: "Wala ang layuning ito sa suportadong Testnet QA catalog.",
-    raised: "Kumpirmadong kontribusyon", escrow: "Nasa escrow", separation: "Hiwalay ang on-chain amounts na ito sa halimbawang donor entries.",
+    raised: "Kumpirmadong kontribusyon", escrow: "Nasa escrow", separation: "Hiwalay ang on-chain amounts na ito sa halimbawang donor entries.", usdDisplay: "USD display", marketReference: "Market reference",
     goal: "QA goal", progress: "ng QA goal", marketNote: "Sumusunod sa presyo ng CoinGecko ang USDC estimate at progress. Testnet XLM pa rin ang mga donasyon.", marketUnavailable: "Hindi available ang USDC estimate", stale: "Huling alam na presyo", progressUnavailable: "Hindi available ang progress hangga't walang presyo",
     open: "Bukas ang pagpopondo", expired: "Lumipas ang funding deadline", closed: "Hindi tumatanggap ng donasyon", deadline: "Funding deadline", rawTime: "Ledger timestamp", creator: "QA campaign creator", beneficiary: "QA beneficiary wallet", reviewers: "Tatlong QA reviewer wallet",
     terms: "Suriin ang eksaktong tatanggap at terms bago kumpirmahin. Hindi pinatutunayan ng wallets ang pagkakakilanlan ng kathang-isip na organizer.",
@@ -41,7 +42,7 @@ const COPY = {
     loading: "Đang kiểm tra chiến dịch on-chain đã cấu hình…", setup: "Chưa cấu hình quyên góp Testnet cho mục tiêu này.",
     unmapped: "Mục tiêu hư cấu này chưa có chiến dịch Testnet được xem xét.", unavailable: "Không thể xác minh chiến dịch Testnet. Không giả định người nhận hay số dư.",
     local: "Bản xem trước cục bộ không đọc hay chuyển tiền Testnet trực tiếp.", invalid: "Mục tiêu này không có trong danh mục QA Testnet được hỗ trợ.",
-    raised: "Đóng góp đã xác nhận", escrow: "Giữ trong escrow", separation: "Số tiền on-chain này tách biệt với các mục nhà tài trợ mẫu.",
+    raised: "Đóng góp đã xác nhận", escrow: "Giữ trong escrow", separation: "Số tiền on-chain này tách biệt với các mục nhà tài trợ mẫu.", usdDisplay: "hiển thị USD", marketReference: "Tham chiếu thị trường",
     goal: "Mục tiêu QA", progress: "của mục tiêu QA", marketNote: "Ước tính USDC và tiến độ thay đổi theo giá CoinGecko. Khoản quyên góp vẫn là Testnet XLM.", marketUnavailable: "Chưa có ước tính USDC", stale: "Giá gần nhất đã biết", progressUnavailable: "Chưa có tiến độ cho đến khi có giá",
     open: "Đang nhận đóng góp", expired: "Đã qua hạn đóng góp", closed: "Không nhận quyên góp", deadline: "Hạn đóng góp", rawTime: "Dấu thời gian ledger", creator: "Người tạo chiến dịch QA", beneficiary: "Ví người nhận QA", reviewers: "Ba ví xét duyệt QA",
     terms: "Kiểm tra chính xác người nhận và điều khoản trước khi xác nhận. Các ví không xác minh danh tính người tổ chức hư cấu.",
@@ -102,10 +103,12 @@ export default function CircleTestnetSummary({ circleId, result: supplied, loadi
     {loading ? <p className={styles.state} role="status">{copy.loading}</p>
       : result?.ok ? <>
         <div className={styles.metrics}>
-          <div><small>{copy.raised}</small><strong>{exactXlm(result.campaign.total, locale)}</strong>
-            {raisedUsdc !== null ? <span className={styles.estimate}>≈ {formatUsdc(raisedUsdc, locale)}</span> : null}</div>
-          <div><small>{copy.escrow}</small><strong>{exactXlm(result.campaign.escrow, locale)}</strong>
-            {escrowUsdc !== null ? <span className={styles.estimate}>≈ {formatUsdc(escrowUsdc, locale)}</span> : null}</div>
+          <div><small>{copy.raised} · {copy.usdDisplay}</small><strong>≈ {formatIllustrativeUsd(result.campaign.total)}</strong>
+            <span className={styles.estimate}>{exactXlm(result.campaign.total, locale)}</span>
+            {raisedUsdc !== null ? <span className={styles.estimate}>{copy.marketReference}: ≈ {formatUsdc(raisedUsdc, locale)}</span> : null}</div>
+          <div><small>{copy.escrow} · {copy.usdDisplay}</small><strong>≈ {formatIllustrativeUsd(result.campaign.escrow)}</strong>
+            <span className={styles.estimate}>{exactXlm(result.campaign.escrow, locale)}</span>
+            {escrowUsdc !== null ? <span className={styles.estimate}>{copy.marketReference}: ≈ {formatUsdc(escrowUsdc, locale)}</span> : null}</div>
         </div>
         {hasGoal ? <div className={styles.goal}>
           <div className={styles.goalRow}><span>{copy.goal}<strong>{formatUsdc(goalUsdc, locale)}</strong></span>

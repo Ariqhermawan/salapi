@@ -6,10 +6,11 @@ import React from "react";
 import * as jsxRuntime from "react/jsx-runtime";
 import { renderToStaticMarkup } from "react-dom/server";
 import ts from "typescript";
-import { circleDonationAmount, circleDonationTerms, type CircleDonationInput, type CircleDonationResult } from "../lib/circles/donation.ts";
+import { circleDonationAmount, circleDonationTerms, circleUsdDonationAmount, type CircleDonationInput, type CircleDonationResult } from "../lib/circles/donation.ts";
 import { campaignDonorComment, type CampaignDonorInput, type CampaignDonorRecordResult } from "../lib/campaign-donor.ts";
 import { campaignSplit } from "../lib/campaign-money.ts";
 import { formatStroops } from "../lib/format-stroops.ts";
+import { formatIllustrativeUsd } from "../lib/money.ts";
 import { circleTestnetDonateCopy, type CircleTestnetDonateMessage } from "../lib/i18n/circle-testnet-donate.ts";
 import * as contentCopy from "../lib/i18n/circles-content.ts";
 import type { Circle } from "../lib/circles/types.ts";
@@ -96,7 +97,7 @@ function setup(options: Options = {}) {
       if (name === "@/app/campaign-donor-actions") return { campaignDonorRecord(id: string, input: CampaignDonorInput) {
         calls.order.push("metadata"); const response = deferred<CampaignDonorRecordResult>(); metadata.push({ id, input: structuredClone(input), response }); return response.promise;
       } };
-      if (name === "@/lib/circles/donation") return { circleDonationAmount, circleDonationTerms };
+      if (name === "@/lib/circles/donation") return { circleDonationAmount, circleDonationTerms, circleUsdDonationAmount };
       if (name === "@/lib/campaign-donor") return { campaignDonorComment };
       if (name === "@/lib/ui/useCircleTestnet") return { useCircleTestnet(id: string) {
         assert.equal(id, circle.id); return { result, loading: options.mappingLoading ?? false, refresh: async () => {
@@ -140,6 +141,7 @@ function setup(options: Options = {}) {
       } };
       if (name === "@/lib/ui/useGoBack") return { useGoBack(fallback: string) { assert.equal(fallback, `/circles/${circle.id}`); return () => { calls.backs++; }; } };
       if (name === "@/lib/format-stroops") return { formatStroops };
+      if (name === "@/lib/money") return { formatIllustrativeUsd };
       if (name === "@/lib/campaign-money") return { campaignSplit };
       if (name === "@/components/CircleTestnetSummary") return { __esModule: true, default: dummy("mapping-summary") };
       if (name === "@/components/AvailableWalletBalance") return { __esModule: true, default: Balance };
@@ -206,7 +208,9 @@ test("compact review preserves exact splits, privacy and fee while retaining ful
   const detail = h.nodes(card).find(node => node.type === "details"); assert.ok(detail);
   assert.equal(detail.props.open, undefined);
   const html = h.html(), detailHtml = renderToStaticMarkup(detail);
-  assert.match(html, /9\.5 XLM/); assert.match(html, /0\.5 XLM/); assert.match(html, /\(5%\)/);
+  const split = campaignSplit(circleUsdDonationAmount("10")!, 500n);
+  assert.match(html, /\$10/); assert.ok(html.includes(`${formatStroops(split.beneficiary)} XLM`));
+  assert.ok(html.includes(`${formatStroops(split.creator)} XLM`)); assert.match(html, /5%/);
   assert.match(html, /Your wallet also pays a Stellar network fee in XLM/);
   assert.match(html, /Wallet, @username and permitted photo/);
   assert.match(html, /Test tokens go to a QA wallet/);
@@ -242,7 +246,7 @@ test("entering review resets the app scroller and focuses its heading, never con
 test("new donation defaults to a public permitted profile and discloses it before collapsed options", () => {
   const h = setup(); assert.equal(h.checkbox("Display anonymously in the donor feed").props.checked, false);
   assert.equal(h.checkbox("Also publish my available @username and permitted profile photo for this donation").props.checked, true);
-  const html = h.html(); assert.match(html, /QA wallets receive test tokens/); assert.match(html, /does not send USDC/); assert.match(html, /up to 7 decimal places/);
+  const html = h.html(); assert.match(html, /QA wallets receive test tokens/); assert.match(html, /does not send USDC/); assert.match(html, /Donation amount in USD/);
   assert.match(html, /Your wallet, available @username and permitted profile photo will be public/);
   assert.ok(html.indexOf('data-testid="donor-privacy-notice"') < html.indexOf('<details class="options">'));
   const visibleNotice = h.all().find(node => node.props["data-testid"] === "donor-privacy-notice"); assert.ok(visibleNotice);
@@ -261,14 +265,14 @@ test("public-profile publication can be disabled and anonymity clears it without
   h.change(h.checkbox("Display anonymously in the donor feed"), false);
   assert.equal(h.checkbox("Also publish my available @username and permitted profile photo for this donation").props.checked, false);
 });
-for (const amount of ["0", "-1", "1e2", "1.00000001", "0.00000001", "NaN", "Infinity", "", "1,5", "17014118346046923173168730371588.4105728"]) {
-  test(`native UI disables invalid amount ${JSON.stringify(amount)} and handler cannot bypass it`, () => {
+for (const amount of ["0", "-1", "1e2", "0.000000001", "NaN", "Infinity", "", "1,5", "17014118346046923173168730371588.4105728"]) {
+  test(`USD UI disables invalid amount ${JSON.stringify(amount)} and handler cannot bypass it`, () => {
     const h = setup(); h.change(h.field("circle-testnet-amount"), amount);
     assert.equal(h.field("circle-testnet-amount").props["aria-invalid"], true); assert.equal(h.button("Review Testnet donation").props.disabled, true);
     h.click("Review Testnet donation"); assert.doesNotMatch(h.html(), /Review before sending/); assert.equal(h.donations.length, 0);
   });
 }
-for (const amount of ["0.0000001", "1.1234567", "1000000000000.0000001"]) test(`native seven-decimal amount ${amount} reviews exactly without money submission`, () => {
+for (const amount of ["0.0000001", "1.1234567", "1000000000000.0000001"]) test(`USD decimal amount ${amount} reviews exactly without money submission`, () => {
   const h = setup(); review(h, amount); const html = h.html(); assert.ok(html.includes(amount)); assert.match(html, /Review before sending/); assert.match(html, /network fee in XLM/); assert.equal(h.donations.length, 0);
 });
 test("UTF-8 comment byte limit blocks review even when JS length fits textarea maxlength", () => {
@@ -282,7 +286,7 @@ test("review captures exact terms, amount, owner and donor preferences rather th
   review(h, "1.0000001", "  Original public comment  "); assert.match(h.html(), /Wallet, @username and permitted photo/);
   h.change(amountInput, "99"); h.change(commentInput, "Changed after review"); h.change(anonInput, true); h.setMapping(readyMapping("101"));
   h.click("Confirm Testnet donation"); assert.equal(h.donations.length, 1);
-  assert.deepEqual(h.donations[0].payload, { circleId: circle.id, expectedOwnerId: owner, termsKey: circleDonationTerms(mapping), amount: "1.0000001" });
+  assert.deepEqual(h.donations[0].payload, { circleId: circle.id, expectedOwnerId: owner, termsKey: circleDonationTerms(mapping), amount: formatStroops(circleUsdDonationAmount("1.0000001")!) });
   h.donations[0].response.resolve(confirmed()); await flush(); assert.equal(h.metadata.length, 1);
   assert.deepEqual(h.metadata[0], { id: "100", input: { hash, expectedOwnerId: owner, comment: "Original public comment", anonymous: false, publicProfileOk: true }, response: h.metadata[0].response });
   h.metadata[0].response.resolve(saved()); await settle(h); assert.match(h.html(), /Your donor record is saved/);
@@ -638,7 +642,7 @@ test("compact amount view exposes exact input, balance and one review action wit
   assert.ok(actions, "Review must have a dedicated reachable action dock");
   assert.equal(h.field("circle-testnet-amount").props.inputMode, "decimal");
   assert.equal(h.balance().props.compact, true);
-  assert.equal(h.balance().props.amountStroops, 1_001_234_567n);
+  assert.equal(h.balance().props.amountStroops, circleUsdDonationAmount("100.1234567"));
   assert.equal(h.nodes(actions).filter(node => node.type === "button" && node.props.children === h.text("Review Testnet donation")).length, 1);
   assert.equal(all.filter(node => node.type === "button" && node.props.children === h.text("Review Testnet donation")).length, 1);
   assert.ok(!all.some(node => node.type === "button" && node.props.children === h.text("Confirm Testnet donation")));
@@ -647,16 +651,18 @@ test("compact amount view exposes exact input, balance and one review action wit
   assert.equal(h.donations.length, 0); assert.equal(h.metadata.length, 0);
 });
 
-for (const cut of [{ bps: 0, beneficiary: "100", creator: "0", percent: "0" },
-  { bps: 300, beneficiary: "97", creator: "3", percent: "3" },
-  { bps: 1_000, beneficiary: "90", creator: "10", percent: "10" }]) {
+for (const cut of [{ bps: 0, percent: "0" },
+  { bps: 300, percent: "3" },
+  { bps: 1_000, percent: "10" }]) {
   test(`compact amount discloses the real ${cut.percent}% creator cut before review`, () => {
     const mapping = readyMapping(); mapping.mapping.creatorCutBps = cut.bps; mapping.campaign.config.creator_cut_bps = cut.bps;
     const h = setup({ mapping }); h.change(h.field("circle-testnet-amount"), "100");
     const form = h.all().find(node => node.props["data-testid"] === "donation-amount-form"); assert.ok(form);
     const split = h.nodes(form).find(node => node.type === "dl"); assert.ok(split, "The split must remain in the main amount form, not just review/details");
     const html = renderToStaticMarkup(split);
-    assert.ok(html.includes(`${cut.beneficiary} XLM`)); assert.ok(html.includes(`${cut.creator} XLM`)); assert.ok(html.includes(`${cut.percent}%`));
+    const expected = campaignSplit(circleUsdDonationAmount("100")!, BigInt(cut.bps));
+    assert.ok(html.includes(`${formatStroops(expected.beneficiary)} XLM`)); assert.ok(html.includes(`${formatStroops(expected.creator)} XLM`)); assert.ok(html.includes(`${cut.percent}%`));
+    assert.ok(html.includes(formatIllustrativeUsd(expected.beneficiary)));
     assert.equal(h.donations.length, 0); assert.equal(h.metadata.length, 0);
   });
 }
@@ -667,7 +673,7 @@ test("compact amount keeps detailed Testnet and privacy disclosures in closed op
   assert.ok(optional.length >= 2, "Privacy/comment and transaction details remain independently expandable");
   for (const detail of optional) assert.notEqual(detail.props.open, true, "Details must be closed in the initial compact amount view");
   const html = h.html();
-  assert.match(html, /up to 7 decimal places/); assert.match(html, /does not send USDC/);
+  assert.match(html, /Donation amount in USD/); assert.match(html, /does not send USDC/);
   assert.match(html, /Testnet XLM has no monetary value/);
   assert.match(html, /Your wallet, available @username and permitted profile photo will be public/);
   const notice = all.find(node => node.props["data-testid"] === "donor-privacy-notice"); assert.ok(notice);
@@ -695,7 +701,8 @@ for (const locale of ["en", "id", "tl", "vi"] as const) test(`confirmed receipt 
 test("confirmed receipt displays the exact reviewed XLM amount without another transfer", async () => {
   const h = setup(); h.change(h.field("circle-testnet-amount"), "50.1234567");
   h.click("Review Testnet donation"); h.click("Confirm Testnet donation"); h.donations[0].response.resolve(confirmed()); await flush();
-  assert.match(h.html(), /class="amount">50.1234567 XLM/);
+  assert.ok(h.html().includes(`class="amount">≈ ${formatIllustrativeUsd(circleUsdDonationAmount("50.1234567")!)}`));
+  assert.ok(h.html().includes(`${formatStroops(circleUsdDonationAmount("50.1234567")!)} Testnet XLM sent`));
   assert.match(h.html(), /3 · Receipt/);
   h.metadata[0].response.resolve(saved()); await settle(h);
   h.click("Back to campaign"); assert.equal(h.calls.backs, 1, "Receipt return must pop, not push a duplicate campaign entry");

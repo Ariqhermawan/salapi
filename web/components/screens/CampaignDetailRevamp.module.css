@@ -45,7 +45,7 @@
 .metrics strong span { display:block; color:#607394; font-size:10px; letter-spacing:0; margin-top:3px; font-weight:500; }
 .donationForm { display:grid; gap:10px; border-top:1px solid #e7edf6; padding-top:12px; }
 .donationForm small { color:#607394; font-size:10px; line-height:1.45; }
-.formGrid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px; }
+.formGrid { display:grid; grid-template-columns:minmax(0,1fr); gap:10px; }
 .field { display:grid; gap:6px; min-width:0; font-size:11px; font-weight:600; color:#607394; }
 .input { width:100%; min-width:0; box-sizing:border-box; min-height:46px; border:1px solid #dce5f2; border-radius:11px; padding:10px; color:#101d35; background:#fbfcfe; font:600 12px var(--font-geist-sans),sans-serif; }
 .amountInput { font-size:24px; letter-spacing:-.04em; padding-block:6px; }

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
-import { circleDonationAmount, circleDonationTerms, parseCircleDonation } from "../lib/circles/donation.ts";
+import { circleDonationAmount, circleDonationTerms, circleUsdDonationAmount, parseCircleDonation } from "../lib/circles/donation.ts";
 import type { CircleTestnetCampaignResult } from "../lib/circles/testnet.ts";
 
 const ownerId = "11111111-1111-4111-8111-111111111111";
@@ -15,6 +15,8 @@ const input = () => ({ circleId: "tino-relief", expectedOwnerId: ownerId, termsK
 
 test("native donation units are exact and reject dollar objects/zero/overprecision", () => {
   assert.equal(circleDonationAmount("1.0000001"), 10000001n);
+  assert.equal(circleUsdDonationAmount("6.50"), 580000000n);
+  assert.equal(circleUsdDonationAmount("0.000000001"), null);
   for (const value of ["0", "-1", "1.00000001", "1e2", "$1", { currency: "USD", amount: "1" }]) assert.equal(circleDonationAmount(value), null);
   assert.ok(parseCircleDonation(input()));
   assert.equal(parseCircleDonation({ ...input(), expectedOwnerId: "guest" }), null);

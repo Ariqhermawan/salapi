@@ -13,6 +13,7 @@ import { Btn, Card, Ico, PoweredByStellar, T } from "@/components/ui/kit";
 import { campaignApprove, campaignCloseEmpty, campaignCreate, campaignDonate, campaignEvents, campaignRefund,
   campaignRelease, campaignState, campaignSubmitProof } from "@/app/campaign-actions";
 import { campaignAmount, campaignSplit, creatorCutBps } from "@/lib/campaign-money";
+import { formatIllustrativeUsd } from "@/lib/money";
 import { formatStroops } from "@/lib/format-stroops";
 import { publicProofUrl, type Campaign } from "@/lib/campaign";
 import { campaignEvidence } from "@/lib/campaign-evidence";
@@ -125,7 +126,6 @@ function CampaignCard({ c, circleId, viewer, now, run, busy, detail, onPreviewUp
   const photoCopy = campaignDiscoveryCopy(locale);
   const media = vaultCampaignMedia(c, isLocalPreview);
   const [amount, setAmount] = useState("");
-  const [currency, setCurrency] = useState("XLM");
   const [hash, setHash] = useState("");
   const [url, setUrl] = useState("");
   const [error, setError] = useState("");
@@ -135,14 +135,16 @@ function CampaignCard({ c, circleId, viewer, now, run, busy, detail, onPreviewUp
   const quorum = c.approvals.length >= 2;
   const refundOpen = active && now >= BigInt(c.config.review_deadline) && !quorum;
   const split = campaignSplit(BigInt(c.total), BigInt(c.config.creator_cut_bps));
+  let donationStroops: bigint | null = null;
+  try { if (amount.trim()) donationStroops = campaignAmount({ amount, currency: "en" }); } catch { /* The review button reports invalid input. */ }
   const status = refundOpen ? (c.total === "0" ? "Ready to close" : "Refund available")
     : c.state === "Funding" && !fundingOpen ? "Awaiting proof" : c.state;
   const currentStep = c.state === "Released" ? 3 : c.proofHash ? 2 : fundingOpen ? 0 : 1;
   const role = viewer === c.config.creator ? "Creator" : viewer && c.config.approvers.includes(viewer) ? "Approver" : "Supporter";
   function donate() {
     try {
-      setError(""); const stroops = campaignAmount({ amount, currency });
-      run(`Donate ${formatStroops(stroops)} Testnet XLM to campaign #${c.id}. Funds remain escrowed pending proof review.`, () => campaignDonate(c.id, { amount, currency }), false, () => { const saved = onPreviewUpdate({ ...c, total: String(BigInt(c.total) + stroops), escrow: String(BigInt(c.escrow) + stroops), contribution: { amount: String(BigInt(c.contribution.amount) + stroops), refunded: false } }); if (saved) setAmount(""); return saved; });
+      setError(""); const stroops = campaignAmount({ amount, currency: "en" });
+      run(`Donate ${amount.trim()} USD (${formatStroops(stroops)} Testnet XLM) to campaign #${c.id}. Funds remain escrowed pending proof review. USD is an illustrative display amount, not a fiat payment.`, () => campaignDonate(c.id, { amount, currency: "en" }), false, () => { const saved = onPreviewUpdate({ ...c, total: String(BigInt(c.total) + stroops), escrow: String(BigInt(c.escrow) + stroops), contribution: { amount: String(BigInt(c.contribution.amount) + stroops), refunded: false } }); if (saved) setAmount(""); return saved; });
     } catch (e) { setError(e instanceof Error ? e.message : "Invalid amount"); }
   }
   return <section className={`${styles.card} ${media ? styles.photoCard : ""}`} aria-label={`Campaign #${c.id}`}>
@@ -161,21 +163,21 @@ function CampaignCard({ c, circleId, viewer, now, run, busy, detail, onPreviewUp
     {detail && <D4CampaignGallery key={c.id} campaignId={c.id} creatorWallet={c.config.creator} viewer={viewer}
       localPreview={isLocalPreview} examplePhotos={media?.gallery} />}
     <div className={styles.metrics}>
-      <div><small>Total donated</small><strong>{formatStroops(c.total)} <span>Testnet XLM</span></strong></div>
-      <div><small>Remaining escrow</small><strong>{formatStroops(c.escrow)} <span>Testnet XLM</span></strong></div>
+      <div><small>Total donated · USD estimate</small><strong>≈ {formatIllustrativeUsd(c.total)} <span>{formatStroops(c.total)} Testnet XLM</span></strong></div>
+      <div><small>Remaining escrow · USD estimate</small><strong>≈ {formatIllustrativeUsd(c.escrow)} <span>{formatStroops(c.escrow)} Testnet XLM</span></strong></div>
     </div>
     {viewer && fundingOpen && <div className={styles.donationForm}>
       {detail && <AvailableWalletBalance />}
-      <div className={styles.formGrid}><Field label="Donation amount"><input className={`${styles.input} ${styles.amountInput}`} placeholder="0.00" inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)} disabled={busy} /></Field>
-      <Field label="Display currency"><select aria-label="Display currency" className={styles.input} value={currency} onChange={e => setCurrency(e.target.value)} disabled={busy}><option value="XLM">Testnet XLM</option><option value="tl">PHP (illustrative)</option><option value="id">IDR (illustrative)</option></select></Field></div>
-      <div className={styles.presets}>{(currency === "id" ? ["20000","50000","100000","200000"] : currency === "tl" ? ["50","100","200","500"] : ["5","10","25","50"]).map(value => <button key={value} type="button" disabled={busy} aria-pressed={amount === value} onClick={() => setAmount(value)}>{currency === "id" ? "Rp " : currency === "tl" ? "₱" : ""}{Number(value).toLocaleString(currency === "id" ? "id-ID" : "en-US")}{currency === "XLM" ? " XLM" : ""}</button>)}</div>
-      <small>Only valueless Testnet XLM moves. Currency displays do not represent a fiat payment.</small>
+      <div className={styles.formGrid}><Field label="Donation amount (USD)"><input className={`${styles.input} ${styles.amountInput}`} placeholder="0.00" inputMode="decimal" maxLength={64} value={amount} onChange={e => setAmount(e.target.value)} disabled={busy} /></Field></div>
+      <div className={styles.presets}>{["2", "5", "10", "20"].map(value => <button key={value} type="button" disabled={busy} aria-pressed={amount === value} onClick={() => setAmount(value)}>${value}</button>)}</div>
+      {donationStroops !== null && <small>Token amount: {formatStroops(donationStroops)} Testnet XLM</small>}
+      <small>USD uses the same fixed illustrative Testnet conversion as Send by @username. Only valueless XLM moves; no fiat payment or USDC transfer occurs.</small>
       <Btn disabled={busy || !amount.trim()} onClick={donate} leading={<Heart size={18} weight="fill" aria-hidden="true" />}>Donate · Review amount</Btn>
       {error && <p className={styles.error} role="alert">{error}</p>}
     </div>}
     <div className={styles.steps}>{["Fund", "Submit proof", "2 approvals", "Release"].map((label, i) => <div key={label} className={`${styles.step} ${i <= currentStep ? styles.stepCurrent : ""}`}>{i + 1}. {label}</div>)}</div>
     {!detail && <Link href={`/campaigns?id=${c.id}`} className={styles.textButton}>View campaign and terms →</Link>}
-    <p className={styles.muted}>On release: {formatStroops(split.beneficiary)} XLM to beneficiary, {formatStroops(split.creator)} XLM to creator ({c.config.creator_cut_bps / 100}%).</p>
+    <p className={styles.muted}>On release: ≈ {formatIllustrativeUsd(split.beneficiary)} to beneficiary ({formatStroops(split.beneficiary)} XLM), ≈ {formatIllustrativeUsd(split.creator)} to creator ({formatStroops(split.creator)} XLM, {c.config.creator_cut_bps / 100}%).</p>
     <details className={styles.terms}><summary>Locked terms and recipients</summary><div style={{ ...group, marginTop: 8 }}>
       <div>Creator<br /><AddressLink address={c.config.creator} /></div>
       <div>Beneficiary<br /><AddressLink address={c.config.beneficiary} /></div>
@@ -188,7 +190,7 @@ function CampaignCard({ c, circleId, viewer, now, run, busy, detail, onPreviewUp
       <p style={wordBreak}>SHA-256: {c.proofHash}</p><small>A hash identifies the document; it does not verify that its claims are true.</small></div>}
     {viewer && <div className={styles.donorRecord}>
       {donorBadge && <span className={donorBadge === "testnet" ? styles.testnetDonor : styles.exampleDonor} data-testid="campaign-donor-badge" data-evidence={donorBadge}>{donorCopy(donorBadge === "testnet" ? "Testnet donor" : "Example donor")}</span>}
-      <p>{isLocalPreview ? donorCopy("Your example contribution") : donorCopy("Your wallet's recorded contribution")}: {formatStroops(c.contribution.amount)} XLM{c.contribution.refunded ? " · Refunded" : ""}</p>
+      <p>{isLocalPreview ? donorCopy("Your example contribution") : donorCopy("Your wallet's recorded contribution")}: ≈ {formatIllustrativeUsd(c.contribution.amount)} · {formatStroops(c.contribution.amount)} XLM{c.contribution.refunded ? " · Refunded" : ""}</p>
       {donorBadge === "testnet" && <small>{donorCopy("Confirmed by this wallet's D4 contract record. Not a fiat donation, KYC check or proof of delivery.")}</small>}
       {donorBadge === "example" && <small>{donorCopy("Browser-only example. No confirmed Testnet donation or donor badge.")}</small>}
     </div>}
@@ -207,8 +209,8 @@ function CampaignCard({ c, circleId, viewer, now, run, busy, detail, onPreviewUp
     </div>}
     {viewer && c.config.approvers.includes(viewer) && c.state === "PendingProof" && reviewOpen && <Btn disabled={busy || c.approvals.includes(viewer)}
       onClick={() => run(`Approve the submitted proof ${c.proofHash} for campaign #${c.id}. Confirm you have reviewed the document.`, () => campaignApprove(c.id, c.proofHash!), false, () => onPreviewUpdate({ ...c, approvals: [...c.approvals, viewer] }))}>Approve proof</Btn>}
-    {viewer && c.state === "PendingProof" && quorum && <Btn disabled={busy} onClick={() => run(`Release campaign #${c.id}: ${formatStroops(split.creator)} XLM to creator and ${formatStroops(split.beneficiary)} XLM to beneficiary. This completes the campaign.`, () => campaignRelease(c.id), false, () => onPreviewUpdate({ ...c, state: "Released", escrow: "0" }))}>Release funds</Btn>}
-    {viewer && refundOpen && BigInt(c.contribution.amount) > 0n && !c.contribution.refunded && <Btn disabled={busy} onClick={() => run(`Return your full ${formatStroops(c.contribution.amount)} XLM donation from campaign #${c.id} to your original wallet.`, () => campaignRefund(c.id), false, () => onPreviewUpdate({ ...c, escrow: String(BigInt(c.escrow) - BigInt(c.contribution.amount)), contribution: { ...c.contribution, refunded: true } }))}>Claim full refund</Btn>}
+    {viewer && c.state === "PendingProof" && quorum && <Btn disabled={busy} onClick={() => run(`Release campaign #${c.id}: ≈ ${formatIllustrativeUsd(split.creator)} (${formatStroops(split.creator)} XLM) to creator and ≈ ${formatIllustrativeUsd(split.beneficiary)} (${formatStroops(split.beneficiary)} XLM) to beneficiary. This completes the campaign.`, () => campaignRelease(c.id), false, () => onPreviewUpdate({ ...c, state: "Released", escrow: "0" }))}>Release funds</Btn>}
+    {viewer && refundOpen && BigInt(c.contribution.amount) > 0n && !c.contribution.refunded && <Btn disabled={busy} onClick={() => run(`Return your full ≈ ${formatIllustrativeUsd(c.contribution.amount)} (${formatStroops(c.contribution.amount)} XLM) donation from campaign #${c.id} to your original wallet. The original XLM amount, not a fixed USD value, is refunded.`, () => campaignRefund(c.id), false, () => onPreviewUpdate({ ...c, escrow: String(BigInt(c.escrow) - BigInt(c.contribution.amount)), contribution: { ...c.contribution, refunded: true } }))}>Claim full refund</Btn>}
     {viewer && refundOpen && c.total === "0" && <Btn kind="secondary" disabled={busy} onClick={() => run(`Close empty campaign #${c.id}.`, () => campaignCloseEmpty(c.id), false, () => onPreviewUpdate({ ...c, state: "Closed" }))}>Close empty campaign</Btn>}
     {error && !(viewer && fundingOpen) && <p className={styles.error} role="alert">{error}</p>}
     {detail && !isLocalPreview && c.title.startsWith("QA Circles: ") && <>

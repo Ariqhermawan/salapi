@@ -6,10 +6,11 @@ import React from "react";
 import * as jsxRuntime from "react/jsx-runtime";
 import { renderToStaticMarkup } from "react-dom/server";
 import ts from "typescript";
-import { circleDonationAmount, circleDonationTerms } from "../../lib/circles/donation";
+import { circleDonationAmount, circleDonationTerms, circleUsdDonationAmount } from "../../lib/circles/donation";
 import { campaignDonorComment } from "../../lib/campaign-donor";
 import { campaignSplit } from "../../lib/campaign-money";
 import { formatStroops } from "../../lib/format-stroops";
+import { formatIllustrativeUsd } from "../../lib/money";
 import { circleTestnetDonateCopy } from "../../lib/i18n/circle-testnet-donate";
 import { circleDisplayContent } from "../../lib/i18n/circles-content";
 import type { Locale } from "../../lib/i18n/config";
@@ -45,10 +46,11 @@ export function donationReviewMarkup(circle: Circle, terms: Extract<CircleTestne
     if (name === "next/link") return { __esModule: true, default: (props: { children: React.ReactNode; href: string }) => React.createElement("a", props) };
     if (name === "@/app/circle-donation-actions") return { donateCircleTestnet: forbidden };
     if (name === "@/app/campaign-donor-actions") return { campaignDonorRecord: forbidden };
-    if (name === "@/lib/circles/donation") return { circleDonationAmount, circleDonationTerms };
+    if (name === "@/lib/circles/donation") return { circleDonationAmount, circleDonationTerms, circleUsdDonationAmount };
     if (name === "@/lib/campaign-donor") return { campaignDonorComment };
     if (name === "@/lib/campaign-money") return { campaignSplit };
     if (name === "@/lib/format-stroops") return { formatStroops };
+    if (name === "@/lib/money") return { formatIllustrativeUsd };
     if (name === "@/lib/ui/useCircleTestnet") return { useCircleTestnet: () => ({ result: terms, loading: false, refresh: forbidden }) };
     if (name === "@/lib/ui/useCirclesSignupIdentity") return { useCirclesSignupIdentity: () => ({
       identity: { status: "verified", ownerId, email: "layout@example.invalid", source: "account" },

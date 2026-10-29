@@ -17,8 +17,8 @@ import {
 } from "@/lib/i18n/config";
 import { DICTS } from "@/lib/i18n/dictionaries";
 
-// Display-currency preference, stored apart from the language. null means
-// "follow the language" — the default the app shipped with.
+// Display-currency preference, stored apart from the language. null defaults
+// to USD while existing explicit choices remain intact.
 const CURRENCY_PREF_KEY = "salapi_currency";
 
 // Primitive snapshots stay referentially stable, including during hydration.
@@ -50,7 +50,7 @@ type Ctx = {
   locale: Locale;
   setLocale: (l: Locale) => void;
   t: (key: string, vars?: Record<string, string | number>) => string;
-  // Resolved display currency (currencyPref ?? locale) and its controls.
+  // Resolved display currency (currencyPref ?? USD) and its controls.
   currency: Locale;
   currencyPref: Locale | null;
   setCurrency: (c: Locale | null) => void;
@@ -109,8 +109,8 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     [locale]
   );
 
-  // Display currency: an explicit pick, otherwise it follows the language.
-  const currency: Locale = currencyPref ?? locale;
+  // Display currency: an explicit pick, otherwise USD across all languages.
+  const currency: Locale = currencyPref ?? "en";
 
   const value = useMemo(
     () => ({ locale, setLocale, t, currency, currencyPref, setCurrency }),

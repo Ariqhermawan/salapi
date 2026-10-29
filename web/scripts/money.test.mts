@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  formatIllustrativeUsd,
   localToStroops,
   moneyInputToStroops,
   nativeBalanceToStroops,
@@ -43,5 +44,13 @@ test("integer conversion conserves a split balance with no residual dust", () =>
   const parts = ["40", "60"].map((value) => pesosToStroopsExact(value)!);
   const total = pesosToStroopsExact("100")!;
   assert.equal(parts[0] + parts[1], total);
+});
+
+test("fixed USD display rounds only after exact stroop conversion", () => {
+  assert.equal(formatIllustrativeUsd(0n), "$0.00");
+  assert.equal(formatIllustrativeUsd(10_000_000n), "$0.11");
+  assert.equal(formatIllustrativeUsd(localToStroops("6.50", "en")!), "$6.50");
+  assert.equal(formatIllustrativeUsd(1_000_000_000_000_000_000n), "$11,206,896,551.72");
+  assert.throws(() => formatIllustrativeUsd(-1n), /negative/);
 });
 

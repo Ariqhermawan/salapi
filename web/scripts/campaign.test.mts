@@ -7,7 +7,8 @@ import { campaignEvidence } from "../lib/campaign-evidence.ts";
 import { campaignAmount, campaignSplit, creatorCutBps } from "../lib/campaign-money.ts";
 import { campaignId, campaignStruct, parseCampaignConfig, proofHash, publicProofUrl } from "../lib/campaign.ts";
 
-test("D4 exact XLM/PHP boundary rejects rounding and malformed values", () => {
+test("D4 exact USD/XLM/PHP boundary rejects rounding and malformed values", () => {
+  assert.equal(campaignAmount({ amount: "6.50", currency: "en" }), 580_000_000n);
   assert.equal(campaignAmount({ amount: "6.50", currency: "tl" }), 10_000_000n);
   assert.equal(campaignAmount({ amount: "100.0000001", currency: "XLM" }), 1_000_000_001n);
   for (const amount of [0, "0", "-1", "1e3", "1.00000001", "NaN", "Infinity", "", "1,000"])
