@@ -234,7 +234,7 @@ test("compact wallet CSS retains equal labelled actions with readable labels and
   const action = rules(".wallet .walletAction").find(rule => declaration(rule, "min-height"))!; assert.ok(action);
   assert.ok(Number.parseFloat(declaration(action, "min-height")!) >= 44);
   assert.ok(Number.parseFloat(declaration(action, "border-radius")!) > 0);
-  assert.equal(declaration(action, "flex-direction"), "column", "A small icon above each label leaves readable action labels beside the USD amount");
+  assert.equal(declaration(action, "flex-direction"), "row", "The approved wallet panel aligns each action icon with its label");
   assert.ok(rules(".wallet .walletAction + .walletAction::before").some(rule => declaration(rule, "content") === "none"), "The two actions remain distinct buttons without a shared divider");
   assert.ok(rules(".wallet .walletActionLabel").every(rule => Number.parseFloat(declaration(rule, "font-size") ?? "12") >= 12), "Compact action labels must remain at least 12px");
 });

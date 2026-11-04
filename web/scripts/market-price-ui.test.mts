@@ -554,22 +554,20 @@ test("compact dashboard keeps USD beside touch-sized actions and exact XLM below
   const lowerBound = (value: string | undefined) => Number(value?.match(/\d+(?:\.\d+)?/)?.[0]);
   assert.ok(lowerBound(declaration(estimate, "font-size")) > lowerBound(declaration(native, "font-size")));
   assert.equal(declaration(estimate, "grid-row"), "1");
-  assert.ok(rules(".secondary").some(rule => declaration(rule, "grid-row") === "2" && declaration(rule, "flex-wrap") === "wrap"), "Exact XLM and live/stale status sit in the secondary row below the main USD amount");
-  assert.ok(rules(".secondary").some(rule => declaration(rule, "grid-column") === "1 / -1"), "Narrow cards allow the complete secondary row to use their width");
+  assert.ok(rules(".secondary").some(rule => declaration(rule, "display") === "contents"), "Secondary content shares the dashboard grid without a separate sizing wrapper");
   const tokenContext = rules(".tokenContext")[0];
-  assert.equal(declaration(tokenContext, "display"), "flex");
-  assert.equal(declaration(tokenContext, "flex-wrap"), "wrap", "The Testnet warning can wrap beside a long exact XLM balance");
-  assert.equal(declaration(tokenContext, "align-items"), "baseline");
+  assert.equal(declaration(tokenContext, "display"), "contents", "The exact balance and Testnet caption participate in the secondary grid without duplicating content");
+  assert.equal(declaration(native, "grid-row"), "2", "The exact XLM balance remains directly below USD and outside the action column");
   const caption = rules(".caption")[0];
   assert.ok(lowerBound(declaration(caption, "font-size")) >= 12, "The Testnet warning remains readable in the compact wallet");
-  assert.equal(declaration(caption, "grid-row"), undefined, "Token framing is no longer positioned in its own footer row");
+  assert.equal(declaration(caption, "grid-row"), "3", "The Testnet warning has a visible status row before the price footer");
   assert.equal(rules(".detailSpace").length, 0, "The obsolete extra-row spacer has no remaining CSS");
   for (const selector of [".attribution", ".details"]) {
-    assert.ok(rules(selector).some(rule => declaration(rule, "grid-row") === "3"), `${selector} shares the provider footer directly below the secondary balance context`);
+    assert.ok(rules(selector).some(rule => declaration(rule, "grid-row") === "4"), `${selector} shares the provider footer directly below the secondary balance context`);
   }
   assert.ok(rules(".native").some(rule => declaration(rule, "overflow-wrap") === "anywhere"), "Long exact XLM stays readable through wrapping, never rounding");
-  assert.ok(rules(".actions").some(rule => declaration(rule, "grid-column") === "2" && declaration(rule, "grid-row") === "1"), "Ordinary wallet widths put both actions beside the primary USD estimate");
-  assert.ok(rules(".actions").some(rule => declaration(rule, "grid-column") === "1 / -1" && declaration(rule, "grid-row") === "3"), "Very narrow or enlarged-text layouts can use a full action row without clipping");
+  assert.ok(rules(".actions").some(rule => declaration(rule, "grid-column") === "2" && declaration(rule, "grid-row") === "1 / 3"), "Ordinary wallet widths put both actions beside the USD and exact XLM amounts");
+  assert.ok(rules(".actions").some(rule => declaration(rule, "grid-column") === "1 / -1" && declaration(rule, "grid-row") === "5"), "Very narrow or enlarged-text layouts can use a full action row without clipping");
   for (const selector of [".native", ".native span", ".quoteStatus", ".caption", ".attribution", ".details"]) {
     assert.ok(rules(selector).every(rule => !declaration(rule, "font-size") || lowerBound(declaration(rule, "font-size")) >= 12), `${selector} keeps ordinary wallet labels at least 12px`);
   }

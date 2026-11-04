@@ -1,17 +1,17 @@
 .dashboard {
   --price-details-width: 120px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 124px;
-  column-gap: 8px;
-  row-gap: 1px;
+  grid-template-columns: minmax(0, 1fr) 188px;
+  column-gap: 12px;
+  row-gap: 0;
   text-align: left;
 }
-.balanceState { grid-column: 1; grid-row: 1; min-width: 0; min-height: 44px; display: flex; align-items: center; font-size: 12px; line-height: 1.3; font-variant-numeric: tabular-nums; }
-.secondary { grid-column: 1 / -1; grid-row: 2; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; min-width: 0; }
-.tokenContext { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; min-width: 0; }
-.native { min-width: 0; color: #d3e3ff; font-size: 13px; font-weight: 550; line-height: 1.3; letter-spacing: normal; white-space: normal; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.balanceState { grid-column: 1; grid-row: 1 / 3; min-width: 0; min-height: 52px; display: flex; align-items: center; font-size: 12px; line-height: 1.3; font-variant-numeric: tabular-nums; }
+.secondary { display: contents; }
+.tokenContext { display: contents; }
+.native { grid-column: 1; grid-row: 2; min-width: 0; color: #e2e9f6; font-family: var(--font-geist-mono), ui-monospace, monospace; font-size: 13px; font-weight: 500; line-height: 1.3; letter-spacing: normal; white-space: normal; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
 .native span { font-size: 12px; font-weight: 500; }
-.quoteStatus { color: #b7c9eb; font-size: 12px; line-height: 1.3; letter-spacing: normal; }
+.quoteStatus { grid-column: 2; grid-row: 3; color: #c1cee5; font-size: 12px; line-height: 1.3; letter-spacing: normal; text-align: right; }
 .quoteStatus[data-price-status="stale"] { color: #ffe1ad; }
 .skeleton { display: block; width: 90%; max-width: 300px; height: 28px; }
 .estimate { grid-column: 1; grid-row: 1; align-self: center; min-width: 0; color: #fff; font-size: clamp(24px, 6.8cqw, 32px); font-weight: 780; line-height: 1.1; letter-spacing: -.035em; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
@@ -19,15 +19,15 @@
 .currencyUnit { color: #d3e3ff; font-size: .5em; font-weight: 650; letter-spacing: normal; white-space: nowrap; }
 .dashboard[data-market-value="unavailable"] .estimate { font-size: 12px; line-height: 1.3; }
 .dashboard[data-market-value="stale"] .estimate { color: #ffe1ad; }
-.actions { grid-column: 2; grid-row: 1; align-self: center; min-width: 0; }
-.caption { min-width: 0; color: #b7c9eb; font-size: 12px; line-height: 1.3; letter-spacing: normal; }
-.attribution { grid-column: 1; grid-row: 3; align-self: start; display: flex; flex-direction: column; align-items: flex-start; gap: 0; min-height: 44px; font-size: 12px; line-height: 1.2; font-weight: 400; letter-spacing: normal; z-index: 1; }
-.feedLabel { display: block; color: #b7c9eb; }
+.actions { grid-column: 2; grid-row: 1 / 3; align-self: center; min-width: 0; }
+.caption { grid-column: 1; grid-row: 3; min-width: 0; color: #c1cee5; font-size: 12px; line-height: 1.3; letter-spacing: normal; }
+.attribution { grid-column: 1; grid-row: 4; align-self: start; display: flex; flex-direction: column; align-items: flex-start; gap: 0; min-height: 44px; margin-top: 4px; font-size: 12px; line-height: 1.2; font-weight: 400; letter-spacing: normal; z-index: 1; }
+.feedLabel { display: block; color: #c1cee5; }
 .providerRow { display: flex; align-items: center; gap: 5px; min-width: 0; }
 .attribution a { display: inline-flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px; min-height: 44px !important; }
 .attribution img { height: 16px !important; }
-.details { grid-column: 1 / -1; grid-row: 3; min-width: 0; font-size: 12px; line-height: 1.4; letter-spacing: normal; font-weight: 400; }
-.details summary { display: flex; align-items: center; justify-content: flex-end; gap: 6px; width: var(--price-details-width); min-height: 44px; margin: 0 0 0 auto; padding-left: 8px; border-left: 1px solid #ffffff30; color: #b7c9eb; cursor: pointer; text-align: right; list-style: none; }
+.details { grid-column: 1 / -1; grid-row: 4; min-width: 0; margin-top: 4px; border-top: 1px solid #ffffff40; font-size: 12px; line-height: 1.4; letter-spacing: normal; font-weight: 400; }
+.details summary { display: flex; align-items: center; justify-content: flex-end; gap: 6px; width: var(--price-details-width); min-height: 44px; margin: 0 0 0 auto; padding-left: 8px; color: #d6e0f2; cursor: pointer; text-align: right; list-style: none; }
 .details summary::-webkit-details-marker { display: none; }
 .details summary::after { content: "+"; font-size: 16px; flex: 0 0 auto; }
 .details[open] summary::after { content: "−"; }
@@ -39,6 +39,21 @@
 @container (max-width: 300px) {
   .dashboard { grid-template-columns: minmax(0, 1fr) var(--price-details-width); }
   .balanceState, .estimate { grid-column: 1 / -1; }
-  .actions { grid-column: 1 / -1; grid-row: 3; margin-top: 2px; }
-  .attribution, .details { grid-row: 4; }
+  .native { grid-column: 1 / -1; }
+  .caption { grid-column: 1 / -1; }
+  .quoteStatus { grid-column: 1 / -1; grid-row: 4; text-align: left; }
+  .actions { grid-column: 1 / -1; grid-row: 5; margin-top: 2px; }
+  .attribution, .details { grid-row: 6; }
+}
+
+@container (max-width: 350px) {
+  .dashboard { grid-template-columns: minmax(0, 1fr) 132px; column-gap: 8px; }
+}
+
+@container (min-width: 600px) {
+  .dashboard { --price-details-width: 150px; grid-template-columns: minmax(0, 1fr) 280px; }
+  .estimate { font-size: 44px; }
+  .native, .caption, .quoteStatus { font-size: 14px; }
+  .attribution { grid-column: 1 / -1; width: calc(100% - var(--price-details-width) - 12px); }
+  .attribution a { flex-direction: row; gap: 12px; }
 }
