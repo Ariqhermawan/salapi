@@ -47,6 +47,8 @@ export default function CircleTestnetDonate({ circle }: { circle: Circle }) {
   const [amount, setAmount] = useState("1");
   const [comment, setComment] = useState("");
   const [anonymous, setAnonymous] = useState(false);
+  // Remember the public-profile preference while anonymous is selected. The
+  // reviewed donation below always masks this permission for anonymous entries.
   const [publicProfileOk, setPublicProfileOk] = useState(true);
   const [review, setReview] = useState<Review | null>(null);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
@@ -217,7 +219,7 @@ export default function CircleTestnetDonate({ circle }: { circle: Circle }) {
           ? text("Public: wallet, @username and permitted photo. You can choose anonymous below.")
           : text("Public: wallet and receipt only. Name and photo stay hidden.")}</p>
       <details className={styles.options}><summary>{text("Privacy and comment (optional)")}</summary><div className={styles.optionFields}>
-      <label className={styles.check}><input type="checkbox" checked={anonymous} disabled={busy} onChange={event => { setAnonymous(event.target.checked); setPublicProfileOk(false); }} />{text("Display anonymously in the donor feed")}</label>
+      <label className={styles.check}><input type="checkbox" checked={anonymous} disabled={busy} onChange={event => setAnonymous(event.target.checked)} />{text("Display anonymously in the donor feed")}</label>
       <p className={styles.hint}>{text("Anonymous hides your wallet, name, photo and receipt link here. Transactions remain public on Stellar and timing or amounts can still identify you.")}</p>
       {!anonymous && <label className={styles.check}><input type="checkbox" checked={publicProfileOk} disabled={busy} onChange={event => setPublicProfileOk(event.target.checked)} />{text("Also publish my available @username and permitted profile photo for this donation")}</label>}
       <label htmlFor="circle-testnet-comment">{text("Optional public comment")}</label><textarea id="circle-testnet-comment" rows={3} maxLength={500} value={comment} disabled={busy} onChange={event => setComment(event.target.value)} aria-invalid={!commentValid} />
@@ -228,7 +230,7 @@ export default function CircleTestnetDonate({ circle }: { circle: Circle }) {
       <div className={styles.amountActions} data-testid="donation-amount-actions">
       <button type="button" className={styles.primary} disabled={!native || !commentValid || busy || guard.locked || identity.status !== "verified"} onClick={() => {
         if (identity.status !== "verified" || !mapping.result?.ok || !mapping.result.donationOpen || !native || !commentValid) return;
-        setError(""); setReview({ terms: mapping.result, amount, amountStroops: native, ownerId: identity.ownerId, ownerRevision: captureOwnerRevision(), comment: campaignDonorComment(comment)!, anonymous, publicProfileOk });
+        setError(""); setReview({ terms: mapping.result, amount, amountStroops: native, ownerId: identity.ownerId, ownerRevision: captureOwnerRevision(), comment: campaignDonorComment(comment)!, anonymous, publicProfileOk: !anonymous && publicProfileOk });
       }}>{text("Review Testnet donation")}</button>
       </div>
     </section> : !mapping.loading ? <button type="button" className={styles.secondary} disabled={busy} onClick={() => void mapping.refresh()}>{text("Check campaign availability")}</button> : null}

@@ -1,5 +1,5 @@
 import "server-only";
-import { Account, Address, BASE_FEE, Contract, nativeToScVal, Networks, rpc, scValToNative, StrKey, TransactionBuilder } from "@stellar/stellar-sdk";
+import { Account, Address, BASE_FEE, Contract, nativeToScVal, Networks, rpc, scValToNative, StrKey, TransactionBuilder, xdr } from "@stellar/stellar-sdk";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { SUPABASE_URL } from "@/lib/supabase/env";
 import { ACCOUNT_AVATAR_BUCKET, ACCOUNT_AVATAR_METADATA_KEY, googleAccountPhoto, ownedAccountPhotoPath } from "@/lib/account-photo";
@@ -10,6 +10,7 @@ import type { WalletActivityIdentity, WalletActivityItem } from "../wallet-activ
 const MAX_IDENTITIES = 12;
 const WORKERS = 3;
 const DEADLINE_MS = 4_000;
+const DONATION_IDENTITY_DEADLINE_MS = 12_000;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const validAddress = (value: string | null): value is string => typeof value === "string" && StrKey.isValidEd25519PublicKey(value);
 
@@ -38,6 +39,59 @@ async function publicHandle(address: string, deadline: number): Promise<string |
     // Never trust a nickname or a stale reverse mapping as address ownership.
     return await call("resolve", nativeToScVal(handle, { type: "string" })) === address ? handle : null;
   } catch { return null; }
+}
+
+function usernameLedgerKey(variant: "Owner" | "Name", value: xdr.ScVal): xdr.LedgerKey {
+  return xdr.LedgerKey.contractData(new xdr.LedgerKeyContractData({
+    contract: new Address(CONTRACTS.usernameRegistry).toScAddress(),
+    key: xdr.ScVal.scvVec([xdr.ScVal.scvSymbol(variant), value]),
+    durability: xdr.ContractDataDurability.persistent(),
+  }));
+}
+
+/** One reverse batch and one forward batch cover the whole public donor page.
+ * Per-wallet simulations exhausted the old shared deadline before even one
+ * two-way verification could finish. These are read-only canonical registry
+ * entries, never account metadata, signing, submission or restoration.
+ */
+async function publicDonationHandles(addresses: string[], deadline: number): Promise<Map<string, string>> {
+  try {
+    const server = new rpc.Server(RPC_URL, { timeout: Math.max(1, deadline - Date.now()) });
+    const read = async (keys: xdr.LedgerKey[], valueType: "scvString" | "scvAddress") => {
+      const response = await beforeDeadline(server.getLedgerEntries(...keys), deadline);
+      if (!Number.isSafeInteger(response.latestLedger) || response.latestLedger <= 0
+        || !Array.isArray(response.entries) || response.entries.length > keys.length) throw Error("Invalid registry batch");
+      const requested = new Set(keys.map(key => key.toXDR("base64")));
+      const values = new Map<string, unknown>();
+      for (const entry of response.entries) {
+        const encoded = entry.key.toXDR("base64");
+        if (!requested.has(encoded) || values.has(encoded)) throw Error("Unexpected registry key");
+        const data = entry.val.contractData(), key = entry.key.contractData();
+        if (!data.contract().toXDR().equals(key.contract().toXDR())
+          || !data.key().toXDR().equals(key.key().toXDR())
+          || data.durability().value !== key.durability().value
+          || data.val().switch().name !== valueType) throw Error("Mismatched registry value");
+        // RPC also returns archived persistent entries (liveUntilLedgerSeq=0).
+        // They remain canonical stored mappings and simulations can auto-restore
+        // them. Displaying the verified mapping here does not restore any state.
+        values.set(encoded, scValToNative(data.val()));
+      }
+      return values;
+    };
+    const reverseKeys = addresses.map(address => usernameLedgerKey("Owner", new Address(address).toScVal()));
+    const reverse = await read(reverseKeys, "scvString");
+    const candidates = addresses.flatMap((address, index) => {
+      const handle = reverse.get(reverseKeys[index].toXDR("base64"));
+      return typeof handle === "string" && /^[a-z0-9_]{3,32}$/.test(handle) ? [{ address, handle }] : [];
+    });
+    if (!candidates.length) return new Map();
+    const names = [...new Set(candidates.map(candidate => candidate.handle))];
+    const forwardKeys = names.map(handle => usernameLedgerKey("Name", nativeToScVal(handle, { type: "string" })));
+    const forward = await read(forwardKeys, "scvAddress");
+    const verified = new Map(names.map((handle, index) => [handle, forward.get(forwardKeys[index].toXDR("base64"))]));
+    return new Map(candidates.filter(candidate => verified.get(candidate.handle) === candidate.address)
+      .map(candidate => [candidate.address, candidate.handle]));
+  } catch { return new Map(); }
 }
 
 function safeSignedPhoto(value: unknown, path: string): string | null {
@@ -81,7 +135,7 @@ export async function readTransferWalletIdentity(address: string): Promise<Walle
 
 async function readVerifiedIdentities(addresses: string[], limit: number, allowPhotos: boolean, donationPhotoOwners?: ReadonlyMap<string, string>, nonanonymousOwners = false, publicFallbackOnPhotoFailure = false, previewPhotos = false): Promise<WalletActivityIdentity[]> {
   const result = addresses.map(address => ({ address, handle: null, photoUrl: null } as WalletActivityIdentity));
-  const deadline = Date.now() + DEADLINE_MS;
+  const deadline = Date.now() + (donationPhotoOwners !== undefined ? DONATION_IDENTITY_DEADLINE_MS : DEADLINE_MS);
   const owners = new Map<string, string>();
   let admin: ReturnType<typeof createSupabaseAdmin> | null = null;
   let photoDatabaseFailed = false;
@@ -116,7 +170,9 @@ async function readVerifiedIdentities(addresses: string[], limit: number, allowP
       while (next < result.length && Date.now() < deadline) await read(result[next++]);
     }));
   };
-  const handlesRead = workers(async identity => { identity.handle = await publicHandle(identity.address, deadline); });
+  const handlesRead = donationPhotoOwners !== undefined
+    ? publicDonationHandles(addresses, deadline).then(handles => { for (const identity of result) identity.handle = handles.get(identity.address) ?? null; })
+    : workers(async identity => { identity.handle = await publicHandle(identity.address, deadline); });
   const photosRead = (async () => {
     await ownersRead;
     await workers(async identity => {

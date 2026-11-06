@@ -15,7 +15,9 @@
 .amount { color: #00856c; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; max-width: 100%; text-align: right; }
 .amount small { font-size: 10px; font-weight: 600; }
 .estimate { display: block; margin-top: 2px; color: #607491; font-size: 10px; font-weight: 500; line-height: 1.5; font-variant-numeric: tabular-nums; }
-.badge { display: inline-block; margin-top: 6px; padding: 3px 7px; border: 1px solid #c0e7d9; border-radius: 7px; background: #ebf9f3; color: #166a54; font-size: 9px; font-weight: 650; line-height: 1.4; }
+.badges { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+.badge, .identityBadge { display: inline-block; padding: 3px 7px; border: 1px solid #c0e7d9; border-radius: 7px; background: #ebf9f3; color: #166a54; font-size: 9px; font-weight: 650; line-height: 1.4; }
+.identityBadge { border-color: #dce6f7; background: #f4f7fc; color: #35567e; }
 .body time { display: block; margin-top: 5px; color: #74849b; font-size: 10px; line-height: 1.5; }
 .address { margin: 8px 0 0; color: #63728a; font-size: 10px; line-height: 1.6; }
 .address summary { cursor: pointer; min-height: 24px; width: fit-content; max-width: 100%; }

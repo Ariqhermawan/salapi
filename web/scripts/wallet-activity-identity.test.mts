@@ -21,11 +21,26 @@ const item = (counterparty = other): WalletActivityItem => ({ id: "1:payment", h
   amountStroops: "10000000", direction: "received", asset: XLM_ACTIVITY_ASSET, counterparty, kind: "payment", fee: { status: "unavailable" } });
 const source = readFileSync(new URL("../lib/server/walletActivityIdentity.ts", import.meta.url), "utf8");
 const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+const registry = "CDDINUQXTF6SHZN2ZJ36IT7P4YOJ3OZN3H6LTYHVCQ35YYO7YTAWM4G3";
+function registryKey(variant: "Owner" | "Name", value: sdk.xdr.ScVal, contract = registry, persistent = true) {
+  return sdk.xdr.LedgerKey.contractData(new sdk.xdr.LedgerKeyContractData({
+    contract: new sdk.Address(contract).toScAddress(), key: sdk.xdr.ScVal.scvVec([sdk.xdr.ScVal.scvSymbol(variant), value]),
+    durability: persistent ? sdk.xdr.ContractDataDurability.persistent() : sdk.xdr.ContractDataDurability.temporary(),
+  }));
+}
+function registryEntry(key: sdk.xdr.LedgerKey, value: sdk.xdr.ScVal, bodyKey = key): sdk.rpc.Api.LedgerEntryResult {
+  const data = bodyKey.contractData();
+  return { key, val: sdk.xdr.LedgerEntryData.contractData(new sdk.xdr.ContractDataEntry({
+    ext: new sdk.xdr.ExtensionPoint(0), contract: data.contract(), key: data.key(), durability: data.durability(), val: value,
+  })), liveUntilLedgerSeq: 0 };
+}
 
 function harness(options: { rows?: { public_key: string; user_id: string }[]; users?: Record<string, ReturnType<typeof user>>;
-  handles?: Record<string, string>; resolves?: Record<string, string>; dbError?: boolean; dbGate?: Promise<void>; adminThrows?: boolean; authError?: boolean; authThrows?: boolean; signUrl?: string; signError?: boolean; deadline?: boolean; registryGate?: Promise<void> } = {}) {
+  handles?: Record<string, string>; resolves?: Record<string, string>; dbError?: boolean; dbGate?: Promise<void>; adminThrows?: boolean; authError?: boolean; authThrows?: boolean; signUrl?: string; signError?: boolean; deadline?: boolean; registryGate?: Promise<void>;
+  ledgerEntries?: (keys: sdk.xdr.LedgerKey[], call: number) => sdk.rpc.Api.GetLedgerEntriesResponse;
+  ledgerGate?: Promise<void>; ledgerAdvanceMs?: number; ledgerError?: boolean } = {}) {
   const calls = { columns: [] as string[], targets: [] as string[][], limit: 0, auth: [] as string[], sign: [] as string[],
-    registry: [] as { method: string; argument: unknown }[], active: 0, maxActive: 0 };
+    registry: [] as { method: string; argument: unknown }[], batches: [] as sdk.xdr.LedgerKey[][], active: 0, maxActive: 0 };
   let now = Date.now();
   const users = options.users ?? { [uid(1)]: user() };
   const rows = options.rows ?? [{ public_key: other, user_id: uid(1) }];
@@ -54,7 +69,19 @@ function harness(options: { rows?: { public_key: string; user_id: string }[]; us
     }; } },
   };
   class ReadOnlyRpc {
-    constructor(url: string, configuration: { timeout: number }) { assert.equal(url, "https://soroban-testnet.stellar.org"); assert.ok(configuration.timeout > 0 && configuration.timeout <= 4000); }
+    constructor(url: string, configuration: { timeout: number }) { assert.equal(url, "https://soroban-testnet.stellar.org"); assert.ok(configuration.timeout > 0 && configuration.timeout <= 12000); }
+    async getLedgerEntries(...keys: sdk.xdr.LedgerKey[]) {
+      calls.batches.push(Array.from(keys));
+      if (options.ledgerGate) await options.ledgerGate;
+      if (options.ledgerError) throw Error("Registry unavailable");
+      if (options.ledgerAdvanceMs) now += options.ledgerAdvanceMs;
+      if (options.ledgerEntries) return options.ledgerEntries(keys, calls.batches.length);
+      return { latestLedger: 500, entries: keys.flatMap(key => {
+        const [variant, value] = sdk.scValToNative(key.contractData().key());
+        const result = variant === "Owner" ? handles[value] : resolves[value];
+        return result ? [registryEntry(key, variant === "Owner" ? sdk.nativeToScVal(result, { type: "string" }) : new sdk.Address(result).toScVal())] : [];
+      }) };
+    }
     async simulateTransaction(transaction: sdk.Transaction) {
       assert.equal(transaction.signatures.length, 0, "Identity reads must never sign");
       const invoke = (transaction.operations[0] as sdk.Operation.InvokeHostFunction).func.invokeContract();
@@ -72,7 +99,12 @@ function harness(options: { rows?: { public_key: string; user_id: string }[]; us
   runInNewContext(compiled, { exports, URL, AbortSignal, setTimeout, clearTimeout, Date: class extends Date { static now() { return now; } },
     require(dependency: string) {
       if (dependency === "server-only") return {};
-      if (dependency === "@stellar/stellar-sdk") return { ...sdk, rpc: { Server: ReadOnlyRpc, Api: { isSimulationSuccess: (value: { result?: unknown }) => !!value.result } } };
+      if (dependency === "@stellar/stellar-sdk") return { ...sdk,
+        // js-xdr checks vector arrays with instanceof. Normalize the VM realm's
+        // literals at this SDK boundary; production and fixtures retain real XDR.
+        xdr: { ...sdk.xdr, ScVal: new Proxy(sdk.xdr.ScVal, { get(target, name) {
+          return name === "scvVec" ? (values: sdk.xdr.ScVal[]) => target.scvVec(Array.from(values)) : Reflect.get(target, name);
+        } }) }, rpc: { Server: ReadOnlyRpc, Api: { isSimulationSuccess: (value: { result?: unknown }) => !!value.result } } };
       if (dependency === "@/lib/supabase/admin") return { createSupabaseAdmin: () => { if (options.adminThrows) throw Error("Photo database unavailable"); return admin; } };
       if (dependency === "@/lib/supabase/env") return { SUPABASE_URL: "https://project.supabase.co" };
       if (dependency === "@/lib/account-photo") return photo;
@@ -174,6 +206,88 @@ test("persisted donor photo consent shows Google photo independently of private 
   const identities = await h.readActivityIdentities(address, [item()], new Map([[other, uid(1)]]));
   assert.equal(identities[1].photoUrl, googleUrl);
   assert.doesNotMatch(JSON.stringify(identities), /email|user_metadata|user_id|nonimaharani/);
+});
+
+test("public donors use exactly two canonical registry batches for ten unique wallets, including archived mappings", async () => {
+  const addresses = Array.from({ length: 10 }, (_, index) => wallet(index + 20));
+  const handles = Object.fromEntries(addresses.map((address, index) => [address, `donor_${index}`]));
+  const h = harness({ handles });
+  const result = await h.readActivityIdentities(addresses[0], [...addresses, ...addresses].map(address => item(address)), new Map());
+  assert.equal(result.length, 10);
+  assert.deepEqual(Array.from(result, identity => identity.handle), Object.values(handles));
+  assert.equal(h.calls.batches.length, 2);
+  assert.deepEqual(h.calls.batches.map(keys => keys.length), [10, 10]);
+  assert.deepEqual(h.calls.registry, [], "Donor pages never fan out to per-wallet simulations");
+  for (const [index, keys] of h.calls.batches.entries()) for (const key of keys) {
+    assert.equal(sdk.Address.fromScAddress(key.contractData().contract()).toString(), registry);
+    assert.equal(key.contractData().durability().value, sdk.xdr.ContractDataDurability.persistent().value);
+    assert.equal(sdk.scValToNative(key.contractData().key())[0], index === 0 ? "Owner" : "Name");
+  }
+  assert.ok(result.every(identity => identity.photoUrl === null));
+  assert.deepEqual(h.calls.sign, []);
+});
+
+test("donor batch verification refuses missing, malformed and reverse-forward mismatched usernames", async () => {
+  const cases: { handles: Record<string, string>; resolves?: Record<string, string> }[] = [
+    { handles: {} },
+    { handles: { [other]: "@not_a_handle" } },
+    { handles: { [other]: "x" } },
+    { handles: { [other]: "valid_name" }, resolves: {} },
+    { handles: { [other]: "valid_name" }, resolves: { valid_name: unrelated } },
+  ];
+  for (const options of cases) {
+    const h = harness(options), result = await h.readActivityIdentities(other, [item()], new Map());
+    assert.equal(result[0].handle, null);
+    assert.deepEqual(h.calls.registry, []);
+    assert.doesNotMatch(JSON.stringify(result), /nonimaharani|email|user_metadata/);
+  }
+});
+
+test("donor registry batches reject duplicate, unrelated, wrong-contract and mismatched value keys", async () => {
+  const strangerContract = sdk.StrKey.encodeContract(Buffer.alloc(32, 17));
+  for (const fault of ["duplicate", "unrequested", "wrong-contract", "temporary", "body-contract", "body-key", "body-durability", "malformed", "wrong-type"] as const) {
+    for (const phase of [1, 2]) {
+      const h = harness({ ledgerEntries: (keys, call) => {
+        const key = keys[0], value = call === 1 ? sdk.nativeToScVal("verified_handle", { type: "string" }) : new sdk.Address(other).toScVal();
+        if (call !== phase) return { latestLedger: 500, entries: [registryEntry(key, value)] };
+        const [variant] = sdk.scValToNative(key.contractData().key());
+        const argument = variant === "Owner" ? new sdk.Address(other).toScVal() : sdk.nativeToScVal("verified_handle", { type: "string" });
+        const wrongContract = registryKey(variant, argument, strangerContract);
+        const wrongArgument = registryKey(variant, variant === "Owner" ? new sdk.Address(unrelated).toScVal() : sdk.nativeToScVal("other_handle", { type: "string" }));
+        const temporary = registryKey(variant, argument, registry, false);
+        const entries = fault === "duplicate" ? [registryEntry(key, value), registryEntry(key, value)]
+          : fault === "unrequested" ? [registryEntry(wrongArgument, value)]
+          : fault === "wrong-contract" ? [registryEntry(wrongContract, value)]
+          : fault === "temporary" ? [registryEntry(temporary, value)]
+          : fault === "body-contract" ? [registryEntry(key, value, wrongContract)]
+          : fault === "body-key" ? [registryEntry(key, value, wrongArgument)]
+          : fault === "body-durability" ? [registryEntry(key, value, temporary)]
+          : fault === "wrong-type" ? [registryEntry(key, call === 1 ? sdk.xdr.ScVal.scvSymbol("verified_handle") : sdk.nativeToScVal(other, { type: "string" }))]
+          : [registryEntry(key, sdk.xdr.ScVal.scvU32(123))];
+        return { latestLedger: 500, entries };
+      } });
+      const result = await h.readActivityIdentities(other, [item()], new Map());
+      assert.equal(result[0].handle, null, `${fault} in batch ${phase}`);
+    }
+  }
+});
+
+test("donor registry outages and the shared twelve-second deadline preserve independent permitted photos", async () => {
+  for (const options of [{ ledgerError: true }, { ledgerAdvanceMs: 12_001 }]) {
+    const h = harness(options), result = await h.readActivityIdentities(other, [item()], new Map([[other, uid(1)]]));
+    assert.equal(result[0].handle, null);
+    assert.ok(h.calls.batches.length <= 1, "Deadline cannot start another registry request");
+    assert.deepEqual(h.calls.registry, []);
+  }
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const h = harness({ ledgerGate: gate });
+  const pending = h.readActivityIdentities(other, [item()], new Map([[other, uid(1)]]));
+  for (let index = 0; index < 18; index++) await Promise.resolve();
+  assert.deepEqual(h.calls.auth, [uid(1)]);
+  release(); const result = await pending;
+  assert.equal(result[0].photoUrl, googleUrl);
+  assert.equal(result[0].handle, "verified_handle");
 });
 
 test("donor photo grants bind the exact account owner and cannot fall back to receipt consent", async () => {

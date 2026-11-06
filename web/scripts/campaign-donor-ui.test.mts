@@ -88,8 +88,31 @@ test("initial donor loading is neutral and never renders sample donations or emp
 });
 test("real component renders exact XLM, safe username/address and confirmed badge", async () => {
   const h = setup(); await ready(h); const html = h.html(); assert.match(html, /@confirmed_user/); assert.match(html, /1\.0000001/); assert.match(html, /Confirmed Testnet/);
+  assert.match(html, /class="identityBadge">Public donor<\/span>/);
   assert.ok(html.includes(wallet)); assert.ok(html.includes(`href="https://stellar.expert/explorer/testnet/tx/${hash}"`)); assert.match(html, /rel="noopener noreferrer"/);
   assert.match(html, /&lt;script&gt;never executes&lt;\/script&gt;/); assert.doesNotMatch(html, /<script>/);
+});
+
+for (const [locale, publicLabel, anonymousLabel] of [
+  ["en", "Public donor", "Anonymous"],
+  ["id", "Donatur publik", "Anonim"],
+  ["tl", "Pampublikong donor", "Anonymous"],
+  ["vi", "Nhà tài trợ công khai", "Ẩn danh"],
+] as const) test(`${locale}: a public donor without a username is distinct from an anonymous donor`, async () => {
+  const h = setup(locale), publicEntry = entry("10"), anonymousEntry = entry("9", true);
+  publicEntry.donor = { ...publicEntry.donor!, handle: null };
+  await ready(h, response([publicEntry, anonymousEntry]));
+  const html = h.html(), rows = html.match(/<li class="entry">[\s\S]*?<\/li>/g);
+  assert.equal(rows?.length, 2);
+  assert.ok(rows![0].includes(`<strong>${publicLabel}</strong>`));
+  assert.ok(rows![0].includes(`<span class="identityBadge">${publicLabel}</span>`));
+  assert.ok(rows![0].includes(wallet));
+  assert.ok(rows![0].includes(`https://stellar.expert/explorer/testnet/tx/${hash}`));
+  assert.ok(rows![1].includes(`<strong>${anonymousLabel}</strong>`));
+  assert.ok(rows![1].includes(`<span class="identityBadge">${anonymousLabel}</span>`));
+  assert.ok(!rows![1].includes(wallet));
+  assert.ok(!rows![1].includes(hash));
+  assert.doesNotMatch(html, /Supporter|@null|@undefined/);
 });
 test("wallet is shortened by default and the exact address stays accessible in a collapsed disclosure", async () => {
   const h = setup(); await ready(h); const html = h.html();
@@ -118,6 +141,7 @@ test("stale donor estimate is labelled and expired quote disappears while XLM re
 test("anonymous component presentation discards even contradictory response identities", async () => {
   const h = setup("en", prices()); const malicious = { ...entry(), anonymous: true, donor: { address: wallet, handle: "confirmed_user", photoUrl: "https://lh3.googleusercontent.com/hidden-photo" } }; await ready(h, response([malicious]));
   const html = h.html(); assert.match(html, /Anonymous/); for (const privateField of [wallet, hash, "confirmed_user", "View receipt"]) assert.ok(!html.includes(privateField));
+  assert.match(html, /class="identityBadge">Anonymous<\/span>/); assert.doesNotMatch(html, /Public donor/);
   assert.match(html, /≈ 0\.50 USDC/); assert.match(html, /1\.0000001/); assert.doesNotMatch(html, /hidden-photo|class="address"/);
 });
 test("empty app log explains incomplete history instead of claiming no donations", async () => {

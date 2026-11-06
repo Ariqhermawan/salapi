@@ -290,7 +290,13 @@ for (const width of [320, 390, 1280]) test(`new donation defaults to public prof
   await expect(publicProfile).toHaveCount(0);
   await expect(notice).toContainText("Your donor entry will be anonymous.");
   await anonymous.uncheck();
+  await expect(publicProfile).toBeChecked();
+  await expect(notice).toContainText("Public: wallet, @username and permitted photo. You can choose anonymous below.");
+  await publicProfile.uncheck();
+  await anonymous.check();
+  await anonymous.uncheck();
   await expect(publicProfile).not.toBeChecked();
+  await expect(notice).toContainText("Public: wallet and receipt only. Name and photo stay hidden.");
   await review.evaluate(element => (element as HTMLButtonElement).click());
   await expect(page.getByRole("heading", { name: "Review before sending", exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Confirm Testnet donation", exact: true })).toHaveCount(0);
@@ -305,6 +311,38 @@ for (const width of [320, 390, 1280]) test(`new donation defaults to public prof
   await expect(anonymous).not.toBeChecked();
   await expect(publicProfile).toBeChecked();
   await expect(review).toBeDisabled();
+});
+
+for (const width of [320, 390, 1280]) test(`donor feed distinguishes public usernames, unavailable usernames and anonymous entries at ${width}px`, async ({ page }, testInfo) => {
+  await page.setViewportSize({ width, height: width === 1280 ? 800 : 844 });
+  const mapping = openMappingFixture();
+  const address = mapping.mapping.creatorWallet;
+  const entry = { network: "testnet", campaignId: "100", createdAt: "2026-10-07T12:00:00.000Z",
+    amountStroops: "500000000", asset: "XLM", badge: "confirmed_testnet", anonymous: false, comment: "",
+    donor: { address, handle: "qa_public_donor", photoUrl: "/illustrations/giving.png" },
+    hash: "a".repeat(64), link: `https://stellar.expert/explorer/testnet/tx/${"a".repeat(64)}` };
+  await readFixture(page, { readCircleTestnetCampaign: mapping, campaignDonorActivity: {
+    ok: true, campaignId: "100", nextCursor: null, anonymityNotice: "Isolated UI fixture",
+    entries: [{ ...entry, id: "3" }, { ...entry, id: "2", donor: { ...entry.donor, handle: null, photoUrl: null } },
+      // Contradictory identity fields must still be discarded by the anonymous UI.
+      { ...entry, id: "1", anonymous: true, donor: { ...entry.donor, handle: "must_stay_hidden", photoUrl: "/never-load-anonymous-photo.png" } }],
+  } });
+  await page.goto("/circles/tino-relief", { waitUntil: "domcontentloaded" });
+  const feed = page.getByRole("region", { name: "Testnet donor activity", exact: true });
+  const rows = feed.locator("li");
+  await expect(rows).toHaveCount(3);
+  await expect(rows.nth(0).locator("strong")).toHaveText("@qa_public_donor");
+  await expect(rows.nth(0)).toContainText("Public donor");
+  await expect(rows.nth(1).locator("strong")).toHaveText("Public donor");
+  await expect(rows.nth(1).locator("details")).toHaveCount(1);
+  await expect(rows.nth(2).locator("strong")).toHaveText("Anonymous");
+  await expect(rows.nth(2).locator("img, a, details")).toHaveCount(0);
+  await expect(rows.nth(2)).not.toContainText(address);
+  await expect(feed).not.toContainText("Supporter");
+  await expect(feed).not.toContainText("must_stay_hidden");
+  await feed.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath(`donor-identity-${width}.png`) });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
 });
 
 for (const width of [320, 390, 1280]) test(`Story precedes confirmed donor amounts and market progress updates at ${width}px`, async ({ page }, testInfo) => {
