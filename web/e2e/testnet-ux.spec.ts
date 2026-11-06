@@ -413,6 +413,6 @@ for (const width of [320, 390, 1280]) test(`Story precedes confirmed donor amoun
   await expect(donors).toContainText("≈ 25.00 USDC");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
   expect(await donors.evaluate(node => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
-  await donors.getByRole("heading").scrollIntoViewIfNeeded();
+  await donors.getByRole("heading", { name: "Donor activity", exact: true }).scrollIntoViewIfNeeded();
   await page.screenshot({ path: testInfo.outputPath(`story-market-donors-${width}.png`) });
 });
