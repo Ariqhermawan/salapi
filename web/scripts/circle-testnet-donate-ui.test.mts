@@ -253,17 +253,35 @@ test("new donation defaults to a public permitted profile and discloses it befor
   assert.equal(visibleNotice.props.children, h.text("Public: wallet, @username and permitted photo. You can choose anonymous below."));
   assert.equal(h.donations.length, 0); assert.equal(h.metadata.length, 0);
 });
-test("public-profile publication can be disabled and anonymity clears it without silently reenabling it", () => {
+for (const publicProfileOk of [true, false]) test(`anonymous on then off restores the prior ${publicProfileOk ? "public-profile" : "wallet-only"} choice through confirmed metadata`, async () => {
   const h = setup();
-  h.change(h.checkbox("Also publish my available @username and permitted profile photo for this donation"), false);
-  assert.equal(h.checkbox("Also publish my available @username and permitted profile photo for this donation").props.checked, false);
-  assert.match(h.html(), /Only your wallet and receipt link will appear/);
-  h.change(h.checkbox("Also publish my available @username and permitted profile photo for this donation"), true);
-  h.change(h.checkbox("Display anonymously in the donor feed"), true);
-  assert.match(h.html(), /Your donor entry will be anonymous/);
-  assert.ok(!h.all().some(node => node.type === "input" && node.props.type === "checkbox" && node.props.checked === false));
-  h.change(h.checkbox("Display anonymously in the donor feed"), false);
-  assert.equal(h.checkbox("Also publish my available @username and permitted profile photo for this donation").props.checked, false);
+  h.change(h.checkbox("Also publish my available @username and permitted profile photo for this donation"), publicProfileOk);
+  for (let repeat = 0; repeat < 2; repeat++) {
+    h.change(h.checkbox("Display anonymously in the donor feed"), true);
+    assert.match(h.html(), /Your donor entry will be anonymous/);
+    assert.equal(h.all().filter(node => node.type === "input" && node.props.type === "checkbox").length, 1, "Profile publication control stays hidden while anonymous");
+    h.change(h.checkbox("Display anonymously in the donor feed"), false);
+    assert.equal(h.checkbox("Also publish my available @username and permitted profile photo for this donation").props.checked, publicProfileOk);
+  }
+  assert.match(h.html(), publicProfileOk ? /Public: wallet, @username and permitted photo/ : /Only your wallet and receipt link will appear/);
+  review(h); assert.match(h.html(), publicProfileOk ? /<dd>Wallet, @username and permitted photo<\/dd>/ : /<dd>Wallet only<\/dd>/);
+  h.click("Confirm Testnet donation"); h.donations[0].response.resolve(confirmed()); await flush();
+  assert.deepEqual(h.metadata[0].input, { hash, expectedOwnerId: owner, comment: "Test donation", anonymous: false, publicProfileOk });
+  h.metadata[0].response.resolve(saved()); await settle(h); assert.equal(h.donations.length, 1);
+});
+
+test("anonymous review masks the remembered public preference for pending receipt and metadata-only retry", async () => {
+  const h = setup(); const anonymousInput = h.checkbox("Display anonymously in the donor feed");
+  h.change(anonymousInput, true); review(h); assert.match(h.html(), /<dd>Anonymous<\/dd>/);
+  // A stale form event cannot change the preferences already reviewed.
+  h.change(anonymousInput, false);
+  h.click("Confirm Testnet donation"); h.donations[0].response.resolve({ ok: false, pending: true, hash, error: "Pending confirmation" }); await settle(h);
+  h.click("Verify and retry donor record only");
+  const expected = { hash, expectedOwnerId: owner, comment: "Test donation", anonymous: true, publicProfileOk: false };
+  assert.deepEqual(h.metadata[0].input, expected);
+  h.metadata[0].response.resolve(missingMetadata); await settle(h);
+  h.click("Verify and retry donor record only"); assert.deepEqual(h.metadata[1].input, expected);
+  h.metadata[1].response.resolve(saved()); await settle(h); assert.equal(h.donations.length, 1);
 });
 for (const amount of ["0", "-1", "1e2", "0.000000001", "NaN", "Infinity", "", "1,5", "17014118346046923173168730371588.4105728"]) {
   test(`USD UI disables invalid amount ${JSON.stringify(amount)} and handler cannot bypass it`, () => {

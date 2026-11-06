@@ -290,7 +290,13 @@ for (const width of [320, 390, 1280]) test(`new donation defaults to public prof
   await expect(publicProfile).toHaveCount(0);
   await expect(notice).toContainText("Your donor entry will be anonymous.");
   await anonymous.uncheck();
+  await expect(publicProfile).toBeChecked();
+  await expect(notice).toContainText("Public: wallet, @username and permitted photo. You can choose anonymous below.");
+  await publicProfile.uncheck();
+  await anonymous.check();
+  await anonymous.uncheck();
   await expect(publicProfile).not.toBeChecked();
+  await expect(notice).toContainText("Public: wallet and receipt only. Name and photo stay hidden.");
   await review.evaluate(element => (element as HTMLButtonElement).click());
   await expect(page.getByRole("heading", { name: "Review before sending", exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Confirm Testnet donation", exact: true })).toHaveCount(0);
@@ -305,6 +311,49 @@ for (const width of [320, 390, 1280]) test(`new donation defaults to public prof
   await expect(anonymous).not.toBeChecked();
   await expect(publicProfile).toBeChecked();
   await expect(review).toBeDisabled();
+});
+
+for (const width of [320, 390, 1280]) test(`donor feed distinguishes public usernames, unavailable usernames and anonymous entries at ${width}px`, async ({ page }, testInfo) => {
+  await page.setViewportSize({ width, height: width === 1280 ? 800 : 844 });
+  const mapping = openMappingFixture();
+  const address = mapping.mapping.creatorWallet;
+  const entry = { network: "testnet", campaignId: "100", createdAt: "2026-10-08T09:28:00.000Z",
+    amountStroops: "500000000", asset: "XLM", badge: "confirmed_testnet", anonymous: false, comment: "",
+    donor: { address, handle: "qa_public_donor", photoUrl: "/illustrations/giving.png" },
+    hash: "a".repeat(64), link: `https://stellar.expert/explorer/testnet/tx/${"a".repeat(64)}` };
+  await readFixture(page, { readCircleTestnetCampaign: mapping, campaignDonorActivity: {
+    ok: true, campaignId: "100", nextCursor: null, anonymityNotice: "Isolated UI fixture",
+    entries: [{ ...entry, id: "3", comment: "A little support for the repairs. Hope everyone stays safe." }, { ...entry, id: "2", donor: { ...entry.donor, handle: null, photoUrl: null } },
+      // Contradictory identity fields must still be discarded by the anonymous UI.
+      { ...entry, id: "1", createdAt: "2026-10-07T16:09:00.000Z", comment: "Hope this helps.", anonymous: true, donor: { ...entry.donor, handle: "must_stay_hidden", photoUrl: "/never-load-anonymous-photo.png" } }],
+  } });
+  await page.goto("/circles/tino-relief", { waitUntil: "domcontentloaded" });
+  const feed = page.getByRole("region", { name: "Donor activity", exact: true });
+  const rows = feed.locator("li");
+  await expect(rows).toHaveCount(3);
+  await expect(rows.nth(0).getByText("@qa_public_donor", { exact: true })).toBeVisible();
+  await expect(rows.nth(0).getByText("A little support for the repairs. Hope everyone stays safe.", { exact: true })).toBeVisible();
+  await expect(rows.nth(1).getByText("Public donor", { exact: true })).toBeVisible();
+  await expect(rows.nth(1).locator("details")).toHaveCount(2);
+  await expect(rows.nth(2).getByText("Anonymous", { exact: true })).toBeVisible();
+  await expect(rows.nth(2).getByText("Hope this helps.", { exact: true })).toBeVisible();
+  await expect(rows.nth(2)).toContainText("Identity hidden");
+  await expect(rows.nth(2).locator("img, a, details")).toHaveCount(0);
+  await expect(rows.nth(2)).not.toContainText(address);
+  await expect(feed).not.toContainText("Supporter");
+  await expect(feed).not.toContainText("must_stay_hidden");
+  await expect(feed.getByRole("heading", { level: 4 })).toHaveCount(2);
+  const details = rows.nth(0).locator("details").first();
+  await expect(details).not.toHaveAttribute("open");
+  await expect(rows.nth(0).getByRole("link", { name: "View receipt", exact: false })).not.toBeVisible();
+  await rows.nth(0).getByLabel("Details", { exact: true }).click();
+  await expect(details).toHaveAttribute("open");
+  await expect(rows.nth(0).getByRole("link", { name: "View receipt", exact: false })).toBeVisible();
+  await rows.nth(0).getByLabel("Details", { exact: true }).click();
+  await expect(details).not.toHaveAttribute("open");
+  await feed.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath(`donor-identity-${width}.png`) });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
 });
 
 for (const width of [320, 390, 1280]) test(`Story precedes confirmed donor amounts and market progress updates at ${width}px`, async ({ page }, testInfo) => {
@@ -330,12 +379,13 @@ for (const width of [320, 390, 1280]) test(`Story precedes confirmed donor amoun
   await page.goto("/circles/tino-relief", { waitUntil: "domcontentloaded" });
   const story = page.getByRole("tabpanel", { name: "Story", exact: true });
   const summary = page.getByTestId("circle-testnet-summary");
-  const donors = page.getByRole("region", { name: "Testnet donor activity", exact: true });
+  const donors = page.getByRole("region", { name: "Donor activity", exact: true });
   await expect(summary.getByText("100 XLM", { exact: true })).toHaveCount(2);
   await expect(summary.getByText("≈ $11.21", { exact: true })).toHaveCount(2);
   await expect(summary.getByText("Market reference: ≈ 25.00 USDC", { exact: true })).toHaveCount(2);
   await expect(summary.getByRole("progressbar")).toHaveAttribute("aria-valuetext", "0.58% of QA goal");
   await expect(donors).toContainText("50 XLM");
+  await donors.getByLabel("Details", { exact: true }).click();
   await expect(donors).toContainText("≈ 12.50 USDC");
   const preview = story.getByTestId("circle-story-preview"), more = story.getByTestId("circle-story-more");
   expect((await preview.innerText()).length).toBeLessThanOrEqual(361);
@@ -344,7 +394,7 @@ for (const width of [320, 390, 1280]) test(`Story precedes confirmed donor amoun
     const sections = [...document.querySelectorAll("section")];
     return { story: sections.findIndex(s => s.id === "circle-panel-story"),
       summary: sections.findIndex(s => s.getAttribute("data-testid") === "circle-testnet-summary"),
-      donors: sections.findIndex(s => s.querySelector("h3")?.textContent === "Testnet donor activity") };
+      donors: sections.findIndex(s => s.querySelector("h3")?.textContent === "Donor activity") };
   });
   expect(order.story).toBeGreaterThanOrEqual(0);
   expect(order.story).toBeLessThan(order.summary); expect(order.summary).toBeLessThan(order.donors);
@@ -363,6 +413,6 @@ for (const width of [320, 390, 1280]) test(`Story precedes confirmed donor amoun
   await expect(donors).toContainText("≈ 25.00 USDC");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
   expect(await donors.evaluate(node => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
-  await donors.getByRole("heading").scrollIntoViewIfNeeded();
+  await donors.getByRole("heading", { name: "Donor activity", exact: true }).scrollIntoViewIfNeeded();
   await page.screenshot({ path: testInfo.outputPath(`story-market-donors-${width}.png`) });
 });

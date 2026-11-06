@@ -1,6 +1,12 @@
 "use client";
 
 import Image from "next/image";
+import { ArrowsClockwise } from "@phosphor-icons/react/dist/csr/ArrowsClockwise";
+import { CheckCircle } from "@phosphor-icons/react/dist/csr/CheckCircle";
+import { CaretRight } from "@phosphor-icons/react/dist/csr/CaretRight";
+import { ArrowUpRight } from "@phosphor-icons/react/dist/csr/ArrowUpRight";
+import { User } from "@phosphor-icons/react/dist/csr/User";
+import { Shield } from "@phosphor-icons/react/dist/csr/Shield";
 import { useEffect, useId, useRef, useState } from "react";
 import { readPublicCampaignDonors } from "@/lib/ui/public-read";
 import { useT } from "@/components/I18nProvider";
@@ -13,16 +19,22 @@ import styles from "./CampaignDonorActivity.module.css";
 
 const MAX_VISIBLE = 50;
 const COPY = {
-  en: { title: "Testnet donor activity", about: "Confirmed app donations only. This is not the complete historical blockchain ledger.", badge: "Confirmed Testnet", anonymous: "Anonymous", supporter: "Supporter", loading: "Loading confirmed donor records…", refresh: "Refresh donor activity", retry: "Try again", more: "Load older records", empty: "No confirmed app donor records yet.", emptyNote: "Older donations can exist on Stellar without an entry here. This does not mean the campaign received no funds.", unavailable: "Donor records are temporarily unavailable.", setup: "Donor log setup is pending.", errorNote: "This screen cannot confirm whether donor records exist. Check campaign totals and transaction receipts separately.", receipt: "View receipt", privacy: "About anonymous display", privacyNote: "Anonymous hides your name, photo, wallet and receipt link in this feed. Stellar transactions remain public; amounts or timing can still identify a donation.", limit: "Showing the latest 50 app records. Refresh to see newer donations.", wallet: "Wallet", count: "records shown" },
-  id: { title: "Aktivitas donor Testnet", about: "Hanya donasi aplikasi yang terkonfirmasi. Ini bukan seluruh riwayat blockchain.", badge: "Testnet terkonfirmasi", anonymous: "Anonim", supporter: "Pendukung", loading: "Memuat catatan donor terkonfirmasi…", refresh: "Muat ulang aktivitas donor", retry: "Coba lagi", more: "Muat catatan lebih lama", empty: "Belum ada catatan donor aplikasi yang terkonfirmasi.", emptyNote: "Donasi lama bisa ada di Stellar tanpa catatan di sini. Ini tidak berarti campaign belum menerima dana.", unavailable: "Catatan donor sementara tidak tersedia.", setup: "Konfigurasi log donor belum selesai.", errorNote: "Halaman ini belum bisa memastikan keberadaan catatan donor. Periksa total campaign dan bukti transaksi secara terpisah.", receipt: "Lihat bukti transaksi", privacy: "Tentang tampilan anonim", privacyNote: "Anonim menyembunyikan nama, foto, wallet, dan tautan transaksi di feed ini. Transaksi Stellar tetap publik; nominal atau waktu masih bisa mengidentifikasi donasi.", limit: "Menampilkan 50 catatan aplikasi terbaru. Muat ulang untuk melihat donasi baru.", wallet: "Wallet", count: "catatan ditampilkan" },
-  tl: { title: "Aktibidad ng Testnet donor", about: "Kumpirmadong donasyon sa app lang. Hindi ito ang buong kasaysayan ng blockchain.", badge: "Kumpirmadong Testnet", anonymous: "Anonymous", supporter: "Tagasuporta", loading: "Kinukuha ang kumpirmadong donor records…", refresh: "I-refresh ang donor activity", retry: "Subukan muli", more: "Mas lumang records", empty: "Wala pang kumpirmadong app donor records.", emptyNote: "Maaaring may lumang donasyon sa Stellar na walang record dito. Hindi ibig sabihin nito na walang natanggap na pondo.", unavailable: "Pansamantalang hindi makuha ang donor records.", setup: "Hindi pa handa ang donor log.", errorNote: "Hindi matiyak dito kung may donor records. Tingnan nang hiwalay ang campaign totals at transaction receipts.", receipt: "Tingnan ang resibo", privacy: "Tungkol sa anonymous display", privacyNote: "Itinatago ng Anonymous ang pangalan, larawan, wallet at resibo sa feed. Pampubliko pa rin ang Stellar transactions; maaaring makilala ang donasyon sa halaga o oras.", limit: "Pinakabagong 50 app records ang ipinapakita. I-refresh para sa bagong donasyon.", wallet: "Wallet", count: "records na ipinapakita" },
-  vi: { title: "Hoạt động nhà tài trợ Testnet", about: "Chỉ gồm khoản quyên góp trong ứng dụng đã xác nhận. Đây không phải toàn bộ lịch sử blockchain.", badge: "Testnet đã xác nhận", anonymous: "Ẩn danh", supporter: "Người ủng hộ", loading: "Đang tải hồ sơ nhà tài trợ đã xác nhận…", refresh: "Làm mới hoạt động nhà tài trợ", retry: "Thử lại", more: "Tải hồ sơ cũ hơn", empty: "Chưa có hồ sơ quyên góp trong ứng dụng đã xác nhận.", emptyNote: "Khoản quyên góp cũ có thể tồn tại trên Stellar mà chưa được ghi ở đây. Điều này không có nghĩa chiến dịch chưa nhận tiền.", unavailable: "Tạm thời không thể tải hồ sơ nhà tài trợ.", setup: "Nhật ký nhà tài trợ chưa được cấu hình.", errorNote: "Màn hình này chưa thể xác nhận hồ sơ có tồn tại. Kiểm tra tổng chiến dịch và biên lai giao dịch riêng.", receipt: "Xem biên lai", privacy: "Về hiển thị ẩn danh", privacyNote: "Ẩn danh giấu tên, ảnh, ví và liên kết biên lai trong bảng này. Giao dịch Stellar vẫn công khai; số tiền hoặc thời gian có thể xác định khoản quyên góp.", limit: "Đang hiển thị 50 hồ sơ ứng dụng mới nhất. Làm mới để xem khoản quyên góp mới.", wallet: "Ví", count: "hồ sơ hiển thị" },
+  en: { title: "Testnet donor activity", about: "Confirmed app donations only. This is not the complete historical blockchain ledger.", badge: "Confirmed Testnet", anonymous: "Anonymous", publicDonor: "Public donor", loading: "Loading confirmed donor records…", refresh: "Refresh donor activity", retry: "Try again", more: "Load older records", empty: "No confirmed app donor records yet.", emptyNote: "Older donations can exist on Stellar without an entry here. This does not mean the campaign received no funds.", unavailable: "Donor records are temporarily unavailable.", setup: "Donor log setup is pending.", errorNote: "This screen cannot confirm whether donor records exist. Check campaign totals and transaction receipts separately.", receipt: "View receipt", privacy: "About anonymous display", privacyNote: "Anonymous hides your name, photo, wallet and receipt link in this feed. Stellar transactions remain public; amounts or timing can still identify a donation.", limit: "Showing the latest 50 app records. Refresh to see newer donations.", wallet: "Wallet", count: "records shown" },
+  id: { title: "Aktivitas donor Testnet", about: "Hanya donasi aplikasi yang terkonfirmasi. Ini bukan seluruh riwayat blockchain.", badge: "Testnet terkonfirmasi", anonymous: "Anonim", publicDonor: "Donatur publik", loading: "Memuat catatan donor terkonfirmasi…", refresh: "Muat ulang aktivitas donor", retry: "Coba lagi", more: "Muat catatan lebih lama", empty: "Belum ada catatan donor aplikasi yang terkonfirmasi.", emptyNote: "Donasi lama bisa ada di Stellar tanpa catatan di sini. Ini tidak berarti campaign belum menerima dana.", unavailable: "Catatan donor sementara tidak tersedia.", setup: "Konfigurasi log donor belum selesai.", errorNote: "Halaman ini belum bisa memastikan keberadaan catatan donor. Periksa total campaign dan bukti transaksi secara terpisah.", receipt: "Lihat bukti transaksi", privacy: "Tentang tampilan anonim", privacyNote: "Anonim menyembunyikan nama, foto, wallet, dan tautan transaksi di feed ini. Transaksi Stellar tetap publik; nominal atau waktu masih bisa mengidentifikasi donasi.", limit: "Menampilkan 50 catatan aplikasi terbaru. Muat ulang untuk melihat donasi baru.", wallet: "Wallet", count: "catatan ditampilkan" },
+  tl: { title: "Aktibidad ng Testnet donor", about: "Kumpirmadong donasyon sa app lang. Hindi ito ang buong kasaysayan ng blockchain.", badge: "Kumpirmadong Testnet", anonymous: "Anonymous", publicDonor: "Pampublikong donor", loading: "Kinukuha ang kumpirmadong donor records…", refresh: "I-refresh ang donor activity", retry: "Subukan muli", more: "Mas lumang records", empty: "Wala pang kumpirmadong app donor records.", emptyNote: "Maaaring may lumang donasyon sa Stellar na walang record dito. Hindi ibig sabihin nito na walang natanggap na pondo.", unavailable: "Pansamantalang hindi makuha ang donor records.", setup: "Hindi pa handa ang donor log.", errorNote: "Hindi matiyak dito kung may donor records. Tingnan nang hiwalay ang campaign totals at transaction receipts.", receipt: "Tingnan ang resibo", privacy: "Tungkol sa anonymous display", privacyNote: "Itinatago ng Anonymous ang pangalan, larawan, wallet at resibo sa feed. Pampubliko pa rin ang Stellar transactions; maaaring makilala ang donasyon sa halaga o oras.", limit: "Pinakabagong 50 app records ang ipinapakita. I-refresh para sa bagong donasyon.", wallet: "Wallet", count: "records na ipinapakita" },
+  vi: { title: "Hoạt động nhà tài trợ Testnet", about: "Chỉ gồm khoản quyên góp trong ứng dụng đã xác nhận. Đây không phải toàn bộ lịch sử blockchain.", badge: "Testnet đã xác nhận", anonymous: "Ẩn danh", publicDonor: "Nhà tài trợ công khai", loading: "Đang tải hồ sơ nhà tài trợ đã xác nhận…", refresh: "Làm mới hoạt động nhà tài trợ", retry: "Thử lại", more: "Tải hồ sơ cũ hơn", empty: "Chưa có hồ sơ quyên góp trong ứng dụng đã xác nhận.", emptyNote: "Khoản quyên góp cũ có thể tồn tại trên Stellar mà chưa được ghi ở đây. Điều này không có nghĩa chiến dịch chưa nhận tiền.", unavailable: "Tạm thời không thể tải hồ sơ nhà tài trợ.", setup: "Nhật ký nhà tài trợ chưa được cấu hình.", errorNote: "Màn hình này chưa thể xác nhận hồ sơ có tồn tại. Kiểm tra tổng chiến dịch và biên lai giao dịch riêng.", receipt: "Xem biên lai", privacy: "Về hiển thị ẩn danh", privacyNote: "Ẩn danh giấu tên, ảnh, ví và liên kết biên lai trong bảng này. Giao dịch Stellar vẫn công khai; số tiền hoặc thời gian có thể xác định khoản quyên góp.", limit: "Đang hiển thị 50 hồ sơ ứng dụng mới nhất. Làm mới để xem khoản quyên góp mới.", wallet: "Ví", count: "hồ sơ hiển thị" },
 } as const;
 const MARKET_COPY = {
   en: { note: "Current USDC estimates follow CoinGecko prices. Donations remain Testnet XLM.", stale: "Last known price", unavailable: "USDC estimate unavailable", fullWallet: "Full wallet address", reference: "Market reference" },
   id: { note: "Estimasi USDC saat ini mengikuti harga CoinGecko. Donasi tetap berupa Testnet XLM.", stale: "Harga terakhir diketahui", unavailable: "Estimasi USDC belum tersedia", fullWallet: "Alamat wallet lengkap", reference: "Referensi pasar" },
   tl: { note: "Sumusunod sa kasalukuyang presyo ng CoinGecko ang USDC estimate. Testnet XLM pa rin ang mga donasyon.", stale: "Huling alam na presyo", unavailable: "Hindi available ang USDC estimate", fullWallet: "Buong wallet address", reference: "Market reference" },
   vi: { note: "Ước tính USDC hiện tại thay đổi theo giá CoinGecko. Khoản quyên góp vẫn là Testnet XLM.", stale: "Giá gần nhất đã biết", unavailable: "Chưa có ước tính USDC", fullWallet: "Địa chỉ ví đầy đủ", reference: "Tham chiếu thị trường" },
+} as const;
+const TIMELINE_COPY = {
+  en: { title: "Donor activity", about: "Confirmed app donations · Testnet", donated: "Donated", details: "Details", hidden: "Identity hidden", note: "Testnet XLM · Currency values are estimates." },
+  id: { title: "Aktivitas donatur", about: "Donasi aplikasi terkonfirmasi · Testnet", donated: "Berdonasi", details: "Detail", hidden: "Identitas disembunyikan", note: "XLM Testnet · Nilai mata uang merupakan estimasi." },
+  tl: { title: "Aktibidad ng donor", about: "Kumpirmadong donasyon sa app · Testnet", donated: "Nag-donate", details: "Mga detalye", hidden: "Nakatago ang pagkakakilanlan", note: "Testnet XLM · Mga pagtataya lang ang halaga ng pera." },
+  vi: { title: "Hoạt động nhà tài trợ", about: "Quyên góp trong ứng dụng đã xác nhận · Testnet", donated: "Đã quyên góp", details: "Chi tiết", hidden: "Danh tính được ẩn", note: "Testnet XLM · Giá trị tiền tệ chỉ là ước tính." },
 } as const;
 type FeedState = { scope: string; entries: CampaignDonorEntry[]; cursor: string | null; error: CampaignDonorCode | null; loaded: boolean; loadingMore: boolean };
 
@@ -33,7 +45,7 @@ function DonorPhoto({ src, initial }: { src: string | null; initial: string }) {
 }
 
 export default function CampaignDonorActivity({ campaignId, refreshKey = "" }: { campaignId: string; refreshKey?: string | number }) {
-  const { locale } = useT(), copy = COPY[locale], titleId = useId();
+  const { locale } = useT(), copy = COPY[locale], timelineCopy = TIMELINE_COPY[locale], titleId = useId();
   const { prices } = useMarketPrices();
   const quote = validateMarketPrices(prices), marketCopy = MARKET_COPY[locale];
   const [refresh, setRefresh] = useState(0), [state, setState] = useState<FeedState | null>(null);
@@ -75,41 +87,56 @@ export default function CampaignDonorActivity({ campaignId, refreshKey = "" }: {
     });
   }
   const dateLocale = { en: "en-GB", id: "id-ID", tl: "fil-PH", vi: "vi-VN" }[locale];
+  const dateFormatter = new Intl.DateTimeFormat(dateLocale, { day: "numeric", month: "short", year: "numeric" });
+  const timeFormatter = new Intl.DateTimeFormat(dateLocale, { hour: "2-digit", minute: "2-digit" });
+  // Group adjacent receipts only, retaining the server's immutable cursor order.
+  // Recomputing the combined entries also merges the same day across pages.
+  const groups: { day: string; firstId: string; entries: CampaignDonorEntry[] }[] = [];
+  for (const item of current?.entries ?? []) {
+    const day = dateFormatter.format(new Date(item.createdAt)), previous = groups.at(-1);
+    if (previous?.day === day) previous.entries.push(item);
+    else groups.push({ day, firstId: item.id, entries: [item] });
+  }
   const errorText = current?.error === "not_configured" ? copy.setup : copy.unavailable;
   return <section className={styles.feed} aria-labelledby={titleId} aria-busy={loading || current?.loadingMore}>
-    <header className={styles.header}><div><h3 id={titleId}>{copy.title}</h3><p>{copy.about}</p></div>
-      <button type="button" className={styles.refresh} aria-label={copy.refresh} disabled={loading || current?.loadingMore} onClick={() => setRefresh(value => value + 1)}>↻</button></header>
+    <header className={styles.header}><div><h3 id={titleId}>{timelineCopy.title}</h3><p>{timelineCopy.about}</p></div>
+      <button type="button" className={styles.refresh} aria-label={copy.refresh} disabled={loading || current?.loadingMore} onClick={() => setRefresh(value => value + 1)}><ArrowsClockwise size={23} weight="regular" aria-hidden="true" /></button></header>
     {loading ? <p className={styles.status} role="status">{copy.loading}</p> : null}
-    {current?.entries.length ? <><p className={styles.count}>{current.entries.length} {copy.count}</p><ul className={styles.list}>{current.entries.map(item => {
+    {current?.entries.length ? <><p className={styles.count}>{current.entries.length} {copy.count}</p><div className={styles.groups}>{groups.map(group => <section className={styles.dateGroup} key={group.firstId} aria-label={group.day}>
+      <h4 className={styles.dateHeading}>{group.day}</h4><ul className={styles.list}>{group.entries.map(item => {
       // Anonymous presentation deliberately ignores every identity field, even
       // if an incompatible response unexpectedly contained one.
-      const name = item.anonymous ? copy.anonymous : item.donor?.handle ? `@${item.donor.handle}` : copy.supporter;
+      const name = item.anonymous ? copy.anonymous : item.donor?.handle ? `@${item.donor.handle}` : copy.publicDonor;
       const usdc = estimateUsdc(item.amountStroops, quote);
       const usdcText = usdc?.toLocaleString(dateLocale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       return <li className={styles.entry} key={item.id}>
-        <DonorPhoto key={`${item.id}:${item.anonymous ? "anonymous" : item.donor?.photoUrl ?? "initial"}`} src={item.anonymous ? null : item.donor?.photoUrl ?? null} initial={item.anonymous ? "A" : name.replace(/^@/, "")[0].toUpperCase()} />
-        <div className={styles.body}><div className={styles.row}><strong>{name}</strong><span className={styles.amount}>≈ {formatIllustrativeUsd(item.amountStroops)}
-          <span className={styles.estimate}>{activityStroopsToXlm(item.amountStroops)} XLM</span>
-          {usdc !== null ? <span className={styles.estimate}>{marketCopy.reference}: ≈ {usdcText} USDC</span> : null}</span></div>
-          <span className={styles.badge}>{copy.badge}</span>
-          <time dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleString(dateLocale, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</time>
-          {!item.anonymous && item.donor ? <details className={styles.address}>
-            <summary aria-label={`${marketCopy.fullWallet}: ${item.donor.address.slice(0, 6)}…${item.donor.address.slice(-6)}`}>
-              <span>{copy.wallet}</span> <code>{item.donor.address.slice(0, 6)}…{item.donor.address.slice(-6)}</code></summary>
-            <code className={styles.fullAddress}>{item.donor.address}</code>
-          </details> : null}
+        {item.anonymous ? <span className={`${styles.avatar} ${styles.anonymousAvatar}`} aria-hidden="true"><User size={27} weight="regular" /><Shield className={styles.anonymousShield} size={15} weight="regular" /></span>
+          : <DonorPhoto key={`${item.id}:${item.donor?.photoUrl ?? "initial"}`} src={item.donor?.photoUrl ?? null} initial={name.replace(/^@/, "")[0].toUpperCase()} />}
+        <div className={styles.body}><div className={styles.identity}><strong>{name}</strong><span className={styles.timeSeparator} aria-hidden="true">·</span>
+          <time dateTime={item.createdAt} title={dateFormatter.format(new Date(item.createdAt))}>{timeFormatter.format(new Date(item.createdAt))}</time></div>
+          <p className={styles.donation}>{timelineCopy.donated} <span className={styles.amount}>{activityStroopsToXlm(item.amountStroops)} XLM</span> <span className={styles.estimate}>≈ {formatIllustrativeUsd(item.amountStroops)}</span></p>
           {item.comment ? <p className={styles.comment}>{item.comment}</p> : null}
-          {!item.anonymous && item.link ? <a className={styles.receipt} href={item.link} target="_blank" rel="noopener noreferrer">{copy.receipt} ↗</a> : null}
+          {item.anonymous ? <div className={styles.anonymousFooter}><span className={styles.confirmation}><CheckCircle size={17} weight="fill" aria-hidden="true" />{copy.badge}</span><span className={styles.identityHidden}>{timelineCopy.hidden}</span></div>
+            : <details className={styles.details}>
+              <summary aria-label={timelineCopy.details}><span className={styles.confirmation}><CheckCircle size={17} weight="fill" aria-hidden="true" />{copy.badge}</span><span className={styles.detailsAction}>{timelineCopy.details}<CaretRight size={16} weight="bold" aria-hidden="true" /></span></summary>
+              <div className={styles.detailsContent}>
+                <p className={styles.marketReference}>{usdcText !== undefined ? <>{marketCopy.reference}: ≈ {usdcText} USDC</> : marketCopy.unavailable}{quote.status === "stale" ? <span className={styles.stale}> · {marketCopy.stale}</span> : null}</p>
+                {item.donor ? <details className={styles.address}>
+                  <summary aria-label={`${marketCopy.fullWallet}: ${item.donor.address.slice(0, 6)}…${item.donor.address.slice(-6)}`}><span>{copy.wallet}</span> <code>{item.donor.address.slice(0, 6)}…{item.donor.address.slice(-6)}</code></summary>
+                  <code className={styles.fullAddress}>{item.donor.address}</code>
+                </details> : null}
+                {item.link ? <a className={styles.receipt} href={item.link} target="_blank" rel="noopener noreferrer">{copy.receipt}<ArrowUpRight size={14} weight="bold" aria-hidden="true" /></a> : null}
+              </div>
+            </details>}
         </div>
       </li>;
-    })}</ul></> : null}
+    })}</ul></section>)}</div></> : null}
     {current?.loaded && !current.entries.length ? <div className={styles.empty}><strong>{copy.empty}</strong><p>{copy.emptyNote}</p></div> : null}
     {current?.error ? <div className={styles.error} role="status"><strong>{errorText}</strong><p>{copy.errorNote}</p>
       <button type="button" onClick={() => current.entries.length && current.cursor ? void older() : setRefresh(value => value + 1)}>{copy.retry}</button></div> : null}
     {current?.cursor && current.entries.length < MAX_VISIBLE && !current.error ? <button type="button" className={styles.more} disabled={current.loadingMore} onClick={() => void older()}>{current.loadingMore ? copy.loading : copy.more}</button> : null}
     {current && current.entries.length >= MAX_VISIBLE ? <p className={styles.status}>{copy.limit}</p> : null}
-    {current?.entries.length ? <p className={styles.marketNote}>{quote.status === "unavailable" ? marketCopy.unavailable : <>
-      {quote.status === "stale" ? <span className={styles.stale}>{marketCopy.stale}. </span> : null}{marketCopy.note}</>}</p> : null}
-    <details className={styles.privacy}><summary>{copy.privacy}</summary><p>{copy.privacyNote}</p></details>
+    {current?.entries.length ? <p className={styles.marketNote}>{timelineCopy.note}</p> : null}
+    <details className={styles.privacy}><summary>{copy.privacy}</summary><p>{copy.privacyNote}</p><p>{copy.about}</p><p>{marketCopy.note}</p></details>
   </section>;
 }
