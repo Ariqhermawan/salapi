@@ -1,6 +1,12 @@
 "use client";
 
 import Image from "next/image";
+import { ArrowsClockwise } from "@phosphor-icons/react/dist/csr/ArrowsClockwise";
+import { CheckCircle } from "@phosphor-icons/react/dist/csr/CheckCircle";
+import { CaretRight } from "@phosphor-icons/react/dist/csr/CaretRight";
+import { ArrowUpRight } from "@phosphor-icons/react/dist/csr/ArrowUpRight";
+import { User } from "@phosphor-icons/react/dist/csr/User";
+import { Shield } from "@phosphor-icons/react/dist/csr/Shield";
 import { useEffect, useId, useRef, useState } from "react";
 import { readPublicCampaignDonors } from "@/lib/ui/public-read";
 import { useT } from "@/components/I18nProvider";
@@ -24,6 +30,12 @@ const MARKET_COPY = {
   tl: { note: "Sumusunod sa kasalukuyang presyo ng CoinGecko ang USDC estimate. Testnet XLM pa rin ang mga donasyon.", stale: "Huling alam na presyo", unavailable: "Hindi available ang USDC estimate", fullWallet: "Buong wallet address", reference: "Market reference" },
   vi: { note: "Ước tính USDC hiện tại thay đổi theo giá CoinGecko. Khoản quyên góp vẫn là Testnet XLM.", stale: "Giá gần nhất đã biết", unavailable: "Chưa có ước tính USDC", fullWallet: "Địa chỉ ví đầy đủ", reference: "Tham chiếu thị trường" },
 } as const;
+const TIMELINE_COPY = {
+  en: { title: "Donor activity", about: "Confirmed app donations · Testnet", donated: "Donated", details: "Details", hidden: "Identity hidden", note: "Testnet XLM · Currency values are estimates." },
+  id: { title: "Aktivitas donatur", about: "Donasi aplikasi terkonfirmasi · Testnet", donated: "Berdonasi", details: "Detail", hidden: "Identitas disembunyikan", note: "XLM Testnet · Nilai mata uang merupakan estimasi." },
+  tl: { title: "Aktibidad ng donor", about: "Kumpirmadong donasyon sa app · Testnet", donated: "Nag-donate", details: "Mga detalye", hidden: "Nakatago ang pagkakakilanlan", note: "Testnet XLM · Mga pagtataya lang ang halaga ng pera." },
+  vi: { title: "Hoạt động nhà tài trợ", about: "Quyên góp trong ứng dụng đã xác nhận · Testnet", donated: "Đã quyên góp", details: "Chi tiết", hidden: "Danh tính được ẩn", note: "Testnet XLM · Giá trị tiền tệ chỉ là ước tính." },
+} as const;
 type FeedState = { scope: string; entries: CampaignDonorEntry[]; cursor: string | null; error: CampaignDonorCode | null; loaded: boolean; loadingMore: boolean };
 
 function DonorPhoto({ src, initial }: { src: string | null; initial: string }) {
@@ -33,7 +45,7 @@ function DonorPhoto({ src, initial }: { src: string | null; initial: string }) {
 }
 
 export default function CampaignDonorActivity({ campaignId, refreshKey = "" }: { campaignId: string; refreshKey?: string | number }) {
-  const { locale } = useT(), copy = COPY[locale], titleId = useId();
+  const { locale } = useT(), copy = COPY[locale], timelineCopy = TIMELINE_COPY[locale], titleId = useId();
   const { prices } = useMarketPrices();
   const quote = validateMarketPrices(prices), marketCopy = MARKET_COPY[locale];
   const [refresh, setRefresh] = useState(0), [state, setState] = useState<FeedState | null>(null);
@@ -75,42 +87,56 @@ export default function CampaignDonorActivity({ campaignId, refreshKey = "" }: {
     });
   }
   const dateLocale = { en: "en-GB", id: "id-ID", tl: "fil-PH", vi: "vi-VN" }[locale];
+  const dateFormatter = new Intl.DateTimeFormat(dateLocale, { day: "numeric", month: "short", year: "numeric" });
+  const timeFormatter = new Intl.DateTimeFormat(dateLocale, { hour: "2-digit", minute: "2-digit" });
+  // Group adjacent receipts only, retaining the server's immutable cursor order.
+  // Recomputing the combined entries also merges the same day across pages.
+  const groups: { day: string; firstId: string; entries: CampaignDonorEntry[] }[] = [];
+  for (const item of current?.entries ?? []) {
+    const day = dateFormatter.format(new Date(item.createdAt)), previous = groups.at(-1);
+    if (previous?.day === day) previous.entries.push(item);
+    else groups.push({ day, firstId: item.id, entries: [item] });
+  }
   const errorText = current?.error === "not_configured" ? copy.setup : copy.unavailable;
   return <section className={styles.feed} aria-labelledby={titleId} aria-busy={loading || current?.loadingMore}>
-    <header className={styles.header}><div><h3 id={titleId}>{copy.title}</h3><p>{copy.about}</p></div>
-      <button type="button" className={styles.refresh} aria-label={copy.refresh} disabled={loading || current?.loadingMore} onClick={() => setRefresh(value => value + 1)}>↻</button></header>
+    <header className={styles.header}><div><h3 id={titleId}>{timelineCopy.title}</h3><p>{timelineCopy.about}</p></div>
+      <button type="button" className={styles.refresh} aria-label={copy.refresh} disabled={loading || current?.loadingMore} onClick={() => setRefresh(value => value + 1)}><ArrowsClockwise size={23} weight="regular" aria-hidden="true" /></button></header>
     {loading ? <p className={styles.status} role="status">{copy.loading}</p> : null}
-    {current?.entries.length ? <><p className={styles.count}>{current.entries.length} {copy.count}</p><ul className={styles.list}>{current.entries.map(item => {
+    {current?.entries.length ? <><p className={styles.count}>{current.entries.length} {copy.count}</p><div className={styles.groups}>{groups.map(group => <section className={styles.dateGroup} key={group.firstId} aria-label={group.day}>
+      <h4 className={styles.dateHeading}>{group.day}</h4><ul className={styles.list}>{group.entries.map(item => {
       // Anonymous presentation deliberately ignores every identity field, even
       // if an incompatible response unexpectedly contained one.
       const name = item.anonymous ? copy.anonymous : item.donor?.handle ? `@${item.donor.handle}` : copy.publicDonor;
       const usdc = estimateUsdc(item.amountStroops, quote);
       const usdcText = usdc?.toLocaleString(dateLocale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       return <li className={styles.entry} key={item.id}>
-        <DonorPhoto key={`${item.id}:${item.anonymous ? "anonymous" : item.donor?.photoUrl ?? "initial"}`} src={item.anonymous ? null : item.donor?.photoUrl ?? null} initial={item.anonymous ? "A" : name.replace(/^@/, "")[0].toUpperCase()} />
-        <div className={styles.body}><div className={styles.row}><strong>{name}</strong><span className={styles.amount}>≈ {formatIllustrativeUsd(item.amountStroops)}
-          <span className={styles.estimate}>{activityStroopsToXlm(item.amountStroops)} XLM</span>
-          {usdc !== null ? <span className={styles.estimate}>{marketCopy.reference}: ≈ {usdcText} USDC</span> : null}</span></div>
-          <div className={styles.badges}><span className={styles.badge}>{copy.badge}</span>
-            <span className={styles.identityBadge}>{item.anonymous ? copy.anonymous : copy.publicDonor}</span></div>
-          <time dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleString(dateLocale, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</time>
-          {!item.anonymous && item.donor ? <details className={styles.address}>
-            <summary aria-label={`${marketCopy.fullWallet}: ${item.donor.address.slice(0, 6)}…${item.donor.address.slice(-6)}`}>
-              <span>{copy.wallet}</span> <code>{item.donor.address.slice(0, 6)}…{item.donor.address.slice(-6)}</code></summary>
-            <code className={styles.fullAddress}>{item.donor.address}</code>
-          </details> : null}
+        {item.anonymous ? <span className={`${styles.avatar} ${styles.anonymousAvatar}`} aria-hidden="true"><User size={27} weight="regular" /><Shield className={styles.anonymousShield} size={15} weight="regular" /></span>
+          : <DonorPhoto key={`${item.id}:${item.donor?.photoUrl ?? "initial"}`} src={item.donor?.photoUrl ?? null} initial={name.replace(/^@/, "")[0].toUpperCase()} />}
+        <div className={styles.body}><div className={styles.identity}><strong>{name}</strong><span className={styles.timeSeparator} aria-hidden="true">·</span>
+          <time dateTime={item.createdAt} title={dateFormatter.format(new Date(item.createdAt))}>{timeFormatter.format(new Date(item.createdAt))}</time></div>
+          <p className={styles.donation}>{timelineCopy.donated} <span className={styles.amount}>{activityStroopsToXlm(item.amountStroops)} XLM</span> <span className={styles.estimate}>≈ {formatIllustrativeUsd(item.amountStroops)}</span></p>
           {item.comment ? <p className={styles.comment}>{item.comment}</p> : null}
-          {!item.anonymous && item.link ? <a className={styles.receipt} href={item.link} target="_blank" rel="noopener noreferrer">{copy.receipt} ↗</a> : null}
+          {item.anonymous ? <div className={styles.anonymousFooter}><span className={styles.confirmation}><CheckCircle size={17} weight="fill" aria-hidden="true" />{copy.badge}</span><span className={styles.identityHidden}>{timelineCopy.hidden}</span></div>
+            : <details className={styles.details}>
+              <summary aria-label={timelineCopy.details}><span className={styles.confirmation}><CheckCircle size={17} weight="fill" aria-hidden="true" />{copy.badge}</span><span className={styles.detailsAction}>{timelineCopy.details}<CaretRight size={16} weight="bold" aria-hidden="true" /></span></summary>
+              <div className={styles.detailsContent}>
+                <p className={styles.marketReference}>{usdcText !== undefined ? <>{marketCopy.reference}: ≈ {usdcText} USDC</> : marketCopy.unavailable}{quote.status === "stale" ? <span className={styles.stale}> · {marketCopy.stale}</span> : null}</p>
+                {item.donor ? <details className={styles.address}>
+                  <summary aria-label={`${marketCopy.fullWallet}: ${item.donor.address.slice(0, 6)}…${item.donor.address.slice(-6)}`}><span>{copy.wallet}</span> <code>{item.donor.address.slice(0, 6)}…{item.donor.address.slice(-6)}</code></summary>
+                  <code className={styles.fullAddress}>{item.donor.address}</code>
+                </details> : null}
+                {item.link ? <a className={styles.receipt} href={item.link} target="_blank" rel="noopener noreferrer">{copy.receipt}<ArrowUpRight size={14} weight="bold" aria-hidden="true" /></a> : null}
+              </div>
+            </details>}
         </div>
       </li>;
-    })}</ul></> : null}
+    })}</ul></section>)}</div></> : null}
     {current?.loaded && !current.entries.length ? <div className={styles.empty}><strong>{copy.empty}</strong><p>{copy.emptyNote}</p></div> : null}
     {current?.error ? <div className={styles.error} role="status"><strong>{errorText}</strong><p>{copy.errorNote}</p>
       <button type="button" onClick={() => current.entries.length && current.cursor ? void older() : setRefresh(value => value + 1)}>{copy.retry}</button></div> : null}
     {current?.cursor && current.entries.length < MAX_VISIBLE && !current.error ? <button type="button" className={styles.more} disabled={current.loadingMore} onClick={() => void older()}>{current.loadingMore ? copy.loading : copy.more}</button> : null}
     {current && current.entries.length >= MAX_VISIBLE ? <p className={styles.status}>{copy.limit}</p> : null}
-    {current?.entries.length ? <p className={styles.marketNote}>{quote.status === "unavailable" ? marketCopy.unavailable : <>
-      {quote.status === "stale" ? <span className={styles.stale}>{marketCopy.stale}. </span> : null}{marketCopy.note}</>}</p> : null}
-    <details className={styles.privacy}><summary>{copy.privacy}</summary><p>{copy.privacyNote}</p></details>
+    {current?.entries.length ? <p className={styles.marketNote}>{timelineCopy.note}</p> : null}
+    <details className={styles.privacy}><summary>{copy.privacy}</summary><p>{copy.privacyNote}</p><p>{copy.about}</p><p>{marketCopy.note}</p></details>
   </section>;
 }

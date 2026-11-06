@@ -54,6 +54,9 @@ function setup(locale: Locale = "en", initialPrices: MarketPriceResult = unavail
         useEffect(callback: Effect["callback"], deps: readonly unknown[]) { const position = index++, previous = effects.get(position); if (!previous || deps.some((value, i) => !Object.is(value, previous.deps[i]))) waiting.set(position, { callback, deps }); },
       };
       if (name === "react/jsx-runtime") return jsxRuntime;
+      if (name.startsWith("@phosphor-icons/react/dist/csr/")) return new Proxy({ __esModule: true }, {
+        get: (_target, key) => key === "__esModule" ? true : () => React.createElement("span", { "data-icon": name.split("/").at(-1), "aria-hidden": true }),
+      });
       if (name === "next/image") return { __esModule: true, default: (props: { src: string; alt: string; width: number; height: number }) => React.createElement("img", props) };
       if (name === "@/components/I18nProvider") return { useT: () => ({ locale }) };
       if (name === "@/components/MarketPricesProvider") return { useMarketPrices: () => ({ prices: marketPrices }) };
@@ -88,7 +91,7 @@ test("initial donor loading is neutral and never renders sample donations or emp
 });
 test("real component renders exact XLM, safe username/address and confirmed badge", async () => {
   const h = setup(); await ready(h); const html = h.html(); assert.match(html, /@confirmed_user/); assert.match(html, /1\.0000001/); assert.match(html, /Confirmed Testnet/);
-  assert.match(html, /class="identityBadge">Public donor<\/span>/);
+  assert.doesNotMatch(html, /identityBadge/);
   assert.ok(html.includes(wallet)); assert.ok(html.includes(`href="https://stellar.expert/explorer/testnet/tx/${hash}"`)); assert.match(html, /rel="noopener noreferrer"/);
   assert.match(html, /&lt;script&gt;never executes&lt;\/script&gt;/); assert.doesNotMatch(html, /<script>/);
 });
@@ -104,12 +107,11 @@ for (const [locale, publicLabel, anonymousLabel] of [
   await ready(h, response([publicEntry, anonymousEntry]));
   const html = h.html(), rows = html.match(/<li class="entry">[\s\S]*?<\/li>/g);
   assert.equal(rows?.length, 2);
-  assert.ok(rows![0].includes(`<strong>${publicLabel}</strong>`));
-  assert.ok(rows![0].includes(`<span class="identityBadge">${publicLabel}</span>`));
+  assert.ok(rows![0].includes(publicLabel));
   assert.ok(rows![0].includes(wallet));
   assert.ok(rows![0].includes(`https://stellar.expert/explorer/testnet/tx/${hash}`));
-  assert.ok(rows![1].includes(`<strong>${anonymousLabel}</strong>`));
-  assert.ok(rows![1].includes(`<span class="identityBadge">${anonymousLabel}</span>`));
+  assert.ok(rows![1].includes(anonymousLabel));
+  assert.ok(!rows![1].includes("<details"));
   assert.ok(!rows![1].includes(wallet));
   assert.ok(!rows![1].includes(hash));
   assert.doesNotMatch(html, /Supporter|@null|@undefined/);
@@ -117,9 +119,37 @@ for (const [locale, publicLabel, anonymousLabel] of [
 test("wallet is shortened by default and the exact address stays accessible in a collapsed disclosure", async () => {
   const h = setup(); await ready(h); const html = h.html();
   assert.match(html, /<details class="address"><summary/);
+  assert.match(html, /<details class="details"><summary/);
   assert.ok(html.includes(`${wallet.slice(0, 6)}…${wallet.slice(-6)}`));
   assert.ok(html.includes(`<code class="fullAddress">${wallet}</code>`));
   assert.doesNotMatch(html, /<details class="address" open/);
+  assert.doesNotMatch(html, /<details class="details" open/);
+});
+
+test("timeline groups adjacent donation dates without rearranging the receipt order", async () => {
+  const h = setup();
+  await ready(h, response([
+    { ...entry("4"), createdAt: "2026-10-08T12:00:00Z", donor: { ...entry().donor!, handle: "first_donor" } },
+    { ...entry("3"), createdAt: "2026-10-08T13:00:00Z", donor: { ...entry().donor!, handle: "second_donor" } },
+    { ...entry("2", true), createdAt: "2026-10-07T12:00:00Z" },
+    { ...entry("1"), createdAt: "2026-10-08T14:00:00Z", donor: { ...entry().donor!, handle: "late_saved_receipt" } },
+  ]));
+  assert.equal(h.nodes(h.render()).filter(node => node.type === "h4").length, 3);
+  const html = h.html();
+  assert.ok(html.indexOf("@first_donor") < html.indexOf("@second_donor"));
+  assert.ok(html.indexOf("@second_donor") < html.indexOf("Anonymous"));
+  assert.ok(html.indexOf("Anonymous") < html.indexOf("@late_saved_receipt"));
+});
+
+test("a donor comment is visible between contribution and confirmation while an absent comment creates no bubble", async () => {
+  const h = setup();
+  await ready(h, response([{ ...entry(), comment: "Hope this helps." }, { ...entry("9", true), comment: "" }]));
+  const html = h.html(), rows = html.match(/<li class="entry">[\s\S]*?<\/li>/g)!;
+  assert.equal(rows.length, 2);
+  assert.ok(rows[0].indexOf("1.0000001") < rows[0].indexOf("Hope this helps."));
+  assert.ok(rows[0].indexOf("Hope this helps.") < rows[0].indexOf("Confirmed Testnet"));
+  assert.equal((html.match(/class="comment"/g) ?? []).length, 1);
+  assert.ok(!rows[1].includes('class="comment"'));
 });
 for (const locale of ["en", "id", "tl", "vi"] as const) test(`${locale}: donor estimates use current USDC market prices without losing exact XLM`, async () => {
   const h = setup(locale, prices()); await ready(h); const html = h.html();
@@ -141,8 +171,9 @@ test("stale donor estimate is labelled and expired quote disappears while XLM re
 test("anonymous component presentation discards even contradictory response identities", async () => {
   const h = setup("en", prices()); const malicious = { ...entry(), anonymous: true, donor: { address: wallet, handle: "confirmed_user", photoUrl: "https://lh3.googleusercontent.com/hidden-photo" } }; await ready(h, response([malicious]));
   const html = h.html(); assert.match(html, /Anonymous/); for (const privateField of [wallet, hash, "confirmed_user", "View receipt"]) assert.ok(!html.includes(privateField));
-  assert.match(html, /class="identityBadge">Anonymous<\/span>/); assert.doesNotMatch(html, /Public donor/);
-  assert.match(html, /≈ 0\.50 USDC/); assert.match(html, /1\.0000001/); assert.doesNotMatch(html, /hidden-photo|class="address"/);
+  assert.match(html, /Identity hidden/); assert.doesNotMatch(html, /Public donor/);
+  assert.match(html, /1\.0000001/); assert.match(html, /≈ \$0\.11/);
+  assert.doesNotMatch(html, /hidden-photo|class="address"|class="details"/);
 });
 test("empty app log explains incomplete history instead of claiming no donations", async () => {
   const h = setup(); await ready(h, response([])); const html = h.html(); assert.match(html, /No confirmed app donor records yet/); assert.match(html, /does not mean the campaign received no funds/);
@@ -159,6 +190,7 @@ test("load older uses lossless cursor, merges without duplicates and cannot doub
   click(); click(); assert.equal(h.calls.length, 2);
   assert.equal(h.calls[1].cursor, "10"); h.calls[1].result.resolve(response([entry("10"), entry("9", true)], null)); await flush();
   const html = h.html(); assert.match(html, /2 records shown/); assert.equal((html.match(/@confirmed_user/g) ?? []).length, 1); assert.doesNotMatch(html, /Load older records/);
+  assert.equal(h.nodes(h.render()).filter(node => node.type === "h4").length, 1, "Adjacent records from the same date share one heading across pages");
 });
 test("older-page failure preserves confirmed records and retries cursor only", async () => {
   const h = setup(); await ready(h, response([entry("10")], "10")); const pending = h.click("Load older records"); h.calls[1].result.reject(Error("Network failure")); await pending; await flush();
