@@ -53,10 +53,12 @@ export function ConfirmedFundingProgress({ totalStroops, goalUsd = null, donorSu
   const summary = donorSummary?.ok && donorSummary.confirmedTotalStroops === totalStroops && Number.isSafeInteger(donorSummary.count)
     && donorSummary.count >= 0 && (donorSummary.count > 0 || donorSummary.coverage === "complete") ? donorSummary : null;
   return <div className={styles.progress} data-funding-kind="testnet" data-market-status={quote.status} aria-label={copy.confirmed}>
-    <span className={styles.label}>{copy.collected}</span>
+    <span className={styles.label}>{copy.collected}
+      {progress && quote.status === "stale" ? <span className={styles.stale}>{copy.stale}</span> : null}
+    </span>
     <div className={styles.amounts}>
       {progress ? <strong>≈ ${format(progress.usd)} <small>USD</small></strong> : <span className={styles.unknown}>{copy.marketUnavailable}</span>}
-      {progress && quote.status === "stale" ? <span className={styles.stale}>{copy.stale}</span> : null}</div>
+    </div>
     <div className={styles.secondary}><span data-confirmed-stroops={totalStroops}>{formatStroops(totalStroops)} XLM <small>· Testnet</small></span>
       <span className={styles.contributors} title={summary ? `${copy.contributorBasis}${summary.coverage === "recorded" ? ` ${copy.incomplete}` : ""}` : undefined}>
         <Users size={17} aria-hidden="true" />{summary ? <>{summary.count.toLocaleString(NUMBER_LOCALES[locale])}{summary.coverage === "recorded" ? "+" : ""} {summary.basis === "wallets" ? copy.wallets : copy.contributors}</> : copy.contributorsUnavailable}

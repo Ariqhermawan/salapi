@@ -70,9 +70,10 @@ const localizedFunding = {
   vi: { collected: "Tổng đóng góp · ước tính USD", example: "Số tiền minh họa", exampleContributors: "người đóng góp minh họa", contributors: "người đóng góp", wallets: "ví đóng góp", unknownContributors: "Chưa có số người đóng góp", marketUnavailable: "Chưa có ước tính USD", stale: "Giá gần nhất đã biết", goal: "Mục tiêu minh họa", nativeUsd: "3,09", exampleUsd: "127,59", goalUsd: "172,41", percentage: "1,79" },
 } satisfies Record<Locale, Record<string, string>>;
 
-function expectDirectFundingLabel(html: string, label: string, context: string) {
-  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  assert.match(html, new RegExp(`^<div class="progress"[^>]*><span class="label">${escaped}</span><div class="amounts">`), `${context}: the descriptive label must be a direct grid child, not trapped inside the half-width amount column`);
+function expectDirectFundingLabel(html: string, label: string, context: string, stale?: string) {
+  const escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const staleBadge = stale ? `<span class="stale">${escape(stale)}</span>` : "";
+  assert.match(html, new RegExp(`^<div class="progress"[^>]*><span class="label">${escape(label)}${staleBadge}</span><div class="amounts">`), `${context}: the descriptive label and stale notice must share the full-width grid row`);
   assert.equal((html.match(/class="label"/g) ?? []).length, 1, `${context}: the descriptive label must not be duplicated`);
 }
 
@@ -114,7 +115,7 @@ test("full-width confirmed labels preserve exact native funding and contributor 
         };
         const html = fixture({ locale, prices, result: { ...result, donorSummary } }).render();
         const context = `${locale} ${state} ${basis}`;
-        expectDirectFundingLabel(html, copy.collected, context);
+        expectDirectFundingLabel(html, copy.collected, context, state === "stale" ? copy.stale : undefined);
         assert.match(html, /data-confirmed-stroops="123456789">12\.3456789 XLM <small>· Testnet<\/small>/, `${context}: native precision and Testnet framing must remain exact`);
         const secondary = html.match(/<div class="secondary">([\s\S]*?)<\/div>/)?.[1];
         assert.ok(secondary, `${context}: native funding and contributors retain their shared secondary row`);

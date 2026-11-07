@@ -335,39 +335,100 @@ test("Discovery Back restores the full query, category, sort and main scroll pos
   await expect.poll(async () => Math.abs(await page.locator("#app-content").evaluate(element => element.scrollTop) - scrollTop)).toBeLessThanOrEqual(2);
 });
 
-test("Home animals second-card pledge Back restores category, carousel and main scroll", async ({ page }) => {
-  // Exercise the richer card through the app's actual small-screen scrollport.
-  await page.setViewportSize({ width: 390, height: 640 });
-  const catalog = await home(page);
-  const category = catalog.locator("#home-cause-category");
-  await chooseHomeCauseCategory(catalog, "animals");
-  await catalog.getByRole("button", { name: "Next example cause", exact: true }).click();
-  await expect(catalog.getByLabel("2 of 3 example causes", { exact: true })).toHaveText("02 / 03");
-  const pledge = catalog.locator("article[data-example-cause]").nth(1).getByRole("link", { name: "View campaign", exact: true });
-  const href = await pledge.getAttribute("href");
-  expect(href).toMatch(/^\/circles\/[a-z0-9-]+$/);
-  await pledge.evaluate(element => element.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" }));
-  const main = page.locator("#app-content");
-  const scrollTop = await main.evaluate(element => element.scrollTop);
-  expect(scrollTop).toBeGreaterThan(0);
-  const strip = catalog.getByLabel("Example causes carousel", { exact: true });
-  const scrollLeft = await strip.evaluate(element => element.scrollLeft);
-  expect(scrollLeft).toBeGreaterThan(0);
-  await pledge.click();
-  await expectRoute(page, href!);
-  await page.getByRole("link", { name: donationEntry }).click();
-  await expectRoute(page, `${href}/donate`);
-  await headerBack(page);
-  await expectRoute(page, href!);
-  await headerBack(page);
-  await expectRoute(page, "/");
-  await expect(catalog).toHaveAttribute("data-catalog-ready", "true");
-  await expect(category).toContainText("Animal care");
-  await expect(catalog.locator("article[data-example-cause]")).toHaveCount(3);
-  await expect(catalog.getByLabel("2 of 3 example causes", { exact: true })).toHaveText("02 / 03");
-  await expect.poll(async () => Math.abs(await strip.evaluate(element => element.scrollLeft) - scrollLeft)).toBeLessThanOrEqual(2);
-  await expect.poll(async () => Math.abs(await main.evaluate(element => element.scrollTop) - scrollTop)).toBeLessThanOrEqual(2);
-});
+for (const { viewport, mobile } of [
+  { viewport: { width: 390, height: 640 }, mobile: true },
+  { viewport: { width: 1280, height: 800 }, mobile: false },
+]) {
+  test.describe(`Home Back at ${viewport.width}x${viewport.height}`, () => {
+    test.use({ viewport, isMobile: mobile, hasTouch: mobile });
+
+    test("Home animals second-card pledge Back restores category, carousel and main scroll", async ({ page, baseURL }) => {
+      const origin = new URL(baseURL ?? "http://localhost:4747").origin;
+      const homeUrl = (url: URL) => url.origin === origin && url.pathname === "/" && !url.search;
+      const walletLoading = page.getByRole("status", { name: "Loading wallet balance", exact: true });
+      let walletAction: string | undefined;
+      let holdReturn = false;
+      let heldWalletReads = 0;
+      let releaseWallet!: () => void;
+      const walletGate = new Promise<void>(resolve => { releaseWallet = resolve; });
+
+      await page.route(homeUrl, async route => {
+        const request = route.request();
+        const action = request.headers()["next-action"];
+        if (request.method() === "POST" && action) {
+          // Home queues walletState before myHandle. Learn the deployed action
+          // ID from the first visit and delay its genuine read only on return.
+          walletAction ??= action;
+          if (holdReturn && action === walletAction) {
+            heldWalletReads++;
+            await walletGate;
+          }
+        }
+        await route.continue();
+      });
+
+      try {
+        const catalog = await home(page);
+        const preview = await page.getByText("Local preview · sample data · no transactions", { exact: true }).count() > 0;
+        if (!preview) await expect.poll(() => walletAction).toBeTruthy();
+        await expect(walletLoading).toHaveCount(0);
+        const category = catalog.locator("#home-cause-category");
+        await chooseHomeCauseCategory(catalog, "animals");
+        await catalog.getByRole("button", { name: "Next example cause", exact: true }).click();
+        await expect(catalog.getByLabel("2 of 3 example causes", { exact: true })).toHaveText("02 / 03");
+        const secondCard = catalog.locator("article[data-example-cause]").nth(1);
+        const pledge = secondCard.getByRole("link", { name: "View campaign", exact: true });
+        const href = await pledge.getAttribute("href");
+        expect(href).toMatch(/^\/circles\/[a-z0-9-]+$/);
+        await pledge.evaluate(element => element.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" }));
+        const departure = { top: 0, left: 0 };
+        await page.exposeFunction("recordHomeDeparture", (top: number, left: number) => Object.assign(departure, { top, left }));
+        await pledge.evaluate(element => {
+          element.addEventListener("click", () => {
+            const main = element.closest("main");
+            const strip = element.closest<HTMLElement>('[aria-label="Example causes carousel"]');
+            const capture = (window as Window & { recordHomeDeparture?: (top: number, left: number) => Promise<unknown> }).recordHomeDeparture;
+            if (main && strip && capture) void capture(main.scrollTop, strip.scrollLeft);
+          }, { capture: true, once: true });
+        });
+        await pledge.click();
+        await expectRoute(page, href!);
+        await expect.poll(() => departure.top).toBeGreaterThan(0);
+        expect(departure.left).toBeGreaterThan(0);
+        await page.getByRole("link", { name: donationEntry }).click();
+        await expectRoute(page, `${href}/donate`);
+        await headerBack(page);
+        await expectRoute(page, href!);
+        holdReturn = true;
+        await headerBack(page);
+        await expectRoute(page, "/");
+        await expect(category).toContainText("Animal care");
+        await expect(catalog.locator("article[data-example-cause]")).toHaveCount(3);
+        await expect(catalog.getByLabel("2 of 3 example causes", { exact: true })).toHaveText("02 / 03");
+        await expect(secondCard).toHaveAttribute("data-active-card", "true");
+        await expect(pledge).toHaveAttribute("href", href!);
+        const main = page.locator("#app-content");
+        const strip = catalog.getByLabel("Example causes carousel", { exact: true });
+        const distanceFromDeparture = () => main.evaluate(async (element, top) => {
+          await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+          return Math.abs(element.scrollTop - top);
+        }, departure.top);
+        if (!preview) {
+          await expect.poll(() => heldWalletReads).toBe(1);
+          await expect(walletLoading).toBeVisible();
+          await expect.poll(distanceFromDeparture).toBeLessThanOrEqual(2);
+        }
+        releaseWallet();
+        await expect(walletLoading).toHaveCount(0);
+        await expect.poll(distanceFromDeparture).toBeLessThanOrEqual(2);
+        await expect.poll(async () => Math.abs(await strip.evaluate(element => element.scrollLeft) - departure.left)).toBeLessThanOrEqual(2);
+      } finally {
+        releaseWallet();
+        await page.unroute(homeUrl);
+      }
+    });
+  });
+}
 
 test("same-path Home query entries restore their separate category and carousel without a component remount", async ({ page }) => {
   const priorRoute = "/?entry=back-regression-same-path";
