@@ -528,6 +528,8 @@ export default function ActivityScreen() {
                         };
                         const counterpartIdentity = identityFor(receipt.counterparty);
                         const equivalent = activityUsdcEquivalent(receipt.amountStroops, receipt.asset, prices);
+                        const estimatedUsdc = equivalent ? new Intl.NumberFormat(locale, { maximumSignificantDigits: 8 }).format(equivalent.amount) : null;
+                        const amountSign = received ? "+" : "−";
                         const sender = received ? receipt.counterparty : address;
                         const recipient = received ? address : receipt.counterparty;
                         const participant = (wallet: string | null) => <span className={styles.participant}>
@@ -553,12 +555,19 @@ export default function ActivityScreen() {
                                   </span> : <span>{m("On-chain wallet activity")}</span>}
                                 </div>
                                 <div className={`${styles.receiptAmount} ${received ? styles.incomingAmount : ""}`}>
-                                  <div className={styles.nativeLine}>
-                                    <strong data-activity-native-amount>{received ? "+" : "−"}{exactNativeAmount(receipt.amountStroops)}</strong>
+                                  {equivalent ? (
+                                    <div className={styles.nativeLine} data-activity-equivalent={equivalent.status}>
+                                      <strong>≈ {amountSign}{estimatedUsdc}</strong>
+                                      <small className={styles.estimateUnit}>{h("equivalent")}</small>
+                                      {equivalent.status === "stale" ? <span className={styles.staleQuote}>{h("quoteStaleShort")}</span> : null}
+                                    </div>
+                                  ) : null}
+                                  <div className={`${styles.nativeLine} ${equivalent ? styles.secondaryNativeLine : ""}`}>
+                                    <strong data-activity-native-amount>{amountSign}{exactNativeAmount(receipt.amountStroops)}</strong>
                                     <small>Testnet {receipt.asset.code}</small>
                                   </div>
-                                  {receipt.asset.code === "XLM" ? <span className={styles.equivalent} data-activity-equivalent={equivalent?.status ?? "unavailable"}>
-                                    {equivalent ? <><span className={styles.equivalentValue}>{h("equivalent")}: ≈ {new Intl.NumberFormat(locale, { maximumSignificantDigits: 8 }).format(equivalent.amount)} USDC</span>{equivalent.status === "stale" ? <span className={styles.staleQuote}>{h("quoteStaleShort")}</span> : null}</> : h("quoteUnavailable")}
+                                  {receipt.asset.code === "XLM" && !equivalent ? <span className={styles.equivalent} data-activity-equivalent="unavailable">
+                                    {h("quoteUnavailable")}
                                   </span> : null}
                                 </div>
                                 <span className={styles.receiptToggle}>{h(expanded === receipt.id ? "hideDetails" : "viewDetails")} {Ico.chev({ size: 12, c: T.action })}</span>
@@ -567,10 +576,14 @@ export default function ActivityScreen() {
                                 <div id={`activity-receipt-${receipt.id}`} className={styles.receiptDetails}>
                                   <dl>
                                     {context ? <><dt>{h("purpose")}</dt><dd>{h(context.type)}<br />{purposeName}</dd></> : null}
+                                    {equivalent ? <>
+                                      <dt>{h("equivalent")}</dt>
+                                      <dd><strong className={styles.receiptEstimate}>≈ {estimatedUsdc} USDC</strong><br />{h(equivalent.status === "stale" ? "quoteStale" : "quoteFresh", { time: receiptDate(new Date(equivalent.updatedAt * 1000).toISOString(), true, locale) })}</dd>
+                                    </> : null}
                                     <dt>{h("amount")}</dt><dd>{nativeAmount(receipt.amountStroops)} Testnet {receipt.asset.code}</dd>
                                     <dt>{h("units")}</dt><dd>{receipt.amountStroops} units</dd>
-                                    {receipt.asset.code === "XLM" ? <>
-                                      <dt>{h("equivalent")}</dt><dd>{equivalent ? <>≈ {new Intl.NumberFormat(locale, { maximumSignificantDigits: 8 }).format(equivalent.amount)} USDC<br />{h(equivalent.status === "stale" ? "quoteStale" : "quoteFresh", { time: receiptDate(new Date(equivalent.updatedAt * 1000).toISOString(), true, locale) })}</> : h("quoteUnavailable")}</dd>
+                                    {receipt.asset.code === "XLM" && !equivalent ? <>
+                                      <dt>{h("equivalent")}</dt><dd>{h("quoteUnavailable")}</dd>
                                     </> : null}
                                     {receipt.asset.issuer ? <><dt>{h("issuer")}</dt><dd className={styles.address}>{receipt.asset.issuer}</dd><dt>{h("contract")}</dt><dd className={styles.address}>{receipt.asset.contractId}</dd></> : null}
                                     <dt>{m("Recorded at")}</dt><dd>{receiptDate(receipt.createdAt, true, locale)}</dd>

@@ -50,7 +50,7 @@ const copy = {
   from: ["From {name}", "Mula kay {name}", "Dari {name}", "Từ {name}"],
   to: ["To {name}", "Para kay {name}", "Ke {name}", "Đến {name}"],
   photo: ["Consented receipt photo for {name}", "Pinayagang larawan sa receipt ni {name}", "Foto receipt yang diizinkan oleh {name}", "Ảnh biên nhận được {name} cho phép"],
-  equivalent: ["Current equivalent", "Kasalukuyang katumbas", "Setara saat ini", "Giá trị tương đương hiện tại"],
+  equivalent: ["USDC estimate", "Tantiyang halaga sa USDC", "Estimasi USDC", "Ước tính theo USDC"],
   quoteUnavailable: ["USDC equivalent unavailable", "Hindi available ang katumbas na USDC", "Nilai setara USDC belum tersedia", "Chưa có giá trị tương đương USDC"],
   quoteFresh: ["Price updated {time}", "Na-update ang presyo {time}", "Harga diperbarui {time}", "Giá cập nhật {time}"],
   quoteStale: ["Older price {time}", "Lumang presyo {time}", "Harga sebelumnya {time}", "Giá cũ {time}"],

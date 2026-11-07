@@ -422,15 +422,20 @@ test("verified campaign purpose follows language without changing receipts or re
   h.unmount();
 });
 
-test("XLM primary stays exact while current USDC equivalent changes with both shared market prices", async () => {
+test("the primary USDC estimate updates while the actual XLM amount stays exact", async () => {
   const options = { prices: marketQuote() }, h = mount(options); h.emitAuth("owner-a"); await h.flush();
   h.historyRequests[0].deferred.resolve(pageResult([item()])); await h.flush();
-  assert.match(text(h.tree), /\+446\.1538462Testnet XLM/); assert.match(text(h.tree), /Current equivalent: ≈ 89\.230769 USDC/);
+  assert.match(text(h.tree), /≈ \+89\.230769USDC estimate\+446\.1538462Testnet XLM/);
   assert.ok(nodes(h.tree).some(node => node.props.href === "https://www.coingecko.com" && text(node) === "CoinGecko" && node.props.rel === "noopener noreferrer"));
   assert.match(text(h.tree), /not a historical receipt value or token conversion/);
   if (options.prices.status === "unavailable") throw Error("Fixture");
   options.prices.assets.usdc.prices.usd = .5; h.render();
-  assert.match(text(h.tree), /Current equivalent: ≈ 178\.46154 USDC/); assert.match(text(h.tree), /\+446\.1538462Testnet XLM/); h.unmount();
+  assert.match(text(h.tree), /≈ \+178\.46154USDC estimate\+446\.1538462Testnet XLM/);
+  const button = nodes(h.tree).find(node => node.props["aria-controls"] === "activity-receipt-101:sac-0")!;
+  (button.props.onClick as () => void)(); h.render();
+  const details = nodes(h.tree).find(node => node.props.id === "activity-receipt-101:sac-0");
+  assert.match(text(details), /^USDC estimate≈ 178\.46154 USDCPrice updated .*Token amount446\.1538462 Testnet XLM/);
+  h.unmount();
 });
 
 test("stale estimate is timestamped, expired/missing estimate is unavailable, never a fake zero", async () => {
@@ -440,7 +445,11 @@ test("stale estimate is timestamped, expired/missing estimate is unavailable, ne
     assert.ok(row);
     if (prices.status === "stale" || (prices.status !== "unavailable" && prices.assets.xlm.updatedAt > Math.floor(Date.now() / 1000) - 300)) {
       assert.equal(row.props["data-activity-equivalent"], "stale"); assert.match(text(row), /Older price/);
-    } else { assert.equal(row.props["data-activity-equivalent"], "unavailable"); assert.match(text(row), /USDC equivalent unavailable/); assert.doesNotMatch(text(row), /≈ 0/); }
+    } else {
+      assert.equal(row.props["data-activity-equivalent"], "unavailable");
+      assert.match(text(h.tree), /\+446\.1538462Testnet XLMUSDC equivalent unavailable/);
+      assert.doesNotMatch(text(h.tree), /≈ \+?0/);
+    }
     h.unmount();
   }
 });
@@ -497,6 +506,7 @@ test("compact receipts preserve every native digit, keep the estimate separate a
   assert.ok(amounts.every(node => node.type === "strong" && !text(node).includes("USDC")));
   assert.equal(nodes(h.tree).filter(node => node.props.className === "receiptToggle" && text(node).includes("Transaction details")).length, 3);
   const button = nodes(h.tree).find(node => node.props["aria-controls"] === "activity-receipt-fifty")!;
+  assert.match(text(button), /≈ −10USDC estimate−50Testnet XLM/);
   (button.props.onClick as () => void)(); h.render();
   assert.equal(nodes(h.tree).find(node => node.props["aria-controls"] === "activity-receipt-fifty")?.props["aria-expanded"], true);
   assert.match(text(h.tree), /Hide details.*Token amount50\.0000000 Testnet XLM/);

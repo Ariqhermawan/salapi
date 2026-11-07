@@ -637,21 +637,19 @@
   overflow-x: auto;
 }
 .personalTimeline .nativeLine > small { white-space: nowrap; background: transparent; padding: 0; font-size: 10px; color: #61758e; }
+.personalTimeline .nativeLine > .estimateUnit { font-size: 12px; font-weight: 600; white-space: normal; }
+.personalTimeline .secondaryNativeLine > strong { color: #526780; font-size: 13px; letter-spacing: 0; }
 .personalTimeline .equivalent {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 3px 7px;
   color: #61758e;
   font-size: 10px;
   line-height: 1.5;
 }
-.personalTimeline .equivalentValue { color: inherit; font-variant-numeric: tabular-nums; text-wrap: pretty; }
 .personalTimeline .staleQuote { color: #8d6136; font-size: 9px; }
 .personalTimeline .receiptToggle { display: inline-flex; align-items: center; gap: 4px; color: #2563eb; font-size: 10px; font-weight: 550; }
 .transferButton[aria-expanded="true"] .receiptToggle > svg { transform: rotate(90deg); }
 .personalTimeline .receiptDetails { margin-top: 12px; }
 .personalTimeline .receiptDetails dd { overflow-wrap: anywhere; }
+.receiptEstimate { color: #162746; font-size: 16px; font-variant-numeric: tabular-nums; }
 @media (max-width: 480px) {
   .receiptButton:not(.transferButton) { flex-direction: column; }
   .receiptButton:not(.transferButton) .receiptAmount { align-items: flex-start; }

@@ -26,19 +26,23 @@ const sources = {
   screen: compile("components/screens/ActivityScreen.tsx"),
 };
 const css = readFileSync(join(process.cwd(), "components/screens/ActivityRevamp.module.css"), "utf8");
-async function mount(page: Page, width = 390, stream = true) {
+async function mount(page: Page, width = 390, stream = true, withQuote = false) {
   await page.setViewportSize({ width, height: 844 });
   await page.clock.install();
   await page.setContent(`<meta name="viewport" content="width=device-width,initial-scale=1"><title>Activity live update QA</title><style>body{font:16px Arial;background:#f4f7fb;margin:0}*{box-sizing:border-box}button{font:inherit;cursor:pointer}#app-content{height:844px;overflow:auto;max-width:660px;margin:auto}${css}</style><main id="app-content"><div id="fixture-root"></div></main>`);
   await page.addScriptTag({ content: `
     const f=window.fixture={owner:'${owner}',streams:[],reads:[],hold:false,pending:[],items:[],online:true,visibility:'visible'};
+    const quoteTime=Math.floor(Date.now()/1000);
+    const priceSnapshot=${withQuote}
+      ? {status:'fresh',source:'CoinGecko',fetchedAt:quoteTime,assets:{xlm:{prices:{usd:0.2},updatedAt:quoteTime},usdc:{prices:{usd:1},updatedAt:quoteTime}}}
+      : {status:'unavailable',source:'CoinGecko'};
     const auths=new Set(),cache={},modules={${Object.entries(sources).map(([id, code]) => `${JSON.stringify(id)}:(module,exports,require)=>{${code}\n}`).join(",")}};
     function require(id){if(id in stubs)return stubs[id];if(cache[id])return cache[id].exports;if(!modules[id])throw Error('Unexpected dependency '+id);const m=cache[id]={exports:{}};modules[id](m,m.exports,require);return m.exports;}
     const React=()=>require('react');
     const stubs={
       'next/link':{__esModule:true,default:p=>React().createElement('a',p,p.children)},
       '@/components/AccountAvatar':{__esModule:true,default:p=>React().createElement('span',{'aria-label':p.alt},p.name.slice(0,1))},
-      '@/components/MarketPricesProvider':{useMarketPrices:()=>({prices:{status:'unavailable',source:'CoinGecko'}})},
+      '@/components/MarketPricesProvider':{useMarketPrices:()=>({prices:priceSnapshot})},
       '@/components/I18nProvider':{useT:()=>({currency:'en',locale:'en'})},
       '@/lib/ui/useGoBack':{useGoBack:()=>()=>{}},
       '@/lib/ui/currency':{formatLocal:String},
@@ -69,8 +73,13 @@ async function incoming(page: Page) {
 }
 for (const width of [375, 1280]) test(`incoming transfer appears while standby without refresh or scroll reset at ${width}px`, async ({ page }, testInfo) => {
   const errors: string[] = []; page.on("pageerror", e => errors.push(e.message));
-  await mount(page, width);
+  await mount(page, width, true, true);
   const first = page.locator("[data-activity-native-amount]").first(); await expect(first).toHaveText("+1");
+  const estimate = page.locator('[data-activity-equivalent="fresh"] > strong').first();
+  await expect(estimate).toHaveText("≈ +0.2");
+  const primary = await estimate.boundingBox();
+  const native = await first.boundingBox();
+  expect(primary && native && primary.y < native.y && primary.height > native.height).toBe(true);
   await page.getByRole("button", { name: /Received XLM/ }).nth(2).click();
   await expect(page.locator("#activity-receipt-198\\:payment")).toBeVisible();
   await page.locator("#app-content").evaluate(e => { e.scrollTop = 240; });
