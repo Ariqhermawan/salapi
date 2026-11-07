@@ -4,16 +4,20 @@ import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import * as copy from "../lib/i18n/revamp-money.ts";
-import { activityCopy } from "../lib/i18n/wallet-activity.ts";
+import { activityCopy, activityEstimateLabel } from "../lib/i18n/wallet-activity.ts";
 import * as contentCopy from "../lib/i18n/circles-content.ts";
-import { XLM_ACTIVITY_ASSET, USDC_ACTIVITY_ASSET, activityContextHref, activityUsdcEquivalent } from "../lib/wallet-activity.ts";
+import { XLM_ACTIVITY_ASSET, USDC_ACTIVITY_ASSET, activityContextHref, activityStroopsToXlm, activityUsdcEquivalent } from "../lib/wallet-activity.ts";
 import type { MarketPriceResult } from "../lib/market-prices.ts";
 import { PREVIEW_WALLET } from "../lib/local-preview.ts";
 import { formatLocal } from "../lib/ui/currency.ts";
 import type { WalletActivityResult, WalletActivityItem } from "../lib/wallet-activity.ts";
 
-const source = readFileSync(new URL("../components/screens/ActivityScreen.tsx", import.meta.url), "utf8");
-const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText;
+function compileScreen(name: string) {
+  const source = readFileSync(new URL(`../components/screens/${name}.tsx`, import.meta.url), "utf8");
+  return ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText;
+}
+const compiled = compileScreen("ActivityScreen");
+const compiledSheet = compileScreen("ActivityReceiptSheet");
 const address = "GDWYDMY2WDL4MCKMYQ6CWZJP526K6YHLRK3EG6IF2IJTX3EHZU3RRB72";
 const counterparty = "GCBKRBBNTQ2YA7U7SOC2NTZCCACFIIQCLKKO2FJYL5WJP5QVYH6UNDHL";
 type Element = { type: unknown; props: Record<string, unknown> };
@@ -35,6 +39,11 @@ function text(value: unknown): string {
   if (Array.isArray(value)) return value.map(text).join("");
   return value && typeof value === "object" && "props" in value ? text((value as Element).props.children) : "";
 }
+function openReceipt(tree: Element, id: string) {
+  const trigger = nodes(tree).find(node => node.props["data-activity-receipt-trigger"] === id);
+  assert.ok(trigger);
+  (trigger.props.onClick as (event: unknown) => void)({ currentTarget: { focus() {} } });
+}
 const item = (id = "101:sac-0", direction: "sent" | "received" = "received", amount = "4461538462"): WalletActivityItem => ({
   id, hash: "a".repeat(64), createdAt: "2026-10-06T13:29:22Z", direction, amountStroops: amount, counterparty, kind: "soroban-transfer", asset: XLM_ACTIVITY_ASSET, fee: { status: "unavailable" },
 });
@@ -53,13 +62,15 @@ function mount(options: { preview?: boolean; configured?: boolean; locale?: "en"
   const watchers: { address: string; changed: () => Promise<void>; closed: boolean }[] = [];
   let cursor = 0, timerId = 0, mutations = 0, subscriptions = 0;
   let authListener: ((event: string, session: { user: { id: string } } | null) => void) | null = null;
-  const jsx = (type: unknown, props: Record<string, unknown>) => ({ type, props });
+  const sheetExports = {} as { default?(props: Record<string, unknown>): Element };
+  const jsx = (type: unknown, props: Record<string, unknown>) =>
+    typeof type === "function" && type === sheetExports.default ? sheetExports.default(props) : { type, props };
   const exports = {} as { default(): Element };
   const icons = new Proxy({}, { get: () => () => null });
   const forbidden = () => { throw Error("Unexpected mutation or network boundary"); };
   runInNewContext(compiled, { exports, Intl, Promise, AbortController, AbortSignal, queueMicrotask, document: { getElementById: () => ({ focus() {} }) },
     setTimeout(callback: () => void) { const id = ++timerId; timers.set(id, callback); return id; }, clearTimeout(id: number) { timers.delete(id); },
-    require(dependency: string) {
+    require: function fixtureRequire(dependency: string) {
       if (dependency === "react/jsx-runtime") return { jsx, jsxs: jsx, Fragment: "Fragment" };
       if (dependency === "react") return {
         useState(initial: unknown) {
@@ -68,6 +79,7 @@ function mount(options: { preview?: boolean; configured?: boolean; locale?: "en"
           return [slots[index], (next: unknown) => { slots[index] = typeof next === "function" ? next(slots[index]) : next; mutations++; }];
         },
         useRef(initial: unknown) { const index = cursor++; if (!(index in slots)) slots[index] = { current: initial }; return slots[index]; },
+        useId() { return `fixture-${cursor++}`; },
         useCallback(callback: unknown, dependencies: unknown[]) {
           const index = cursor++, prior = slots[index] as { callback: unknown; dependencies: unknown[] } | undefined;
           if (!prior || dependencies.some((value, i) => !Object.is(value, prior.dependencies[i]))) slots[index] = { callback, dependencies };
@@ -82,6 +94,11 @@ function mount(options: { preview?: boolean; configured?: boolean; locale?: "en"
         },
       };
       if (dependency === "next/link") return { default: "Link" };
+      if (dependency === "next/image") return { default: "Image" };
+      if (dependency === "./ActivityReceiptSheet") {
+        if (!sheetExports.default) runInNewContext(compiledSheet, { exports: sheetExports, require: fixtureRequire, Intl });
+        return sheetExports;
+      }
       if (dependency === "@/app/actions") return { walletActivity(nextCursor: string | null = null) { const next = deferred<WalletActivityResult>(); historyRequests.push({ cursor: nextCursor, deferred: next }); return next.promise; }, sendByUsername: forbidden };
       if (dependency === "@/lib/ui/wallet-activity-read") return { readWalletActivity(nextCursor: string | null) { const next = deferred<WalletActivityResult>(); historyRequests.push({ cursor: nextCursor, deferred: next }); return next.promise; } };
       if (dependency === "@/lib/ui/watchWalletActivity") return { watchWalletActivity(address: string, changed: () => Promise<void>) {
@@ -94,13 +111,15 @@ function mount(options: { preview?: boolean; configured?: boolean; locale?: "en"
         signOut: forbidden,
       } }) };
       if (dependency === "@/components/ui/kit") return { Ico: icons, T: {}, IconButton: "IconButton", PoweredByStellar: "PoweredByStellar" };
+      if (dependency === "@/components/ui/icons") return { Ico: icons };
       if (dependency === "@/lib/ui/useGoBack") return { useGoBack: () => () => {} };
       if (dependency === "@/components/I18nProvider") return { useT: () => ({ currency: "en", locale: options.locale ?? "en" }) };
       if (dependency === "@/components/AccountAvatar") return { default: "AccountAvatar" };
       if (dependency === "@/components/MarketPricesProvider") return { useMarketPrices: () => ({ prices: options.prices ?? { status: "unavailable", source: "CoinGecko", reason: "provider-unavailable" } }) };
-      if (dependency === "@/lib/wallet-activity") return { activityContextHref, activityUsdcEquivalent };
+      if (dependency === "@/lib/wallet-activity") return { activityContextHref, activityStroopsToXlm, activityUsdcEquivalent };
       if (dependency === "@/lib/i18n/revamp-money") return copy;
-      if (dependency === "@/lib/i18n/wallet-activity") return { activityCopy };
+      if (dependency === "@/lib/i18n/wallet-activity") return { activityCopy, activityEstimateLabel };
+      if (dependency === "@/lib/vault-campaign-cover") return { vaultCircleCover: () => null };
       if (dependency === "@/lib/i18n/circles-content") return contentCopy;
       if (dependency === "@/lib/ui/currency") return { formatLocal };
       if (dependency === "@/lib/local-preview") return { isLocalPreview: preview, PREVIEW_WALLET };
@@ -188,9 +207,8 @@ test("native incoming and outgoing receipts use exact units and never invented h
   assert.match(text(h.tree), /Received XLM.*\+446\.1538462/);
   assert.match(text(h.tree), /Sent XLM.*−0\.0000001/);
   assert.doesNotMatch(text(h.tree), /\$50|PHP|Rp|₱/);
-  const receipt = nodes(h.tree).find((node) => node.props["aria-controls"] === "activity-receipt-101:sac-0")!;
-  (receipt.props.onClick as () => void)(); h.render();
-  assert.ok(text(h.tree).includes("4461538462 units"));
+  openReceipt(h.tree, "101:sac-0"); h.render();
+  assert.ok(text(h.tree).includes("4461538462"));
   assert.ok(nodes(h.tree).some((node) => node.props.href === `https://stellar.expert/explorer/testnet/tx/${"a".repeat(64)}` && node.props.rel === "noopener noreferrer"));
   assert.ok(text(h.tree).includes(counterparty));
   h.unmount();
@@ -217,8 +235,8 @@ test("pagination requests are single-flight and duplicate operation rows are ded
   assert.equal(h.historyRequests.length, 2);
   assert.equal(h.historyRequests[1].cursor, "101");
   h.historyRequests[1].deferred.resolve(pageResult([item(), item("90:payment", "sent", "10000000")])); await h.flush();
-  assert.equal(nodes(h.tree).filter((node) => node.props["aria-controls"] === "activity-receipt-101:sac-0").length, 1);
-  assert.equal(nodes(h.tree).filter((node) => node.props["aria-controls"] === "activity-receipt-90:payment").length, 1);
+  assert.equal(nodes(h.tree).filter((node) => node.props["data-activity-receipt-trigger"] === "101:sac-0").length, 1);
+  assert.equal(nodes(h.tree).filter((node) => node.props["data-activity-receipt-trigger"] === "90:payment").length, 1);
   h.unmount();
 });
 test("sign-out immediately hides an old account's rows and late action responses cannot restore them", async () => {
@@ -318,11 +336,10 @@ test("mixed-asset history labels actual USDC without relabeling the previous XLM
   assert.match(text(h.tree), /Received XLM.*\+446\.1538462/);
   assert.match(text(h.tree), /Sent USDC.*−50\.0000001.*Testnet USDC/);
   assert.doesNotMatch(text(h.tree), /\$50|50 Testnet XLM/);
-  const receipt = nodes(h.tree).find(node => node.props["aria-controls"] === "activity-receipt-99:payment")!;
-  (receipt.props.onClick as () => void)(); h.render();
+  openReceipt(h.tree, "99:payment"); h.render();
   assert.ok(text(h.tree).includes(USDC_ACTIVITY_ASSET.issuer!));
   assert.ok(text(h.tree).includes(USDC_ACTIVITY_ASSET.contractId!));
-  assert.match(text(h.tree), /50\.0000001 Testnet USDC/);
+  assert.match(text(h.tree), /−50\.0000001 USDC/);
   h.unmount();
 });
 
@@ -333,9 +350,8 @@ test("network fee is separately stated in XLM with its actual payer, not deducte
   h.historyRequests[0].deferred.resolve(pageResult([receipt])); await h.flush();
   assert.match(text(h.tree), /Sent USDC.*−50.*Testnet USDC/);
   assert.doesNotMatch(text(h.tree), /Network fee|Paid by another wallet/);
-  const button = nodes(h.tree).find(node => node.props["aria-controls"] === "activity-receipt-99:payment")!;
-  (button.props.onClick as () => void)(); h.render();
-  assert.match(text(h.tree), /Network fee0\.0000321 Testnet XLM.*Paid by another wallet/);
+  openReceipt(h.tree, "99:payment"); h.render();
+  assert.match(text(h.tree), /Network feePaid by another wallet0\.0000321 XLM/);
   assert.match(text(h.tree), /Fee payer.*GCBKRBB/);
   assert.match(text(h.tree), /total fee for the transaction, not a fee per movement/);
   assert.match(text(h.tree), /Fee-bump transaction/);
@@ -348,8 +364,7 @@ test("unknown fees are never displayed as zero or incorrectly assigned to an inc
   const h = mount({ locale: "id" }); h.emitAuth("owner-a"); await h.flush();
   h.historyRequests[0].deferred.resolve(pageResult([item()])); await h.flush();
   assert.doesNotMatch(text(h.tree), /Biaya jaringan belum tersedia/);
-  const button = nodes(h.tree).find(node => node.props["aria-controls"] === "activity-receipt-101:sac-0")!;
-  (button.props.onClick as () => void)(); h.render();
+  openReceipt(h.tree, "101:sac-0"); h.render();
   assert.match(text(h.tree), /Biaya jaringan belum tersedia/);
   assert.match(text(h.tree), /Tidak diasumsikan biaya nol atau siapa pembayarnya/);
   assert.doesNotMatch(text(h.tree), /Biaya jaringan: 0 XLM|Dibayar wallet kamu/);
@@ -371,11 +386,10 @@ test("confirmed receipt shows matched participant handle/photo plus both public 
   const h = mount(); h.emitAuth("owner-a"); await h.flush(); h.historyRequests[0].deferred.resolve(result); await h.flush();
   assert.match(text(h.tree), /From @sender_handle/);
   assert.ok(nodes(h.tree).some(node => node.type === "AccountAvatar" && node.props.name === "sender_handle" && node.props.photoUrl === result.identities![1].photoUrl));
-  const receipt = nodes(h.tree).find(node => node.props["aria-controls"] === `activity-receipt-${fixture.id}`)!;
-  (receipt.props.onClick as () => void)(); h.render();
-  assert.match(text(h.tree), /Sender@sender_handle/); assert.match(text(h.tree), /Recipient@recipient_handle/);
+  openReceipt(h.tree, fixture.id); h.render();
+  assert.match(text(h.tree), /From@sender_handle/); assert.match(text(h.tree), /To@recipient_handle/);
   assert.ok(text(h.tree).includes(address) && text(h.tree).includes(counterparty));
-  assert.match(text(h.tree), /0\.00001 Testnet XLM/); assert.match(text(h.tree), /Fee payer@sender_handle/);
+  assert.match(text(h.tree), /0\.00001 XLM/); assert.match(text(h.tree), /Fee payerGCBKRBB/);
   h.unmount();
 });
 
@@ -386,10 +400,9 @@ test("personal history names campaign donations, arisan winnings and disaster co
   const h = mount(); h.emitAuth("owner-a"); await h.flush(); h.historyRequests[0].deferred.resolve(pageResult(fixtures)); await h.flush();
   for (const fixture of fixtures) assert.ok(text(h.tree).includes(activityCopy("en")(fixture.context.type)));
   assert.match(text(h.tree), /Dialysis - 12 sessions/); assert.match(text(h.tree), /Shared disaster relief pool/);
-  const first = nodes(h.tree).find(node => node.props["aria-controls"] === `activity-receipt-${fixtures[0].id}`)!;
-  (first.props.onClick as () => void)(); h.render();
+  openReceipt(h.tree, fixtures[0].id); h.render();
   assert.ok(nodes(h.tree).some(node => node.type === "Link" && node.props.href === "/campaigns?id=7"));
-  assert.match(text(h.tree), /PurposeCampaign donation/);
+  assert.match(text(nodes(h.tree).find(node => node.type === "dialog")), /Campaign donation.*Dialysis - 12 sessions/);
   h.emitAuth("owner-b"); await h.flush(); assert.doesNotMatch(text(h.tree), /Dialysis - 12 sessions|Campaign donation|Arisan winnings/);
   h.unmount();
 });
@@ -422,19 +435,18 @@ test("verified campaign purpose follows language without changing receipts or re
   h.unmount();
 });
 
-test("the primary USDC estimate updates while the actual XLM amount stays exact", async () => {
+test("the secondary USDC estimate updates while the primary XLM amount stays exact", async () => {
   const options = { prices: marketQuote() }, h = mount(options); h.emitAuth("owner-a"); await h.flush();
   h.historyRequests[0].deferred.resolve(pageResult([item()])); await h.flush();
-  assert.match(text(h.tree), /≈ \+89\.230769USDC estimate\+446\.1538462Testnet XLM/);
+  assert.match(text(h.tree), /\+446\.1538462Testnet XLM≈ 89\.23 USDC · Market estimate/);
   assert.ok(nodes(h.tree).some(node => node.props.href === "https://www.coingecko.com" && text(node) === "CoinGecko" && node.props.rel === "noopener noreferrer"));
   assert.match(text(h.tree), /not a historical receipt value or token conversion/);
   if (options.prices.status === "unavailable") throw Error("Fixture");
   options.prices.assets.usdc.prices.usd = .5; h.render();
-  assert.match(text(h.tree), /≈ \+178\.46154USDC estimate\+446\.1538462Testnet XLM/);
-  const button = nodes(h.tree).find(node => node.props["aria-controls"] === "activity-receipt-101:sac-0")!;
-  (button.props.onClick as () => void)(); h.render();
+  assert.match(text(h.tree), /\+446\.1538462Testnet XLM≈ 178\.46 USDC · Market estimate/);
+  openReceipt(h.tree, "101:sac-0"); h.render();
   const details = nodes(h.tree).find(node => node.props.id === "activity-receipt-101:sac-0");
-  assert.match(text(details), /^USDC estimate≈ 178\.46154 USDCPrice updated .*Token amount446\.1538462 Testnet XLM/);
+  assert.match(text(details), /\+446\.1538462 XLM≈ 178\.46 USDC · Market estimatePrice updated/);
   h.unmount();
 });
 
@@ -473,7 +485,7 @@ test("account switch clears receipt identities and late old-owner photos cannot 
 test("identity and equivalent labels are localized across en/tl/id/vi without changing actual asset", async () => {
   for (const locale of ["en", "tl", "id", "vi"] as const) {
     const h = mount({ locale, prices: marketQuote() }); h.emitAuth("owner-a"); await h.flush(); h.historyRequests[0].deferred.resolve(pageResult([item()])); await h.flush();
-    assert.ok(text(h.tree).includes(activityCopy(locale)("equivalent")));
+    assert.ok(text(h.tree).includes(activityCopy(locale)("marketEstimate")));
     assert.ok(text(h.tree).includes(activityCopy(locale)("identityScope")));
     assert.ok(text(h.tree).includes("Testnet XLM")); assert.ok(text(h.tree).includes("USDC")); h.unmount();
   }
@@ -505,12 +517,12 @@ test("compact receipts preserve every native digit, keep the estimate separate a
   assert.deepEqual(amounts.map(text), ["+6692.3076924", "−50", "−0.0000001"]);
   assert.ok(amounts.every(node => node.type === "strong" && !text(node).includes("USDC")));
   assert.equal(nodes(h.tree).filter(node => node.props.className === "receiptToggle" && text(node).includes("Transaction details")).length, 3);
-  const button = nodes(h.tree).find(node => node.props["aria-controls"] === "activity-receipt-fifty")!;
-  assert.match(text(button), /≈ −10USDC estimate−50Testnet XLM/);
-  (button.props.onClick as () => void)(); h.render();
-  assert.equal(nodes(h.tree).find(node => node.props["aria-controls"] === "activity-receipt-fifty")?.props["aria-expanded"], true);
-  assert.match(text(h.tree), /Hide details.*Token amount50\.0000000 Testnet XLM/);
-  (nodes(h.tree).find(node => node.props["aria-controls"] === "activity-receipt-fifty")!.props.onClick as () => void)(); h.render();
+  const button = nodes(h.tree).find(node => node.props["data-activity-receipt-trigger"] === "fifty")!;
+  assert.match(text(button), /−50Testnet XLM≈ 10\.00 USDC · Market estimate/);
+  openReceipt(h.tree, "fifty"); h.render();
+  assert.equal(nodes(h.tree).find(node => node.type === "dialog")?.props.id, "activity-receipt-fifty");
+  assert.match(text(nodes(h.tree).find(node => node.type === "dialog")), /−50 XLM.*500000000/);
+  h.click("Close transaction details");
   assert.equal(nodes(h.tree).filter(node => node.props.id === "activity-receipt-fifty").length, 0);
   h.unmount();
 });
@@ -523,8 +535,7 @@ test("price and photo disclosure starts collapsed while Testnet risk and stale-p
   assert.match(text(details), /About prices, photos and receipts.*not a historical receipt value or token conversion/);
   assert.match(text(h.tree), /Testnet tokens have no monetary value/);
   assert.match(text(nodes(h.tree).find(node => node.props["data-activity-equivalent"])), /Older price/);
-  const button = nodes(h.tree).find(node => node.props["aria-controls"] === "activity-receipt-101:sac-0")!;
-  (button.props.onClick as () => void)(); h.render();
+  openReceipt(h.tree, "101:sac-0"); h.render();
   assert.match(text(nodes(h.tree).find(node => node.props.id === "activity-receipt-101:sac-0")), /Older price.*Network fee/);
   h.unmount();
 });
@@ -544,16 +555,15 @@ test("a new incoming transfer is prepended automatically without clearing rows, 
   h.historyRequests[0].deferred.resolve(pageResult([item()], "101")); await h.flush();
   h.click("Load earlier transfers"); await h.flush();
   h.historyRequests[1].deferred.resolve(pageResult([item("90:payment")], "90")); await h.flush();
-  const details = nodes(h.tree).find(node => node.props["aria-controls"] === "activity-receipt-90:payment")!;
-  (details.props.onClick as () => void)(); h.render();
+  openReceipt(h.tree, "90:payment"); h.render();
   assert.equal(h.watchers.length, 1);
   void h.watchers[0].changed(); await h.flush();
   assert.equal(state(h.tree), "ready");
   assert.match(text(h.tree), /446\.1538462/);
-  assert.equal(nodes(h.tree).find(node => node.props["aria-controls"] === "activity-receipt-90:payment")?.props["aria-expanded"], true);
+  assert.equal(nodes(h.tree).find(node => node.type === "dialog")?.props.id, "activity-receipt-90:payment");
   h.historyRequests[2].deferred.resolve(pageResult([item("110:payment", "received", "70000000"), item()], "100")); await h.flush();
   assert.deepEqual(nodes(h.tree).filter(node => "data-activity-native-amount" in node.props).map(text), ["+7", "+446.1538462", "+446.1538462"]);
-  assert.equal(nodes(h.tree).filter(node => node.props["aria-controls"] === "activity-receipt-101:sac-0").length, 1);
+  assert.equal(nodes(h.tree).filter(node => node.props["data-activity-receipt-trigger"] === "101:sac-0").length, 1);
   h.click("Load earlier transfers"); await h.flush(); assert.equal(h.historyRequests[3].cursor, "90"); h.unmount();
 });
 

@@ -101,6 +101,8 @@ function mount(name: typeof names[number], locale: Locale, options: { preview?: 
       if (dependency === "@/lib/i18n/circles-content") return contentCopy;
       if (dependency === "@/lib/wallet-activity") return { activityUsdcEquivalent };
       if (dependency === "@/components/AccountAvatar") return { default: "AccountAvatar" };
+      if (dependency === "@/lib/vault-campaign-cover") return { vaultCircleCover: () => null };
+      if (dependency === "./ActivityReceiptSheet") return { default: "ActivityReceiptSheet" };
       if (dependency === "@/components/useAccountPhoto") return { useAccountPhoto: () => ({ profile: null }) };
       if (dependency === "@/lib/recipient-review") return recipientReview;
       if (dependency === "@/components/MarketPricesProvider") return { useMarketPrices: () => ({ prices: { status: "unavailable", source: "CoinGecko", reason: "preview" } }) };

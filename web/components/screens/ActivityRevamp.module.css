@@ -578,15 +578,13 @@
 .historyNotes[open] summary::before { content: "−"; }
 .historyNotes p { margin: 0 0 10px; text-wrap: pretty; }
 .historyNotes a { color: #2563eb; }
-.counterparty,
-.participant {
+.counterparty {
   display: flex;
   align-items: center;
   gap: 8px;
   min-width: 0;
 }
-.counterparty > span:last-child,
-.participant > span:last-child {
+.counterparty > span:last-child {
   display: flex;
   flex-direction: column;
   gap: 3px;
@@ -600,56 +598,107 @@
   font-family: var(--font-geist-mono), monospace;
   font-size: 10px;
 }
-.participant { margin-bottom: 4px; }
-.personalTimeline { margin-top: 12px; }
+.personalTimeline {
+  display: grid;
+  gap: 10px;
+  margin: 14px -7px 0;
+}
 .liveStatus { color: #61758e; font-size: 10px; line-height: 1.5; margin: 8px 0; }
-.personalTimeline .timelineItem { gap: 11px; padding-bottom: 16px; }
+.personalTimeline .timelineItem {
+  isolation: isolate;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #d5e0f0;
+  border-radius: 16px;
+  background: #fff;
+}
 .personalTimeline .timelineItem:not(:last-child)::before { display: none; }
-.personalTimeline .receiptBody { border-bottom: 1px solid #d6dce8; padding-bottom: 16px; }
-.personalTimeline .timelineItem:last-child .receiptBody { border-bottom: none; padding-bottom: 0; }
+.personalTimeline .campaignCover {
+  border-radius: inherit;
+  object-fit: cover;
+  object-position: right center;
+}
+.personalTimeline .withCampaignCover::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #fffdf8 20%, #fffdf8ed 58%, #fffdf8c4);
+  pointer-events: none;
+}
+.personalTimeline .timelineIcon,
+.personalTimeline .receiptBody {
+  position: relative;
+  z-index: 1;
+}
+.personalTimeline .incomingIcon {
+  border-color: #e1f0e9;
+  background: #e1f0e9;
+}
 .personalTimeline .transferButton {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 9px;
+  gap: 6px;
   padding: 0;
+  border-radius: 4px;
 }
 .personalTimeline .transferButton > .transferHeading {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: baseline;
-  gap: 10px;
+  gap: 6px;
 }
-.personalTimeline .transferHeading > strong { font-size: 13px; }
-.personalTimeline .transferHeading > time { font-size: 10px; white-space: nowrap; }
+.personalTimeline .transferHeading > strong { font-size: 14px; }
+.personalTimeline .transferHeading > time { font-size: 11px; white-space: nowrap; }
 .transferIdentity { min-width: 0; }
-.personalTimeline .receiptAmount { align-items: flex-start; gap: 4px; min-width: 0; max-width: none; text-align: left; }
+.personalTimeline .receiptAmount {
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+  margin-top: 5px;
+  text-align: left;
+}
 .nativeLine { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 7px; min-width: 0; width: 100%; }
-.personalTimeline .nativeLine > strong {
-  display: block;
-  font-size: clamp(16px, 4.4vw, 20px);
+.personalTimeline .nativeLine {
+  font-size: clamp(18px, 5.5cqi, 24px);
   font-weight: 700;
   letter-spacing: -.35px;
-  line-height: 1.4;
+  line-height: 1.2;
   font-variant-numeric: tabular-nums;
+}
+.personalTimeline .incomingAmount .nativeLine { color: #15664f; }
+.personalTimeline .nativeLine > strong,
+.personalTimeline .nativeLine > small {
+  color: inherit;
+  font: inherit;
+}
+.personalTimeline .nativeLine > strong {
+  min-width: 0;
+  max-width: 100%;
   white-space: nowrap;
   overflow-wrap: normal;
-  max-width: 100%;
   overflow-x: auto;
 }
-.personalTimeline .nativeLine > small { white-space: nowrap; background: transparent; padding: 0; font-size: 10px; color: #61758e; }
-.personalTimeline .nativeLine > .estimateUnit { font-size: 12px; font-weight: 600; white-space: normal; }
-.personalTimeline .secondaryNativeLine > strong { color: #526780; font-size: 13px; letter-spacing: 0; }
+.personalTimeline .nativeLine > small { padding: 0; background: transparent; }
 .personalTimeline .equivalent {
-  color: #61758e;
-  font-size: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 3px 6px;
+  color: #4d6280;
+  font-size: 12px;
   line-height: 1.5;
 }
-.personalTimeline .staleQuote { color: #8d6136; font-size: 9px; }
-.personalTimeline .receiptToggle { display: inline-flex; align-items: center; gap: 4px; color: #2563eb; font-size: 10px; font-weight: 550; }
-.transferButton[aria-expanded="true"] .receiptToggle > svg { transform: rotate(90deg); }
-.personalTimeline .receiptDetails { margin-top: 12px; }
-.personalTimeline .receiptDetails dd { overflow-wrap: anywhere; }
-.receiptEstimate { color: #162746; font-size: 16px; font-variant-numeric: tabular-nums; }
+.personalTimeline .equivalent > span { color: inherit; font-size: inherit; }
+.personalTimeline .equivalent .staleQuote { color: #805323; font-size: 10px; }
+.personalTimeline .receiptToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #174fca;
+  font-size: 12px;
+  font-weight: 650;
+}
 @media (max-width: 480px) {
   .receiptButton:not(.transferButton) { flex-direction: column; }
   .receiptButton:not(.transferButton) .receiptAmount { align-items: flex-start; }

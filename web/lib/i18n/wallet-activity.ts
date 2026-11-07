@@ -49,6 +49,8 @@ const copy = {
   wallet: ["Stellar wallet", "Stellar wallet", "Wallet Stellar", "Ví Stellar"],
   from: ["From {name}", "Mula kay {name}", "Dari {name}", "Từ {name}"],
   to: ["To {name}", "Para kay {name}", "Ke {name}", "Đến {name}"],
+  fromLabel: ["From", "Mula sa", "Dari", "Từ"],
+  toLabel: ["To", "Para sa", "Ke", "Đến"],
   photo: ["Consented receipt photo for {name}", "Pinayagang larawan sa receipt ni {name}", "Foto receipt yang diizinkan oleh {name}", "Ảnh biên nhận được {name} cho phép"],
   equivalent: ["USDC estimate", "Tantiyang halaga sa USDC", "Estimasi USDC", "Ước tính theo USDC"],
   quoteUnavailable: ["USDC equivalent unavailable", "Hindi available ang katumbas na USDC", "Nilai setara USDC belum tersedia", "Chưa có giá trị tương đương USDC"],
@@ -58,6 +60,18 @@ const copy = {
   attribution: ["Price data by", "Data ng presyo mula sa", "Data harga dari", "Dữ liệu giá từ"],
   historyDetails: ["About prices, photos and receipts", "Tungkol sa presyo, larawan at receipt", "Tentang harga, foto, dan bukti", "Về giá, ảnh và biên nhận"],
   viewDetails: ["Transaction details", "Detalye ng transaksyon", "Detail transaksi", "Chi tiết giao dịch"],
+  receiptClose: ["Close transaction details", "Isara ang detalye ng transaksyon", "Tutup detail transaksi", "Đóng chi tiết giao dịch"],
+  recordedOnStellar: ["Recorded on Stellar", "Naitala sa Stellar", "Tercatat di Stellar", "Đã ghi trên Stellar"],
+  onChainDetails: ["On-chain details", "Mga detalye sa chain", "Detail on-chain", "Chi tiết trên chuỗi"],
+  onChainDetailsHint: ["Full wallet addresses and exact token units", "Buong wallet address at eksaktong token units", "Alamat wallet lengkap dan unit token persis", "Địa chỉ ví đầy đủ và đơn vị token chính xác"],
+  marketEstimate: ["Market estimate", "Tantiya sa merkado", "Estimasi pasar", "Ước tính thị trường"],
+  amountReceived: ["Amount received", "Halagang natanggap", "Jumlah diterima", "Số lượng đã nhận"],
+  amountSent: ["Amount sent", "Halagang ipinadala", "Jumlah dikirim", "Số lượng đã gửi"],
+  viewCampaign: ["View campaign", "Tingnan ang campaign", "Lihat campaign", "Xem chiến dịch"],
+  copyHash: ["Copy transaction hash", "Kopyahin ang hash ng transaksyon", "Salin hash transaksi", "Sao chép mã băm giao dịch"],
+  hashCopied: ["Transaction hash copied", "Nakopya ang hash ng transaksyon", "Hash transaksi disalin", "Đã sao chép mã băm giao dịch"],
+  hashCopyFailed: ["Could not copy transaction hash", "Hindi nakopya ang hash ng transaksyon", "Hash transaksi gagal disalin", "Không thể sao chép mã băm giao dịch"],
+  testnetDisclaimer: ["Testnet tokens have no monetary value.", "Walang halagang pera ang Testnet tokens.", "Token Testnet tidak bernilai uang.", "Token Testnet không có giá trị tiền tệ."],
   hideDetails: ["Hide details", "Itago ang detalye", "Tutup detail", "Ẩn chi tiết"],
   quoteStaleShort: ["Older price", "Lumang presyo", "Harga sebelumnya", "Giá cũ"],
   identityScope: ["Handles are verified on Stellar. Photos appear only with the account owner's receipt-photo consent; other wallets use initials or a wallet icon.", "Verified sa Stellar ang mga handle. Larawan lang na may pahintulot ng may-ari ang ipinapakita; initials o wallet icon para sa iba.", "Handle diverifikasi di Stellar. Foto hanya tampil dengan persetujuan pemilik untuk receipt; wallet lain memakai inisial atau ikon wallet.", "Tên được xác minh trên Stellar. Ảnh chỉ hiển thị khi chủ tài khoản đồng ý cho biên nhận; ví khác dùng chữ cái hoặc biểu tượng ví."],
@@ -66,4 +80,11 @@ const copy = {
 export function activityCopy(locale: Locale | undefined) {
   const index = locale === "tl" ? 1 : locale === "id" ? 2 : locale === "vi" ? 3 : 0;
   return (key: keyof typeof copy, variables?: Record<string, string>) => copy[key][index].replace(/\{(\w+)\}/g, (match, name: string) => variables?.[name] ?? match);
+}
+
+export function activityEstimateLabel(amount: number, locale: Locale) {
+  const precision = amount > 0 && amount < 0.01
+    ? { maximumSignificantDigits: 2 }
+    : { minimumFractionDigits: 2, maximumFractionDigits: 2 };
+  return new Intl.NumberFormat(locale, precision).format(amount);
 }

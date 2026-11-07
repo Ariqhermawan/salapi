@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { readWalletActivity } from "@/lib/ui/wallet-activity-read";
 import { watchWalletActivity } from "@/lib/ui/watchWalletActivity";
-import { activityContextHref, activityUsdcEquivalent, type WalletActivityIdentity, type WalletActivityItem } from "@/lib/wallet-activity";
+import { activityStroopsToXlm, activityUsdcEquivalent, type WalletActivityIdentity, type WalletActivityItem } from "@/lib/wallet-activity";
 import AccountAvatar from "@/components/AccountAvatar";
 import { useMarketPrices } from "@/components/MarketPricesProvider";
 import { createSupabaseBrowser } from "@/lib/supabase/client";
@@ -13,14 +14,16 @@ import { Ico, IconButton, T, PoweredByStellar } from "@/components/ui/kit";
 import { useGoBack } from "@/lib/ui/useGoBack";
 import { useT } from "@/components/I18nProvider";
 import { moneyCopy, moneyMessage } from "@/lib/i18n/revamp-money";
-import { activityCopy } from "@/lib/i18n/wallet-activity";
+import { activityCopy, activityEstimateLabel } from "@/lib/i18n/wallet-activity";
 import { circleDisplayTitle } from "@/lib/i18n/circles-content";
+import { vaultCircleCover } from "@/lib/vault-campaign-cover";
 import { formatLocal } from "@/lib/ui/currency";
 import { isLocalPreview, PREVIEW_WALLET } from "@/lib/local-preview";
 import {
   listPreviewTransfers,
   type PreviewTransfer,
 } from "@/lib/local-preview-history";
+import ActivityReceiptSheet from "./ActivityReceiptSheet";
 import styles from "./ActivityRevamp.module.css";
 
 const EXPLORER = "https://stellar.expert/explorer/testnet";
@@ -161,15 +164,8 @@ const emptyHistory: PersonalHistory = {
   owner: null, address: null, items: [], identities: [], nextCursor: null, status: "loading", error: "",
 };
 const validAddress = (value: string | null) => value && /^G[A-Z2-7]{55}$/.test(value) ? value : null;
-const transactionUrl = (hash: string) => /^[a-f0-9]{64}$/i.test(hash) ? `${EXPLORER}/tx/${hash}` : null;
 const shortCounterparty = (address: string | null) => address && /^[GC][A-Z2-7]{55}$/.test(address)
   ? `${address.slice(0, 6)}…${address.slice(-6)}` : null;
-
-// Keep actual amounts as integer stroops. Today's market equivalent is separate
-// from the historical receipt and never becomes an actual USDC movement.
-function exactNativeAmount(stroops: string) {
-  return nativeAmount(stroops).replace(/\.0+$/, "").replace(/(\.\d*?[1-9])0+$/, "$1");
-}
 
 export default function ActivityScreen() {
   const goBack = useGoBack("/");
@@ -513,95 +509,65 @@ export default function ActivityScreen() {
                       {personal.items.map((receipt) => {
                         const received = receipt.direction === "received";
                         const context = receipt.context;
-                        const purposeHref = activityContextHref(context);
                         const referenceLabel = context?.referenceId ? context.type.startsWith("campaign-") ? h("campaignName", { id: context.referenceId })
                           : context.type.startsWith("arisan-") ? h("arisanName", { id: context.referenceId }) : null : null;
-                        const circleTitle = context?.type.startsWith("campaign-") && context.circleId ? circleDisplayTitle(context.circleId, locale) : undefined;
+                        const circleId = context?.type.startsWith("campaign-") ? context.circleId : undefined;
+                        const circleTitle = circleId ? circleDisplayTitle(circleId, locale) : undefined;
+                        const campaignCover = context?.type === "campaign-donation" ? vaultCircleCover(circleId) : null;
                         const purposeName = (circleTitle ? `QA · ${circleTitle}` : context?.title) ?? referenceLabel ?? (context?.type.startsWith("disaster-") ? h("disasterPool")
                           : context?.type.startsWith("savings-") ? h("savingsPool") : h("arisanPool"));
                         const counterparty = shortCounterparty(receipt.counterparty);
-                        const explorerReceipt = transactionUrl(receipt.hash);
-                        const identityFor = (wallet: string | null) => wallet ? identitiesByAddress.get(wallet) : undefined;
-                        const nameFor = (wallet: string | null) => {
-                          const handle = identityFor(wallet)?.handle;
-                          return handle && /^[a-z0-9_]{3,32}$/.test(handle) ? `@${handle}` : wallet === address ? h("you") : wallet?.startsWith("C") ? h("contractWallet") : h("wallet");
-                        };
-                        const counterpartIdentity = identityFor(receipt.counterparty);
+                        const counterpartIdentity = receipt.counterparty ? identitiesByAddress.get(receipt.counterparty) : undefined;
+                        const counterpartName = counterpartIdentity?.handle ? `@${counterpartIdentity.handle}` : receipt.counterparty === address
+                          ? h("you") : receipt.counterparty?.startsWith("C") ? h("contractWallet") : h("wallet");
                         const equivalent = activityUsdcEquivalent(receipt.amountStroops, receipt.asset, prices);
-                        const estimatedUsdc = equivalent ? new Intl.NumberFormat(locale, { maximumSignificantDigits: 8 }).format(equivalent.amount) : null;
                         const amountSign = received ? "+" : "−";
-                        const sender = received ? receipt.counterparty : address;
-                        const recipient = received ? address : receipt.counterparty;
-                        const participant = (wallet: string | null) => <span className={styles.participant}>
-                          <AccountAvatar name={nameFor(wallet).replace(/^@/, "")} photoUrl={identityFor(wallet)?.photoUrl ?? null} size={32} alt={h("photo", { name: nameFor(wallet) })} />
-                          <span><strong>{nameFor(wallet)}</strong><span className={styles.address}>{wallet ?? h("wallet")}</span></span>
-                        </span>;
+                        const selected = expanded === receipt.id;
                         return (
-                          <li key={receipt.id} className={styles.timelineItem} data-activity-purpose={context?.type ?? "transfer"}>
+                          <li key={receipt.id} className={`${styles.timelineItem} ${campaignCover ? styles.withCampaignCover : ""}`} data-activity-purpose={context?.type ?? "transfer"}>
+                            {campaignCover ? <Image src={campaignCover} alt="" fill sizes="(max-width: 460px) 100vw, 460px" className={styles.campaignCover} /> : null}
                             <span className={`${styles.timelineIcon} ${received ? styles.incomingIcon : ""}`} aria-hidden="true">
                               {received ? Ico.arrowDown({ size: 19, c: "#00866a" }) : Ico.arrowUp({ size: 19, c: T.action })}
                             </span>
                             <div className={styles.receiptBody}>
-                              <button type="button" className={`${styles.receiptButton} ${styles.transferButton}`} aria-expanded={expanded === receipt.id} aria-controls={`activity-receipt-${receipt.id}`} onClick={() => setExpanded((current) => current === receipt.id ? null : receipt.id)}>
+                              <button type="button" className={`${styles.receiptButton} ${styles.transferButton}`} aria-haspopup="dialog" aria-controls={selected ? `activity-receipt-${receipt.id}` : undefined} data-activity-receipt-trigger={receipt.id}
+                                onClick={(event) => {
+                                  event.currentTarget.focus({ preventScroll: true });
+                                  setExpanded(receipt.id);
+                                }}>
                                 <div className={styles.transferHeading}>
                                   <strong>{context ? h(context.type) : h(received ? "received" : "sent", { asset: receipt.asset.code })}</strong>
                                   <time dateTime={receipt.createdAt}>{receiptDate(receipt.createdAt, false, locale)}</time>
                                 </div>
                                 <div className={styles.transferIdentity}>
-                                  {counterparty ? <span className={styles.counterparty}>
+                                  {context || counterparty ? <span className={styles.counterparty}>
                                     {context ? <span className={styles.purposeIcon} aria-hidden="true">{Ico.vault({ size: 20, c: T.action })}</span>
-                                      : <AccountAvatar name={nameFor(receipt.counterparty).replace(/^@/, "")} photoUrl={counterpartIdentity?.photoUrl ?? null} size={32} alt={h("photo", { name: nameFor(receipt.counterparty) })} />}
-                                    <span><strong>{context ? purposeName : h(received ? "from" : "to", { name: nameFor(receipt.counterparty) })}</strong><span>{context?.title && referenceLabel ? `${referenceLabel} · ` : ""}{counterparty}</span></span>
+                                      : <AccountAvatar name={counterpartName.replace(/^@/, "")} photoUrl={counterpartIdentity?.photoUrl ?? null} size={32} alt={h("photo", { name: counterpartName })} />}
+                                    <span>
+                                      <strong>{context ? purposeName : h(received ? "from" : "to", { name: counterpartName })}</strong>
+                                      {!context && !counterpartIdentity?.handle && counterparty ? <span>{counterparty}</span> : null}
+                                    </span>
                                   </span> : <span>{m("On-chain wallet activity")}</span>}
                                 </div>
                                 <div className={`${styles.receiptAmount} ${received ? styles.incomingAmount : ""}`}>
-                                  {equivalent ? (
-                                    <div className={styles.nativeLine} data-activity-equivalent={equivalent.status}>
-                                      <strong>≈ {amountSign}{estimatedUsdc}</strong>
-                                      <small className={styles.estimateUnit}>{h("equivalent")}</small>
-                                      {equivalent.status === "stale" ? <span className={styles.staleQuote}>{h("quoteStaleShort")}</span> : null}
-                                    </div>
-                                  ) : null}
-                                  <div className={`${styles.nativeLine} ${equivalent ? styles.secondaryNativeLine : ""}`}>
-                                    <strong data-activity-native-amount>{amountSign}{exactNativeAmount(receipt.amountStroops)}</strong>
+                                  <div className={styles.nativeLine}>
+                                    <strong data-activity-native-amount>{amountSign}{activityStroopsToXlm(receipt.amountStroops)}</strong>
                                     <small>Testnet {receipt.asset.code}</small>
                                   </div>
-                                  {receipt.asset.code === "XLM" && !equivalent ? <span className={styles.equivalent} data-activity-equivalent="unavailable">
+                                  {equivalent ? (
+                                    <div className={styles.equivalent} data-activity-equivalent={equivalent.status}>
+                                      <span>≈ {activityEstimateLabel(equivalent.amount, locale)} USDC · {h("marketEstimate")}</span>
+                                      {equivalent.status === "stale" ? <span className={styles.staleQuote}>{h("quoteStaleShort")}</span> : null}
+                                    </div>
+                                  ) : receipt.asset.code === "XLM" ? <span className={styles.equivalent} data-activity-equivalent="unavailable">
                                     {h("quoteUnavailable")}
                                   </span> : null}
                                 </div>
-                                <span className={styles.receiptToggle}>{h(expanded === receipt.id ? "hideDetails" : "viewDetails")} {Ico.chev({ size: 12, c: T.action })}</span>
+                                <span className={styles.receiptToggle}>{h("viewDetails")} {Ico.chev({ size: 12, c: T.action })}</span>
                               </button>
-                              {expanded === receipt.id ? (
-                                <div id={`activity-receipt-${receipt.id}`} className={styles.receiptDetails}>
-                                  <dl>
-                                    {context ? <><dt>{h("purpose")}</dt><dd>{h(context.type)}<br />{purposeName}</dd></> : null}
-                                    {equivalent ? <>
-                                      <dt>{h("equivalent")}</dt>
-                                      <dd><strong className={styles.receiptEstimate}>≈ {estimatedUsdc} USDC</strong><br />{h(equivalent.status === "stale" ? "quoteStale" : "quoteFresh", { time: receiptDate(new Date(equivalent.updatedAt * 1000).toISOString(), true, locale) })}</dd>
-                                    </> : null}
-                                    <dt>{h("amount")}</dt><dd>{nativeAmount(receipt.amountStroops)} Testnet {receipt.asset.code}</dd>
-                                    <dt>{h("units")}</dt><dd>{receipt.amountStroops} units</dd>
-                                    {receipt.asset.code === "XLM" && !equivalent ? <>
-                                      <dt>{h("equivalent")}</dt><dd>{h("quoteUnavailable")}</dd>
-                                    </> : null}
-                                    {receipt.asset.issuer ? <><dt>{h("issuer")}</dt><dd className={styles.address}>{receipt.asset.issuer}</dd><dt>{h("contract")}</dt><dd className={styles.address}>{receipt.asset.contractId}</dd></> : null}
-                                    <dt>{m("Recorded at")}</dt><dd>{receiptDate(receipt.createdAt, true, locale)}</dd>
-                                    <dt>{h("sender")}</dt><dd>{participant(sender)}</dd>
-                                    <dt>{h("recipient")}</dt><dd>{participant(recipient)}</dd>
-                                    <dt>{m("Transaction hash")}</dt><dd className={styles.address}>{receipt.hash}</dd>
-                                    {receipt.fee.status === "available" ? <>
-                                      <dt>{h("fee")}</dt><dd>{exactNativeAmount(receipt.fee.amountStroops)} Testnet XLM</dd>
-                                      <dt>{h("feePayer")}</dt><dd>{participant(receipt.fee.payer)}{h(receipt.fee.paidByWallet ? "paidByYou" : "paidByOther")}</dd>
-                                    </> : <><dt>{h("fee")}</dt><dd>{h("feeUnavailable")}</dd></>}
-                                  </dl>
-                                  <p>{receipt.fee.status === "available" ? h("feeScope") : h("feeMissing")}</p>
-                                  {receipt.fee.status === "available" && receipt.fee.feeBump ? <p>{h("feeBump")}</p> : null}
-                                  {receipt.fee.status === "available" && receipt.fee.transactionHash !== receipt.hash && transactionUrl(receipt.fee.transactionHash) ? <a className={styles.transactionLink} href={transactionUrl(receipt.fee.transactionHash)!} target="_blank" rel="noopener noreferrer">{h("feeReceipt")}</a> : null}
-                                  {purposeHref ? <Link href={purposeHref} className={styles.transactionLink}>{h("viewPurpose")} {Ico.chev({ size: 12, c: T.action })}</Link> : null}
-                                  {explorerReceipt ? <a className={styles.transactionLink} href={explorerReceipt} target="_blank" rel="noopener noreferrer">{m("View transaction on Stellar ↗")}</a> : null}
-                                </div>
-                              ) : null}
+                              {selected ? <ActivityReceiptSheet receipt={receipt} address={address} identities={identitiesByAddress}
+                                locale={locale} equivalent={equivalent} purposeName={context ? purposeName : undefined} campaignCover={campaignCover}
+                                onClose={() => setExpanded(null)} /> : null}
                             </div>
                           </li>
                         );
