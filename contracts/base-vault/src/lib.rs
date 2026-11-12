@@ -53,11 +53,7 @@ impl BaseVault {
             .get(&DataKey::Token)
             .ok_or(Error::NotInitialized)?;
 
-        token::Client::new(&env, &token).transfer(
-            &from,
-            &env.current_contract_address(),
-            &amount,
-        );
+        token::Client::new(&env, &token).transfer(&from, &env.current_contract_address(), &amount);
 
         let total: i128 = env.storage().instance().get(&DataKey::Total).unwrap_or(0);
         env.storage()
@@ -94,11 +90,7 @@ impl BaseVault {
             .get(&DataKey::Token)
             .ok_or(Error::NotInitialized)?;
 
-        token::Client::new(&env, &token).transfer(
-            &env.current_contract_address(),
-            &to,
-            &amount,
-        );
+        token::Client::new(&env, &token).transfer(&env.current_contract_address(), &to, &amount);
 
         env.storage()
             .instance()

@@ -36,20 +36,34 @@ authenticated multi-user live E2E are complete; the current live state is
 
 ## Base-vault deployment compatibility
 
-New base-vault builds bind `admin` and `token` in `__constructor`, atomically
-with deployment. Pass `-- --admin <ADDRESS> --token <TOKEN>` to the Stellar
-CLI deploy command; there is no callable `initialize` entrypoint. This is an
-intentional ABI change for new deployments. Existing immutable deployments
-are not modified by this source change and need separate state verification
-and retirement/replacement planning. Do not assume the historical base-vault
-below is safe or current. The historical WSL script also contains pre-D3
-Disaster commands and is not an end-to-end current deployment runbook.
+New base-vault builds bind `admin` and `token` in Soroban `__constructor`,
+atomically with deployment. The legacy public `initialize` entrypoint has been
+removed. The old entrypoint did not authenticate its caller, so the first caller
+of an uninitialized legacy instance could choose its admin. Build and deploy
+only this contract with the intended admin and token:
+
+```sh
+cargo build -p base-vault --target wasm32v1-none --release --locked
+stellar contract deploy \
+  --wasm target/wasm32v1-none/release/base_vault.wasm \
+  --source-account <DEPLOYER> --network testnet -- \
+  --admin <ADMIN_ADDRESS> --token <TOKEN_ADDRESS>
+```
+
+This creates a new contract ID; it does not change an existing deployment.
+Verify the returned ID and its constructor-bound admin/token before configuring
+any caller to use it. The historical base-vault below is pre-fix and must not
+be treated as if it had been repaired by this source change. Do not use that
+legacy ID for new flows.
 
 ## Historical baseline — 2026-05-18
 
 **Network:** Stellar **Testnet** (`Test SDF Network ; September 2015`)
 **Date:** 2026-05-18 · **Deployer:** `GC2P5KXDI74CGDIB3GR7IULRLHZCC4U4JCCYASXVCMVWUMUBWZNBTBNP`
-**Reproduce:** `bash scripts/wsl-deploy-testnet.sh` (WSL; identities Friendbot-funded)
+**Archive note:** This is historical transaction evidence, not a reproducible
+deployment guide. `scripts/wsl-deploy-testnet.sh` is an old WSL script that
+deploys several contracts and uses pre-D3 Disaster commands; it is retired and
+must not be rerun.
 
 Every line below is independently verifiable on a public block explorer. The
 test token is the **native XLM Stellar Asset Contract** (no trustline/mint
@@ -59,7 +73,7 @@ friction); production = USDC. Contracts are asset-agnostic (`token: Address`).
 
 | Contract | Contract ID | Deploy tx |
 |---|---|---|
-| base-vault | `CBC6BTKW5VA6Y2XH6WP4IEPWDZ7TBPYSIIOZQMTEH62N62NFT4F4VYDD` | [`d0d15411…67ba0`](https://stellar.expert/explorer/testnet/tx/d0d154113feac26e1f4505195c86483e3ce228febc720de4afbed98e95e67ba0) |
+| base-vault (historical, pre-fix) | `CBC6BTKW5VA6Y2XH6WP4IEPWDZ7TBPYSIIOZQMTEH62N62NFT4F4VYDD` | [`d0d15411…67ba0`](https://stellar.expert/explorer/testnet/tx/d0d154113feac26e1f4505195c86483e3ce228febc720de4afbed98e95e67ba0) |
 | username-registry | `CDDINUQXTF6SHZN2ZJ36IT7P4YOJ3OZN3H6LTYHVCQ35YYO7YTAWM4G3` | [`b98b8d76…489a`](https://stellar.expert/explorer/testnet/tx/b98b8d76042e67d941ee6d59e5a80062d57797f332102df69a64c6829b98489a) |
 | disaster (hero) | `CCKQ3UVBZ75KSZDO6IPA5U6PFARJG4PLRGN2SAIW5RAGQ6K4B7ZDWBUZ` | [`1bed6a16…91d12`](https://stellar.expert/explorer/testnet/tx/1bed6a16e6b6b2a8fddf3c8e247764f77f80bc18f58cd019bec225e60d891d12) |
 

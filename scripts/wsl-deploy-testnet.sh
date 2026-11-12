@@ -1,12 +1,17 @@
 #!/usr/bin/env bash
-# Week 2 — historical Stellar TESTNET transaction trail (WSL).
-# Disaster commands below predate D3; this is not a current end-to-end runbook.
+# Archived historical workflow. It uses obsolete contract interfaces and can
+# create partial Testnet deployments before failing. See docs/operations/deployments.md.
+echo "This historical deployment script is retired. See docs/operations/deployments.md for current instructions." >&2
+exit 1
+
+# Week 2 — deploy the Salapi contracts to Stellar TESTNET and generate a
+# verifiable on-chain tx trail. Run inside WSL (stellar-cli lives there).
 set -euo pipefail
 
 export PATH="/usr/local/bin:$HOME/.cargo/bin:$PATH"
 # shellcheck disable=SC1091
 source "$HOME/.cargo/env" 2>/dev/null || true
-cd "$(dirname "${BASH_SOURCE[0]}")/.."
+cd /mnt/c/Users/Lenovo/OneDrive/Documents/Claude/Projects/Hackathon
 export CARGO_TARGET_DIR="$HOME/salapi-target"
 NET="testnet"
 W="$CARGO_TARGET_DIR/wasm32v1-none/release"
@@ -28,16 +33,15 @@ echo "=== BUILD (optimized wasm) ==="
 stellar contract build
 ls -la "$W"/*.wasm
 
+echo "=== DEPLOY CONTRACTS ==="
+stellar contract deploy --wasm "$W/base_vault.wasm"        --source deployer --network "$NET" --alias base_vault
+stellar contract deploy --wasm "$W/username_registry.wasm" --source deployer --network "$NET" --alias username_registry
+stellar contract deploy --wasm "$W/disaster.wasm"          --source deployer --network "$NET" --alias disaster
+
 echo "=== TEST TOKEN (native XLM SAC — no trustline / no mint needed) ==="
 TOKEN=$(stellar contract asset deploy --asset native --source deployer --network "$NET" 2>/dev/null \
   || stellar contract id asset --asset native --network "$NET")
 echo "TOKEN_CONTRACT=$TOKEN"
-
-echo "=== DEPLOY CONTRACTS ==="
-stellar contract deploy --wasm "$W/base_vault.wasm"        --source deployer --network "$NET" --alias base_vault -- \
-  --admin "$DEPLOYER" --token "$TOKEN"
-stellar contract deploy --wasm "$W/username_registry.wasm" --source deployer --network "$NET" --alias username_registry
-stellar contract deploy --wasm "$W/disaster.wasm"          --source deployer --network "$NET" --alias disaster
 
 echo "=== USERNAME REGISTRY trail ==="
 stellar contract invoke --id username_registry --source donor --network "$NET" -- \
