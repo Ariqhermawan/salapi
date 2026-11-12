@@ -24,7 +24,7 @@ jobs:
     # is the production alias, so do not run it for successful Preview deploys.
     # Manual dispatch always runs.
     if: ${{ github.event_name == 'workflow_dispatch' || (github.event.deployment_status.state == 'success' && github.event.deployment_status.environment == 'Production') }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     defaults:
       run:
