@@ -34,6 +34,17 @@ authenticated multi-user live E2E are complete; the current live state is
 `Active` with 8.0307692 XLM after the recorded payout run in the
 [D3 acceptance report](../instawards/week-3-d3.md).
 
+## Base-vault deployment compatibility
+
+New base-vault builds bind `admin` and `token` in `__constructor`, atomically
+with deployment. Pass `-- --admin <ADDRESS> --token <TOKEN>` to the Stellar
+CLI deploy command; there is no callable `initialize` entrypoint. This is an
+intentional ABI change for new deployments. Existing immutable deployments
+are not modified by this source change and need separate state verification
+and retirement/replacement planning. Do not assume the historical base-vault
+below is safe or current. The historical WSL script also contains pre-D3
+Disaster commands and is not an end-to-end current deployment runbook.
+
 ## Historical baseline — 2026-05-18
 
 **Network:** Stellar **Testnet** (`Test SDF Network ; September 2015`)

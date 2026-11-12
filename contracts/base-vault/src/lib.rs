@@ -21,6 +21,7 @@ pub enum DataKey {
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
 #[repr(u32)]
 pub enum Error {
+    // Reserved for compatibility with the legacy initialize ABI.
     AlreadyInitialized = 1,
     NotInitialized = 2,
     InvalidAmount = 3,
@@ -32,15 +33,12 @@ pub struct BaseVault;
 
 #[contractimpl]
 impl BaseVault {
-    /// One-time setup: the admin (disbursement authority) and the token held.
-    pub fn initialize(env: Env, admin: Address, token: Address) -> Result<(), Error> {
-        if env.storage().instance().has(&DataKey::Admin) {
-            return Err(Error::AlreadyInitialized);
-        }
+    /// Bind authority and token atomically with deployment.
+    /// No public initialization window exists after the contract is created.
+    pub fn __constructor(env: Env, admin: Address, token: Address) {
         env.storage().instance().set(&DataKey::Admin, &admin);
         env.storage().instance().set(&DataKey::Token, &token);
         env.storage().instance().set(&DataKey::Total, &0i128);
-        Ok(())
     }
 
     /// Anyone contributes `amount` of the token into the pool.
