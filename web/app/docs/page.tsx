@@ -17,6 +17,11 @@ export const metadata: Metadata = {
 
 const contracts = [
   {
+    name: "base-vault (fixed, Testnet smoke instance)",
+    id: "CCHYLXQ7A6GC7M27GOKGTRKMOSGKCURCVGABXYDQMYJXGKHQ2UMGMJKT",
+    source: "contracts/base-vault (constructor-bound admin and token)",
+  },
+  {
     name: "base-vault (historical, pre-fix)",
     id: "CBC6BTKW5VA6Y2XH6WP4IEPWDZ7TBPYSIIOZQMTEH62N62NFT4F4VYDD",
     source: "contracts/base-vault (pre-fix source)",
@@ -164,10 +169,10 @@ export default function PublicDocsPage() {
         <section id="contracts" style={cardStyle}>
           <h2 style={{ margin: 0, fontSize: 18 }}>Testnet contracts</h2>
           <p style={{ margin: "8px 0 12px", color: "#5b6472", fontSize: 13.5, lineHeight: 1.55 }}>
-            These are recorded Salapi Testnet contract deployments. The listed
-            base-vault ID is historical and uses the pre-fix public initializer;
-            this source change does not alter that deployment. Do not use that
-            legacy ID for new flows.
+            These are recorded Salapi Testnet contract deployments. The fixed
+            base-vault address is a verified smoke-test instance and is not
+            configured as an application vault. The historical base-vault uses
+            the pre-fix public initializer and must not be used for new flows.
             Historical single-admin Disaster evidence is separate from the D3
             deployment. Arisan has separate demo- and long-cadence deployments
             compiled from the same source.

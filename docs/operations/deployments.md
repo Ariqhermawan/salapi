@@ -56,6 +56,27 @@ any caller to use it. The historical base-vault below is pre-fix and must not
 be treated as if it had been repaired by this source change. Do not use that
 legacy ID for new flows.
 
+## Verified fixed Base-vault Testnet instance — 2026-11-12
+
+This is the constructor-bound Base-vault instance used for the post-fix Testnet
+smoke test. It is a validation deployment, not an application configuration or
+a production contract.
+
+| Contract | Contract ID | Deploy tx | WASM hash |
+|---|---|---|---|
+| base-vault (fixed, Testnet smoke instance) | [`CCHYLXQ7A6GC7M27GOKGTRKMOSGKCURCVGABXYDQMYJXGKHQ2UMGMJKT`](https://stellar.expert/explorer/testnet/contract/CCHYLXQ7A6GC7M27GOKGTRKMOSGKCURCVGABXYDQMYJXGKHQ2UMGMJKT) | [`1152a005…be5abd`](https://stellar.expert/explorer/testnet/tx/1152a005bc378cdf6c7735ddc068d98681dd3ab5dc7f237fd638b47038be5abd) | `1152ab4a27965d57aa0c129ff5e8b2e939f6d86b6b25d054fd65b1bcc225463a` |
+
+The constructor-bound admin is `GDJSOTO3INBXRTFFWGL463DCSB4T2AJBKWXO4CFTO7KQUGHSN6XZIDBO`;
+the token is the native Testnet XLM SAC
+`CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC`. A 1 XLM deposit
+([transaction](https://stellar.expert/explorer/testnet/tx/6b90698643886c08fa652ed815bef27b0fad2d685e0c025931033f708c022f4a))
+and admin-authorized payout
+([transaction](https://stellar.expert/explorer/testnet/tx/5d69f4044fd87e55ccee119b203d0fa6802de1d8bf0e52979c890cb57aa02eb7))
+both succeeded. After payout, `total()` and the vault's token balance are zero;
+the test donor's cumulative contribution record retains the 1 XLM test deposit.
+An unauthorized payout simulation required the bound admin authorization and
+submitted no transaction.
+
 ## Historical baseline — 2026-05-18
 
 **Network:** Stellar **Testnet** (`Test SDF Network ; September 2015`)
