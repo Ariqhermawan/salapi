@@ -393,7 +393,11 @@ for (const { viewport, mobile } of [
         });
         await pledge.click();
         await expectRoute(page, href!);
-        await expect.poll(() => departure.top).toBeGreaterThan(0);
+        if (mobile) {
+          await expect.poll(() => departure.top).toBeGreaterThan(0);
+        } else {
+          expect(departure.top).toBe(0);
+        }
         expect(departure.left).toBeGreaterThan(0);
         await page.getByRole("link", { name: donationEntry }).click();
         await expectRoute(page, `${href}/donate`);

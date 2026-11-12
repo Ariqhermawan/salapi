@@ -141,7 +141,7 @@ jobs:
 
   web-e2e-local:
     name: web E2E (local)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     defaults:
       run:

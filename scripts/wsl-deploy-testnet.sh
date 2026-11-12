@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# Archived historical workflow. It uses obsolete contract interfaces and can
+# create partial Testnet deployments before failing. See docs/operations/deployments.md.
+echo "This historical deployment script is retired. See docs/operations/deployments.md for current instructions." >&2
+exit 1
+
 # Week 2 — deploy the Salapi contracts to Stellar TESTNET and generate a
 # verifiable on-chain tx trail. Run inside WSL (stellar-cli lives there).
 set -euo pipefail

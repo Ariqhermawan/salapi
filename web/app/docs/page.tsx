@@ -17,9 +17,9 @@ export const metadata: Metadata = {
 
 const contracts = [
   {
-    name: "base-vault",
+    name: "base-vault (historical, pre-fix)",
     id: "CBC6BTKW5VA6Y2XH6WP4IEPWDZ7TBPYSIIOZQMTEH62N62NFT4F4VYDD",
-    source: "contracts/base-vault",
+    source: "contracts/base-vault (pre-fix source)",
   },
   {
     name: "username-registry",
@@ -164,10 +164,13 @@ export default function PublicDocsPage() {
         <section id="contracts" style={cardStyle}>
           <h2 style={{ margin: 0, fontSize: 18 }}>Testnet contracts</h2>
           <p style={{ margin: "8px 0 12px", color: "#5b6472", fontSize: 13.5, lineHeight: 1.55 }}>
-            These are recorded Salapi Testnet contract deployments. Historical
-            single-admin Disaster evidence is separate from the D3 deployment.
-            Arisan has separate demo- and long-cadence deployments compiled
-            from the same source.
+            These are recorded Salapi Testnet contract deployments. The listed
+            base-vault ID is historical and uses the pre-fix public initializer;
+            this source change does not alter that deployment. Do not use that
+            legacy ID for new flows.
+            Historical single-admin Disaster evidence is separate from the D3
+            deployment. Arisan has separate demo- and long-cadence deployments
+            compiled from the same source.
           </p>
           <details><summary style={{ cursor: "pointer", fontWeight: 650, color: "#2563eb", fontSize: 13 }}>Contract addresses and source packages</summary><div style={{ display: "grid", gap: 14, marginTop: 15 }}>
             {displayedContracts.map((contract) => (
