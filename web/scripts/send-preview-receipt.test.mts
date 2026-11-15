@@ -4,7 +4,8 @@ import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import * as revampMoney from "../lib/i18n/revamp-money.ts";
-import { localToStroops, pesosToStroopsExact } from "../lib/money.ts";
+import * as money from "../lib/money.ts";
+import * as market from "../lib/market-prices.ts";
 import { CURRENCY, formatLocalAmount, pesoFromLocal } from "../lib/ui/currency.ts";
 import * as recipientReview from "../lib/recipient-review.ts";
 import type { PreviewTransferInput } from "../lib/local-preview-history.ts";
@@ -92,7 +93,11 @@ function setup(options: { preview?: boolean; storageUnavailable?: boolean } = {}
       if (name === "@/lib/ui/useGoBack") return { useGoBack: () => () => {} };
       if (name === "@/components/AvailableWalletBalance") return { __esModule: true, default: () => null };
       if (name === "@/lib/ui/currency") return { CURRENCY, formatLocalAmount, pesoFromLocal };
-      if (name === "@/lib/money") return { localToStroops, pesosToStroopsExact };
+      if (name === "@/lib/money") return money;
+      if (name === "@/lib/market-prices") return market;
+      if (name === "@/components/MarketPricesProvider") return {
+        useMarketPrices: () => ({ prices: { status: "unavailable", source: "CoinGecko", reason: "preview" } }),
+      };
       if (name === "@/lib/local-preview") return localPreview;
       if (name === "./SendRevamp.module.css") return { default: {} };
       if (name === "@/lib/local-preview-history") return {
@@ -108,10 +113,10 @@ function setup(options: { preview?: boolean; storageUnavailable?: boolean } = {}
           calls.lookups++;
           return { ok: true, username, address: recipient };
         },
-        sendByUsername: async () => {
+        sendByUsername: async (_name: string, input: money.MoneyInput) => {
           assert.equal(preview, false, "A local confirmation must never invoke a transfer");
           calls.transfers++;
-          return { ok: true, to: recipient, link: "https://stellar.expert/explorer/testnet/tx/test-server-receipt" };
+          return { ok: true, to: recipient, amountStroops: money.moneyInputToStroops(input)!.toString(), link: "https://stellar.expert/explorer/testnet/tx/test-server-receipt" };
         },
       };
       throw new Error(`Unexpected dependency: ${name}`);

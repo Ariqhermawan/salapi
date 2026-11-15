@@ -9,6 +9,7 @@ import * as copy from "../lib/i18n/revamp-money.ts";
 import * as activityCopyModule from "../lib/i18n/wallet-activity.ts";
 import { activityUsdcEquivalent } from "../lib/wallet-activity.ts";
 import * as money from "../lib/money.ts";
+import * as market from "../lib/market-prices.ts";
 import * as recipientReview from "../lib/recipient-review.ts";
 import { CURRENCY, formatLocal, formatLocalAmount, pesoFromLocal } from "../lib/ui/currency.ts";
 import { authRedirectPath } from "../lib/authRedirect.ts";
@@ -119,6 +120,7 @@ function mount(name: typeof names[number], locale: Locale, options: { preview?: 
       if (dependency === "@/lib/ui/currency") return { CURRENCY, formatLocal, formatLocalAmount, pesoFromLocal };
       if (dependency === "@/lib/wallet-state") return { requireWalletState };
       if (dependency === "@/lib/money") return money;
+      if (dependency === "@/lib/market-prices") return market;
       if (dependency === "@/lib/local-preview") return localPreview;
       if (dependency === "@/lib/local-preview-history") return local.history;
       if (dependency === "@/lib/savings-preview") return local.savings;

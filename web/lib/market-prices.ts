@@ -1,6 +1,6 @@
 import type { Locale } from "@/lib/i18n/config";
 
-/** Market quotes are presentation data, never transaction-conversion inputs. */
+/** Refresh and age limits shared by estimates and USD Send quotes. */
 export const QUOTE_REFRESH_MS = 60_000;
 export const QUOTE_FRESH_AGE_MS = 120_000;
 export const QUOTE_MAX_AGE_MS = 300_000;

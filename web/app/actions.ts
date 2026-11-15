@@ -228,11 +228,28 @@ export async function lookupRecipient(name: string) {
   }
 }
 
-export async function sendByUsername(name: string, input: MoneyInput, expectedAddress?: string) {
+type ReviewedUsdTransfer = { currency: "en"; amountStroops: string };
+
+export async function sendByUsername(name: string, input: MoneyInput | ReviewedUsdTransfer, expectedAddress?: string) {
   if (isLocalPreview) return { ok: false as const, error: "Local preview cannot submit transfers." };
   const clean = name.trim().replace(/^@/, "").toLowerCase();
   if (!/^[a-z0-9_]{3,32}$/.test(clean)) return { ok: false as const, error: "Enter a valid username" };
-  const amount = amountStroops(input);
+  let amount: bigint | null;
+  if (input?.currency === "en") {
+    // Submit the exact native amount the user confirmed. A new market price
+    // between review and signing must never change the amount sent.
+    if (!("amountStroops" in input) || typeof input.amountStroops !== "string"
+      || !/^[1-9]\d{0,15}$/.test(input.amountStroops)) {
+      return { ok: false as const, error: "Enter a valid amount" };
+    }
+    if (typeof expectedAddress !== "string" || !StrKey.isValidEd25519PublicKey(expectedAddress)) {
+      return { ok: false as const, error: "Review the recipient again before sending." };
+    }
+    amount = BigInt(input.amountStroops);
+    if (amount > MAX_AMOUNT_STROOPS) amount = null;
+  } else {
+    amount = amountStroops(input);
+  }
   if (amount == null)
     return { ok: false as const, error: "Enter a valid amount" };
   let to: string;
@@ -258,7 +275,7 @@ export async function sendByUsername(name: string, input: MoneyInput, expectedAd
       sc.addr(to),
       sc.i128(amount),
     ]);
-    if (r.ok) return { ok: true as const, to, hash: r.hash, link: txLink(r.hash) };
+    if (r.ok) return { ok: true as const, to, hash: r.hash, link: txLink(r.hash), amountStroops: amount.toString() };
     if (r.pending) return { ok: false as const, pending: true as const, hash: r.hash, link: txLink(r.hash), error: r.error };
     return { ok: false as const, error: r.error };
   } catch {

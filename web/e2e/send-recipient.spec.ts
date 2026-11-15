@@ -1,20 +1,47 @@
 import { test, expect, type Page } from "@playwright/test";
+import { QUOTE_FRESH_AGE_MS } from "../lib/market-prices";
 
 // Actual /send rendering, isolated HTTP fixtures. All Server Actions are
 // intercepted, including unexpected writes. Never confirm a real transfer.
 const address = "GCGZVDFYMFKJFPDKMJDNZXU7ZFIPSOZ22367XHIQ32VOH56ELN5ISZND";
 const photo = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aE1cAAAAASUVORK5CYII=";
+const receiptHash = "ab".repeat(32);
+const explorer = `https://stellar.expert/explorer/testnet/tx/${receiptHash}`;
 
-async function fixture(page: Page, options: { result?: object; slowLookup?: boolean; slowPhoto?: boolean; photo?: string | null; canonical?: string; changed?: boolean } = {}) {
+async function fixture(page: Page, options: {
+  result?: object;
+  slowLookup?: boolean;
+  slowPhoto?: boolean;
+  photo?: string | null;
+  canonical?: string;
+  changed?: boolean;
+  usdPrice?: number | null;
+  mockSuccess?: boolean;
+} = {}) {
   let releaseLookup!: () => void, releasePhoto!: () => void;
   const lookupGate = new Promise<void>(resolve => { releaseLookup = resolve; });
   const photoGate = new Promise<void>(resolve => { releasePhoto = resolve; });
   const calls = { lookups: 0, photos: 0, writes: 0 };
+  const quoteRequests: Array<number | null> = [];
+  const submitted: unknown[][] = [];
+  let usdPrice = options.usdPrice === undefined ? 0.125 : options.usdPrice;
   await page.route("**/*", async route => {
     const request = route.request();
-    if (new URL(request.url()).pathname === "/api/transfers/recipient-identity") {
+    const url = new URL(request.url());
+    if (url.pathname === "/api/market-prices") {
+      quoteRequests.push(usdPrice);
+      if (usdPrice === null) {
+        return route.fulfill({ json: { status: "unavailable", source: "CoinGecko", reason: "provider-unavailable" } });
+      }
+      const updatedAt = Math.floor(Date.now() / 1000);
+      return route.fulfill({ json: { status: "fresh", source: "CoinGecko", fetchedAt: updatedAt, assets: {
+        xlm: { prices: { usd: usdPrice, php: usdPrice * 58, idr: usdPrice * 16000, vnd: usdPrice * 25500 }, updatedAt },
+        usdc: { prices: { usd: 1, php: 58, idr: 16000, vnd: 25500 }, updatedAt },
+      } } });
+    }
+    if (url.pathname === "/api/transfers/recipient-identity") {
       calls.photos++; if (options.slowPhoto) await photoGate;
-      const username = new URL(request.url()).searchParams.get("username");
+      const username = url.searchParams.get("username");
       return route.fulfill({ json: options.changed ? { ok: false, code: "changed" }
         : { ok: true, username, address, handle: options.canonical ?? username, photoUrl: options.photo ?? null } });
     }
@@ -25,7 +52,13 @@ async function fixture(page: Page, options: { result?: object; slowLookup?: bool
     else if (args.length === 1 && typeof args[0] === "string") {
       calls.lookups++; if (options.slowLookup) await lookupGate;
       result = options.result ?? { ok: true, username: args[0], address };
-    } else { calls.writes++; result = { ok: false, error: "Financial writes are blocked in this fixture" }; }
+    } else {
+      calls.writes++;
+      submitted.push(args);
+      result = options.mockSuccess && args.length === 3 && args[0] === "imam" && args[2] === address
+        ? { ok: true, to: address, hash: receiptHash, link: explorer, amountStroops: "4000000000" }
+        : { ok: false, error: "Financial writes are blocked in this fixture" };
+    }
     return route.fulfill({ contentType: "text/x-component", body: `0:{"a":"$@1","f":"","i":false}\n1:${JSON.stringify(result)}\n` });
   });
   await page.goto("/send", { waitUntil: "domcontentloaded" });
@@ -34,8 +67,64 @@ async function fixture(page: Page, options: { result?: object; slowLookup?: bool
   await expect(main.getByText("@ariqhermawan", { exact: true })).toBeVisible(); // hydration + own read
   await page.evaluate(() => document.fonts.ready); // assert layout after font metrics settle, not fallback-only
   await main.getByLabel("Amount · USD", { exact: true }).fill("5");
-  return { main, calls, releaseLookup, releasePhoto };
+  return { main, calls, quoteRequests, submitted, releaseLookup, releasePhoto,
+    setUsdPrice: (price: number) => { usdPrice = price; } };
 }
+
+test("a refreshed USD quote keeps reviewed XLM and its receipt exact", async ({ page }) => {
+  const f = await fixture(page, { mockSuccess: true });
+  await f.main.getByLabel("Amount · USD", { exact: true }).fill("50");
+  await f.main.getByLabel("Recipient @username", { exact: true }).fill("imam");
+  await f.main.getByRole("button", { name: "Review transfer", exact: true }).click();
+  const review = f.main.getByRole("article", { name: "Transfer review details" });
+  await expect(review).toContainText(/400\.0000000\s*Testnet XLM/);
+  await expect(review).toContainText("USD estimate");
+
+  f.setUsdPrice(0.25);
+  const refreshed = page.waitForResponse(response => new URL(response.url()).pathname === "/api/market-prices");
+  await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+  await refreshed;
+  expect(f.quoteRequests).toEqual([0.125, 0.25]);
+  await expect(review).toContainText(/400\.0000000\s*Testnet XLM/);
+  await f.main.getByRole("button", { name: "Confirm Testnet transfer", exact: true }).click();
+
+  expect(f.submitted).toEqual([["imam", { currency: "en", amountStroops: "4000000000" }, address]]);
+  const receipt = f.main.getByRole("article", { name: "Transfer receipt details" });
+  await expect(receipt).toContainText(/400\.0000000\s*Testnet XLM/);
+  await expect(receipt).toContainText("USD estimate at review");
+  await expect(receipt).toContainText("$50.00");
+  await expect(f.main.locator(`a[href="${explorer}"]`)).toBeVisible();
+});
+
+test("an expired reviewed USD quote returns to the amount form before sending", async ({ page }) => {
+  await page.clock.install({ time: new Date() });
+  const f = await fixture(page);
+  await f.main.getByLabel("Recipient @username", { exact: true }).fill("imam");
+  await f.main.getByRole("button", { name: "Review transfer", exact: true }).click();
+  const confirm = f.main.getByRole("button", { name: "Confirm Testnet transfer", exact: true });
+  await expect(confirm).toBeEnabled();
+
+  await page.clock.setSystemTime(Date.now() + QUOTE_FRESH_AGE_MS + 1_000);
+  expect(f.quoteRequests).toEqual([0.125]);
+  await confirm.click();
+
+  await expect(f.main.getByRole("alert")).toContainText("The CoinGecko quote expired. Review the updated XLM amount before sending.");
+  await expect(confirm).toHaveCount(0);
+  await expect(f.main.getByLabel("Amount · USD", { exact: true })).toHaveValue("5");
+  expect(f.submitted).toEqual([]);
+});
+
+test("an unavailable market rate prevents USD review without a demo fallback", async ({ page }) => {
+  const f = await fixture(page, { usdPrice: null });
+  await f.main.getByLabel("Amount · USD", { exact: true }).fill("50");
+  await f.main.getByLabel("Recipient @username", { exact: true }).fill("imam");
+  await expect.poll(() => f.quoteRequests).toEqual([null]);
+  await expect(f.main.getByRole("button", { name: "Review transfer", exact: true })).toBeDisabled();
+  await expect(f.main.getByRole("article", { name: "Transfer review details" })).toHaveCount(0);
+  await expect(f.main).not.toContainText("446.1538462");
+  expect(f.calls.lookups).toBe(0);
+  expect(f.submitted).toEqual([]);
+});
 
 for (const width of [390, 1280]) test(`review shows a permitted account photo and exact destination at ${width}px without waiting for photos`, async ({ page }, testInfo) => {
   await page.setViewportSize({ width, height: 844 });

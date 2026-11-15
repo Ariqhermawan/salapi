@@ -63,6 +63,21 @@ function ratioToStroops(value: Ratio, localToPhp: Ratio): bigint {
   return roundHalfUp(numerator, denominator);
 }
 
+/** Derive the native amount from a USD input and the market feed's USD per XLM. */
+export function marketUsdToStroops(amount: string, usdPerXlm: number): bigint | null {
+  const dollars = decimalRatio(amount);
+  const [coefficient, exponentText = "0"] = String(usdPerXlm).split("e");
+  const price = decimalRatio(coefficient);
+  if (!dollars || !price || price.numerator === 0n) return null;
+  const exponent = BigInt(exponentText);
+  const priceNumerator = price.numerator * 10n ** (exponent > 0n ? exponent : 0n);
+  const priceDenominator = price.denominator * 10n ** (exponent < 0n ? -exponent : 0n);
+  return roundHalfUp(
+    dollars.numerator * priceDenominator * STROOPS_PER_XLM,
+    dollars.denominator * priceNumerator,
+  );
+}
+
 /** Convert a PHP peso decimal string to integer stroops exactly. */
 export function pesosToStroopsExact(pesos: string): bigint | null {
   const value = decimalRatio(pesos);
