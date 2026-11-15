@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   formatIllustrativeUsd,
   localToStroops,
+  marketUsdToStroops,
   moneyInputToStroops,
   nativeBalanceToStroops,
   pesosToStroopsExact,
@@ -19,6 +20,16 @@ test("all supported display currencies share the PHP anchor exactly", () => {
   assert.equal(localToStroops("1", "en"), php);
   assert.equal(localToStroops("16000", "id"), php);
   assert.equal(localToStroops("25500", "vi"), php);
+});
+
+test("market USD derives exact native stroops and rounds once", () => {
+  assert.equal(marketUsdToStroops("50", 0.125), 4_000_000_000n);
+  assert.equal(marketUsdToStroops("50", 0.13906552678923356), 3_595_427_361n);
+  assert.equal(marketUsdToStroops("0.00000005", 1), 1n);
+  assert.equal(marketUsdToStroops("0.00000007", 1e-7), 7_000_000n);
+  assert.equal(marketUsdToStroops("0.00000004", 1), 0n);
+  for (const invalidRate of [0, -1, NaN, Infinity]) assert.equal(marketUsdToStroops("50", invalidRate), null);
+  assert.equal(marketUsdToStroops("1e2", 0.125), null);
 });
 
 test("money action payloads stay integer and reject malformed input", () => {

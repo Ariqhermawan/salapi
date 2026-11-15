@@ -5,6 +5,7 @@ import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import * as revampMoney from "../lib/i18n/revamp-money.ts";
 import * as money from "../lib/money.ts";
+import * as marketPrices from "../lib/market-prices.ts";
 import * as recipientReview from "../lib/recipient-review.ts";
 import * as feePolicy from "../lib/arisan-funding-fees.ts";
 import { CURRENCY, formatLocalAmount, pesoFromLocal } from "../lib/ui/currency.ts";
@@ -12,7 +13,7 @@ import { AuthSessionMissingError, isAuthSessionMissingError } from "@supabase/su
 import { arisanRoomPage } from "../lib/arisan-list.ts";
 import { Keypair, StrKey } from "@stellar/stellar-sdk";
 
-type Result = { ok: boolean; error?: string; hash?: string; pending?: boolean; value?: unknown };
+type Result = { ok: boolean; error?: string; hash?: string; pending?: boolean; value?: unknown; amountStroops?: string; link?: string };
 type Signer = { publicKey: string; secret: string; demo: boolean };
 type Row = { public_key: string; secret_cipher?: string };
 type Read = { data: Row | null; error?: object | null };
@@ -281,8 +282,8 @@ test("reconciliation rejects malformed hashes and cannot poll real RPC in local 
   const local = stellarSetup({ preview: true }); assert.equal((await local.api.submittedTransactionStatus(hash)).ok, false); assert.equal(local.calls.reads, 0);
 });
 
-function actionsSetup(options: { result?: Result; preview?: boolean; reveal?: boolean; viewer?: string | null; viewerResolver?: () => Promise<string | null>; members?: string[]; roomByCode?: number } = {}) {
-  const calls = { signers: 0, sends: 0, status: 0 };
+function actionsSetup(options: { result?: Result; preview?: boolean; reveal?: boolean; viewer?: string | null; viewerResolver?: () => Promise<string | null>; members?: string[]; roomByCode?: number; recipient?: string } = {}) {
+  const calls = { signers: 0, sends: 0, status: 0, transferArgs: null as unknown[] | null };
   const dependencies = {
     "@stellar/stellar-sdk": { StrKey },
     "@/lib/server/arisanAuthorization": { authenticatedArisanWallet: async () => ({ ok: true, publicKey: arisanSender }) },
@@ -291,7 +292,7 @@ function actionsSetup(options: { result?: Result; preview?: boolean; reveal?: bo
       paluwaganId: () => "isolated-paluwagan", smartSavingsId: () => "isolated-savings", arisanRoomsId: () => "isolated-arisan",
       sc: Object.fromEntries(["str", "addr", "i128", "u32", "u64", "sym", "unitVariant", "bytes"].map(name => [name, (v: unknown) => v])),
       readContract: async (_id: string, method: string) => {
-        if (method === "resolve") return "recipient-public";
+        if (method === "resolve") return options.recipient ?? "recipient-public";
         if (method === "get_room") return { host: arisanSender, name: "Isolated room", code: "234567", member_target: 3, share: 10000000n, cadence: "Weekly", first_kocok: Math.floor(Date.now() / 1000) + 720, join_deadline: Math.floor(Date.now() / 1000) + 600, status: "Open", member_count: 1, round: 0 };
         if (method === "get_members") return options.members ?? ["sender-public", arisanSender, "friend-one", "friend-two"];
         if (method === "members") return options.members ?? [arisanSender, "friend-one", "friend-two"];
@@ -303,7 +304,11 @@ function actionsSetup(options: { result?: Result; preview?: boolean; reveal?: bo
         return 1;
       }, stroopsToPesos: (value: bigint) => Number(value) * 6.5 / 10000000, fmtPeso: (value: number) => String(value),
       txLink: (v: string) => `https://stellar.expert/explorer/testnet/tx/${v}`,
-      invokeAs: async () => { calls.sends++; return options.result ?? { ok: false, pending: true, hash, error: "Isolated unknown" }; },
+      invokeAs: async (_secret: string, contract: string, method: string, args: unknown[]) => {
+        calls.sends++;
+        if (contract === "token" && method === "transfer") calls.transferArgs = args;
+        return options.result ?? { ok: false, pending: true, hash, error: "Isolated unknown" };
+      },
       submittedTransactionStatus: async () => { calls.status++; return options.result ?? { ok: false, pending: true, hash, error: "Isolated unknown" }; } },
     "@/lib/server/userWallet": {
       getSigner: async () => { calls.signers++; return { publicKey: "sender-public", secret: "isolated-secret", demo: false }; },
@@ -327,6 +332,29 @@ test("Send action preserves pending/hash and rejects recipient rebinding before 
   const pending = await api.sendByUsername("jamamam", { amount: "100", currency: "tl" }, "recipient-public");
   assert.equal(pending.pending, true); assert.equal(pending.hash, hash); assert.equal(calls.sends, 1);
   await api.checkSubmittedTransfer(hash); assert.equal(calls.signers, 1); assert.equal(calls.sends, 1); assert.equal(calls.status, 1);
+});
+test("USD Send submits the reviewed exact native amount and returns it in the Testnet receipt", async () => {
+  const recipient = Keypair.fromRawEd25519Seed(Buffer.alloc(32, 36)).publicKey();
+  const { api, calls } = actionsSetup({ recipient, result: { ok: true, hash } });
+  const amountStroops = "3595427709";
+  const result = await api.sendByUsername("jamamam", { currency: "en", amountStroops }, recipient);
+  assert.equal(result.ok, true);
+  assert.equal(result.amountStroops, amountStroops);
+  assert.equal(result.link, `https://stellar.expert/explorer/testnet/tx/${hash}`);
+  assert.deepEqual(Array.from(calls.transferArgs ?? []), ["sender-public", recipient, BigInt(amountStroops)]);
+});
+test("USD Send rejects legacy, invalid or rebound review amounts before signing", async () => {
+  const recipient = Keypair.fromRawEd25519Seed(Buffer.alloc(32, 36)).publicKey();
+  const { api, calls } = actionsSetup({ recipient });
+  const reviewed = { currency: "en", amountStroops: "3595427709" };
+  for (const amountStroops of ["0", "01", "-1", "3.5", "1e9", " 3", 3, "1538461538461539", "9".repeat(200)]) {
+    assert.equal((await api.sendByUsername("jamamam", { ...reviewed, amountStroops }, recipient)).ok, false);
+  }
+  assert.equal((await api.sendByUsername("jamamam", { currency: "en", amount: "50" }, recipient)).ok, false);
+  for (const expected of [undefined, "invalid", arisanSender]) {
+    assert.equal((await api.sendByUsername("jamamam", reviewed, expected)).ok, false);
+  }
+  assert.equal(calls.signers, 0); assert.equal(calls.sends, 0);
 });
 test("Savings, Paluwagan and Arisan wrappers preserve pending hashes without announcing success", async () => {
   for (const [method, args] of [
@@ -449,6 +477,11 @@ function sendSetup(options: { storage?: Map<string, string>; unavailable?: boole
     },
     "next/navigation": { useRouter: () => ({ push() {} }) },
     "@/components/I18nProvider": { useT: () => ({ currency: "tl", t: (v: string) => v }) },
+    "@/components/MarketPricesProvider": { useMarketPrices: () => ({
+      prices: { status: "unavailable", source: "CoinGecko", reason: "provider-unavailable" },
+      loading: false, refresh: async () => {},
+    }) },
+    "@/lib/market-prices": marketPrices,
     "@/lib/i18n/revamp-money": revampMoney,
     "@/lib/recipient-review": recipientReview,
     "@/components/AccountAvatar": { default: "AccountAvatar" },
@@ -539,12 +572,13 @@ test("an in-flight transfer animates waiting, blocks a duplicate, and shows succ
   assert.equal(screen.storage.get(unresolvedKey), "unknown");
   assert.equal(screen.button("Confirm Testnet transfer"), undefined);
   screen.begin(submit); assert.equal(screen.calls.transfers, 1);
-  confirm({ ok: true, link: `https://stellar.expert/explorer/testnet/tx/${hash}`, to: "recipient-public" } as Result);
+  confirm({ ok: true, link: `https://stellar.expert/explorer/testnet/tx/${hash}`, to: "recipient-public", amountStroops: "153846154" } as Result);
   await screen.settle();
   assert.equal(nodes(screen.tree).some(n => n.type === "TransferMotion"), false);
   const success = nodes(screen.tree).find(n => n.type === "SuccessMotion");
   assert.ok(success); assert.equal(success.props.variant, "transfer");
   assert.equal(screen.storage.has(unresolvedKey), false);
+  assert.match(text(screen.tree), /15\.3846154\s*Testnet XLM/);
   assert.ok(screen.button("View Activity")); assert.equal(screen.calls.transfers, 1);
 });
 
