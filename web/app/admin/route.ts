@@ -7,6 +7,7 @@ import { loadAccountRows, loadAdminDirectory } from "@/lib/server/adminDirectory
 import { hostHeaderName, isAdminHost } from "@/lib/admin-host";
 import { ADMIN_PAGE_SIZE, filterUsers, parseAdminQuery } from "@/lib/admin-users";
 import { renderAdminDocument, renderAdminGate, renderAdminPanel } from "@/lib/admin-view";
+import { adminCsvFilename, adminUsersCsv } from "@/lib/admin-csv";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -26,10 +27,22 @@ export async function GET(request: Request): Promise<Response> {
   const access = await readAdminAccess();
   if (access.status !== "admin")
     return new Response(renderAdminDocument("Salapi Admin", renderAdminGate(access, APP_URL)), { status: GATE_STATUS[access.status], headers: HEADERS });
-  const query = parseAdminQuery(new URL(request.url).searchParams);
+  const params = new URL(request.url).searchParams;
+  const query = parseAdminQuery(params);
   try {
     const directory = await loadAdminDirectory();
     const matches = filterUsers(directory.users, query);
+    if (params.get("format") === "csv") {
+      // Every account in the active filter, not one page. ponytail: two on-chain
+      // reads per row (6 at a time) fit maxDuration for hundreds of accounts;
+      // past that, store usernames and tx counts instead of reading them live.
+      const rows = await loadAccountRows(matches);
+      return new Response(adminUsersCsv(rows, access.adminIds), { headers: {
+        ...HEADERS,
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": `attachment; filename="${adminCsvFilename(query, new Date())}"`,
+      } });
+    }
     const pages = Math.max(1, Math.ceil(matches.length / ADMIN_PAGE_SIZE));
     const page = Math.min(query.page, pages);
     const rows = await loadAccountRows(matches.slice((page - 1) * ADMIN_PAGE_SIZE, page * ADMIN_PAGE_SIZE));
