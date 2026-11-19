@@ -133,6 +133,9 @@ jobs:
       - name: CoinGecko quote validation, credential omission and market display guards
         run: npm run test:market
 
+      - name: Admin panel user-ID gate, account segments and escaped HTML
+        run: npm run test:admin
+
       - name: Prevent local-review builds in Vercel production
         run: node --experimental-strip-types --test scripts/local-preview-deployment.test.mts
 
