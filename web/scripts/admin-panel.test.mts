@@ -6,10 +6,11 @@ import ts from "typescript";
 import { isAuthSessionMissingError, AuthSessionMissingError } from "@supabase/supabase-js";
 import { StrKey } from "@stellar/stellar-sdk";
 import { accountSegment, filterUsers, monthlySignups, parseAdminIds, parseAdminQuery, sentTransactionCount, wibMonth, type AdminAccountRow, type AdminAuthUser } from "../lib/admin-users.ts";
-import { adminExportHref, adminHref, renderAdminDocument, renderAdminGate, renderAdminPanel } from "../lib/admin-view.ts";
+import { adminHref, renderAdminDocument, renderAdminGate, renderAdminPanel } from "../lib/admin-view.ts";
 import { escapeHtml, html } from "../lib/admin-html.ts";
 import { adminHostRoute, hostHeaderName } from "../lib/admin-host.ts";
-import { adminCsvFilename, adminUsersCsv, csvField, wibDateTime } from "../lib/admin-csv.ts";
+import { adminUsersXlsx, crc32, excelMonth, excelWib, xlsxFilename } from "../lib/admin-xlsx.ts";
+import { inflateRawSync } from "node:zlib";
 
 const adminId = "00000000-0000-4000-8000-0000000000aa";
 const otherId = "00000000-0000-4000-8000-0000000000bb";
@@ -326,43 +327,84 @@ test("account rows separate confirmed absence from failed reads and never select
   assert.deepEqual(plain(await directory().api.loadAccountRows([])), []);
 });
 
-test("CSV fields are RFC 4180 quoted and never start like a spreadsheet formula", () => {
-  assert.equal(csvField("plain@gmail.com"), "plain@gmail.com");
-  assert.equal(csvField('a,"b"\nc'), '"a,""b""\nc"');
-  for (const risky of ["=HYPERLINK(1)", "+1", "-1", "@SUM(A1)", "\tx", "\rx"]) assert.equal(csvField(risky)[0] === '"' ? csvField(risky)[1] : csvField(risky)[0], "'");
-  assert.equal(csvField("=1,2"), "\"'=1,2\"");
-  assert.equal(wibDateTime("2026-11-19T16:11:30Z"), "2026-11-19 23:11");
-  assert.equal(wibDateTime("2026-10-31T17:30:00Z"), "2026-11-01 00:30");
-  assert.equal(wibDateTime(null), "");
-  assert.equal(wibDateTime("not a date"), "");
+// Reads back the ZIP the writer produced: local headers in order, deflated bodies, CRC checked.
+function unzip(file: Buffer): Map<string, string> {
+  const parts = new Map<string, string>();
+  let at = 0;
+  while (file.readUInt32LE(at) === 0x04034b50) {
+    const crc = file.readUInt32LE(at + 14), packedSize = file.readUInt32LE(at + 18), size = file.readUInt32LE(at + 22);
+    const nameLength = file.readUInt16LE(at + 26), extraLength = file.readUInt16LE(at + 28);
+    const name = file.subarray(at + 30, at + 30 + nameLength).toString("utf8");
+    const start = at + 30 + nameLength + extraLength;
+    const raw = inflateRawSync(file.subarray(start, start + packedSize));
+    assert.equal(raw.length, size, name);
+    assert.equal(crc32(raw), crc, name);
+    parts.set(name, raw.toString("utf8"));
+    at = start + packedSize;
+  }
+  assert.equal(file.readUInt32LE(at), 0x02014b50); // central directory follows the entries
+  const end = file.length - 22;
+  assert.equal(file.readUInt32LE(end), 0x06054b50);
+  assert.equal(file.readUInt16LE(end + 10), parts.size);
+  return parts;
+}
+
+test("xlsx helpers: CRC-32, Excel serial dates in WIB, and the dated file name", () => {
+  assert.equal(crc32(Buffer.from("123456789")), 0xcbf43926);
+  // 2026-11-19 16:11:30 UTC = 23:11:30 WIB; Excel serial 46345 is 2026-11-19.
+  assert.ok(Math.abs((excelWib("2026-11-19T16:11:30Z") as number) - (46345 + (23 * 3600 + 11 * 60 + 30) / 86400)) < 1e-9);
+  assert.equal(excelWib(null), null);
+  assert.equal(excelWib("not a date"), null);
+  assert.equal(excelMonth("2026-11"), 46327);
+  assert.equal(excelMonth("2026-01"), 46023);
+  assert.equal(xlsxFilename(new Date("2026-11-19T17:30:00Z")), "salapi-akun-asli-2026-11-20.xlsx");
 });
 
-test("the users CSV has one row per account with username, wallet and tx, marking failed reads", () => {
+test("the Excel export has real columns, @usernames as text, numeric tx, filters, a frozen header and a monthly summary", () => {
   const rows: AdminAccountRow[] = [
     { user: user({ id: adminId, email: "owner@example.com", created_at: "2026-11-19T16:11:30Z", last_sign_in_at: "2026-11-19T16:20:00Z" }),
       wallet: { status: "ok", value: address }, username: { status: "ok", value: "owner_1" }, sentTx: { status: "ok", value: 24 } },
-    { user: user({ email: "=cmd@salapi.invalid", app_metadata: { provider: "email" } }), wallet: { status: "none" }, username: { status: "none" }, sentTx: { status: "none" } },
-    { user: user({ app_metadata: { synthetic: true } }), wallet: { status: "ok", value: address }, username: { status: "error" }, sentTx: { status: "error" } },
+    { user: user({ email: `=HYPERLINK("x")<b>&`, created_at: "2026-10-02T03:00:00Z" }), wallet: { status: "none" }, username: { status: "none" }, sentTx: { status: "none" } },
+    { user: user({ created_at: "2026-10-03T03:00:00Z" }), wallet: { status: "ok", value: address }, username: { status: "error" }, sentTx: { status: "error" } },
   ];
-  const csv = adminUsersCsv(rows, new Set([adminId]));
-  assert.ok(csv.startsWith("\uFEFF"));
-  const lines = csv.slice(1).split("\r\n");
-  assert.equal(lines.pop(), "");
-  assert.equal(lines[0], "daftar_wib,email,username,wallet_address,tx_terkirim,segmen,login_via,terakhir_masuk_wib,user_id,admin");
-  assert.equal(lines[1], `2026-11-19 23:11,owner@example.com,owner_1,${address},24,Asli,Google,2026-11-19 23:20,${adminId},ya`);
-  assert.equal(lines[2], `2026-11-02 10:00,'=cmd@salapi.invalid,,,,QA,Email,,${otherId},`);
-  assert.equal(lines[3], `2026-11-02 10:00,person@gmail.com,gagal dimuat,${address},gagal dimuat,Simulasi,Lainnya,,${otherId},`);
-  assert.equal(lines.length, 4);
+  const parts = unzip(adminUsersXlsx(rows, new Set([adminId]), new Date("2026-11-19T17:30:00Z")));
+  assert.deepEqual([...parts.keys()], ["[Content_Types].xml", "_rels/.rels", "xl/workbook.xml", "xl/_rels/workbook.xml.rels", "xl/styles.xml", "xl/worksheets/sheet1.xml", "xl/worksheets/sheet2.xml"]);
+  assert.match(parts.get("xl/workbook.xml")!, /<sheet name="Akun asli" sheetId="1" r:id="rId1"\/><sheet name="Ringkasan" sheetId="2" r:id="rId2"\/>/);
+  assert.match(parts.get("xl/workbook.xml")!, /'Akun asli'!\$A\$1:\$J\$4/);
+  const sheet = parts.get("xl/worksheets/sheet1.xml")!;
+  assert.match(sheet, /<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"\/>/);
+  assert.match(sheet, /<autoFilter ref="A1:J4"\/>/);
+  for (const [i, title] of ["Tanggal daftar (WIB)", "Bulan daftar", "Email", "Username", "Wallet address", "Tx terkirim", "Login via", "Terakhir masuk (WIB)", "Admin", "User ID"].entries())
+    assert.match(sheet, new RegExp(`<c r="${String.fromCharCode(65 + i)}1" s="1" t="inlineStr"><is><t xml:space="preserve">${title.replace(/[()]/g, "\\$&")}</t></is></c>`));
+  // Row 2: real Excel date + month cells, separate columns, @username kept as text, numeric tx.
+  assert.match(sheet, /<c r="A2" s="2"><v>46345\.96/);
+  assert.match(sheet, /<c r="B2" s="3"><v>46327<\/v><\/c>/);
+  assert.match(sheet, /<c r="C2" t="inlineStr"><is><t xml:space="preserve">owner@example\.com<\/t>/);
+  assert.match(sheet, /<c r="D2" t="inlineStr"><is><t xml:space="preserve">@owner_1<\/t>/);
+  assert.match(sheet, new RegExp(`<c r="E2" s="4" t="inlineStr"><is><t xml:space="preserve">${address}</t>`));
+  assert.match(sheet, /<c r="F2" s="5"><v>24<\/v><\/c>/);
+  assert.match(sheet, /<c r="I2" t="inlineStr"><is><t xml:space="preserve">Ya<\/t>/);
+  // Row 3: hostile text is XML-escaped text (never a formula), no username/wallet, 0 tx sent.
+  assert.match(sheet, /<c r="C3" t="inlineStr"><is><t xml:space="preserve">=HYPERLINK\(&quot;x&quot;\)&lt;b&gt;&amp;<\/t>/);
+  assert.doesNotMatch(sheet, /<f>/);
+  assert.doesNotMatch(sheet, /r="D3"|r="E3"/);
+  assert.match(sheet, /<c r="F3" s="5"><v>0<\/v><\/c>/);
+  // Row 4: failed reads say so instead of looking empty.
+  assert.match(sheet, /<c r="D4" t="inlineStr"><is><t xml:space="preserve">gagal dimuat<\/t>/);
+  assert.match(sheet, /<c r="F4" t="inlineStr"><is><t xml:space="preserve">gagal dimuat<\/t>/);
+  const summary = parts.get("xl/worksheets/sheet2.xml")!;
+  assert.match(summary, /Total akun asli<\/t><\/is><\/c><c r="B4" s="5"><v>3<\/v>/);
+  assert.match(summary, /Total tx terkirim<\/t><\/is><\/c><c r="B5" s="5"><v>24<\/v>/);
+  assert.match(summary, /Akun dengan tx gagal dimuat<\/t><\/is><\/c><c r="B6" s="5"><v>1<\/v>/);
+  // Months newest first: Nov 2026 (1 account, 24 tx), then Okt 2026 (2 accounts, 0 tx).
+  assert.match(summary, /<row r="9"><c r="A9" s="3"><v>46327<\/v><\/c><c r="B9" s="5"><v>1<\/v><\/c><c r="C9" s="5"><v>24<\/v><\/c><\/row>/);
+  assert.match(summary, /<row r="10"><c r="A10" s="3"><v>46296<\/v><\/c><c r="B10" s="5"><v>2<\/v><\/c><c r="C10" s="5"><v>0<\/v><\/c><\/row>/);
 });
 
-test("the export link keeps every active filter, drops paging, and names the file by filter and WIB date", () => {
-  assert.equal(adminExportHref({ segment: "real", q: "", page: 3, month: "" }), "/?format=csv");
-  assert.equal(adminExportHref({ segment: "all", q: "a&b", page: 1, month: "2026-10" }), "/?segment=all&month=2026-10&q=a%26b&format=csv");
-  assert.equal(adminCsvFilename({ segment: "all", q: "x", page: 1, month: "2026-10" }, new Date("2026-11-19T17:30:00Z")), "salapi-pengguna-all-2026-10-2026-11-20.csv");
+test("the panel offers the real-accounts Excel export", () => {
   const page = renderAdminDocument("Admin", renderAdminPanel({
-    users: [user()], walletCount: 1, rows: [{ user: user(), wallet: { status: "none" }, username: { status: "none" }, sentTx: { status: "none" } }],
-    query: { segment: "real", q: "", page: 1, month: "" }, page: 1, pages: 1, matches: 1,
+    users: [user()], walletCount: 1, rows: [], query: { segment: "qa", q: "", page: 1, month: "2026-10" }, page: 1, pages: 1, matches: 0,
     adminIds: new Set(), viewerId: adminId, viewerEmail: null, now: new Date(), appUrl: "https://salapi.app",
   }));
-  assert.match(page, /<a class="button ghost small" href="\/\?format=csv" download>⬇ Export CSV<\/a>/);
+  assert.match(page, /<a class="button ghost small" href="\/\?format=xlsx" download>⬇ Export akun asli \(Excel\)<\/a>/);
 });
