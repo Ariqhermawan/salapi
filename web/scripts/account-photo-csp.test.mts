@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import { randomUUID } from "node:crypto";
 import ts from "typescript";
+import * as adminHost from "../lib/admin-host.ts";
 
 // Run the actual proxy with an explicit local/no-auth fixture. Never contacts a
 // provider or starts a server. Check response and renderer CSP remain identical.
@@ -20,6 +21,7 @@ function loadProxy(url: string, mode = "production") {
       if (name === "@supabase/ssr") return { createServerClient: () => { throw new Error("Unexpected provider access"); } };
       if (name === "@/lib/supabase/env") return { SUPABASE_URL: url, SUPABASE_ANON: "", supabaseConfigured: () => false };
       if (name === "@/lib/local-preview") return { isLocalPreview: true };
+      if (name === "@/lib/admin-host") return adminHost;
       throw new Error("Unexpected proxy dependency: " + name);
     },
   });

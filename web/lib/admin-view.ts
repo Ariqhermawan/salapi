@@ -1,4 +1,5 @@
-// Server-rendered, script-free HTML for /admin. Pure: data in, document out.
+// Server-rendered, script-free HTML for the admin host (admin.salapi.app). Pure:
+// data in, document out. Links are relative to that host's "/"; appUrl is the main app.
 import { html, SafeHtml } from "./admin-html.ts";
 import { ADMIN_PAGE_SIZE, SEGMENT_FILTERS, accountSegment, monthlySignups, type AdminAccountRow, type AdminAuthUser, type AdminQuery, type AdminSegmentFilter } from "./admin-users.ts";
 
@@ -13,6 +14,7 @@ export interface AdminPanelData {
   adminIds: ReadonlySet<string>;
   viewerId: string;
   now: Date;
+  appUrl: string;
 }
 export type AdminGate = { status: "signin" } | { status: "denied"; userId: string; email: string | null } | { status: "unavailable" };
 
@@ -36,20 +38,20 @@ export function renderAdminDocument(title: string, body: SafeHtml): string {
 <style>${new SafeHtml(STYLES)}</style></head><body>${body}</body></html>`.value;
 }
 
-export function renderAdminGate(gate: AdminGate): SafeHtml {
+export function renderAdminGate(gate: AdminGate, appUrl: string): SafeHtml {
   const card = (eyebrow: string, title: string, content: SafeHtml) => html`<main class="gate"><section class="gate-card">
     <img src="/icon.svg" alt="" width="44" height="44"><span class="eyebrow">${eyebrow}</span><h1>${title}</h1>${content}</section></main>`;
   if (gate.status === "signin") return card("SALAPI ADMIN", "Masuk sebagai admin", html`
     <p>Panel ini hanya untuk akun admin Salapi. Masuk dulu, lalu kamu akan kembali ke sini.</p>
-    <a class="button" href="/signin?next=%2Fadmin">Masuk</a>`);
+    <a class="button" href="/signin?next=%2F">Masuk</a>`);
   if (gate.status === "denied") return card("AKSES DITOLAK", "Akun ini bukan admin", html`
     <p>${gate.email ? html`Kamu masuk sebagai <strong>${gate.email}</strong>, ` : ""}tapi akun ini belum terdaftar sebagai admin.</p>
     <p class="muted">User ID akun ini:</p><code class="id">${gate.userId}</code>
     <p class="muted">Untuk memberi akses, tambahkan User ID di atas ke <code>SALAPI_ADMIN_USER_IDS</code> di Vercel, lalu deploy ulang.</p>
-    <a class="button ghost" href="/">Kembali ke Salapi</a>`);
+    <a class="button ghost" href="${appUrl}">Kembali ke Salapi</a>`);
   return card("SALAPI ADMIN", "Panel belum bisa dimuat", html`
     <p>Layanan login atau data akun sedang tidak tersedia. Tidak ada data yang ditampilkan.</p>
-    <a class="button" href="/admin">Coba lagi</a>`);
+    <a class="button" href="/">Coba lagi</a>`);
 }
 
 export function renderAdminPanel(data: AdminPanelData): SafeHtml {
@@ -66,7 +68,7 @@ export function renderAdminPanel(data: AdminPanelData): SafeHtml {
   <aside class="side">
     <a class="brand" href="#overview"><img src="/icon.svg" alt="" width="30" height="30"><span>Salapi <b>Admin</b></span><em>Testnet</em></a>
     <nav aria-label="Menu admin"><p class="group">Pantau</p><a href="#overview">Ringkasan</a><a href="#users">Pengguna</a></nav>
-    <div class="side-foot"><span>Admin</span><code title="${data.viewerId}">${data.viewerId.slice(0, 8)}</code><a href="/">Buka Salapi ↗</a></div>
+    <div class="side-foot"><span>Admin</span><code title="${data.viewerId}">${data.viewerId.slice(0, 8)}</code><a href="${data.appUrl}" target="_blank" rel="noopener noreferrer">Buka Salapi ↗</a></div>
   </aside>
   <main>
     <header class="head" id="overview" tabindex="-1">
@@ -117,7 +119,7 @@ function renderUsers(data: AdminPanelData, segments: ReadonlyMap<AdminSegmentFil
     <div class="panel-title"><div><span class="eyebrow">DIREKTORI AKUN</span><h2 id="users-title">Pengguna</h2></div><span class="tag">${number(matches)} akun</span></div>
     <div class="tools">
       <nav class="tabs" aria-label="Segmen akun">${SEGMENT_FILTERS.map(segment => html`<a href="${adminHref({ ...query, segment }, 1)}"${segment === query.segment ? html` aria-current="page"` : ""}>${SEGMENT_LABEL[segment]} <span>${number(segments.get(segment) ?? 0)}</span></a>`)}</nav>
-      <form class="search" method="get" action="/admin#users" role="search">
+      <form class="search" method="get" action="/#users" role="search">
         <input type="hidden" name="segment" value="${query.segment}">
         <label class="sr" for="admin-q">Cari email atau User ID</label>
         <input id="admin-q" type="search" name="q" value="${query.q}" maxlength="100" placeholder="Cari email atau User ID" autocomplete="off">
@@ -149,14 +151,14 @@ function renderRow({ user, wallet, username, sentTx }: AdminAccountRow, adminIds
   </tr>`;
 }
 
-/** Relative /admin link that keeps the active filters. */
+/** Admin-host link that keeps the active filters. */
 export function adminHref(query: AdminQuery, page: number): string {
   const params = new URLSearchParams();
   if (query.segment !== "all") params.set("segment", query.segment);
   if (query.q) params.set("q", query.q);
   if (page > 1) params.set("page", String(page));
   const search = params.toString();
-  return `/admin${search ? `?${search}` : ""}#users`;
+  return `/${search ? `?${search}` : ""}#users`;
 }
 
 const STYLES = `
