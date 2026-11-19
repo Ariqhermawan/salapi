@@ -132,7 +132,7 @@ function renderUsers(data: AdminPanelData): SafeHtml {
   const first = matches ? (page - 1) * ADMIN_PAGE_SIZE + 1 : 0;
   return html`<section class="panel" id="users" aria-labelledby="users-title" tabindex="-1">
     <div class="panel-title"><div><span class="eyebrow">DIREKTORI AKUN</span><h2 id="users-title">Pengguna</h2></div>
-      <div class="title-actions"><span class="tag">${number(matches)} akun</span>${matches ? html`<a class="button ghost small" href="${adminExportHref(query)}" download>⬇ Export CSV</a>` : ""}</div></div>
+      <div class="title-actions"><span class="tag">${number(matches)} akun</span><a class="button ghost small" href="/?format=xlsx" download>⬇ Export akun asli (Excel)</a></div></div>
     <div class="tools">
       <nav class="tabs" aria-label="Segmen akun">${SEGMENT_FILTERS.map(segment => html`<a href="${adminHref({ ...query, segment }, 1)}"${segment === query.segment ? html` aria-current="page"` : ""}>${SEGMENT_LABEL[segment]} <span>${number(segments.get(segment) ?? 0)}</span></a>`)}</nav>
       ${query.month ? html`<a class="chip" href="${adminHref({ ...query, month: "" }, 1)}" aria-label="Hapus filter bulan ${monthLabel(query.month)}">Daftar ${monthLabel(query.month)} <span aria-hidden="true">✕</span></a>` : ""}
@@ -149,7 +149,7 @@ function renderUsers(data: AdminPanelData): SafeHtml {
       <div class="pager"><span>Menampilkan ${number(first)} sampai ${number(first + data.rows.length - 1)} dari ${number(matches)}</span>
         <span>${page > 1 ? html`<a href="${adminHref(query, page - 1)}">← Sebelumnya</a>` : ""}<b>Halaman ${number(page)} dari ${number(pages)}</b>${page < pages ? html`<a href="${adminHref(query, page + 1)}">Berikutnya →</a>` : ""}</span></div>`
       : html`<p class="empty">Tidak ada akun yang cocok.</p>`}
-    <p class="note"><b>Tx terkirim</b> dihitung dari sequence number wallet di Stellar Testnet: jumlah transaksi yang dikirim dari wallet itu, termasuk yang gagal di ledger, tanpa dana masuk. Riwayat lengkap ada di tautan Stellar Expert. <b>Export CSV</b> memuat semua akun di filter yang sedang aktif (bukan hanya halaman ini), dengan username tanpa "@" supaya tidak dibaca Excel sebagai formula. <b>Asli</b> berarti di luar simulasi, load test, dan akun QA (.invalid atau .test), termasuk akun tim.</p>
+    <p class="note"><b>Tx terkirim</b> dihitung dari sequence number wallet di Stellar Testnet: jumlah transaksi yang dikirim dari wallet itu, termasuk yang gagal di ledger, tanpa dana masuk. Riwayat lengkap ada di tautan Stellar Expert. <b>Export akun asli (Excel)</b> berisi semua akun asli (bukan hanya halaman ini) dengan kolom terpisah, filter per bulan, dan sheet Ringkasan berisi total tx. <b>Asli</b> berarti di luar simulasi, load test, dan akun QA (.invalid atau .test), termasuk akun tim.</p>
   </section>`;
 }
 
@@ -177,12 +177,6 @@ export function adminHref(query: AdminQuery, page: number): string {
   if (page > 1) params.set("page", String(page));
   const search = params.toString();
   return `/${search ? `?${search}` : ""}#users`;
-}
-
-/** CSV of every account in the active filters (all pages). */
-export function adminExportHref(query: AdminQuery): string {
-  const href = adminHref(query, 1).replace(/#users$/, "");
-  return `${href}${href.includes("?") ? "&" : "?"}format=csv`;
 }
 
 const STYLES = `

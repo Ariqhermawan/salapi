@@ -7,7 +7,7 @@ import { loadAccountRows, loadAdminDirectory } from "@/lib/server/adminDirectory
 import { hostHeaderName, isAdminHost } from "@/lib/admin-host";
 import { ADMIN_PAGE_SIZE, filterUsers, parseAdminQuery } from "@/lib/admin-users";
 import { renderAdminDocument, renderAdminGate, renderAdminPanel } from "@/lib/admin-view";
-import { adminCsvFilename, adminUsersCsv } from "@/lib/admin-csv";
+import { XLSX_TYPE, adminUsersXlsx, xlsxFilename } from "@/lib/admin-xlsx";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -32,15 +32,16 @@ export async function GET(request: Request): Promise<Response> {
   try {
     const directory = await loadAdminDirectory();
     const matches = filterUsers(directory.users, query);
-    if (params.get("format") === "csv") {
-      // Every account in the active filter, not one page. ponytail: two on-chain
-      // reads per row (6 at a time) fit maxDuration for hundreds of accounts;
-      // past that, store usernames and tx counts instead of reading them live.
-      const rows = await loadAccountRows(matches);
-      return new Response(adminUsersCsv(rows, access.adminIds), { headers: {
+    if (params.get("format") === "xlsx") {
+      // Always every real account (Excel's own filters slice it further).
+      // ponytail: two on-chain reads per row (6 at a time) fit maxDuration for
+      // hundreds of accounts; past that, store usernames and tx counts instead.
+      const now = new Date();
+      const rows = await loadAccountRows(filterUsers(directory.users, { segment: "real", q: "", page: 1, month: "" }));
+      return new Response(new Uint8Array(adminUsersXlsx(rows, access.adminIds, now)), { headers: {
         ...HEADERS,
-        "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename="${adminCsvFilename(query, new Date())}"`,
+        "Content-Type": XLSX_TYPE,
+        "Content-Disposition": `attachment; filename="${xlsxFilename(now)}"`,
       } });
     }
     const pages = Math.max(1, Math.ceil(matches.length / ADMIN_PAGE_SIZE));
