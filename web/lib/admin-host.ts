@@ -7,8 +7,11 @@
 export type AdminHostRoute = "admin" | "pass" | "not-found";
 
 // What the admin host still serves: sign-in and its OAuth callback, the one
-// API the shared layout fetches, framework internals, and static files.
-const ADMIN_HOST_ALLOWED = /^\/(?:signin|auth\/.+|api\/market-prices|_next\/.+|_vercel\/.+)$|^\/[^?#]*\.[a-z0-9]+$/i;
+// API the shared layout fetches, Vercel's own scripts, and the exact static
+// files sign-in uses. Exact names only: a generic "has a file extension" rule
+// would let dynamic app routes such as /tx/a.b render on the admin origin.
+// (/_next/static, /_next/image and a few icons never reach the proxy.)
+const ADMIN_HOST_ALLOWED = /^\/(?:signin|auth\/callback|api\/market-prices|_vercel\/[^?#]+|icon-(?:192|512|1024)\.png|icon(?:-maskable)?\.svg|apple-icon\.png|favicon\.ico|stellar(?:-white)?\.png|sw\.js|manifest\.webmanifest)$/;
 
 /**
  * Hostname from the Host header (port dropped). Next's nextUrl.hostname can be

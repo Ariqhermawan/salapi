@@ -129,10 +129,13 @@ test("the panel is only reachable as / on the admin host, and /admin is 404 ever
   for (const host of ["admin.salapi.app", "ADMIN.salapi.app", "admin.localhost"]) {
     assert.equal(adminHostRoute(host, "/"), "admin");
     assert.equal(adminHostRoute(host, "/admin"), "not-found");
-    for (const path of ["/signin", "/auth/callback", "/api/market-prices", "/_next/static/chunks/a.js", "/sw.js", "/icon.svg", "/manifest.webmanifest"])
+    for (const path of ["/signin", "/auth/callback", "/api/market-prices", "/_vercel/insights/script.js", "/sw.js", "/icon.svg", "/icon-192.png",
+      "/apple-icon.png", "/stellar-white.png", "/manifest.webmanifest"])
       assert.equal(adminHostRoute(host, path), "pass", path);
-    // The rest of the app, and its APIs, never share the admin origin.
-    for (const path of ["/send", "/settings", "/api/account/activity", "/auth", "/signin/x", "/docs", "/landing"])
+    // The rest of the app, its APIs and public HTML never share the admin origin,
+    // including dynamic routes whose segment merely looks like a file name.
+    for (const path of ["/send", "/settings", "/api/account/activity", "/auth", "/auth/other", "/signin/x", "/docs", "/landing", "/landing/index.html",
+      "/pitch.html", "/tx/a.b", "/circles/x.png", "/learn/a.svg", "/_next/data/x.json", "/icon-999.png"])
       assert.equal(adminHostRoute(host, path), "not-found", path);
   }
 });

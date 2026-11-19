@@ -71,6 +71,9 @@ export async function proxy(request: NextRequest) {
   const adminRoute = adminHostRoute(hostHeaderName(request.headers.get("host")), request.nextUrl.pathname);
   if (adminRoute === "not-found")
     return new NextResponse("Not Found", { status: 404, headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" } });
+  // The static landing page keeps its own CSP and needs no session refresh. It
+  // passes through the proxy only so the admin host can refuse it above.
+  if (/^\/landing(?:\/|$)/.test(request.nextUrl.pathname)) return NextResponse.next();
 
   const wantsCsp = shouldSetCsp(request.nextUrl.pathname);
   const nonce = wantsCsp
@@ -147,15 +150,15 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Run on every route EXCEPT Next internals and the static assets the app
-    // serves from public/ + the static /landing page (which keeps its own CSP
-    // from next.config.ts and needs no session refresh). The file/asset tokens
-    // are anchored ($ / (?:/|$)) so a future route like "/landing-promo" is NOT
-    // wrongly excluded — the classic Next prefix-lookahead footgun. The /offline
+    // Run on every route EXCEPT Next internals and a few static assets the app
+    // serves from public/. The static /landing page is matched so the admin
+    // host can 404 it, then returns early (its own CSP, no session refresh).
+    // The file/asset tokens are anchored ($) so a similarly named future
+    // route is NOT wrongly excluded — the classic Next prefix-lookahead footgun. The /offline
     // app page is intentionally NOT excluded: it is a normal dynamic route (the
     // service worker serves its own inline offline HTML, never the /offline
     // route), so it gets the nonce CSP like every other page. CSP is further
     // narrowed per-request by shouldSetCsp(); session refresh runs on the rest.
-    "/((?!_next/static|_next/image|favicon\\.ico$|manifest\\.webmanifest$|sw\\.js$|icon\\.svg$|icon-maskable\\.svg$|landing(?:/|$)).*)",
+    "/((?!_next/static|_next/image|favicon\\.ico$|manifest\\.webmanifest$|sw\\.js$|icon\\.svg$|icon-maskable\\.svg$).*)",
   ],
 };
