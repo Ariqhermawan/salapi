@@ -8,6 +8,7 @@ import { StrKey } from "@stellar/stellar-sdk";
 import { accountSegment, filterUsers, monthlySignups, parseAdminIds, parseAdminQuery, sentTransactionCount, wibMonth, type AdminAccountRow, type AdminAuthUser } from "../lib/admin-users.ts";
 import { adminHref, renderAdminDocument, renderAdminGate, renderAdminPanel } from "../lib/admin-view.ts";
 import { escapeHtml, html } from "../lib/admin-html.ts";
+import { adminHostRoute, hostHeaderName } from "../lib/admin-host.ts";
 
 const adminId = "00000000-0000-4000-8000-0000000000aa";
 const otherId = "00000000-0000-4000-8000-0000000000bb";
@@ -84,7 +85,7 @@ test("the admin document is script-free and escapes hostile account data", () =>
   const page = renderAdminDocument("Admin", renderAdminPanel({
     users: [hostile, user(), user({ app_metadata: { synthetic: true } })], walletCount: 2, rows,
     query: { segment: "all", q: `"><script>`, page: 1 }, page: 1, pages: 1, matches: 3,
-    adminIds: new Set([adminId]), viewerId: adminId, now: new Date("2026-11-19T14:30:00Z"),
+    adminIds: new Set([adminId]), viewerId: adminId, now: new Date("2026-11-19T14:30:00Z"), appUrl: "https://salapi.app",
   }));
   assert.doesNotMatch(page, /<script/i);
   assert.match(page, /value="&quot;&gt;&lt;script&gt;"/); // search box attribute
@@ -102,16 +103,41 @@ test("the admin document is script-free and escapes hostile account data", () =>
 });
 
 test("filter links keep the segment and search, and escape inside attributes", () => {
-  assert.equal(adminHref({ segment: "all", q: "", page: 1 }, 1), "/admin#users");
-  assert.equal(adminHref({ segment: "real", q: "a&b", page: 1 }, 3), "/admin?segment=real&q=a%26b&page=3#users");
+  assert.equal(adminHref({ segment: "all", q: "", page: 1 }, 1), "/#users");
+  assert.equal(adminHref({ segment: "real", q: "a&b", page: 1 }, 3), "/?segment=real&q=a%26b&page=3#users");
 });
 
 test("gate pages escape the signed-in email and never render account data", () => {
-  const denied = renderAdminDocument("Admin", renderAdminGate({ status: "denied", userId: otherId, email: "<b>x</b>@gmail.com" }));
+  const denied = renderAdminDocument("Admin", renderAdminGate({ status: "denied", userId: otherId, email: "<b>x</b>@gmail.com" }, "https://salapi.app"));
   assert.match(denied, /&lt;b&gt;x&lt;\/b&gt;@gmail\.com/);
   assert.match(denied, new RegExp(otherId));
   assert.doesNotMatch(denied, /<script/i);
-  assert.match(renderAdminDocument("Admin", renderAdminGate({ status: "signin" })), /href="\/signin\?next=%2Fadmin"/);
+  assert.match(denied, /href="https:\/\/salapi\.app">Kembali ke Salapi/);
+  // Sign-in returns to the admin host's root, where the panel lives.
+  assert.match(renderAdminDocument("Admin", renderAdminGate({ status: "signin" }, "https://salapi.app")), /href="\/signin\?next=%2F"/);
+});
+
+test("the panel is only reachable as / on the admin host, and /admin is 404 everywhere", () => {
+  assert.equal(hostHeaderName("Admin.Salapi.app:443"), "admin.salapi.app");
+  assert.equal(hostHeaderName("admin.localhost:4848"), "admin.localhost");
+  assert.equal(hostHeaderName(null), "");
+  for (const host of ["salapi.app", "localhost", "salapi-abc.vercel.app", "admin-salapi.vercel.app"]) {
+    assert.equal(adminHostRoute(host, "/"), "pass");
+    assert.equal(adminHostRoute(host, "/send"), "pass");
+    for (const path of ["/admin", "/admin/", "/admin/x"]) assert.equal(adminHostRoute(host, path), "not-found");
+  }
+  for (const host of ["admin.salapi.app", "ADMIN.salapi.app", "admin.localhost"]) {
+    assert.equal(adminHostRoute(host, "/"), "admin");
+    assert.equal(adminHostRoute(host, "/admin"), "not-found");
+    for (const path of ["/signin", "/auth/callback", "/api/market-prices", "/_vercel/insights/script.js", "/sw.js", "/icon.svg", "/icon-192.png",
+      "/apple-icon.png", "/stellar-white.png", "/manifest.webmanifest"])
+      assert.equal(adminHostRoute(host, path), "pass", path);
+    // The rest of the app, its APIs and public HTML never share the admin origin,
+    // including dynamic routes whose segment merely looks like a file name.
+    for (const path of ["/send", "/settings", "/api/account/activity", "/auth", "/auth/other", "/signin/x", "/docs", "/landing", "/landing/index.html",
+      "/pitch.html", "/tx/a.b", "/circles/x.png", "/learn/a.svg", "/_next/data/x.json", "/icon-999.png"])
+      assert.equal(adminHostRoute(host, path), "not-found", path);
+  }
 });
 
 // readAdminAccess runs with mocked auth, transpiled like the other server-module tests.

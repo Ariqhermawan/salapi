@@ -1,5 +1,7 @@
 // Next 16: Middleware is now "Proxy" (proxy.ts at project root). This proxy has
-// two jobs on each request:
+// two jobs on each request, after routing the admin subdomain (see
+// lib/admin-host.ts: admin.* "/" is rewritten to the /admin route, and /admin
+// is a 404 everywhere else):
 //
 //   1. Refresh the Supabase auth session (rotate tokens via cookies). No-op when
 //      Supabase env is absent, so the app keeps working on the shared demo signer
@@ -20,6 +22,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { SUPABASE_URL, SUPABASE_ANON, supabaseConfigured } from "@/lib/supabase/env";
 import { isLocalPreview } from "@/lib/local-preview";
+import { adminHostRoute, hostHeaderName } from "@/lib/admin-host";
 
 function buildCsp(nonce: string): string {
   const isDev = process.env.NODE_ENV === "development";
@@ -64,6 +67,14 @@ function shouldSetCsp(pathname: string): boolean {
 }
 
 export async function proxy(request: NextRequest) {
+  // Admin panel: only on the admin.* host ("/" there), never on the app host.
+  const adminRoute = adminHostRoute(hostHeaderName(request.headers.get("host")), request.nextUrl.pathname);
+  if (adminRoute === "not-found")
+    return new NextResponse("Not Found", { status: 404, headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" } });
+  // The static landing page keeps its own CSP and needs no session refresh. It
+  // passes through the proxy only so the admin host can refuse it above.
+  if (/^\/landing(?:\/|$)/.test(request.nextUrl.pathname)) return NextResponse.next();
+
   const wantsCsp = shouldSetCsp(request.nextUrl.pathname);
   const nonce = wantsCsp
     ? Buffer.from(crypto.randomUUID()).toString("base64")
@@ -82,15 +93,21 @@ export async function proxy(request: NextRequest) {
     if (wantsCsp) res.headers.set("Content-Security-Policy", csp);
     return res;
   };
+  const forward = () => {
+    if (adminRoute !== "admin") return NextResponse.next({ request: { headers: requestHeaders } });
+    const panel = request.nextUrl.clone();
+    panel.pathname = "/admin";
+    return NextResponse.rewrite(panel, { request: { headers: requestHeaders } });
+  };
 
   // No Supabase configured: attach the CSP (if any) and continue. The app runs
   // on the shared demo signer in this mode.
   if (isLocalPreview || !supabaseConfigured()) {
-    return withCsp(NextResponse.next({ request: { headers: requestHeaders } }));
+    return withCsp(forward());
   }
 
   let response = withCsp(
-    NextResponse.next({ request: { headers: requestHeaders } })
+    forward()
   );
 
   const supabase = createServerClient(SUPABASE_URL, SUPABASE_ANON, {
@@ -113,7 +130,7 @@ export async function proxy(request: NextRequest) {
             .join("; ")
         );
         response = withCsp(
-          NextResponse.next({ request: { headers: requestHeaders } })
+          forward()
         );
         cookiesToSet.forEach(({ name, value, options }) =>
           response.cookies.set(name, value, options)
@@ -133,15 +150,15 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Run on every route EXCEPT Next internals and the static assets the app
-    // serves from public/ + the static /landing page (which keeps its own CSP
-    // from next.config.ts and needs no session refresh). The file/asset tokens
-    // are anchored ($ / (?:/|$)) so a future route like "/landing-promo" is NOT
-    // wrongly excluded — the classic Next prefix-lookahead footgun. The /offline
+    // Run on every route EXCEPT Next internals and a few static assets the app
+    // serves from public/. The static /landing page is matched so the admin
+    // host can 404 it, then returns early (its own CSP, no session refresh).
+    // The file/asset tokens are anchored ($) so a similarly named future
+    // route is NOT wrongly excluded — the classic Next prefix-lookahead footgun. The /offline
     // app page is intentionally NOT excluded: it is a normal dynamic route (the
     // service worker serves its own inline offline HTML, never the /offline
     // route), so it gets the nonce CSP like every other page. CSP is further
     // narrowed per-request by shouldSetCsp(); session refresh runs on the rest.
-    "/((?!_next/static|_next/image|favicon\\.ico$|manifest\\.webmanifest$|sw\\.js$|icon\\.svg$|icon-maskable\\.svg$|landing(?:/|$)).*)",
+    "/((?!_next/static|_next/image|favicon\\.ico$|manifest\\.webmanifest$|sw\\.js$|icon\\.svg$|icon-maskable\\.svg$).*)",
   ],
 };
