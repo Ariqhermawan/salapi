@@ -6,9 +6,10 @@ import ts from "typescript";
 import { isAuthSessionMissingError, AuthSessionMissingError } from "@supabase/supabase-js";
 import { StrKey } from "@stellar/stellar-sdk";
 import { accountSegment, filterUsers, monthlySignups, parseAdminIds, parseAdminQuery, sentTransactionCount, wibMonth, type AdminAccountRow, type AdminAuthUser } from "../lib/admin-users.ts";
-import { adminHref, renderAdminDocument, renderAdminGate, renderAdminPanel } from "../lib/admin-view.ts";
+import { adminExportHref, adminHref, renderAdminDocument, renderAdminGate, renderAdminPanel } from "../lib/admin-view.ts";
 import { escapeHtml, html } from "../lib/admin-html.ts";
 import { adminHostRoute, hostHeaderName } from "../lib/admin-host.ts";
+import { adminCsvFilename, adminUsersCsv, csvField, wibDateTime } from "../lib/admin-csv.ts";
 
 const adminId = "00000000-0000-4000-8000-0000000000aa";
 const otherId = "00000000-0000-4000-8000-0000000000bb";
@@ -323,4 +324,45 @@ test("account rows separate confirmed absence from failed reads and never select
   const dbDown = plain(await directory({ walletError: true }).api.loadAccountRows([user({ id: "a" })]));
   assert.deepEqual([dbDown[0].wallet.status, dbDown[0].sentTx.status], ["error", "error"]);
   assert.deepEqual(plain(await directory().api.loadAccountRows([])), []);
+});
+
+test("CSV fields are RFC 4180 quoted and never start like a spreadsheet formula", () => {
+  assert.equal(csvField("plain@gmail.com"), "plain@gmail.com");
+  assert.equal(csvField('a,"b"\nc'), '"a,""b""\nc"');
+  for (const risky of ["=HYPERLINK(1)", "+1", "-1", "@SUM(A1)", "\tx", "\rx"]) assert.equal(csvField(risky)[0] === '"' ? csvField(risky)[1] : csvField(risky)[0], "'");
+  assert.equal(csvField("=1,2"), "\"'=1,2\"");
+  assert.equal(wibDateTime("2026-11-19T16:11:30Z"), "2026-11-19 23:11");
+  assert.equal(wibDateTime("2026-10-31T17:30:00Z"), "2026-11-01 00:30");
+  assert.equal(wibDateTime(null), "");
+  assert.equal(wibDateTime("not a date"), "");
+});
+
+test("the users CSV has one row per account with username, wallet and tx, marking failed reads", () => {
+  const rows: AdminAccountRow[] = [
+    { user: user({ id: adminId, email: "owner@example.com", created_at: "2026-11-19T16:11:30Z", last_sign_in_at: "2026-11-19T16:20:00Z" }),
+      wallet: { status: "ok", value: address }, username: { status: "ok", value: "owner_1" }, sentTx: { status: "ok", value: 24 } },
+    { user: user({ email: "=cmd@salapi.invalid", app_metadata: { provider: "email" } }), wallet: { status: "none" }, username: { status: "none" }, sentTx: { status: "none" } },
+    { user: user({ app_metadata: { synthetic: true } }), wallet: { status: "ok", value: address }, username: { status: "error" }, sentTx: { status: "error" } },
+  ];
+  const csv = adminUsersCsv(rows, new Set([adminId]));
+  assert.ok(csv.startsWith("\uFEFF"));
+  const lines = csv.slice(1).split("\r\n");
+  assert.equal(lines.pop(), "");
+  assert.equal(lines[0], "daftar_wib,email,username,wallet_address,tx_terkirim,segmen,login_via,terakhir_masuk_wib,user_id,admin");
+  assert.equal(lines[1], `2026-11-19 23:11,owner@example.com,owner_1,${address},24,Asli,Google,2026-11-19 23:20,${adminId},ya`);
+  assert.equal(lines[2], `2026-11-02 10:00,'=cmd@salapi.invalid,,,,QA,Email,,${otherId},`);
+  assert.equal(lines[3], `2026-11-02 10:00,person@gmail.com,gagal dimuat,${address},gagal dimuat,Simulasi,Lainnya,,${otherId},`);
+  assert.equal(lines.length, 4);
+});
+
+test("the export link keeps every active filter, drops paging, and names the file by filter and WIB date", () => {
+  assert.equal(adminExportHref({ segment: "real", q: "", page: 3, month: "" }), "/?format=csv");
+  assert.equal(adminExportHref({ segment: "all", q: "a&b", page: 1, month: "2026-10" }), "/?segment=all&month=2026-10&q=a%26b&format=csv");
+  assert.equal(adminCsvFilename({ segment: "all", q: "x", page: 1, month: "2026-10" }, new Date("2026-11-19T17:30:00Z")), "salapi-pengguna-all-2026-10-2026-11-20.csv");
+  const page = renderAdminDocument("Admin", renderAdminPanel({
+    users: [user()], walletCount: 1, rows: [{ user: user(), wallet: { status: "none" }, username: { status: "none" }, sentTx: { status: "none" } }],
+    query: { segment: "real", q: "", page: 1, month: "" }, page: 1, pages: 1, matches: 1,
+    adminIds: new Set(), viewerId: adminId, viewerEmail: null, now: new Date(), appUrl: "https://salapi.app",
+  }));
+  assert.match(page, /<a class="button ghost small" href="\/\?format=csv" download>⬇ Export CSV<\/a>/);
 });

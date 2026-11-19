@@ -1,7 +1,7 @@
 // Server-rendered, script-free HTML for the admin host (admin.salapi.app). Pure:
 // data in, document out. Links are relative to that host's "/"; appUrl is the main app.
 import { html, SafeHtml } from "./admin-html.ts";
-import { ADMIN_PAGE_SIZE, DEFAULT_SEGMENT, SEGMENT_FILTERS, accountSegment, inMonth, monthlySignups, type AdminAccountRow, type AdminAuthUser, type AdminQuery, type AdminSegmentFilter } from "./admin-users.ts";
+import { ADMIN_PAGE_SIZE, DEFAULT_SEGMENT, SEGMENT_FILTERS, SEGMENT_LABEL, accountSegment, providerLabel, inMonth, monthlySignups, type AdminAccountRow, type AdminAuthUser, type AdminQuery, type AdminSegmentFilter } from "./admin-users.ts";
 
 export interface AdminPanelData {
   users: readonly AdminAuthUser[];
@@ -19,7 +19,6 @@ export interface AdminPanelData {
 }
 export type AdminGate = { status: "signin" } | { status: "denied"; userId: string; email: string | null } | { status: "unavailable" };
 
-const SEGMENT_LABEL: Record<AdminSegmentFilter, string> = { all: "Semua", real: "Asli", simulation: "Simulasi", load_test: "Load test", qa: "QA" };
 const TZ = "Asia/Jakarta";
 const fmt = (options: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("id-ID", { timeZone: TZ, ...options });
 const DAY = fmt({ day: "numeric", month: "short", year: "numeric" });
@@ -132,7 +131,8 @@ function renderUsers(data: AdminPanelData): SafeHtml {
   segments.set("all", scoped.length);
   const first = matches ? (page - 1) * ADMIN_PAGE_SIZE + 1 : 0;
   return html`<section class="panel" id="users" aria-labelledby="users-title" tabindex="-1">
-    <div class="panel-title"><div><span class="eyebrow">DIREKTORI AKUN</span><h2 id="users-title">Pengguna</h2></div><span class="tag">${number(matches)} akun</span></div>
+    <div class="panel-title"><div><span class="eyebrow">DIREKTORI AKUN</span><h2 id="users-title">Pengguna</h2></div>
+      <div class="title-actions"><span class="tag">${number(matches)} akun</span>${matches ? html`<a class="button ghost small" href="${adminExportHref(query)}" download>⬇ Export CSV</a>` : ""}</div></div>
     <div class="tools">
       <nav class="tabs" aria-label="Segmen akun">${SEGMENT_FILTERS.map(segment => html`<a href="${adminHref({ ...query, segment }, 1)}"${segment === query.segment ? html` aria-current="page"` : ""}>${SEGMENT_LABEL[segment]} <span>${number(segments.get(segment) ?? 0)}</span></a>`)}</nav>
       ${query.month ? html`<a class="chip" href="${adminHref({ ...query, month: "" }, 1)}" aria-label="Hapus filter bulan ${monthLabel(query.month)}">Daftar ${monthLabel(query.month)} <span aria-hidden="true">✕</span></a>` : ""}
@@ -149,13 +149,13 @@ function renderUsers(data: AdminPanelData): SafeHtml {
       <div class="pager"><span>Menampilkan ${number(first)} sampai ${number(first + data.rows.length - 1)} dari ${number(matches)}</span>
         <span>${page > 1 ? html`<a href="${adminHref(query, page - 1)}">← Sebelumnya</a>` : ""}<b>Halaman ${number(page)} dari ${number(pages)}</b>${page < pages ? html`<a href="${adminHref(query, page + 1)}">Berikutnya →</a>` : ""}</span></div>`
       : html`<p class="empty">Tidak ada akun yang cocok.</p>`}
-    <p class="note"><b>Tx terkirim</b> dihitung dari sequence number wallet di Stellar Testnet: jumlah transaksi yang dikirim dari wallet itu, termasuk yang gagal di ledger, tanpa dana masuk. Riwayat lengkap ada di tautan Stellar Expert. <b>Asli</b> berarti di luar simulasi, load test, dan akun QA (.invalid atau .test), termasuk akun tim.</p>
+    <p class="note"><b>Tx terkirim</b> dihitung dari sequence number wallet di Stellar Testnet: jumlah transaksi yang dikirim dari wallet itu, termasuk yang gagal di ledger, tanpa dana masuk. Riwayat lengkap ada di tautan Stellar Expert. <b>Export CSV</b> memuat semua akun di filter yang sedang aktif (bukan hanya halaman ini), dengan username tanpa "@" supaya tidak dibaca Excel sebagai formula. <b>Asli</b> berarti di luar simulasi, load test, dan akun QA (.invalid atau .test), termasuk akun tim.</p>
   </section>`;
 }
 
 function renderRow({ user, wallet, username, sentTx }: AdminAccountRow, adminIds: ReadonlySet<string>): SafeHtml {
   const segment = accountSegment(user);
-  const provider = user.app_metadata?.provider === "google" ? "Google" : user.app_metadata?.provider === "email" ? "Email" : "Lainnya";
+  const provider = providerLabel(user);
   const failed = html`<span class="warn">Gagal dimuat</span>`;
   return html`<tr>
     <td>${valid(user.created_at) ? html`<span class="strong">${DAY.format(new Date(user.created_at))}</span><small>${TIME.format(new Date(user.created_at))} WIB</small>` : "Tidak diketahui"}
@@ -177,6 +177,12 @@ export function adminHref(query: AdminQuery, page: number): string {
   if (page > 1) params.set("page", String(page));
   const search = params.toString();
   return `/${search ? `?${search}` : ""}#users`;
+}
+
+/** CSV of every account in the active filters (all pages). */
+export function adminExportHref(query: AdminQuery): string {
+  const href = adminHref(query, 1).replace(/#users$/, "");
+  return `${href}${href.includes("?") ? "&" : "?"}format=csv`;
 }
 
 const STYLES = `
@@ -209,6 +215,7 @@ main{padding:28px clamp(16px,3vw,40px) 48px;display:grid;gap:20px;align-content:
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:20px;min-width:0;scroll-margin-top:16px}
 .panel-title{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:18px;flex-wrap:wrap}.panel-title h2{font-size:18px;margin-top:6px;font-weight:600}
 .tag{font:500 12px var(--mono);color:var(--ink2);background:var(--panel2);padding:5px 10px;border-radius:999px}
+.title-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.button.small{padding:7px 12px;font-size:12px}
 .legend{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink3)}.key{width:10px;height:10px;border-radius:3px;margin-left:8px}.key.blue{background:var(--action)}.key.muted{background:#3a4867}
 .bars{display:flex;align-items:flex-end;gap:14px;height:190px;padding:0 4px 4px;border-bottom:1px solid var(--line);overflow-x:auto}
 .bar-col{flex:1 1 0;min-width:52px;max-width:96px;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;text-decoration:none;border-radius:8px;transition:background .15s}.bar-col:hover{background:rgba(122,162,255,.07)}.bar-col:hover .bar-label{color:var(--blue)}.bar{flex:1;width:min(44px,70%);display:flex;flex-direction:column;justify-content:flex-end}

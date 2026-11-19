@@ -28,6 +28,12 @@ export interface AdminAccountRow {
 
 export const ADMIN_PAGE_SIZE = 25;
 export const SEGMENT_FILTERS: readonly AdminSegmentFilter[] = ["real", "all", "simulation", "load_test", "qa"];
+export const SEGMENT_LABEL: Record<AdminSegmentFilter, string> = { all: "Semua", real: "Asli", simulation: "Simulasi", load_test: "Load test", qa: "QA" };
+
+export function providerLabel(user: AdminAuthUser): string {
+  const provider = user.app_metadata?.provider;
+  return provider === "google" ? "Google" : provider === "email" ? "Email" : "Lainnya";
+}
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
 const MAX_QUERY_LENGTH = 100;
