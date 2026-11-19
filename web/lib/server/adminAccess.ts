@@ -6,7 +6,7 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { parseAdminIds } from "@/lib/admin-users";
 
 export type AdminAccess =
-  | { status: "admin"; userId: string; adminIds: ReadonlySet<string> }
+  | { status: "admin"; userId: string; email: string | null; adminIds: ReadonlySet<string> }
   | { status: "denied"; userId: string; email: string | null }
   | { status: "signin" }
   | { status: "unavailable" };
@@ -26,8 +26,9 @@ export async function readAdminAccess(): Promise<AdminAccess> {
     if (user === null) return { status: "signin" };
     if (typeof user?.id !== "string" || !user.id) return { status: "unavailable" };
     const adminIds = parseAdminIds(process.env.SALAPI_ADMIN_USER_IDS);
-    if (user.is_anonymous === false && adminIds.has(user.id.toLowerCase())) return { status: "admin", userId: user.id, adminIds };
-    return { status: "denied", userId: user.id, email: typeof user.email === "string" ? user.email : null };
+    const email = typeof user.email === "string" ? user.email : null;
+    if (user.is_anonymous === false && adminIds.has(user.id.toLowerCase())) return { status: "admin", userId: user.id, email, adminIds };
+    return { status: "denied", userId: user.id, email };
   } catch (error) {
     return isAuthSessionMissingError(error) ? { status: "signin" } : { status: "unavailable" };
   }
