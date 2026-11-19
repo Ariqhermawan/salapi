@@ -113,6 +113,8 @@ test("gate pages escape the signed-in email and never render account data", () =
   assert.match(denied, new RegExp(otherId));
   assert.doesNotMatch(denied, /<script/i);
   assert.match(denied, /href="https:\/\/salapi\.app">Kembali ke Salapi/);
+  // A browser's default Google account can be the wrong one: offer a switch.
+  assert.match(denied, /href="\/signin\?next=%2F">Masuk dengan akun lain/);
   // Sign-in returns to the admin host's root, where the panel lives.
   assert.match(renderAdminDocument("Admin", renderAdminGate({ status: "signin" }, "https://salapi.app")), /href="\/signin\?next=%2F"/);
 });

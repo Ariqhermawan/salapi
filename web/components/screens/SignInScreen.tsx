@@ -9,6 +9,7 @@ import { SalapiMark } from "@/components/ui/brand";
 import { useT } from "@/components/I18nProvider";
 import { moneyCopy, moneyMessage } from "@/lib/i18n/revamp-money";
 import { authRedirectPath } from "@/lib/authRedirect";
+import { isAdminHost } from "@/lib/admin-host";
 import { isLocalPreview } from "@/lib/local-preview";
 
 function GoogleMark() {
@@ -62,7 +63,12 @@ export default function SignInScreen() {
       const supabase = createSupabaseBrowser();
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: `${window.location.origin}/auth/callback` },
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          // The admin host always asks which Google account to use, so a
+          // browser's default account never lands silently on "not an admin".
+          ...(isAdminHost(window.location.hostname) ? { queryParams: { prompt: "select_account" } } : {}),
+        },
       });
       if (error) {
         submitting.current = false;

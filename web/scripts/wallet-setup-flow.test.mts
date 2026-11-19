@@ -8,6 +8,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import ts from "typescript";
 import { walletSetupCopy } from "../lib/i18n/wallet-setup.ts";
 import { LOCALES, type Locale } from "../lib/i18n/config.ts";
+import * as adminHost from "../lib/admin-host.ts";
 
 // Actual callback/action/screen code, isolated at SDK, funding and router
 // boundaries. No real Auth, cookie exchange, database, Friendbot or signing.
@@ -39,6 +40,7 @@ function callbackHarness({ preview = false, configured = true, exchangeError = f
     if (name === "@/lib/supabase/env") return { supabaseConfigured: () => configured };
     if (name === "@/lib/authRedirect") return redirects;
     if (name === "@/lib/ui/app-navigation") return pureModule("../lib/ui/app-navigation.ts");
+    if (name === "@/lib/admin-host") return adminHost;
     if (name === "@/lib/supabase/server") return { async createSupabaseServer() {
       if (serverThrows) throw new Error("Fixture cookie/Auth creation outage");
       return { auth: { async exchangeCodeForSession(code: string) {
@@ -57,8 +59,20 @@ function callbackHarness({ preview = false, configured = true, exchangeError = f
     } };
     throw new Error(`Unexpected callback dependency ${name}`);
   } });
-  return { calls, cookieJar, get: (path: string, cookie?: string) => exports.GET(new Request(`https://salapi.app${path}`, { headers: cookie ? { cookie } : {} })) };
+  return { calls, cookieJar, get: (path: string, cookie?: string, host?: string) =>
+    exports.GET(new Request(`https://${host ?? "salapi.app"}${path}`, { headers: { ...(cookie ? { cookie } : {}), ...(host ? { host } : {}) } })) };
 }
+
+test("admin host sign-in keeps the session but never provisions a wallet or lands on /wallet/setup", async () => {
+  const h = callbackHarness({ setupFails: true });
+  const response = await h.get("/auth/callback?code=fixture-code&next=%2F", undefined, "admin.salapi.app");
+  assert.equal(response.headers.get("location"), "https://admin.salapi.app/");
+  assert.deepEqual(h.calls.exchange, ["fixture-code"]);
+  assert.equal(h.calls.prepare, 0);
+  assert.equal(h.cookieJar.get("access-session"), "fixture-access-session");
+  const failed = await callbackHarness({ exchangeError: true }).get("/auth/callback?code=bad&next=%2F", undefined, "admin.salapi.app");
+  assert.equal(failed.headers.get("location"), "https://admin.salapi.app/signin?error=oauth&next=%2F");
+});
 
 for (const next of ["/send", "/campaigns?create=1"]) {
   test(`successful OAuth exchange prepares personal wallet before redirecting to${next}`, async () => {
