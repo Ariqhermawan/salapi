@@ -19,6 +19,7 @@ import { receiveCopy } from "../lib/i18n/receive.ts";
 import { receiveDestination, receiveShareData } from "../lib/receive.ts";
 import type { AccountDetailsResult } from "../lib/account-details.ts";
 import * as contentCopy from "../lib/i18n/circles-content.ts";
+import * as adminHost from "../lib/admin-host.ts";
 
 type Element = { type: unknown; props: Record<string, unknown> };
 type Handler = (...args: unknown[]) => unknown;
@@ -127,6 +128,7 @@ function mount(name: typeof names[number], locale: Locale, options: { preview?: 
       if (dependency === "@/lib/local-preview-paluwagan") return local.paluwagan;
       if (dependency === "@/lib/savings") return { loadGoals() { throw Error("Legacy goal store forbidden"); } };
       if (dependency === "@/lib/authRedirect") return { authRedirectPath };
+      if (dependency === "@/lib/admin-host") return adminHost;
       if (dependency === "@/lib/supabase/env") return { supabaseConfigured: () => true };
       if (dependency === "@/lib/supabase/client") return { createSupabaseBrowser() {
         calls.auth++;

@@ -48,7 +48,7 @@ export function renderAdminGate(gate: AdminGate, appUrl: string): SafeHtml {
     <p>${gate.email ? html`Kamu masuk sebagai <strong>${gate.email}</strong>, ` : ""}tapi akun ini belum terdaftar sebagai admin.</p>
     <p class="muted">User ID akun ini:</p><code class="id">${gate.userId}</code>
     <p class="muted">Untuk memberi akses, tambahkan User ID di atas ke <code>SALAPI_ADMIN_USER_IDS</code> di Vercel, lalu deploy ulang.</p>
-    <a class="button ghost" href="${appUrl}">Kembali ke Salapi</a>`);
+    <div class="gate-actions"><a class="button" href="/signin?next=%2F">Masuk dengan akun lain</a><a class="button ghost" href="${appUrl}">Kembali ke Salapi</a></div>`);
   return card("SALAPI ADMIN", "Panel belum bisa dimuat", html`
     <p>Layanan login atau data akun sedang tidak tersedia. Tidak ada data yang ditampilkan.</p>
     <a class="button" href="/">Coba lagi</a>`);
@@ -213,7 +213,7 @@ td{padding:12px;border-bottom:1px solid var(--line);vertical-align:top}tbody tr:
 .foot{font-size:12px;color:var(--ink3);text-align:center}
 .gate{min-height:100vh;display:grid;place-content:center;grid-template-columns:min(440px,100%);padding:16px;background:radial-gradient(60% 50% at 50% 0%,rgba(37,99,235,.18),transparent)}
 .gate-card{display:grid;gap:12px;justify-items:start;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:28px}
-.gate-card h1{font-size:24px}.gate-card p{margin:0;color:var(--ink2)}.gate-card .muted{color:var(--ink3);font-size:13px}.gate-card .button{margin-top:8px}
+.gate-card h1{font-size:24px}.gate-actions{display:flex;flex-wrap:wrap;gap:8px}.gate-card p{margin:0;color:var(--ink2)}.gate-card .muted{color:var(--ink3);font-size:13px}.gate-card .button{margin-top:8px}
 .id{display:block;width:100%;padding:10px 12px;background:var(--bg);border:1px solid var(--line);border-radius:10px;font-size:13px;word-break:break-all;user-select:all}
 @media (max-width:1100px){.ribbon{grid-template-columns:1fr 1fr}.stat:nth-child(3){border-left:0}.stat:nth-child(n+3){border-top:1px solid var(--line)}}
 @media (max-width:860px){.admin{grid-template-columns:1fr}.side{position:static;height:auto;flex-direction:row;align-items:center;flex-wrap:wrap;gap:12px;padding:14px 16px;border-right:0;border-bottom:1px solid var(--line)}
