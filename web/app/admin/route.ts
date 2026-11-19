@@ -35,7 +35,7 @@ export async function GET(request: Request): Promise<Response> {
     const rows = await loadAccountRows(matches.slice((page - 1) * ADMIN_PAGE_SIZE, page * ADMIN_PAGE_SIZE));
     const body = renderAdminPanel({
       users: directory.users, walletCount: directory.walletCount, rows, query, page, pages,
-      matches: matches.length, adminIds: access.adminIds, viewerId: access.userId, now: new Date(), appUrl: APP_URL,
+      matches: matches.length, adminIds: access.adminIds, viewerId: access.userId, viewerEmail: access.email, now: new Date(), appUrl: APP_URL,
     });
     return new Response(renderAdminDocument("Ringkasan · Salapi Admin", body), { headers: HEADERS });
   } catch (error) {

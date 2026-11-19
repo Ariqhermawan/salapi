@@ -59,15 +59,23 @@ test("sent transactions come from the low 32 bits of the account sequence", () =
 });
 
 test("query parsing clamps unknown segments and pages; filtering searches email and ID newest first", () => {
-  assert.deepEqual(parseAdminQuery(new URLSearchParams("segment=evil&page=-3&q=%20a%20")), { segment: "all", q: "a", page: 1 });
-  assert.deepEqual(parseAdminQuery(new URLSearchParams("segment=qa&page=2")), { segment: "qa", q: "", page: 2 });
+  // The directory opens on real users; unknown segments fall back to that view.
+  assert.deepEqual(parseAdminQuery(new URLSearchParams("")), { segment: "real", q: "", page: 1, month: "" });
+  assert.deepEqual(parseAdminQuery(new URLSearchParams("segment=evil&page=-3&q=%20a%20")), { segment: "real", q: "a", page: 1, month: "" });
+  assert.deepEqual(parseAdminQuery(new URLSearchParams("segment=all&page=2&month=2026-10")), { segment: "all", q: "", page: 2, month: "2026-10" });
+  for (const month of ["2026-13", "2026-1", "26-10", "2026-10-01", "<b>"]) assert.equal(parseAdminQuery(new URLSearchParams({ month })).month, "");
   assert.equal(parseAdminQuery(new URLSearchParams(`q=${"x".repeat(500)}`)).q.length, 100);
   const older = user({ id: adminId, email: "Owner@Example.com", created_at: "2026-09-01T00:00:00Z" });
   const newer = user({ created_at: "2026-11-01T00:00:00Z" });
   const sim = user({ email: "sim@salapi.invalid", app_metadata: { synthetic: true } });
-  assert.deepEqual(filterUsers([older, newer, sim], { segment: "real", q: "", page: 1 }), [newer, older]);
-  assert.deepEqual(filterUsers([older, newer, sim], { segment: "all", q: "owner@", page: 1 }), [older]);
-  assert.deepEqual(filterUsers([older, newer, sim], { segment: "all", q: "0000aa", page: 1 }), [older]);
+  const base = { q: "", page: 1, month: "" };
+  assert.deepEqual(filterUsers([older, newer, sim], { ...base, segment: "real" }), [newer, older]);
+  assert.deepEqual(filterUsers([older, newer, sim], { ...base, segment: "all", q: "owner@" }), [older]);
+  assert.deepEqual(filterUsers([older, newer, sim], { ...base, segment: "all", q: "0000aa" }), [older]);
+  // Month uses the WIB calendar: 2026-10-31 17:30 UTC is already November in Jakarta.
+  const edge = user({ created_at: "2026-10-31T17:30:00Z" });
+  assert.deepEqual(filterUsers([older, newer, sim, edge], { ...base, segment: "all", month: "2026-11" }), [sim, newer, edge]);
+  assert.deepEqual(filterUsers([older, newer, sim, edge], { ...base, segment: "real", month: "2026-09" }), [older]);
 });
 
 test("html escapes every interpolated value unless it is already html", () => {
@@ -84,9 +92,10 @@ test("the admin document is script-free and escapes hostile account data", () =>
   ];
   const page = renderAdminDocument("Admin", renderAdminPanel({
     users: [hostile, user(), user({ app_metadata: { synthetic: true } })], walletCount: 2, rows,
-    query: { segment: "all", q: `"><script>`, page: 1 }, page: 1, pages: 1, matches: 3,
-    adminIds: new Set([adminId]), viewerId: adminId, now: new Date("2026-11-19T14:30:00Z"), appUrl: "https://salapi.app",
+    query: { segment: "all", q: `"><script>`, page: 1, month: "" }, page: 1, pages: 1, matches: 3,
+    adminIds: new Set([adminId]), viewerId: adminId, viewerEmail: "<i>owner</i>@example.com", now: new Date("2026-11-19T14:30:00Z"), appUrl: "https://salapi.app",
   }));
+  assert.match(page, /Masuk sebagai <b>&lt;i&gt;owner&lt;\/i&gt;@example\.com<\/b>/); // admin email, escaped
   assert.doesNotMatch(page, /<script/i);
   assert.match(page, /value="&quot;&gt;&lt;script&gt;"/); // search box attribute
   assert.match(page, /&quot;&gt;&lt;script&gt;alert\(1\)&lt;\/script&gt;@gmail\.com/);
@@ -102,9 +111,39 @@ test("the admin document is script-free and escapes hostile account data", () =>
   assert.match(page, /<span class="eyebrow">Pengguna asli<\/span><strong>2<\/strong>/);
 });
 
-test("filter links keep the segment and search, and escape inside attributes", () => {
-  assert.equal(adminHref({ segment: "all", q: "", page: 1 }, 1), "/#users");
-  assert.equal(adminHref({ segment: "real", q: "a&b", page: 1 }, 3), "/?segment=real&q=a%26b&page=3#users");
+test("filter links keep the segment, month and search; real users is the implied default", () => {
+  assert.equal(adminHref({ segment: "real", q: "", page: 1, month: "" }, 1), "/#users");
+  assert.equal(adminHref({ segment: "all", q: "", page: 1, month: "" }, 1), "/?segment=all#users");
+  assert.equal(adminHref({ segment: "qa", q: "a&b", page: 1, month: "2026-10" }, 3), "/?segment=qa&month=2026-10&q=a%26b&page=3#users");
+});
+
+test("overview numbers and months link to the matching directory filter", () => {
+  const users = [
+    user({ created_at: "2026-11-02T03:00:00Z" }),
+    user({ created_at: "2026-10-02T03:00:00Z", app_metadata: { synthetic: true } }),
+    user({ created_at: "2026-10-03T03:00:00Z", email: "qa@salapi.test" }),
+  ];
+  const render = (month: string) => renderAdminDocument("Admin", renderAdminPanel({
+    users, walletCount: 3, rows: [], query: { segment: "real", q: "", page: 1, month }, page: 1, pages: 1, matches: 0,
+    adminIds: new Set(), viewerId: adminId, viewerEmail: "owner@example.com", now: new Date("2026-11-19T14:30:00Z"), appUrl: "https://salapi.app",
+  }));
+  const page = render("");
+  assert.match(page, /<a class="stat-link" href="\/#users"><span class="eyebrow">Pengguna asli<\/span><strong>1<\/strong>/);
+  assert.match(page, /<a class="stat-link" href="\/\?segment=all&amp;month=2026-11#users"><span class="eyebrow">Daftar bulan ini<\/span><strong>1<\/strong>/);
+  assert.match(page, /<a href="\/\?month=2026-11#users">1 asli<\/a>/);
+  assert.match(page, /<a class="stat-link" href="\/\?segment=all#users"><span class="eyebrow">Total akun<\/span><strong>3<\/strong>/);
+  assert.match(page, /<a href="\/\?segment=simulation#users">1 simulasi<\/a>/);
+  assert.match(page, /<a href="\/\?segment=qa#users">1 QA<\/a>/);
+  assert.match(page, /<a class="bar-col" href="\/\?segment=all&amp;month=2026-10#users" aria-label="Okt 2026: 2 pendaftaran, 0 asli">/);
+  assert.match(page, /<td><a href="\/\?month=2026-10#users">0<\/a><\/td>/); // the month's "Asli" cell
+  // Tabs open on Asli, and no month chip without a month filter.
+  assert.match(page, /<nav class="tabs" aria-label="Segmen akun"><a href="\/#users" aria-current="page">Asli <span>1<\/span><\/a><a href="\/\?segment=all#users">Semua <span>3<\/span>/);
+  assert.doesNotMatch(page, /class="chip"/);
+  // With a month filter, tab counts follow the month and a chip clears it.
+  const october = render("2026-10");
+  assert.match(october, /<a class="chip" href="\/#users" aria-label="Hapus filter bulan Okt 2026">Daftar Okt 2026/);
+  assert.match(october, /Asli <span>0<\/span><\/a><a href="\/\?segment=all&amp;month=2026-10#users">Semua <span>2<\/span>/);
+  assert.match(october, /<input type="hidden" name="month" value="2026-10">/);
 });
 
 test("gate pages escape the signed-in email and never render account data", () => {
@@ -166,6 +205,7 @@ async function access(o: AccessOptions = {}) {
 
 test("only a listed, non-anonymous user ID gets admin; everything else fails closed", async () => {
   assert.equal((await access()).status, "admin");
+  assert.equal((await access()).email, "owner@example.com"); // shown in the panel header
   assert.equal((await access({ ids: adminId.toUpperCase() })).status, "admin");
   assert.deepEqual(JSON.parse(JSON.stringify(await access({ user: { id: otherId, email: "x@gmail.com", is_anonymous: false } }))), { status: "denied", userId: otherId, email: "x@gmail.com" });
   assert.equal((await access({ ids: "" })).status, "denied");

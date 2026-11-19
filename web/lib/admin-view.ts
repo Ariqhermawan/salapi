@@ -1,7 +1,7 @@
 // Server-rendered, script-free HTML for the admin host (admin.salapi.app). Pure:
 // data in, document out. Links are relative to that host's "/"; appUrl is the main app.
 import { html, SafeHtml } from "./admin-html.ts";
-import { ADMIN_PAGE_SIZE, SEGMENT_FILTERS, accountSegment, monthlySignups, type AdminAccountRow, type AdminAuthUser, type AdminQuery, type AdminSegmentFilter } from "./admin-users.ts";
+import { ADMIN_PAGE_SIZE, DEFAULT_SEGMENT, SEGMENT_FILTERS, accountSegment, inMonth, monthlySignups, type AdminAccountRow, type AdminAuthUser, type AdminQuery, type AdminSegmentFilter } from "./admin-users.ts";
 
 export interface AdminPanelData {
   users: readonly AdminAuthUser[];
@@ -13,6 +13,7 @@ export interface AdminPanelData {
   matches: number;
   adminIds: ReadonlySet<string>;
   viewerId: string;
+  viewerEmail: string | null;
   now: Date;
   appUrl: string;
 }
@@ -64,32 +65,42 @@ export function renderAdminPanel(data: AdminPanelData): SafeHtml {
   const months = monthlySignups(data.users, data.now);
   const thisMonth = months.at(-1) ?? { month: "", total: 0, real: 0 };
   const total = data.users.length;
+  const count = (segment: AdminSegmentFilter) => number(segments.get(segment) ?? 0);
   return html`<div class="admin">
   <aside class="side">
     <a class="brand" href="#overview"><img src="/icon.svg" alt="" width="30" height="30"><span>Salapi <b>Admin</b></span><em>Testnet</em></a>
     <nav aria-label="Menu admin"><p class="group">Pantau</p><a href="#overview">Ringkasan</a><a href="#users">Pengguna</a></nav>
-    <div class="side-foot"><span>Admin</span><code title="${data.viewerId}">${data.viewerId.slice(0, 8)}</code><a href="${data.appUrl}" target="_blank" rel="noopener noreferrer">Buka Salapi ↗</a></div>
+    <div class="side-foot"><span>Admin</span><strong class="viewer">${data.viewerEmail ?? "Tanpa email"}</strong><code title="${data.viewerId}">${data.viewerId.slice(0, 8)}</code><a href="${data.appUrl}" target="_blank" rel="noopener noreferrer">Buka Salapi ↗</a></div>
   </aside>
   <main>
     <header class="head" id="overview" tabindex="-1">
-      <div><h1>Ringkasan admin</h1><p>${LONG.format(data.now)} · ${TIME.format(data.now)} WIB · Stellar Testnet</p></div>
+      <div><h1>Ringkasan admin</h1><p>${LONG.format(data.now)} · ${TIME.format(data.now)} WIB · Stellar Testnet</p>
+        <p class="viewer-line">Masuk sebagai <b>${data.viewerEmail ?? data.viewerId}</b> · Admin</p></div>
       <a class="button" href="${adminHref(data.query, data.page)}">↻ Perbarui data</a>
     </header>
     <section class="ribbon" aria-label="Angka utama">
-      ${stat("Pengguna asli", number(segments.get("real") ?? 0), html`dari ${number(total)} akun terdaftar`, "blue")}
-      ${stat("Daftar bulan ini", number(thisMonth.total), html`${number(thisMonth.real)} asli · ${thisMonth.month ? monthLabel(thisMonth.month) : "Belum ada"}`, "green")}
-      ${stat("Total akun", number(total), html`${number(segments.get("simulation") ?? 0)} simulasi · ${number(segments.get("load_test") ?? 0)} load test · ${number(segments.get("qa") ?? 0)} QA`, "")}
-      ${stat("Punya wallet", data.walletCount === null ? "Gagal dimuat" : number(data.walletCount), data.walletCount === null || !total ? html`Wallet custodial Testnet` : html`${Math.round(data.walletCount / total * 100)}% dari semua akun`, "violet")}
+      ${stat("Pengguna asli", count("real"), html`dari <a href="${view({ segment: "all" })}">${number(total)} akun terdaftar</a>`, "blue", view({ segment: "real" }))}
+      ${stat("Daftar bulan ini", number(thisMonth.total), thisMonth.month
+        ? html`<a href="${view({ segment: "real", month: thisMonth.month })}">${number(thisMonth.real)} asli</a> · ${monthLabel(thisMonth.month)}`
+        : html`Belum ada`, "green", view({ segment: "all", month: thisMonth.month }))}
+      ${stat("Total akun", number(total), html`<a href="${view({ segment: "simulation" })}">${count("simulation")} simulasi</a> · <a href="${view({ segment: "load_test" })}">${count("load_test")} load test</a> · <a href="${view({ segment: "qa" })}">${count("qa")} QA</a>`, "", view({ segment: "all" }))}
+      ${stat("Punya wallet", data.walletCount === null ? "Gagal dimuat" : number(data.walletCount), data.walletCount === null || !total ? html`Wallet custodial Testnet` : html`${Math.round(data.walletCount / total * 100)}% dari semua akun`, "violet", view({ segment: "all" }))}
     </section>
     ${renderMonths(months)}
-    ${renderUsers(data, segments)}
+    ${renderUsers(data)}
     <footer class="foot">Salapi Admin · Waktu dalam WIB · Data akun dari Supabase, username dan transaksi dari Stellar Testnet</footer>
   </main>
 </div>`;
 }
 
-function stat(label: string, value: string, sub: SafeHtml, tone: string): SafeHtml {
-  return html`<div class="stat ${tone}"><span class="eyebrow">${label}</span><strong>${value}</strong><small>${sub}</small></div>`;
+/** The whole card links to the filtered directory; links inside the subtitle stay clickable above it. */
+function stat(label: string, value: string, sub: SafeHtml, tone: string, href: string): SafeHtml {
+  return html`<div class="stat ${tone}"><a class="stat-link" href="${href}"><span class="eyebrow">${label}</span><strong>${value}</strong><span class="cue" aria-hidden="true">↗</span></a><small>${sub}</small></div>`;
+}
+
+/** Directory link for a filter, starting from the default view (real users, page 1). */
+function view(filter: Partial<AdminQuery>): string {
+  return adminHref({ segment: DEFAULT_SEGMENT, q: "", month: "", page: 1, ...filter }, 1);
 }
 
 function monthLabel(month: string): string {
@@ -101,26 +112,32 @@ function renderMonths(months: readonly { month: string; total: number; real: num
   return html`<section class="panel" aria-labelledby="months-title">
     <div class="panel-title"><div><span class="eyebrow">AKUISISI</span><h2 id="months-title">Pendaftaran per bulan</h2></div>
       <div class="legend"><span class="key blue"></span>Asli<span class="key muted"></span>Simulasi, load test, QA</div></div>
-    ${months.length ? html`<div class="bars" role="img" aria-label="Grafik pendaftaran per bulan, angka lengkap ada di tabel di bawahnya">
-      ${months.map(month => html`<div class="bar-col"><span class="bar-value">${month.total || ""}</span>
+    ${months.length ? html`<div class="bars">
+      ${months.map(month => html`<a class="bar-col" href="${view({ segment: "all", month: month.month })}" aria-label="${monthLabel(month.month)}: ${number(month.total)} pendaftaran, ${number(month.real)} asli"><span class="bar-value" aria-hidden="true">${month.total || ""}</span>
         <div class="bar"><div class="bar-other" style="height:${((month.total - month.real) / max * 100).toFixed(2)}%"></div><div class="bar-real" style="height:${(month.real / max * 100).toFixed(2)}%"></div></div>
-        <span class="bar-label">${monthLabel(month.month)}</span></div>`)}
+        <span class="bar-label" aria-hidden="true">${monthLabel(month.month)}</span></a>`)}
     </div>
     <table class="mini"><thead><tr><th>Bulan</th><th>Total daftar</th><th>Asli</th><th>Simulasi, load test, QA</th></tr></thead><tbody>
-      ${[...months].reverse().map(month => html`<tr><td>${monthLabel(month.month)}</td><td>${number(month.total)}</td><td>${number(month.real)}</td><td>${number(month.total - month.real)}</td></tr>`)}
+      ${[...months].reverse().map(month => html`<tr><td><a href="${view({ segment: "all", month: month.month })}">${monthLabel(month.month)}</a></td><td><a href="${view({ segment: "all", month: month.month })}">${number(month.total)}</a></td><td><a href="${view({ segment: "real", month: month.month })}">${number(month.real)}</a></td><td>${number(month.total - month.real)}</td></tr>`)}
     </tbody></table>` : html`<p class="muted">Belum ada pendaftaran.</p>`}
   </section>`;
 }
 
-function renderUsers(data: AdminPanelData, segments: ReadonlyMap<AdminSegmentFilter, number>): SafeHtml {
+function renderUsers(data: AdminPanelData): SafeHtml {
   const { query, page, pages, matches } = data;
+  // Tab counts follow the month filter, so each tab says what clicking it shows.
+  const scoped = inMonth(data.users, query.month);
+  const segments = new Map<AdminSegmentFilter, number>(SEGMENT_FILTERS.map(segment => [segment, 0]));
+  for (const user of scoped) segments.set(accountSegment(user), (segments.get(accountSegment(user)) ?? 0) + 1);
+  segments.set("all", scoped.length);
   const first = matches ? (page - 1) * ADMIN_PAGE_SIZE + 1 : 0;
   return html`<section class="panel" id="users" aria-labelledby="users-title" tabindex="-1">
     <div class="panel-title"><div><span class="eyebrow">DIREKTORI AKUN</span><h2 id="users-title">Pengguna</h2></div><span class="tag">${number(matches)} akun</span></div>
     <div class="tools">
       <nav class="tabs" aria-label="Segmen akun">${SEGMENT_FILTERS.map(segment => html`<a href="${adminHref({ ...query, segment }, 1)}"${segment === query.segment ? html` aria-current="page"` : ""}>${SEGMENT_LABEL[segment]} <span>${number(segments.get(segment) ?? 0)}</span></a>`)}</nav>
+      ${query.month ? html`<a class="chip" href="${adminHref({ ...query, month: "" }, 1)}" aria-label="Hapus filter bulan ${monthLabel(query.month)}">Daftar ${monthLabel(query.month)} <span aria-hidden="true">✕</span></a>` : ""}
       <form class="search" method="get" action="/#users" role="search">
-        <input type="hidden" name="segment" value="${query.segment}">
+        <input type="hidden" name="segment" value="${query.segment}">${query.month ? html`<input type="hidden" name="month" value="${query.month}">` : ""}
         <label class="sr" for="admin-q">Cari email atau User ID</label>
         <input id="admin-q" type="search" name="q" value="${query.q}" maxlength="100" placeholder="Cari email atau User ID" autocomplete="off">
         <button class="button" type="submit">Cari</button>${query.q ? html`<a class="clear" href="${adminHref({ ...query, q: "" }, 1)}">Hapus</a>` : ""}
@@ -154,7 +171,8 @@ function renderRow({ user, wallet, username, sentTx }: AdminAccountRow, adminIds
 /** Admin-host link that keeps the active filters. */
 export function adminHref(query: AdminQuery, page: number): string {
   const params = new URLSearchParams();
-  if (query.segment !== "all") params.set("segment", query.segment);
+  if (query.segment !== DEFAULT_SEGMENT) params.set("segment", query.segment);
+  if (query.month) params.set("month", query.month);
   if (query.q) params.set("q", query.q);
   if (page > 1) params.set("page", String(page));
   const search = params.toString();
@@ -178,9 +196,14 @@ h1,h2{margin:0;letter-spacing:-.02em}code{font-family:var(--mono)}.sr{position:a
 .side nav a{padding:8px 10px;border-radius:8px;color:var(--ink2);text-decoration:none;font-weight:500}.side nav a:hover{background:var(--panel2);color:var(--ink)}
 .side-foot{margin-top:auto;display:grid;gap:4px;font-size:12px;color:var(--ink3)}.side-foot code{color:var(--ink2)}.side-foot a{margin-top:6px;text-decoration:none}
 main{padding:28px clamp(16px,3vw,40px) 48px;display:grid;gap:20px;align-content:start;min-width:0}
-.head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}.head h1{font-size:30px;font-weight:650}.head p{margin:4px 0 0;color:var(--ink3)}
+.head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}.head h1{font-size:30px;font-weight:650}.head p{margin:4px 0 0;color:var(--ink3)}.head .viewer-line{margin-top:2px;font-size:13px}.viewer-line b{color:var(--ink2);font-weight:600}
+.viewer{color:var(--ink);font-weight:600;word-break:break-all}
 .ribbon{display:grid;grid-template-columns:1.35fr repeat(3,1fr);border:1px solid var(--line);border-radius:18px;overflow:hidden;background:var(--panel)}
-.stat{display:grid;gap:8px;padding:18px 20px;border-left:1px solid var(--line);position:relative}.stat:first-child{border-left:0;background:linear-gradient(135deg,rgba(37,99,235,.22),transparent 70%)}
+.stat{display:grid;gap:8px;align-content:start;padding:18px 20px;border-left:1px solid var(--line);position:relative;transition:background .15s}
+.stat-link{display:grid;gap:8px;color:inherit;text-decoration:none}.stat-link::after{content:"";position:absolute;inset:0}
+.stat:hover{background:rgba(122,162,255,.07)}.stat:focus-within{box-shadow:inset 0 0 0 2px var(--blue)}.stat-link:focus-visible{outline:none}
+.cue{position:absolute;top:16px;right:18px;font-size:13px;color:var(--ink3);transition:color .15s,transform .15s}.stat:hover .cue{color:var(--blue);transform:translate(2px,-2px)}
+.stat small a{position:relative;z-index:1;color:var(--ink2);text-decoration:underline;text-decoration-color:rgba(169,182,204,.35);text-underline-offset:3px}.stat small a:hover{color:var(--blue)}.stat:first-child{border-left:0;background:linear-gradient(135deg,rgba(37,99,235,.22),transparent 70%)}
 .stat strong{font:500 34px/1 var(--mono);letter-spacing:-.03em;font-variant-numeric:tabular-nums}.stat:first-child strong{font-size:44px}
 .stat small{color:var(--ink3);font-size:12px}.stat.blue strong{color:#cfdcff}.stat.green strong{color:var(--green)}.stat.violet strong{color:var(--violet)}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:20px;min-width:0;scroll-margin-top:16px}
@@ -188,17 +211,18 @@ main{padding:28px clamp(16px,3vw,40px) 48px;display:grid;gap:20px;align-content:
 .tag{font:500 12px var(--mono);color:var(--ink2);background:var(--panel2);padding:5px 10px;border-radius:999px}
 .legend{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink3)}.key{width:10px;height:10px;border-radius:3px;margin-left:8px}.key.blue{background:var(--action)}.key.muted{background:#3a4867}
 .bars{display:flex;align-items:flex-end;gap:14px;height:190px;padding:0 4px 4px;border-bottom:1px solid var(--line);overflow-x:auto}
-.bar-col{flex:1 1 0;min-width:52px;max-width:96px;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%}.bar{flex:1;width:min(44px,70%);display:flex;flex-direction:column;justify-content:flex-end}
+.bar-col{flex:1 1 0;min-width:52px;max-width:96px;display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;text-decoration:none;border-radius:8px;transition:background .15s}.bar-col:hover{background:rgba(122,162,255,.07)}.bar-col:hover .bar-label{color:var(--blue)}.bar{flex:1;width:min(44px,70%);display:flex;flex-direction:column;justify-content:flex-end}
 .bar-real{background:linear-gradient(180deg,#5b8cff,var(--action));border-radius:0 0 6px 6px}.bar-other{background:#3a4867;border-radius:6px 6px 0 0}.bar-real:first-child,.bar-other:last-child{border-radius:6px}
 .bar-value{font:500 12px var(--mono);color:var(--ink2)}.bar-label{font:500 11px var(--mono);color:var(--ink3);white-space:nowrap}
 table{width:100%;border-collapse:collapse}th{text-align:left;font:500 11px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
 td{padding:12px;border-bottom:1px solid var(--line);vertical-align:top}tbody tr:hover td{background:rgba(122,162,255,.05)}
-.mini{margin-top:14px;font-variant-numeric:tabular-nums}.mini th{white-space:normal}.mini td{padding:8px 12px;color:var(--ink2)}.mini td:first-child{color:var(--ink)}
+.mini{margin-top:14px;font-variant-numeric:tabular-nums}.mini th{white-space:normal}.mini td{padding:8px 12px;color:var(--ink2)}.mini td:first-child{color:var(--ink)}.mini td a{color:inherit;text-decoration:none}.mini td a:hover{color:var(--blue);text-decoration:underline}.mini tbody tr:hover td{background:rgba(122,162,255,.05)}
 .tools{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
 .tabs{display:flex;gap:4px;flex-wrap:wrap;background:var(--bg);padding:4px;border-radius:12px;border:1px solid var(--line)}
 .tabs a{padding:6px 11px;border-radius:9px;color:var(--ink2);text-decoration:none;font-weight:500;font-size:13px}.tabs a span{font:500 11px var(--mono);color:var(--ink3);margin-left:4px}
 .tabs a:hover{color:var(--ink)}.tabs a[aria-current]{background:var(--panel2);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}
-.search{display:flex;gap:8px;align-items:center}.search input[type=search]{width:min(280px,60vw);background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:9px 12px;font:inherit}
+.chip{display:inline-flex;align-items:center;gap:8px;align-self:center;padding:6px 10px;border-radius:999px;background:rgba(37,99,235,.18);color:#cfdcff;text-decoration:none;font-size:13px;font-weight:500}.chip:hover{background:rgba(37,99,235,.3)}
+.search{display:flex;gap:8px;align-items:center;margin-left:auto}.search input[type=search]{width:min(280px,60vw);background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:9px 12px;font:inherit}
 .search input::placeholder{color:var(--ink3)}.clear{font-size:13px}
 .table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px}.users{min-width:880px}
 .users td small{display:block;color:var(--ink3);font-size:12px;margin-top:2px}.strong{font-weight:600}.email{word-break:break-all}

@@ -13,7 +13,8 @@ export interface AdminAuthUser {
   user_metadata?: Record<string, unknown>;
 }
 
-export interface AdminQuery { segment: AdminSegmentFilter; q: string; page: number }
+/** month is a WIB calendar month ("2026-11") or "" for every month. */
+export interface AdminQuery { segment: AdminSegmentFilter; q: string; page: number; month: string }
 export interface MonthlySignups { month: string; total: number; real: number }
 
 /** "none" is a confirmed absence; "error" means the read failed and proves nothing. */
@@ -26,10 +27,12 @@ export interface AdminAccountRow {
 }
 
 export const ADMIN_PAGE_SIZE = 25;
-export const SEGMENT_FILTERS: readonly AdminSegmentFilter[] = ["all", "real", "simulation", "load_test", "qa"];
+export const SEGMENT_FILTERS: readonly AdminSegmentFilter[] = ["real", "all", "simulation", "load_test", "qa"];
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
 const MAX_QUERY_LENGTH = 100;
+/** The directory opens on real users; test traffic is one click away. */
+export const DEFAULT_SEGMENT: AdminSegmentFilter = "real";
 
 /**
  * Segment an account so test traffic never reads as traction.
@@ -92,19 +95,26 @@ export function sentTransactionCount(sequence: unknown): number | null {
 }
 
 export function parseAdminQuery(params: URLSearchParams): AdminQuery {
-  const segment = params.get("segment") ?? "all";
+  const segment = params.get("segment") ?? DEFAULT_SEGMENT;
   const page = Number(params.get("page"));
+  const month = params.get("month") ?? "";
   return {
-    segment: (SEGMENT_FILTERS as readonly string[]).includes(segment) ? segment as AdminSegmentFilter : "all",
+    segment: (SEGMENT_FILTERS as readonly string[]).includes(segment) ? segment as AdminSegmentFilter : DEFAULT_SEGMENT,
     q: (params.get("q") ?? "").trim().slice(0, MAX_QUERY_LENGTH),
     page: Number.isSafeInteger(page) && page > 0 ? page : 1,
+    month: /^[0-9]{4}-(0[1-9]|1[0-2])$/.test(month) ? month : "",
   };
 }
 
-/** Newest first, filtered by segment and an email / user ID substring. */
+/** Users in a WIB signup month ("" keeps everyone). */
+export function inMonth(users: readonly AdminAuthUser[], month: string): AdminAuthUser[] {
+  return month ? users.filter(user => Number.isFinite(Date.parse(user.created_at)) && wibMonth(user.created_at) === month) : [...users];
+}
+
+/** Newest first, filtered by signup month, segment and an email / user ID substring. */
 export function filterUsers(users: readonly AdminAuthUser[], query: AdminQuery): AdminAuthUser[] {
   const needle = query.q.toLowerCase();
-  return users
+  return inMonth(users, query.month)
     .filter(user => query.segment === "all" || accountSegment(user) === query.segment)
     .filter(user => !needle || (user.email ?? "").toLowerCase().includes(needle) || user.id.toLowerCase().includes(needle))
     .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
