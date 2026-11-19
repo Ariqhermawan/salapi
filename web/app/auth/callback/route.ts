@@ -5,6 +5,7 @@ import { authRedirectPath } from "@/lib/authRedirect";
 import { safeAppFallback } from "@/lib/ui/app-navigation";
 import { isLocalPreview } from "@/lib/local-preview";
 import { prepareAuthenticatedWallet } from "@/lib/server/userWallet";
+import { hostHeaderName, isAdminHost } from "@/lib/admin-host";
 
 // OAuth redirect target: exchange the ?code for a session, then go to the app.
 export async function GET(request: Request) {
@@ -40,6 +41,9 @@ export async function GET(request: Request) {
       // Provider/cookie failures must remain retryable without exposing codes.
       return redirect(`/signin?error=oauth&next=${encodeURIComponent(next)}`);
     }
+    // The admin host needs only the session. Wallet setup, and its /wallet/setup
+    // recovery page, belong to the app host (that page is a 404 on admin.*).
+    if (isAdminHost(hostHeaderName(request.headers.get("host")))) return redirect(next);
     // The session is valid even if wallet setup is temporarily unavailable.
     // Keep its cookies and original destination; never silently use demo keys.
     try {
