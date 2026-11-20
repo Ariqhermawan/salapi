@@ -5,6 +5,8 @@
 import { readAdminAccess } from "@/lib/server/adminAccess";
 import { loadAccountRows, loadAdminDirectory } from "@/lib/server/adminDirectory";
 import { readSnapshotState } from "@/lib/server/adminSnapshot";
+import { loadAdminUserDetail } from "@/lib/server/adminUserDetail";
+import { renderAdminUserDetail, renderAdminUserMissing } from "@/lib/admin-detail-view";
 import { hostHeaderName, isAdminHost } from "@/lib/admin-host";
 import { ADMIN_PAGE_SIZE, filterUsers, markTeam, parseAdminIds, parseAdminQuery } from "@/lib/admin-users";
 import { renderAdminDocument, renderAdminGate, renderAdminPanel } from "@/lib/admin-view";
@@ -38,6 +40,18 @@ export async function GET(request: Request): Promise<Response> {
     ]);
     // Admins are always team; SALAPI_TEAM_USER_IDS adds other internal accounts.
     const users = markTeam(directory.users, new Set([...access.adminIds, ...parseAdminIds(process.env.SALAPI_TEAM_USER_IDS)]));
+    const viewer = { viewerId: access.userId, viewerEmail: access.email, appUrl: APP_URL };
+    if (params.has("user")) {
+      const [id] = parseAdminIds(params.get("user") ?? "");
+      const target = id ? users.find(user => user.id.toLowerCase() === id) : undefined;
+      if (!target) return new Response(renderAdminDocument("Salapi Admin", renderAdminUserMissing(viewer)), { status: 404, headers: HEADERS });
+      const handles = new Map<string, string>();
+      for (const row of snapshot?.latest.values() ?? []) if (row.wallet && row.username) handles.set(row.wallet, row.username);
+      const detail = await loadAdminUserDetail(target);
+      return new Response(renderAdminDocument(`${target.email ?? target.id} · Salapi Admin`, renderAdminUserDetail({
+        ...viewer, detail, isAdmin: access.adminIds.has(target.id.toLowerCase()), handles,
+      })), { headers: HEADERS });
+    }
     const txById = snapshot ? new Map([...snapshot.latest].map(([id, row]) => [id, row.txSent])) : undefined;
     const matches = filterUsers(users, query, txById);
     if (params.get("format") === "xlsx") {

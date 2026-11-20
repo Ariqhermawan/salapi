@@ -70,13 +70,7 @@ export function renderAdminPanel(data: AdminPanelData): SafeHtml {
   const thisMonth = months.at(-1) ?? { month: "", total: 0, real: 0 };
   const total = data.users.length;
   const count = (segment: AdminSegmentFilter) => number(segments.get(segment) ?? 0);
-  return html`<div class="admin">
-  <aside class="side">
-    <a class="brand" href="#overview"><img src="/icon.svg" alt="" width="30" height="30"><span>Salapi <b>Admin</b></span><em>Testnet</em></a>
-    <nav aria-label="Menu admin"><p class="group">Pantau</p><a href="#overview">Ringkasan</a><a href="#users">Pengguna</a></nav>
-    <div class="side-foot"><span>Admin</span><strong class="viewer">${data.viewerEmail ?? "Tanpa email"}</strong><code title="${data.viewerId}">${data.viewerId.slice(0, 8)}</code><a href="${data.appUrl}" target="_blank" rel="noopener noreferrer">Buka Salapi ↗</a></div>
-  </aside>
-  <main>
+  return renderShell(data, "", html`
     <header class="head" id="overview" tabindex="-1">
       <div><h1>Ringkasan admin</h1><p>${LONG.format(data.now)} · ${TIME.format(data.now)} WIB · Stellar Testnet</p>
         <p class="viewer-line">Masuk sebagai <b>${data.viewerEmail ?? data.viewerId}</b> · Admin</p></div>
@@ -93,8 +87,20 @@ export function renderAdminPanel(data: AdminPanelData): SafeHtml {
     ${renderActivation(data)}
     ${renderMonths(months, days)}
     ${renderUsers(data)}
-    <footer class="foot">Salapi Admin · Waktu dalam WIB · Data akun dari Supabase, username dan transaksi dari Stellar Testnet</footer>
-  </main>
+    <footer class="foot">Salapi Admin · Waktu dalam WIB · Data akun dari Supabase, username dan transaksi dari Stellar Testnet</footer>`);
+}
+
+export interface AdminViewer { viewerId: string; viewerEmail: string | null; appUrl: string }
+
+/** Sidebar + main column shared by the overview and the account detail page. `base` prefixes the section anchors ("/" off the overview). */
+export function renderShell(viewer: AdminViewer, base: "" | "/", main: SafeHtml): SafeHtml {
+  return html`<div class="admin">
+  <aside class="side">
+    <a class="brand" href="${base}#overview"><img src="/icon.svg" alt="" width="30" height="30"><span>Salapi <b>Admin</b></span><em>Testnet</em></a>
+    <nav aria-label="Menu admin"><p class="group">Pantau</p><a href="${base}#overview">Ringkasan</a><a href="${base}#users">Pengguna</a></nav>
+    <div class="side-foot"><span>Admin</span><strong class="viewer">${viewer.viewerEmail ?? "Tanpa email"}</strong><code title="${viewer.viewerId}">${viewer.viewerId.slice(0, 8)}</code><a href="${viewer.appUrl}" target="_blank" rel="noopener noreferrer">Buka Salapi ↗</a></div>
+  </aside>
+  <main>${main}</main>
 </div>`;
 }
 
@@ -210,7 +216,7 @@ function renderRow({ user, wallet, username, sentTx }: AdminAccountRow, adminIds
   return html`<tr>
     <td data-label="Daftar">${valid(user.created_at) ? html`<span class="strong">${DAY.format(new Date(user.created_at))}</span><small>${TIME.format(new Date(user.created_at))} WIB</small>` : "Tidak diketahui"}
       <small>${valid(user.last_sign_in_at) ? html`Masuk terakhir ${DAY.format(new Date(user.last_sign_in_at))}` : "Belum pernah masuk"}</small></td>
-    <td data-label="Akun"><span class="strong email">${user.email || "Tanpa email"}</span>
+    <td data-label="Akun"><a class="strong email" href="/?user=${user.id}">${user.email || "Tanpa email"}</a>
       <small><span class="pill ${segment}">${SEGMENT_LABEL[segment]}</span>${adminIds.has(user.id.toLowerCase()) ? html`<span class="pill admin">Admin</span>` : ""}${provider} · <code title="${user.id}">${user.id.slice(0, 8)}</code></small></td>
     <td data-label="Username">${username.status === "ok" ? html`<span class="handle">@${username.value}</span>` : username.status === "none" ? html`<span class="muted">Belum dibuat</span>` : failed}</td>
     <td data-label="Wallet">${wallet.status === "ok" ? html`<a class="addr" href="https://stellar.expert/explorer/testnet/account/${wallet.value}" target="_blank" rel="noopener noreferrer">${wallet.value}</a>` : wallet.status === "none" ? html`<span class="muted">Belum dibuat</span>` : failed}</td>
@@ -277,7 +283,10 @@ td{padding:12px;border-bottom:1px solid var(--line);vertical-align:top}tbody tr:
 .search{display:flex;gap:8px;align-items:center;margin-left:auto}.search input[type=search]{width:min(280px,60vw);background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:9px 12px;font:inherit}
 .search input::placeholder{color:var(--ink3)}.clear{font-size:13px}
 .table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px}.users{min-width:880px}
-.users td small{display:block;color:var(--ink3);font-size:12px;margin-top:2px}.strong{font-weight:600}.email{word-break:break-all}
+.users td small{display:block;color:var(--ink3);font-size:12px;margin-top:2px}.strong{font-weight:600}a.email{color:var(--ink);text-decoration:none;border-bottom:1px solid transparent}a.email:hover{color:var(--blue);border-bottom-color:currentColor}
+.back{display:inline-block;margin-bottom:8px;font-size:13px;text-decoration:none}.detail-email{word-break:break-all}.facts .stat strong{font-size:22px}.facts .stat:first-child strong{font-size:26px}
+.detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}.detail-grid .panel{margin:0}.list{list-style:none;margin:0;padding:0;display:grid;gap:8px}.list li{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}.list li:last-child{border-bottom:0}.list small{color:var(--ink3)}
+.dir-sent{color:var(--amber)}.dir-received{color:var(--green)}@media (max-width:1100px){.detail-grid{grid-template-columns:1fr}}.email{word-break:break-all}
 .users code{font-size:11px;color:var(--ink3)}.handle{font-weight:600;color:var(--blue)}
 .addr{font:12px/1.45 var(--mono);color:var(--ink2);word-break:break-all;display:inline-block;max-width:30ch;text-decoration:none;border-bottom:1px dashed rgba(122,162,255,.35)}.addr:hover{color:var(--blue)}
 .num{text-align:right}.count{font:500 18px var(--mono);font-variant-numeric:tabular-nums}

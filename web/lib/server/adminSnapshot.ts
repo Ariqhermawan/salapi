@@ -8,7 +8,9 @@ const DAY_MS = 86_400_000;
 const PAGE = 1000; // PostgREST's default row cap per request
 const WEEK_DAYS = 7;
 
-export interface SnapshotRun { ok: true; day: string; written: number; skipped: number }
+export interface SnapshotRun { ok: true; day: string; written: number; skipped: number; recent?: true }
+/** A second run within this window does nothing (bounds Horizon/RPC load if the trigger is abused). */
+const COOLDOWN_MS = 60 * 60 * 1000;
 
 /**
  * Today's (WIB) username + sent-tx snapshot for every account. An account with
@@ -17,9 +19,12 @@ export interface SnapshotRun { ok: true; day: string; written: number; skipped: 
  * maxDuration up to roughly 600 accounts; past that, spread users across runs.
  */
 export async function writeAccountSnapshot(now = new Date()): Promise<SnapshotRun> {
+  const day = wibDay(now.toISOString());
+  const last = await createSupabaseAdmin().from(TABLE).select("captured_at").order("captured_at", { ascending: false }).limit(1).maybeSingle();
+  if (last.error) throw new Error("Snapshot read failed.");
+  if (last.data && now.getTime() - Date.parse(String(last.data.captured_at)) < COOLDOWN_MS) return { ok: true, day, written: 0, skipped: 0, recent: true };
   const { users } = await loadAdminDirectory();
   const rows = await loadAccountRows(users);
-  const day = wibDay(now.toISOString());
   const records = rows
     .filter(row => row.wallet.status !== "error" && row.username.status !== "error" && row.sentTx.status !== "error")
     .map(row => ({
