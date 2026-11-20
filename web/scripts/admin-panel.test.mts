@@ -749,3 +749,15 @@ test("a snapshot within an hour of the last one does no reads or writes", async 
   const later = snapshotModule({ rows, stored });
   assert.deepEqual(plain(await later.api.writeAccountSnapshot(new Date("2026-11-20T08:00:00Z"))), { ok: true, day: "2026-11-20", written: 1, skipped: 0 });
 });
+
+test("the page layout class never collides with the Admin pill (the pill once grew to full screen height)", () => {
+  const page = renderAdminDocument("Admin", renderAdminPanel({
+    users: [user({ id: adminId })], walletCount: 1, rows: [{ user: user({ id: adminId }), wallet: { status: "none" }, username: { status: "none" }, sentTx: { status: "none" } }],
+    query: { segment: "all", q: "", page: 1, month: "", sort: "daftar" }, page: 1, pages: 1, matches: 1,
+    adminIds: new Set([adminId]), viewerId: adminId, viewerEmail: null, now: new Date(), appUrl: "https://salapi.app",
+  }));
+  assert.match(page, /<div class="shell">/);
+  assert.match(page, /<span class="pill admin">Admin<\/span>/);
+  // No stylesheet rule may target a bare .admin (only .pill.admin).
+  assert.doesNotMatch(page.match(/<style>([\s\S]*)<\/style>/)![1], /(^|[}\s,])\.admin\b/);
+});
