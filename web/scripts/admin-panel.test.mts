@@ -799,10 +799,10 @@ test("the filter bar keeps segment and sort, offers every signup month, and show
     users, walletCount: 2, rows: [], query: { segment: "all", q: "budi", page: 1, month: "", sort: "masuk", from: "2026-11-01", to: "2026-11-15" }, page: 1, pages: 1, matches: 0,
     adminIds: new Set(), viewerId: adminId, viewerEmail: null, now: new Date("2026-11-20T05:00:00Z"), appUrl: "https://salapi.app",
   }));
-  assert.match(page, /<form class="filters" method="get" action="\/#users" role="search" aria-label="Filter pengguna">\s*<input type="hidden" name="segment" value="all"><input type="hidden" name="sort" value="masuk">/);
+  assert.match(page, /<form class="filters" method="get" action="\/#users" novalidate role="search" aria-label="Filter pengguna">\s*<input type="hidden" name="segment" value="all"><input type="hidden" name="sort" value="masuk">/);
   assert.match(page, /<select name="month"><option value="">Semua bulan<\/option><option value="2026-11">Nov 2026 · bulan ini<\/option><option value="2026-10">Okt 2026<\/option><option value="2026-09">Sep 2026<\/option><\/select>/);
-  assert.match(page, /<input type="date" name="from" value="2026-11-01" min="2026-09-10" max="2026-11-20">/);
-  assert.match(page, /<input type="date" name="to" value="2026-11-15" min="2026-09-10" max="2026-11-20">/);
+  assert.match(page, /<input type="date" name="from" value="2026-11-01" max="2026-11-20">/);
+  assert.match(page, /<input type="date" name="to" value="2026-11-15" max="2026-11-20">/);
   assert.match(page, /<a class="chip" href="\/\?segment=all&amp;q=budi&amp;sort=masuk#users" aria-label="Hapus filter tanggal">Daftar 1 Nov 2026 sampai 15 Nov 2026/);
   assert.match(page, /aria-label="Hapus pencarian">Cari "budi" </);
   assert.match(page, /<a class="clear" href="\/\?segment=all&amp;sort=masuk#users">Reset<\/a>/);
