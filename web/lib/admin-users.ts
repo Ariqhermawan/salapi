@@ -3,8 +3,8 @@
 
 export type AdminSegment = "real" | "team" | "simulation" | "load_test" | "qa";
 export type AdminSegmentFilter = AdminSegment | "all";
-/** Directory order: newest signup first, or most recent sign-in first. */
-export type AdminSort = "daftar" | "masuk";
+/** Directory order: newest signup, most recent sign-in, or most sent transactions (snapshot). */
+export type AdminSort = "daftar" | "masuk" | "tx";
 
 export interface AdminAuthUser {
   id: string;
@@ -24,6 +24,29 @@ export interface DailySignups { day: string; total: number; real: number }
 
 /** "none" is a confirmed absence; "error" means the read failed and proves nothing. */
 export type Lookup<T> = { status: "ok"; value: T } | { status: "none" } | { status: "error" };
+/** One account in a daily snapshot: null = confirmed none (reads that failed are never stored). */
+export interface AccountSnapshot { wallet: string | null; username: string | null; txSent: number }
+export interface SnapshotState {
+  day: string;
+  capturedAt: string;
+  latest: ReadonlyMap<string, AccountSnapshot>;
+  /** The newest snapshot at least 7 days older than `day`, once history reaches that far. */
+  weekAgoDay: string | null;
+  weekAgo: ReadonlyMap<string, AccountSnapshot> | null;
+}
+export interface ActivationFunnel {
+  registered: number;
+  /** Accounts with a row in the latest snapshot (newer signups wait for the next run). */
+  covered: number;
+  username: number;
+  transacted: number;
+  regular: number;
+  signedIn7: number;
+  signedIn30: number;
+  /** Accounts that sent a transaction (beyond their username) since weekAgoDay, or null without history. */
+  transacting7: number | null;
+}
+
 export interface AdminAccountRow {
   user: AdminAuthUser;
   wallet: Lookup<string>;
@@ -34,7 +57,7 @@ export interface AdminAccountRow {
 export const ADMIN_PAGE_SIZE = 25;
 export const SEGMENT_FILTERS: readonly AdminSegmentFilter[] = ["real", "all", "team", "simulation", "load_test", "qa"];
 export const SEGMENT_LABEL: Record<AdminSegmentFilter, string> = { all: "Semua", real: "Asli", team: "Tim", simulation: "Simulasi", load_test: "Load test", qa: "QA" };
-export const SORTS: readonly AdminSort[] = ["daftar", "masuk"];
+export const SORTS: readonly AdminSort[] = ["daftar", "masuk", "tx"];
 
 export function providerLabel(user: AdminAuthUser): string {
   const provider = user.app_metadata?.provider;
@@ -159,13 +182,55 @@ const time = (iso: string | null | undefined): number => {
   return Number.isFinite(value) ? value : -Infinity;
 };
 
-/** Filtered by signup month, segment and an email / user ID substring, in the requested order. */
-export function filterUsers(users: readonly AdminAuthUser[], query: AdminQuery): AdminAuthUser[] {
+/**
+ * Filtered by signup month, segment and an email / user ID substring, in the
+ * requested order. "tx" sorts by the snapshot's sent count (no snapshot row = last).
+ */
+export function filterUsers(users: readonly AdminAuthUser[], query: AdminQuery, txById?: ReadonlyMap<string, number>): AdminAuthUser[] {
   const needle = query.q.toLowerCase();
-  const key = (user: AdminAuthUser) => time(query.sort === "masuk" ? user.last_sign_in_at : user.created_at);
+  const key = (user: AdminAuthUser) => query.sort === "tx" ? txById?.get(user.id) ?? -Infinity
+    : time(query.sort === "masuk" ? user.last_sign_in_at : user.created_at);
   return inMonth(users, query.month)
     .filter(user => query.segment === "all" || accountSegment(user) === query.segment)
     .filter(user => !needle || (user.email ?? "").toLowerCase().includes(needle) || user.id.toLowerCase().includes(needle))
     // Never signed in (or no date) goes last; ties fall back to newest signup.
     .sort((a, b) => (key(b) - key(a)) || (time(b.created_at) - time(a.created_at)) || 0);
+}
+
+/**
+ * Transactions beyond the username claim: registering a username is itself one
+ * sent transaction. An approximation (a failed attempt also counts), stated as such in the panel.
+ */
+export function activity(snapshot: AccountSnapshot): number {
+  return Math.max(0, snapshot.txSent - (snapshot.username ? 1 : 0));
+}
+
+const signedInWithin = (user: AdminAuthUser, now: Date, days: number) => {
+  const at = Date.parse(user.last_sign_in_at ?? "");
+  return Number.isFinite(at) && now.getTime() - at <= days * DAY_MS;
+};
+
+/** Activation of the given (real) accounts: on-chain steps from the snapshot, sign-ins live from Auth. */
+export function activationFunnel(users: readonly AdminAuthUser[], snapshot: SnapshotState | null, now: Date): ActivationFunnel {
+  const rows = snapshot ? users.map(user => snapshot.latest.get(user.id)).filter((row): row is AccountSnapshot => !!row) : [];
+  let transacting7: number | null = null;
+  if (snapshot?.weekAgo) {
+    const before = snapshot.weekAgo;
+    transacting7 = users.filter(user => {
+      const current = snapshot.latest.get(user.id);
+      if (!current) return false;
+      const earlier = before.get(user.id);
+      return activity(current) > (earlier ? activity(earlier) : 0);
+    }).length;
+  }
+  return {
+    registered: users.length,
+    covered: rows.length,
+    username: rows.filter(row => row.username).length,
+    transacted: rows.filter(row => activity(row) >= 1).length,
+    regular: rows.filter(row => activity(row) >= 3).length,
+    signedIn7: users.filter(user => signedInWithin(user, now, 7)).length,
+    signedIn30: users.filter(user => signedInWithin(user, now, 30)).length,
+    transacting7,
+  };
 }

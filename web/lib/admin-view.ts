@@ -1,7 +1,7 @@
 // Server-rendered, script-free HTML for the admin host (admin.salapi.app). Pure:
 // data in, document out. Links are relative to that host's "/"; appUrl is the main app.
 import { html, SafeHtml } from "./admin-html.ts";
-import { ADMIN_PAGE_SIZE, DEFAULT_SEGMENT, SEGMENT_FILTERS, SEGMENT_LABEL, SORTS, accountSegment, dailySignups, providerLabel, inMonth, monthlySignups, type AdminAccountRow, type AdminAuthUser, type AdminQuery, type AdminSegmentFilter, type AdminSort, type DailySignups } from "./admin-users.ts";
+import { ADMIN_PAGE_SIZE, DEFAULT_SEGMENT, SEGMENT_FILTERS, SEGMENT_LABEL, SORTS, accountSegment, activationFunnel, dailySignups, providerLabel, inMonth, monthlySignups, type AdminAccountRow, type AdminAuthUser, type AdminQuery, type AdminSegmentFilter, type AdminSort, type DailySignups, type SnapshotState } from "./admin-users.ts";
 
 export interface AdminPanelData {
   users: readonly AdminAuthUser[];
@@ -14,6 +14,8 @@ export interface AdminPanelData {
   adminIds: ReadonlySet<string>;
   viewerId: string;
   viewerEmail: string | null;
+  /** null = no snapshot yet; undefined = the snapshot read failed. */
+  snapshot?: SnapshotState | null;
   now: Date;
   appUrl: string;
 }
@@ -26,7 +28,7 @@ const TIME = fmt({ hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 const LONG = fmt({ weekday: "long", day: "numeric", month: "long", year: "numeric" });
 const MONTH = new Intl.DateTimeFormat("id-ID", { month: "short", year: "numeric", timeZone: "UTC" });
 const DAY_SHORT = new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", timeZone: "UTC" });
-const SORT_LABEL: Record<AdminSort, string> = { daftar: "Daftar terbaru", masuk: "Terakhir masuk" };
+const SORT_LABEL: Record<AdminSort, string> = { daftar: "Daftar terbaru", masuk: "Terakhir masuk", tx: "Tx terbanyak" };
 const number = (value: number) => value.toLocaleString("id-ID");
 const valid = (iso: string | null | undefined): iso is string => typeof iso === "string" && Number.isFinite(Date.parse(iso));
 
@@ -88,6 +90,7 @@ export function renderAdminPanel(data: AdminPanelData): SafeHtml {
       ${stat("Total akun", number(total), html`<a href="${view({ segment: "team" })}">${count("team")} tim</a> · <a href="${view({ segment: "simulation" })}">${count("simulation")} simulasi</a> · <a href="${view({ segment: "load_test" })}">${count("load_test")} load test</a> · <a href="${view({ segment: "qa" })}">${count("qa")} QA</a>`, "", view({ segment: "all" }))}
       ${stat("Punya wallet", data.walletCount === null ? "Gagal dimuat" : number(data.walletCount), data.walletCount === null || !total ? html`Wallet custodial Testnet` : html`${Math.round(data.walletCount / total * 100)}% dari semua akun`, "violet", view({ segment: "all" }))}
     </section>
+    ${renderActivation(data)}
     ${renderMonths(months, days)}
     ${renderUsers(data)}
     <footer class="foot">Salapi Admin · Waktu dalam WIB · Data akun dari Supabase, username dan transaksi dari Stellar Testnet</footer>
@@ -126,6 +129,35 @@ function renderMonths(months: readonly { month: string; total: number; real: num
   </section>`;
 }
 
+/** Real accounts from sign-up to repeat use; on-chain steps come from the daily snapshot. */
+function renderActivation(data: AdminPanelData): SafeHtml {
+  const { snapshot } = data;
+  const funnel = activationFunnel(data.users.filter(user => accountSegment(user) === "real"), snapshot ?? null, data.now);
+  const base = Math.max(1, funnel.registered);
+  const step = (label: string, value: number | null, hint?: string) => html`<div class="step">
+      <div class="step-label"><span>${label}${hint ? html`<small>${hint}</small>` : ""}</span><b>${value === null ? "Belum ada data" : number(value)}</b>${value === null ? "" : html`<em>${Math.round(value / base * 100)}%</em>`}</div>
+      <div class="step-bar"><i style="width:${value === null ? 0 : (value / base * 100).toFixed(1)}%"></i></div></div>`;
+  const onChain = (value: number) => (snapshot ? value : null);
+  const status = snapshot === undefined ? "Snapshot gagal dimuat" : snapshot === null ? "Belum ada snapshot"
+    : `Snapshot ${DAY.format(new Date(snapshot.capturedAt))}, ${TIME.format(new Date(snapshot.capturedAt))} WIB`;
+  return html`<section class="panel" aria-labelledby="funnel-title">
+    <div class="panel-title"><div><span class="eyebrow">AKTIVASI · PENGGUNA ASLI</span><h2 id="funnel-title">Dari daftar ke transaksi</h2></div><span class="tag">${status}</span></div>
+    <div class="funnel">
+      ${step("Terdaftar", funnel.registered)}
+      ${step("Punya username", onChain(funnel.username))}
+      ${step("Pernah bertransaksi", onChain(funnel.transacted), "≥1 transaksi selain klaim username")}
+      ${step("Rutin", onChain(funnel.regular), "≥3 transaksi selain klaim username")}
+    </div>
+    <div class="active-grid">
+      <div><strong>${number(funnel.signedIn7)}</strong><span>Masuk 7 hari terakhir</span></div>
+      <div><strong>${number(funnel.signedIn30)}</strong><span>Masuk 30 hari terakhir</span></div>
+      <div><strong>${funnel.transacting7 === null ? "Belum ada" : number(funnel.transacting7)}</strong><span>${funnel.transacting7 === null ? "Bertransaksi 7 hari (butuh 7 hari riwayat snapshot)" : "Bertransaksi 7 hari terakhir"}</span></div>
+    </div>
+    ${snapshot && funnel.covered < funnel.registered ? html`<p class="note">${number(funnel.registered - funnel.covered)} akun asli belum ada di snapshot (daftar setelahnya atau gagal dibaca) dan akan ikut di snapshot berikutnya.</p>` : ""}
+    <p class="note">Langkah on-chain diambil dari snapshot harian pukul 00.15 WIB. Klaim username juga dihitung satu transaksi, jadi "bertransaksi" hanya menghitung transaksi di luar itu. Angka ini perkiraan karena percobaan yang gagal di ledger ikut terhitung. Data masuk diambil langsung dari Supabase Auth.</p>
+  </section>`;
+}
+
 /** Thin stacked bars for the last 30 WIB days; exact counts are in each bar's tooltip. */
 function renderDaily(days: readonly DailySignups[]): SafeHtml {
   if (!days.length) return html``;
@@ -160,7 +192,7 @@ function renderUsers(data: AdminPanelData): SafeHtml {
         <button class="button" type="submit">Cari</button>${query.q ? html`<a class="clear" href="${adminHref({ ...query, q: "" }, 1)}">Hapus</a>` : ""}
       </form>
     </div>
-    <nav class="sorts" aria-label="Urutan"><span class="muted">Urutkan</span>${SORTS.map(sort => html`<a href="${adminHref({ ...query, sort }, 1)}"${sort === query.sort ? html` aria-current="page"` : ""}>${SORT_LABEL[sort]}</a>`)}</nav>
+    <nav class="sorts" aria-label="Urutan"><span class="muted">Urutkan</span>${SORTS.filter(sort => sort !== "tx" || data.snapshot).map(sort => html`<a href="${adminHref({ ...query, sort }, 1)}"${sort === query.sort ? html` aria-current="page"` : ""}>${SORT_LABEL[sort]}</a>`)}</nav>
     ${data.rows.length ? html`<div class="table-wrap"><table class="users">
       <thead><tr><th>Daftar</th><th>Akun</th><th>Username</th><th>Wallet</th><th class="num">Tx terkirim</th></tr></thead>
       <tbody>${data.rows.map(row => renderRow(row, data.adminIds))}</tbody></table></div>
@@ -255,6 +287,11 @@ td{padding:12px;border-bottom:1px solid var(--line);vertical-align:top}tbody tr:
 .day-bars{display:flex;align-items:flex-end;gap:3px;height:64px}.day{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;border-radius:3px;transition:background .15s}.day:hover{background:rgba(122,162,255,.12)}
 .day-real,.day-other{display:block;width:100%}.day-real{background:var(--action);border-radius:0 0 2px 2px}.day-other{background:#3a4867;border-radius:2px 2px 0 0}.day-real:first-child,.day-other:last-child{border-radius:2px}
 .day-axis{display:flex;justify-content:space-between;margin-top:6px;font:500 11px var(--mono);color:var(--ink3)}
+.funnel{display:grid;gap:14px}.step-label{display:flex;align-items:baseline;gap:10px}.step-label span{flex:1;color:var(--ink2)}.step-label span small{display:block;color:var(--ink3);font-size:12px}
+.step-label b{font:500 20px var(--mono);font-variant-numeric:tabular-nums}.step-label em{font:500 12px var(--mono);font-style:normal;color:var(--ink3);min-width:42px;text-align:right}
+.step-bar{height:8px;margin-top:6px;background:var(--bg);border-radius:999px;overflow:hidden}.step-bar i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--action),#5b8cff)}
+.active-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:18px}.active-grid div{display:grid;gap:4px;padding:12px 14px;background:var(--bg);border:1px solid var(--line);border-radius:12px}
+.active-grid strong{font:500 22px var(--mono)}.active-grid span{font-size:12px;color:var(--ink3)}@media (max-width:640px){.active-grid{grid-template-columns:1fr}}
 .sorts{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin:-4px 0 12px;font-size:12px}.sorts .muted{margin-right:6px}.sorts a{padding:4px 9px;border-radius:999px;color:var(--ink2);text-decoration:none}.sorts a:hover{color:var(--ink)}.sorts a[aria-current]{background:var(--panel2);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}
 .pager{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px;font-size:13px;color:var(--ink3)}.pager span:last-child{display:flex;gap:14px;align-items:center}.pager b{color:var(--ink2);font-weight:500}.pager a{text-decoration:none}
 .empty{padding:28px;text-align:center;color:var(--ink3);border:1px dashed var(--line);border-radius:12px}

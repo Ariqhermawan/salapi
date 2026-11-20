@@ -1,0 +1,30 @@
+name: Admin account snapshot
+
+on:
+  schedule:
+    - cron: '15 17 * * *' # 00:15 WIB every day
+  workflow_dispatch:
+
+permissions: {}
+concurrency:
+  group: admin-account-snapshot
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Capture the daily admin account snapshot
+        env:
+          CRON_SECRET: ${{ secrets.ARISAN_CRON_SECRET }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          CRON_SECRET=$(printf '%s' "$CRON_SECRET" | tr -d '\r\n')
+          test "${#CRON_SECRET}" -ge 32
+          response=$(curl --fail --silent --show-error --max-time 75 \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            https://salapi.app/api/cron/admin-snapshot)
+          printf '%s\n' "$response"
+          printf '%s' "$response" | jq -e '.ok == true' >/dev/null
