@@ -21,9 +21,19 @@ export function excelWib(iso: string | null | undefined): number | null {
   return Number.isFinite(time) ? (time + WIB_OFFSET_MS) / DAY_MS + EXCEL_UNIX_EPOCH : null;
 }
 
-/** "salapi-akun-asli-2026-11-20.xlsx", dated in WIB. */
-export function xlsxFilename(now: Date): string {
-  return `salapi-akun-asli-${new Date(now.getTime() + WIB_OFFSET_MS).toISOString().slice(0, 10)}.xlsx`;
+/** Which signups an export covers; all fields optional (validated by parseAdminQuery). */
+export interface ExportPeriod { month?: string; from?: string; to?: string }
+
+/** e.g. "salapi-akun-asli-2026-11-20.xlsx", or with the period: "salapi-akun-asli-2026-11_2026-11-01-2026-11-15-2026-11-20.xlsx". */
+export function xlsxFilename(now: Date, period: ExportPeriod = {}): string {
+  const scope = [period.month, period.from || period.to ? `${period.from || "awal"}-${period.to || "kini"}` : ""].filter(Boolean).join("_");
+  return `salapi-akun-asli-${scope ? `${scope}-` : ""}${new Date(now.getTime() + WIB_OFFSET_MS).toISOString().slice(0, 10)}.xlsx`;
+}
+
+/** "Semua", or e.g. "Bulan 2026-11 · 2026-11-01 sampai 2026-11-15". */
+export function periodLabel(period: ExportPeriod): string {
+  const parts = [period.month ? `Bulan ${period.month}` : "", period.from || period.to ? `${period.from || "awal"} sampai ${period.to || "hari ini"}` : ""].filter(Boolean);
+  return parts.length ? parts.join(" · ") : "Semua tanggal";
 }
 
 /** Excel serial of the first day of a "YYYY-MM" month. */
@@ -39,7 +49,7 @@ const fromLookup = <T>(value: Lookup<T>, ok: (value: T) => Cell, none: Cell = nu
   value.status === "ok" ? ok(value.value) : value.status === "none" ? none : failed;
 
 /** Two sheets: one row per real account, and a summary with totals per signup month. */
-export function adminUsersXlsx(rows: readonly AdminAccountRow[], adminIds: ReadonlySet<string>, now: Date): Buffer {
+export function adminUsersXlsx(rows: readonly AdminAccountRow[], adminIds: ReadonlySet<string>, now: Date, period: ExportPeriod = {}): Buffer {
   const header = ["Tanggal daftar (WIB)", "Bulan daftar", "Email", "Username", "Wallet address", "Tx terkirim", "Login via", "Terakhir masuk (WIB)", "Admin", "User ID"];
   const accounts: Cell[][] = rows.map(({ user, wallet, username, sentTx }) => {
     const created = Number.isFinite(Date.parse(user.created_at)) ? user.created_at : null;
@@ -71,6 +81,7 @@ export function adminUsersXlsx(rows: readonly AdminAccountRow[], adminIds: Reado
   const summary: Cell[][] = [
     [text("Salapi · Akun asli", TITLE)],
     [text("Diekspor (WIB)", LABEL), num(excelWib(now.toISOString()), DATETIME)],
+    [text("Filter tanggal daftar", LABEL), text(periodLabel(period))],
     [],
     [text("Total akun asli", LABEL), num(rows.length, INTEGER)],
     [text("Total tx terkirim", LABEL), num(totalTx, INTEGER)],

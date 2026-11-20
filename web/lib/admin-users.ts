@@ -17,8 +17,11 @@ export interface AdminAuthUser {
   team?: boolean;
 }
 
-/** month is a WIB calendar month ("2026-11") or "" for every month. */
-export interface AdminQuery { segment: AdminSegmentFilter; q: string; page: number; month: string; sort: AdminSort }
+/**
+ * month is a WIB calendar month ("2026-11") or "" for every month; from/to are
+ * inclusive WIB signup days ("2026-11-01") or ""/absent for an open end.
+ */
+export interface AdminQuery { segment: AdminSegmentFilter; q: string; page: number; month: string; sort: AdminSort; from?: string; to?: string }
 export interface MonthlySignups { month: string; total: number; real: number }
 export interface DailySignups { day: string; total: number; real: number }
 
@@ -163,13 +166,34 @@ export function parseAdminQuery(params: URLSearchParams): AdminQuery {
   const page = Number(params.get("page"));
   const month = params.get("month") ?? "";
   const sort = params.get("sort") ?? "daftar";
+  let from = validDay(params.get("from")), to = validDay(params.get("to"));
+  if (from && to && from > to) [from, to] = [to, from];
   return {
     segment: (SEGMENT_FILTERS as readonly string[]).includes(segment) ? segment as AdminSegmentFilter : DEFAULT_SEGMENT,
     q: (params.get("q") ?? "").trim().slice(0, MAX_QUERY_LENGTH),
     page: Number.isSafeInteger(page) && page > 0 ? page : 1,
     month: /^[0-9]{4}-(0[1-9]|1[0-2])$/.test(month) ? month : "",
     sort: (SORTS as readonly string[]).includes(sort) ? sort as AdminSort : "daftar",
+    from,
+    to,
   };
+}
+
+/** A real calendar day "YYYY-MM-DD" (2026-02-30 is rejected), else "". */
+function validDay(value: string | null): string {
+  if (!value || !/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(value)) return "";
+  const time = Date.parse(`${value}T00:00:00Z`);
+  return Number.isFinite(time) && new Date(time).toISOString().slice(0, 10) === value ? value : "";
+}
+
+/** Signup month and WIB day-range filters together (each optional). */
+export function inPeriod(users: readonly AdminAuthUser[], query: Pick<AdminQuery, "month" | "from" | "to">): AdminAuthUser[] {
+  return inMonth(users, query.month).filter(user => {
+    if (!query.from && !query.to) return true;
+    if (!Number.isFinite(Date.parse(user.created_at))) return false;
+    const day = wibDay(user.created_at);
+    return (!query.from || day >= query.from) && (!query.to || day <= query.to);
+  });
 }
 
 /** Users in a WIB signup month ("" keeps everyone). */
@@ -183,14 +207,14 @@ const time = (iso: string | null | undefined): number => {
 };
 
 /**
- * Filtered by signup month, segment and an email / user ID substring, in the
+ * Filtered by signup month/day range, segment and an email / user ID substring, in the
  * requested order. "tx" sorts by the snapshot's sent count (no snapshot row = last).
  */
 export function filterUsers(users: readonly AdminAuthUser[], query: AdminQuery, txById?: ReadonlyMap<string, number>): AdminAuthUser[] {
   const needle = query.q.toLowerCase();
   const key = (user: AdminAuthUser) => query.sort === "tx" ? txById?.get(user.id) ?? -Infinity
     : time(query.sort === "masuk" ? user.last_sign_in_at : user.created_at);
-  return inMonth(users, query.month)
+  return inPeriod(users, query)
     .filter(user => query.segment === "all" || accountSegment(user) === query.segment)
     .filter(user => !needle || (user.email ?? "").toLowerCase().includes(needle) || user.id.toLowerCase().includes(needle))
     // Never signed in (or no date) goes last; ties fall back to newest signup.
