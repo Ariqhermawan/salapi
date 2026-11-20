@@ -94,7 +94,7 @@ export interface AdminViewer { viewerId: string; viewerEmail: string | null; app
 
 /** Sidebar + main column shared by the overview and the account detail page. `base` prefixes the section anchors ("/" off the overview). */
 export function renderShell(viewer: AdminViewer, base: "" | "/", main: SafeHtml): SafeHtml {
-  return html`<div class="admin">
+  return html`<div class="shell">
   <aside class="side">
     <a class="brand" href="${base}#overview"><img src="/icon.svg" alt="" width="30" height="30"><span>Salapi <b>Admin</b></span><em>Testnet</em></a>
     <nav aria-label="Menu admin"><p class="group">Pantau</p><a href="${base}#overview">Ringkasan</a><a href="${base}#users">Pengguna</a></nav>
@@ -245,7 +245,7 @@ h1,h2{margin:0;letter-spacing:-.02em}code{font-family:var(--mono)}.sr{position:a
 .muted{color:var(--ink3)}.warn{color:var(--amber)}
 .button{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:10px;padding:9px 14px;background:var(--action);color:#fff;font:600 13px 'Geist',sans-serif;text-decoration:none;cursor:pointer;transition:background .15s,transform .15s}
 .button:hover{background:#1d4ed8}.button:active{transform:translateY(1px)}.button.ghost{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}
-.admin{display:grid;grid-template-columns:236px minmax(0,1fr);min-height:100vh}
+.shell{display:grid;grid-template-columns:236px minmax(0,1fr);min-height:100vh}
 .side{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:28px;padding:22px 16px;border-right:1px solid var(--line);background:linear-gradient(180deg,#0d1730,#0a1224)}
 .brand{display:flex;align-items:center;gap:10px;color:var(--ink);text-decoration:none;font-weight:600;font-size:15px}.brand span{white-space:nowrap}.brand b{color:var(--blue);font-weight:600}
 .brand em{margin-left:auto;font:500 10px var(--mono);font-style:normal;letter-spacing:.08em;color:var(--green);border:1px solid rgba(52,211,153,.35);padding:2px 6px;border-radius:999px}
@@ -311,7 +311,7 @@ td{padding:12px;border-bottom:1px solid var(--line);vertical-align:top}tbody tr:
 .gate-card h1{font-size:24px}.gate-actions{display:flex;flex-wrap:wrap;gap:8px}.gate-card p{margin:0;color:var(--ink2)}.gate-card .muted{color:var(--ink3);font-size:13px}.gate-card .button{margin-top:8px}
 .id{display:block;width:100%;padding:10px 12px;background:var(--bg);border:1px solid var(--line);border-radius:10px;font-size:13px;word-break:break-all;user-select:all}
 @media (max-width:1100px){.ribbon{grid-template-columns:1fr 1fr}.stat:nth-child(3){border-left:0}.stat:nth-child(n+3){border-top:1px solid var(--line)}}
-@media (max-width:860px){.admin{grid-template-columns:1fr}.side{position:static;height:auto;flex-direction:row;align-items:center;flex-wrap:wrap;gap:12px;padding:14px 16px;border-right:0;border-bottom:1px solid var(--line)}
+@media (max-width:860px){.shell{grid-template-columns:1fr}.side{position:static;height:auto;flex-direction:row;align-items:center;flex-wrap:wrap;gap:12px;padding:14px 16px;border-right:0;border-bottom:1px solid var(--line)}
 .brand em{margin-left:8px}.side nav{flex-direction:row;margin-left:auto}.group,.side-foot{display:none}main{padding:20px 16px 40px}.head h1{font-size:24px}}
 @media (max-width:520px){.ribbon{grid-template-columns:1fr}.stat{border-left:0;border-top:1px solid var(--line)}.stat:first-child{border-top:0}.search{width:100%}.search input[type=search]{flex:1;width:auto}}
 @media (max-width:640px){.table-wrap{border:0;overflow:visible}.users{min-width:0}.users thead{display:none}.users,.users tbody,.users tr,.users td{display:block;width:100%}
