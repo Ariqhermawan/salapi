@@ -144,10 +144,9 @@ function renderMonths(months: readonly { month: string; total: number; real: num
       </a>
       <div class="acq-chart" role="list" aria-label="Pendaftaran per bulan">
         ${months.map(month => html`<a class="mcol${month.month === current.month ? " now" : ""}" role="listitem" href="${view({ segment: "all", month: month.month })}" aria-label="${monthLabel(month.month)}: ${number(month.total)} pendaftaran, ${number(month.real)} asli">
-          <span class="mval" aria-hidden="true">${number(month.total)}</span>
-          <span class="mbar" aria-hidden="true"><i class="other" style="height:${((month.total - month.real) / max * 100).toFixed(2)}%"></i><i class="real" style="height:${(month.real / max * 100).toFixed(2)}%"></i></span>
+          <span class="mbars" aria-hidden="true"><i class="real" style="height:${(month.real / max * 100).toFixed(2)}%" data-v="${number(month.real)}"></i><i class="other" style="height:${((month.total - month.real) / max * 100).toFixed(2)}%" data-v="${number(month.total - month.real)}"></i></span>
           <span class="mlabel" aria-hidden="true">${monthLabel(month.month)}</span>
-          <span class="mreal" aria-hidden="true">${number(month.real)} asli</span>
+          <span class="mtotal" aria-hidden="true">${number(month.total)} total</span>
         </a>`)}
       </div>
     </div>
@@ -378,12 +377,14 @@ td{padding:12px;border-bottom:1px solid var(--line);vertical-align:top}tbody tr:
 .delta{align-self:flex-start;margin-top:4px;padding:3px 9px;border-radius:999px;font:500 12px var(--mono)}.delta.up{background:rgba(52,211,153,.14);color:var(--green)}.delta.down{background:rgba(245,180,84,.14);color:var(--amber)}.delta.flat{background:var(--panel2);color:var(--ink2)}
 .share{display:block;height:6px;margin-top:auto;background:rgba(255,255,255,.08);border-radius:999px;overflow:hidden}.share i{display:block;height:100%;background:linear-gradient(90deg,#5b8cff,var(--green));border-radius:999px}
 .acq-hero small{color:var(--ink3);font-size:12px}.acq-cta{font-size:13px;font-weight:600;color:var(--blue)}.acq-hero:hover .acq-cta span{display:inline-block;transform:translateX(3px)}
-.acq-chart{display:flex;align-items:stretch;justify-content:space-evenly;gap:12px;min-height:250px;padding:14px 12px 10px;border-radius:16px;background:repeating-linear-gradient(to top,rgba(150,172,214,.07) 0 1px,transparent 1px 25%) 0 14px/100% calc(100% - 64px) no-repeat,var(--bg);box-shadow:inset 0 0 0 1px var(--line);overflow-x:auto}
-.mcol{flex:1 1 0;min-width:64px;max-width:150px;display:flex;flex-direction:column;align-items:center;gap:6px;padding:6px 4px;border-radius:12px;text-decoration:none;color:inherit;transition:background .15s}
+.acq-chart{display:flex;align-items:stretch;gap:16px;min-height:250px;padding:14px 12px 10px;border-radius:16px;background:repeating-linear-gradient(to top,rgba(150,172,214,.07) 0 1px,transparent 1px 25%) 0 14px/100% calc(100% - 64px) no-repeat,var(--bg);box-shadow:inset 0 0 0 1px var(--line);overflow-x:auto}
+.mcol{flex:0 0 108px;display:flex;flex-direction:column;align-items:center;gap:6px;padding:6px 4px;border-radius:12px;text-decoration:none;color:inherit;transition:background .15s}
 .mcol:hover{background:rgba(122,162,255,.08)}.mcol.now{background:rgba(37,99,235,.1);box-shadow:inset 0 0 0 1px rgba(122,162,255,.25)}
-.mval{font:600 15px var(--mono);color:var(--ink)}.mbar{flex:1;width:min(56px,62%);display:flex;flex-direction:column;justify-content:flex-end}
-.mbar i{display:block;width:100%}.mbar .real{background:linear-gradient(180deg,#7aa2ff,var(--action));border-radius:0 0 8px 8px;box-shadow:0 0 18px rgba(37,99,235,.35)}.mbar .other{background:linear-gradient(180deg,#46557a,#33405f);border-radius:8px 8px 0 0}.mbar .real:first-child,.mbar .other:last-child{border-radius:8px}
-.mlabel{font:500 11px var(--mono);color:var(--ink2);white-space:nowrap}.mreal{font-size:11px;color:var(--blue)}.mcol.now .mlabel{color:var(--ink)}
+.mcol:first-child{margin-left:auto}.mcol:last-child{margin-right:auto}
+.mbars{flex:1;display:flex;align-items:flex-end;justify-content:center;gap:6px;padding-top:22px}
+.mbars i{position:relative;display:block;width:28px;min-height:3px;border-radius:7px 7px 3px 3px}.mbars i::before{content:attr(data-v);position:absolute;bottom:100%;left:50%;transform:translateX(-50%);margin-bottom:5px;font:600 13px var(--mono);white-space:nowrap}
+.mbars .real{background:linear-gradient(180deg,#7aa2ff,var(--action));box-shadow:0 0 18px rgba(37,99,235,.35)}.mbars .real::before{color:#cfdcff}.mbars .other{background:linear-gradient(180deg,#56658a,#33405f)}.mbars .other::before{color:var(--ink2)}
+.mlabel{font:500 11px var(--mono);color:var(--ink2);white-space:nowrap}.mtotal{font-size:11px;color:var(--ink3)}.mcol.now .mlabel{color:var(--ink)}
 .daily{margin-top:18px;padding:16px;border-radius:16px;background:var(--bg);box-shadow:inset 0 0 0 1px var(--line)}.daily-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
 .chips{display:flex;gap:6px;flex-wrap:wrap}.chip-stat{padding:4px 10px;border-radius:999px;background:var(--panel2);color:var(--ink2);font-size:12px}.chip-stat b{color:var(--ink);font-weight:600}.chip-stat.real b{color:var(--blue)}
 .day-bars{display:flex;align-items:flex-end;gap:4px;height:84px;padding-bottom:2px;background:repeating-linear-gradient(to top,rgba(150,172,214,.07) 0 1px,transparent 1px 33.3%)}
@@ -405,6 +406,7 @@ td{padding:12px;border-bottom:1px solid var(--line);vertical-align:top}tbody tr:
 .fpct{font:500 11px var(--mono);color:var(--ink3)}.fpct em{font-style:normal;color:var(--green)}
 @media (max-width:1100px){.fsteps{grid-template-columns:repeat(2,minmax(0,1fr))}.fstep:nth-child(2)::after{display:none}}
 @media (max-width:760px){.acq-grid{grid-template-columns:1fr}.acq-hero strong{font-size:52px}.fold summary{flex-wrap:wrap}.fold-kpis{justify-content:flex-start;order:3;width:100%}}
+@media (max-width:520px){.acq-chart{gap:10px}.mcol{flex-basis:84px}.mbars{gap:4px}.mbars i{width:22px}}
 @media (max-width:520px){.fsteps{grid-template-columns:1fr}.fstep::after{display:none}}
 @media (max-width:1100px){.ribbon{grid-template-columns:1fr 1fr}.stat:nth-child(3){border-left:0}.stat:nth-child(n+3){border-top:1px solid var(--line)}}
 @media (max-width:860px){.shell{grid-template-columns:1fr}.side{position:static;height:auto;flex-direction:row;align-items:center;flex-wrap:wrap;gap:12px;padding:14px 16px;border-right:0;border-bottom:1px solid var(--line)}
