@@ -5,7 +5,7 @@
 import { readAdminAccess } from "@/lib/server/adminAccess";
 import { loadAccountRows, loadAdminDirectory } from "@/lib/server/adminDirectory";
 import { hostHeaderName, isAdminHost } from "@/lib/admin-host";
-import { ADMIN_PAGE_SIZE, filterUsers, parseAdminQuery } from "@/lib/admin-users";
+import { ADMIN_PAGE_SIZE, filterUsers, markTeam, parseAdminIds, parseAdminQuery } from "@/lib/admin-users";
 import { renderAdminDocument, renderAdminGate, renderAdminPanel } from "@/lib/admin-view";
 import { XLSX_TYPE, adminUsersXlsx, xlsxFilename } from "@/lib/admin-xlsx";
 
@@ -31,13 +31,15 @@ export async function GET(request: Request): Promise<Response> {
   const query = parseAdminQuery(params);
   try {
     const directory = await loadAdminDirectory();
-    const matches = filterUsers(directory.users, query);
+    // Admins are always team; SALAPI_TEAM_USER_IDS adds other internal accounts.
+    const users = markTeam(directory.users, new Set([...access.adminIds, ...parseAdminIds(process.env.SALAPI_TEAM_USER_IDS)]));
+    const matches = filterUsers(users, query);
     if (params.get("format") === "xlsx") {
       // Always every real account (Excel's own filters slice it further).
       // ponytail: two on-chain reads per row (6 at a time) fit maxDuration for
       // hundreds of accounts; past that, store usernames and tx counts instead.
       const now = new Date();
-      const rows = await loadAccountRows(filterUsers(directory.users, { segment: "real", q: "", page: 1, month: "" }));
+      const rows = await loadAccountRows(filterUsers(users, { segment: "real", q: "", page: 1, month: "", sort: "daftar" }));
       return new Response(new Uint8Array(adminUsersXlsx(rows, access.adminIds, now)), { headers: {
         ...HEADERS,
         "Content-Type": XLSX_TYPE,
@@ -48,7 +50,7 @@ export async function GET(request: Request): Promise<Response> {
     const page = Math.min(query.page, pages);
     const rows = await loadAccountRows(matches.slice((page - 1) * ADMIN_PAGE_SIZE, page * ADMIN_PAGE_SIZE));
     const body = renderAdminPanel({
-      users: directory.users, walletCount: directory.walletCount, rows, query, page, pages,
+      users, walletCount: directory.walletCount, rows, query, page, pages,
       matches: matches.length, adminIds: access.adminIds, viewerId: access.userId, viewerEmail: access.email, now: new Date(), appUrl: APP_URL,
     });
     return new Response(renderAdminDocument("Ringkasan · Salapi Admin", body), { headers: HEADERS });
