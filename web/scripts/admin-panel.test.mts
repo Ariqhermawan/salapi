@@ -469,6 +469,9 @@ test("the panel shows the team segment, sort links, the 30-day strip and card la
   assert.match(page, /<input type="hidden" name="sort" value="masuk">/);
   assert.match(page, /aria-label="Pendaftaran harian 30 hari terakhir: 2 daftar, 1 asli"/);
   assert.equal((page.match(/<span class="day[^"]*" title=/g) ?? []).length, 30);
+  // Side by side like the monthly chart: real bar first. 18 Nov = one real signup, 19 Nov = one team signup.
+  assert.match(page, /title="18 Nov: 1 daftar, 1 asli"><i class="day-real" style="height:100.00%"><\/i><i class="day-other" style="height:0.00%"><\/i>/);
+  assert.match(page, /title="19 Nov: 1 daftar, 0 asli"><i class="day-real" style="height:0.00%"><\/i><i class="day-other" style="height:100.00%"><\/i>/);
   for (const label of ["Daftar", "Akun", "Username", "Wallet", "Tx terkirim"]) assert.match(page, new RegExp(`<td( class="num")? data-label="${label}">`));
 });
 

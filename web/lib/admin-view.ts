@@ -207,7 +207,7 @@ function renderActivation(data: AdminPanelData): SafeHtml {
   </details>`;
 }
 
-/** The last 30 WIB days: stacked bars, a dot for quiet days, the busiest day called out. */
+/** The last 30 WIB days: real and test bars side by side, a dot for quiet days, the busiest day called out. */
 function renderDaily(days: readonly DailySignups[]): SafeHtml {
   if (!days.length) return html``;
   const max = Math.max(1, ...days.map(day => day.total));
@@ -218,7 +218,7 @@ function renderDaily(days: readonly DailySignups[]): SafeHtml {
     <div class="daily-head"><span class="eyebrow">30 hari terakhir</span>
       <span class="chips"><span class="chip-stat"><b>${number(total)}</b> daftar</span><span class="chip-stat real"><b>${number(real)}</b> asli</span>${busiest.total ? html`<span class="chip-stat">Tersibuk <b>${label(busiest.day)}</b> (${number(busiest.total)})</span>` : ""}</span></div>
     <div class="day-bars" role="img" aria-label="Pendaftaran harian 30 hari terakhir: ${number(total)} daftar, ${number(real)} asli">
-      ${days.map((day, i) => html`<span class="day${day.total ? "" : " quiet"}${i === days.length - 1 ? " today" : ""}" title="${label(day.day)}: ${number(day.total)} daftar, ${number(day.real)} asli"><i class="day-other" style="height:${((day.total - day.real) / max * 100).toFixed(2)}%"></i><i class="day-real" style="height:${(day.real / max * 100).toFixed(2)}%"></i></span>`)}
+      ${days.map((day, i) => html`<span class="day${day.total ? "" : " quiet"}${i === days.length - 1 ? " today" : ""}" title="${label(day.day)}: ${number(day.total)} daftar, ${number(day.real)} asli"><i class="day-real" style="height:${(day.real / max * 100).toFixed(2)}%"></i><i class="day-other" style="height:${((day.total - day.real) / max * 100).toFixed(2)}%"></i></span>`)}
     </div>
     <div class="day-axis" aria-hidden="true"><span>${label(days[0].day)}</span><span>${label(days[Math.floor(days.length / 2)].day)}</span><span>Hari ini</span></div></div>`;
 }
@@ -388,8 +388,8 @@ td{padding:12px;border-bottom:1px solid var(--line);vertical-align:top}tbody tr:
 .daily{margin-top:18px;padding:16px;border-radius:16px;background:var(--bg);box-shadow:inset 0 0 0 1px var(--line)}.daily-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
 .chips{display:flex;gap:6px;flex-wrap:wrap}.chip-stat{padding:4px 10px;border-radius:999px;background:var(--panel2);color:var(--ink2);font-size:12px}.chip-stat b{color:var(--ink);font-weight:600}.chip-stat.real b{color:var(--blue)}
 .day-bars{display:flex;align-items:flex-end;gap:4px;height:84px;padding-bottom:2px;background:repeating-linear-gradient(to top,rgba(150,172,214,.07) 0 1px,transparent 1px 33.3%)}
-.day{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;border-radius:4px;transition:background .15s}.day:hover{background:rgba(122,162,255,.12)}
-.day-real,.day-other{display:block;width:100%}.day-real{background:linear-gradient(180deg,#7aa2ff,var(--action));border-radius:0 0 3px 3px}.day-other{background:#3e4c6e;border-radius:3px 3px 0 0}.day-real:first-child,.day-other:last-child{border-radius:3px}
+.day{flex:1;height:100%;display:flex;align-items:flex-end;justify-content:center;gap:2px;border-radius:4px;transition:background .15s}.day:hover{background:rgba(122,162,255,.12)}
+.day-real,.day-other{display:block;flex:1;max-width:13px;border-radius:3px 3px 1px 1px}.day-real{background:linear-gradient(180deg,#7aa2ff,var(--action))}.day-other{background:#4a5878}.day.quiet i{display:none}
 .day.quiet::after{content:"";display:block;width:4px;height:4px;margin:0 auto;border-radius:50%;background:rgba(150,172,214,.25)}.day.today{box-shadow:inset 0 -2px 0 var(--green)}
 .day-axis{display:flex;justify-content:space-between;margin-top:8px;font:500 11px var(--mono);color:var(--ink3)}
 .acq-table{margin-top:14px}.acq-table summary,.fold summary{cursor:pointer;list-style:none}.acq-table summary::-webkit-details-marker,.fold summary::-webkit-details-marker{display:none}
@@ -406,7 +406,7 @@ td{padding:12px;border-bottom:1px solid var(--line);vertical-align:top}tbody tr:
 .fpct{font:500 11px var(--mono);color:var(--ink3)}.fpct em{font-style:normal;color:var(--green)}
 @media (max-width:1100px){.fsteps{grid-template-columns:repeat(2,minmax(0,1fr))}.fstep:nth-child(2)::after{display:none}}
 @media (max-width:760px){.acq-grid{grid-template-columns:1fr}.acq-hero strong{font-size:52px}.fold summary{flex-wrap:wrap}.fold-kpis{justify-content:flex-start;order:3;width:100%}}
-@media (max-width:520px){.acq-chart{gap:10px}.mcol{flex-basis:84px}.mbars{gap:4px}.mbars i{width:22px}}
+@media (max-width:520px){.acq-chart{gap:10px}.mcol{flex-basis:84px}.mbars{gap:4px}.mbars i{width:22px}.day-bars{gap:2px}.day{gap:1px}}
 @media (max-width:520px){.fsteps{grid-template-columns:1fr}.fstep::after{display:none}}
 @media (max-width:1100px){.ribbon{grid-template-columns:1fr 1fr}.stat:nth-child(3){border-left:0}.stat:nth-child(n+3){border-top:1px solid var(--line)}}
 @media (max-width:860px){.shell{grid-template-columns:1fr}.side{position:static;height:auto;flex-direction:row;align-items:center;flex-wrap:wrap;gap:12px;padding:14px 16px;border-right:0;border-bottom:1px solid var(--line)}
