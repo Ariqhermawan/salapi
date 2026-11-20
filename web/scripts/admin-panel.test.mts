@@ -5,7 +5,7 @@ import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import { isAuthSessionMissingError, AuthSessionMissingError } from "@supabase/supabase-js";
 import { StrKey } from "@stellar/stellar-sdk";
-import { accountSegment, dailySignups, filterUsers, markTeam, monthlySignups, parseAdminIds, parseAdminQuery, sentTransactionCount, wibMonth, type AdminAccountRow, type AdminAuthUser } from "../lib/admin-users.ts";
+import { accountSegment, activationFunnel, activity, dailySignups, filterUsers, markTeam, monthlySignups, parseAdminIds, parseAdminQuery, sentTransactionCount, wibMonth, type AdminAccountRow, type AdminAuthUser } from "../lib/admin-users.ts";
 import { adminHref, renderAdminDocument, renderAdminGate, renderAdminPanel } from "../lib/admin-view.ts";
 import { escapeHtml, html } from "../lib/admin-html.ts";
 import { adminHostRoute, hostHeaderName } from "../lib/admin-host.ts";
@@ -461,4 +461,141 @@ test("the panel shows the team segment, sort links, the 30-day strip and card la
   assert.match(page, /aria-label="Pendaftaran harian 30 hari terakhir: 2 daftar, 1 asli"/);
   assert.equal((page.match(/<span class="day" title=/g) ?? []).length, 30);
   for (const label of ["Daftar", "Akun", "Username", "Wallet", "Tx terkirim"]) assert.match(page, new RegExp(`<td( class="num")? data-label="${label}">`));
+});
+
+const snap = (rows: Record<string, [string | null, number]>) => new Map(Object.entries(rows).map(([id, [username, txSent]]) => [id, { wallet: address, username, txSent }]));
+
+test("activation counts on-chain steps from the snapshot and sign-ins from Auth", () => {
+  assert.equal(activity({ wallet: address, username: "a_1", txSent: 1 }), 0); // the username claim alone
+  assert.equal(activity({ wallet: address, username: null, txSent: 2 }), 2);
+  assert.equal(activity({ wallet: null, username: null, txSent: 0 }), 0);
+  const now = new Date("2026-11-20T05:00:00Z");
+  const signIns = ["2026-11-19T00:00:00Z", "2026-11-01T00:00:00Z", "2026-09-01T00:00:00Z", null];
+  const users = ["a", "b", "c", "d"].map((id, i) => user({ id, last_sign_in_at: signIns[i] }));
+  const latest = snap({ a: ["a_1", 5], b: ["b_1", 2], c: [null, 0] }); // d is not in the snapshot yet
+  assert.deepEqual(activationFunnel(users, { day: "2026-11-20", capturedAt: "2026-11-19T17:15:00Z", latest, weekAgoDay: null, weekAgo: null }, now),
+    { registered: 4, covered: 3, username: 2, transacted: 2, regular: 1, signedIn7: 1, signedIn30: 2, transacting7: null });
+  // With a week of history: a sent 2 more, b only had its username before and sent 1 since.
+  const weekAgo = snap({ a: ["a_1", 3], b: ["b_1", 1] });
+  assert.equal(activationFunnel(users, { day: "2026-11-20", capturedAt: "", latest, weekAgoDay: "2026-11-13", weekAgo }, now).transacting7, 2);
+  assert.deepEqual(activationFunnel(users, null, now), { registered: 4, covered: 0, username: 0, transacted: 0, regular: 0, signedIn7: 1, signedIn30: 2, transacting7: null });
+});
+
+test("the directory can sort by snapshot tx, accounts without a snapshot row last", () => {
+  const base = { segment: "all" as const, q: "", page: 1, month: "", sort: "tx" as const };
+  const users = ["a", "b", "c"].map((id, i) => user({ id, created_at: `2026-11-0${i + 1}T00:00:00Z` }));
+  assert.deepEqual(filterUsers(users, base, new Map([["a", 3], ["c", 9]])).map(u => u.id), ["c", "a", "b"]);
+  assert.deepEqual(filterUsers(users, base).map(u => u.id), ["c", "b", "a"]); // no snapshot: newest signup
+  assert.equal(parseAdminQuery(new URLSearchParams("sort=tx")).sort, "tx");
+});
+
+test("the activation panel reports snapshot state honestly, and tx sort needs a snapshot", () => {
+  const users = [user({ id: "a" }), user({ id: "b" })];
+  const render = (snapshot: Parameters<typeof renderAdminPanel>[0]["snapshot"]) => renderAdminDocument("Admin", renderAdminPanel({
+    users, walletCount: 2, rows: [], query: { segment: "real", q: "", page: 1, month: "", sort: "daftar" }, page: 1, pages: 1, matches: 2,
+    adminIds: new Set(), viewerId: adminId, viewerEmail: null, snapshot, now: new Date("2026-11-20T05:00:00Z"), appUrl: "https://salapi.app",
+  }));
+  const none = render(null);
+  assert.match(none, /<span class="tag">Belum ada snapshot<\/span>/);
+  assert.match(none, /Punya username<\/span><b>Belum ada data<\/b>/);
+  assert.doesNotMatch(none, /Tx terbanyak/);
+  assert.match(render(undefined), /<span class="tag">Snapshot gagal dimuat<\/span>/);
+  const ready = render({ day: "2026-11-20", capturedAt: "2026-11-19T17:15:00Z", latest: snap({ a: ["a_1", 4] }), weekAgoDay: null, weekAgo: null });
+  assert.match(ready, /<span class="tag">Snapshot 20 Nov 2026, 00\.15 WIB<\/span>/);
+  assert.match(ready, /Punya username<\/span><b>1<\/b><em>50%<\/em>/);
+  assert.match(ready, /Pernah bertransaksi<small>≥1 transaksi selain klaim username<\/small><\/span><b>1<\/b><em>50%<\/em>/);
+  assert.match(ready, /1 akun asli belum ada di snapshot/);
+  assert.match(ready, /<a href="\/\?sort=tx#users">Tx terbanyak<\/a>/);
+});
+
+// adminSnapshot runs with a mocked directory loader and Supabase.
+const snapshotSource = ts.transpileModule(readFileSync(new URL("../lib/server/adminSnapshot.ts", import.meta.url), "utf8"), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+}).outputText;
+function snapshotModule(o: { rows?: AdminAccountRow[]; stored?: Record<string, unknown>[]; failWrite?: boolean } = {}) {
+  const calls = { upserts: [] as unknown[][], conflict: [] as unknown[] };
+  const stored = o.stored ?? [];
+  const query = () => {
+    let rows = [...stored];
+    const chain = {
+      select: () => chain,
+      order(column: string, opts?: { ascending?: boolean }) { rows = [...rows].sort((a, b) => String(a[column]).localeCompare(String(b[column])) * (opts?.ascending === false ? -1 : 1)); return chain; },
+      limit(n: number) { rows = rows.slice(0, n); return chain; },
+      lte(column: string, value: string) { rows = rows.filter(row => String(row[column]) <= value); return chain; },
+      eq(column: string, value: string) { rows = rows.filter(row => String(row[column]) === value); return chain; },
+      range(from: number, to: number) { return Promise.resolve({ data: rows.slice(from, to + 1), error: null }); },
+      maybeSingle: () => Promise.resolve({ data: rows[0] ?? null, error: null }),
+    };
+    return chain;
+  };
+  const api = {} as { writeAccountSnapshot(now?: Date): Promise<unknown>; readSnapshotState(): Promise<unknown> };
+  runInNewContext(snapshotSource, { exports: api, Error, Map, Promise, Number, String, require(name: string) {
+    if (name === "server-only") return {};
+    if (name === "@/lib/admin-users") return { wibDay: (iso: string) => new Date(Date.parse(iso) + 7 * 3600e3).toISOString().slice(0, 10) };
+    if (name === "@/lib/server/adminDirectory") return {
+      async loadAdminDirectory() { return { users: (o.rows ?? []).map(r => r.user), walletCount: 0 }; },
+      async loadAccountRows() { return o.rows ?? []; },
+    };
+    if (name === "@/lib/supabase/admin") return { createSupabaseAdmin: () => ({ from(table: string) {
+      assert.equal(table, "admin_account_snapshots");
+      return { ...query(), upsert(records: unknown[], options: unknown) { calls.upserts.push(records); calls.conflict.push(options); return Promise.resolve({ error: o.failWrite ? Error("db") : null }); } };
+    } }) };
+    throw Error(`Unexpected dependency ${name}`);
+  } });
+  return { api, calls };
+}
+
+test("the snapshot writes only fully-read accounts, keyed by WIB day", async () => {
+  const rows: AdminAccountRow[] = [
+    { user: user({ id: "a" }), wallet: { status: "ok", value: address }, username: { status: "ok", value: "a_1" }, sentTx: { status: "ok", value: 4 } },
+    { user: user({ id: "b" }), wallet: { status: "none" }, username: { status: "none" }, sentTx: { status: "none" } },
+    { user: user({ id: "c" }), wallet: { status: "ok", value: address }, username: { status: "error" }, sentTx: { status: "ok", value: 1 } },
+  ];
+  const { api, calls } = snapshotModule({ rows });
+  assert.deepEqual(plain(await api.writeAccountSnapshot(new Date("2026-11-19T17:15:00Z"))), { ok: true, day: "2026-11-20", written: 2, skipped: 1 });
+  assert.deepEqual(plain(calls.upserts[0]), [
+    { day: "2026-11-20", user_id: "a", wallet: address, username: "a_1", tx_sent: 4, captured_at: "2026-11-19T17:15:00.000Z" },
+    { day: "2026-11-20", user_id: "b", wallet: null, username: null, tx_sent: 0, captured_at: "2026-11-19T17:15:00.000Z" },
+  ]);
+  assert.deepEqual(plain(calls.conflict[0]), { onConflict: "day,user_id" });
+  await assert.rejects(snapshotModule({ rows, failWrite: true }).api.writeAccountSnapshot());
+});
+
+test("reading snapshots returns the latest day and the newest one at least a week older", async () => {
+  const row = (day: string, user_id: string, tx_sent: number, username: string | null = null) => ({ day, user_id, wallet: address, username, tx_sent, captured_at: `${day}T00:15:00+07:00` });
+  const stored = [row("2026-11-20", "a", 5, "a_1"), row("2026-11-20", "b", 1), row("2026-11-14", "a", 4, "a_1"), row("2026-11-13", "a", 2, "a_1"), row("2026-11-10", "a", 1, "a_1")];
+  const state = await snapshotModule({ stored }).api.readSnapshotState() as { day: string; weekAgoDay: string; latest: Map<string, unknown>; weekAgo: Map<string, unknown> };
+  assert.equal(state.day, "2026-11-20");
+  assert.equal(state.weekAgoDay, "2026-11-13");
+  assert.deepEqual(plain([...state.latest]), [["a", { wallet: address, username: "a_1", txSent: 5 }], ["b", { wallet: address, username: null, txSent: 1 }]]);
+  assert.deepEqual(plain([...state.weekAgo]), [["a", { wallet: address, username: "a_1", txSent: 2 }]]);
+  assert.equal(await snapshotModule().api.readSnapshotState(), null);
+});
+
+const cronSource = ts.transpileModule(readFileSync(new URL("../app/api/cron/admin-snapshot/route.ts", import.meta.url), "utf8"), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+}).outputText;
+test("the snapshot cron runs only with the exact bearer secret and no query string", async () => {
+  const secret = "s".repeat(40);
+  let runs = 0;
+  const load = (env: Record<string, string | undefined>) => {
+    const api = {} as { GET(request: Request): Promise<Response> };
+    runInNewContext(cronSource, { exports: api, URL, Buffer, Response, console: { error() {} }, process: { env }, require(name: string) {
+      if (name === "node:crypto") return { timingSafeEqual: (a: Buffer, b: Buffer) => a.equals(b) };
+      if (name === "@/lib/server/adminSnapshot") return { async writeAccountSnapshot() { runs++; return { ok: true, day: "2026-11-20", written: 1, skipped: 0 }; } };
+      throw Error(`Unexpected dependency ${name}`);
+    } });
+    return api.GET;
+  };
+  const get = load({ CRON_SECRET: secret });
+  const call = (auth?: string, query = "") => get(new Request(`https://salapi.app/api/cron/admin-snapshot${query}`, { headers: auth ? { authorization: auth } : {} }));
+  assert.equal((await call()).status, 401);
+  assert.equal((await call(`Bearer ${"x".repeat(40)}`)).status, 401);
+  assert.equal((await call(`Bearer ${secret}`, "?x=1")).status, 401);
+  assert.equal(runs, 0);
+  const ok = await call(`Bearer ${secret}`);
+  assert.equal(ok.status, 200);
+  assert.deepEqual(await ok.json(), { ok: true, day: "2026-11-20", written: 1, skipped: 0 });
+  assert.equal(runs, 1);
+  assert.equal((await load({ CRON_SECRET: "short" })(new Request("https://salapi.app/api/cron/admin-snapshot"))).status, 503);
 });

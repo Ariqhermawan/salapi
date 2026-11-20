@@ -4,6 +4,7 @@
 // gate on the server; nothing here is cached or prerendered.
 import { readAdminAccess } from "@/lib/server/adminAccess";
 import { loadAccountRows, loadAdminDirectory } from "@/lib/server/adminDirectory";
+import { readSnapshotState } from "@/lib/server/adminSnapshot";
 import { hostHeaderName, isAdminHost } from "@/lib/admin-host";
 import { ADMIN_PAGE_SIZE, filterUsers, markTeam, parseAdminIds, parseAdminQuery } from "@/lib/admin-users";
 import { renderAdminDocument, renderAdminGate, renderAdminPanel } from "@/lib/admin-view";
@@ -30,10 +31,15 @@ export async function GET(request: Request): Promise<Response> {
   const params = new URL(request.url).searchParams;
   const query = parseAdminQuery(params);
   try {
-    const directory = await loadAdminDirectory();
+    // A failed snapshot read only hides the on-chain funnel; the panel still loads.
+    const [directory, snapshot] = await Promise.all([
+      loadAdminDirectory(),
+      readSnapshotState().catch(error => { console.error("[admin] snapshot read failed", error instanceof Error ? error.message : "unknown error"); return undefined; }),
+    ]);
     // Admins are always team; SALAPI_TEAM_USER_IDS adds other internal accounts.
     const users = markTeam(directory.users, new Set([...access.adminIds, ...parseAdminIds(process.env.SALAPI_TEAM_USER_IDS)]));
-    const matches = filterUsers(users, query);
+    const txById = snapshot ? new Map([...snapshot.latest].map(([id, row]) => [id, row.txSent])) : undefined;
+    const matches = filterUsers(users, query, txById);
     if (params.get("format") === "xlsx") {
       // Always every real account (Excel's own filters slice it further).
       // ponytail: two on-chain reads per row (6 at a time) fit maxDuration for
@@ -51,7 +57,7 @@ export async function GET(request: Request): Promise<Response> {
     const rows = await loadAccountRows(matches.slice((page - 1) * ADMIN_PAGE_SIZE, page * ADMIN_PAGE_SIZE));
     const body = renderAdminPanel({
       users, walletCount: directory.walletCount, rows, query, page, pages,
-      matches: matches.length, adminIds: access.adminIds, viewerId: access.userId, viewerEmail: access.email, now: new Date(), appUrl: APP_URL,
+      matches: matches.length, adminIds: access.adminIds, viewerId: access.userId, viewerEmail: access.email, snapshot, now: new Date(), appUrl: APP_URL,
     });
     return new Response(renderAdminDocument("Ringkasan · Salapi Admin", body), { headers: HEADERS });
   } catch (error) {
