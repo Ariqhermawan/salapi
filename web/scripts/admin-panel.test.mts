@@ -139,7 +139,11 @@ test("overview numbers and months link to the matching directory filter", () => 
   assert.match(page, /<a class="stat-link" href="\/\?segment=all#users"><span class="eyebrow">Total akun<\/span><strong>3<\/strong>/);
   assert.match(page, /<a href="\/\?segment=simulation#users">1 simulasi<\/a>/);
   assert.match(page, /<a href="\/\?segment=qa#users">1 QA<\/a>/);
-  assert.match(page, /<a class="bar-col" href="\/\?segment=all&amp;month=2026-10#users" aria-label="Okt 2026: 2 pendaftaran, 0 asli">/);
+  assert.match(page, /<a class="mcol" role="listitem" href="\/\?segment=all&amp;month=2026-10#users" aria-label="Okt 2026: 2 pendaftaran, 0 asli">/);
+  // This month leads: hero card (1 real of 1), compared with October (0 real).
+  assert.match(page, /<a class="acq-hero" href="\/\?month=2026-11#users">/);
+  assert.match(page, /<strong>1<\/strong>\s*<span class="acq-sub">pengguna asli baru<\/span>\s*<span class="delta up">▲ 1 dari Okt 2026<\/span>/);
+  assert.match(page, /<details class="acq-table"><summary>Rincian per bulan<\/summary>/);
   assert.match(page, /<td><a href="\/\?month=2026-10#users">0<\/a><\/td>/); // the month's "Asli" cell
   // Tabs open on Asli, and no month chip without a month filter.
   assert.match(page, /<nav class="tabs" aria-label="Segmen akun"><a href="\/#users" aria-current="page">Asli <span>1<\/span><\/a><a href="\/\?segment=all#users">Semua <span>3<\/span>/);
@@ -461,7 +465,7 @@ test("the panel shows the team segment, sort links, the 30-day strip and card la
   assert.match(page, /<a href="\/\?segment=all#users">Daftar terbaru<\/a><a href="\/\?segment=all&amp;sort=masuk#users" aria-current="page">Terakhir masuk<\/a>/);
   assert.match(page, /<input type="hidden" name="sort" value="masuk">/);
   assert.match(page, /aria-label="Pendaftaran harian 30 hari terakhir: 2 daftar, 1 asli"/);
-  assert.equal((page.match(/<span class="day" title=/g) ?? []).length, 30);
+  assert.equal((page.match(/<span class="day[^"]*" title=/g) ?? []).length, 30);
   for (const label of ["Daftar", "Akun", "Username", "Wallet", "Tx terkirim"]) assert.match(page, new RegExp(`<td( class="num")? data-label="${label}">`));
 });
 
@@ -499,13 +503,20 @@ test("the activation panel reports snapshot state honestly, and tx sort needs a 
   }));
   const none = render(null);
   assert.match(none, /<span class="tag">Belum ada snapshot<\/span>/);
-  assert.match(none, /Punya username<\/span><b>Belum ada data<\/b>/);
+  assert.match(none, /<b>Belum ada<\/b>\s*<span class="fname">Punya username<\/span>/);
+  assert.match(none, /<div class="fold-kpis"><span>Belum ada snapshot<\/span><\/div>/);
   assert.doesNotMatch(none, /Tx terbanyak/);
   assert.match(render(undefined), /<span class="tag">Snapshot gagal dimuat<\/span>/);
   const ready = render({ day: "2026-11-20", capturedAt: "2026-11-19T17:15:00Z", latest: snap({ a: ["a_1", 4] }), weekAgoDay: null, weekAgo: null });
+  // Folded by default (no "open"), headline numbers in the summary line.
+  assert.match(ready, /<details class="panel fold" id="activation">/);
+  assert.match(ready, /<span><b>50%<\/b> pernah bertransaksi<\/span><span><b>1<\/b> rutin<\/span>/);
   assert.match(ready, /<span class="tag">Snapshot 20 Nov 2026, 00\.15 WIB<\/span>/);
-  assert.match(ready, /Punya username<\/span><b>1<\/b><em>50%<\/em>/);
-  assert.match(ready, /Pernah bertransaksi<small>≥1 transaksi selain klaim username<\/small><\/span><b>1<\/b><em>50%<\/em>/);
+  assert.match(ready, /<b>1<\/b>\s*<span class="fname">Punya username<\/span>/);
+  assert.match(ready, /<span class="fname">Pernah bertransaksi<\/span><small>≥1 transaksi selain klaim username<\/small>/);
+  assert.match(ready, /50% dari terdaftar · <em>100% dari langkah sebelumnya<\/em>/);
+  // Acquisition comes before the folded activation panel.
+  assert.ok(ready.indexOf('id="months-title"') < ready.indexOf('id="funnel-title"'));
   assert.match(ready, /1 akun asli belum ada di snapshot/);
   assert.match(ready, /<a href="\/\?sort=tx#users">Tx terbanyak<\/a>/);
 });
