@@ -1,7 +1,7 @@
 // Server-rendered, script-free HTML for the admin host (admin.salapi.app). Pure:
 // data in, document out. Links are relative to that host's "/"; appUrl is the main app.
 import { html, SafeHtml } from "./admin-html.ts";
-import { ADMIN_PAGE_SIZE, DEFAULT_SEGMENT, SEGMENT_FILTERS, SEGMENT_LABEL, SORTS, accountSegment, activationFunnel, dailySignups, providerLabel, inMonth, monthlySignups, type AdminAccountRow, type AdminAuthUser, type AdminQuery, type AdminSegmentFilter, type AdminSort, type DailySignups, type SnapshotState } from "./admin-users.ts";
+import { ADMIN_PAGE_SIZE, DEFAULT_SEGMENT, SEGMENT_FILTERS, SEGMENT_LABEL, SORTS, accountSegment, activationFunnel, dailySignups, providerLabel, inPeriod, monthlySignups, wibDay, type AdminAccountRow, type AdminAuthUser, type AdminQuery, type AdminSegmentFilter, type AdminSort, type DailySignups, type SnapshotState } from "./admin-users.ts";
 
 export interface AdminPanelData {
   users: readonly AdminAuthUser[];
@@ -226,25 +226,37 @@ function renderDaily(days: readonly DailySignups[]): SafeHtml {
 
 function renderUsers(data: AdminPanelData): SafeHtml {
   const { query, page, pages, matches } = data;
-  // Tab counts follow the month filter, so each tab says what clicking it shows.
-  const scoped = inMonth(data.users, query.month);
+  // Tab counts follow the period filters, so each tab says what clicking it shows.
+  const scoped = inPeriod(data.users, query);
+  const months = monthlySignups(data.users, data.now).map(month => month.month).reverse();
+  const today = wibDay(data.now.toISOString());
+  const firstDay = data.users.reduce((min, user) => Number.isFinite(Date.parse(user.created_at)) && wibDay(user.created_at) < min ? wibDay(user.created_at) : min, today);
+  const filtered = Boolean(query.month || query.from || query.to);
+  const dayLabel = (day: string) => DAY.format(new Date(`${day}T12:00:00+07:00`));
+  const range = query.from && query.to ? `${dayLabel(query.from)} sampai ${dayLabel(query.to)}` : query.from ? `sejak ${dayLabel(query.from)}` : query.to ? `sampai ${dayLabel(query.to)}` : "";
   const segments = new Map<AdminSegmentFilter, number>(SEGMENT_FILTERS.map(segment => [segment, 0]));
   for (const user of scoped) segments.set(accountSegment(user), (segments.get(accountSegment(user)) ?? 0) + 1);
   segments.set("all", scoped.length);
   const first = matches ? (page - 1) * ADMIN_PAGE_SIZE + 1 : 0;
   return html`<section class="panel" id="users" aria-labelledby="users-title" tabindex="-1">
     <div class="panel-title"><div><span class="eyebrow">DIREKTORI AKUN</span><h2 id="users-title">Pengguna</h2></div>
-      <div class="title-actions"><span class="tag">${number(matches)} akun</span><a class="button ghost small" href="/?format=xlsx" download>⬇ Export akun asli (Excel)</a></div></div>
+      <div class="title-actions"><span class="tag">${number(matches)} akun</span><a class="button ghost small" href="${adminExportHref(query)}" download>⬇ Export akun asli (Excel${filtered ? ", sesuai filter" : ""})</a></div></div>
     <div class="tools">
       <nav class="tabs" aria-label="Segmen akun">${SEGMENT_FILTERS.map(segment => html`<a href="${adminHref({ ...query, segment }, 1)}"${segment === query.segment ? html` aria-current="page"` : ""}>${SEGMENT_LABEL[segment]} <span>${number(segments.get(segment) ?? 0)}</span></a>`)}</nav>
-      ${query.month ? html`<a class="chip" href="${adminHref({ ...query, month: "" }, 1)}" aria-label="Hapus filter bulan ${monthLabel(query.month)}">Daftar ${monthLabel(query.month)} <span aria-hidden="true">✕</span></a>` : ""}
-      <form class="search" method="get" action="/#users" role="search">
-        <input type="hidden" name="segment" value="${query.segment}">${query.month ? html`<input type="hidden" name="month" value="${query.month}">` : ""}${query.sort !== "daftar" ? html`<input type="hidden" name="sort" value="${query.sort}">` : ""}
-        <label class="sr" for="admin-q">Cari email atau User ID</label>
-        <input id="admin-q" type="search" name="q" value="${query.q}" maxlength="100" placeholder="Cari email atau User ID" autocomplete="off">
-        <button class="button" type="submit">Cari</button>${query.q ? html`<a class="clear" href="${adminHref({ ...query, q: "" }, 1)}">Hapus</a>` : ""}
-      </form>
     </div>
+    <form class="filters" method="get" action="/#users" role="search" aria-label="Filter pengguna">
+      <input type="hidden" name="segment" value="${query.segment}">${query.sort !== "daftar" ? html`<input type="hidden" name="sort" value="${query.sort}">` : ""}
+      <label class="field grow"><span>Cari</span><input type="search" name="q" value="${query.q}" maxlength="100" placeholder="Email atau User ID" autocomplete="off"></label>
+      <label class="field"><span>Bulan daftar</span><select name="month"><option value="">Semua bulan</option>${months.map(month => html`<option value="${month}"${month === query.month ? html` selected` : ""}>${monthLabel(month)}${month === months[0] ? " · bulan ini" : ""}</option>`)}</select></label>
+      <label class="field"><span>Dari tanggal</span><input type="date" name="from" value="${query.from ?? ""}" min="${firstDay}" max="${today}"></label>
+      <label class="field"><span>Sampai tanggal</span><input type="date" name="to" value="${query.to ?? ""}" min="${firstDay}" max="${today}"></label>
+      <div class="filter-actions"><button class="button" type="submit">Terapkan</button>${filtered || query.q ? html`<a class="clear" href="${adminHref({ ...query, q: "", month: "", from: "", to: "" }, 1)}">Reset</a>` : ""}</div>
+    </form>
+    ${filtered || query.q ? html`<div class="active-filters" aria-label="Filter aktif">
+      ${query.month ? html`<a class="chip" href="${adminHref({ ...query, month: "" }, 1)}" aria-label="Hapus filter bulan ${monthLabel(query.month)}">Bulan ${monthLabel(query.month)} <span aria-hidden="true">✕</span></a>` : ""}
+      ${range ? html`<a class="chip" href="${adminHref({ ...query, from: "", to: "" }, 1)}" aria-label="Hapus filter tanggal">Daftar ${range} <span aria-hidden="true">✕</span></a>` : ""}
+      ${query.q ? html`<a class="chip" href="${adminHref({ ...query, q: "" }, 1)}" aria-label="Hapus pencarian">Cari "${query.q}" <span aria-hidden="true">✕</span></a>` : ""}
+    </div>` : ""}
     <nav class="sorts" aria-label="Urutan"><span class="muted">Urutkan</span>${SORTS.filter(sort => sort !== "tx" || data.snapshot).map(sort => html`<a href="${adminHref({ ...query, sort }, 1)}"${sort === query.sort ? html` aria-current="page"` : ""}>${SORT_LABEL[sort]}</a>`)}</nav>
     ${data.rows.length ? html`<div class="table-wrap"><table class="users">
       <thead><tr><th>Daftar</th><th>Akun</th><th>Username</th><th>Wallet</th><th class="num">Tx terkirim</th></tr></thead>
@@ -252,7 +264,7 @@ function renderUsers(data: AdminPanelData): SafeHtml {
       <div class="pager"><span>Menampilkan ${number(first)} sampai ${number(first + data.rows.length - 1)} dari ${number(matches)}</span>
         <span>${page > 1 ? html`<a href="${adminHref(query, page - 1)}">← Sebelumnya</a>` : ""}<b>Halaman ${number(page)} dari ${number(pages)}</b>${page < pages ? html`<a href="${adminHref(query, page + 1)}">Berikutnya →</a>` : ""}</span></div>`
       : html`<p class="empty">Tidak ada akun yang cocok.</p>`}
-    <p class="note"><b>Tx terkirim</b> dihitung dari sequence number wallet di Stellar Testnet: jumlah transaksi yang dikirim dari wallet itu, termasuk yang gagal di ledger, tanpa dana masuk. Riwayat lengkap ada di tautan Stellar Expert. <b>Export akun asli (Excel)</b> berisi semua akun asli (bukan hanya halaman ini) dengan kolom terpisah, filter per bulan, dan sheet Ringkasan berisi total tx. <b>Asli</b> berarti di luar akun tim (admin dan akun internal), simulasi, load test, dan akun QA (.invalid atau .test).</p>
+    <p class="note"><b>Tx terkirim</b> dihitung dari sequence number wallet di Stellar Testnet: jumlah transaksi yang dikirim dari wallet itu, termasuk yang gagal di ledger, tanpa dana masuk. Riwayat lengkap ada di tautan Stellar Expert. <b>Export akun asli (Excel)</b> berisi semua akun asli yang cocok dengan filter bulan dan tanggal (bukan hanya halaman ini), dengan kolom terpisah dan sheet Ringkasan berisi total tx. Filter tanggal memakai hari WIB, termasuk tanggal awal dan akhir. <b>Asli</b> berarti di luar akun tim (admin dan akun internal), simulasi, load test, dan akun QA (.invalid atau .test).</p>
   </section>`;
 }
 
@@ -271,11 +283,22 @@ function renderRow({ user, wallet, username, sentTx }: AdminAccountRow, adminIds
   </tr>`;
 }
 
+/** Excel export of real accounts within the active month/date filters (search and segment don't apply). */
+export function adminExportHref(query: AdminQuery): string {
+  const params = new URLSearchParams({ format: "xlsx" });
+  if (query.month) params.set("month", query.month);
+  if (query.from) params.set("from", query.from);
+  if (query.to) params.set("to", query.to);
+  return `/?${params}`;
+}
+
 /** Admin-host link that keeps the active filters. */
 export function adminHref(query: AdminQuery, page: number): string {
   const params = new URLSearchParams();
   if (query.segment !== DEFAULT_SEGMENT) params.set("segment", query.segment);
   if (query.month) params.set("month", query.month);
+  if (query.from) params.set("from", query.from);
+  if (query.to) params.set("to", query.to);
   if (query.q) params.set("q", query.q);
   if (query.sort !== "daftar") params.set("sort", query.sort);
   if (page > 1) params.set("page", String(page));
@@ -323,8 +346,6 @@ td{padding:12px;border-bottom:1px solid var(--line);vertical-align:top}tbody tr:
 .tabs a{padding:6px 11px;border-radius:9px;color:var(--ink2);text-decoration:none;font-weight:500;font-size:13px}.tabs a span{font:500 11px var(--mono);color:var(--ink3);margin-left:4px}
 .tabs a:hover{color:var(--ink)}.tabs a[aria-current]{background:var(--panel2);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}
 .chip{display:inline-flex;align-items:center;gap:8px;align-self:center;padding:6px 10px;border-radius:999px;background:rgba(37,99,235,.18);color:#cfdcff;text-decoration:none;font-size:13px;font-weight:500}.chip:hover{background:rgba(37,99,235,.3)}
-.search{display:flex;gap:8px;align-items:center;margin-left:auto}.search input[type=search]{width:min(280px,60vw);background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:9px 12px;font:inherit}
-.search input::placeholder{color:var(--ink3)}.clear{font-size:13px}
 .table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px}.users{min-width:880px}
 .users td small{display:block;color:var(--ink3);font-size:12px;margin-top:2px}.strong{font-weight:600}a.email{color:var(--ink);text-decoration:none;border-bottom:1px solid transparent}a.email:hover{color:var(--blue);border-bottom-color:currentColor}
 .back{display:inline-block;margin-bottom:8px;font-size:13px;text-decoration:none}.detail-email{word-break:break-all}.facts .stat strong{font-size:22px}.facts .stat:first-child strong{font-size:26px}
@@ -337,6 +358,11 @@ td{padding:12px;border-bottom:1px solid var(--line);vertical-align:top}tbody tr:
 .pill.real{background:rgba(52,211,153,.14);color:var(--green)}.pill.simulation{background:rgba(185,166,255,.14);color:var(--violet)}.pill.load_test{background:rgba(245,180,84,.14);color:var(--amber)}.pill.admin{background:rgba(37,99,235,.25);color:#cfdcff}.pill.team{background:rgba(52,211,153,.08);color:#9fe7c9;box-shadow:inset 0 0 0 1px rgba(52,211,153,.3)}
 .active-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:18px}.active-grid div{display:grid;gap:4px;padding:12px 14px;background:var(--bg);border:1px solid var(--line);border-radius:12px}
 .active-grid strong{font:500 22px var(--mono)}.active-grid span{font-size:12px;color:var(--ink3)}@media (max-width:640px){.active-grid{grid-template-columns:1fr}}
+.filters{display:grid;grid-template-columns:minmax(200px,1.5fr) repeat(3,minmax(150px,1fr)) auto;gap:10px;align-items:end;margin:0 0 12px;padding:14px;border-radius:14px;background:var(--bg);box-shadow:inset 0 0 0 1px var(--line)}
+.field{display:grid;gap:6px;min-width:0}.field span{font:500 10px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink3)}
+.field input,.field select{width:100%;min-width:0;background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:9px 12px;font:inherit;color-scheme:dark}.field input::placeholder{color:var(--ink3)}.field input:focus,.field select:focus{outline:2px solid var(--blue);outline-offset:1px}
+.filter-actions{display:flex;align-items:center;gap:10px}.active-filters{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}
+@media (max-width:1000px){.filters{grid-template-columns:1fr 1fr}.field.grow{grid-column:1/-1}}@media (max-width:520px){.filters{grid-template-columns:1fr}}
 .sorts{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin:-4px 0 12px;font-size:12px}.sorts .muted{margin-right:6px}.sorts a{padding:4px 9px;border-radius:999px;color:var(--ink2);text-decoration:none}.sorts a:hover{color:var(--ink)}.sorts a[aria-current]{background:var(--panel2);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}
 .pager{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px;font-size:13px;color:var(--ink3)}.pager span:last-child{display:flex;gap:14px;align-items:center}.pager b{color:var(--ink2);font-weight:500}.pager a{text-decoration:none}
 .empty{padding:28px;text-align:center;color:var(--ink3);border:1px dashed var(--line);border-radius:12px}

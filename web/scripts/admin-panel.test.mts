@@ -64,9 +64,9 @@ test("sent transactions come from the low 32 bits of the account sequence", () =
 
 test("query parsing clamps unknown segments and pages; filtering searches email and ID newest first", () => {
   // The directory opens on real users; unknown segments fall back to that view.
-  assert.deepEqual(parseAdminQuery(new URLSearchParams("")), { segment: "real", q: "", page: 1, month: "", sort: "daftar" });
-  assert.deepEqual(parseAdminQuery(new URLSearchParams("segment=evil&page=-3&q=%20a%20")), { segment: "real", q: "a", page: 1, month: "", sort: "daftar" });
-  assert.deepEqual(parseAdminQuery(new URLSearchParams("segment=all&page=2&month=2026-10")), { segment: "all", q: "", page: 2, month: "2026-10", sort: "daftar" });
+  assert.deepEqual(parseAdminQuery(new URLSearchParams("")), { segment: "real", q: "", page: 1, month: "", sort: "daftar", from: "", to: "" });
+  assert.deepEqual(parseAdminQuery(new URLSearchParams("segment=evil&page=-3&q=%20a%20")), { segment: "real", q: "a", page: 1, month: "", sort: "daftar", from: "", to: "" });
+  assert.deepEqual(parseAdminQuery(new URLSearchParams("segment=all&page=2&month=2026-10")), { segment: "all", q: "", page: 2, month: "2026-10", sort: "daftar", from: "", to: "" });
   for (const month of ["2026-13", "2026-1", "26-10", "2026-10-01", "<b>"]) assert.equal(parseAdminQuery(new URLSearchParams({ month })).month, "");
   assert.equal(parseAdminQuery(new URLSearchParams(`q=${"x".repeat(500)}`)).q.length, 100);
   const older = user({ id: adminId, email: "Owner@Example.com", created_at: "2026-09-01T00:00:00Z" });
@@ -150,9 +150,10 @@ test("overview numbers and months link to the matching directory filter", () => 
   assert.doesNotMatch(page, /class="chip"/);
   // With a month filter, tab counts follow the month and a chip clears it.
   const october = render("2026-10");
-  assert.match(october, /<a class="chip" href="\/#users" aria-label="Hapus filter bulan Okt 2026">Daftar Okt 2026/);
+  assert.match(october, /<a class="chip" href="\/#users" aria-label="Hapus filter bulan Okt 2026">Bulan Okt 2026/);
   assert.match(october, /Asli <span>0<\/span><\/a><a href="\/\?segment=all&amp;month=2026-10#users">Semua <span>2<\/span>/);
-  assert.match(october, /<input type="hidden" name="month" value="2026-10">/);
+  assert.match(october, /<option value="2026-10" selected>Okt 2026<\/option>/);
+  assert.match(october, /<option value="2026-11">Nov 2026 · bulan ini<\/option>/);
 });
 
 test("gate pages escape the signed-in email and never render account data", () => {
@@ -400,12 +401,12 @@ test("the Excel export has real columns, @usernames as text, numeric tx, filters
   assert.match(sheet, /<c r="D4" t="inlineStr"><is><t xml:space="preserve">gagal dimuat<\/t>/);
   assert.match(sheet, /<c r="F4" t="inlineStr"><is><t xml:space="preserve">gagal dimuat<\/t>/);
   const summary = parts.get("xl/worksheets/sheet2.xml")!;
-  assert.match(summary, /Total akun asli<\/t><\/is><\/c><c r="B4" s="5"><v>3<\/v>/);
-  assert.match(summary, /Total tx terkirim<\/t><\/is><\/c><c r="B5" s="5"><v>24<\/v>/);
-  assert.match(summary, /Akun dengan tx gagal dimuat<\/t><\/is><\/c><c r="B6" s="5"><v>1<\/v>/);
+  assert.match(summary, /Total akun asli<\/t><\/is><\/c><c r="B5" s="5"><v>3<\/v>/);
+  assert.match(summary, /Total tx terkirim<\/t><\/is><\/c><c r="B6" s="5"><v>24<\/v>/);
+  assert.match(summary, /Akun dengan tx gagal dimuat<\/t><\/is><\/c><c r="B7" s="5"><v>1<\/v>/);
   // Months newest first: Nov 2026 (1 account, 24 tx), then Okt 2026 (2 accounts, 0 tx).
-  assert.match(summary, /<row r="9"><c r="A9" s="3"><v>46327<\/v><\/c><c r="B9" s="5"><v>1<\/v><\/c><c r="C9" s="5"><v>24<\/v><\/c><\/row>/);
-  assert.match(summary, /<row r="10"><c r="A10" s="3"><v>46296<\/v><\/c><c r="B10" s="5"><v>2<\/v><\/c><c r="C10" s="5"><v>0<\/v><\/c><\/row>/);
+  assert.match(summary, /<row r="10"><c r="A10" s="3"><v>46327<\/v><\/c><c r="B10" s="5"><v>1<\/v><\/c><c r="C10" s="5"><v>24<\/v><\/c><\/row>/);
+  assert.match(summary, /<row r="11"><c r="A11" s="3"><v>46296<\/v><\/c><c r="B11" s="5"><v>2<\/v><\/c><c r="C11" s="5"><v>0<\/v><\/c><\/row>/);
 });
 
 test("the panel offers the real-accounts Excel export", () => {
@@ -413,7 +414,7 @@ test("the panel offers the real-accounts Excel export", () => {
     users: [user()], walletCount: 1, rows: [], query: { segment: "qa", q: "", page: 1, month: "2026-10", sort: "daftar" }, page: 1, pages: 1, matches: 0,
     adminIds: new Set(), viewerId: adminId, viewerEmail: null, now: new Date(), appUrl: "https://salapi.app",
   }));
-  assert.match(page, /<a class="button ghost small" href="\/\?format=xlsx" download>⬇ Export akun asli \(Excel\)<\/a>/);
+  assert.match(page, /<a class="button ghost small" href="\/\?format=xlsx&amp;month=2026-10" download>⬇ Export akun asli \(Excel, sesuai filter\)<\/a>/);
 });
 
 test("team accounts leave the real count; test flags still win over the team flag", () => {
@@ -771,4 +772,51 @@ test("the page layout class never collides with the Admin pill (the pill once gr
   assert.match(page, /<span class="pill admin">Admin<\/span>/);
   // No stylesheet rule may target a bare .admin (only .pill.admin).
   assert.doesNotMatch(page.match(/<style>([\s\S]*)<\/style>/)![1], /(^|[}\s,])\.admin\b/);
+});
+
+test("date range filter: real WIB days, inclusive, swapped when reversed, junk ignored", () => {
+  const parse = (search: string) => { const q = parseAdminQuery(new URLSearchParams(search)); return [q.from, q.to]; };
+  assert.deepEqual(parse("from=2026-11-01&to=2026-11-15"), ["2026-11-01", "2026-11-15"]);
+  assert.deepEqual(parse("from=2026-11-15&to=2026-11-01"), ["2026-11-01", "2026-11-15"]);
+  for (const bad of ["2026-02-30", "2026-13-01", "20261101", "<b>", "2026-11-1"]) assert.deepEqual(parse(`from=${bad}`), ["", ""]);
+  const users = [
+    user({ id: "edge-early", created_at: "2026-10-31T16:59:59Z" }), // 31 Okt 23.59 WIB
+    user({ id: "edge-start", created_at: "2026-10-31T17:00:00Z" }), // 1 Nov 00.00 WIB
+    user({ id: "mid", created_at: "2026-11-10T05:00:00Z" }),
+    user({ id: "edge-end", created_at: "2026-11-15T16:59:00Z" }),   // 15 Nov 23.59 WIB
+    user({ id: "after", created_at: "2026-11-15T17:00:00Z" }),      // 16 Nov WIB
+  ];
+  const ids = (from: string, to: string, month = "") => filterUsers(users, { segment: "all", q: "", page: 1, month, sort: "daftar", from, to }).map(u => u.id).sort();
+  assert.deepEqual(ids("2026-11-01", "2026-11-15"), ["edge-end", "edge-start", "mid"]);
+  assert.deepEqual(ids("2026-11-10", ""), ["after", "edge-end", "mid"]);  // open end
+  assert.deepEqual(ids("", "2026-11-01"), ["edge-early", "edge-start"]);  // open start
+  assert.deepEqual(ids("2026-10-31", "2026-11-30", "2026-10"), ["edge-early"]); // month AND range
+});
+
+test("the filter bar keeps segment and sort, offers every signup month, and shows removable chips", () => {
+  const users = [user({ created_at: "2026-09-10T03:00:00Z" }), user({ created_at: "2026-11-05T03:00:00Z" })];
+  const page = renderAdminDocument("Admin", renderAdminPanel({
+    users, walletCount: 2, rows: [], query: { segment: "all", q: "budi", page: 1, month: "", sort: "masuk", from: "2026-11-01", to: "2026-11-15" }, page: 1, pages: 1, matches: 0,
+    adminIds: new Set(), viewerId: adminId, viewerEmail: null, now: new Date("2026-11-20T05:00:00Z"), appUrl: "https://salapi.app",
+  }));
+  assert.match(page, /<form class="filters" method="get" action="\/#users" role="search" aria-label="Filter pengguna">\s*<input type="hidden" name="segment" value="all"><input type="hidden" name="sort" value="masuk">/);
+  assert.match(page, /<select name="month"><option value="">Semua bulan<\/option><option value="2026-11">Nov 2026 · bulan ini<\/option><option value="2026-10">Okt 2026<\/option><option value="2026-09">Sep 2026<\/option><\/select>/);
+  assert.match(page, /<input type="date" name="from" value="2026-11-01" min="2026-09-10" max="2026-11-20">/);
+  assert.match(page, /<input type="date" name="to" value="2026-11-15" min="2026-09-10" max="2026-11-20">/);
+  assert.match(page, /<a class="chip" href="\/\?segment=all&amp;q=budi&amp;sort=masuk#users" aria-label="Hapus filter tanggal">Daftar 1 Nov 2026 sampai 15 Nov 2026/);
+  assert.match(page, /aria-label="Hapus pencarian">Cari "budi" </);
+  assert.match(page, /<a class="clear" href="\/\?segment=all&amp;sort=masuk#users">Reset<\/a>/);
+  assert.match(page, /href="\/\?format=xlsx&amp;from=2026-11-01&amp;to=2026-11-15" download>⬇ Export akun asli \(Excel, sesuai filter\)/);
+  // Tab counts follow the range: only the November signup is inside it.
+  assert.match(page, /Semua <span>1<\/span>/);
+});
+
+test("the Excel file name and summary state which signups the export covers", () => {
+  const now = new Date("2026-11-20T05:00:00Z");
+  assert.equal(xlsxFilename(now, {}), "salapi-akun-asli-2026-11-20.xlsx");
+  assert.equal(xlsxFilename(now, { from: "2026-11-01", to: "2026-11-15" }), "salapi-akun-asli-2026-11-01-2026-11-15-2026-11-20.xlsx");
+  assert.equal(xlsxFilename(now, { month: "2026-10", from: "2026-10-05" }), "salapi-akun-asli-2026-10_2026-10-05-kini-2026-11-20.xlsx");
+  const parts = unzip(adminUsersXlsx([], new Set(), now, { from: "2026-11-01", to: "2026-11-15" }));
+  assert.match(parts.get("xl/worksheets/sheet2.xml")!, /Filter tanggal daftar<\/t><\/is><\/c><c r="B3" t="inlineStr"><is><t xml:space="preserve">2026-11-01 sampai 2026-11-15<\/t>/);
+  assert.match(unzip(adminUsersXlsx([], new Set(), now)).get("xl/worksheets/sheet2.xml")!, />Semua tanggal</);
 });

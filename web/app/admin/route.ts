@@ -55,15 +55,16 @@ export async function GET(request: Request): Promise<Response> {
     const txById = snapshot ? new Map([...snapshot.latest].map(([id, row]) => [id, row.txSent])) : undefined;
     const matches = filterUsers(users, query, txById);
     if (params.get("format") === "xlsx") {
-      // Always every real account (Excel's own filters slice it further).
+      // Real accounts within the month/date filters in view (search and segment don't apply).
       // ponytail: two on-chain reads per row (6 at a time) fit maxDuration for
       // hundreds of accounts; past that, store usernames and tx counts instead.
       const now = new Date();
-      const rows = await loadAccountRows(filterUsers(users, { segment: "real", q: "", page: 1, month: "", sort: "daftar" }));
-      return new Response(new Uint8Array(adminUsersXlsx(rows, access.adminIds, now)), { headers: {
+      const period = { month: query.month, from: query.from, to: query.to };
+      const rows = await loadAccountRows(filterUsers(users, { segment: "real", q: "", page: 1, sort: "daftar", ...period }));
+      return new Response(new Uint8Array(adminUsersXlsx(rows, access.adminIds, now, period)), { headers: {
         ...HEADERS,
         "Content-Type": XLSX_TYPE,
-        "Content-Disposition": `attachment; filename="${xlsxFilename(now)}"`,
+        "Content-Disposition": `attachment; filename="${xlsxFilename(now, period)}"`,
       } });
     }
     const pages = Math.max(1, Math.ceil(matches.length / ADMIN_PAGE_SIZE));
