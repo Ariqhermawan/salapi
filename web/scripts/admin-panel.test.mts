@@ -7,6 +7,8 @@ import { isAuthSessionMissingError, AuthSessionMissingError } from "@supabase/su
 import { StrKey } from "@stellar/stellar-sdk";
 import { accountSegment, activationFunnel, activity, dailySignups, filterUsers, markTeam, monthlySignups, parseAdminIds, parseAdminQuery, sentTransactionCount, wibMonth, type AdminAccountRow, type AdminAuthUser } from "../lib/admin-users.ts";
 import { adminHref, renderAdminDocument, renderAdminGate, renderAdminPanel } from "../lib/admin-view.ts";
+import { renderAdminUserDetail, renderAdminUserMissing } from "../lib/admin-detail-view.ts";
+import type { WalletActivityItem } from "../lib/wallet-activity.ts";
 import { escapeHtml, html } from "../lib/admin-html.ts";
 import { adminHostRoute, hostHeaderName } from "../lib/admin-host.ts";
 import { adminUsersXlsx, crc32, excelMonth, excelWib, xlsxFilename } from "../lib/admin-xlsx.ts";
@@ -598,4 +600,142 @@ test("the snapshot cron runs only with the exact bearer secret and no query stri
   assert.deepEqual(await ok.json(), { ok: true, day: "2026-11-20", written: 1, skipped: 0 });
   assert.equal(runs, 1);
   assert.equal((await load({ CRON_SECRET: "short" })(new Request("https://salapi.app/api/cron/admin-snapshot"))).status, 503);
+});
+
+const other = "GAKZLTZFGSSM372XUKW2ZIJ5GSHVVIW5BYZIKIXRW2BW4MM6TUI5536Y";
+const activityItem = (over: Record<string, unknown> = {}) => ({
+  id: "1", hash: "a".repeat(64), createdAt: "2026-11-19T16:11:30Z", direction: "sent", amountStroops: "125000000",
+  asset: { code: "XLM", issuer: null, contractId: null, decimals: 7, network: "testnet" }, fee: { status: "unavailable" },
+  counterparty: other, kind: "soroban-transfer", ...over,
+}) as unknown as WalletActivityItem;
+
+test("the detail page shows each part, says when a part failed, and escapes account data", () => {
+  const detailUser = user({ id: adminId, email: `<b>x</b>@gmail.com`, created_at: "2026-11-19T16:11:30Z", last_sign_in_at: null, team: true });
+  const page = renderAdminDocument("Admin", renderAdminUserDetail({
+    viewerId: adminId, viewerEmail: "owner@example.com", appUrl: "https://salapi.app", isAdmin: true,
+    handles: new Map([[other, "teman_1"]]),
+    detail: {
+      row: { user: detailUser, wallet: { status: "ok", value: address }, username: { status: "ok", value: "owner_1" }, sentTx: { status: "ok", value: 24 } },
+      balances: { status: "ok", value: [{ asset: "XLM", amount: "9875.5000000" }, { asset: "USDC", amount: "12.0000000" }] },
+      activity: { status: "ok", value: [
+        activityItem({ context: { type: "campaign-donation", contractId: "C", referenceId: "7", title: "<i>Solar</i>" } }),
+        activityItem({ id: "2", direction: "received", counterparty: address.replace("G", "G"), kind: "account-created", amountStroops: "100000000000" }),
+      ] },
+      donations: { status: "ok", value: { count: 2, totalStroops: "150000000", recent: [{ campaignId: "7", amountStroops: "125000000", createdAt: "2026-11-19T16:11:30Z", anonymous: true, hash: "b".repeat(64) }] } },
+      campaigns: { status: "none" },
+      arisanRooms: { status: "error" },
+      history: { status: "ok", value: [{ day: "2026-11-19", txSent: 23 }, { day: "2026-11-20", txSent: 24 }] },
+    },
+  }));
+  assert.doesNotMatch(page, /<script|<b>x<\/b>|<i>Solar<\/i>/);
+  assert.match(page, /<h1 class="detail-email">&lt;b&gt;x&lt;\/b&gt;@gmail\.com<\/h1>/);
+  assert.match(page, /<span class="pill team">Tim<\/span><span class="pill admin">Admin<\/span>/);
+  assert.match(page, /Masuk terakhir belum pernah/);
+  assert.match(page, /<span class="handle">@owner_1<\/span>/);
+  assert.match(page, /9875\.5 XLM · 12 USDC/);
+  assert.match(page, /<strong>24<\/strong>/);
+  assert.match(page, /15 XLM total/); // 150000000 stroops
+  assert.match(page, /Donasi kampanye<small>&lt;i&gt;Solar&lt;\/i&gt;<\/small>/);
+  assert.match(page, /<span class="dir-sent">Kirim<\/span>/);
+  assert.match(page, /12\.5 XLM/);
+  assert.match(page, /<span class="handle">@teman_1<\/span>/); // a Salapi counterparty is named by username
+  assert.match(page, /Pembuatan akun/);
+  assert.match(page, new RegExp(`href="https://stellar.expert/explorer/testnet/tx/${"a".repeat(64)}" target="_blank" rel="noopener noreferrer"`));
+  assert.match(page, /Kampanye #7 <small>\(anonim\)<\/small>/);
+  assert.match(page, /<h2 id="campaigns-title">Dibuat<\/h2><\/div><\/div>\s*<span class="muted">Belum ada wallet<\/span>/);
+  assert.match(page, /<h2 id="arisan-title">Room<\/h2><\/div><\/div>\s*<span class="warn">Gagal dimuat<\/span>/);
+  // Shared shell: section links go back to the overview.
+  assert.match(page, /<a href="\/#users">Pengguna<\/a>/);
+  assert.match(page, /<a class="back" href="\/#users">← Pengguna<\/a>/);
+});
+
+test("directory emails open the detail page; unknown ids get a not-found page", () => {
+  const page = renderAdminDocument("Admin", renderAdminPanel({
+    users: [user()], walletCount: 1, rows: [{ user: user(), wallet: { status: "none" }, username: { status: "none" }, sentTx: { status: "none" } }],
+    query: { segment: "real", q: "", page: 1, month: "", sort: "daftar" }, page: 1, pages: 1, matches: 1,
+    adminIds: new Set(), viewerId: adminId, viewerEmail: null, now: new Date(), appUrl: "https://salapi.app",
+  }));
+  assert.match(page, new RegExp(`<a class="strong email" href="/\\?user=${otherId}">person@gmail\\.com</a>`));
+  assert.match(page, /<a href="#users">Pengguna<\/a>/); // on the overview the anchors stay on the page
+  assert.match(renderAdminDocument("Admin", renderAdminUserMissing({ viewerId: adminId, viewerEmail: null, appUrl: "https://salapi.app" })), /<h1>Akun tidak ditemukan<\/h1>/);
+});
+
+// adminUserDetail runs with mocked account rows, Horizon, wallet history and Supabase.
+const detailSource = ts.transpileModule(readFileSync(new URL("../lib/server/adminUserDetail.ts", import.meta.url), "utf8"), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+}).outputText;
+function detailModule(o: { wallet?: string | null; horizon?: { status: number; body?: unknown }; tables?: Record<string, Record<string, unknown>[] | "error">; history?: "error" } = {}) {
+  const filters: string[] = [];
+  const api = {} as { loadAdminUserDetail(user: AdminAuthUser): Promise<unknown> };
+  const table = (name: string) => {
+    const data = o.tables?.[name] ?? [];
+    const result = data === "error" ? { data: null, error: Error("db") } : { data, error: null };
+    const chain: Record<string, unknown> = {};
+    for (const method of ["select", "order", "eq"]) chain[method] = (...args: unknown[]) => { if (method === "eq") filters.push(`${name}:${args.join("=")}`); return chain; };
+    chain.or = (filter: string) => { filters.push(`${name}:or(${filter})`); return chain; };
+    chain.limit = () => Promise.resolve(result);
+    chain.then = (resolve: (value: unknown) => void) => resolve(result); // awaited without limit()
+    return chain;
+  };
+  runInNewContext(detailSource, { exports: api, Error, Map, Promise, Number, String, BigInt, URL, AbortSignal, async fetch(url: URL) {
+    const reply = o.horizon ?? { status: 404 };
+    assert.equal(String(url), `https://horizon-testnet.stellar.org/accounts/${o.wallet}`);
+    return { status: reply.status, ok: reply.status === 200, async json() { return reply.body; } };
+  }, require(name: string) {
+    if (name === "server-only") return {};
+    if (name === "@/lib/server/stellar") return { HORIZON: "https://horizon-testnet.stellar.org" };
+    if (name === "@/lib/wallet-activity") return { USDC_TESTNET_ISSUER: "ISSUER" };
+    if (name === "@/lib/server/adminDirectory") return { async loadAccountRows([target]: AdminAuthUser[]) {
+      return [{ user: target, wallet: o.wallet ? { status: "ok", value: o.wallet } : { status: "none" }, username: { status: "none" }, sentTx: { status: "none" } }];
+    } };
+    if (name === "@/lib/server/walletActivity") return { async readWalletActivityPage() { return { ok: true, items: Array.from({ length: 20 }, (_, i) => ({ id: String(i) })) }; } };
+    if (name === "@/lib/supabase/admin") return { createSupabaseAdmin: () => ({ from(name: string) {
+      if (name === "admin_account_snapshots" && o.history === "error") return table("missing-error");
+      return table(name);
+    } }) };
+    throw Error(`Unexpected dependency ${name}`);
+  } });
+  return { api, filters };
+}
+
+test("the detail loader totals donations, dedupes rooms, keeps known balances, and isolates failures", async () => {
+  const { api, filters } = detailModule({
+    wallet: address,
+    horizon: { status: 200, body: { id: address, balances: [
+      { asset_type: "native", balance: "100.5000000" },
+      { asset_type: "credit_alphanum4", asset_code: "USDC", asset_issuer: "ISSUER", balance: "3.0000000" },
+      { asset_type: "credit_alphanum4", asset_code: "USDC", asset_issuer: "FAKE", balance: "999.0000000" },
+    ] } },
+    tables: {
+      campaign_donors: [
+        { campaign_id: "7", amount_stroops: "100000000", created_at: "2026-11-19T00:00:00Z", anonymous: false, transaction_hash: "h1" },
+        { campaign_id: "8", amount_stroops: "50000000", created_at: "2026-11-18T00:00:00Z", anonymous: true, transaction_hash: "h2" },
+        { campaign_id: "9", amount_stroops: "not-a-number", created_at: "2026-11-17T00:00:00Z", anonymous: false, transaction_hash: "h3" },
+      ],
+      circles_testnet_campaigns: "error",
+      arisan_member_notifications: [
+        { room_name: "Arisan RT", room_kind: "upfront", room_id: 1 }, { room_name: "Arisan RT", room_kind: "upfront", room_id: 1 },
+        { room_name: "Arisan Kantor", room_kind: "scheduled", room_id: 2 },
+      ],
+      admin_account_snapshots: [{ day: "2026-11-20", tx_sent: 4 }, { day: "2026-11-19", tx_sent: 3 }],
+    },
+  });
+  const detail = plain(await api.loadAdminUserDetail(user({ id: adminId })));
+  assert.deepEqual(detail.balances, { status: "ok", value: [{ asset: "XLM", amount: "100.5000000" }, { asset: "USDC", amount: "3.0000000" }] });
+  assert.equal(detail.activity.value.length, 15);
+  assert.deepEqual([detail.donations.value.count, detail.donations.value.totalStroops, detail.donations.value.recent.length], [3, "150000000", 3]);
+  assert.deepEqual(detail.campaigns, { status: "error" });
+  assert.deepEqual(detail.arisanRooms, { status: "ok", value: ["Arisan RT", "Arisan Kantor"] });
+  assert.deepEqual(detail.history, { status: "ok", value: [{ day: "2026-11-19", txSent: 3 }, { day: "2026-11-20", txSent: 4 }] });
+  assert.ok(filters.includes(`campaign_donors:or(owner_id.eq.${adminId},donor_wallet.eq.${address})`));
+  assert.ok(filters.includes(`arisan_member_notifications:wallet=${address}`));
+
+  // No wallet: wallet-bound parts are confirmed absent and nothing asks Horizon.
+  const bare = plain(await detailModule({ wallet: null }).api.loadAdminUserDetail(user({ id: adminId })));
+  assert.deepEqual([bare.balances, bare.activity, bare.campaigns, bare.arisanRooms], [{ status: "none" }, { status: "none" }, { status: "none" }, { status: "none" }]);
+  // Testnet doesn't know the account: no balances rather than a failure.
+  assert.deepEqual(plain(await detailModule({ wallet: address }).api.loadAdminUserDetail(user({ id: adminId }))).balances, { status: "ok", value: [] });
+  // Horizon answering for another account is a failure, not data.
+  const wrong = plain(await detailModule({ wallet: address, horizon: { status: 200, body: { id: other, balances: [] } } }).api.loadAdminUserDetail(user({ id: adminId })));
+  assert.deepEqual(wrong.balances, { status: "error" });
 });
