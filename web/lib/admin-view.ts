@@ -1,7 +1,7 @@
 // Server-rendered, script-free HTML for the admin host (admin.salapi.app). Pure:
 // data in, document out. Links are relative to that host's "/"; appUrl is the main app.
 import { html, SafeHtml } from "./admin-html.ts";
-import { ADMIN_PAGE_SIZE, DEFAULT_SEGMENT, SEGMENT_FILTERS, SEGMENT_LABEL, SORTS, accountSegment, activationFunnel, dailySignups, providerLabel, inPeriod, monthlySignups, wibDay, type AdminAccountRow, type AdminAuthUser, type AdminQuery, type AdminSegmentFilter, type AdminSort, type DailySignups, type SnapshotState } from "./admin-users.ts";
+import { ADMIN_PAGE_SIZE, DEFAULT_SEGMENT, SEGMENT_FILTERS, SEGMENT_LABEL, SORTS, accountSegment, activationFunnel, dailySignups, providerLabel, inMonth, inPeriod, monthlySignups, wibDay, wibMonth, type AdminAccountRow, type AdminAuthUser, type AdminQuery, type AdminSegmentFilter, type AdminSort, type DailySignups, type SnapshotState } from "./admin-users.ts";
 
 export interface AdminPanelData {
   users: readonly AdminAuthUser[];
@@ -131,7 +131,7 @@ function renderMonths(months: readonly { month: string; total: number; real: num
   const share = current.total ? Math.round(current.real / current.total * 100) : 0;
   return html`<section class="panel acq" aria-labelledby="months-title">
     <div class="panel-title"><div><span class="eyebrow">AKUISISI</span><h2 id="months-title">Pendaftaran</h2></div>
-      <div class="legend"><span class="key blue"></span>Asli<span class="key muted"></span>Tim &amp; tes</div></div>
+      <div class="legend"><span class="key muted"></span>Tim &amp; tes<span class="key blue"></span>Asli</div></div>
     <div class="acq-grid">
       <a class="acq-hero" href="${view({ segment: "real", month: current.month })}">
         <span class="eyebrow">Bulan ini · ${monthLabel(current.month)}</span>
@@ -144,7 +144,7 @@ function renderMonths(months: readonly { month: string; total: number; real: num
       </a>
       <div class="acq-chart" role="list" aria-label="Pendaftaran per bulan">
         ${months.map(month => html`<a class="mcol${month.month === current.month ? " now" : ""}" role="listitem" href="${view({ segment: "all", month: month.month })}" aria-label="${monthLabel(month.month)}: ${number(month.total)} pendaftaran, ${number(month.real)} asli">
-          <span class="mbars" aria-hidden="true"><i class="real" style="height:${(month.real / max * 100).toFixed(2)}%" data-v="${number(month.real)}"></i><i class="other" style="height:${((month.total - month.real) / max * 100).toFixed(2)}%" data-v="${number(month.total - month.real)}"></i></span>
+          <span class="mbars" aria-hidden="true"><i class="other" style="height:${((month.total - month.real) / max * 100).toFixed(2)}%" data-v="${number(month.total - month.real)}"></i><i class="real" style="height:${(month.real / max * 100).toFixed(2)}%" data-v="${number(month.real)}"></i></span>
           <span class="mlabel" aria-hidden="true">${monthLabel(month.month)}</span>
           <span class="mtotal" aria-hidden="true">${number(month.total)} total</span>
         </a>`)}
@@ -218,7 +218,7 @@ function renderDaily(days: readonly DailySignups[]): SafeHtml {
     <div class="daily-head"><span class="eyebrow">30 hari terakhir</span>
       <span class="chips"><span class="chip-stat"><b>${number(total)}</b> daftar</span><span class="chip-stat real"><b>${number(real)}</b> asli</span>${busiest.total ? html`<span class="chip-stat">Tersibuk <b>${label(busiest.day)}</b> (${number(busiest.total)})</span>` : ""}</span></div>
     <div class="day-bars" role="img" aria-label="Pendaftaran harian 30 hari terakhir: ${number(total)} daftar, ${number(real)} asli">
-      ${days.map((day, i) => html`<span class="day${day.total ? "" : " quiet"}${i === days.length - 1 ? " today" : ""}" title="${label(day.day)}: ${number(day.total)} daftar, ${number(day.real)} asli"><i class="day-real" style="height:${(day.real / max * 100).toFixed(2)}%"></i><i class="day-other" style="height:${((day.total - day.real) / max * 100).toFixed(2)}%"></i></span>`)}
+      ${days.map((day, i) => html`<span class="day${day.total ? "" : " quiet"}${i === days.length - 1 ? " today" : ""}" title="${label(day.day)}: ${number(day.total)} daftar, ${number(day.real)} asli"><i class="day-other" style="height:${((day.total - day.real) / max * 100).toFixed(2)}%"></i><i class="day-real" style="height:${(day.real / max * 100).toFixed(2)}%"></i></span>`)}
     </div>
     <div class="day-axis" aria-hidden="true"><span>${label(days[0].day)}</span><span>${label(days[Math.floor(days.length / 2)].day)}</span><span>Hari ini</span></div></div>`;
 }
@@ -235,12 +235,18 @@ function renderUsers(data: AdminPanelData): SafeHtml {
   const segments = new Map<AdminSegmentFilter, number>(SEGMENT_FILTERS.map(segment => [segment, 0]));
   for (const user of scoped) segments.set(accountSegment(user), (segments.get(accountSegment(user)) ?? 0) + 1);
   segments.set("all", scoped.length);
-  const first = matches ? (page - 1) * ADMIN_PAGE_SIZE + 1 : 0;
+  // One-click "this month" list for the active segment, next to the segment tabs.
+  const thisMonth = wibMonth(data.now.toISOString());
+  const thisMonthCount = inMonth(data.users, thisMonth).filter(user => query.segment === "all" || accountSegment(user) === query.segment).length;
+  const onThisMonth = query.month === thisMonth && !query.from && !query.to;
+  const anyPeriod = !query.month && !query.from && !query.to;
+  const first =matches ? (page - 1) * ADMIN_PAGE_SIZE + 1 : 0;
   return html`<section class="panel" id="users" aria-labelledby="users-title" tabindex="-1">
     <div class="panel-title"><div><span class="eyebrow">DIREKTORI AKUN</span><h2 id="users-title">Pengguna</h2></div>
       <div class="title-actions"><span class="tag">${number(matches)} akun</span><a class="button ghost small" href="${adminExportHref(query)}" download>⬇ Export akun asli (Excel${filtered ? ", sesuai filter" : ""})</a></div></div>
     <div class="tools">
       <nav class="tabs" aria-label="Segmen akun">${SEGMENT_FILTERS.map(segment => html`<a href="${adminHref({ ...query, segment }, 1)}"${segment === query.segment ? html` aria-current="page"` : ""}>${SEGMENT_LABEL[segment]} <span>${number(segments.get(segment) ?? 0)}</span></a>`)}</nav>
+      <nav class="tabs" aria-label="Periode daftar"><a href="${adminHref({ ...query, month: "", from: "", to: "" }, 1)}"${anyPeriod ? html` aria-current="page"` : ""}>Semua waktu</a><a href="${adminHref({ ...query, month: thisMonth, from: "", to: "" }, 1)}"${onThisMonth ? html` aria-current="page"` : ""}>Bulan ini · ${monthLabel(thisMonth)} <span>${number(thisMonthCount)}</span></a></nav>
     </div>
     <form class="filters" method="get" action="/#users" novalidate role="search" aria-label="Filter pengguna">
       <input type="hidden" name="segment" value="${query.segment}">${query.sort !== "daftar" ? html`<input type="hidden" name="sort" value="${query.sort}">` : ""}
@@ -380,7 +386,6 @@ td{padding:12px;border-bottom:1px solid var(--line);vertical-align:top}tbody tr:
 .acq-chart{display:flex;align-items:stretch;gap:16px;min-height:250px;padding:14px 12px 10px;border-radius:16px;background:repeating-linear-gradient(to top,rgba(150,172,214,.07) 0 1px,transparent 1px 25%) 0 14px/100% calc(100% - 64px) no-repeat,var(--bg);box-shadow:inset 0 0 0 1px var(--line);overflow-x:auto}
 .mcol{flex:0 0 108px;display:flex;flex-direction:column;align-items:center;gap:6px;padding:6px 4px;border-radius:12px;text-decoration:none;color:inherit;transition:background .15s}
 .mcol:hover{background:rgba(122,162,255,.08)}.mcol.now{background:rgba(37,99,235,.1);box-shadow:inset 0 0 0 1px rgba(122,162,255,.25)}
-.mcol:first-child{margin-left:auto}.mcol:last-child{margin-right:auto}
 .mbars{flex:1;display:flex;align-items:flex-end;justify-content:center;gap:6px;padding-top:22px}
 .mbars i{position:relative;display:block;width:28px;min-height:3px;border-radius:7px 7px 3px 3px}.mbars i::before{content:attr(data-v);position:absolute;bottom:100%;left:50%;transform:translateX(-50%);margin-bottom:5px;font:600 13px var(--mono);white-space:nowrap}
 .mbars .real{background:linear-gradient(180deg,#7aa2ff,var(--action));box-shadow:0 0 18px rgba(37,99,235,.35)}.mbars .real::before{color:#cfdcff}.mbars .other{background:linear-gradient(180deg,#56658a,#33405f)}.mbars .other::before{color:var(--ink2)}
