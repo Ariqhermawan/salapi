@@ -140,6 +140,8 @@ test("overview numbers and months link to the matching directory filter", () => 
   assert.match(page, /<a href="\/\?segment=simulation#users">1 simulasi<\/a>/);
   assert.match(page, /<a href="\/\?segment=qa#users">1 QA<\/a>/);
   assert.match(page, /<a class="mcol" role="listitem" href="\/\?segment=all&amp;month=2026-10#users" aria-label="Okt 2026: 2 pendaftaran, 0 asli">/);
+  // Real and test accounts are side-by-side bars, real first, each labelled with its own count.
+  assert.match(page, /<span class="mbars" aria-hidden="true"><i class="real" style="height:0.00%" data-v="0"><\/i><i class="other" style="height:100.00%" data-v="2"><\/i><\/span>\s*<span class="mlabel" aria-hidden="true">Okt 2026<\/span>\s*<span class="mtotal" aria-hidden="true">2 total<\/span>/);
   // This month leads: hero card (1 real of 1), compared with October (0 real).
   assert.match(page, /<a class="acq-hero" href="\/\?month=2026-11#users">/);
   assert.match(page, /<strong>1<\/strong>\s*<span class="acq-sub">pengguna asli baru<\/span>\s*<span class="delta up">▲ 1 dari Okt 2026<\/span>/);
