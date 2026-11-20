@@ -1,7 +1,7 @@
 // Server-rendered, script-free HTML for the admin host (admin.salapi.app). Pure:
 // data in, document out. Links are relative to that host's "/"; appUrl is the main app.
 import { html, SafeHtml } from "./admin-html.ts";
-import { ADMIN_PAGE_SIZE, DEFAULT_SEGMENT, SEGMENT_FILTERS, SEGMENT_LABEL, SORTS, accountSegment, activationFunnel, dailySignups, providerLabel, inPeriod, monthlySignups, wibDay, type AdminAccountRow, type AdminAuthUser, type AdminQuery, type AdminSegmentFilter, type AdminSort, type DailySignups, type SnapshotState } from "./admin-users.ts";
+import { ADMIN_PAGE_SIZE, DEFAULT_SEGMENT, SEGMENT_FILTERS, SEGMENT_LABEL, SORTS, accountSegment, activationFunnel, dailySignups, providerLabel, inMonth, inPeriod, monthlySignups, wibDay, wibMonth, type AdminAccountRow, type AdminAuthUser, type AdminQuery, type AdminSegmentFilter, type AdminSort, type DailySignups, type SnapshotState } from "./admin-users.ts";
 
 export interface AdminPanelData {
   users: readonly AdminAuthUser[];
@@ -131,7 +131,7 @@ function renderMonths(months: readonly { month: string; total: number; real: num
   const share = current.total ? Math.round(current.real / current.total * 100) : 0;
   return html`<section class="panel acq" aria-labelledby="months-title">
     <div class="panel-title"><div><span class="eyebrow">AKUISISI</span><h2 id="months-title">Pendaftaran</h2></div>
-      <div class="legend"><span class="key blue"></span>Asli<span class="key muted"></span>Tim &amp; tes</div></div>
+      <div class="legend"><span class="key muted"></span>Tim &amp; tes<span class="key blue"></span>Asli</div></div>
     <div class="acq-grid">
       <a class="acq-hero" href="${view({ segment: "real", month: current.month })}">
         <span class="eyebrow">Bulan ini · ${monthLabel(current.month)}</span>
@@ -144,7 +144,7 @@ function renderMonths(months: readonly { month: string; total: number; real: num
       </a>
       <div class="acq-chart" role="list" aria-label="Pendaftaran per bulan">
         ${months.map(month => html`<a class="mcol${month.month === current.month ? " now" : ""}" role="listitem" href="${view({ segment: "all", month: month.month })}" aria-label="${monthLabel(month.month)}: ${number(month.total)} pendaftaran, ${number(month.real)} asli">
-          <span class="mbars" aria-hidden="true"><i class="real" style="height:${(month.real / max * 100).toFixed(2)}%" data-v="${number(month.real)}"></i><i class="other" style="height:${((month.total - month.real) / max * 100).toFixed(2)}%" data-v="${number(month.total - month.real)}"></i></span>
+          <span class="mbars" aria-hidden="true"><i class="other" style="height:${((month.total - month.real) / max * 100).toFixed(2)}%" data-v="${number(month.total - month.real)}"></i><i class="real" style="height:${(month.real / max * 100).toFixed(2)}%" data-v="${number(month.real)}"></i></span>
           <span class="mlabel" aria-hidden="true">${monthLabel(month.month)}</span>
           <span class="mtotal" aria-hidden="true">${number(month.total)} total</span>
         </a>`)}
@@ -207,7 +207,7 @@ function renderActivation(data: AdminPanelData): SafeHtml {
   </details>`;
 }
 
-/** The last 30 WIB days: stacked bars, a dot for quiet days, the busiest day called out. */
+/** The last 30 WIB days: real and test bars side by side, a dot for quiet days, the busiest day called out. */
 function renderDaily(days: readonly DailySignups[]): SafeHtml {
   if (!days.length) return html``;
   const max = Math.max(1, ...days.map(day => day.total));
@@ -235,12 +235,18 @@ function renderUsers(data: AdminPanelData): SafeHtml {
   const segments = new Map<AdminSegmentFilter, number>(SEGMENT_FILTERS.map(segment => [segment, 0]));
   for (const user of scoped) segments.set(accountSegment(user), (segments.get(accountSegment(user)) ?? 0) + 1);
   segments.set("all", scoped.length);
-  const first = matches ? (page - 1) * ADMIN_PAGE_SIZE + 1 : 0;
+  // One-click "this month" list for the active segment, next to the segment tabs.
+  const thisMonth = wibMonth(data.now.toISOString());
+  const thisMonthCount = inMonth(data.users, thisMonth).filter(user => query.segment === "all" || accountSegment(user) === query.segment).length;
+  const onThisMonth = query.month === thisMonth && !query.from && !query.to;
+  const anyPeriod = !query.month && !query.from && !query.to;
+  const first =matches ? (page - 1) * ADMIN_PAGE_SIZE + 1 : 0;
   return html`<section class="panel" id="users" aria-labelledby="users-title" tabindex="-1">
     <div class="panel-title"><div><span class="eyebrow">DIREKTORI AKUN</span><h2 id="users-title">Pengguna</h2></div>
       <div class="title-actions"><span class="tag">${number(matches)} akun</span><a class="button ghost small" href="${adminExportHref(query)}" download>⬇ Export akun asli (Excel${filtered ? ", sesuai filter" : ""})</a></div></div>
     <div class="tools">
       <nav class="tabs" aria-label="Segmen akun">${SEGMENT_FILTERS.map(segment => html`<a href="${adminHref({ ...query, segment }, 1)}"${segment === query.segment ? html` aria-current="page"` : ""}>${SEGMENT_LABEL[segment]} <span>${number(segments.get(segment) ?? 0)}</span></a>`)}</nav>
+      <nav class="tabs" aria-label="Periode daftar"><a href="${adminHref({ ...query, month: "", from: "", to: "" }, 1)}"${anyPeriod ? html` aria-current="page"` : ""}>Semua waktu</a><a href="${adminHref({ ...query, month: thisMonth, from: "", to: "" }, 1)}"${onThisMonth ? html` aria-current="page"` : ""}>Bulan ini · ${monthLabel(thisMonth)} <span>${number(thisMonthCount)}</span></a></nav>
     </div>
     <form class="filters" method="get" action="/#users" novalidate role="search" aria-label="Filter pengguna">
       <input type="hidden" name="segment" value="${query.segment}">${query.sort !== "daftar" ? html`<input type="hidden" name="sort" value="${query.sort}">` : ""}
@@ -380,7 +386,6 @@ td{padding:12px;border-bottom:1px solid var(--line);vertical-align:top}tbody tr:
 .acq-chart{display:flex;align-items:stretch;gap:16px;min-height:250px;padding:14px 12px 10px;border-radius:16px;background:repeating-linear-gradient(to top,rgba(150,172,214,.07) 0 1px,transparent 1px 25%) 0 14px/100% calc(100% - 64px) no-repeat,var(--bg);box-shadow:inset 0 0 0 1px var(--line);overflow-x:auto}
 .mcol{flex:0 0 108px;display:flex;flex-direction:column;align-items:center;gap:6px;padding:6px 4px;border-radius:12px;text-decoration:none;color:inherit;transition:background .15s}
 .mcol:hover{background:rgba(122,162,255,.08)}.mcol.now{background:rgba(37,99,235,.1);box-shadow:inset 0 0 0 1px rgba(122,162,255,.25)}
-.mcol:first-child{margin-left:auto}.mcol:last-child{margin-right:auto}
 .mbars{flex:1;display:flex;align-items:flex-end;justify-content:center;gap:6px;padding-top:22px}
 .mbars i{position:relative;display:block;width:28px;min-height:3px;border-radius:7px 7px 3px 3px}.mbars i::before{content:attr(data-v);position:absolute;bottom:100%;left:50%;transform:translateX(-50%);margin-bottom:5px;font:600 13px var(--mono);white-space:nowrap}
 .mbars .real{background:linear-gradient(180deg,#7aa2ff,var(--action));box-shadow:0 0 18px rgba(37,99,235,.35)}.mbars .real::before{color:#cfdcff}.mbars .other{background:linear-gradient(180deg,#56658a,#33405f)}.mbars .other::before{color:var(--ink2)}
@@ -388,8 +393,8 @@ td{padding:12px;border-bottom:1px solid var(--line);vertical-align:top}tbody tr:
 .daily{margin-top:18px;padding:16px;border-radius:16px;background:var(--bg);box-shadow:inset 0 0 0 1px var(--line)}.daily-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
 .chips{display:flex;gap:6px;flex-wrap:wrap}.chip-stat{padding:4px 10px;border-radius:999px;background:var(--panel2);color:var(--ink2);font-size:12px}.chip-stat b{color:var(--ink);font-weight:600}.chip-stat.real b{color:var(--blue)}
 .day-bars{display:flex;align-items:flex-end;gap:4px;height:84px;padding-bottom:2px;background:repeating-linear-gradient(to top,rgba(150,172,214,.07) 0 1px,transparent 1px 33.3%)}
-.day{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;border-radius:4px;transition:background .15s}.day:hover{background:rgba(122,162,255,.12)}
-.day-real,.day-other{display:block;width:100%}.day-real{background:linear-gradient(180deg,#7aa2ff,var(--action));border-radius:0 0 3px 3px}.day-other{background:#3e4c6e;border-radius:3px 3px 0 0}.day-real:first-child,.day-other:last-child{border-radius:3px}
+.day{flex:1;height:100%;display:flex;align-items:flex-end;justify-content:center;gap:2px;border-radius:4px;transition:background .15s}.day:hover{background:rgba(122,162,255,.12)}
+.day-real,.day-other{display:block;flex:1;max-width:13px;border-radius:3px 3px 1px 1px}.day-real{background:linear-gradient(180deg,#7aa2ff,var(--action))}.day-other{background:#4a5878}.day.quiet i{display:none}
 .day.quiet::after{content:"";display:block;width:4px;height:4px;margin:0 auto;border-radius:50%;background:rgba(150,172,214,.25)}.day.today{box-shadow:inset 0 -2px 0 var(--green)}
 .day-axis{display:flex;justify-content:space-between;margin-top:8px;font:500 11px var(--mono);color:var(--ink3)}
 .acq-table{margin-top:14px}.acq-table summary,.fold summary{cursor:pointer;list-style:none}.acq-table summary::-webkit-details-marker,.fold summary::-webkit-details-marker{display:none}
@@ -406,7 +411,7 @@ td{padding:12px;border-bottom:1px solid var(--line);vertical-align:top}tbody tr:
 .fpct{font:500 11px var(--mono);color:var(--ink3)}.fpct em{font-style:normal;color:var(--green)}
 @media (max-width:1100px){.fsteps{grid-template-columns:repeat(2,minmax(0,1fr))}.fstep:nth-child(2)::after{display:none}}
 @media (max-width:760px){.acq-grid{grid-template-columns:1fr}.acq-hero strong{font-size:52px}.fold summary{flex-wrap:wrap}.fold-kpis{justify-content:flex-start;order:3;width:100%}}
-@media (max-width:520px){.acq-chart{gap:10px}.mcol{flex-basis:84px}.mbars{gap:4px}.mbars i{width:22px}}
+@media (max-width:520px){.acq-chart{gap:10px}.mcol{flex-basis:84px}.mbars{gap:4px}.mbars i{width:22px}.day-bars{gap:2px}.day{gap:1px}}
 @media (max-width:520px){.fsteps{grid-template-columns:1fr}.fstep::after{display:none}}
 @media (max-width:1100px){.ribbon{grid-template-columns:1fr 1fr}.stat:nth-child(3){border-left:0}.stat:nth-child(n+3){border-top:1px solid var(--line)}}
 @media (max-width:860px){.shell{grid-template-columns:1fr}.side{position:static;height:auto;flex-direction:row;align-items:center;flex-wrap:wrap;gap:12px;padding:14px 16px;border-right:0;border-bottom:1px solid var(--line)}

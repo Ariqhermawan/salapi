@@ -140,8 +140,9 @@ test("overview numbers and months link to the matching directory filter", () => 
   assert.match(page, /<a href="\/\?segment=simulation#users">1 simulasi<\/a>/);
   assert.match(page, /<a href="\/\?segment=qa#users">1 QA<\/a>/);
   assert.match(page, /<a class="mcol" role="listitem" href="\/\?segment=all&amp;month=2026-10#users" aria-label="Okt 2026: 2 pendaftaran, 0 asli">/);
-  // Real and test accounts are side-by-side bars, real first, each labelled with its own count.
-  assert.match(page, /<span class="mbars" aria-hidden="true"><i class="real" style="height:0.00%" data-v="0"><\/i><i class="other" style="height:100.00%" data-v="2"><\/i><\/span>\s*<span class="mlabel" aria-hidden="true">Okt 2026<\/span>\s*<span class="mtotal" aria-hidden="true">2 total<\/span>/);
+  // Test and real accounts are side-by-side bars, real on the right, each labelled with its own count.
+  assert.match(page, /<div class="legend"><span class="key muted"><\/span>Tim &amp; tes<span class="key blue"><\/span>Asli<\/div>/);
+  assert.match(page, /<span class="mbars" aria-hidden="true"><i class="other" style="height:100.00%" data-v="2"><\/i><i class="real" style="height:0.00%" data-v="0"><\/i><\/span>\s*<span class="mlabel" aria-hidden="true">Okt 2026<\/span>\s*<span class="mtotal" aria-hidden="true">2 total<\/span>/);
   // This month leads: hero card (1 real of 1), compared with October (0 real).
   assert.match(page, /<a class="acq-hero" href="\/\?month=2026-11#users">/);
   assert.match(page, /<strong>1<\/strong>\s*<span class="acq-sub">pengguna asli baru<\/span>\s*<span class="delta up">▲ 1 dari Okt 2026<\/span>/);
@@ -156,6 +157,10 @@ test("overview numbers and months link to the matching directory filter", () => 
   assert.match(october, /Asli <span>0<\/span><\/a><a href="\/\?segment=all&amp;month=2026-10#users">Semua <span>2<\/span>/);
   assert.match(october, /<option value="2026-10" selected>Okt 2026<\/option>/);
   assert.match(october, /<option value="2026-11">Nov 2026 · bulan ini<\/option>/);
+  // "Bulan ini" lists this month's signups for the active segment in one click.
+  assert.match(page, /<nav class="tabs" aria-label="Periode daftar"><a href="\/#users" aria-current="page">Semua waktu<\/a><a href="\/\?month=2026-11#users">Bulan ini · Nov 2026 <span>1<\/span><\/a><\/nav>/);
+  assert.match(october, /<nav class="tabs" aria-label="Periode daftar"><a href="\/#users">Semua waktu<\/a><a href="\/\?month=2026-11#users">Bulan ini/);
+  assert.match(render("2026-11"), /<a href="\/\?month=2026-11#users" aria-current="page">Bulan ini · Nov 2026 <span>1<\/span>/);
 });
 
 test("gate pages escape the signed-in email and never render account data", () => {
@@ -469,6 +474,9 @@ test("the panel shows the team segment, sort links, the 30-day strip and card la
   assert.match(page, /<input type="hidden" name="sort" value="masuk">/);
   assert.match(page, /aria-label="Pendaftaran harian 30 hari terakhir: 2 daftar, 1 asli"/);
   assert.equal((page.match(/<span class="day[^"]*" title=/g) ?? []).length, 30);
+  // Side by side like the monthly chart: real bar on the right. 18 Nov = one real signup, 19 Nov = one team signup.
+  assert.match(page, /title="18 Nov: 1 daftar, 1 asli"><i class="day-other" style="height:0.00%"><\/i><i class="day-real" style="height:100.00%"><\/i>/);
+  assert.match(page, /title="19 Nov: 1 daftar, 0 asli"><i class="day-other" style="height:100.00%"><\/i><i class="day-real" style="height:0.00%"><\/i>/);
   for (const label of ["Daftar", "Akun", "Username", "Wallet", "Tx terkirim"]) assert.match(page, new RegExp(`<td( class="num")? data-label="${label}">`));
 });
 
