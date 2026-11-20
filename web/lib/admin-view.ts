@@ -230,7 +230,6 @@ function renderUsers(data: AdminPanelData): SafeHtml {
   const scoped = inPeriod(data.users, query);
   const months = monthlySignups(data.users, data.now).map(month => month.month).reverse();
   const today = wibDay(data.now.toISOString());
-  const firstDay = data.users.reduce((min, user) => Number.isFinite(Date.parse(user.created_at)) && wibDay(user.created_at) < min ? wibDay(user.created_at) : min, today);
   const filtered = Boolean(query.month || query.from || query.to);
   const dayLabel = (day: string) => DAY.format(new Date(`${day}T12:00:00+07:00`));
   const range = query.from && query.to ? `${dayLabel(query.from)} sampai ${dayLabel(query.to)}` : query.from ? `sejak ${dayLabel(query.from)}` : query.to ? `sampai ${dayLabel(query.to)}` : "";
@@ -244,12 +243,12 @@ function renderUsers(data: AdminPanelData): SafeHtml {
     <div class="tools">
       <nav class="tabs" aria-label="Segmen akun">${SEGMENT_FILTERS.map(segment => html`<a href="${adminHref({ ...query, segment }, 1)}"${segment === query.segment ? html` aria-current="page"` : ""}>${SEGMENT_LABEL[segment]} <span>${number(segments.get(segment) ?? 0)}</span></a>`)}</nav>
     </div>
-    <form class="filters" method="get" action="/#users" role="search" aria-label="Filter pengguna">
+    <form class="filters" method="get" action="/#users" novalidate role="search" aria-label="Filter pengguna">
       <input type="hidden" name="segment" value="${query.segment}">${query.sort !== "daftar" ? html`<input type="hidden" name="sort" value="${query.sort}">` : ""}
       <label class="field grow"><span>Cari</span><input type="search" name="q" value="${query.q}" maxlength="100" placeholder="Email atau User ID" autocomplete="off"></label>
       <label class="field"><span>Bulan daftar</span><select name="month"><option value="">Semua bulan</option>${months.map(month => html`<option value="${month}"${month === query.month ? html` selected` : ""}>${monthLabel(month)}${month === months[0] ? " · bulan ini" : ""}</option>`)}</select></label>
-      <label class="field"><span>Dari tanggal</span><input type="date" name="from" value="${query.from ?? ""}" min="${firstDay}" max="${today}"></label>
-      <label class="field"><span>Sampai tanggal</span><input type="date" name="to" value="${query.to ?? ""}" min="${firstDay}" max="${today}"></label>
+      <label class="field"><span>Dari tanggal</span><input type="date" name="from" value="${query.from ?? ""}" max="${today}"></label>
+      <label class="field"><span>Sampai tanggal</span><input type="date" name="to" value="${query.to ?? ""}" max="${today}"></label>
       <div class="filter-actions"><button class="button" type="submit">Terapkan</button>${filtered || query.q ? html`<a class="clear" href="${adminHref({ ...query, q: "", month: "", from: "", to: "" }, 1)}">Reset</a>` : ""}</div>
     </form>
     ${filtered || query.q ? html`<div class="active-filters" aria-label="Filter aktif">
