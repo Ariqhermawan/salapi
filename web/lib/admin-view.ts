@@ -1,7 +1,7 @@
 // Server-rendered, script-free HTML for the admin host (admin.salapi.app). Pure:
 // data in, document out. Links are relative to that host's "/"; appUrl is the main app.
 import { html, SafeHtml } from "./admin-html.ts";
-import { ADMIN_PAGE_SIZE, DEFAULT_SEGMENT, SEGMENT_FILTERS, SEGMENT_LABEL, accountSegment, providerLabel, inMonth, monthlySignups, type AdminAccountRow, type AdminAuthUser, type AdminQuery, type AdminSegmentFilter } from "./admin-users.ts";
+import { ADMIN_PAGE_SIZE, DEFAULT_SEGMENT, SEGMENT_FILTERS, SEGMENT_LABEL, SORTS, accountSegment, dailySignups, providerLabel, inMonth, monthlySignups, type AdminAccountRow, type AdminAuthUser, type AdminQuery, type AdminSegmentFilter, type AdminSort, type DailySignups } from "./admin-users.ts";
 
 export interface AdminPanelData {
   users: readonly AdminAuthUser[];
@@ -25,6 +25,8 @@ const DAY = fmt({ day: "numeric", month: "short", year: "numeric" });
 const TIME = fmt({ hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 const LONG = fmt({ weekday: "long", day: "numeric", month: "long", year: "numeric" });
 const MONTH = new Intl.DateTimeFormat("id-ID", { month: "short", year: "numeric", timeZone: "UTC" });
+const DAY_SHORT = new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", timeZone: "UTC" });
+const SORT_LABEL: Record<AdminSort, string> = { daftar: "Daftar terbaru", masuk: "Terakhir masuk" };
 const number = (value: number) => value.toLocaleString("id-ID");
 const valid = (iso: string | null | undefined): iso is string => typeof iso === "string" && Number.isFinite(Date.parse(iso));
 
@@ -62,6 +64,7 @@ export function renderAdminPanel(data: AdminPanelData): SafeHtml {
   }
   segments.set("all", data.users.length);
   const months = monthlySignups(data.users, data.now);
+  const days = dailySignups(data.users, data.now);
   const thisMonth = months.at(-1) ?? { month: "", total: 0, real: 0 };
   const total = data.users.length;
   const count = (segment: AdminSegmentFilter) => number(segments.get(segment) ?? 0);
@@ -82,10 +85,10 @@ export function renderAdminPanel(data: AdminPanelData): SafeHtml {
       ${stat("Daftar bulan ini", number(thisMonth.total), thisMonth.month
         ? html`<a href="${view({ segment: "real", month: thisMonth.month })}">${number(thisMonth.real)} asli</a> · ${monthLabel(thisMonth.month)}`
         : html`Belum ada`, "green", view({ segment: "all", month: thisMonth.month }))}
-      ${stat("Total akun", number(total), html`<a href="${view({ segment: "simulation" })}">${count("simulation")} simulasi</a> · <a href="${view({ segment: "load_test" })}">${count("load_test")} load test</a> · <a href="${view({ segment: "qa" })}">${count("qa")} QA</a>`, "", view({ segment: "all" }))}
+      ${stat("Total akun", number(total), html`<a href="${view({ segment: "team" })}">${count("team")} tim</a> · <a href="${view({ segment: "simulation" })}">${count("simulation")} simulasi</a> · <a href="${view({ segment: "load_test" })}">${count("load_test")} load test</a> · <a href="${view({ segment: "qa" })}">${count("qa")} QA</a>`, "", view({ segment: "all" }))}
       ${stat("Punya wallet", data.walletCount === null ? "Gagal dimuat" : number(data.walletCount), data.walletCount === null || !total ? html`Wallet custodial Testnet` : html`${Math.round(data.walletCount / total * 100)}% dari semua akun`, "violet", view({ segment: "all" }))}
     </section>
-    ${renderMonths(months)}
+    ${renderMonths(months, days)}
     ${renderUsers(data)}
     <footer class="foot">Salapi Admin · Waktu dalam WIB · Data akun dari Supabase, username dan transaksi dari Stellar Testnet</footer>
   </main>
@@ -99,27 +102,41 @@ function stat(label: string, value: string, sub: SafeHtml, tone: string, href: s
 
 /** Directory link for a filter, starting from the default view (real users, page 1). */
 function view(filter: Partial<AdminQuery>): string {
-  return adminHref({ segment: DEFAULT_SEGMENT, q: "", month: "", page: 1, ...filter }, 1);
+  return adminHref({ segment: DEFAULT_SEGMENT, q: "", month: "", page: 1, sort: "daftar", ...filter }, 1);
 }
 
 function monthLabel(month: string): string {
   return MONTH.format(new Date(`${month}-01T00:00:00Z`));
 }
 
-function renderMonths(months: readonly { month: string; total: number; real: number }[]): SafeHtml {
+function renderMonths(months: readonly { month: string; total: number; real: number }[], days: readonly DailySignups[]): SafeHtml {
   const max = Math.max(1, ...months.map(month => month.total));
   return html`<section class="panel" aria-labelledby="months-title">
     <div class="panel-title"><div><span class="eyebrow">AKUISISI</span><h2 id="months-title">Pendaftaran per bulan</h2></div>
-      <div class="legend"><span class="key blue"></span>Asli<span class="key muted"></span>Simulasi, load test, QA</div></div>
+      <div class="legend"><span class="key blue"></span>Asli<span class="key muted"></span>Tim, simulasi, load test, QA</div></div>
     ${months.length ? html`<div class="bars">
       ${months.map(month => html`<a class="bar-col" href="${view({ segment: "all", month: month.month })}" aria-label="${monthLabel(month.month)}: ${number(month.total)} pendaftaran, ${number(month.real)} asli"><span class="bar-value" aria-hidden="true">${month.total || ""}</span>
         <div class="bar"><div class="bar-other" style="height:${((month.total - month.real) / max * 100).toFixed(2)}%"></div><div class="bar-real" style="height:${(month.real / max * 100).toFixed(2)}%"></div></div>
         <span class="bar-label" aria-hidden="true">${monthLabel(month.month)}</span></a>`)}
     </div>
-    <table class="mini"><thead><tr><th>Bulan</th><th>Total daftar</th><th>Asli</th><th>Simulasi, load test, QA</th></tr></thead><tbody>
+    <table class="mini"><thead><tr><th>Bulan</th><th>Total daftar</th><th>Asli</th><th>Tim &amp; tes</th></tr></thead><tbody>
       ${[...months].reverse().map(month => html`<tr><td><a href="${view({ segment: "all", month: month.month })}">${monthLabel(month.month)}</a></td><td><a href="${view({ segment: "all", month: month.month })}">${number(month.total)}</a></td><td><a href="${view({ segment: "real", month: month.month })}">${number(month.real)}</a></td><td>${number(month.total - month.real)}</td></tr>`)}
     </tbody></table>` : html`<p class="muted">Belum ada pendaftaran.</p>`}
+    ${renderDaily(days)}
   </section>`;
+}
+
+/** Thin stacked bars for the last 30 WIB days; exact counts are in each bar's tooltip. */
+function renderDaily(days: readonly DailySignups[]): SafeHtml {
+  if (!days.length) return html``;
+  const max = Math.max(1, ...days.map(day => day.total));
+  const total = days.reduce((sum, day) => sum + day.total, 0), real = days.reduce((sum, day) => sum + day.real, 0);
+  const label = (day: string) => DAY_SHORT.format(new Date(`${day}T00:00:00Z`));
+  return html`<div class="daily"><div class="daily-head"><span class="eyebrow">30 hari terakhir</span><span class="muted">${number(total)} daftar · ${number(real)} asli</span></div>
+    <div class="day-bars" role="img" aria-label="Pendaftaran harian 30 hari terakhir: ${number(total)} daftar, ${number(real)} asli">
+      ${days.map(day => html`<span class="day" title="${label(day.day)}: ${number(day.total)} daftar, ${number(day.real)} asli"><i class="day-other" style="height:${((day.total - day.real) / max * 100).toFixed(2)}%"></i><i class="day-real" style="height:${(day.real / max * 100).toFixed(2)}%"></i></span>`)}
+    </div>
+    <div class="day-axis" aria-hidden="true"><span>${label(days[0].day)}</span><span>${label(days[days.length - 1].day)}</span></div></div>`;
 }
 
 function renderUsers(data: AdminPanelData): SafeHtml {
@@ -137,19 +154,20 @@ function renderUsers(data: AdminPanelData): SafeHtml {
       <nav class="tabs" aria-label="Segmen akun">${SEGMENT_FILTERS.map(segment => html`<a href="${adminHref({ ...query, segment }, 1)}"${segment === query.segment ? html` aria-current="page"` : ""}>${SEGMENT_LABEL[segment]} <span>${number(segments.get(segment) ?? 0)}</span></a>`)}</nav>
       ${query.month ? html`<a class="chip" href="${adminHref({ ...query, month: "" }, 1)}" aria-label="Hapus filter bulan ${monthLabel(query.month)}">Daftar ${monthLabel(query.month)} <span aria-hidden="true">✕</span></a>` : ""}
       <form class="search" method="get" action="/#users" role="search">
-        <input type="hidden" name="segment" value="${query.segment}">${query.month ? html`<input type="hidden" name="month" value="${query.month}">` : ""}
+        <input type="hidden" name="segment" value="${query.segment}">${query.month ? html`<input type="hidden" name="month" value="${query.month}">` : ""}${query.sort !== "daftar" ? html`<input type="hidden" name="sort" value="${query.sort}">` : ""}
         <label class="sr" for="admin-q">Cari email atau User ID</label>
         <input id="admin-q" type="search" name="q" value="${query.q}" maxlength="100" placeholder="Cari email atau User ID" autocomplete="off">
         <button class="button" type="submit">Cari</button>${query.q ? html`<a class="clear" href="${adminHref({ ...query, q: "" }, 1)}">Hapus</a>` : ""}
       </form>
     </div>
+    <nav class="sorts" aria-label="Urutan"><span class="muted">Urutkan</span>${SORTS.map(sort => html`<a href="${adminHref({ ...query, sort }, 1)}"${sort === query.sort ? html` aria-current="page"` : ""}>${SORT_LABEL[sort]}</a>`)}</nav>
     ${data.rows.length ? html`<div class="table-wrap"><table class="users">
       <thead><tr><th>Daftar</th><th>Akun</th><th>Username</th><th>Wallet</th><th class="num">Tx terkirim</th></tr></thead>
       <tbody>${data.rows.map(row => renderRow(row, data.adminIds))}</tbody></table></div>
       <div class="pager"><span>Menampilkan ${number(first)} sampai ${number(first + data.rows.length - 1)} dari ${number(matches)}</span>
         <span>${page > 1 ? html`<a href="${adminHref(query, page - 1)}">← Sebelumnya</a>` : ""}<b>Halaman ${number(page)} dari ${number(pages)}</b>${page < pages ? html`<a href="${adminHref(query, page + 1)}">Berikutnya →</a>` : ""}</span></div>`
       : html`<p class="empty">Tidak ada akun yang cocok.</p>`}
-    <p class="note"><b>Tx terkirim</b> dihitung dari sequence number wallet di Stellar Testnet: jumlah transaksi yang dikirim dari wallet itu, termasuk yang gagal di ledger, tanpa dana masuk. Riwayat lengkap ada di tautan Stellar Expert. <b>Export akun asli (Excel)</b> berisi semua akun asli (bukan hanya halaman ini) dengan kolom terpisah, filter per bulan, dan sheet Ringkasan berisi total tx. <b>Asli</b> berarti di luar simulasi, load test, dan akun QA (.invalid atau .test), termasuk akun tim.</p>
+    <p class="note"><b>Tx terkirim</b> dihitung dari sequence number wallet di Stellar Testnet: jumlah transaksi yang dikirim dari wallet itu, termasuk yang gagal di ledger, tanpa dana masuk. Riwayat lengkap ada di tautan Stellar Expert. <b>Export akun asli (Excel)</b> berisi semua akun asli (bukan hanya halaman ini) dengan kolom terpisah, filter per bulan, dan sheet Ringkasan berisi total tx. <b>Asli</b> berarti di luar akun tim (admin dan akun internal), simulasi, load test, dan akun QA (.invalid atau .test).</p>
   </section>`;
 }
 
@@ -158,13 +176,13 @@ function renderRow({ user, wallet, username, sentTx }: AdminAccountRow, adminIds
   const provider = providerLabel(user);
   const failed = html`<span class="warn">Gagal dimuat</span>`;
   return html`<tr>
-    <td>${valid(user.created_at) ? html`<span class="strong">${DAY.format(new Date(user.created_at))}</span><small>${TIME.format(new Date(user.created_at))} WIB</small>` : "Tidak diketahui"}
+    <td data-label="Daftar">${valid(user.created_at) ? html`<span class="strong">${DAY.format(new Date(user.created_at))}</span><small>${TIME.format(new Date(user.created_at))} WIB</small>` : "Tidak diketahui"}
       <small>${valid(user.last_sign_in_at) ? html`Masuk terakhir ${DAY.format(new Date(user.last_sign_in_at))}` : "Belum pernah masuk"}</small></td>
-    <td><span class="strong email">${user.email || "Tanpa email"}</span>
+    <td data-label="Akun"><span class="strong email">${user.email || "Tanpa email"}</span>
       <small><span class="pill ${segment}">${SEGMENT_LABEL[segment]}</span>${adminIds.has(user.id.toLowerCase()) ? html`<span class="pill admin">Admin</span>` : ""}${provider} · <code title="${user.id}">${user.id.slice(0, 8)}</code></small></td>
-    <td>${username.status === "ok" ? html`<span class="handle">@${username.value}</span>` : username.status === "none" ? html`<span class="muted">Belum dibuat</span>` : failed}</td>
-    <td>${wallet.status === "ok" ? html`<a class="addr" href="https://stellar.expert/explorer/testnet/account/${wallet.value}" target="_blank" rel="noopener noreferrer">${wallet.value}</a>` : wallet.status === "none" ? html`<span class="muted">Belum dibuat</span>` : failed}</td>
-    <td class="num">${sentTx.status === "ok" ? html`<span class="count">${number(sentTx.value)}</span>` : sentTx.status === "none" ? html`<span class="muted">Belum aktif</span>` : failed}</td>
+    <td data-label="Username">${username.status === "ok" ? html`<span class="handle">@${username.value}</span>` : username.status === "none" ? html`<span class="muted">Belum dibuat</span>` : failed}</td>
+    <td data-label="Wallet">${wallet.status === "ok" ? html`<a class="addr" href="https://stellar.expert/explorer/testnet/account/${wallet.value}" target="_blank" rel="noopener noreferrer">${wallet.value}</a>` : wallet.status === "none" ? html`<span class="muted">Belum dibuat</span>` : failed}</td>
+    <td class="num" data-label="Tx terkirim">${sentTx.status === "ok" ? html`<span class="count">${number(sentTx.value)}</span>` : sentTx.status === "none" ? html`<span class="muted">Belum aktif</span>` : failed}</td>
   </tr>`;
 }
 
@@ -174,6 +192,7 @@ export function adminHref(query: AdminQuery, page: number): string {
   if (query.segment !== DEFAULT_SEGMENT) params.set("segment", query.segment);
   if (query.month) params.set("month", query.month);
   if (query.q) params.set("q", query.q);
+  if (query.sort !== "daftar") params.set("sort", query.sort);
   if (page > 1) params.set("page", String(page));
   const search = params.toString();
   return `/${search ? `?${search}` : ""}#users`;
@@ -231,7 +250,12 @@ td{padding:12px;border-bottom:1px solid var(--line);vertical-align:top}tbody tr:
 .addr{font:12px/1.45 var(--mono);color:var(--ink2);word-break:break-all;display:inline-block;max-width:30ch;text-decoration:none;border-bottom:1px dashed rgba(122,162,255,.35)}.addr:hover{color:var(--blue)}
 .num{text-align:right}.count{font:500 18px var(--mono);font-variant-numeric:tabular-nums}
 .pill{display:inline-block;font:500 10px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;padding:4px 6px;border-radius:6px;margin-right:6px;background:var(--panel2);color:var(--ink2)}
-.pill.real{background:rgba(52,211,153,.14);color:var(--green)}.pill.simulation{background:rgba(185,166,255,.14);color:var(--violet)}.pill.load_test{background:rgba(245,180,84,.14);color:var(--amber)}.pill.admin{background:rgba(37,99,235,.25);color:#cfdcff}
+.pill.real{background:rgba(52,211,153,.14);color:var(--green)}.pill.simulation{background:rgba(185,166,255,.14);color:var(--violet)}.pill.load_test{background:rgba(245,180,84,.14);color:var(--amber)}.pill.admin{background:rgba(37,99,235,.25);color:#cfdcff}.pill.team{background:rgba(52,211,153,.08);color:#9fe7c9;box-shadow:inset 0 0 0 1px rgba(52,211,153,.3)}
+.daily{margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}.daily-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:10px;font-size:12px}
+.day-bars{display:flex;align-items:flex-end;gap:3px;height:64px}.day{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;border-radius:3px;transition:background .15s}.day:hover{background:rgba(122,162,255,.12)}
+.day-real,.day-other{display:block;width:100%}.day-real{background:var(--action);border-radius:0 0 2px 2px}.day-other{background:#3a4867;border-radius:2px 2px 0 0}.day-real:first-child,.day-other:last-child{border-radius:2px}
+.day-axis{display:flex;justify-content:space-between;margin-top:6px;font:500 11px var(--mono);color:var(--ink3)}
+.sorts{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin:-4px 0 12px;font-size:12px}.sorts .muted{margin-right:6px}.sorts a{padding:4px 9px;border-radius:999px;color:var(--ink2);text-decoration:none}.sorts a:hover{color:var(--ink)}.sorts a[aria-current]{background:var(--panel2);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}
 .pager{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px;font-size:13px;color:var(--ink3)}.pager span:last-child{display:flex;gap:14px;align-items:center}.pager b{color:var(--ink2);font-weight:500}.pager a{text-decoration:none}
 .empty{padding:28px;text-align:center;color:var(--ink3);border:1px dashed var(--line);border-radius:12px}
 .note{margin:14px 0 0;font-size:12px;color:var(--ink3);max-width:110ch}.note b{color:var(--ink2);font-weight:600}
@@ -244,5 +268,8 @@ td{padding:12px;border-bottom:1px solid var(--line);vertical-align:top}tbody tr:
 @media (max-width:860px){.admin{grid-template-columns:1fr}.side{position:static;height:auto;flex-direction:row;align-items:center;flex-wrap:wrap;gap:12px;padding:14px 16px;border-right:0;border-bottom:1px solid var(--line)}
 .brand em{margin-left:8px}.side nav{flex-direction:row;margin-left:auto}.group,.side-foot{display:none}main{padding:20px 16px 40px}.head h1{font-size:24px}}
 @media (max-width:520px){.ribbon{grid-template-columns:1fr}.stat{border-left:0;border-top:1px solid var(--line)}.stat:first-child{border-top:0}.search{width:100%}.search input[type=search]{flex:1;width:auto}}
+@media (max-width:640px){.table-wrap{border:0;overflow:visible}.users{min-width:0}.users thead{display:none}.users,.users tbody,.users tr,.users td{display:block;width:100%}
+.users tr{border:1px solid var(--line);border-radius:12px;padding:6px 0;margin-bottom:10px;background:var(--panel2)}.users td{border:0;padding:6px 14px}.users td::before{content:attr(data-label);display:block;font:500 10px/1.6 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink3)}
+.users td.num{text-align:left}.addr{max-width:none}tbody tr:hover td{background:none}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 `;

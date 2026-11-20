@@ -5,7 +5,7 @@ import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import { isAuthSessionMissingError, AuthSessionMissingError } from "@supabase/supabase-js";
 import { StrKey } from "@stellar/stellar-sdk";
-import { accountSegment, filterUsers, monthlySignups, parseAdminIds, parseAdminQuery, sentTransactionCount, wibMonth, type AdminAccountRow, type AdminAuthUser } from "../lib/admin-users.ts";
+import { accountSegment, dailySignups, filterUsers, markTeam, monthlySignups, parseAdminIds, parseAdminQuery, sentTransactionCount, wibMonth, type AdminAccountRow, type AdminAuthUser } from "../lib/admin-users.ts";
 import { adminHref, renderAdminDocument, renderAdminGate, renderAdminPanel } from "../lib/admin-view.ts";
 import { escapeHtml, html } from "../lib/admin-html.ts";
 import { adminHostRoute, hostHeaderName } from "../lib/admin-host.ts";
@@ -62,15 +62,15 @@ test("sent transactions come from the low 32 bits of the account sequence", () =
 
 test("query parsing clamps unknown segments and pages; filtering searches email and ID newest first", () => {
   // The directory opens on real users; unknown segments fall back to that view.
-  assert.deepEqual(parseAdminQuery(new URLSearchParams("")), { segment: "real", q: "", page: 1, month: "" });
-  assert.deepEqual(parseAdminQuery(new URLSearchParams("segment=evil&page=-3&q=%20a%20")), { segment: "real", q: "a", page: 1, month: "" });
-  assert.deepEqual(parseAdminQuery(new URLSearchParams("segment=all&page=2&month=2026-10")), { segment: "all", q: "", page: 2, month: "2026-10" });
+  assert.deepEqual(parseAdminQuery(new URLSearchParams("")), { segment: "real", q: "", page: 1, month: "", sort: "daftar" });
+  assert.deepEqual(parseAdminQuery(new URLSearchParams("segment=evil&page=-3&q=%20a%20")), { segment: "real", q: "a", page: 1, month: "", sort: "daftar" });
+  assert.deepEqual(parseAdminQuery(new URLSearchParams("segment=all&page=2&month=2026-10")), { segment: "all", q: "", page: 2, month: "2026-10", sort: "daftar" });
   for (const month of ["2026-13", "2026-1", "26-10", "2026-10-01", "<b>"]) assert.equal(parseAdminQuery(new URLSearchParams({ month })).month, "");
   assert.equal(parseAdminQuery(new URLSearchParams(`q=${"x".repeat(500)}`)).q.length, 100);
   const older = user({ id: adminId, email: "Owner@Example.com", created_at: "2026-09-01T00:00:00Z" });
   const newer = user({ created_at: "2026-11-01T00:00:00Z" });
   const sim = user({ email: "sim@salapi.invalid", app_metadata: { synthetic: true } });
-  const base = { q: "", page: 1, month: "" };
+  const base = { q: "", page: 1, month: "", sort: "daftar" as const };
   assert.deepEqual(filterUsers([older, newer, sim], { ...base, segment: "real" }), [newer, older]);
   assert.deepEqual(filterUsers([older, newer, sim], { ...base, segment: "all", q: "owner@" }), [older]);
   assert.deepEqual(filterUsers([older, newer, sim], { ...base, segment: "all", q: "0000aa" }), [older]);
@@ -94,7 +94,7 @@ test("the admin document is script-free and escapes hostile account data", () =>
   ];
   const page = renderAdminDocument("Admin", renderAdminPanel({
     users: [hostile, user(), user({ app_metadata: { synthetic: true } })], walletCount: 2, rows,
-    query: { segment: "all", q: `"><script>`, page: 1, month: "" }, page: 1, pages: 1, matches: 3,
+    query: { segment: "all", q: `"><script>`, page: 1, month: "", sort: "daftar" }, page: 1, pages: 1, matches: 3,
     adminIds: new Set([adminId]), viewerId: adminId, viewerEmail: "<i>owner</i>@example.com", now: new Date("2026-11-19T14:30:00Z"), appUrl: "https://salapi.app",
   }));
   assert.match(page, /Masuk sebagai <b>&lt;i&gt;owner&lt;\/i&gt;@example\.com<\/b>/); // admin email, escaped
@@ -114,9 +114,10 @@ test("the admin document is script-free and escapes hostile account data", () =>
 });
 
 test("filter links keep the segment, month and search; real users is the implied default", () => {
-  assert.equal(adminHref({ segment: "real", q: "", page: 1, month: "" }, 1), "/#users");
-  assert.equal(adminHref({ segment: "all", q: "", page: 1, month: "" }, 1), "/?segment=all#users");
-  assert.equal(adminHref({ segment: "qa", q: "a&b", page: 1, month: "2026-10" }, 3), "/?segment=qa&month=2026-10&q=a%26b&page=3#users");
+  assert.equal(adminHref({ segment: "real", q: "", page: 1, month: "", sort: "daftar" }, 1), "/#users");
+  assert.equal(adminHref({ segment: "all", q: "", page: 1, month: "", sort: "daftar" }, 1), "/?segment=all#users");
+  assert.equal(adminHref({ segment: "qa", q: "a&b", page: 1, month: "2026-10", sort: "daftar" }, 3), "/?segment=qa&month=2026-10&q=a%26b&page=3#users");
+  assert.equal(adminHref({ segment: "real", q: "", page: 1, month: "", sort: "masuk" }, 1), "/?sort=masuk#users");
 });
 
 test("overview numbers and months link to the matching directory filter", () => {
@@ -126,7 +127,7 @@ test("overview numbers and months link to the matching directory filter", () => 
     user({ created_at: "2026-10-03T03:00:00Z", email: "qa@salapi.test" }),
   ];
   const render = (month: string) => renderAdminDocument("Admin", renderAdminPanel({
-    users, walletCount: 3, rows: [], query: { segment: "real", q: "", page: 1, month }, page: 1, pages: 1, matches: 0,
+    users, walletCount: 3, rows: [], query: { segment: "real", q: "", page: 1, month, sort: "daftar" }, page: 1, pages: 1, matches: 0,
     adminIds: new Set(), viewerId: adminId, viewerEmail: "owner@example.com", now: new Date("2026-11-19T14:30:00Z"), appUrl: "https://salapi.app",
   }));
   const page = render("");
@@ -403,8 +404,61 @@ test("the Excel export has real columns, @usernames as text, numeric tx, filters
 
 test("the panel offers the real-accounts Excel export", () => {
   const page = renderAdminDocument("Admin", renderAdminPanel({
-    users: [user()], walletCount: 1, rows: [], query: { segment: "qa", q: "", page: 1, month: "2026-10" }, page: 1, pages: 1, matches: 0,
+    users: [user()], walletCount: 1, rows: [], query: { segment: "qa", q: "", page: 1, month: "2026-10", sort: "daftar" }, page: 1, pages: 1, matches: 0,
     adminIds: new Set(), viewerId: adminId, viewerEmail: null, now: new Date(), appUrl: "https://salapi.app",
   }));
   assert.match(page, /<a class="button ghost small" href="\/\?format=xlsx" download>⬇ Export akun asli \(Excel\)<\/a>/);
+});
+
+test("team accounts leave the real count; test flags still win over the team flag", () => {
+  const ids = new Set([adminId]);
+  const [admin, person] = markTeam([user({ id: adminId.toUpperCase() }), user()], ids);
+  assert.equal(accountSegment(admin), "team");
+  assert.equal(accountSegment(person), "real");
+  assert.equal(accountSegment({ ...admin, app_metadata: { synthetic: true } }), "simulation");
+  assert.equal(accountSegment({ ...admin, email: "qa@salapi.invalid" }), "qa");
+  // Editable user_metadata can't claim team: only the server-set flag counts.
+  assert.equal(accountSegment(user({ user_metadata: { team: true } })), "real");
+  assert.deepEqual(monthlySignups([admin, person], new Date("2026-11-20T00:00:00Z")).at(-1), { month: "2026-11", total: 2, real: 1 });
+});
+
+test("the directory can sort by last sign-in, never-signed-in accounts last", () => {
+  const base = { segment: "all" as const, q: "", page: 1, month: "" };
+  const a = user({ id: "a", created_at: "2026-11-01T00:00:00Z", last_sign_in_at: "2026-11-02T00:00:00Z" });
+  const b = user({ id: "b", created_at: "2026-11-05T00:00:00Z", last_sign_in_at: null });
+  const c = user({ id: "c", created_at: "2026-10-01T00:00:00Z", last_sign_in_at: "2026-11-19T00:00:00Z" });
+  assert.deepEqual(filterUsers([a, b, c], { ...base, sort: "daftar" }).map(u => u.id), ["b", "a", "c"]);
+  assert.deepEqual(filterUsers([a, b, c], { ...base, sort: "masuk" }).map(u => u.id), ["c", "a", "b"]);
+  assert.equal(parseAdminQuery(new URLSearchParams("sort=masuk")).sort, "masuk");
+  assert.equal(parseAdminQuery(new URLSearchParams("sort=evil")).sort, "daftar");
+});
+
+test("daily signups cover the last 30 WIB days, zero-filled", () => {
+  const days = dailySignups([
+    user({ created_at: "2026-11-19T17:30:00Z" }),                                  // 20 Nov WIB
+    user({ created_at: "2026-11-20T01:00:00Z", app_metadata: { synthetic: true } }), // 20 Nov WIB
+    user({ created_at: "2026-10-01T00:00:00Z" }),                                  // outside the window
+  ], new Date("2026-11-20T05:00:00Z"));
+  assert.equal(days.length, 30);
+  assert.deepEqual(days[0], { day: "2026-10-22", total: 0, real: 0 });
+  assert.deepEqual(days.at(-1), { day: "2026-11-20", total: 2, real: 1 });
+  assert.equal(days.reduce((sum, day) => sum + day.total, 0), 2);
+});
+
+test("the panel shows the team segment, sort links, the 30-day strip and card labels", () => {
+  const users = markTeam([user({ id: adminId, created_at: "2026-11-19T03:00:00Z" }), user({ created_at: "2026-11-18T03:00:00Z" })], new Set([adminId]));
+  const page = renderAdminDocument("Admin", renderAdminPanel({
+    users, walletCount: 2, rows: [{ user: users[0], wallet: { status: "none" }, username: { status: "none" }, sentTx: { status: "none" } }],
+    query: { segment: "all", q: "", page: 1, month: "", sort: "masuk" }, page: 1, pages: 1, matches: 2,
+    adminIds: new Set([adminId]), viewerId: adminId, viewerEmail: null, now: new Date("2026-11-20T05:00:00Z"), appUrl: "https://salapi.app",
+  }));
+  assert.match(page, /<span class="eyebrow">Pengguna asli<\/span><strong>1<\/strong>/);
+  assert.match(page, /<a href="\/\?segment=team#users">1 tim<\/a>/);
+  assert.match(page, /<a href="\/\?segment=team&amp;sort=masuk#users">Tim <span>1<\/span><\/a>/);
+  assert.match(page, /<span class="pill team">Tim<\/span><span class="pill admin">Admin<\/span>/);
+  assert.match(page, /<a href="\/\?segment=all#users">Daftar terbaru<\/a><a href="\/\?segment=all&amp;sort=masuk#users" aria-current="page">Terakhir masuk<\/a>/);
+  assert.match(page, /<input type="hidden" name="sort" value="masuk">/);
+  assert.match(page, /aria-label="Pendaftaran harian 30 hari terakhir: 2 daftar, 1 asli"/);
+  assert.equal((page.match(/<span class="day" title=/g) ?? []).length, 30);
+  for (const label of ["Daftar", "Akun", "Username", "Wallet", "Tx terkirim"]) assert.match(page, new RegExp(`<td( class="num")? data-label="${label}">`));
 });
