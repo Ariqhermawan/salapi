@@ -22,8 +22,10 @@ async function settle<T>(work: () => Promise<T>): Promise<Lookup<T>> {
 /** Everything the detail page shows for one account; each part fails on its own. */
 export async function loadAdminUserDetail(user: AdminAuthUser): Promise<AdminUserDetail> {
   const [row] = await loadAccountRows([user]);
-  // A validated G-address (or nothing): safe to place in the PostgREST filters below.
-  const address = row.wallet.status === "ok" ? row.wallet.value : null;
+  // A G-address (base32 only) or nothing, re-checked here because it is
+  // interpolated into the PostgREST .or() filter below.
+  const address = row.wallet.status === "ok" && /^G[A-Z2-7]{55}$/.test(row.wallet.value) ? row.wallet.value : null;
+  if (!/^[0-9a-f-]{36}$/i.test(user.id)) throw new Error("Invalid user id.");
   const db = createSupabaseAdmin();
   const [balances, activity, donations, campaigns, arisanRooms, history] = await Promise.all([
     address ? settle(() => readBalances(address)) : Promise.resolve(NONE),

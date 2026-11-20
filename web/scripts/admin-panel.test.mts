@@ -739,3 +739,13 @@ test("the detail loader totals donations, dedupes rooms, keeps known balances, a
   const wrong = plain(await detailModule({ wallet: address, horizon: { status: 200, body: { id: other, balances: [] } } }).api.loadAdminUserDetail(user({ id: adminId })));
   assert.deepEqual(wrong.balances, { status: "error" });
 });
+
+test("a snapshot within an hour of the last one does no reads or writes", async () => {
+  const rows: AdminAccountRow[] = [{ user: user({ id: "a" }), wallet: { status: "none" }, username: { status: "none" }, sentTx: { status: "none" } }];
+  const stored = [{ day: "2026-11-20", user_id: "a", wallet: null, username: null, tx_sent: 0, captured_at: "2026-11-20T06:56:00.000Z" }];
+  const soon = snapshotModule({ rows, stored });
+  assert.deepEqual(plain(await soon.api.writeAccountSnapshot(new Date("2026-11-20T07:30:00Z"))), { ok: true, day: "2026-11-20", written: 0, skipped: 0, recent: true });
+  assert.equal(soon.calls.upserts.length, 0);
+  const later = snapshotModule({ rows, stored });
+  assert.deepEqual(plain(await later.api.writeAccountSnapshot(new Date("2026-11-20T08:00:00Z"))), { ok: true, day: "2026-11-20", written: 1, skipped: 0 });
+});
