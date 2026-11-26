@@ -16,6 +16,7 @@ for (const line of envText.split(/\r?\n/)) {
 }
 
 const A = await import("../app/actions");
+const money = await import("../lib/money");
 
 const out: Record<string, unknown> = {};
 const show = (k: string, v: unknown) => {
@@ -36,8 +37,14 @@ const mine = await A.myUsername();
 show("1c_myUsername_resolve", mine);
 if (typeof mine === "string") uname = mine;
 
-// 2. P2P send by @username (self-send is a real SAC transfer + event).
-show("2_sendByUsername", await A.sendByUsername(uname, { amount: "10", currency: "tl" }));
+// 2. Prepare and confirm one exact @username transfer.
+const recipient = await A.lookupRecipient(uname);
+if (recipient.ok) {
+  const amountStroops = money.moneyInputToStroops({ amount: "10", currency: "tl" })!.toString();
+  const prepared = await A.prepareUsernameSend(uname, amountStroops, recipient.address);
+  show("2_prepareUsernameSend", prepared);
+  show("2_confirmUsernameSend", prepared.ok ? await A.confirmUsernameSend(prepared.intentId) : prepared);
+} else show("2_lookupRecipient", recipient);
 
 // 3. Disaster fund contribution.
 show("3_disasterContribute", await A.disasterContribute({ amount: "25", currency: "tl" }));

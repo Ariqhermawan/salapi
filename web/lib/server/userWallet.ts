@@ -161,12 +161,14 @@ export async function currentUserId(): Promise<string | null> {
 }
 
 /** Privileged D3 actions never provision a wallet or fall back to demo keys. */
-export async function getAuthenticatedSigner(): Promise<Signer> {
+export async function getAuthenticatedSigner(expectedOwnerId?: string): Promise<Signer> {
   if (isLocalPreview) throw new Error("Local preview cannot use signer controls.");
   // Revalidate this read independently: a previous action check does not make
   // a later errored/anonymous Auth response suitable for custody access.
   const userId = await walletOwner(true, true);
   if (!userId) throw new Error("Sign in to use signer controls");
+  if (expectedOwnerId !== undefined && userId !== expectedOwnerId)
+    throw new Error("Your authenticated account changed. Review the transaction again.");
   if (!supabaseAdminConfigured()) throw new Error("Wallet service is unavailable");
   const { data, error } = await createSupabaseAdmin().from("wallets")
     .select("public_key, secret_cipher").eq("user_id", userId).maybeSingle();

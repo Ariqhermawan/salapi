@@ -11,7 +11,7 @@ import { Heart } from "@phosphor-icons/react/dist/csr/Heart";
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { Btn, Card, Ico, PoweredByStellar, T } from "@/components/ui/kit";
 import { campaignApprove, campaignCloseEmpty, campaignCreate, campaignDonate, campaignEvents, campaignRefund,
-  campaignRelease, campaignState, campaignSubmitProof } from "@/app/campaign-actions";
+  campaignRelease, campaignState, campaignSubmitProof, prepareCampaignConfirmation, cancelCampaignConfirmation } from "@/app/campaign-actions";
 import { campaignAmount, campaignSplit, creatorCutBps } from "@/lib/campaign-money";
 import { formatIllustrativeUsd } from "@/lib/money";
 import { formatStroops } from "@/lib/format-stroops";
@@ -70,7 +70,12 @@ const stamp = (seconds: string) => `${new Date(Number(seconds) * 1000).toLocaleS
 const safeProof = (url: string) => { const local = previewEvidenceUrl(url); if (local) return local; try { return publicProofUrl(url); } catch { return null; } };
 type State = Awaited<ReturnType<typeof campaignState>>;
 type Result = Awaited<ReturnType<typeof campaignCreate>>;
-type Run = (label: string, action: () => Promise<Result>, created?: boolean, preview?: () => boolean) => void;
+type CampaignConfirmationRequest =
+  | { kind: "create"; input: unknown }
+  | { kind: "donate"; campaignId: string; amountStroops: string }
+  | { kind: "submit_proof"; campaignId: string; hash: string; url: string }
+  | { kind: "approve" | "release" | "refund" | "close_empty"; campaignId: string };
+type Run = (label: string, request: CampaignConfirmationRequest, action: (intentId: string) => Promise<Result>, created?: boolean, preview?: () => boolean) => void;
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return <label className={styles.field}>{label}{children}</label>;
@@ -95,8 +100,9 @@ function CreateCampaign({ run, busy, onPreviewCreate, initialCreate = false }: {
       if (![values.beneficiary, values.a, values.b, values.c].every(value => /^G[A-Z2-7]{55}$/.test(value.trim()))) throw new Error("Enter complete Stellar public wallet addresses beginning with G.");
       if (new Set([values.a.trim(), values.b.trim(), values.c.trim()]).size !== 3) throw new Error("Choose three different approver wallets.");
       run(`Create “${values.title}” with a ${values.creatorCut}% creator share. Funding closes ${new Date(values.funding).toLocaleString()}; review closes ${new Date(values.review).toLocaleString()}. The three approvers, recipients, share and deadlines cannot be changed.`,
-        () => campaignCreate({ title: values.title, beneficiary: values.beneficiary, creatorCut: values.creatorCut,
-          fundingDeadline, reviewDeadline, approvers: [values.a, values.b, values.c] }), true, () => {
+        { kind: "create", input: { title: values.title, beneficiary: values.beneficiary, creatorCut: values.creatorCut,
+          fundingDeadline, reviewDeadline, approvers: [values.a, values.b, values.c] } },
+        intentId => campaignCreate(intentId), true, () => {
             const saved = onPreviewCreate?.({ id: String(Date.now()), title: values.title, state: "Funding", config: { creator: PREVIEW_WALLET, beneficiary: values.beneficiary, creator_cut_bps: Number(creatorCutBps(values.creatorCut)), funding_deadline: fundingDeadline, review_deadline: reviewDeadline, approvers: [values.a, values.b, values.c], token: "Local preview Testnet XLM" }, total: "0", escrow: "0", proofHash: null, proofUrl: "", approvals: [], contribution: { amount: "0", refunded: false } });
             if (!saved) return false;
             setValues({ title: "", beneficiary: "", creatorCut: "5", funding: "", review: "", a: "", b: "", c: "" });
@@ -144,7 +150,9 @@ function CampaignCard({ c, circleId, viewer, now, run, busy, detail, onPreviewUp
   function donate() {
     try {
       setError(""); const stroops = campaignAmount({ amount, currency: "en" });
-      run(`Donate ${amount.trim()} USD (${formatStroops(stroops)} Testnet XLM) to campaign #${c.id}. Funds remain escrowed pending proof review. USD is an illustrative display amount, not a fiat payment.`, () => campaignDonate(c.id, { amount, currency: "en" }), false, () => { const saved = onPreviewUpdate({ ...c, total: String(BigInt(c.total) + stroops), escrow: String(BigInt(c.escrow) + stroops), contribution: { amount: String(BigInt(c.contribution.amount) + stroops), refunded: false } }); if (saved) setAmount(""); return saved; });
+      run(`Donate ${amount.trim()} USD (${formatStroops(stroops)} Testnet XLM) to campaign #${c.id}. Funds remain escrowed pending proof review. USD is an illustrative display amount, not a fiat payment.`,
+        { kind: "donate", campaignId: c.id, amountStroops: stroops.toString() }, intentId => campaignDonate(intentId), false,
+        () => { const saved = onPreviewUpdate({ ...c, total: String(BigInt(c.total) + stroops), escrow: String(BigInt(c.escrow) + stroops), contribution: { amount: String(BigInt(c.contribution.amount) + stroops), refunded: false } }); if (saved) setAmount(""); return saved; });
     } catch (e) { setError(e instanceof Error ? e.message : "Invalid amount"); }
   }
   return <section className={`${styles.card} ${media ? styles.photoCard : ""}`} aria-label={`Campaign #${c.id}`}>
@@ -205,13 +213,23 @@ function CampaignCard({ c, circleId, viewer, now, run, busy, detail, onPreviewUp
         setHash(Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, "0")).join(""));
       }} /></Field>
       <small>The file stays on this device. Publish it separately and supply its public HTTPS link. Do not include private information.</small>
-      <Btn disabled={busy} onClick={() => { if (!safeProof(url) || !/^[a-fA-F0-9]{64}$/.test(hash) || /^0+$/.test(hash)) { setError("Enter a public HTTPS proof link and a non-zero SHA-256 hash."); return; } run(`Submit proof ${hash} for campaign #${c.id}. It cannot be replaced.`, () => campaignSubmitProof(c.id, hash, url), false, () => onPreviewUpdate({ ...c, state: "PendingProof", proofHash: hash.toLowerCase(), proofUrl: url })); }}>Review proof submission</Btn>
+      <Btn disabled={busy} onClick={() => { if (!safeProof(url) || !/^[a-fA-F0-9]{64}$/.test(hash) || /^0+$/.test(hash)) { setError("Enter a public HTTPS proof link and a non-zero SHA-256 hash."); return; } run(`Submit proof ${hash} for campaign #${c.id}. It cannot be replaced.`,
+        { kind: "submit_proof", campaignId: c.id, hash, url }, intentId => campaignSubmitProof(intentId), false,
+        () => onPreviewUpdate({ ...c, state: "PendingProof", proofHash: hash.toLowerCase(), proofUrl: url })); }}>Review proof submission</Btn>
     </div>}
     {viewer && c.config.approvers.includes(viewer) && c.state === "PendingProof" && reviewOpen && <Btn disabled={busy || c.approvals.includes(viewer)}
-      onClick={() => run(`Approve the submitted proof ${c.proofHash} for campaign #${c.id}. Confirm you have reviewed the document.`, () => campaignApprove(c.id, c.proofHash!), false, () => onPreviewUpdate({ ...c, approvals: [...c.approvals, viewer] }))}>Approve proof</Btn>}
-    {viewer && c.state === "PendingProof" && quorum && <Btn disabled={busy} onClick={() => run(`Release campaign #${c.id}: ≈ ${formatIllustrativeUsd(split.creator)} (${formatStroops(split.creator)} XLM) to creator and ≈ ${formatIllustrativeUsd(split.beneficiary)} (${formatStroops(split.beneficiary)} XLM) to beneficiary. This completes the campaign.`, () => campaignRelease(c.id), false, () => onPreviewUpdate({ ...c, state: "Released", escrow: "0" }))}>Release funds</Btn>}
-    {viewer && refundOpen && BigInt(c.contribution.amount) > 0n && !c.contribution.refunded && <Btn disabled={busy} onClick={() => run(`Return your full ≈ ${formatIllustrativeUsd(c.contribution.amount)} (${formatStroops(c.contribution.amount)} XLM) donation from campaign #${c.id} to your original wallet. The original XLM amount, not a fixed USD value, is refunded.`, () => campaignRefund(c.id), false, () => onPreviewUpdate({ ...c, escrow: String(BigInt(c.escrow) - BigInt(c.contribution.amount)), contribution: { ...c.contribution, refunded: true } }))}>Claim full refund</Btn>}
-    {viewer && refundOpen && c.total === "0" && <Btn kind="secondary" disabled={busy} onClick={() => run(`Close empty campaign #${c.id}.`, () => campaignCloseEmpty(c.id), false, () => onPreviewUpdate({ ...c, state: "Closed" }))}>Close empty campaign</Btn>}
+      onClick={() => run(`Approve the submitted proof ${c.proofHash} for campaign #${c.id}. Confirm you have reviewed the document.`,
+        { kind: "approve", campaignId: c.id }, intentId => campaignApprove(intentId), false,
+        () => onPreviewUpdate({ ...c, approvals: [...c.approvals, viewer] }))}>Approve proof</Btn>}
+    {viewer && c.state === "PendingProof" && quorum && <Btn disabled={busy} onClick={() => run(`Release campaign #${c.id}: ≈ ${formatIllustrativeUsd(split.creator)} (${formatStroops(split.creator)} XLM) to creator and ≈ ${formatIllustrativeUsd(split.beneficiary)} (${formatStroops(split.beneficiary)} XLM) to beneficiary. This completes the campaign.`,
+      { kind: "release", campaignId: c.id }, intentId => campaignRelease(intentId), false,
+      () => onPreviewUpdate({ ...c, state: "Released", escrow: "0" }))}>Release funds</Btn>}
+    {viewer && refundOpen && BigInt(c.contribution.amount) > 0n && !c.contribution.refunded && <Btn disabled={busy} onClick={() => run(`Return your full ≈ ${formatIllustrativeUsd(c.contribution.amount)} (${formatStroops(c.contribution.amount)} XLM) donation from campaign #${c.id} to your original wallet. The original XLM amount, not a fixed USD value, is refunded.`,
+      { kind: "refund", campaignId: c.id }, intentId => campaignRefund(intentId), false,
+      () => onPreviewUpdate({ ...c, escrow: String(BigInt(c.escrow) - BigInt(c.contribution.amount)), contribution: { ...c.contribution, refunded: true } }))}>Claim full refund</Btn>}
+    {viewer && refundOpen && c.total === "0" && <Btn kind="secondary" disabled={busy} onClick={() => run(`Close empty campaign #${c.id}.`,
+      { kind: "close_empty", campaignId: c.id }, intentId => campaignCloseEmpty(intentId), false,
+      () => onPreviewUpdate({ ...c, state: "Closed" }))}>Close empty campaign</Btn>}
     {error && !(viewer && fundingOpen) && <p className={styles.error} role="alert">{error}</p>}
     {detail && !isLocalPreview && c.title.startsWith("QA Circles: ") && <>
       <CampaignDonorActivity campaignId={c.id} refreshKey={`${c.total}:${c.escrow}`} />
@@ -274,16 +292,24 @@ export default function CampaignScreen({ id, initialCreate = false }: { id: stri
   },[]);
   const [previewTime, setPreviewTime] = useState(() => Math.floor(Date.now() / 1000));
   const state: State | null = isLocalPreview ? { ok: true, contractId: "Local example, no deployed contract", viewer: PREVIEW_WALLET, now: String(previewTime), campaigns: id ? previewCampaigns.filter(c => c.id === id) : previewCampaigns } : loadedState;
-  const [confirm, setConfirm] = useState<{ label: string; action: () => Promise<Result>; created?: boolean; preview?: () => boolean } | null>(null);
+  const [confirm, setConfirm] = useState<{ label: string; action: (intentId: string) => Promise<Result>;
+    intentId: string | null; actionKind: string | null; feeStroops?: string; created?: boolean; preview?: () => boolean } | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const openerRef = useRef<HTMLElement | null>(null);
+  const cancelConfirm = useCallback(() => {
+    if (busy || !confirm) return;
+    const current = confirm;
+    setConfirm(null);
+    setError("");
+    if (current.intentId && current.actionKind) void cancelCampaignConfirmation(current.intentId, current.actionKind);
+  }, [busy, confirm]);
   useEffect(() => {
     if (!confirm) return;
     const previousFocus = openerRef.current;
     const dialog = dialogRef.current;
     dialog?.focus({ preventScroll: true });
     function handleKey(event: KeyboardEvent) {
-      if (event.key === "Escape" && !busy) { setConfirm(null); setError(""); return; }
+      if (event.key === "Escape" && !busy) { cancelConfirm(); return; }
       if (event.key !== "Tab" || !dialog) return;
       const buttons = Array.from(dialog.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], input:not(:disabled), [tabindex="0"]'));
       const first = buttons[0]; const last = buttons.at(-1);
@@ -293,18 +319,29 @@ export default function CampaignScreen({ id, initialCreate = false }: { id: stri
     }
     document.addEventListener("keydown",handleKey);
     return () => { document.removeEventListener("keydown",handleKey); previousFocus?.focus({ preventScroll: true }); };
-  },[confirm,busy]);
+  },[confirm,busy,cancelConfirm]);
   const refresh = useCallback(async () => {
     if (isLocalPreview) { setPreviewTime(Math.floor(Date.now()/1000)); return; }
     try { setState(await campaignState(id, before)); }
     catch { setState({ ok: false, error: "Could not read campaign state. Refresh to retry." }); }
   }, [id, before]);
   useEffect(() => { if (isLocalPreview) return; const initialLoad = setTimeout(() => void refresh(), 0); const interval = setInterval(() => { void refresh(); }, 15000); return () => { clearTimeout(initialLoad); clearInterval(interval); }; }, [refresh]);
-  const run: Run = (label, action, created, preview) => {
-    if (submission.locked) return;
+  const run: Run = (label, request, action, created, preview) => {
+    if (submission.locked || submittingBusy || confirm) return;
     // The modal commit disables its opener and can blur it before the effect.
     openerRef.current = typeof document !== "undefined" && document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    setDone(null); setLocalDone(""); setError(""); setConfirm({ label, action, created, preview });
+    setDone(null); setLocalDone(""); setError("");
+    if (isLocalPreview) {
+      setConfirm({ label, action, intentId: null, actionKind: null, created, preview });
+      return;
+    }
+    setBusy(true);
+    void prepareCampaignConfirmation(request).then(result => {
+      if (!result.ok) { setError(result.error); return; }
+      setConfirm({ label: result.summary, action, intentId: result.intentId, actionKind: result.action,
+        feeStroops: result.feeStroops, created, preview });
+    }).catch(() => setError("Campaign confirmation could not be prepared. No transaction was submitted."))
+      .finally(() => setBusy(false));
   };
   async function execute() {
     if (!confirm || busy || submission.locked) return;
@@ -324,11 +361,12 @@ export default function CampaignScreen({ id, initialCreate = false }: { id: stri
     }
     setBusy(true); setError("");
     try {
-      const result = await submission.run(confirm.action);
+      if (!confirm.intentId) throw new Error("Review the campaign action again before confirming.");
+      const result = await submission.run(() => confirm.action(confirm.intentId!));
       if (!result) { setConfirm(null); return; }
-      if (!result.ok) { setError(result.error); if (result.pending) setConfirm(null); }
+      if (!result.ok) { setError(result.error); setConfirm(null); }
       else { setDone({ link: result.link, id: confirm.created ? result.value : undefined }); setConfirm(null); await refresh(); }
-    } catch { setError("Confirmation interrupted. Refresh and check campaign state before retrying."); }
+    } catch { setConfirm(null); setError("Confirmation interrupted. Refresh and check campaign state before retrying."); }
     finally { setBusy(false); }
   }
   const savePreview = (campaigns: Campaign[]) => {
@@ -367,8 +405,10 @@ export default function CampaignScreen({ id, initialCreate = false }: { id: stri
     </div>
     {confirm && <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Confirm campaign transaction" style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(11,18,32,.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, boxSizing: "border-box", overflowY: "auto" }}>
       <Card style={{ maxWidth: 420, width: "100%", minHeight: 0, maxHeight: "100%", boxSizing: "border-box", overflowY: "auto", overscrollBehavior: "contain" }}><div style={group}><span className={styles.eyebrow}>{isLocalPreview ? "Local preview" : "Testnet transaction"}</span><h2 style={{ fontSize: 24, fontWeight: 750, letterSpacing: "-.04em" }}>Review before confirming</h2><p className={styles.muted} style={{ overflowWrap: "anywhere" }}>{confirm.label}</p>
+        {confirm.feeStroops && <p className={styles.muted}>Maximum network fee: {formatStroops(confirm.feeStroops)} Testnet XLM</p>}
+        {!isLocalPreview && <p className={styles.muted}>This review expires in 2 minutes. Prepare it again if it expires.</p>}
         {error && <p role="alert">{error}</p>}<Btn disabled={busy} loading={busy} onClick={() => void execute()}>{busy ? "Confirming…" : isLocalPreview ? "Confirm local example" : "Confirm transaction"}</Btn>
-        <Btn kind="secondary" disabled={busy} onClick={() => { setConfirm(null); setError(""); }}>Cancel</Btn>
+        <Btn kind="secondary" disabled={busy} onClick={cancelConfirm}>Cancel</Btn>
       </div></Card>
     </div>}
   </div>;

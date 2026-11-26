@@ -113,11 +113,16 @@ function setup(options: { preview?: boolean; storageUnavailable?: boolean } = {}
           calls.lookups++;
           return { ok: true, username, address: recipient };
         },
-        sendByUsername: async (_name: string, input: money.MoneyInput) => {
+        prepareUsernameSend: async (_name: string, amountStroops: string, address: string) => ({
+          ok: true, intentId: "11111111-1111-4111-8111-111111111111", username: "jamamam",
+          recipient: address, amountStroops, feeStroops: "100", expiresAt: "2099-01-01T00:00:00.000Z",
+        }),
+        confirmUsernameSend: async () => {
           assert.equal(preview, false, "A local confirmation must never invoke a transfer");
           calls.transfers++;
-          return { ok: true, to: recipient, amountStroops: money.moneyInputToStroops(input)!.toString(), link: "https://stellar.expert/explorer/testnet/tx/test-server-receipt" };
+          return { ok: true, to: recipient, amountStroops: "153846153", link: "https://stellar.expert/explorer/testnet/tx/test-server-receipt" };
         },
+        cancelUsernameSend: async () => ({ ok: true }),
       };
       throw new Error(`Unexpected dependency: ${name}`);
     },

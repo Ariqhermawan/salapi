@@ -13,7 +13,7 @@ import { AuthSessionMissingError, isAuthSessionMissingError } from "@supabase/su
 import { arisanRoomPage } from "../lib/arisan-list.ts";
 import { Keypair, StrKey } from "@stellar/stellar-sdk";
 
-type Result = { ok: boolean; error?: string; hash?: string; pending?: boolean; value?: unknown; amountStroops?: string; link?: string };
+type Result = { ok: boolean; error?: string; hash?: string; pending?: boolean; value?: unknown; amountStroops?: string; recipient?: string; feeStroops?: string; link?: string };
 type Signer = { publicKey: string; secret: string; demo: boolean };
 type Row = { public_key: string; secret_cipher?: string };
 type Read = { data: Row | null; error?: object | null };
@@ -67,7 +67,7 @@ function walletSetup(options: { reads?: Read[]; readThrows?: Error; saveError?: 
       upsert: async () => { calls.upserts++; return { error: options.saveError ? { message: "Isolated persistence failure" } : null }; },
     };
   } };
-  const api = moduleFrom<{ getSigner(): Promise<Signer>; prepareAuthenticatedWallet(): Promise<Signer>; getAuthenticatedSigner(): Promise<Signer>; currentArisanPublicKey(): Promise<string | null> }>(walletCode, {
+  const api = moduleFrom<{ getSigner(): Promise<Signer>; prepareAuthenticatedWallet(): Promise<Signer>; getAuthenticatedSigner(expectedOwnerId?: string): Promise<Signer>; currentArisanPublicKey(): Promise<string | null> }>(walletCode, {
     "@stellar/stellar-sdk": { Keypair: {
       random: () => { calls.mints++; return { publicKey: () => "new-public", secret: () => "new-secret" }; },
       fromSecret: (secret: string) => { calls.keyLoads++; return { publicKey: () => keys[secret] ?? "mismatch-public" }; },
@@ -115,6 +115,11 @@ test("known anonymous sessions and unconfigured auth preserve intentional shared
 test("signed-in users cannot fall back to shared demo when wallet custody is unconfigured", async () => {
   const { api, calls } = walletSetup({ admin: false });
   await assert.rejects(api.getSigner(), /Wallet service is unavailable/); assert.equal(calls.demo, 0); assert.equal(calls.mints, 0);
+});
+test("custody signing can require the same authenticated owner that approved an intent", async () => {
+  const { api, calls } = walletSetup({ user: { id: "00000000-0000-4000-8000-000000000001", is_anonymous: false } });
+  await assert.rejects(api.getAuthenticatedSigner("different-owner"), /authenticated account changed/);
+  assert.equal(calls.auth, 1); assert.equal(calls.reads, 0); assert.equal(calls.decrypts, 0); assert.equal(calls.keyLoads, 0);
 });
 test("wallet read errors fail before mint, persistence or faucet access", async () => {
   const { api, calls } = walletSetup({ reads: [{ data: null, error: { message: "Isolated read failure" } }] });
@@ -219,9 +224,10 @@ test("preview and malformed auth payloads cannot resolve or provision an Arisan 
   }
 });
 
-function stellarSetup(options: { status?: "SUCCESS" | "FAILED" | "NOT_FOUND"; sendError?: boolean; pollError?: boolean; prepareError?: boolean; rejected?: boolean; preview?: boolean } = {}) {
-  const calls = { builds: 0, signs: 0, sends: 0, reads: 0 };
+function stellarSetup(options: { status?: "SUCCESS" | "FAILED" | "NOT_FOUND"; sendError?: boolean; pollError?: boolean; prepareError?: boolean; rejected?: boolean; preview?: boolean; networkPassphrase?: string; preparedFee?: string; preparedMaxTime?: string } = {}) {
+  const calls = { builds: 0, signs: 0, sends: 0, reads: 0, parses: 0 };
   class Server {
+    async getNetwork() { return { passphrase: options.networkPassphrase ?? "isolated-network" }; }
     async getAccount() { return {}; }
     async prepareTransaction(value: unknown) { if (options.prepareError) throw new Error("Isolated prepare failure"); return value; }
     async sendTransaction() { calls.sends++; if (options.sendError) throw new Error("Isolated lost submission response"); return { hash, status: options.rejected ? "ERROR" : "PENDING", errorResult: "Isolated rejection" }; }
@@ -231,15 +237,30 @@ function stellarSetup(options: { status?: "SUCCESS" | "FAILED" | "NOT_FOUND"; se
     }
   }
   const signed = () => ({ fee: "100", sign: () => { calls.signs++; }, hash: () => Buffer.from(hash, "hex") });
+  class PreparedTransaction {
+    source = "isolated-public";
+    fee = options.preparedFee ?? "100";
+    timeBounds = { minTime: "0", maxTime: options.preparedMaxTime ?? "9999999999" };
+    operations = [{ type: "invokeHostFunction", source: undefined, func: {
+      switch: () => ({ name: "hostFunctionTypeInvokeContract" }),
+      invokeContract: () => ({ contractAddress: () => "contract-address-xdr", functionName: () => ({ toString: () => "transfer" }),
+        args: () => [{ toXDR: () => "expected-arg" }] }),
+    } }];
+    sign() { calls.signs++; }
+    hash() { return Buffer.from(hash, "hex"); }
+  }
   class Builder {
     constructor() { calls.builds++; }
     addOperation() { return this; } setTimeout() { return this; } build() { return signed(); }
     static buildFeeBumpTransaction() { return signed(); }
+    static fromXDR(value: string) { calls.parses++; if (value !== "prepared-xdr") throw new Error("Invalid XDR"); return new PreparedTransaction(); }
   }
   class Contract { call() { return {}; } }
-  const api = moduleFrom<{ invoke(...args: unknown[]): Promise<Result>; invokeAs(...args: unknown[]): Promise<Result>; invokeSponsored(...args: unknown[]): Promise<Result>; submittedTransactionStatus(value: unknown): Promise<Result> }>(stellarCode, {
-    "@stellar/stellar-sdk": { rpc: { Server }, Keypair: { fromSecret: () => ({ publicKey: () => "isolated-public" }) },
-      Contract, TransactionBuilder: Builder, Networks: { TESTNET: "isolated-network" }, BASE_FEE: "100", scValToNative: (value: unknown) => value },
+  const api = moduleFrom<{ invoke(...args: unknown[]): Promise<Result>; invokeAs(...args: unknown[]): Promise<Result>; invokeSponsored(...args: unknown[]): Promise<Result>; submittedTransactionStatus(value: unknown): Promise<Result>; submitPreparedContractCallAs(...args: unknown[]): Promise<Result> }>(stellarCode, {
+    "@stellar/stellar-sdk": { rpc: { Server }, StrKey, Keypair: { fromSecret: () => ({ publicKey: () => "isolated-public" }) },
+      Contract, TransactionBuilder: Builder, Transaction: PreparedTransaction,
+      Address: { fromScAddress: () => ({ toString: () => "contract-address-xdr" }) },
+      Networks: { TESTNET: "isolated-network" }, BASE_FEE: "100", scValToNative: (value: unknown) => value },
     "@/lib/money": money, "@/lib/local-preview": { isLocalPreview: options.preview ?? false },
     "@/lib/arisan-funding-fees": feePolicy,
     "@/lib/server/walletReadiness": { getTestnetNativeBalance: async () => { throw Error("Unexpected balance access in isolated submission tests"); } },
@@ -282,8 +303,35 @@ test("reconciliation rejects malformed hashes and cannot poll real RPC in local 
   const local = stellarSetup({ preview: true }); assert.equal((await local.api.submittedTransactionStatus(hash)).ok, false); assert.equal(local.calls.reads, 0);
 });
 
-function actionsSetup(options: { result?: Result; preview?: boolean; reveal?: boolean; viewer?: string | null; viewerResolver?: () => Promise<string | null>; members?: string[]; roomByCode?: number; recipient?: string } = {}) {
-  const calls = { signers: 0, sends: 0, status: 0, transferArgs: null as unknown[] | null };
+test("prepared signing rechecks Testnet, exact call arguments, expiry and reviewed fee", async () => {
+  const expected = { source: "isolated-public", contractId: "contract-address-xdr", method: "transfer",
+    args: [{ toXDR: () => "expected-arg" }], feeStroops: "100" };
+  const valid = stellarSetup({ status: "SUCCESS" });
+  const result = await valid.api.submitPreparedContractCallAs("isolated-secret", "prepared-xdr", expected);
+  assert.equal(result.ok, true); assert.equal(valid.calls.parses, 1); assert.equal(valid.calls.signs, 1); assert.equal(valid.calls.sends, 1);
+  assert.equal(valid.calls.builds, 0);
+
+  for (const [options, action] of [
+    [{ preparedFee: "100" }, { ...expected, feeStroops: "101" }],
+    [{}, { ...expected, args: [{ toXDR: () => "altered-arg" }] }],
+    [{ preparedMaxTime: "1" }, expected],
+    [{ networkPassphrase: "isolated-mainnet" }, expected],
+  ] as const) {
+    const rejected = stellarSetup(options);
+    assert.equal((await rejected.api.submitPreparedContractCallAs("isolated-secret", "prepared-xdr", action)).ok, false);
+    assert.equal(rejected.calls.signs, 0); assert.equal(rejected.calls.sends, 0);
+  }
+});
+
+function actionsSetup(options: { result?: Result; preview?: boolean; reveal?: boolean; viewer?: string | null; viewerResolver?: () => Promise<string | null>; members?: string[]; roomByCode?: number; recipient?: string; signerPublicKey?: string } = {}) {
+  const calls = { signers: 0, sends: 0, status: 0, transferArgs: null as unknown[] | null,
+    intentCreates: 0, intentConsumes: 0, prepared: 0, preparedSubmissions: 0,
+    preparedXdr: null as string | null, preparedArgs: null as unknown[] | null, submittedArgs: null as unknown[] | null };
+  const confirmationId = "11111111-1111-4111-8111-111111111111";
+  const ownerId = "00000000-0000-4000-8000-000000000001";
+  const confirmationWallet = { ownerId, address: arisanSender };
+  let currentRecipient = options.recipient ?? Keypair.fromRawEd25519Seed(Buffer.alloc(32, 36)).publicKey();
+  let savedIntent: Record<string, unknown> | null = null;
   const dependencies = {
     "@stellar/stellar-sdk": { StrKey },
     "@/lib/server/arisanAuthorization": { authenticatedArisanWallet: async () => ({ ok: true, publicKey: arisanSender }) },
@@ -292,7 +340,7 @@ function actionsSetup(options: { result?: Result; preview?: boolean; reveal?: bo
       paluwaganId: () => "isolated-paluwagan", smartSavingsId: () => "isolated-savings", arisanRoomsId: () => "isolated-arisan",
       sc: Object.fromEntries(["str", "addr", "i128", "u32", "u64", "sym", "unitVariant", "bytes"].map(name => [name, (v: unknown) => v])),
       readContract: async (_id: string, method: string) => {
-        if (method === "resolve") return options.recipient ?? "recipient-public";
+        if (method === "resolve") return currentRecipient;
         if (method === "get_room") return { host: arisanSender, name: "Isolated room", code: "234567", member_target: 3, share: 10000000n, cadence: "Weekly", first_kocok: Math.floor(Date.now() / 1000) + 720, join_deadline: Math.floor(Date.now() / 1000) + 600, status: "Open", member_count: 1, round: 0 };
         if (method === "get_members") return options.members ?? ["sender-public", arisanSender, "friend-one", "friend-two"];
         if (method === "members") return options.members ?? [arisanSender, "friend-one", "friend-two"];
@@ -309,52 +357,83 @@ function actionsSetup(options: { result?: Result; preview?: boolean; reveal?: bo
         if (contract === "token" && method === "transfer") calls.transferArgs = args;
         return options.result ?? { ok: false, pending: true, hash, error: "Isolated unknown" };
       },
+      prepareContractCallAs: async (source: string, contract: string, method: string, args: unknown[]) => {
+        calls.prepared++;
+        calls.preparedArgs = [source, contract, method, ...args];
+        return { transactionXdr: "isolated-prepared-xdr", feeStroops: "100", maxTime: "9999999999" };
+      },
+      submitPreparedContractCallAs: async (_secret: string, transactionXdr: string, expected: Record<string, unknown>) => {
+        calls.preparedSubmissions++;
+        calls.preparedXdr = transactionXdr;
+        calls.submittedArgs = [expected.source, expected.contractId, expected.method, ...(expected.args as unknown[] ?? [])];
+        return options.result ?? { ok: false, pending: true, hash, error: "Isolated unknown" };
+      },
       submittedTransactionStatus: async () => { calls.status++; return options.result ?? { ok: false, pending: true, hash, error: "Isolated unknown" }; } },
     "@/lib/server/userWallet": {
       getSigner: async () => { calls.signers++; return { publicKey: "sender-public", secret: "isolated-secret", demo: false }; },
-      getAuthenticatedSigner: async () => { calls.signers++; return { publicKey: arisanSender, secret: "isolated-authenticated-secret", demo: false }; },
+      getAuthenticatedSigner: async (expectedOwnerId?: string) => { if (expectedOwnerId !== undefined) assert.equal(expectedOwnerId, ownerId); calls.signers++; return { publicKey: options.signerPublicKey ?? arisanSender, secret: "isolated-authenticated-secret", demo: false }; },
       currentArisanPublicKey: options.viewerResolver ?? (async () => options.viewer === undefined ? "sender-public" : options.viewer),
+    },
+    "@/lib/server/confirmationIntent": {
+      getConfirmationWallet: async () => confirmationWallet,
+      createConfirmationIntent: async (input: Record<string, unknown>) => {
+        calls.intentCreates++;
+        savedIntent = { ...input, id: confirmationId, ownerId, walletAddress: arisanSender,
+          expiresAt: "2099-01-01T00:00:00.000Z" };
+        return savedIntent;
+      },
+      consumeConfirmationIntent: async (id: string, action: string) => {
+        calls.intentConsumes++;
+        if (id !== confirmationId || !savedIntent || savedIntent.action !== action) throw new Error("Invalid or unavailable confirmation");
+        return savedIntent;
+      },
+      cancelConfirmationIntent: async () => true,
     },
     "@/lib/money": money, "./disaster-actions": {}, "@/lib/supabase/env": {}, "@/lib/supabase/admin": {},
     "@/lib/local-preview": { isLocalPreview: options.preview ?? false }, "@/lib/arisan-list": { arisanRoomPage },
-    "@/lib/recipient-review": { recipientReviewError: (resolved: string, expected?: string) => expected !== undefined && resolved !== expected ? "Recipient changed" : null },
+    "@/lib/recipient-review": { ...recipientReview, recipientReviewError: (resolved: string, expected?: string) => expected !== undefined && resolved !== expected ? "Recipient changed" : null },
     "@/lib/server/arisanCommitment": { deriveArisanSecret: () => new Uint8Array(32), createArisanCommitment: () => new Uint8Array(32) },
     "@/lib/server/xlmDeposit": {},
     "@/lib/server/walletActivity": { currentWalletActivity: async () => { throw Error("Unexpected activity access in isolated submission tests"); } },
   };
   const api = moduleFrom<Record<string, (...args: unknown[]) => Promise<Result>>>(actionsCode, dependencies, { crypto: { getRandomValues: (value: Uint8Array) => value.fill(2) } });
-  return { api, calls };
+  return { api, calls, setRecipient: (value: string) => { currentRecipient = value; } };
 }
-test("Send action preserves pending/hash and rejects recipient rebinding before any signer or transfer", async () => {
-  const { api, calls } = actionsSetup();
-  const changed = await api.sendByUsername("jamamam", { amount: "100", currency: "tl" }, "different-public");
-  assert.equal(changed.ok, false); assert.equal(calls.signers, 0); assert.equal(calls.sends, 0);
-  const pending = await api.sendByUsername("jamamam", { amount: "100", currency: "tl" }, "recipient-public");
-  assert.equal(pending.pending, true); assert.equal(pending.hash, hash); assert.equal(calls.sends, 1);
-  await api.checkSubmittedTransfer(hash); assert.equal(calls.signers, 1); assert.equal(calls.sends, 1); assert.equal(calls.status, 1);
-});
-test("USD Send submits the reviewed exact native amount and returns it in the Testnet receipt", async () => {
-  const recipient = Keypair.fromRawEd25519Seed(Buffer.alloc(32, 36)).publicKey();
-  const { api, calls } = actionsSetup({ recipient, result: { ok: true, hash } });
-  const amountStroops = "3595427709";
-  const result = await api.sendByUsername("jamamam", { currency: "en", amountStroops }, recipient);
-  assert.equal(result.ok, true);
-  assert.equal(result.amountStroops, amountStroops);
-  assert.equal(result.link, `https://stellar.expert/explorer/testnet/tx/${hash}`);
-  assert.deepEqual(Array.from(calls.transferArgs ?? []), ["sender-public", recipient, BigInt(amountStroops)]);
-});
-test("USD Send rejects legacy, invalid or rebound review amounts before signing", async () => {
+test("Send review prepares one exact transaction without signing and rejects recipient rebinding", async () => {
   const recipient = Keypair.fromRawEd25519Seed(Buffer.alloc(32, 36)).publicKey();
   const { api, calls } = actionsSetup({ recipient });
-  const reviewed = { currency: "en", amountStroops: "3595427709" };
-  for (const amountStroops of ["0", "01", "-1", "3.5", "1e9", " 3", 3, "1538461538461539", "9".repeat(200)]) {
-    assert.equal((await api.sendByUsername("jamamam", { ...reviewed, amountStroops }, recipient)).ok, false);
-  }
-  assert.equal((await api.sendByUsername("jamamam", { currency: "en", amount: "50" }, recipient)).ok, false);
-  for (const expected of [undefined, "invalid", arisanSender]) {
-    assert.equal((await api.sendByUsername("jamamam", reviewed, expected)).ok, false);
-  }
-  assert.equal(calls.signers, 0); assert.equal(calls.sends, 0);
+  const amountStroops = "3595427709";
+  const result = await api.prepareUsernameSend("jamamam", amountStroops, recipient);
+  assert.equal(result.ok, true);
+  assert.equal(result.recipient, recipient); assert.equal(result.amountStroops, amountStroops);
+  assert.equal(calls.intentCreates, 1); assert.equal(calls.signers, 0); assert.equal(calls.prepared, 1); assert.equal(calls.preparedSubmissions, 0);
+  assert.deepEqual(Array.from(calls.preparedArgs ?? []), [arisanSender, "token", "transfer", arisanSender, recipient, BigInt(amountStroops)]);
+  const changed = await api.prepareUsernameSend("jamamam", amountStroops, Keypair.fromRawEd25519Seed(Buffer.alloc(32, 37)).publicKey());
+  assert.equal(changed.ok, false); assert.equal(calls.intentCreates, 1); assert.equal(calls.signers, 0); assert.equal(calls.preparedSubmissions, 0);
+});
+test("Send confirmation rechecks username binding and submits only the saved XDR", async () => {
+  const recipient = Keypair.fromRawEd25519Seed(Buffer.alloc(32, 36)).publicKey();
+  const { api, calls } = actionsSetup({ recipient, result: { ok: true, hash } });
+  const prepared = await api.prepareUsernameSend("jamamam", "3595427709", recipient);
+  assert.equal(prepared.ok, true);
+  const result = await api.confirmUsernameSend("11111111-1111-4111-8111-111111111111");
+  assert.equal(result.ok, true); assert.equal(result.amountStroops, "3595427709");
+  assert.equal(result.link, `https://stellar.expert/explorer/testnet/tx/${hash}`);
+  assert.equal(calls.preparedXdr, "isolated-prepared-xdr"); assert.equal(calls.preparedSubmissions, 1);
+  assert.deepEqual(Array.from(calls.submittedArgs ?? []), [arisanSender, "token", "transfer", arisanSender, recipient, BigInt("3595427709")]);
+});
+test("Send confirmation rejects changed registry identity or a different authenticated wallet before signing", async () => {
+  const recipient = Keypair.fromRawEd25519Seed(Buffer.alloc(32, 36)).publicKey();
+  const changed = actionsSetup({ recipient });
+  const prepared = await changed.api.prepareUsernameSend("jamamam", "100", recipient); assert.equal(prepared.ok, true);
+  changed.setRecipient(Keypair.fromRawEd25519Seed(Buffer.alloc(32, 37)).publicKey());
+  assert.equal((await changed.api.confirmUsernameSend("11111111-1111-4111-8111-111111111111")).ok, false);
+  assert.equal(changed.calls.signers, 0); assert.equal(changed.calls.preparedSubmissions, 0);
+
+  const wrongWallet = actionsSetup({ recipient, signerPublicKey: Keypair.fromRawEd25519Seed(Buffer.alloc(32, 38)).publicKey() });
+  const second = await wrongWallet.api.prepareUsernameSend("jamamam", "100", recipient); assert.equal(second.ok, true);
+  assert.equal((await wrongWallet.api.confirmUsernameSend("11111111-1111-4111-8111-111111111111")).ok, false);
+  assert.equal(wrongWallet.calls.signers, 1); assert.equal(wrongWallet.calls.preparedSubmissions, 0);
 });
 test("Savings, Paluwagan and Arisan wrappers preserve pending hashes without announcing success", async () => {
   for (const [method, args] of [
@@ -494,7 +573,9 @@ function sendSetup(options: { storage?: Map<string, string>; unavailable?: boole
     "@/lib/local-preview-history": { recordPreviewTransfer: () => { calls.localRecords++; return {}; } },
     "@/app/actions": { myHandle: async () => "sender", registerUsername: async () => { throw Error("Unexpected registration"); },
       lookupRecipient: async (username: string) => ({ ok: true, username, address: "recipient-public" }),
-      sendByUsername: async () => { calls.transfers++; if (options.transfer === "throw") throw Error("Isolated lost action response"); return options.transfer ?? { ok: false, pending: true, hash, error: "Isolated unknown" }; },
+      prepareUsernameSend: async (username: string, amountStroops: string, address: string) => ({ ok: true, intentId: "11111111-1111-4111-8111-111111111111", username, recipient: address, amountStroops, feeStroops: "100", expiresAt: "2099-01-01T00:00:00.000Z" }),
+      confirmUsernameSend: async () => { calls.transfers++; if (options.transfer === "throw") throw Error("Isolated lost action response"); return options.transfer ?? { ok: false, pending: true, hash, error: "Isolated unknown" }; },
+      cancelUsernameSend: async () => ({ ok: true }),
       checkSubmittedTransfer: async (value: string) => { calls.statuses++; assert.equal(value, hash); if (options.status === "throw") throw Error("Isolated read error"); return options.status ?? { ok: false, pending: true, hash, error: "Still unknown" }; },
     },
   }, { window: {}, sessionStorage: {
@@ -553,7 +634,7 @@ test("Send fails before submission when session retention is unavailable", async
 });
 test("definitive Send failures clear the marker and remain retryable without saved-success claims", async () => {
   const screen = sendSetup({ transfer: { ok: false, error: "Definitive rejection" } }); screen.amount("100"); await screen.click("Review transfer"); await screen.click("Confirm Testnet transfer");
-  assert.equal(screen.storage.has(unresolvedKey), false); assert.ok(screen.button("Confirm Testnet transfer")); assert.equal(nodes(screen.tree).some(n => n.type === "SuccessMotion"), false);
+  assert.equal(screen.storage.has(unresolvedKey), false); assert.ok(screen.button("Review transfer")); assert.equal(nodes(screen.tree).some(n => n.type === "SuccessMotion"), false);
 });
 test("local preview ignores real unresolved markers and performs no status lookup or marker write", async () => {
   const screen = sendSetup({ preview: true, storage: new Map([[unresolvedKey, otherHash]]) }); screen.amount("100"); await screen.click("Review transfer"); await screen.click("Confirm local demo");

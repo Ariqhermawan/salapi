@@ -12,44 +12,62 @@ const hash = "a".repeat(64);
 const compile = (path: string, jsx = false) => ts.transpileModule(readFileSync(new URL(path, import.meta.url), "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, ...(jsx ? { jsx: ts.JsxEmit.ReactJSX } : {}) } }).outputText;
 const codes = { disaster: compile("../app/disaster-actions.ts"), campaign: compile("../app/campaign-actions.ts") };
 
-// Only the actual forwarding wrappers run. SDK, auth and RPC are isolated.
-// Money/config validation has independent suites; no transaction is submitted.
+// SDK, auth and RPC are isolated. The campaign path confirms one stored intent;
+// no live transaction is submitted.
 function setup(feature: keyof typeof codes, options: { preview?: boolean; result?: Result; authFail?: boolean } = {}) {
-  const calls = { auth: 0, reads: 0, invokes: 0, rpc: 0 };
+  const calls = { auth: 0, reads: 0, invokes: 0, rpc: 0, consumes: 0, preparedSubmissions: 0 };
   const sandboxModule = { exports: {} as Actions };
   const sc = new Proxy({}, { get: () => (value: unknown) => value });
   const dependencies = {
-    "@stellar/stellar-sdk": { nativeToScVal: (value: unknown) => value, scValToNative: (value: unknown) => value, xdr: { ScVal: { scvVec: (value: unknown) => value } }, rpc: { Server: class { constructor() { calls.rpc++; throw new Error("No provider request authorized"); } } } },
+    "@stellar/stellar-sdk": { nativeToScVal: (value: unknown) => value, scValToNative: (value: unknown) => value,
+      StrKey: { isValidEd25519PublicKey: () => true, isValidContract: () => true },
+      xdr: { ScVal: { scvVec: (value: unknown) => value } }, rpc: { Server: class { constructor() { calls.rpc++; throw new Error("No provider request authorized"); } } } },
     "@/lib/local-preview": { isLocalPreview: options.preview ?? false },
     "@/lib/server/circlesTestnet": { readCircleDiscoveryMappings: async () => [], circleDiscoveryLinks: () => ({}) },
     "@/lib/server/stellar": { sc, CONTRACTS: { tokenXlmSac: "test-token" }, RPC_URL: "https://isolated.invalid", disasterId: () => "d3", donationCampaignId: () => "d4", txLink: (value: string) => `https://stellar.expert/explorer/testnet/tx/${value}`, stroopsToPesos: () => 5, fmtPeso: () => "PHP 5",
       readContract: async (_id: string, method: string) => { calls.reads++; if (method === "version") return feature === "disaster" ? 3 : 4; if (method === "config") return { signers: ["wallet-a", "wallet-b", "wallet-c"], token: "test-token", cap_bps: 2000, timelock_ledgers: 20 }; if (method === "token") return "test-token"; if (method === "clock") return 1000n; if (method === "campaign") return { config: { creator: "wallet-a" } }; throw new Error(`Unexpected contract read ${method}`); },
-      invokeAs: async () => { calls.invokes++; return options.result ?? { ok: false, pending: true, hash, error: "Submitted status is unknown" }; } },
+      invokeAs: async () => { calls.invokes++; return options.result ?? { ok: false, pending: true, hash, error: "Submitted status is unknown" }; },
+      submitPreparedContractCallAs: async () => { calls.preparedSubmissions++; return options.result ?? { ok: false, pending: true, hash, error: "Submitted status is unknown" }; } },
     "@/lib/server/userWallet": { currentWalletPublicKey: async () => null, getSigner: async () => { calls.auth++; if (options.authFail) throw new Error("Auth denied"); return { publicKey: "wallet-a", secret: "isolated-not-a-secret", demo: false }; }, getAuthenticatedSigner: async () => { calls.auth++; if (options.authFail) throw new Error("Auth denied"); return { publicKey: "wallet-a", secret: "isolated-not-a-secret", demo: false }; }, prepareAuthenticatedWallet: async () => { calls.auth++; if (options.authFail) throw new Error("Auth denied"); return { publicKey: "wallet-a", secret: "isolated-not-a-secret", demo: false }; } },
     "@/lib/money": money,
     "@/lib/disaster": { disasterError: (value: string) => value, disasterProposalId: () => 1n, parseDisasterAction: () => ["Pause"], requireDisasterMembership: () => {} },
     "@/lib/campaign-money": { campaignAmount: () => 10n },
-    "@/lib/campaign": { campaignId: () => 1n, campaignError: (error: unknown) => error instanceof Error ? error.message : String(error), campaignStruct: (value: unknown) => value, parseCampaignConfig: () => ({ beneficiary: "recipient", cutBps: 500n, funding: 2000n, review: 3000n, approvers: ["a", "b", "c"], title: "Example" }), proofHash: () => hash, publicProofUrl: (value: string) => value },
+    "@/lib/campaign": { campaignId: () => 1n, campaignError: (error: unknown) => error instanceof Error ? error.message : String(error), campaignStruct: (value: unknown) => value, parseCampaignConfig: () => ({ beneficiary: "wallet-b", cutBps: 500n, funding: 2000n, review: 3000n, approvers: ["wallet-c", "wallet-d", "wallet-e"], title: "Example" }), proofHash: () => hash, publicProofUrl: (value: string) => value },
+    "@/lib/server/confirmationIntent": {
+      getConfirmationWallet: async () => ({ ownerId: "owner", address: "wallet-a" }),
+      createConfirmationIntent: async (input: unknown) => ({ ...(input as object), id: "intent-id", ownerId: "owner", walletAddress: "wallet-a", expiresAt: "2099-01-01T00:00:00.000Z" }),
+      consumeConfirmationIntent: async () => { calls.consumes++; return { id: "intent-id", action: "campaign_create", ownerId: "owner", walletAddress: "wallet-a", payload: { kind: "create", title: "Example", creator: "wallet-a", beneficiary: "wallet-b", token: "test-token", creatorCutBps: "500", fundingDeadline: "2000", reviewDeadline: "3000", approvers: ["wallet-c", "wallet-d", "wallet-e"] }, transactionXdr: "isolated-xdr", feeStroops: "100", expiresAt: "2099-01-01T00:00:00.000Z" }; },
+      cancelConfirmationIntent: async () => true,
+    },
+    "@/lib/format-stroops": { formatStroops: (value: string | bigint) => String(value) },
   };
   runInNewContext(codes[feature], { module: sandboxModule, exports: sandboxModule.exports, Buffer, require: (name: string) => { assert.ok(name in dependencies, `Unexpected ${name}`); return dependencies[name as keyof typeof dependencies]; }, fetch: () => { throw new Error("No network request authorized"); } });
   return { api: sandboxModule.exports, calls };
 }
 const mutations = {
   disaster: [["disasterContribute", { amount: "5", currency: "tl" }], ["disasterPropose", { kind: "Pause" }], ["disasterApprove", "1"], ["disasterExecute", "1"]],
-  campaign: [["campaignCreate", {}], ["campaignDonate", "1", { amount: "5", currency: "tl" }], ["campaignSubmitProof", "1", hash, "https://example.com/proof"], ["campaignApprove", "1", hash], ["campaignRelease", "1"], ["campaignRefund", "1"], ["campaignCloseEmpty", "1"]],
+  campaign: [["campaignCreate", "intent-id"], ["campaignDonate", "intent-id"], ["campaignSubmitProof", "intent-id"], ["campaignApprove", "intent-id"], ["campaignRelease", "intent-id"], ["campaignRefund", "intent-id"], ["campaignCloseEmpty", "intent-id"]],
 } as const;
 
 for (const feature of ["disaster", "campaign"] as const) {
-  test(`${feature}: every pending wrapper preserves hash/error without announcing success`, async () => {
-    for (const [method, ...args] of mutations[feature]) {
+  test(`${feature}: pending mutations preserve hash/error without announcing success`, async () => {
+    const methods = feature === "campaign" ? [mutations.campaign[0]] : mutations.disaster;
+    for (const [method, ...args] of methods) {
       const env = setup(feature); const result = await env.api[method](...args);
-      assert.equal(result.ok, false, method); assert.equal(result.pending, true, method); assert.equal(result.hash, hash, method); assert.equal(result.error, "Submitted status is unknown"); assert.ok(result.link?.endsWith(hash)); assert.equal(env.calls.invokes, 1, method);
+      assert.equal(result.ok, false, method); assert.equal(result.pending, true, method); assert.equal(result.hash, hash, method); assert.equal(result.error, "Submitted status is unknown"); assert.ok(result.link?.endsWith(hash)); assert.equal(feature === "campaign" ? env.calls.preparedSubmissions : env.calls.invokes, 1, method);
     }
   });
-  test(`${feature}: definitive failures remain definitive and authenticated signer failures never invoke`, async () => {
-    for (const [method, ...args] of mutations[feature]) {
+  test(`${feature}: action mismatch, definitive failures and signer failures cannot submit`, async () => {
+    if (feature === "campaign") {
+      for (const [method, ...args] of mutations.campaign.slice(1)) {
+        const mismatch = setup(feature); assert.equal((await mismatch.api[method](...args)).ok, false, method);
+        assert.equal(mismatch.calls.preparedSubmissions, 0, method);
+      }
+    }
+    const methods = feature === "campaign" ? [mutations.campaign[0]] : mutations.disaster;
+    for (const [method, ...args] of methods) {
       const failed = setup(feature, { result: { ok: false, error: "Definitive failure" } }); const result = await failed.api[method](...args); assert.equal(result.ok, false); assert.notEqual(result.pending, true); assert.equal(result.hash, undefined);
-      const denied = setup(feature, { authFail: true }); assert.equal((await denied.api[method](...args)).ok, false); assert.equal(denied.calls.invokes, 0);
+      const denied = setup(feature, { authFail: true }); assert.equal((await denied.api[method](...args)).ok, false); assert.equal(feature === "campaign" ? denied.calls.preparedSubmissions : denied.calls.invokes, 0);
     }
   });
   test(`${feature}: local preview denies all reads and submissions before auth/RPC`, async () => {
@@ -57,7 +75,7 @@ for (const feature of ["disaster", "campaign"] as const) {
     for (const [method, ...args] of mutations[feature]) assert.equal((await env.api[method](...args)).ok, false, method);
     const reads = feature === "disaster" ? ["disasterState", "disasterProposals", "disasterEvents"] : ["campaignState", "campaignEvents"];
     for (const method of reads) assert.equal((await env.api[method]()).ok, false, method);
-    assert.deepEqual(env.calls, { auth: 0, reads: 0, invokes: 0, rpc: 0 });
+    assert.deepEqual(env.calls, { auth: 0, reads: 0, invokes: 0, rpc: 0, consumes: 0, preparedSubmissions: 0 });
   });
 }
 

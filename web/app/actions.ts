@@ -16,6 +16,8 @@ import {
   arisanRoomsId,
   FRIENDS,
   submittedTransactionStatus,
+  prepareContractCallAs,
+  submitPreparedContractCallAs,
   type TxResult,
 } from "@/lib/server/stellar";
 import {
@@ -33,6 +35,12 @@ import { recipientReviewError, recipientUsername, RECIPIENT_USERNAME_PATTERN, re
 import { xlmDepositDetails } from "@/lib/server/xlmDeposit";
 import { currentWalletActivity } from "@/lib/server/walletActivity";
 import type { WalletActivityResult } from "@/lib/wallet-activity";
+import {
+  cancelConfirmationIntent,
+  consumeConfirmationIntent,
+  createConfirmationIntent,
+  getConfirmationWallet,
+} from "@/lib/server/confirmationIntent";
 import {
   createArisanCommitment,
   deriveArisanSecret,
@@ -228,59 +236,98 @@ export async function lookupRecipient(name: string) {
   }
 }
 
-type ReviewedUsdTransfer = { currency: "en"; amountStroops: string };
+type UsernameSendIntentPayload = {
+  network: "Testnet";
+  username: string;
+  sender: string;
+  recipient: string;
+  amountStroops: string;
+};
 
-export async function sendByUsername(name: string, input: MoneyInput | ReviewedUsdTransfer, expectedAddress?: string) {
-  if (isLocalPreview) return { ok: false as const, error: "Local preview cannot submit transfers." };
-  const clean = name.trim().replace(/^@/, "").toLowerCase();
-  if (!/^[a-z0-9_]{3,32}$/.test(clean)) return { ok: false as const, error: "Enter a valid username" };
-  let amount: bigint | null;
-  if (input?.currency === "en") {
-    // Submit the exact native amount the user confirmed. A new market price
-    // between review and signing must never change the amount sent.
-    if (!("amountStroops" in input) || typeof input.amountStroops !== "string"
-      || !/^[1-9]\d{0,15}$/.test(input.amountStroops)) {
-      return { ok: false as const, error: "Enter a valid amount" };
-    }
-    if (typeof expectedAddress !== "string" || !StrKey.isValidEd25519PublicKey(expectedAddress)) {
-      return { ok: false as const, error: "Review the recipient again before sending." };
-    }
-    amount = BigInt(input.amountStroops);
-    if (amount > MAX_AMOUNT_STROOPS) amount = null;
-  } else {
-    amount = amountStroops(input);
-  }
-  if (amount == null)
-    return { ok: false as const, error: "Enter a valid amount" };
-  let to: string;
+function parseUsernameSendIntent(value: unknown): UsernameSendIntentPayload | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const payload = value as Record<string, unknown>;
+  if (payload.network !== "Testnet" || typeof payload.username !== "string"
+    || !RECIPIENT_USERNAME_PATTERN.test(payload.username)
+    || typeof payload.sender !== "string" || !StrKey.isValidEd25519PublicKey(payload.sender)
+    || typeof payload.recipient !== "string" || !StrKey.isValidEd25519PublicKey(payload.recipient)
+    || typeof payload.amountStroops !== "string" || !/^[1-9]\d{0,15}$/.test(payload.amountStroops)
+    || BigInt(payload.amountStroops) > MAX_AMOUNT_STROOPS)
+    return null;
+  return payload as UsernameSendIntentPayload;
+}
+
+/** Review stage. Stores a prepared, unsigned Testnet transaction for Confirm. */
+export async function prepareUsernameSend(name: string, amount: unknown, expectedAddress: string) {
+  if (isLocalPreview) return { ok: false as const, error: "Local preview cannot prepare transfers." };
+  const username = recipientUsername(name);
+  if (!RECIPIENT_USERNAME_PATTERN.test(username)) return { ok: false as const, error: "Enter a valid username." };
+  if (typeof amount !== "string" || !/^[1-9]\d{0,15}$/.test(amount)
+    || BigInt(amount) > MAX_AMOUNT_STROOPS)
+    return { ok: false as const, error: "Enter a valid amount." };
+  if (!StrKey.isValidEd25519PublicKey(expectedAddress))
+    return { ok: false as const, error: "Review the recipient again before sending." };
+
   try {
-    const resolved = await readContract(
-      CONTRACTS.usernameRegistry,
-      "resolve",
-      [sc.str(clean)]
-    );
-    if (typeof resolved !== "string") throw new Error("not found");
-    to = resolved;
+    const wallet = await getConfirmationWallet();
+    const resolved = await readContract(CONTRACTS.usernameRegistry, "resolve", [sc.str(username)]);
+    if (typeof resolved !== "string" || !StrKey.isValidEd25519PublicKey(resolved))
+      return { ok: false as const, error: `@${username} is not registered.` };
+    const reviewError = recipientReviewError(resolved, expectedAddress);
+    if (reviewError) return { ok: false as const, error: reviewError };
+    if (wallet.address === resolved) return { ok: false as const, error: "Choose someone other than yourself." };
+
+    const payload: UsernameSendIntentPayload = {
+      network: "Testnet", username, sender: wallet.address, recipient: resolved, amountStroops: amount,
+    };
+    const expectedArgs = [sc.addr(wallet.address), sc.addr(resolved), sc.i128(BigInt(amount))];
+    const prepared = await prepareContractCallAs(wallet.address, CONTRACTS.tokenXlmSac, "transfer", expectedArgs);
+    const intent = await createConfirmationIntent({
+      action: "username_send", payload, transactionXdr: prepared.transactionXdr,
+      feeStroops: prepared.feeStroops, expectedWallet: wallet,
+    });
+    return { ok: true as const, intentId: intent.id, sender: wallet.address, username,
+      recipient: resolved, amountStroops: amount, feeStroops: intent.feeStroops, expiresAt: intent.expiresAt };
   } catch (error) {
-    return { ok: false as const, error: recipientLookupFailure(error) === "not_found" ? `@${clean} not found` : "Recipient lookup is unavailable. Try again before sending." };
+    return { ok: false as const, error: error instanceof Error ? error.message : "Transfer preparation is unavailable." };
   }
-  const reviewError = recipientReviewError(to, expectedAddress);
-  if (reviewError) return { ok: false as const, error: reviewError };
+}
+
+/** Confirm stage. Only accepts the single-use ID created for the reviewed send. */
+export async function confirmUsernameSend(intentId: string) {
+  if (isLocalPreview) return { ok: false as const, error: "Local preview cannot submit transfers." };
   try {
-    const s = await getSigner();
-    if (to === s.publicKey)
-      return { ok: false as const, error: "Can't send to yourself" };
-    const r = await invokeAs(s.secret, CONTRACTS.tokenXlmSac, "transfer", [
-      sc.addr(s.publicKey),
-      sc.addr(to),
-      sc.i128(amount),
-    ]);
-    if (r.ok) return { ok: true as const, to, hash: r.hash, link: txLink(r.hash), amountStroops: amount.toString() };
-    if (r.pending) return { ok: false as const, pending: true as const, hash: r.hash, link: txLink(r.hash), error: r.error };
-    return { ok: false as const, error: r.error };
-  } catch {
-    return { ok: false as const, error: "Your wallet or transfer preparation is unavailable. No transaction was submitted." };
+    const intent = await consumeConfirmationIntent(intentId, "username_send");
+    const payload = parseUsernameSendIntent(intent.payload);
+    if (!payload || payload.sender !== intent.walletAddress)
+      return { ok: false as const, error: "The saved transfer details are invalid. Review the transaction again." };
+
+    const resolved = await readContract(CONTRACTS.usernameRegistry, "resolve", [sc.str(payload.username)]);
+    const reviewError = typeof resolved === "string" ? recipientReviewError(resolved, payload.recipient) : "The username could not be verified.";
+    if (reviewError) return { ok: false as const, error: reviewError };
+
+    const signer = await getAuthenticatedSigner(intent.ownerId);
+    if (signer.demo || signer.publicKey !== payload.sender)
+      return { ok: false as const, error: "Your signed-in wallet changed. Review the transaction again." };
+    const expectedArgs = [sc.addr(payload.sender), sc.addr(payload.recipient), sc.i128(BigInt(payload.amountStroops))];
+    const result = await submitPreparedContractCallAs(signer.secret, intent.transactionXdr, {
+      source: payload.sender, contractId: CONTRACTS.tokenXlmSac, method: "transfer", args: expectedArgs,
+      feeStroops: intent.feeStroops,
+    });
+    if (result.ok) return { ok: true as const, to: payload.recipient, hash: result.hash,
+      link: txLink(result.hash), amountStroops: payload.amountStroops };
+    if (result.pending) return { ok: false as const, pending: true as const, hash: result.hash,
+      link: txLink(result.hash), error: result.error };
+    return { ok: false as const, error: result.error };
+  } catch (error) {
+    return { ok: false as const, error: error instanceof Error ? error.message : "Your transfer could not be confirmed." };
   }
+}
+
+export async function cancelUsernameSend(intentId: string) {
+  if (isLocalPreview) return { ok: true as const };
+  try { await cancelConfirmationIntent(intentId, "username_send"); return { ok: true as const }; }
+  catch { return { ok: false as const }; }
 }
 
 /** Public Testnet status lookup only. Never obtains a signer or retries Send. */

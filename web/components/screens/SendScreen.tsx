@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { registerUsername, myHandle, sendByUsername, lookupRecipient, checkSubmittedTransfer } from "@/app/actions";
+import { registerUsername, myHandle, confirmUsernameSend, prepareUsernameSend, cancelUsernameSend, lookupRecipient, checkSubmittedTransfer } from "@/app/actions";
 import { useT } from "@/components/I18nProvider";
 import { moneyCopy, moneyMessage } from "@/lib/i18n/revamp-money";
 import { T, Ico, AppBar, IconButton, Btn, PoweredByStellar } from "@/components/ui/kit";
@@ -26,7 +26,7 @@ const MAX_TRANSFER_STROOPS = pesosToStroopsExact("1000000000")!;
 const UNRESOLVED_SEND_KEY = "salapi:testnet:unresolved-send:v1";
 type UnresolvedSend = { hash: string | null };
 type ReviewedAmount = { amountStroops: string; usdEstimate: string | null };
-type ReviewedTransfer = ReviewedAmount & { username: string; address: string; input: MoneyInput; marketQuote: AvailableMarketPrices | null };
+type ReviewedTransfer = ReviewedAmount & { username: string; address: string; input: MoneyInput; marketQuote: AvailableMarketPrices | null; intentId: string | null; feeStroops: string | null };
 
 function exactXlm(stroops: string) {
   const units = BigInt(stroops);
@@ -83,6 +83,14 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
   const shownIdentity = recipient && identity?.username === recipient.username && identity.address === recipient.address ? identity : null;
   const recipientHandle = shownIdentity?.handle ?? recipient?.username ?? clean;
 
+  function discardRecipient() {
+    const intentId = recipient?.intentId;
+    lookupVersion.current++;
+    setRecipient(null);
+    setIdentity(null);
+    if (intentId) void cancelUsernameSend(intentId);
+  }
+
   useEffect(() => {
     if (isLocalPreview) return;
     const saved = storedUnresolvedSend();
@@ -111,7 +119,9 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
       if (!active) return;
       if (result.ok === false && result.code === "changed") {
         lookupVersion.current++;
+        if (recipient.intentId) void cancelUsernameSend(recipient.intentId);
         setRecipient(null);
+        setIdentity(null);
         setLookupError(moneyCopy(locale)("The recipient changed. Check the username again before sending."));
       } else if (result.ok === true && result.username === recipient.username && result.address === recipient.address) {
         setIdentity({ username: recipient.username, address: recipient.address,
@@ -177,9 +187,20 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
         if (request !== lookupVersion.current) return;
         if (r.ok) {
           if (r.address === PREVIEW_WALLET.address && isLocalPreview) { setErr(m("You cannot send to yourself.")); return; }
+          const prepared = isLocalPreview ? null : await prepareUsernameSend(clean, amountStroops, r.address);
+          if (request !== lookupVersion.current) {
+            if (prepared?.ok) void cancelUsernameSend(prepared.intentId);
+            return;
+          }
+          if (prepared && !prepared.ok) {
+            setLookupError(moneyMessage(locale, prepared.error));
+            return;
+          }
           setIdentity(null);
           setPhotoLoading(!isLocalPreview);
-          setRecipient({ username: r.username, address: r.address, input, amountStroops, usdEstimate, marketQuote });
+          setRecipient({ username: r.username, address: prepared?.ok ? prepared.recipient : r.address, input, amountStroops,
+            usdEstimate, marketQuote, intentId: prepared?.ok ? prepared.intentId : null,
+            feeStroops: prepared?.ok ? prepared.feeStroops : null });
         } else setLookupError(r.code === "not_found"
           ? m("@{username} is not registered. Check the spelling or ask the recipient for their exact username.", { username: clean })
           : r.code === "unavailable" ? m("We could not verify this username. This does not mean it is unregistered. Try again.") : moneyMessage(locale, r.error));
@@ -190,7 +211,7 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
   function doSend() {
     if (!recipient || submitting.current || unresolvedRef.current) return;
     if (recipient.marketQuote && validateMarketPrices(recipient.marketQuote).status !== "fresh") {
-      setRecipient(null);
+      discardRecipient();
       setErr(m("The CoinGecko quote expired. Review the updated XLM amount before sending."));
       void refresh();
       return;
@@ -215,8 +236,8 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
           if (!receipt) setErr(m("This demo did not move tokens. Browser storage could not save its receipt, so it will not appear in Activity."));
           return;
         }
-        const input = recipient.marketQuote ? { currency: "en" as const, amountStroops: recipient.amountStroops } : recipient.input;
-        const r = await sendByUsername(recipient.username, input, recipient.address);
+        if (!recipient.intentId) throw new Error("Review the transfer again before confirming.");
+        const r = await confirmUsernameSend(recipient.intentId);
         if (r.ok) {
           clearUnresolved();
           setDone({ link: r.link, address: r.to, amount: { amountStroops: r.amountStroops, usdEstimate: recipient.usdEstimate } });
@@ -227,8 +248,8 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
             setUnresolved({ hash: r.hash });
           }
           setErr(r.error);
-        } else { clearUnresolved(); setErr(r.error); }
-      } catch { setErr(m("The response was lost. Do not submit again. Verify the transaction in your wallet history; its hash was not received by this browser.")); }
+        } else { clearUnresolved(); setRecipient(null); setErr(r.error); }
+      } catch { setRecipient(null); setErr(m("The response was lost. Do not submit again. Verify the transaction in your wallet history; its hash was not received by this browser.")); }
       finally { submitting.current = false; setTransferPhase(null); }
     });
   }
@@ -254,7 +275,7 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
 
   return (
     <div className={styles.screen}>
-      <AppBar leading={transferPhase ? undefined : <IconButton ariaLabel={m("Back")} onClick={() => recipient && !done && !unresolved ? setRecipient(null) : goBack()}>{Ico.back({})}</IconButton>} title={transferPhase ? m("Waiting for network confirmation") : done ? m("Transfer receipt") : unresolved ? m("Check submitted transaction") : recipient ? m("Review transfer") : t("send.title")} trailing={transferPhase ? undefined : <IconButton ariaLabel={m("Receive")} onClick={() => router.push("/receive")}>{Ico.qr({})}</IconButton>} />
+      <AppBar leading={transferPhase ? undefined : <IconButton ariaLabel={m("Back")} onClick={() => recipient && !done && !unresolved ? discardRecipient() : goBack()}>{Ico.back({})}</IconButton>} title={transferPhase ? m("Waiting for network confirmation") : done ? m("Transfer receipt") : unresolved ? m("Check submitted transaction") : recipient ? m("Review transfer") : t("send.title")} trailing={transferPhase ? undefined : <IconButton ariaLabel={m("Receive")} onClick={() => router.push("/receive")}>{Ico.qr({})}</IconButton>} />
       <div className={`${styles.content} ${recipient && !done && !unresolved ? styles.reviewContent : ""}`}>
         <section className={styles.intro} aria-labelledby="send-heading">
           <div>
@@ -335,8 +356,10 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
               <dl>
                 <div className={styles.reviewNetwork}><dt>{m("Network")}</dt><dd><span aria-hidden="true" />Stellar Testnet</dd></div>
                 <div className={styles.reviewWallet}><dt>{m("Recipient wallet")}</dt><dd>{recipient.address}</dd></div>
+                {recipient.feeStroops ? <div><dt>{m("Maximum network fee")}</dt><dd>{exactXlm(recipient.feeStroops)} XLM</dd></div> : null}
               </dl>
               <p>{isLocalPreview ? m("This recipient is an example. Confirming shows a local receipt only.") : m("A registered username could still be the wrong person. Match this username and wallet with your recipient before confirming.")}</p>
+              {!isLocalPreview ? <small>{m("This review expires in 2 minutes. If it expires, review the transfer again.")}</small> : null}
               {!isLocalPreview ? <details className={styles.photoNote}><summary>{m("About profile photos")}</summary><p>{photoLoading ? m("Loading the permitted account photo…") : m("Photos appear only when available and permitted by their owner. Otherwise, initials are shown. A photo is not proof of identity.")}</p></details> : null}
             </div>
           </article>
@@ -344,7 +367,7 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
             <AvailableWalletBalance amountStroops={BigInt(recipient.amountStroops)} compact />
             <div className={styles.actions}>
               <Btn kind="primary" disabled={pending} loading={pending} onClick={doSend}>{isLocalPreview ? m("Confirm local demo") : m("Confirm Testnet transfer")}</Btn>
-              <Btn kind="ghost" size="md" disabled={pending} onClick={() => setRecipient(null)}>{m("Edit transfer")}</Btn>
+              <Btn kind="ghost" size="md" disabled={pending} onClick={discardRecipient}>{m("Edit transfer")}</Btn>
             </div>
           </div>
           {!usesMarketInput ? <p className={styles.notice}>{m("Testnet forms use fixed demo conversion, not the CoinGecko market estimate. Review the exact XLM before confirming.")}</p> : null}

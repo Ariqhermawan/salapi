@@ -99,7 +99,7 @@ function mount(options: { preview?: boolean; configured?: boolean; locale?: "en"
         if (!sheetExports.default) runInNewContext(compiledSheet, { exports: sheetExports, require: fixtureRequire, Intl });
         return sheetExports;
       }
-      if (dependency === "@/app/actions") return { walletActivity(nextCursor: string | null = null) { const next = deferred<WalletActivityResult>(); historyRequests.push({ cursor: nextCursor, deferred: next }); return next.promise; }, sendByUsername: forbidden };
+      if (dependency === "@/app/actions") return { walletActivity(nextCursor: string | null = null) { const next = deferred<WalletActivityResult>(); historyRequests.push({ cursor: nextCursor, deferred: next }); return next.promise; }, prepareUsernameSend: forbidden, confirmUsernameSend: forbidden };
       if (dependency === "@/lib/ui/wallet-activity-read") return { readWalletActivity(nextCursor: string | null) { const next = deferred<WalletActivityResult>(); historyRequests.push({ cursor: nextCursor, deferred: next }); return next.promise; } };
       if (dependency === "@/lib/ui/watchWalletActivity") return { watchWalletActivity(address: string, changed: () => Promise<void>) {
         const watcher = { address, changed, closed: false }; watchers.push(watcher); return () => { watcher.closed = true; };

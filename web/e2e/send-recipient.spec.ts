@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { test, expect, type Page } from "@playwright/test";
 import { QUOTE_FRESH_AGE_MS } from "../lib/market-prices";
 
@@ -7,6 +8,12 @@ const address = "GCGZVDFYMFKJFPDKMJDNZXU7ZFIPSOZ22367XHIQ32VOH56ELN5ISZND";
 const photo = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aE1cAAAAASUVORK5CYII=";
 const receiptHash = "ab".repeat(32);
 const explorer = `https://stellar.expert/explorer/testnet/tx/${receiptHash}`;
+const intentId = "11111111-1111-4111-8111-111111111111";
+const sender = "GAKZLTZFGSSM372XUKW2ZIJ5GSHVVIW5BYZIKIXRW2BW4MM6TUI5536Y";
+function actionNames() {
+  const manifest = JSON.parse(readFileSync(".next/server/server-reference-manifest.json", "utf8"));
+  return new Map(Object.entries(manifest.node as Record<string, { exportedName: string }>).map(([id, value]) => [id, value.exportedName]));
+}
 
 async function fixture(page: Page, options: {
   result?: object;
@@ -24,6 +31,9 @@ async function fixture(page: Page, options: {
   const calls = { lookups: 0, photos: 0, writes: 0 };
   const quoteRequests: Array<number | null> = [];
   const submitted: unknown[][] = [];
+  const preparations: unknown[][] = [];
+  let preparedAmount = "";
+  const names = actionNames();
   let usdPrice = options.usdPrice === undefined ? 0.125 : options.usdPrice;
   await page.route("**/*", async route => {
     const request = route.request();
@@ -46,18 +56,28 @@ async function fixture(page: Page, options: {
         : { ok: true, username, address, handle: options.canonical ?? username, photoUrl: options.photo ?? null } });
     }
     if (request.method() !== "POST" || !request.headers()["next-action"]) return route.continue();
+    const name = names.get(request.headers()["next-action"]);
     const args = JSON.parse(request.postData() ?? "[]");
     let result: unknown = null;
-    if (args.length === 0) result = "ariqhermawan";
-    else if (args.length === 1 && typeof args[0] === "string") {
+    if (name === "myHandle") result = "ariqhermawan";
+    else if (name === "lookupRecipient") {
       calls.lookups++; if (options.slowLookup) await lookupGate;
       result = options.result ?? { ok: true, username: args[0], address };
-    } else {
+    } else if (name === "prepareUsernameSend") {
+      preparations.push(args); preparedAmount = args[1];
+      result = { ok: true, intentId, sender, username: args[0], recipient: args[2], amountStroops: args[1],
+        feeStroops: "100", expiresAt: "2099-01-01T00:00:00.000Z" };
+    } else if (name === "confirmUsernameSend") {
       calls.writes++;
       submitted.push(args);
-      result = options.mockSuccess && args.length === 3 && args[0] === "imam" && args[2] === address
-        ? { ok: true, to: address, hash: receiptHash, link: explorer, amountStroops: "4000000000" }
+      result = options.mockSuccess && args.length === 1 && args[0] === intentId
+        ? { ok: true, to: address, hash: receiptHash, link: explorer, amountStroops: preparedAmount }
         : { ok: false, error: "Financial writes are blocked in this fixture" };
+    } else if (name === "cancelUsernameSend") result = { ok: true };
+    else {
+      calls.writes++;
+      submitted.push(args);
+      result = { ok: false, error: `Unexpected Server Action ${name ?? "unknown"}` };
     }
     return route.fulfill({ contentType: "text/x-component", body: `0:{"a":"$@1","f":"","i":false}\n1:${JSON.stringify(result)}\n` });
   });
@@ -67,7 +87,7 @@ async function fixture(page: Page, options: {
   await expect(main.getByText("@ariqhermawan", { exact: true })).toBeVisible(); // hydration + own read
   await page.evaluate(() => document.fonts.ready); // assert layout after font metrics settle, not fallback-only
   await main.getByLabel("Amount · USD", { exact: true }).fill("5");
-  return { main, calls, quoteRequests, submitted, releaseLookup, releasePhoto,
+  return { main, calls, quoteRequests, submitted, preparations, releaseLookup, releasePhoto,
     setUsdPrice: (price: number) => { usdPrice = price; } };
 }
 
@@ -88,7 +108,8 @@ test("a refreshed USD quote keeps reviewed XLM and its receipt exact", async ({ 
   await expect(review).toContainText(/400\.0000000\s*Testnet XLM/);
   await f.main.getByRole("button", { name: "Confirm Testnet transfer", exact: true }).click();
 
-  expect(f.submitted).toEqual([["imam", { currency: "en", amountStroops: "4000000000" }, address]]);
+  expect(f.preparations).toEqual([["imam", "4000000000", address]]);
+  expect(f.submitted).toEqual([[intentId]]);
   const receipt = f.main.getByRole("article", { name: "Transfer receipt details" });
   await expect(receipt).toContainText(/400\.0000000\s*Testnet XLM/);
   await expect(receipt).toContainText("USD estimate at review");

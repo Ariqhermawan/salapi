@@ -7,6 +7,7 @@ import {
   Keypair,
   Contract,
   TransactionBuilder,
+  Transaction,
   Networks,
   BASE_FEE,
   nativeToScVal,
@@ -54,6 +55,108 @@ function server() {
   return new rpc.Server(RPC_URL);
 }
 
+const READ_SOURCE = StrKey.encodeEd25519PublicKey(Buffer.alloc(32));
+const CONFIRMATION_TTL_SECONDS = 120;
+
+export type PreparedContractCall = {
+  transactionXdr: string;
+  feeStroops: string;
+  maxTime: string;
+};
+
+export type PreparedContractCallExpectation = {
+  source: string;
+  contractId: string;
+  method: string;
+  args: xdr.ScVal[];
+  feeStroops?: string;
+};
+
+function parsedPreparedContractCall(
+  transactionXdr: string,
+  expected: PreparedContractCallExpectation,
+): Transaction {
+  if (typeof transactionXdr !== "string" || transactionXdr.length > 128_000)
+    throw new Error("The prepared transaction is invalid. Review the action again.");
+  const transaction = TransactionBuilder.fromXDR(transactionXdr, Networks.TESTNET);
+  if (!(transaction instanceof Transaction) || transaction.source !== expected.source
+    || transaction.operations.length !== 1 || !transaction.timeBounds
+    || Number(transaction.timeBounds.maxTime) <= Math.floor(Date.now() / 1000))
+    throw new Error("The prepared transaction expired or changed. Review the action again.");
+  if (expected.feeStroops !== undefined && transaction.fee !== expected.feeStroops)
+    throw new Error("The prepared transaction fee changed. Review the action again.");
+  const operation = transaction.operations[0];
+  if (operation.type !== "invokeHostFunction" || operation.source !== undefined
+    || operation.func.switch().name !== "hostFunctionTypeInvokeContract")
+    throw new Error("The prepared transaction does not match this action.");
+  const invocation = operation.func.invokeContract();
+  const contract = Address.fromScAddress(invocation.contractAddress()).toString();
+  const args = invocation.args().map((value) => value.toXDR("base64"));
+  if (contract !== expected.contractId || invocation.functionName().toString() !== expected.method
+    || args.length !== expected.args.length
+    || args.some((value, index) => value !== expected.args[index].toXDR("base64")))
+    throw new Error("The prepared transaction does not match the reviewed action.");
+  return transaction;
+}
+
+/** Build the exact unsigned contract transaction that the user will review. */
+export async function prepareContractCallAs(
+  source: string,
+  contractId: string,
+  method: string,
+  args: xdr.ScVal[] = [],
+): Promise<PreparedContractCall> {
+  if (isLocalPreview) throw new Error("Local preview cannot prepare Testnet transactions.");
+  if (!StrKey.isValidEd25519PublicKey(source) || !StrKey.isValidContract(contractId)
+    || !/^[a-z][a-z0-9_]{0,31}$/.test(method))
+    throw new Error("The transaction request is invalid.");
+  const srv = server();
+  const network = await srv.getNetwork();
+  if (network.passphrase !== Networks.TESTNET)
+    throw new Error("The configured Stellar RPC is not connected to Testnet.");
+  const sourceAccount = await srv.getAccount(source);
+  const transaction = new TransactionBuilder(sourceAccount, {
+    fee: BASE_FEE,
+    networkPassphrase: Networks.TESTNET,
+  })
+    .addOperation(new Contract(contractId).call(method, ...args))
+    .setTimeout(CONFIRMATION_TTL_SECONDS)
+    .build();
+  const prepared = await srv.prepareTransaction(transaction);
+  const preparedXdr = prepared.toXDR();
+  const verified = parsedPreparedContractCall(preparedXdr, { source, contractId, method, args });
+  if (!/^[1-9]\d{0,15}$/.test(verified.fee))
+    throw new Error("The network fee could not be verified.");
+  return {
+    transactionXdr: preparedXdr,
+    feeStroops: verified.fee,
+    maxTime: verified.timeBounds!.maxTime,
+  };
+}
+
+/** Sign and submit the exact prepared envelope after its owner confirms it. */
+export async function submitPreparedContractCallAs(
+  secret: string,
+  transactionXdr: string,
+  expected: PreparedContractCallExpectation,
+): Promise<TxResult> {
+  if (isLocalPreview) return { ok: false, error: "Local preview cannot submit transactions." };
+  try {
+    const srv = server();
+    const network = await srv.getNetwork();
+    if (network.passphrase !== Networks.TESTNET)
+      throw new Error("The configured Stellar RPC is not connected to Testnet.");
+    const kp = Keypair.fromSecret(secret);
+    if (kp.publicKey() !== expected.source)
+      return { ok: false, error: "The signed-in wallet changed. Review the transaction again." };
+    const transaction = parsedPreparedContractCall(transactionXdr, expected);
+    transaction.sign(kp);
+    return await submitAndConfirm(srv, transaction);
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "The prepared transaction could not be signed." };
+  }
+}
+
 export function demoKeypair(): Keypair {
   const s = process.env.SALAPI_DEMO_SECRET;
   if (!s) throw new Error("SALAPI_DEMO_SECRET missing (.env.local)");
@@ -90,7 +193,7 @@ export async function readContract(
   args: xdr.ScVal[] = []
 ): Promise<unknown> {
   const srv = server();
-  const acct = new Account(demoPublic(), "0");
+  const acct = new Account(READ_SOURCE, "0");
   const tx = new TransactionBuilder(acct, {
     fee: BASE_FEE,
     networkPassphrase: Networks.TESTNET,
