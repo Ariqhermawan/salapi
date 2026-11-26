@@ -29,10 +29,13 @@ function buildCsp(nonce: string): string {
   // Permit only the configured storage origin, not every Supabase tenant.
   // URL parsing keeps credentials/paths/query text out of the CSP source list.
   let storageOrigin = "";
+  let localApiOrigin = "";
   try {
     const storageUrl = new URL(SUPABASE_URL);
-    if (storageUrl.protocol === "https:" && !storageUrl.username && !storageUrl.password) {
+    const isLocalApi = isDev && storageUrl.protocol === "http:" && storageUrl.hostname === "127.0.0.1";
+    if ((storageUrl.protocol === "https:" || isLocalApi) && !storageUrl.username && !storageUrl.password) {
       storageOrigin = storageUrl.origin;
+      if (isLocalApi) localApiOrigin = storageUrl.origin;
     }
   } catch { /* An absent provider should not block local/demo pages. */ }
   return [
@@ -50,7 +53,7 @@ function buildCsp(nonce: string): string {
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     `img-src 'self' data: blob: https://googleusercontent.com https://*.googleusercontent.com${storageOrigin ? " " + storageOrigin : ""}`,
     "font-src 'self' https://fonts.gstatic.com",
-    "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.stellar.org https://stellar.expert",
+    `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.stellar.org https://stellar.expert${localApiOrigin ? " " + localApiOrigin : ""}`,
     "worker-src 'self' blob:",
     "manifest-src 'self'",
   ].join("; ");

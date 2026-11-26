@@ -52,6 +52,6 @@ test("compact Home keeps four equal quick actions, readable labels and scroll fa
   assert.equal(declarations(".home", "height").length, 0);
   assert.equal(declarations(".home", "overflow").length, 0);
   assert.doesNotMatch(css, /transform:\s*scale\(\s*0\./);
-  for (const target of ["/savings", "/arisan", "/send", "/transparency"]) assert.ok(home.includes(`to: "${target}"`));
+  for (const target of ["/savings", "/arisan", "/transparency", "/vaults"]) assert.ok(home.includes(`to: "${target}"`));
   assert.match(home, /<small>\{copy\(tile\.sub\)\}<\/small>/, "Descriptions stay in accessible link names");
 });

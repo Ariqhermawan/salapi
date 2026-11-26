@@ -167,7 +167,7 @@ test("Home See all keeps the examples query on Back and does not create a return
 
 test("Vaults discovery and D4 header Back return to Vaults rather than Home", async ({ page }) => {
   await home(page);
-  await page.getByRole("navigation", { name: "Main navigation", exact: true }).getByRole("button", { name: "Vaults", exact: true }).click();
+  await page.getByRole("link", { name: /^Vaults Explore vaults$/ }).click();
   await expectRoute(page, "/vaults");
   await page.getByRole("tab", { name: "Crowdfund", exact: true }).click();
   await page.getByRole("link", { name: /^Salapi Circles · prototype/ }).click();
@@ -216,14 +216,16 @@ test("Settings Language Back then browser Back reaches its previous parent", asy
 test("receive, activity and withdraw retain the section that actually opened them", async ({ page }) => {
   await home(page);
   const nav = page.getByRole("navigation", { name: "Main navigation", exact: true });
-  await nav.getByRole("button", { name: "Vaults", exact: true }).click();
+  await page.getByRole("link", { name: /^Vaults Explore vaults$/ }).click();
   await expectRoute(page, "/vaults");
   await nav.getByRole("button", { name: "Activity", exact: true }).click();
   await expectRoute(page, "/activity");
   await headerBack(page);
   await expectRoute(page, "/vaults");
 
-  await nav.getByRole("button", { name: "Send", exact: true }).click();
+  await nav.getByRole("button", { name: "Home", exact: true }).click();
+  await expectRoute(page, "/");
+  await page.getByRole("navigation", { name: "Wallet actions" }).getByRole("link", { name: "Send", exact: true }).click();
   await expectRoute(page, "/send");
   await page.getByRole("button", { name: "Receive", exact: true }).click();
   await expectRoute(page, "/receive");

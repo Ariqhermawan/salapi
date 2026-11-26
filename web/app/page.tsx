@@ -116,8 +116,14 @@ export default function Home() {
             dashboardCaption={copy("Testnet · no real money")}
             dashboardActions={
               <nav className={s.walletActions} aria-label={copy("Wallet actions")}>
-                <Link href="/send" className={s.walletAction}><span className={s.walletActionIcon} aria-hidden="true">{Ico.send({ size: 18 })}</span><span className={s.walletActionLabel}>{copy("Send")}</span></Link>
-                <Link href="/receive" className={s.walletAction}><span className={s.walletActionIcon} aria-hidden="true">{Ico.qr({ size: 18 })}</span><span className={s.walletActionLabel}>{copy("Receive")}</span></Link>
+                <Link href="/send" className={s.walletAction} aria-label={copy("Send")}>
+                  <span className={s.walletActionIcon} aria-hidden="true">{Ico.send({ size: 18 })}</span>
+                  <span className={s.walletActionLabel}>{copy("Send")}</span>
+                </Link>
+                <Link href="/receive" className={s.walletAction} aria-label={copy("Receive")}>
+                  <span className={s.walletActionIcon} aria-hidden="true">{Ico.qr({ size: 18 })}</span>
+                  <span className={s.walletActionLabel}>{copy("Receive")}</span>
+                </Link>
                 <Link href="/topup" className={s.walletAction} aria-label={copy("Top up")}>
                   <span className={s.walletActionIcon} aria-hidden="true">{Ico.arrowDown({ size: 18, c: "currentColor" })}</span>
                   <span className={s.walletActionLabel}>{copy("Top up")}</span>
@@ -137,6 +143,7 @@ export default function Home() {
         { title: "Smart Savings", sub: "Coming soon", art: "savings", coming: true, to: "/savings", tone: "mint" },
         { title: "Arisan", sub: "Fund together, upfront", art: "arisan", to: "/arisan", tone: "blue" },
         { title: "Disaster Vault", sub: "Shared payout approvals", art: "disaster", to: "/transparency", tone: "cream" },
+        { title: "Vaults", sub: "Explore vaults", art: "crowdfund-together", to: "/vaults", tone: "mint" },
       ].map(tile => {
         const content = <><Image src={`/illustrations/${tile.art}.png`} alt="" width="78" height="78" /><div><strong>{copy(tile.title)}</strong><small>{copy(tile.sub)}</small>{tile.coming && <span className={s.coming}>{copy("Coming soon")}</span>}</div></>;
         return tile.coming
@@ -144,6 +151,6 @@ export default function Home() {
           : <Link key={tile.art} href={tile.to} className={`${s.tile} ${s[tile.tone]}`}>{content}</Link>;
       })}
     </div></section>
-    <footer className={s.stellar}><PoweredByStellarV2 /><small>{copy("Public proof on Stellar Testnet")}</small><Link href="/docs">{copy("How Salapi works")}</Link></footer>
+    <footer className={s.stellar}><PoweredByStellarV2 /><small>{copy("Public proof on Stellar Testnet")}</small><Link href="/learn">{copy("Help and learning")}</Link><Link href="/docs">{copy("How Salapi works")}</Link></footer>
   </div>;
 }

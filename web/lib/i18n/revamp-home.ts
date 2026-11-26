@@ -58,6 +58,8 @@ export const HOME_COPY = {
   "Local demo": ["Lokal na demo", "Simulasi lokal", "Mô phỏng cục bộ"],
   "Coming soon": ["Malapit na", "Segera hadir", "Sắp ra mắt"],
   "Back to Vaults": ["Bumalik sa Vaults", "Kembali ke Vaults", "Quay lại Vaults"],
+  "Vaults": ["Mga Vault", "Vault", "Kho quỹ"],
+  "Explore vaults": ["Tuklasin ang mga vault", "Jelajahi vault", "Khám phá các kho quỹ"],
   "Smart Savings is not available yet. No savings deposits can be made here.": ["Hindi pa available ang Smart Savings. Hindi maaaring magdeposito ng ipon dito.", "Smart Savings belum tersedia. Setoran tabungan belum dapat dilakukan di sini.", "Smart Savings chưa khả dụng. Chưa thể gửi tiền tiết kiệm tại đây."],
   "Public proof on Stellar Testnet": ["Pampublikong patunay sa Stellar Testnet", "Bukti publik di Stellar Testnet", "Bằng chứng công khai trên Stellar Testnet"],
   "How Salapi works": ["Paano gumagana ang Salapi", "Cara kerja Salapi", "Cách Salapi hoạt động"],

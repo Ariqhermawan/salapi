@@ -106,24 +106,31 @@ function render(options: { preview?: boolean; locale?: Locale; currency?: Locale
   return { tree, wallet, rail, calls, links: nodes(rail).filter(node => node.type === "Link") };
 }
 
-test("actual Home wallet rail retains exactly two native navigation links in both modes and four languages", () => {
+const actions = [
+  { href: "/send", label: "Send", icon: "send" },
+  { href: "/receive", label: "Receive", icon: "qr" },
+  { href: "/topup", label: "Top up", icon: "arrowDown" },
+  { href: "/withdraw", label: "Withdraw", icon: "arrowUp" },
+];
+
+test("Home exposes four native wallet action links in both modes and four languages", () => {
   for (const preview of [true, false]) for (const locale of LOCALES) {
     const ui = render({ preview, locale });
     assert.equal(ui.rail.props["aria-label"], homeCopy(locale, "Wallet actions"));
-    assert.deepEqual(ui.links.map(node => node.props.href), ["/topup", "/withdraw"]);
-    for (const [index, label] of ["Top up", "Withdraw"].entries()) {
+    assert.deepEqual(ui.links.map(node => node.props.href), actions.map(action => action.href));
+    for (const [index, { label, icon: expectedIcon }] of actions.entries()) {
       const link = ui.links[index], expected = homeCopy(locale, label);
       assert.ok(hasClass(link, "walletAction"));
       assert.equal(link.props["aria-label"], expected);
       assert.equal(text(link), expected);
       assert.equal(link.props.onClick, undefined);
       assert.equal(link.props.role, undefined, "Navigation must keep native link semantics");
-      assert.equal(link.props.tabIndex, undefined, "Both links stay in native keyboard order");
+      assert.equal(link.props.tabIndex, undefined, "Links stay in native keyboard order");
       assert.equal(link.props["aria-disabled"], undefined);
       assert.ok(nodes(link).some(node => node.type === "span" && hasClass(node, "walletActionLabel") && text(node) === expected));
       const icon = nodes(link).find(node => node.type === "span" && hasClass(node, "walletActionIcon"))!; assert.ok(icon);
       assert.equal(String(icon.props["aria-hidden"]), "true");
-      assert.equal(nodes(icon).find(node => node.type === "svg")?.props["data-icon"], index === 0 ? "arrowDown" : "arrowUp");
+      assert.equal(nodes(icon).find(node => node.type === "svg")?.props["data-icon"], expectedIcon);
     }
     assert.equal(nodes(ui.rail).some(node => node.type === "form" || node.type === "button"), false);
     assert.deepEqual(ui.calls, { read: 0, write: 0, storage: 0, network: 0 });
@@ -151,7 +158,7 @@ test("Home delegates balance, native action links and truthful caption to one da
 test("action labels follow language independently of currency and retain exact balance props and Testnet truth framing", () => {
   for (const preview of [true, false]) for (const locale of LOCALES) for (const currency of LOCALES) {
     const balance = { pesos: 9876543.21, address: "Readonly isolated wallet", nativeStroops: "123456789000" }, ui = render({ preview, locale, currency, wallet: balance });
-    assert.equal(text(ui.links[0]), homeCopy(locale, "Top up")); assert.equal(text(ui.links[1]), homeCopy(locale, "Withdraw"));
+    assert.deepEqual(ui.links.map(text), actions.map(action => homeCopy(locale, action.label)));
     const market = nodes(ui.wallet).find(node => node.type === "MarketValue")!;
     assert.equal(market.props.nativeStroops, balance.nativeStroops, "Canonical native stroops take precedence over any presentation fixture");
     assert.equal(market.props.showNative, true, "Home exposes the native quantity without opening market details");
@@ -179,7 +186,7 @@ test("unknown and failed wallets keep navigation while a confirmed native zero r
     const pendingMarket = nodes(unknown.wallet).find(node => node.type === "MarketValue")!;
     assert.equal(pendingMarket.props.nativeStroops, undefined);
     assert.equal(pendingMarket.props.balanceLoading, true);
-    assert.deepEqual(unknown.links.map(node => node.props.href), ["/topup", "/withdraw"]);
+    assert.deepEqual(unknown.links.map(node => node.props.href), actions.map(action => action.href));
     const failed = render({ preview, wallet: null, walletError: "Your wallet balance is unavailable." });
     const failedMarket = nodes(failed.wallet).find(node => node.type === "MarketValue")!;
     assert.ok(text(failedMarket.props.dashboardBalanceError).includes("Your wallet balance is unavailable."));

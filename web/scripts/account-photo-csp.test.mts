@@ -41,13 +41,23 @@ test("avatar CSP permits only Google image domains and the configured storage or
   assert.match(csp, /frame-ancestors 'none'/);
 });
 
-for (const url of ["", "not a URL", "http://project.supabase.co", "data:text/html,test", "https://user:pass@project.supabase.co"]) {
+for (const url of ["", "not a URL", "http://project.supabase.co", "http://127.0.0.1:55421", "data:text/html,test", "https://user:pass@project.supabase.co"]) {
   test("avatar CSP excludes invalid or insecure storage configuration " + JSON.stringify(url), async () => {
     const response = await loadProxy(url)(request());
     const image = response.headers.get("Content-Security-Policy")!.split("; ").find(source => source.startsWith("img-src"))!;
     assert.equal(image, "img-src 'self' data: blob: https://googleusercontent.com https://*.googleusercontent.com");
   });
 }
+
+test("local Auth and Storage are available at the configured loopback port in development", async () => {
+  const origin = "http://127.0.0.1:55421";
+  const csp = (await loadProxy(origin, "development")(request())).headers.get("Content-Security-Policy")!;
+  for (const directive of ["connect-src", "img-src"]) {
+    assert.ok(csp.split("; ").find(source => source.startsWith(directive))!.split(" ").includes(origin));
+  }
+  const remote = (await loadProxy("http://project.supabase.co", "development")(request())).headers.get("Content-Security-Policy")!;
+  assert.ok(!remote.includes("http://project.supabase.co"));
+});
 
 test("nonce stays request-specific and development eval does not leak into production", async () => {
   const proxy = loadProxy("https://storage.example.com");
