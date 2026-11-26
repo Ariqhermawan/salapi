@@ -11,6 +11,7 @@ import { moneyCopy, moneyMessage } from "@/lib/i18n/revamp-money";
 import { authRedirectPath } from "@/lib/authRedirect";
 import { isAdminHost } from "@/lib/admin-host";
 import { isLocalPreview } from "@/lib/local-preview";
+import { initializeWallet } from "@/app/wallet-setup-actions";
 
 function GoogleMark() {
   return (
@@ -103,9 +104,15 @@ export default function SignInScreen() {
         return;
       }
       form.reset();
+      let destination = next;
+      if (!isAdminHost(window.location.hostname)) {
+        const wallet = await initializeWallet().catch(() => null);
+        if (!wallet?.ok) destination = `/wallet/setup?next=${encodeURIComponent(next)}`;
+      }
       // A full navigation makes server-rendered wallet/role data use the new
       // session cookies, rather than reusing an anonymous router cache entry.
-      window.location.assign(next);
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+      window.location.assign(destination);
     } catch {
       setSubmitError(t("signin.passwordError"));
     } finally {

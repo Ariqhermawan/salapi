@@ -130,6 +130,7 @@ function mount(name: typeof names[number], locale: Locale, options: { preview?: 
       if (dependency === "@/lib/authRedirect") return { authRedirectPath };
       if (dependency === "@/lib/admin-host") return adminHost;
       if (dependency === "@/lib/supabase/env") return { supabaseConfigured: () => true };
+      if (dependency === "@/app/wallet-setup-actions") return { initializeWallet() { calls.serverWrites++; throw Error("Write forbidden"); } };
       if (dependency === "@/lib/supabase/client") return { createSupabaseBrowser() {
         calls.auth++;
         if (name === "ReceiveScreen" && !preview) return { auth: {
