@@ -1,4 +1,6 @@
 import TransparencyScreen from "@/components/screens/TransparencyScreen";
+import { isLocalPreview } from "@/lib/local-preview";
+import { PrototypeDisasterVaultScreen } from "@/components/screens/PrototypeDisasterVaultScreen";
 
 export const metadata = {
   title: "Disaster Vault · Salapi",
@@ -6,5 +8,5 @@ export const metadata = {
 };
 
 export default function DisasterVaultPage() {
-  return <TransparencyScreen />;
+  return isLocalPreview ? <PrototypeDisasterVaultScreen /> : <TransparencyScreen />;
 }
