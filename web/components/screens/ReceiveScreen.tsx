@@ -56,6 +56,7 @@ export default function ReceiveScreen() {
     ? { address: PREVIEW_WALLET.address, username: PREVIEW_WALLET.handle } : { address: null, username: null });
   const [status, setStatus] = useState<"loading" | "ready" | "guest" | "error">(isLocalPreview ? "ready" : "loading");
   const [copied, setCopied] = useState(false);
+  const [guidanceOpen, setGuidanceOpen] = useState(false);
   const [base, setBase] = useState(SITE);
   const [shareError, setShareError] = useState("");
   const owner = useRef<string | null | undefined>(undefined);
@@ -188,10 +189,8 @@ export default function ReceiveScreen() {
           </button>}
           <p className={styles.note}>{isLocalPreview ? deposit.previewBody : deposit.warning}</p>
           {!identity.username && !isLocalPreview && <p className={styles.note}>{c.addressHint}</p>}
-          {!isLocalPreview && <details className={styles.instructions}>
-            <summary>{deposit.stepsTitle}</summary>
-            <ol><li>{deposit.step1}</li><li>{deposit.step2}</li><li>{deposit.step3}</li><li>{deposit.inactive}</li></ol>
-          </details>}
+          {!isLocalPreview && <button className={styles.link} type="button" aria-haspopup="dialog"
+            onClick={() => setGuidanceOpen(true)}>{deposit.stepsTitle}</button>}
           {!isLocalPreview && usernameLink?.kind === "username" && <button className={styles.link} type="button"
             onClick={() => shareDestination(usernameLink)}>{c.shareUsername}</button>}
         </> : <>
@@ -210,6 +209,71 @@ export default function ReceiveScreen() {
           {copied ? t("receive.copied") : t("receive.share")}
         </Btn>
       </div>
+      {guidanceOpen && <ReceiveGuidanceSheet copy={deposit} closeLabel={c.close} onClose={() => setGuidanceOpen(false)} />}
     </div>
   );
+}
+
+function ReceiveGuidanceSheet({ copy, closeLabel, onClose }: {
+  copy: ReturnType<typeof xlmDepositCopy>;
+  closeLabel: string;
+  onClose: () => void;
+}) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  const closeButton = useRef<HTMLButtonElement>(null);
+  const clickedBackdrop = useRef(false);
+
+  useEffect(() => {
+    const node = dialog.current;
+    if (!node) return;
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const frame = node.closest(".sl-app-frame");
+    const align = () => {
+      const bounds = frame?.getBoundingClientRect();
+      if (!bounds) return;
+      node.style.setProperty("--guidance-center", `${bounds.left + bounds.width / 2}px`);
+      node.style.setProperty("--guidance-bottom", `${Math.max(0, window.innerHeight - bounds.bottom)}px`);
+      node.style.setProperty("--guidance-frame-width", `${bounds.width}px`);
+      node.style.setProperty("--guidance-frame-height", `${bounds.height}px`);
+    };
+    align();
+    window.addEventListener("resize", align);
+    node.showModal();
+    closeButton.current?.focus({ preventScroll: true });
+    return () => {
+      window.removeEventListener("resize", align);
+      node.close();
+      if (opener?.isConnected) opener.focus({ preventScroll: true });
+    };
+  }, []);
+
+  return <dialog
+    ref={dialog}
+    className={styles.guidanceDialog}
+    aria-labelledby="receive-guidance-title"
+    onCancel={event => { event.preventDefault(); onClose(); }}
+    onPointerDown={event => { clickedBackdrop.current = event.target === event.currentTarget; }}
+    onClick={event => {
+      if (clickedBackdrop.current && event.target === event.currentTarget) onClose();
+      clickedBackdrop.current = false;
+    }}
+  >
+    <div className={styles.guidanceSheet}>
+      <header className={styles.guidanceHeader}>
+        <h2 id="receive-guidance-title">{copy.stepsTitle}</h2>
+        <button ref={closeButton} className={styles.guidanceClose} type="button" aria-label={closeLabel} onClick={onClose}>
+          {Ico.x({ size: 20 })}
+        </button>
+      </header>
+      <ol className={styles.guidanceSteps}>
+        <li>{copy.step1}</li>
+        <li>{copy.step2}</li>
+        <li>{copy.step3}</li>
+        <li>{copy.inactive}</li>
+      </ol>
+      <footer className={styles.guidanceFooter}>
+        <Btn kind="primary" onClick={onClose}>{copy.gotIt}</Btn>
+      </footer>
+    </div>
+  </dialog>;
 }

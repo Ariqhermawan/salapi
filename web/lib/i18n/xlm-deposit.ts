@@ -12,6 +12,7 @@ const en = {
   network: "Network", asset: "Asset", memo: "Memo", memoValue: "No memo configured", memoHint: "This is a personal wallet address. No memo or payment reference is supplied by Salapi.",
   stepsTitle: "Before you send", step1: "Choose Stellar Testnet in the sending wallet.", step2: "Copy the full address or scan the QR. Compare the address before confirming.", step3: "After the transaction is confirmed on-chain, check Activity. Opening this page does not credit your balance.",
   inactive: "If the account has not been activated on Testnet, use the separate Testnet faucet first. This page does not activate or fund accounts.",
+  gotIt: "Got it",
 };
 type DepositCopy = typeof en;
 export const XLM_DEPOSIT_COPY: Record<Locale, DepositCopy> = {
@@ -28,6 +29,7 @@ export const XLM_DEPOSIT_COPY: Record<Locale, DepositCopy> = {
     network: "Jaringan", asset: "Aset", memo: "Memo", memoValue: "Tidak ada memo yang diatur", memoHint: "Ini alamat wallet pribadi. Salapi tidak memberikan memo atau referensi pembayaran.",
     stepsTitle: "Sebelum mengirim", step1: "Pilih Stellar Testnet di wallet pengirim.", step2: "Salin alamat lengkap atau pindai QR. Cocokkan alamat sebelum konfirmasi.", step3: "Setelah transaksi terkonfirmasi di blockchain, periksa Aktivitas. Membuka halaman ini tidak menambah saldo.",
     inactive: "Jika akun belum aktif di Testnet, gunakan faucet Testnet terpisah terlebih dahulu. Halaman ini tidak mengaktifkan atau mendanai akun.",
+    gotIt: "Mengerti",
   },
   tl: {
     methods: "Piliin kung paano magdagdag", provider: "Payment provider", faucet: "Testnet faucet", deposit: "Mag-deposit ng XLM", paymentMethods: "GCash / QRIS",
@@ -41,6 +43,7 @@ export const XLM_DEPOSIT_COPY: Record<Locale, DepositCopy> = {
     network: "Network", asset: "Asset", memo: "Memo", memoValue: "Walang naka-configure na memo", memoHint: "Personal wallet address ito. Walang memo o payment reference na ibinibigay ang Salapi.",
     stepsTitle: "Bago magpadala", step1: "Piliin ang Stellar Testnet sa nagpapadalang wallet.", step2: "Kopyahin ang buong address o i-scan ang QR. Ihambing ang address bago kumpirmahin.", step3: "Kapag confirmed na on-chain, tingnan ang Activity. Hindi nagdadagdag ng balance ang pagbukas sa pahinang ito.",
     inactive: "Kung hindi pa activated sa Testnet ang account, gamitin muna ang hiwalay na Testnet faucet. Hindi nag-a-activate o nagpopondo ang pahinang ito.",
+    gotIt: "Naiintindihan ko",
   },
   vi: {
     methods: "Chọn cách nạp", provider: "Nhà cung cấp thanh toán", faucet: "Faucet Testnet", deposit: "Nạp XLM", paymentMethods: "GCash / QRIS",
@@ -54,6 +57,7 @@ export const XLM_DEPOSIT_COPY: Record<Locale, DepositCopy> = {
     network: "Mạng", asset: "Tài sản", memo: "Memo", memoValue: "Chưa cấu hình memo", memoHint: "Đây là địa chỉ ví cá nhân. Salapi không cung cấp memo hoặc mã tham chiếu thanh toán.",
     stepsTitle: "Trước khi gửi", step1: "Chọn Stellar Testnet trong ví gửi.", step2: "Sao chép toàn bộ địa chỉ hoặc quét mã QR. Đối chiếu địa chỉ trước khi xác nhận.", step3: "Khi giao dịch được xác nhận trên blockchain, xem Hoạt động. Mở trang này không làm tăng số dư.",
     inactive: "Nếu tài khoản chưa được kích hoạt trên Testnet, hãy dùng faucet Testnet riêng trước. Trang này không kích hoạt hoặc cấp vốn cho tài khoản.",
+    gotIt: "Đã hiểu",
   },
 };
 export function xlmDepositCopy(locale: Locale): DepositCopy { return XLM_DEPOSIT_COPY[locale] ?? en; }

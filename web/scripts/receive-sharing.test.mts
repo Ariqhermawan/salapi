@@ -91,7 +91,7 @@ function setup(options: { locale?: Locale; configured?: boolean; share?: Share; 
       if (name === "@/lib/ui/useGoBack") return { useGoBack: () => () => {} };
       if (name === "@/lib/local-preview") return { isLocalPreview: false };
       if (name === "@/components/ui/kit") return {
-        T: {}, Ico: { back: () => null, check: () => null, link: () => null },
+        T: {}, Ico: { back: () => null, check: () => null, link: () => null, x: () => null },
         AppBar: (props: { title: string }) => React.createElement("h1", {}, props.title),
         IconButton: (props: { ariaLabel: string }) => React.createElement("button", { "aria-label": props.ariaLabel }),
         Btn: (props: { children: React.ReactNode; disabled: boolean; onClick: () => void }) => React.createElement("button", { disabled: props.disabled, onClick: props.onClick }, props.children),
@@ -113,7 +113,14 @@ function setup(options: { locale?: Locale; configured?: boolean; share?: Share; 
     return [node, ...nodes(node.props.children as React.ReactNode)];
   }
   function shareButton() { const button = nodes(render()).find(node => node.props.onClick && node.props.kind === "primary"); assert.ok(button); return button; }
+  async function openGuidance() {
+    const button = nodes(render()).find(node => node.type === "button" && node.props.children === xlmDepositCopy(locale).stepsTitle);
+    assert.ok(button, "verified Receive screen should offer the safety guidance sheet");
+    (button.props.onClick as () => void)();
+    return render();
+  }
   return { render, reads, user, calls, html: () => renderToStaticMarkup(render()), shareButton,
+    openGuidance,
     async share() { const button = shareButton(); assert.equal(button.props.disabled, false); await (button.props.onClick as () => Promise<void>)(); },
     async shareUsername() {
       const button = nodes(render()).find(node => node.type === "button" && node.props.children === receiveCopy(locale).shareUsername);
@@ -153,6 +160,16 @@ for (const locale of LOCALES) {
     assert.doesNotMatch(html, /private@example|peso/i); await h.shareUsername();
     assert.deepEqual(h.calls.shares, [{ title: "Salapi", text: receiveCopy(locale).usernameCaption, url: "https://salapi.app/send?to=fixture_user" }]);
     assert.deepEqual(h.calls.copies, []); h.cleanup();
+  });
+  test(`${locale}: verified Receive opens the localized pre-send safety sheet`, async () => {
+    const h = setup({ locale }); await ready(h);
+    await h.openGuidance();
+    const copy = xlmDepositCopy(locale);
+    const html = h.html();
+    assert.match(html, /<dialog/);
+    for (const line of [copy.stepsTitle, copy.step1, copy.step2, copy.step3, copy.inactive, copy.gotIt]) assert.ok(html.includes(line));
+    assert.doesNotMatch(html, /<details/);
+    h.cleanup();
   });
   test(`${locale}: no-handle share uses the complete public address as text and exposes manual-copy guidance`, async () => {
     const h = setup({ locale, share: async () => {} }); await ready(h, account(null)); const html = h.html();
