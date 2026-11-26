@@ -12,6 +12,18 @@
 .row .code { font-family: var(--font-geist-mono), monospace; font-size: 18px; letter-spacing: .06em; }
 .count { display: flex; align-items: center; justify-content: space-between; padding: 9px 0 3px; font-size: 13px; color: var(--sl-sub); }
 .count strong { color: var(--sl-ink); }
-.art { display: block; max-width: 70%; height: auto; margin: 24px auto 12px; object-fit: contain; }
+.art { display: block; width: min(70%, 200px); height: auto; margin: 16px auto 12px; }
 .actions { position: sticky; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); display: grid; grid-template-columns: 1fr 2fr; gap: 6px; margin: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); padding: 5px; border: 1px solid var(--sl-glass-line); border-radius: 32px; backdrop-filter: blur(20px) saturate(1.6); box-shadow: var(--sl-glass-shadow); }
 .actions button { border-radius: 28px !important; }
+.single { grid-template-columns: 1fr; }
+.question { margin: 0 4px 16px; font-size: 24px; font-weight: 500; line-height: 1.2; }
+.options { display: grid; gap: 8px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.option { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 62px; padding: 10px 14px; background: var(--sl-surface); border: 1px solid var(--sl-line); border-radius: 14px; cursor: pointer; }
+.option:has(input:checked) { border-color: var(--sl-primary); background: var(--sl-tint); }
+.option strong { display: block; font-size: 15px; font-weight: 500; }
+.option small, .manualCode p { display: block; color: var(--sl-sub); font-size: 13px; line-height: 1.45; }
+.option input { width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--sl-primary); }
+.manualCode { margin-top: 12px; }
+.manualCode label { display: block; font-size: 14px; }
+.manualCode input { width: 100%; height: 44px; margin: 5px 0; padding: 8px 12px; border: 1px solid var(--sl-line); border-radius: 10px; background: var(--sl-canvas); font-family: var(--font-geist-mono), monospace; font-size: 16px; letter-spacing: .06em; }
+.manualCode [role="alert"] { color: var(--color-danger); }

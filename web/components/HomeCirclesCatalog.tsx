@@ -118,6 +118,7 @@ export default function HomeCirclesCatalog({ campaigns = [], circleLinks = {}, l
       <div className={styles.heading}>
         <h2 id="home-circles-title">{homeCopy(locale, "Causes")}</h2>
       </div>
+      <Link href="/campaigns?mode=examples" prefetch={false} className={styles.seeAll} aria-label={copy("Browse all example causes")}>{homeCopy(locale, "See all")}<ArrowRight size={16} aria-hidden="true" /></Link>
       <Link href={isLocalPreview ? "/circles/create" : "/campaigns?create=1"} prefetch={false} className={styles.startCampaign}>{Ico.plus({ size: 17 })}<span>{copy("Start a campaign")}</span></Link>
       <details className={styles.campaignTools}>
         <summary title={copy("Campaign tools")}><span className={styles.srOnly}>{copy("Campaign tools")}</span><span aria-hidden="true">···</span></summary>
@@ -145,7 +146,11 @@ export default function HomeCirclesCatalog({ campaigns = [], circleLinks = {}, l
           }} />
         </fieldset>
       </details>
-      <Link href="/campaigns?mode=examples" prefetch={false} aria-label={copy("Browse all example causes")}>{homeCopy(locale, "See all")}<ArrowRight size={17} aria-hidden="true" /></Link>
+      <div className={styles.controls}>
+        <button type="button" aria-label={copy("Previous example cause")} onClick={() => move(index - 1)} disabled={!ready || cardCount < 2}>{Ico.back({ size: 17 })}</button>
+        <span className={styles.srOnly} aria-label={copy("{current} of {count} example causes", { current: Math.min(index + 1, cardCount), count: cardCount })}>{String(Math.min(index + 1, cardCount)).padStart(2, "0")} / {String(cardCount).padStart(2, "0")}</span>
+        <button type="button" aria-label={copy("Next example cause")} onClick={() => move(index + 1)} disabled={!ready || cardCount < 2}>{Ico.chev({ size: 17 })}</button>
+      </div>
     </div>
     {/* Announce filter results without adding another full dashboard row. */}
     <div className={styles.srOnly} role="status">{c(examples.length === 1 ? "{count} example" : "{count} examples", { count: examples.length })}</div>
@@ -201,11 +206,6 @@ export default function HomeCirclesCatalog({ campaigns = [], circleLinks = {}, l
         </div>
       </article>)}
     </div>
-      <div className={styles.controls}>
-        <button type="button" aria-label={copy("Previous example cause")} onClick={() => move(index - 1)} disabled={!ready || cardCount < 2}>{Ico.back({ size: 17 })}</button>
-        <span className={styles.srOnly} aria-label={copy("{current} of {count} example causes", { current: Math.min(index + 1, cardCount), count: cardCount })}>{String(Math.min(index + 1, cardCount)).padStart(2, "0")} / {String(cardCount).padStart(2, "0")}</span>
-        <button type="button" aria-label={copy("Next example cause")} onClick={() => move(index + 1)} disabled={!ready || cardCount < 2}>{Ico.chev({ size: 17 })}</button>
-      </div>
     </div>
     {/* Background discovery must not push the primary carousel controls below
         the persistent navigation when it is slow or needs a retry. */}

@@ -656,7 +656,7 @@ test("background discovery status and retry remain after the primary carousel co
       const controls = elements.findIndex(node => hasClass(node, "controls"));
       const strip = elements.findIndex(node => hasClass(node, "strip"));
       const status = elements.findIndex(node => hasClass(node, "discoveryStatus"));
-      assert.ok(strip >= 0 && controls > strip && status > controls, "A slow or failed background lookup must remain after the campaign cards and primary carousel controls");
+      assert.ok(strip >= 0 && controls >= 0 && status > Math.max(strip, controls), "A slow or failed background lookup must remain after the campaign cards and primary carousel controls");
       assert.equal(nodes(elements[controls]).filter(node => node.type === "button").length, 2);
       const menu = elements.find(node => node.type === "details" && hasClass(node, "campaignTools")); assert.ok(menu);
       assert.ok(nodes(menu).some(node => node.props.href === "/circles/create"), "Compact header tools must retain the secondary campaign destinations");
@@ -800,7 +800,7 @@ test("closed D4 campaigns remain honest read-only cards, never fictional pledge 
 test("Home catalog responsive styles retain compact controls and persistent truth framing", () => {
   const css = source("../components/HomeCirclesCatalog.module.css");
   const sheet = parse(css);
-  for (const [selector, property] of [[".categoryPicker summary", "min-height"], [".startCampaign", "min-height"], [".heroCaption h2 a", "min-height"], [".pledge", "min-height"], [".campaignTools summary", "min-height"], [".otherActions a", "min-height"], [".tools > a", "min-height"], [".controls button", "height"]]) {
+  for (const [selector, property] of [[".categoryPicker summary", "min-height"], [".startCampaign", "min-height"], [".heroCaption h2 a", "min-height"], [".pledge", "min-height"], [".campaignTools summary", "min-height"], [".otherActions a", "min-height"], [".seeAll", "min-height"], [".controls button", "height"]]) {
     const values: string[] = [];
     sheet.walkRules(rule => { if (rule.selectors.includes(selector)) for (const node of rule.nodes) if (node.type === "decl" && (node as Declaration).prop === property) values.push((node as Declaration).value); });
     assert.ok(values.length > 0 && values.every(value => Number.parseFloat(value) >= 44), `${selector} must retain a 44px touch target in every responsive rule`);

@@ -256,18 +256,15 @@ test("Home dashboard keeps price details, stale status, exact XLM and visible at
   const css = parse(readFileSync(new URL("../components/MarketValue.module.css", import.meta.url), "utf8"));
   let feedLabelOnItsOwnLine = false;
   let providerRowCentered = false;
-  let attributionStacked = false;
   let compactTouchLink = false;
   css.walkRules(rule => {
     if (rule.selectors.includes(".feedLabel")) rule.walkDecls("display", declaration => { if (declaration.value === "block") feedLabelOnItsOwnLine = true; });
     const declaration = (property: string) => rule.nodes.find((node): node is Declaration => node.type === "decl" && node.prop === property)?.value;
     if (rule.selectors.includes(".providerRow") && declaration("display") === "flex" && declaration("align-items") === "center") providerRowCentered = true;
-    if (rule.selectors.includes(".attribution") && declaration("flex-direction") === "column" && declaration("align-items") === "flex-start" && declaration("gap") === "0") attributionStacked = true;
-    if (rule.selectors.includes(".attribution a") && /^(?:inline-)?flex$/.test(declaration("display") ?? "") && declaration("flex-direction") === "column" && declaration("align-items") === "flex-start" && declaration("justify-content") === "center" && declaration("gap") === "2px" && Number.parseFloat(declaration("min-height") ?? "0") >= 44) compactTouchLink = true;
+    if (rule.selectors.includes(".attribution a") && /^(?:inline-)?flex$/.test(declaration("display") ?? "") && declaration("flex-direction") === "column" && declaration("align-items") === "flex-end" && declaration("justify-content") === "center" && Number.parseFloat(declaration("min-height") ?? "0") >= 44) compactTouchLink = true;
   });
   assert.equal(feedLabelOnItsOwnLine, true, "USD price data is placed above Powered by instead of one crowded caption");
   assert.equal(providerRowCentered, true, "Powered by and the official logo share a vertically aligned provider row");
-  assert.equal(attributionStacked, true, "The data caption sits above the provider row, not beside a vertically centered logo");
   assert.equal(compactTouchLink, true, "Both tightly spaced attribution rows share one centered 44px touch target instead of expanding the Powered by row alone");
   for (const locale of ["en", "tl", "id", "vi"] as const) for (const status of ["fresh", "stale", "unavailable", "expired"] as const) {
     const prices: MarketPriceResult = status === "unavailable" ? unavailable : status === "expired" ? quote(Date.now() - 301_000) : { ...quote(Date.now()), status } as MarketPriceResult;
@@ -543,7 +540,7 @@ test("Home wallet failure replaces numeric balance without duplicating the error
   assert.equal(nodes(failure).find(node => node.type === "button")?.props.type, "button");
 });
 
-test("compact dashboard keeps USD beside touch-sized actions and exact XLM below with readable labels", () => {
+test("compact dashboard keeps a separate price controls column and readable balances", () => {
   const css = parse(readFileSync(new URL("../components/MarketValue.module.css", import.meta.url), "utf8"));
   const rules = (selector: string) => {
     const result: Rule[] = []; css.walkRules(rule => { if (rule.selectors.includes(selector)) result.push(rule); }); return result;
@@ -557,18 +554,19 @@ test("compact dashboard keeps USD beside touch-sized actions and exact XLM below
   assert.ok(rules(".secondary").some(rule => declaration(rule, "display") === "contents"), "Secondary content shares the dashboard grid without a separate sizing wrapper");
   const tokenContext = rules(".tokenContext")[0];
   assert.equal(declaration(tokenContext, "display"), "contents", "The exact balance and Testnet caption participate in the secondary grid without duplicating content");
-  assert.equal(declaration(native, "grid-row"), "2", "The exact XLM balance remains directly below USD and outside the action column");
+  assert.equal(declaration(native, "grid-row"), "2", "The exact XLM balance remains directly below the USD estimate");
   const caption = rules(".caption")[0];
   assert.ok(lowerBound(declaration(caption, "font-size")) >= 12, "The Testnet warning remains readable in the compact wallet");
-  assert.equal(declaration(caption, "grid-row"), "3", "The Testnet warning has a visible status row before the price footer");
+  assert.equal(declaration(caption, "grid-row"), "3", "The Testnet warning has a visible status row");
   assert.equal(rules(".detailSpace").length, 0, "The obsolete extra-row spacer has no remaining CSS");
   for (const selector of [".attribution", ".details"]) {
-    assert.ok(rules(selector).some(rule => declaration(rule, "grid-row") === "4"), `${selector} shares the provider footer directly below the secondary balance context`);
+    assert.ok(rules(selector).some(rule => declaration(rule, "grid-column") === "2"), `${selector} shares the price controls column`);
   }
+  assert.equal(declaration(rules(".attribution")[0], "grid-row"), "1");
+  assert.equal(declaration(rules(".reference")[0], "position"), "absolute", "Opening price details must keep the Home layout stable");
   assert.ok(rules(".native").some(rule => declaration(rule, "overflow-wrap") === "anywhere"), "Long exact XLM stays readable through wrapping, never rounding");
-  assert.ok(rules(".actions").some(rule => declaration(rule, "grid-column") === "2" && declaration(rule, "grid-row") === "1 / 3"), "Ordinary wallet widths put both actions beside the USD and exact XLM amounts");
-  assert.ok(rules(".actions").some(rule => declaration(rule, "grid-column") === "1 / -1" && declaration(rule, "grid-row") === "5"), "Very narrow or enlarged-text layouts can use a full action row without clipping");
-  for (const selector of [".native", ".native span", ".quoteStatus", ".caption", ".attribution", ".details"]) {
+  assert.ok(rules(".actions").some(rule => declaration(rule, "grid-column") === "1 / -1" && declaration(rule, "grid-row") === "5"), "Optional actions have a full row below the balance");
+  for (const selector of [".native", ".native span", ".quoteStatus", ".caption", ".details"]) {
     assert.ok(rules(selector).every(rule => !declaration(rule, "font-size") || lowerBound(declaration(rule, "font-size")) >= 12), `${selector} keeps ordinary wallet labels at least 12px`);
   }
   for (const selector of [".details summary", ".attribution a", ".refresh"]) {

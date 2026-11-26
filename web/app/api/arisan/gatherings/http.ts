@@ -7,7 +7,13 @@ export function gatheringResponse(result: { ok: true } | ArisanGatheringFailure)
 /** Cookie-authenticated mutations require an exact same-origin browser request.
  * Stream cap prevents unbounded JSON parsing before owner authentication. */
 export async function gatheringRequest(request: Request): Promise<unknown> {
-  if (request.headers.get("origin") !== new URL(request.url).origin || new URL(request.url).search || request.headers.get("content-type")?.split(";")[0].trim().toLowerCase() !== "application/json") throw Error("Invalid request");
+  const url = new URL(request.url);
+  const origin = request.headers.get("origin");
+  // Next dev canonicalizes request.url to localhost even when the page was
+  // opened on the IPv4 loopback address. The browser origin must match Host.
+  const localOrigin = process.env.NODE_ENV === "development" && url.hostname === "localhost" && url.protocol === "http:"
+    && request.headers.get("host") === `127.0.0.1:${url.port}` && origin === `http://127.0.0.1:${url.port}`;
+  if ((!localOrigin && origin !== url.origin) || url.search || request.headers.get("content-type")?.split(";")[0].trim().toLowerCase() !== "application/json") throw Error("Invalid request");
   const reader = request.body?.getReader(); if (!reader) throw Error("Missing JSON body");
   const chunks: Uint8Array[] = []; let size = 0;
   try {

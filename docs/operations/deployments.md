@@ -15,6 +15,14 @@ sign-in. A newly created test account followed an invite link and increased only
 the inviting account's count. Signing in again through another invite preserved
 the first attribution. An older account did not count as a new invite, and both
 referral tables denied anonymous reads. Referral records are stored in Supabase.
+The signup question also recorded a manual invite code and a Community answer.
+An unrecognized code left the question unanswered. A valid answer resumed the
+original Receive or Activity screen. A referral link skipped the question.
+
+A second scheduled Arisan room held 0.9 XLM from three funded members after
+the cutoff passed. The host cancelled it in the browser. The Testnet contract
+reported `Dissolved` and a pool of 0 XLM.
+[Refund receipt](https://stellar.expert/explorer/testnet/tx/005a9616fd92b59dd0cac86f682afb5baca67114145328bf336d6c1c17bf5275).
 
 ## D4 donation campaigns
 

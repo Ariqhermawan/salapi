@@ -6,7 +6,8 @@ import { safeAppFallback } from "@/lib/ui/app-navigation";
 import { isLocalPreview } from "@/lib/local-preview";
 import { prepareAuthenticatedWallet } from "@/lib/server/userWallet";
 import { hostHeaderName, isAdminHost } from "@/lib/admin-host";
-import { recordReferralSignup } from "@/lib/server/referrals";
+import { prepareSignupSource } from "@/lib/server/referrals";
+import { signupReturnPath } from "@/lib/referral";
 
 // OAuth redirect target: exchange the ?code for a session, then go to the app.
 export async function GET(request: Request) {
@@ -45,14 +46,15 @@ export async function GET(request: Request) {
     // The admin host needs only the session. Wallet setup, and its /wallet/setup
     // recovery page, belong to the app host (that page is a 404 on admin.*).
     if (isAdminHost(hostHeaderName(request.headers.get("host")))) return redirect(next);
-    await recordReferralSignup(next).catch(() => {});
+    const destination = await prepareSignupSource(next).catch(() => null) ?? signupReturnPath(next);
     // The session is valid even if wallet setup is temporarily unavailable.
     // Keep its cookies and original destination; never silently use demo keys.
     try {
       await prepareAuthenticatedWallet();
     } catch {
-      return redirect(`/wallet/setup?next=${encodeURIComponent(next)}`);
+      return redirect(`/wallet/setup?next=${encodeURIComponent(destination)}`);
     }
+    return redirect(destination);
   }
 
   return redirect(next);

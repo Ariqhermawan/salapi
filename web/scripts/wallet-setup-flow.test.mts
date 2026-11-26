@@ -9,6 +9,7 @@ import ts from "typescript";
 import { walletSetupCopy } from "../lib/i18n/wallet-setup.ts";
 import { LOCALES, type Locale } from "../lib/i18n/config.ts";
 import * as adminHost from "../lib/admin-host.ts";
+import { signupReturnPath } from "../lib/referral.ts";
 
 // Actual callback/action/screen code, isolated at SDK, funding and router
 // boundaries. No real Auth, cookie exchange, database, Friendbot or signing.
@@ -41,7 +42,8 @@ function callbackHarness({ preview = false, configured = true, exchangeError = f
     if (name === "@/lib/authRedirect") return redirects;
     if (name === "@/lib/ui/app-navigation") return pureModule("../lib/ui/app-navigation.ts");
     if (name === "@/lib/admin-host") return adminHost;
-    if (name === "@/lib/server/referrals") return { async recordReferralSignup() {} };
+    if (name === "@/lib/server/referrals") return { async prepareSignupSource() { return null; } };
+    if (name === "@/lib/referral") return { signupReturnPath };
     if (name === "@/lib/supabase/server") return { async createSupabaseServer() {
       if (serverThrows) throw new Error("Fixture cookie/Auth creation outage");
       return { auth: { async exchangeCodeForSession(code: string) {

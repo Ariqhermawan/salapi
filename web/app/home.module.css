@@ -1,7 +1,6 @@
 .home { display: flex; flex-direction: column; min-height: 100cqh; padding: 4px 12px 0; color: #0c1730; }
-/* The raised Cause control occupies 80px, plus a small content gap. Scope this
-   reserve to Home so spare bottom padding cannot create a phantom scroll. */
-:global(.sl-main):has(.home) { container: home-viewport / size; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 84px); }
+/* Keep the last link clear of the raised Cause button at maximum scroll. */
+:global(.sl-main):has(.home) { container: home-viewport / size; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 90px); }
 .crowdfunding { margin-top: 10px; padding: 12px; background: #f2efe7; border: 1px solid #e7e3db; border-radius: 25px; }
 .giveHeader { display: flex; align-items: center; min-height: 62px; padding: 0 4px 8px; gap:8px; }
 .eyebrow { display:block; line-height:1.3; color: #2563eb; font-weight: 750; font-size: 10px; letter-spacing: .07em; }
@@ -158,11 +157,11 @@
 .home .stellar > span { font-size: 12px !important; }
 .home .stellar > a { min-height: 44px; padding: 2px 0; font-size: 12px; line-height: 1.3; }
 
-.home { color:var(--sl-ink); padding-top:12px; }
+.home { color:var(--sl-ink); padding-top:4px; }
 :global([data-theme="dark"]) .giveHeader h1,
 :global([data-theme="dark"]) .catalogCard h2 { color:var(--sl-ink); }
 
-.greeting { display: flex; align-items: center; gap: 4px; margin: 0 0 10px; }
+.greeting { display: flex; align-items: center; gap: 4px; margin: 0 0 6px; }
 .greeting h1 { flex: 1; margin: 0 0 0 6px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: clamp(16px, 4.8cqw, 20px); font-weight: 500; letter-spacing: -.015em; }
 .mark, .round { min-width: 44px; min-height: 44px; display: grid; place-items: center; flex-shrink: 0; color: var(--sl-ink); border-radius: 10px; }
 .mark img { border-radius: 8px; }
@@ -171,14 +170,14 @@
 .wallet {
   container-type: inline-size;
   border-radius: 24px;
-  padding: 12px 16px;
+  padding: 10px 16px;
   color: #fff;
   background: url('/illustrations/home-card-pattern.png') center top / 100% auto no-repeat,
     radial-gradient(110% 80% at 0% 0%, #ffffff29, transparent 62%),
     linear-gradient(180deg, #2547d0, #4d82ff);
 }
 .walletHeader, .walletHeader > div { display: flex; align-items: center; gap: 8px; }
-.walletHeader { justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
+.walletHeader { justify-content: space-between; margin-bottom: 2px; font-size: 14px; }
 .walletHeader img { width: 68px; height: 17px; object-fit: contain; opacity: .85; }
 .walletPill { padding: 3px 8px; border-radius: 10px; background: #ffffff29; font-size: 12px; font-weight: 500; }
 .guest { display: grid; justify-items: start; }
@@ -190,7 +189,7 @@
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   margin-top: 8px;
-  padding: 8px 0;
+  padding: 4px 0;
   border: 1px solid var(--sl-line);
   border-radius: 16px;
   background: var(--sl-surface);
@@ -211,28 +210,28 @@
   transition: background .16s ease;
 }
 .walletAction + .walletAction::before { content: ''; position: absolute; top: 8px; left: 0; width: 1px; height: 32px; background: var(--sl-line); }
-.walletActionIcon { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 50%; background: var(--sl-canvas); color: var(--sl-primary); }
+.walletActionIcon { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; background: var(--sl-canvas); color: var(--sl-primary); }
 .walletActionLabel { min-width: 0; font-size: 12px; line-height: 16px; font-weight: 500; text-align: center; overflow-wrap: anywhere; }
 .walletAction:focus-visible { outline: 2px solid var(--sl-primary); outline-offset: -2px; }
 @media (hover: hover) { .walletAction:hover { background: var(--sl-tint); } }
 @media (prefers-reduced-motion: reduce) { .walletAction { transition: none; } }
 
-.quick { margin-top: 10px; }
+.quick { margin-top: 6px; }
 .quickGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .tile {
-  min-height: 104px;
+  min-height: 78px;
   min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  padding: 8px 4px;
+  padding: 5px 4px;
   border-radius: 16px;
   background: #476cff1a;
   color: var(--sl-ink);
   text-align: center;
 }
-.tile img { width: 44px; height: 32px; object-fit: contain; }
+.tile img { width: 44px; height: 26px; object-fit: contain; }
 .tile strong { font-size: clamp(12px, 4cqw, 16px); line-height: 1.25; font-weight: 500; overflow-wrap: anywhere; }
 .tile:disabled { opacity: .55; }
 .tile:focus-visible { outline: 2px solid var(--sl-primary); outline-offset: 2px; }

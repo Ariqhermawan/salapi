@@ -23,6 +23,7 @@ export default function BottomNav() {
     path === "/signin" ||
     path === "/receive" ||
     path === "/you/invite" ||
+    path === "/you/heard" ||
     path === "/offline" ||
     path.startsWith("/docs")
   ) {

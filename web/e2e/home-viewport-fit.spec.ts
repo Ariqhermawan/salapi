@@ -124,8 +124,8 @@ async function expectNaturalHomeLayout(page: Page, firstScreen: boolean) {
   expect(carousel.scrollTop, "The selected campaign must not require its own vertical scrolling").toBe(0);
   expect(carousel.cardContentHeight, "The campaign card must not clip content inside its decorative rounded edge").toBeLessThanOrEqual(carousel.cardAvailableHeight + 1);
   expect((await appScrollport(page)).documentScrollTop, "Only the real app main, not the document, may scroll").toBe(0);
-  const footer = page.getByTestId("home-dashboard").locator(":scope > footer");
-  await expectHomeReachable(page, footer, "Stellar and documentation footer", firstScreen);
+  const shortcuts = page.getByTestId("home-dashboard").locator(":scope > section:last-of-type");
+  await expectHomeReachable(page, shortcuts, "Last row of Home shortcuts", firstScreen);
 }
 
 const expectNaturalHomeFit = (page: Page) => expectNaturalHomeLayout(page, true);
@@ -140,7 +140,7 @@ for (const { viewport, locale } of viewportCases) {
   test.describe(`${locale} ${viewport.width}x${viewport.height} app-frame geometry`, () => {
     test.use({ viewport, isMobile: viewport.width < 1024, hasTouch: viewport.width < 1024 });
   test(firstScreen
-    ? `Home wallet, photo campaign, quick actions and footer fit without scrolling at ${viewport.width}x${viewport.height}`
+    ? `Home wallet, causes and shortcuts fit without scrolling at ${viewport.width}x${viewport.height}`
     : `Compact or localized Home retains its photo campaign and all controls through natural main scrolling at ${viewport.width}x${viewport.height}`, async ({ page, context, baseURL }) => {
     const c = circlesCopy(locale);
     await context.addCookies([{ name: LOCALE_COOKIE, value: locale, url: new URL(baseURL ?? "http://localhost:4747").origin }]);
@@ -210,8 +210,8 @@ for (const { viewport, locale } of viewportCases) {
     await reachable(category, "Category picker");
     await reachable(pledge, "Campaign CTA");
     await reachable(tools, "Campaign tools disclosure");
-    await reachable(previous, "Previous example footer control");
-    await reachable(next, "Next example footer control");
+    await reachable(previous, "Previous example control");
+    await reachable(next, "Next example control");
     for (const [control, label] of [[category, "Category"], [pledge, "Preview pledge"], [tools, "Campaign tools"], [previous, "Previous example"], [next, "Next example"]] as const) await expectTouchTarget(control, label);
     const walletActions = page.getByRole("navigation", { name: homeCopy(locale, "Wallet actions"), exact: true });
     for (const label of ["Top up", "Withdraw", "Send", "Receive"]) {
@@ -239,11 +239,6 @@ for (const { viewport, locale } of viewportCases) {
       await reachable(action, "Quick action");
       await expectTouchTarget(action, "Quick action");
     }
-    const footer = page.getByTestId("home-dashboard").locator(":scope > footer");
-    await reachable(footer, "Stellar and documentation footer");
-    await reachable(page.getByRole("link", { name: homeCopy(locale, "How Salapi works"), exact: true }), "Stellar/footer documentation");
-    await expectTouchTarget(page.getByRole("link", { name: homeCopy(locale, "How Salapi works"), exact: true }), "Stellar/footer documentation");
-
     const width = await page.locator("#app-content").evaluate(node => ({ available: node.clientWidth, content: node.scrollWidth, height: node.clientHeight, scrollHeight: node.scrollHeight, scrollTop: node.scrollTop }));
     expect(width.content, "Home content must not overflow its horizontal app frame").toBeLessThanOrEqual(width.available + 1);
     if (firstScreen) {

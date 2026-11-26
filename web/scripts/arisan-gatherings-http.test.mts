@@ -19,6 +19,17 @@ test("cookie-authenticated mutations require exact origin, JSON and a clean quer
   for (const change of [{ origin: "https://evil.test" }, { origin: "https://salapi.app.evil.test" }, { type: "text/plain" }, { url: "https://salapi.app/api/arisan/gatherings?csrf=bad" }, { body: "not json" }, { body: "a".repeat(8193) }]) await assert.rejects(http.gatheringRequest(request(change)));
   await assert.rejects(http.gatheringRequest(new Request("https://salapi.app/api/arisan/gatherings", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })));
 });
+test("Next dev can normalize the URL to localhost while still checking the actual loopback Host", async () => {
+  const dev = load("../app/api/arisan/gatherings/http.ts", {}, { NODE_ENV: "development" }) as typeof http;
+  const loopback = (host: string) => new Request("http://localhost:4793/api/arisan/gatherings/watch", {
+    method: "POST",
+    headers: { Host: host, Origin: "http://127.0.0.1:4793", "Content-Type": "application/json" },
+    body: '{"kind":"scheduled","roomId":9}',
+  });
+  assert.equal(JSON.stringify(await dev.gatheringRequest(loopback("127.0.0.1:4793"))), '{"kind":"scheduled","roomId":9}');
+  await assert.rejects(dev.gatheringRequest(loopback("127.0.0.1:4794")));
+  await assert.rejects(http.gatheringRequest(loopback("127.0.0.1:4793")));
+});
 test("UTF-8 decoding and streamed body size are bounded before backend authorization", async () => {
   const bad = new Request("https://salapi.app/api/arisan/gatherings", { method: "POST", headers: { Origin: "https://salapi.app", "Content-Type": "application/json" }, body: new Uint8Array([0xff, 0xfe]) });
   await assert.rejects(http.gatheringRequest(bad));

@@ -14,7 +14,7 @@ import { homeCopy } from "@/lib/i18n/revamp-home";
 import HomeCirclesCatalog from "@/components/HomeCirclesCatalog";
 import { useAccountPhoto } from "@/components/useAccountPhoto";
 import MarketValue from "@/components/MarketValue";
-import { Bell, Moon, Question, Sun } from "@phosphor-icons/react";
+import { Bell, Question } from "@phosphor-icons/react";
 
 // Preview uses its declared native token quantity, never its demo fiat balance.
 const [previewWhole, previewFraction = ""] = PREVIEW_WALLET.xlm.split(".");
@@ -145,17 +145,5 @@ export default function Home() {
         <span className={s.coming}>{copy("Coming soon")}</span>
       </button>
     </div></section>
-    <footer className={s.stellar}>
-      <Link href="/docs">{copy("How Salapi works")}</Link>
-      <button className={s.round} type="button" onClick={() => {
-        const root = document.documentElement;
-        const theme = root.dataset.theme === "dark" ? "light" : "dark";
-        root.dataset.theme = theme;
-        document.cookie = `salapi-theme=${theme}; Path=/; SameSite=Lax; Max-Age=31536000`;
-      }}>
-        <span className="sl-show-light"><Moon size={20} aria-hidden /><span className="sr-only">{copy("Dark theme")}</span></span>
-        <span className="sl-show-dark"><Sun size={20} aria-hidden /><span className="sr-only">{copy("Light theme")}</span></span>
-      </button>
-    </footer>
   </div>;
 }

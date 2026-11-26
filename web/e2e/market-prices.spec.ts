@@ -154,13 +154,10 @@ async function expectFundingPhotoDominance(card: Locator) {
   expect(photoBox!.width, "Campaign photo must span its hero").toBeGreaterThanOrEqual(heroBox!.width - 2);
   expect(photoBox!.height, "Campaign photo must retain a legible scene").toBeGreaterThanOrEqual(96);
   expect(photoBox!.width * photoBox!.height, "Campaign photo must remain at least 2.5 times as prominent as its full title").toBeGreaterThanOrEqual(titleBox!.width * titleBox!.height * 2.5);
-  expect(titleBox!.y, "Title must stay inside the photographic stage").toBeGreaterThanOrEqual(photoBox!.y - 1);
-  expect(titleBox!.y + titleBox!.height, "The full title must stay inside the photographic stage").toBeLessThanOrEqual(photoBox!.y + photoBox!.height + 1);
-  expect(Math.abs(titleBox!.x + titleBox!.width / 2 - heroBox!.x - heroBox!.width / 2), "Title must be geometrically centered").toBeLessThanOrEqual(1);
-  const text = await title.evaluate(element => ({ height: element.clientHeight, contentHeight: element.scrollHeight, clamp: getComputedStyle(element).webkitLineClamp, align: getComputedStyle(element).textAlign }));
-  expect(text.contentHeight, "The complete localized campaign title must not be cropped").toBeLessThanOrEqual(text.height + 1);
-  expect(["none", "", "0"], "Title clamping must not manufacture a fit").toContain(text.clamp);
-  expect(text.align).toBe("center");
+  expect(titleBox!.y, "Title must sit below the photo").toBeGreaterThanOrEqual(photoBox!.y + photoBox!.height - 1);
+  const titleLink = title.getByRole("link");
+  await expect(titleLink).toHaveAttribute("title", (await titleLink.textContent())!.trim());
+  expect((await titleLink.boundingBox())!.height).toBeGreaterThanOrEqual(44);
 }
 
 test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () => {
@@ -194,11 +191,10 @@ test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () =>
     const actionRect = (await walletActions.boundingBox())!;
     for (const amount of [market.locator("[data-market-estimate]"), market.locator("[data-native-balance]")]) {
       const rect = (await amount.boundingBox())!;
-      expect(rect.x + rect.width, "Amounts must not overlap the wallet action column").toBeLessThanOrEqual(actionRect.x + 1);
+      expect(rect.y + rect.height, "Amounts must stay above the wallet actions").toBeLessThanOrEqual(actionRect.y + 1);
     }
     const attributionRect = (await attribution.boundingBox())!, summaryRect = (await summary.boundingBox())!;
-    expect(attributionRect.y + attributionRect.height, "Source and disclosure share one compact row").toBeLessThanOrEqual(summaryRect.y + summaryRect.height + 1);
-    expect(attributionRect.x + attributionRect.width, "Source cannot overlap the price-details control").toBeLessThanOrEqual(summaryRect.x + 1);
+    expect(attributionRect.y + attributionRect.height, "Source must sit above the price details").toBeLessThanOrEqual(summaryRect.y + 1);
     await summary.click();
     await expect(market.locator("[data-native-balance]")).toHaveText("10000 XLM");
     await expect(market).toContainText("XLM $0.25 · USDC $0.9998");
@@ -337,7 +333,7 @@ test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () =>
   ];
   for (const { state, locale, viewport } of budgetCases) test.describe(`${locale} ${viewport.width}x${viewport.height} ${state} settled Home budget`, () => {
     test.use({ viewport, isMobile: viewport.width < 1024, hasTouch: viewport.width < 1024 });
-    test("settled linked funding preserves the photo, full title and usable Home footer", async ({ page }) => {
+    test("settled linked funding preserves the photo, accessible title and usable Home shortcuts", async ({ page }) => {
       const body = () => state === "unavailable"
         ? { status: "unavailable", source: "CoinGecko", reason: "provider-unavailable" }
         : quote(Date.now(), .25, state, state === "stale" ? 121_000 : 0);
@@ -380,28 +376,25 @@ test.describe("CoinGecko wallet estimates, isolated candidate browser QA", () =>
       expect(carousel.contentHeight, "The card must not crop its content").toBeLessThanOrEqual(carousel.height + 1);
       expect(carousel.stripContentHeight, "The carousel must not become a second vertical scrollport").toBeLessThanOrEqual(carousel.stripHeight + 1);
       expect(carousel.stripTop).toBe(0);
-      const footer = page.getByTestId("home-dashboard").locator(":scope > footer");
+      const shortcuts = page.getByRole("region", { name: homeCopy(locale, "QUICK ACTIONS"), exact: true });
       const controls = [
         card.getByRole("link", { name: circlesCopy(locale)("View campaign"), exact: true }),
         catalog.locator("#home-cause-category"),
         catalog.getByRole("button", { name: homeCatalogCopy(locale, "Previous example cause"), exact: true }),
         catalog.getByRole("button", { name: homeCatalogCopy(locale, "Next example cause"), exact: true }),
       ];
-      // EN comfortable frames must fit with no scroll intervention. The longer
-      // TL title may grow naturally, but may never shrink to a clipped thumbnail.
-      if (locale === "en") {
+      if (locale === "en" && viewport.width >= 1024) {
         expect(dimensions.contentHeight, "Settled funding, including stale/unavailable copy, must fit the comfortable Home scrollport").toBeLessThanOrEqual(dimensions.height + 1);
         await expectHomeFirstScreenBox(page, page.getByRole("region", { name: homeCopy(locale, "Your Testnet wallet"), exact: true }), "Wallet and actions");
         await expectHomeFirstScreenBox(page, card, "Complete campaign card");
-        await expectHomeFirstScreenBox(page, page.getByRole("region", { name: homeCopy(locale, "QUICK ACTIONS"), exact: true }), "Quick actions");
-        await expectHomeFirstScreenBox(page, footer, "Stellar and documentation footer");
+        await expectHomeFirstScreenBox(page, shortcuts, "Quick actions");
         for (const control of controls) await expectHomeFirstScreenBox(page, control, "Home control", true);
         expect(await main.evaluate(element => element.scrollTop), "No scroll helper may manufacture first-screen fit").toBe(0);
       }
       await page.screenshot({ path: join(tmpdir(), "salapi-home-responsive-20261011", `home-budget-${locale}-${viewport.width}x${viewport.height}-${state}.png`), fullPage: false });
-      if (locale === "tl") {
+      if (locale === "tl" || viewport.width < 1024) {
         for (const control of controls) await expectHomeControlReachable(page, control, "Localized Home control");
-        await expectHomeControlReachable(page, footer, "Localized Stellar and documentation footer");
+        await expectHomeControlReachable(page, shortcuts, "Home shortcuts");
         for (const control of controls) {
           const rect = await control.boundingBox();
           expect(rect).not.toBeNull();

@@ -7,6 +7,8 @@ import { requireWalletState } from "@/lib/wallet-state";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { Moon } from "@phosphor-icons/react/dist/csr/Moon";
+import { Sun } from "@phosphor-icons/react/dist/csr/Sun";
 import type { ReactNode } from "react";
 import { isAuthSessionMissingError } from "@supabase/supabase-js";
 import {
@@ -23,6 +25,8 @@ import { supabaseConfigured } from "@/lib/supabase/env";
 import { useT } from "@/components/I18nProvider";
 import { LOCALE_META } from "@/lib/i18n/config";
 import { accountCopy, accountCurrencyName, type AccountCopyKey } from "@/lib/i18n/revamp-account";
+import { homeCopy } from "@/lib/i18n/revamp-home";
+import { signupSourceCopy } from "@/lib/i18n/signup-source";
 import { CURRENCY } from "@/lib/ui/currency";
 import { isLocalPreview, PREVIEW_WALLET } from "@/lib/local-preview";
 import {
@@ -424,6 +428,16 @@ export default function SettingsScreen() {
             sub={c.localReminders}
             trailing={<button type="button" role="switch" aria-checked={notif} aria-label={t("settings.notifications")} className={styles.switch} onClick={toggleNotif}><span className={notif ? styles.switchOn : styles.switchOff}><span /></span></button>}
           />
+          <SettingRow
+            icon={<><span className="sl-show-light"><Moon size={21} aria-hidden /></span><span className="sl-show-dark"><Sun size={21} aria-hidden /></span></>}
+            title={<><span className="sl-show-light">{homeCopy(locale, "Dark theme")}</span><span className="sl-show-dark">{homeCopy(locale, "Light theme")}</span></>}
+            onClick={() => {
+              const root = document.documentElement;
+              const theme = root.dataset.theme === "dark" ? "light" : "dark";
+              root.dataset.theme = theme;
+              document.cookie = `salapi-theme=${theme}; Path=/; SameSite=Lax; Max-Age=31536000`;
+            }}
+          />
         </div>
       </section>
 
@@ -432,6 +446,12 @@ export default function SettingsScreen() {
           icon={Ico.link({ size: 21, c: T.action })}
           title={c.inviteFriends}
           onClick={() => router.push("/you/invite")}
+          trailing={Ico.chev({ size: 16, c: T.slate })}
+        />
+        <SettingRow
+          icon={Ico.bulb({ size: 21, c: T.action })}
+          title={signupSourceCopy[locale].title}
+          onClick={() => router.push("/you/heard")}
           trailing={Ico.chev({ size: 16, c: T.slate })}
         />
         <SettingRow
@@ -475,6 +495,12 @@ export default function SettingsScreen() {
           title={t("settings.helpCenter")}
           sub={t("settings.helpCenterSub")}
           onClick={() => router.push("/learn")}
+          trailing={Ico.chev({ size: 16, c: T.slate })}
+        />
+        <SettingRow
+          icon={Ico.link({ size: 21, c: T.action })}
+          title={homeCopy(locale, "How Salapi works")}
+          onClick={() => router.push("/docs")}
           trailing={Ico.chev({ size: 16, c: T.slate })}
         />
         <SettingRow

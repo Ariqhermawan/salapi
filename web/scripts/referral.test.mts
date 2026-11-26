@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { referralCode, referralCodeFromNext, referralSignupEligible } from "../lib/referral.ts";
+import { isSignupSourceChoice, referralCode, referralCodeFromNext, referralSignupEligible, signupReturnPath } from "../lib/referral.ts";
 
 test("printed codes and exact referral links resolve to the same code", () => {
   assert.equal(referralCode("  a1b2 C3D4 "), "A1B2C3D4");
@@ -22,4 +22,16 @@ test("only a recent account with a sign-in near account creation can be attribut
   assert.equal(referralSignupEligible(at(2), at(3), now), false);
   assert.equal(referralSignupEligible(at(2), at(-1), now), false);
   assert.equal(referralSignupEligible(at(2), undefined, now), false);
+});
+
+test("signup source preserves the original in-app destination and rejects selection states", () => {
+  assert.equal(signupReturnPath("/send?to=ariq"), "/send?to=ariq");
+  for (const path of ["/you/heard?next=/send", "/r/A1B2C3D4", "/wallet/setup", "//example.test", "/signin", "/auth/callback"]) {
+    assert.equal(signupReturnPath(path), "/", path);
+  }
+  assert.equal(isSignupSourceChoice("direct"), true);
+  assert.equal(isSignupSourceChoice("referral"), true);
+  assert.equal(isSignupSourceChoice("community"), true);
+  assert.equal(isSignupSourceChoice("invite_link"), false);
+  assert.equal(isSignupSourceChoice("unanswered"), false);
 });

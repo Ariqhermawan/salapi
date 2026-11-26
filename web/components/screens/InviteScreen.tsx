@@ -77,7 +77,7 @@ export default function InviteScreen({ referral }: { referral: Awaited<ReturnTyp
               </p>}
           </section>
         )}
-        <Image className={styles.art} src="/illustrations/referral-people.png" alt="" width={252} height={155} />
+        <Image className={styles.art} src="/illustrations/referral-people.png" alt="" width={200} height={200} />
       </div>
       {ready && <div className={styles.actions}>
         <Btn kind="secondary" disabled={!origin} onClick={() => void copy("link")}>{c.copyReferralLink}</Btn>

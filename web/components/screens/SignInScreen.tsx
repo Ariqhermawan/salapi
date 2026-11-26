@@ -13,7 +13,7 @@ import { isAdminHost } from "@/lib/admin-host";
 import { isLocalPreview } from "@/lib/local-preview";
 import { initializeWallet } from "@/app/wallet-setup-actions";
 import { applySignInReferral } from "@/app/referral-actions";
-import { referralCodeFromNext } from "@/lib/referral";
+import { signupReturnPath } from "@/lib/referral";
 
 function GoogleMark() {
   return (
@@ -108,9 +108,9 @@ export default function SignInScreen() {
       form.reset();
       let destination = next;
       if (!isAdminHost(window.location.hostname)) {
-        if (referralCodeFromNext(next)) await applySignInReferral(next).catch(() => {});
+        destination = await applySignInReferral(next).catch(() => null) ?? signupReturnPath(next);
         const wallet = await initializeWallet().catch(() => null);
-        if (!wallet?.ok) destination = `/wallet/setup?next=${encodeURIComponent(next)}`;
+        if (!wallet?.ok) destination = `/wallet/setup?next=${encodeURIComponent(destination)}`;
       }
       // A full navigation makes server-rendered wallet/role data use the new
       // session cookies, rather than reusing an anonymous router cache entry.

@@ -23,7 +23,7 @@ const rows = {
   comingSoon: ["Coming soon", "Malapit na", "Segera hadir", "Sắp ra mắt"],
   walletLoad: ["We could not load your wallet. Please try again.", "Hindi ma-load ang iyong wallet. Subukan muli.", "Wallet tidak dapat dimuat. Silakan coba lagi.", "Không tải được ví. Vui lòng thử lại."],
   inviteFriends: ["Invite friends", "Mag-imbita ng kaibigan", "Undang teman", "Mời bạn bè"],
-  referralIntro: ["New accounts that sign up through your link are recorded as invited by you.", "Itinatala bilang imbitado mo ang mga bagong account na nag-sign up sa link mo.", "Akun baru yang mendaftar lewat tautanmu tercatat sebagai undanganmu.", "Tài khoản mới đăng ký qua liên kết của bạn được ghi nhận là do bạn mời."],
+  referralIntro: ["New accounts that sign up with your link or code are recorded as invited by you.", "Itinatala bilang imbitado mo ang mga bagong account na nag-sign up gamit ang link o code mo.", "Akun baru yang mendaftar lewat tautan atau kodemu tercatat sebagai undanganmu.", "Tài khoản mới đăng ký bằng liên kết hoặc mã của bạn được ghi nhận là do bạn mời."],
   referralLink: ["Referral link", "Link ng imbitasyon", "Tautan undangan", "Liên kết giới thiệu"],
   referralCode: ["Referral code", "Code ng imbitasyon", "Kode undangan", "Mã giới thiệu"],
   referralCount: ["Accepted invites", "Mga tinanggap na imbitasyon", "Undangan yang diterima", "Lời mời đã được chấp nhận"],

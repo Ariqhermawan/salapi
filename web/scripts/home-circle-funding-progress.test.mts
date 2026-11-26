@@ -73,7 +73,7 @@ const localizedFunding = {
 function expectDirectFundingLabel(html: string, label: string, context: string, stale?: string) {
   const escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const staleBadge = stale ? `<span class="stale">${escape(stale)}</span>` : "";
-  assert.match(html, new RegExp(`^<div class="progress"[^>]*><span class="label">${escape(label)}${staleBadge}</span><div class="amounts">`), `${context}: the descriptive label and stale notice must share the full-width grid row`);
+  assert.match(html, new RegExp(`^<div class="progress"[^>]*><span class="label"><span>${escape(label)}</span>${staleBadge}</span><div class="amounts">`), `${context}: the descriptive label and stale notice must share the full-width grid row`);
   assert.equal((html.match(/class="label"/g) ?? []).length, 1, `${context}: the descriptive label must not be duplicated`);
 }
 
