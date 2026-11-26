@@ -94,8 +94,7 @@ export default function HomeCirclesCatalog({ campaigns = [], circleLinks = {}, l
     const card = element.children[current] as HTMLElement | undefined;
     const first = element.children[0] as HTMLElement | undefined;
     if (!card || !first) return;
-    // Only the active slide reserves height. Page directly to it so the user
-    // never sees an empty, collapsed neighbouring slot during a smooth pan.
+    // Arrow controls and Back both land at the start of the selected card.
     element.scrollTo({ left: card.offsetLeft - first.offsetLeft, behavior: "instant" });
     setIndex(current);
   }
@@ -117,11 +116,9 @@ export default function HomeCirclesCatalog({ campaigns = [], circleLinks = {}, l
   return <section className={styles.catalog} aria-labelledby="home-circles-title" data-testid="home-circles-catalog" data-crowdfunding-catalog="true" data-catalog-ready={ready}>
     <header className={styles.header}>
       <div className={styles.heading}>
-        <span className={styles.eyebrow}>{isLocalPreview ? copy("CROWDFUNDING · PROTOTYPE") : homeCopy(locale, "CROWDFUNDING · TESTNET")}</span>
-        <h1 id="home-circles-title">{homeCopy(locale, "Give with clarity.")}</h1>
+        <h2 id="home-circles-title">{homeCopy(locale, "Causes")}</h2>
       </div>
       <Link href={isLocalPreview ? "/circles/create" : "/campaigns?create=1"} prefetch={false} className={styles.startCampaign}>{Ico.plus({ size: 17 })}<span>{copy("Start a campaign")}</span></Link>
-      <Image className={styles.givingArt} src="/illustrations/crowdfund-together.png" alt="" width={160} height={100} />
       <details className={styles.campaignTools}>
         <summary title={copy("Campaign tools")}><span className={styles.srOnly}>{copy("Campaign tools")}</span><span aria-hidden="true">···</span></summary>
         <nav className={styles.otherActions} aria-label={copy("Campaign tools")}>
@@ -157,10 +154,10 @@ export default function HomeCirclesCatalog({ campaigns = [], circleLinks = {}, l
       {examples.map((circle, position) => {
         const organizer = getOrganizerForCircle(circle);
         const display = circleDisplayContent(circle, locale);
-        return <article key={circle.id} className={styles.card} data-testid="home-crowdfunding-card" data-example-cause={circle.id} data-active-card={position === index} inert={position !== index}>
+        return <article key={circle.id} className={styles.card} data-testid="home-crowdfunding-card" data-example-cause={circle.id} data-active-card={position === index}>
           <div className={styles.hero} data-testid="home-campaign-hero">
             <Link href={`/circles/${circle.id}`} prefetch={false} className={styles.photo} data-testid="home-campaign-cover" aria-label={copy("View example cause: {title}", { title: display.title })}>
-              <Image src={circle.coverImage ?? "/illustrations/giving.png"} alt={display.imageAlt ?? c("AI-generated fictional campaign illustration")} width={600} height={340} sizes="(max-width: 500px) 90vw, 700px" loading={position === 0 ? "eager" : "lazy"} />
+              <Image src={circle.coverImage ?? "/illustrations/giving.png"} alt={display.imageAlt ?? c("AI-generated fictional campaign illustration")} width={600} height={340} sizes="156px" loading={position === 0 ? "eager" : "lazy"} />
             </Link>
             <div className={styles.cardMeta}>
               <span className={styles.example}>{c("Example cause")}</span>
@@ -182,10 +179,10 @@ export default function HomeCirclesCatalog({ campaigns = [], circleLinks = {}, l
           </div>
         </article>;
       })}
-      {standalone.map((campaign, position) => <article key={`d4-${campaign.id}`} className={styles.card} data-testid="home-crowdfunding-card" data-standalone-campaign={campaign.id} data-active-card={examples.length + position === index} inert={examples.length + position !== index}>
+      {standalone.map((campaign, position) => <article key={`d4-${campaign.id}`} className={styles.card} data-testid="home-crowdfunding-card" data-standalone-campaign={campaign.id} data-active-card={examples.length + position === index}>
         <div className={`${styles.hero} ${styles.testnetHero}`} data-testid="home-campaign-hero">
           <Link href={`/campaigns?id=${campaign.id}`} prefetch={false} className={`${styles.photo} ${styles.testnetPhoto}`} data-testid="home-campaign-cover" aria-label={campaign.title}>
-            <Image src="/illustrations/giving.png" alt="" width={600} height={340} sizes="(max-width: 500px) 90vw, 700px" loading="lazy" />
+            <Image src="/illustrations/giving.png" alt="" width={600} height={340} sizes="156px" loading="lazy" />
           </Link>
           <div className={styles.cardMeta}>
             <span className={styles.category}>{copy("D4 Testnet campaigns")}</span>

@@ -232,15 +232,14 @@ function mount(options: { preview?: boolean; locale?: Locale; reducedMotion?: bo
 
 function expectSingleActiveSlide(cards: Element[], expectedIndex: number) {
   assert.ok(cards.length > 0 && expectedIndex >= 0 && expectedIndex < cards.length);
-  assert.equal(cards.filter(card => card.props["data-active-card"] === true).length, 1, "Exactly one campaign may determine the visible slide");
-  assert.equal(cards.filter(card => card.props.inert !== true).length, 1, "Off-screen campaign links must not remain interactive");
+  assert.equal(cards.filter(card => card.props["data-active-card"] === true).length, 1, "Exactly one campaign determines the selected scroll position");
   for (const [index, card] of cards.entries()) {
     assert.equal(card.props["data-active-card"], index === expectedIndex, `Slide ${index} must match the selected index`);
-    assert.equal(card.props.inert, index !== expectedIndex, `Only selected slide ${expectedIndex} may escape inert`);
+    assert.notEqual(card.props.inert, true, "Each card remains keyboard accessible");
   }
 }
 
-test("only the selected story is active and non-inert through next, previous, filtering and history restoration", async () => {
+test("the selected story tracks next, previous, filtering and history restoration", async () => {
   const ui = mount();
   expectSingleActiveSlide(ui.orderedCards, 0);
   await ui.flush(); expectSingleActiveSlide(ui.orderedCards, 0);
@@ -250,7 +249,7 @@ test("only the selected story is active and non-inert through next, previous, fi
   ui.click(previous); await ui.flush(); expectSingleActiveSlide(ui.orderedCards, 0);
   ui.click(previous); await ui.flush(); expectSingleActiveSlide(ui.orderedCards, 26);
   ui.click(next); await ui.flush(); expectSingleActiveSlide(ui.orderedCards, 0);
-  assert.equal(ui.orderedCards.length, 27, "Inert slides must retain their horizontal snap positions");
+  assert.equal(ui.orderedCards.length, 27);
 
   ui.select("animals"); await ui.flush(); assert.equal(ui.orderedCards.length, 3);
   expectSingleActiveSlide(ui.orderedCards, 0);
@@ -267,16 +266,16 @@ test("only the selected story is active and non-inert through next, previous, fi
   ui.cleanup();
 });
 
-test("native catalog transfers the single active non-inert slide between stories and standalone campaigns", async () => {
+test("native catalog transfers the selected position between stories and standalone campaigns", async () => {
   const ui = mount({ preview: false }); await ui.flush();
   assert.equal(ui.orderedCards.length, 39); expectSingleActiveSlide(ui.orderedCards, 0);
   const next = catalogCopy.homeCatalogCopy("en", "Next example cause");
   const previous = catalogCopy.homeCatalogCopy("en", "Previous example cause");
   ui.click(previous); await ui.flush(); expectSingleActiveSlide(ui.orderedCards, 38);
   assert.equal(ui.orderedCards[38].props["data-standalone-campaign"], "811");
-  assert.ok(ui.cards.every(card => card.props.inert === true));
+  assert.ok(ui.cards.every(card => card.props["data-active-card"] === false));
   ui.click(next); await ui.flush(); expectSingleActiveSlide(ui.orderedCards, 0);
-  assert.ok(ui.d4Cards.every(card => card.props.inert === true));
+  assert.ok(ui.d4Cards.every(card => card.props["data-active-card"] === false));
 
   ui.changeNavigationEntry("active-standalone-entry:2", { category: "all", index: 29 }); await ui.flush();
   expectSingleActiveSlide(ui.orderedCards, 29);
@@ -293,17 +292,12 @@ test("native catalog transfers the single active non-inert slide between stories
   ui.cleanup();
 });
 
-test("inactive campaign slides collapse only vertically without removing their horizontal snap slots", () => {
+test("adjacent causes keep visible, equal-width card slots for horizontal scrolling", () => {
   const sheet = parse(source("../components/HomeCirclesCatalog.module.css"));
-  const inactive: Record<string, string> = {};
-  sheet.walkRules(rule => {
-    if (!rule.selectors.includes(".card[data-active-card=false]")) return;
-    for (const node of rule.nodes) if (node.type === "decl") inactive[node.prop] = node.value;
-  });
-  assert.equal(inactive.height, "0");
-  assert.equal(inactive.visibility, "hidden");
-  assert.notEqual(inactive.display, "none", "Removing inactive slide boxes would break indexed scroll-snap offsets");
-  for (const property of ["width", "min-width", "max-width", "flex", "flex-basis"]) assert.equal(inactive[property], undefined, "Inactive slides must keep the same horizontal size as the active slide");
+  const css = sheet.toString();
+  assert.match(css, /\.strip\s*\{[^}]*--cause-card-width:\s*156px/);
+  assert.match(css, /\.card\s*\{[^}]*flex:\s*0 0 var\(--cause-card-width\)/);
+  assert.doesNotMatch(css, /\.card\[data-active-card=false\]\s*\{[^}]*(?:height:\s*0|visibility:\s*hidden|display:\s*none)/);
 });
 
 test("history view state accepts only bounded discovery fields and ignores corrupt or financial values", () => {
@@ -870,7 +864,7 @@ test("adaptive Home height cannot hide overflow or scale the whole dashboard to 
   assert.ok(scopedScrollportRule, "Any adjusted bottom reserve must remain scoped to the Home main scrollport");
 });
 
-test("photo-first campaign hero spans the card and overlays a full centered title with honest image labels", () => {
+test("compact cause card shows the cover above a linked title and honest image labels", () => {
   const sheet = parse(source("../components/HomeCirclesCatalog.module.css"));
   const base: Record<string, Record<string, string>> = {};
   sheet.walkRules(rule => {
@@ -884,17 +878,15 @@ test("photo-first campaign hero spans the card and overlays a full centered titl
   });
   assert.ok(Number.parseFloat(base[".category"]["font-size"]) >= 10);
   for (const selector of [".example", ".ai"]) assert.ok(Number.parseFloat(base[selector]["font-size"]) >= 9);
-  assert.equal(base[".heroCaption h2"]["text-align"], "center");
-  assert.equal(base[".heroCaption h2 a"]["justify-content"], "center");
-  assert.equal(base[".card"].background, "#0b1f36");
-  assert.equal(base[".hero"].position, "relative", "The image and caption need one full-width overlay context");
-  assert.equal(base[".photo"].position, "absolute", "The real source image fills the hero behind the caption");
-  assert.equal(base[".photo"].inset, "0");
+  assert.equal(base[".heroCaption h2"]["font-size"], "14px");
+  assert.equal(base[".card"].background, "var(--sl-surface)");
+  assert.equal(base[".hero"].position, "relative");
+  assert.equal(base[".photo"].position, "relative");
+  assert.equal(base[".photo"].height, "112px");
   assert.equal(base[".photo img"].width, "100%");
   assert.equal(base[".photo img"].height, "100%");
   assert.equal(base[".photo img"]["object-fit"], "cover");
-  assert.match(base[".hero::after"].background ?? "", /linear-gradient/, "An actual dark gradient, not changed artwork, keeps the overlaid title legible");
-  assert.doesNotMatch(source("../components/HomeCirclesCatalog.module.css"), /line-clamp/, "Campaign titles must not be cut off to manufacture photo-first fit");
+  assert.match(source("../components/HomeCirclesCatalog.module.css"), /line-clamp:\s*2/);
   sheet.walkRules(rule => {
     if (!rule.selectors.includes(".card")) return;
     for (const node of rule.nodes) if (node.type === "decl" && node.prop === "grid-template-columns") {
@@ -907,7 +899,7 @@ test("photo-first campaign hero spans the card and overlays a full centered titl
     const photo = nodes(hero).find(node => node.props["data-testid"] === "home-campaign-cover"); assert.ok(photo);
     const caption = nodes(hero).find(node => hasClass(node, "heroCaption")); assert.ok(caption);
     const title = nodes(caption).find(node => node.type === "h2"); assert.ok(title);
-    assert.equal(text(title), contentCopy.circleDisplayContent(seed.SEED_CIRCLES[index], "en").title, "The complete localized campaign title must remain in its image overlay");
+    assert.equal(text(title), contentCopy.circleDisplayContent(seed.SEED_CIRCLES[index], "en").title, "The complete title remains available to assistive technology");
     assert.equal(nodes(photo).find(node => node.type === "Image")?.props.src, seed.SEED_CIRCLES[index].coverImage, "Hero must reuse each actual source asset, not substitute generated mockup artwork");
     for (const label of ["category", "example", "ai"]) assert.ok(nodes(hero).some(node => hasClass(node, label)), `${label} must remain in the full-width hero`);
     assert.equal(nodes(photo).some(node => node.type === "h2"), false, "The photo and full heading have separate links without nested anchors");

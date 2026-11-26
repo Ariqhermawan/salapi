@@ -1,11 +1,5 @@
-.catalog { display: flex; flex: 1; flex-direction: column; margin-top: 3px; padding: 6px 8px 1px; color: #0c1730; background: #f5f3ed; border: 1px solid #e7e3db; border-radius: 22px; }
-.header { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 60px 108px 44px; align-items: center; gap: 4px 5px; min-height: 44px; padding: 0 4px; }
-.heading { grid-column: 1; grid-row: 1; align-self: start; min-width: 0; padding-top: 4px; }
-.eyebrow { display: block; margin-bottom: 3px; color: #2563eb; font-size: 10px; line-height: 1.3; font-weight: 750; letter-spacing: .035em; }
-.header h1 { margin: 0; max-width: 12ch; font-size: 20px; line-height: 1.05; font-weight: 780; letter-spacing: -.045em; text-wrap: balance; }
 .startCampaign { grid-column: 3; grid-row: 1; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 3px; padding: 5px 6px; color: #2563eb; background: #fffdf9; border: 1px solid #2563eb; border-radius: 11px; font-size: 11px; line-height: 1.2; font-weight: 700; text-align: center; transition: background .2s ease, transform .2s ease; }
 .startCampaign svg { flex-shrink: 0; }
-.givingArt { grid-column: 2; grid-row: 1; align-self: center; width: 60px; height: 44px; object-fit: cover; object-position: right center; pointer-events: none; }
 .notice { margin: 0 4px 4px; color: #655d51; font-size: 11px; line-height: 1.25; text-wrap: pretty; }
 .tools { display: flex; align-items: flex-start; gap: 8px; margin: 0 4px 3px; }
 .tools > a { min-height: 44px; display: inline-flex; align-items: center; gap: 5px; color: #2563eb; font-size: 12px; font-weight: 700; white-space: nowrap; }
@@ -21,44 +15,13 @@
 .categoryChoices { position: absolute; z-index: 2; top: calc(100% + 6px); left: 0; width: min(310px, 80vw); max-height: min(440px, 65svh); overflow-y: auto; padding: 9px; margin: 0; background: #f5f3ed; border: 1px solid #cdd9eb; border-radius: 16px; box-shadow: 0 14px 35px -14px #18345766; }
 .categoryChoices > div { margin-bottom: 0; }
 .srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
-.carousel { position: relative; display: flex; flex: 1; flex-direction: column; }
-.strip { position: relative; display: flex; flex: 1; align-items: stretch; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; padding: 0 0 3px; }
-.strip::-webkit-scrollbar { display: none; }
-.card { flex: 0 0 100%; min-width: 0; display: flex; flex-direction: column; overflow: hidden; color: #fff; background: #0b1f36; border-radius: 20px; scroll-snap-align: start; }
-/* Keep every slide's horizontal snap position, but let only the selected
-   campaign determine the carousel height. Off-screen links are inert too. */
-.card[data-active-card=false] { height: 0; visibility: hidden; }
-.hero { position: relative; isolation: isolate; display: flex; flex: 1 0 auto; flex-direction: column; justify-content: flex-end; min-height: 170px; overflow: hidden; background: #172b42; }
-/* The image remains the whole visual stage. A real CSS scrim makes the full
-   title readable without replacing the campaign's original illustration. */
-.hero::after { content: ""; position: absolute; z-index: 1; inset: 0; background: linear-gradient(180deg, #0b1f361a 0%, #0b1f3600 30%, #0b1f3659 56%, #0b1f36ed 88%, #0b1f36 100%); pointer-events: none; }
-.photo { position: absolute; inset: 0; display: block; overflow: hidden; background: #dce5eb; }
-.photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; transition: transform .25s ease; }
-.heroCaption { position: relative; z-index: 2; display: grid; gap: 4px; padding: 72px 12px 8px; pointer-events: none; }
-.heroCaption h2 { margin: 0; color: #fff; font-size: 18px; line-height: 1.12; font-weight: 760; letter-spacing: -.035em; text-align: center; text-wrap: balance; text-shadow: 0 1px 12px #07152566; }
-.heroCaption h2 a { display: flex; align-items: center; justify-content: center; min-height: 44px; padding: 2px 0; overflow-wrap: anywhere; pointer-events: auto; }
-.heroCaption h2 a > span { width: 100%; }
 .ai { justify-self: start; padding: 2px 6px; border: 1px solid #ffffff40; border-radius: 20px; color: #fff; background: #0b1f36c9; font-size: 9px; line-height: 1.3; }
 .example, .category { padding: 4px 8px; color: #fff; background: #102239cf; border-radius: 11px; font-size: 10px; line-height: 1.25; font-weight: 650; }
-.body { display: flex; flex: 0 0 auto; flex-direction: column; gap: 5px; padding: 4px 10px 10px; }
 .cardMeta { position: absolute; z-index: 2; top: 8px; left: 10px; right: 10px; display: flex; align-items: flex-start; justify-content: space-between; gap: 5px 9px; pointer-events: none; }
 .cardMeta .category { margin-left: auto; text-align: right; }
 .donationMark { position: absolute; z-index: 2; top: 37px; left: 10px; right: 10px; display: flex; justify-content: flex-end; pointer-events: none; }
 .donationMark:empty { display: none; }
-.organizer { display: flex; align-items: center; gap: 7px; min-height: 44px; padding-bottom: 5px; border-bottom: 1px solid #ffffff26; color: #fff; }
 .avatar { display: grid; place-items: center; width: 40px; height: 40px; flex-shrink: 0; color: #315789; background: #e3edfc; border: 2px solid #fff; border-radius: 50%; font-size: 12px; font-weight: 750; }
-.identity { flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 140px); align-items: center; gap: 1px 7px; }
-.identity > strong, .identity > small { grid-column: 1; }
-.identity > [data-testid=organizer-trust-summary] { grid-column: 2; grid-row: 1 / span 2; }
-.identity strong { font-size: 12px; line-height: 1.35; overflow-wrap: anywhere; }
-.identity small { color: #a4c4ee; font-size: 11px; line-height: 1.25; overflow-wrap: anywhere; }
-.pledge { display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; padding: 6px 48px; border-radius: 12px; color: #fff; background: #2563eb; font-size: 14px; font-weight: 700; text-align: center; transition: background .18s ease, transform .18s ease; }
-.body > .pledge { margin-top: auto; }
-.testnetHero { background: #172b42; }
-.testnetPhoto { background: #e7edf5; }
-.testnetPhoto img { object-fit: contain; object-position: center 24%; padding-bottom: 36px; }
-.testnetState { align-self: flex-start; padding: 4px 7px; color: #bfdbff; background: #ffffff12; border-radius: 7px; font-size: 10px; font-weight: 700; }
-.testnetNote { margin: 3px 0; color: #a4c4ee; font-size: 11px; line-height: 1.5; }
 .discoveryStatus { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; margin: 3px 4px; color: #586985; font-size: 10px; line-height: 1.4; }
 .discoveryStatus > span { flex: 1 1 0; min-width: 0; }
 .discoveryStatus button { min-height: 44px; color: #164cbc; text-decoration: underline; }
@@ -69,100 +32,91 @@
 .otherActions a { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; color: #164cbc; font-size: 10px; font-weight: 650; }
 .explore { display: inline-flex; align-items: center; gap: 3px; min-height: 44px; color: #164cbc; font-size: 12px; line-height: 1.4; font-weight: 650; text-wrap: pretty; }
 .explore > svg { flex-shrink: 0; }
-.controls { position: absolute; z-index: 1; right: 8px; bottom: 11px; left: 8px; display: flex; justify-content: space-between; pointer-events: none; }
-.controls button { pointer-events: auto; flex: 0 0 44px; width: 44px; min-width: 44px; height: 44px; display: grid; place-items: center; border-radius: 11px; color: #fff; background: #ffffff12; transition: background .18s ease; }
 .catalog :is(a, button, summary):focus-visible { outline: 2px solid #2563eb; outline-offset: 3px; }
-.body a:focus-visible, .heroCaption a:focus-visible { outline-color: #a4c4ee; }
-.photo:focus-visible { outline-offset: -3px; }
-.controls button:disabled { opacity: .45; }
-.pledge:active, .startCampaign:active { transform: translateY(1px); }
-@media (hover: hover) { .photo:hover img { transform: scale(1.025); } .pledge:hover { background: #1e55d6; } .controls button:hover, .startCampaign:hover { background: #eaf2ff; } .controls button:hover { color: #2563eb; } .categoryPicker summary:hover { border-color: #8aace6; } }
-/* Full-width art stays dominant at every width. Only its vertical budget adapts;
-   long titles and text zoom can grow naturally instead of being clipped. */
+.startCampaign:active { transform: translateY(1px); }
+@media (hover: hover) { .startCampaign:hover { background: #eaf2ff; } .categoryPicker summary:hover { border-color: #8aace6; } }
 @container (min-width: 430px) {
-  .header h1 { max-width: none; font-size: 22px; }
-  .hero { min-height: 210px; }
-  .heroCaption { padding-inline: 20px; padding-bottom: 10px; }
-  .heroCaption h2 { font-size: 22px; }
   .cardMeta { top: 12px; left: 14px; right: 14px; }
   .example, .category { font-size: 11px; }
   .donationMark { top: 44px; left: 14px; right: 14px; }
-  .body { padding: 5px 14px 12px; gap: 7px; }
-  .identity { grid-template-columns: minmax(0, 1fr) minmax(0, 160px); }
 }
 @container (max-width: 429px) {
-  .header { min-height: 44px; grid-template-columns: minmax(0, 1fr) 100px 44px; }
-  .header h1 { font-size: 20px; max-width: 12ch; }
-  .eyebrow { font-size: 9px; }
-  .givingArt { display: none; }
   .startCampaign { grid-column: 2; font-size: 11px; }
   .campaignTools { grid-column: 3; }
   .notice { font-size: 10px; }
 }
 @container (max-width: 350px) {
-  .header { min-height: 44px; grid-template-columns: minmax(0, 1fr) 92px 44px; gap: 4px; }
   .startCampaign { grid-column: 2; }
-  .header h1 { font-size: 20px; }
-  .givingArt { display: none; }
-  .hero { min-height: 155px; }
-  .heroCaption { padding: 65px 10px 7px; }
-  .heroCaption h2 { font-size: 17px; }
   .cardMeta { left: 8px; right: 8px; gap: 5px; }
   .example, .category { padding: 3px 6px; font-size: 9px; }
   .donationMark { top: 32px; left: 8px; right: 8px; }
-  .organizer { padding-bottom: 4px; }
-  .body { padding-inline: 8px; }
-  .identity { grid-template-columns: minmax(0, 1fr) minmax(0, 126px); gap: 1px 6px; }
 }
-/* Spend the actual app scrollport's spare height on the campaign, rather than
-   leaving a blank band below the footer. Content can still grow and scroll
-   naturally when text zoom, long titles or expanded details need more room. */
 @container home-viewport (min-height: 710px) {
-  .catalog { padding-top: 7px; }
   .notice { margin-bottom: 4px; }
   .tools { margin-bottom: 7px; }
-  /* This is a floor, not a fixed height: flex growth still fills spare room.
-     Leave a little budget for settled funding and its stale-price warning. */
-  .hero { min-height: clamp(170px, 22cqh, 220px); }
-  .heroCaption h2 { font-size: 19px; line-height: 1.12; }
-  .organizer { gap: 8px; padding-bottom: 5px; }
-  .identity { gap: 2px 8px; }
-  .identity strong { font-size: 13px; }
-  .identity small { font-size: 11px; }
-  .pledge { font-size: 15px; }
-  .controls { right: 10px; left: 10px; bottom: 13px; }
 }
-/* Tagalog has longer labels and campaign titles. Preserve their full text at
-   ordinary phone heights; flex growth still spends any remaining room here. */
 @container home-viewport (min-height: 710px) and (max-height: 800px) {
   .catalog:lang(tl) { padding-top: 6px; }
   .notice:lang(tl) { margin-bottom: 4px; }
   .tools:lang(tl) { margin-bottom: 3px; }
-  .heroCaption:lang(tl) { padding-top: 65px; }
-  .heroCaption:lang(tl) h2 { font-size: 18px; line-height: 1.12; }
-  .organizer:lang(tl) { gap: 7px; padding-bottom: 4px; }
-  .identity:lang(tl) { gap: 1px 7px; }
-  .identity:lang(tl) strong { font-size: 12px; }
-  .pledge:lang(tl) { font-size: 14px; }
-  .controls:lang(tl) { right: 10px; left: 10px; bottom: 13px; }
 }
-/* Ordinary phone scrollports also include the wallet and tab-bar reserve.
-   Keep a wide photographic stage rather than sacrificing it to a thumbnail. */
-@container home-viewport (max-height: 800px) {
-  /* The full caption supplies its own intrinsic minimum. A flexible floor
-     lets a precise XLM balance and stale quote wrap without hiding the footer. */
-  .hero { min-height: 124px; }
-  /* Longer localized titles need more photographic context, not smaller or
-     clamped text. These pages retain natural main scrolling when needed. */
-  .hero:lang(tl) { min-height: 160px; }
-  .heroCaption, .heroCaption:lang(tl) { padding-top: 48px; }
-  .body { gap: 4px; padding-top: 3px; padding-bottom: 6px; }
-  .organizer { padding-bottom: 4px; }
-  .controls, .controls:lang(tl) { bottom: 11px; }
-  @container (max-width: 429px) {
-    .organizer, .organizer:lang(tl) { gap: 6px; }
-    .identity, .identity:lang(tl) { grid-template-columns: minmax(0, 1fr) minmax(0, 130px); column-gap: 6px; }
-    .identity strong { font-size: 12px; line-height: 1.3; }
-  }
+@media (prefers-reduced-motion: reduce) { .startCampaign, .categoryPicker summary, .categoryPicker summary > svg { transition: none; } .startCampaign:active { transform: none; } }
+
+.catalog { margin-top: 10px; color: var(--sl-ink); }
+.header { display: grid; grid-template-columns: minmax(0, 1fr) auto 44px; align-items: center; gap: 4px; }
+.heading h2 { font-size: 20px; font-weight: 500; line-height: 28px; letter-spacing: -.015em; }
+.header .startCampaign { grid-column: 2; }
+.header .campaignTools { grid-column: 3; }
+.notice, .discoveryStatus { color: var(--sl-sub); }
+.strip {
+  --cause-card-width: 156px;
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  margin: 0 -12px -8px;
+  padding: 2px max(12px, calc(100% - var(--cause-card-width))) 12px 12px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: 12px;
+  scrollbar-width: none;
 }
-@media (prefers-reduced-motion: reduce) { .strip { scroll-behavior: auto; } .photo img, .pledge, .startCampaign, .controls button, .categoryPicker summary, .categoryPicker summary > svg { transition: none; } .photo:hover img, .pledge:active, .startCampaign:active { transform: none; } }
+.strip::-webkit-scrollbar { display: none; }
+.card {
+  flex: 0 0 var(--cause-card-width);
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: var(--sl-ink);
+  background: var(--sl-surface);
+  border: 1px solid var(--sl-line);
+  border-radius: 16px;
+  box-shadow: 0 3px 6px #0000000a, 0 8px 14px -6px #0002;
+  scroll-snap-align: start;
+}
+.hero { position: relative; }
+.photo { position: relative; display: block; height: 112px; overflow: hidden; background: var(--sl-surface-alt); }
+.photo img { width: 100%; height: 100%; object-fit: cover; }
+.testnetPhoto img { object-fit: contain; }
+.cardMeta { left: 8px; right: 8px; }
+.category, .example { padding-inline: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ai { position: absolute; top: 88px; left: 8px; }
+.heroCaption h2 { margin: 0; color: var(--sl-ink); padding: 4px 10px 0; font-size: 14px; line-height: 20px; font-weight: 500; }
+.heroCaption h2 a { display: flex; align-items: center; min-height: 44px; overflow-wrap: anywhere; }
+.heroCaption h2 a > span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+.body { display: flex; flex: 1; flex-direction: column; padding: 0 10px 6px; }
+.organizer, .testnetNote { display: none; }
+.testnetState { font-size: 11px; color: var(--sl-sub); }
+.body [data-funding-kind] { grid-template-columns: minmax(0, 1fr); gap: 3px; color: var(--sl-sub); }
+.body [data-funding-kind] > * { grid-column: 1; }
+.body [data-funding-kind] strong { color: var(--sl-ink); font-size: 14px; }
+.body [data-funding-kind] > :nth-child(3):not(progress) { display: none; }
+.pledge { display: flex; align-items: center; gap: 4px; min-height: 44px; margin-top: auto; color: var(--sl-primary); font-size: 12px; }
+.pledge svg { flex-shrink: 0; }
+.photo:focus-visible { outline-offset: -2px; }
+.controls { display: flex; justify-content: space-between; }
+.controls button { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; color: var(--sl-primary); }
+.controls button:disabled { opacity: .45; }
+@media (hover: hover) { .controls button:hover { background: var(--sl-tint); } }
+@media (prefers-reduced-motion: reduce) { .strip { scroll-behavior: auto; } }

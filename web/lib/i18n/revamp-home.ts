@@ -3,6 +3,7 @@ import type { Locale } from "./config";
 // Tagalog, Indonesian, Vietnamese. Brands and user-provided cause names stay intact.
 export const HOME_COPY = {
   "Cause": ["Kampanya", "Campaign", "Chiến dịch"],
+  "Causes": ["Mga kampanya", "Daftar campaign", "Các chiến dịch"],
   "Send": ["Ipadala", "Kirim", "Gửi"],
   "Receive": ["Tumanggap", "Terima", "Nhận"],
   "Dark theme": ["Madilim na tema", "Tema gelap", "Giao diện tối"],

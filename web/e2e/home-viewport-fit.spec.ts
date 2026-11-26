@@ -85,40 +85,19 @@ async function expectHomeReachable(page: Page, locator: Locator, label: string, 
   await expectFullyInside(locator, await appScrollport(page), label);
 }
 
-async function expectUnclippedCampaignTitle(card: Locator) {
-  const heading = card.getByRole("heading", { level: 2 });
-  await expect(heading).toBeVisible();
-  const content = await heading.evaluate(element => {
-    const style = getComputedStyle(element);
-    return {
-      visibleHeight: element.clientHeight,
-      contentHeight: element.scrollHeight,
-      lineClamp: style.webkitLineClamp,
-      textAlign: style.textAlign,
-    };
-  });
-  expect(content.contentHeight, "The full campaign title must not be vertically cropped").toBeLessThanOrEqual(content.visibleHeight + 1);
-  expect(["none", "", "0"], "The title must not use line clamping to achieve first-screen fit").toContain(content.lineClamp);
-  expect(content.textAlign, "The campaign title must retain centered formatting").toBe("center");
-}
-
-async function expectPhotoFirstHero(card: Locator) {
+async function expectCompactCauseCard(card: Locator) {
   const hero = card.getByTestId("home-campaign-hero");
   const photo = hero.locator(":scope > a");
-  const heading = hero.getByRole("heading", { level: 2 });
-  await expect(hero, "Every example uses the full-width photo hero").toHaveCount(1);
-  await expect(photo.getByRole("img"), "The campaign photo, not an organizer avatar, is the hero image").toHaveCount(1);
-  await expect(heading, "The title belongs to the photo overlay, not a competing side column").toHaveCount(1);
-  const [cardRect, heroRect, photoRect, titleRect] = await Promise.all([card.boundingBox(), hero.boundingBox(), photo.boundingBox(), heading.boundingBox()]);
-  expect(cardRect && heroRect && photoRect && titleRect, "Hero, source image and full title must all have rendered boxes").toBeTruthy();
-  expect(heroRect!.width, "The hero must span the card instead of reverting to a thumbnail").toBeGreaterThanOrEqual(cardRect!.width - 2);
-  expect(photoRect!.width, "The campaign image must span the hero").toBeGreaterThanOrEqual(heroRect!.width - 2);
-  expect(photoRect!.height, "Photo-first treatment must keep a legible campaign scene on phones").toBeGreaterThanOrEqual(96);
-  expect(photoRect!.width * photoRect!.height, "The campaign image must be substantially more prominent than the title").toBeGreaterThanOrEqual(titleRect!.width * titleRect!.height * 2.5);
-  expect(titleRect!.y, "The centered title must overlay the image inside its hero").toBeGreaterThanOrEqual(photoRect!.y - 1);
-  expect(titleRect!.y + titleRect!.height, "The full title must remain inside the image overlay").toBeLessThanOrEqual(photoRect!.y + photoRect!.height + 1);
-  expect(Math.abs((titleRect!.x + titleRect!.width / 2) - (heroRect!.x + heroRect!.width / 2)), "The photo title must be geometrically centered").toBeLessThanOrEqual(1);
-  await expectUnclippedCampaignTitle(card);
+  const title = hero.getByRole("heading", { level: 2 }).getByRole("link");
+  await expect(photo.getByRole("img")).toHaveCount(1);
+  await expect(title).toHaveAttribute("title", (await title.textContent())!.trim());
+  const [cardRect, photoRect, titleRect] = await Promise.all([card.boundingBox(), photo.boundingBox(), title.boundingBox()]);
+  expect(cardRect && photoRect && titleRect).toBeTruthy();
+  expect(cardRect!.width).toBeCloseTo(156, 0);
+  expect(photoRect!.width).toBeGreaterThanOrEqual(cardRect!.width - 2);
+  expect(photoRect!.height).toBeCloseTo(112, 0);
+  expect(titleRect!.y).toBeGreaterThanOrEqual(photoRect!.y + photoRect!.height - 1);
+  await expectTouchTarget(title, "Cause title");
 }
 
 async function expectNaturalHomeLayout(page: Page, firstScreen: boolean) {
@@ -225,15 +204,9 @@ for (const { viewport, locale } of viewportCases) {
       ? "Fictional causes · Testnet XLM only. No real money."
       : "Fictional causes · no payment."), { exact: true }), "Persistent fictional/Testnet framing");
     await reachable(firstCard, "First campaign card");
-    await expectPhotoFirstHero(firstCard);
+    await expectCompactCauseCard(firstCard);
     await expect(catalog.locator("article[data-active-card=true]")).toHaveCount(1);
-    await expect(catalog.locator("article[data-active-card=true][inert]")).toHaveCount(0);
-    await expect(catalog.locator("article[data-active-card=false]:not([inert])")).toHaveCount(0);
-    await reachable(firstCard.getByTestId("home-campaign-organizer"), "Organizer identity and photo");
-    await expect(firstCard.getByText(homeCatalogCopy(locale, "Example rating"), { exact: true })).toHaveCount(1);
-    await expect(firstCard.getByTestId("organizer-trust-summary")).toHaveAttribute("data-kyc-status", "unverified");
-    expect(await firstCard.getByRole("heading", { level: 2 }).evaluate(element => getComputedStyle(element).textAlign), "Campaign heading must use centered formatting").toBe("center");
-    await expectUnclippedCampaignTitle(firstCard);
+    await expect(catalog.locator("article[inert]")).toHaveCount(0);
     await reachable(category, "Category picker");
     await reachable(pledge, "Campaign CTA");
     await reachable(tools, "Campaign tools disclosure");
@@ -287,12 +260,12 @@ for (const { viewport, locale } of viewportCases) {
     await next.click();
     await expect(catalog.getByLabel(homeCatalogCopy(locale, "{current} of {count} example causes", { current: 2, count: 3 }), { exact: true })).toHaveText("02 / 03");
     if (firstScreen) expect((await appScrollport(page)).scrollTop, "A carousel change must not scroll the Home route").toBe(0);
-    await expectPhotoFirstHero(catalog.locator("article[data-active-card=true]"));
+    await expectCompactCauseCard(catalog.locator("article[data-active-card=true]"));
     await reachable(previous, "Filtered previous campaign control");
     await previous.click();
     await expect(catalog.getByLabel(homeCatalogCopy(locale, "{current} of {count} example causes", { current: 1, count: 3 }), { exact: true })).toHaveText("01 / 03");
     if (firstScreen) expect((await appScrollport(page)).scrollTop).toBe(0);
-    await expectPhotoFirstHero(catalog.locator("article[data-active-card=true]"));
+    await expectCompactCauseCard(catalog.locator("article[data-active-card=true]"));
     await expectNaturalHomeLayout(page, firstScreen);
     const navigationAfter = await page.locator(".sl-tabbar").boundingBox();
     expect(navigationAfter).not.toBeNull();
@@ -310,7 +283,7 @@ for (const { viewport, locale } of viewportCases) {
 test.describe("Crowdfunding uses the available Home height", () => {
   test.use({ viewport: { width: 390, height: 812 }, isMobile: true, hasTouch: true });
 
-  test("a taller phone expands its photo hero while compact frames retain naturally reachable controls", async ({ page, context, baseURL }) => {
+  test("compact cards keep the same cover and touch targets on taller phones", async ({ page, context, baseURL }) => {
     await context.addCookies([{ name: LOCALE_COOKIE, value: "en", url: new URL(baseURL ?? "http://localhost:4747").origin }]);
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/", { waitUntil: "domcontentloaded", timeout: 45000 });
@@ -321,10 +294,6 @@ test.describe("Crowdfunding uses the available Home height", () => {
     const cover = active.getByTestId("home-campaign-hero").locator(":scope > a");
     await expect.poll(() => cover.getByRole("img").evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true);
     const nativeQa = await catalog.getByText(homeCatalogCopy("en", "Fictional causes · Testnet XLM only. No real money."), { exact: true }).count() > 0;
-    // Compact frames keep all information and a legible photo, allowing main
-    // scrolling. The preview-only banner also occupies 30px of actual height.
-    // A 935px phone crosses the roomy hero rule without shrinking the compact
-    // scene or forcing its title/organizer metadata into a thumbnail layout.
     const compactHeight = nativeQa ? 740 : 812;
     await page.setViewportSize({ width: 390, height: compactHeight });
     if (nativeQa) {
@@ -334,19 +303,15 @@ test.describe("Crowdfunding uses the available Home height", () => {
     const compact = {
       cardHeight: (await active.boundingBox())!.height,
       coverHeight: (await cover.boundingBox())!.height,
-      titleSize: await active.getByRole("heading", { level: 2 }).evaluate(element => Number.parseFloat(getComputedStyle(element).fontSize)),
     };
-    await expectPhotoFirstHero(active);
+    await expectCompactCauseCard(active);
     await expectNaturalHomeLayout(page, false);
     await expectHomeReachable(page, active.getByRole("link", { name: circlesCopy("en")("View campaign"), exact: true }), "Compact campaign CTA", false);
 
     await page.setViewportSize({ width: 390, height: 935 });
-    await expect.poll(async () => (await active.boundingBox())!.height, "Taller screens must spend spare height on campaign content").toBeGreaterThanOrEqual(compact.cardHeight + 20);
-    await expect.poll(async () => (await cover.boundingBox())!.height, "The campaign cover must become legible rather than remaining a tiny thumbnail").toBeGreaterThanOrEqual(compact.coverHeight + 16);
-    // Spare height belongs primarily to the image, not larger competing text.
-    // Font size may stay stable while the campaign photo becomes more dominant.
-    await expect.poll(() => active.getByRole("heading", { level: 2 }).evaluate(element => Number.parseFloat(getComputedStyle(element).fontSize)), "The title must not shrink when more space becomes available").toBeGreaterThanOrEqual(compact.titleSize);
-    await expectPhotoFirstHero(active);
+    expect((await active.boundingBox())!.height).toBeCloseTo(compact.cardHeight, 0);
+    expect((await cover.boundingBox())!.height).toBeCloseTo(compact.coverHeight, 0);
+    await expectCompactCauseCard(active);
     await expectNaturalHomeFit(page);
     const bounds = await appScrollport(page);
     for (const control of [catalog.locator("#home-cause-category"), active.getByRole("link", { name: circlesCopy("en")("View campaign"), exact: true }), catalog.getByRole("button", { name: homeCatalogCopy("en", "Previous example cause"), exact: true }), catalog.getByRole("button", { name: homeCatalogCopy("en", "Next example cause"), exact: true })]) {
@@ -354,11 +319,9 @@ test.describe("Crowdfunding uses the available Home height", () => {
       await expectTouchTarget(control, "Expanded campaign control");
     }
 
-    // Return to a short viewport in the same mounted app. The roomy hero must
-    // adapt back without clipping the card or trapping its CTA behind the nav.
     await page.setViewportSize({ width: 390, height: compactHeight });
     await expect.poll(async () => (await active.boundingBox())!.height).toBeLessThanOrEqual(compact.cardHeight + 1);
-    await expectPhotoFirstHero(active);
+    await expectCompactCauseCard(active);
     await expectNaturalHomeLayout(page, false);
     await expectHomeReachable(page, active.getByRole("link", { name: circlesCopy("en")("View campaign"), exact: true }), "Compact campaign CTA after resizing", false);
     await expectTouchTarget(active.getByRole("link", { name: circlesCopy("en")("View campaign"), exact: true }), "Compact campaign CTA after resizing");
@@ -382,7 +345,7 @@ test.describe("Crowdfunding uses the available Home height", () => {
     for (let index = 0; index < count; index++) {
       const card = catalog.locator("article[data-active-card=true]");
       await expect(card).toHaveCount(1);
-      await expectPhotoFirstHero(card);
+      await expectCompactCauseCard(card);
       const bounds = await appScrollport(page);
       await expectFullyInside(card, bounds, `Campaign ${index + 1}`);
       await expectFullyInside(card.getByRole("link", { name: circlesCopy("en")("View campaign"), exact: true }), bounds, `Campaign ${index + 1} CTA`);
