@@ -79,6 +79,9 @@ jobs:
       - name: Scheduled arisan, private member inbox and operational rent guards
         run: npm run test:arisan-scheduled
 
+      - name: D1 transaction confirmation and signer checks
+        run: npm run test:week1-d1
+
       - name: D3 exact amounts and signer guards
         run: npm run test:disaster
 
