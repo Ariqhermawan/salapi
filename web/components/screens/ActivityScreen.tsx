@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { readWalletActivity } from "@/lib/ui/wallet-activity-read";
 import { watchWalletActivity } from "@/lib/ui/watchWalletActivity";
-import { activityStroopsToXlm, activityUsdcEquivalent, type WalletActivityIdentity, type WalletActivityItem } from "@/lib/wallet-activity";
+import { activityStroopsToXlm, activityUsdcEquivalent, filterWalletActivity, type WalletActivityFilter, type WalletActivityIdentity, type WalletActivityItem } from "@/lib/wallet-activity";
 import AccountAvatar from "@/components/AccountAvatar";
 import { useMarketPrices } from "@/components/MarketPricesProvider";
 import { createSupabaseBrowser } from "@/lib/supabase/client";
@@ -32,6 +32,13 @@ const tabs = [
   { id: "personal", label: "My activity" },
   { id: "proof", label: "Public proof" },
 ] as const;
+const personalFilters = [
+  { id: "all", label: "filterAll" },
+  { id: "donated", label: "filterDonated" },
+  { id: "sent", label: "filterSent" },
+  { id: "received", label: "filterReceived" },
+  { id: "topup", label: "filterTopup" },
+] as const satisfies ReadonlyArray<{ id: WalletActivityFilter; label: "filterAll" | "filterDonated" | "filterSent" | "filterReceived" | "filterTopup" }>;
 
 // Historical project evidence. These are never inserted into personal history.
 const TRAIL = [
@@ -178,6 +185,7 @@ export default function ActivityScreen() {
   const [authError, setAuthError] = useState(false);
   const [authAttempt, setAuthAttempt] = useState(0);
   const [history, setHistory] = useState<PersonalHistory>(emptyHistory);
+  const [filter, setFilter] = useState<WalletActivityFilter>("all");
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [transfers, setTransfers] = useState<PreviewTransfer[]>([]);
@@ -333,6 +341,7 @@ export default function ActivityScreen() {
   // A render after an Auth event never exposes the previous account's rows,
   // including the frame before the new account request has started.
   const personal = owner && history.owner === owner ? history : emptyHistory;
+  const filteredItems = filterWalletActivity(personal.items, filter);
   const address = isLocalPreview ? PREVIEW_WALLET.address : personal.address;
   useEffect(() => {
     if (isLocalPreview || !owner || !address || authError || tab !== "personal") return;
@@ -477,6 +486,10 @@ export default function ActivityScreen() {
                     </button>
                   </div>
                   {address ? <p className={styles.liveStatus} data-activity-auto-update>{h(refreshing ? "updating" : "autoUpdates")}</p> : null}
+                  {personal.items.length ? <div className={styles.activityFilters} role="group" aria-label={h("activityFilters")}>
+                    {personalFilters.map(item => <button key={item.id} type="button" aria-pressed={filter === item.id}
+                      onClick={() => { setFilter(item.id); setExpanded(null); }}>{h(item.label)}</button>)}
+                  </div> : null}
                   {personal.items.length ? (
                     <details className={styles.historyNotes}>
                       <summary>{h("historyDetails")}</summary>
@@ -504,9 +517,15 @@ export default function ActivityScreen() {
                       <p>{personal.nextCursor ? m("Other on-chain activity was found. Load earlier transfers to check older records.") : m("A new transfer may take a moment to be indexed. Refresh to check again, or open your wallet in the explorer.")}</p>
                     </div>
                   ) : null}
-                  {personal.items.length ? (
+                  {personal.items.length && !filteredItems.length ? (
+                    <div className={styles.emptyState} role="status">
+                      <h2>{h("noFilteredActivity")}</h2>
+                      <button type="button" className={styles.showAll} onClick={() => setFilter("all")}>{h("showAllActivity")}</button>
+                    </div>
+                  ) : null}
+                  {filteredItems.length ? (
                     <ol className={`${styles.timeline} ${styles.personalTimeline}`} aria-label={m("Confirmed wallet transfers")}>
-                      {personal.items.map((receipt) => {
+                      {filteredItems.map((receipt) => {
                         const received = receipt.direction === "received";
                         const context = receipt.context;
                         const referenceLabel = context?.referenceId ? context.type.startsWith("campaign-") ? h("campaignName", { id: context.referenceId })

@@ -50,6 +50,19 @@ export type WalletActivityItem = {
   context?: WalletActivityContext;
 };
 
+export type WalletActivityFilter = "all" | "donated" | "sent" | "received" | "topup";
+
+/** Categories use only confirmed movement direction and verified contract context. */
+export function filterWalletActivity(items: WalletActivityItem[], filter: WalletActivityFilter): WalletActivityItem[] {
+  if (filter === "all") return items;
+  if (filter === "donated") return items.filter(item => item.direction === "sent"
+    && (item.context?.type === "campaign-donation" || item.context?.type === "disaster-contribution"));
+  if (filter === "sent") return items.filter(item => item.direction === "sent"
+    && item.context?.type !== "campaign-donation" && item.context?.type !== "disaster-contribution");
+  if (filter === "topup") return items.filter(item => item.direction === "received" && item.kind === "account-created");
+  return items.filter(item => item.direction === "received" && item.kind !== "account-created");
+}
+
 export type WalletActivityErrorCode = "unauthenticated" | "unavailable" | "invalid-cursor" | "invalid-wallet" | "local-preview";
 /** Only verified public handles and explicitly consented receipt photos. */
 export type WalletActivityIdentity = { address: string; handle: string | null; photoUrl: string | null };

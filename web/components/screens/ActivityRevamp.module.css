@@ -604,6 +604,44 @@
   margin: 14px -7px 0;
 }
 .liveStatus { color: #61758e; font-size: 10px; line-height: 1.5; margin: 8px 0; }
+.activityFilters {
+  display: flex;
+  gap: 8px;
+  margin: 12px -17px 10px;
+  padding: 0 17px 3px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: none;
+}
+.activityFilters::-webkit-scrollbar { display: none; }
+.activityFilters button {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 10px;
+  background: #e9eefb;
+  color: #4d5f7a;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.activityFilters button[aria-pressed="true"] { background: #dce8ff; color: #1748b8; box-shadow: inset 0 0 0 1px #2563eb; }
+.activityFilters button:focus-visible, .showAll:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+.showAll {
+  min-height: 40px;
+  margin-top: 12px;
+  padding: 0 14px;
+  border: 1px solid #cbd8ec;
+  border-radius: 11px;
+  background: #fff;
+  color: #1553d6;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
 .personalTimeline .timelineItem {
   isolation: isolate;
   gap: 10px;

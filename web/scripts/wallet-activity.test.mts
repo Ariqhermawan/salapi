@@ -7,7 +7,7 @@ import { Asset, Networks, StrKey } from "@stellar/stellar-sdk";
 import { AuthSessionMissingError, isAuthSessionMissingError } from "@supabase/supabase-js";
 import * as activity from "../lib/wallet-activity.ts";
 import * as money from "../lib/money.ts";
-import type { WalletActivityPageResult, WalletActivityResult } from "../lib/wallet-activity.ts";
+import type { WalletActivityItem, WalletActivityPageResult, WalletActivityResult } from "../lib/wallet-activity.ts";
 
 const address = StrKey.encodeEd25519PublicKey(Buffer.alloc(32, 7));
 const other = StrKey.encodeEd25519PublicKey(Buffer.alloc(32, 8));
@@ -50,6 +50,20 @@ test("classic payments normalize both directions and retain receipt identity", (
   assert.deepEqual(sent, { id: "100:payment", hash, createdAt, direction: "sent", amountStroops: "10000001", counterparty: other, kind: "payment", asset: activity.XLM_ACTIVITY_ASSET, fee: { status: "unavailable" } });
   const received = activity.normalizeWalletActivity([record()], other)[0];
   assert.equal(received.direction, "received"); assert.equal(received.counterparty, address); assert.equal(received.amountStroops, sent.amountStroops);
+});
+
+test("activity filters use confirmed direction and verified donation contexts", () => {
+  const sent = activity.normalizeWalletActivity([record()], address)[0];
+  const donated: WalletActivityItem = { ...sent, id: "donation", context: { type: "campaign-donation", contractId: contract, referenceId: "1", title: null } };
+  const disaster: WalletActivityItem = { ...sent, id: "disaster", context: { type: "disaster-contribution", contractId: contract, referenceId: null, title: null } };
+  const received = activity.normalizeWalletActivity([record({ from: other, to: address })], address)[0];
+  const topup = activity.normalizeWalletActivity([record({ type: "create_account", funder: other, account: address, starting_balance: "10.0000000" })], address)[0];
+  const items = [sent, donated, disaster, received, topup];
+  assert.deepEqual(activity.filterWalletActivity(items, "all").map(item => item.id), items.map(item => item.id));
+  assert.deepEqual(activity.filterWalletActivity(items, "donated").map(item => item.id), ["donation", "disaster"]);
+  assert.deepEqual(activity.filterWalletActivity(items, "sent").map(item => item.id), [sent.id]);
+  assert.deepEqual(activity.filterWalletActivity(items, "received").map(item => item.id), [received.id]);
+  assert.deepEqual(activity.filterWalletActivity(items, "topup").map(item => item.id), [topup.id]);
 });
 
 test("actual SAC-style native balance events, not classic-only payment fields, support sender and recipient", () => {

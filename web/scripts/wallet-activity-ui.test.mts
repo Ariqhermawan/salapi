@@ -6,7 +6,7 @@ import ts from "typescript";
 import * as copy from "../lib/i18n/revamp-money.ts";
 import { activityCopy, activityEstimateLabel } from "../lib/i18n/wallet-activity.ts";
 import * as contentCopy from "../lib/i18n/circles-content.ts";
-import { XLM_ACTIVITY_ASSET, USDC_ACTIVITY_ASSET, activityContextHref, activityStroopsToXlm, activityUsdcEquivalent } from "../lib/wallet-activity.ts";
+import { XLM_ACTIVITY_ASSET, USDC_ACTIVITY_ASSET, activityContextHref, activityStroopsToXlm, activityUsdcEquivalent, filterWalletActivity } from "../lib/wallet-activity.ts";
 import type { MarketPriceResult } from "../lib/market-prices.ts";
 import { PREVIEW_WALLET } from "../lib/local-preview.ts";
 import { formatLocal } from "../lib/ui/currency.ts";
@@ -116,7 +116,7 @@ function mount(options: { preview?: boolean; configured?: boolean; locale?: "en"
       if (dependency === "@/components/I18nProvider") return { useT: () => ({ currency: "en", locale: options.locale ?? "en" }) };
       if (dependency === "@/components/AccountAvatar") return { default: "AccountAvatar" };
       if (dependency === "@/components/MarketPricesProvider") return { useMarketPrices: () => ({ prices: options.prices ?? { status: "unavailable", source: "CoinGecko", reason: "provider-unavailable" } }) };
-      if (dependency === "@/lib/wallet-activity") return { activityContextHref, activityStroopsToXlm, activityUsdcEquivalent };
+      if (dependency === "@/lib/wallet-activity") return { activityContextHref, activityStroopsToXlm, activityUsdcEquivalent, filterWalletActivity };
       if (dependency === "@/lib/i18n/revamp-money") return copy;
       if (dependency === "@/lib/i18n/wallet-activity") return { activityCopy, activityEstimateLabel };
       if (dependency === "@/lib/vault-campaign-cover") return { vaultCircleCover: () => null };
@@ -211,6 +211,31 @@ test("native incoming and outgoing receipts use exact units and never invented h
   assert.ok(text(h.tree).includes("4461538462"));
   assert.ok(nodes(h.tree).some((node) => node.props.href === `https://stellar.expert/explorer/testnet/tx/${"a".repeat(64)}` && node.props.rel === "noopener noreferrer"));
   assert.ok(text(h.tree).includes(counterparty));
+  h.unmount();
+});
+test("activity filters keep donations, transfers, receipts and account funding in supported categories", async () => {
+  const h = mount(); h.emitAuth("owner-a"); await h.flush();
+  const donation: WalletActivityItem = { ...item("101:donation", "sent"), context: { type: "campaign-donation", contractId: "test-contract", referenceId: "1", title: null } };
+  const disaster: WalletActivityItem = { ...item("102:disaster", "sent"), context: { type: "disaster-contribution", contractId: "test-contract", referenceId: null, title: null } };
+  const topup: WalletActivityItem = { ...item("104:create", "received"), kind: "account-created" };
+  h.historyRequests[0].deferred.resolve(pageResult([item("100:send", "sent", "10000000"), donation, disaster, item("103:receive"), topup])); await h.flush();
+  const ids = () => nodes(h.tree).map(node => node.props["data-activity-receipt-trigger"]).filter((id): id is string => typeof id === "string");
+  assert.equal(ids().length, 5);
+  h.click("Donated"); assert.deepEqual(ids(), ["101:donation", "102:disaster"]);
+  h.click("Sent"); assert.deepEqual(ids(), ["100:send"]);
+  h.click("Received"); assert.deepEqual(ids(), ["103:receive"]);
+  h.click("Top up"); assert.deepEqual(ids(), ["104:create"]);
+  h.click("All"); assert.equal(ids().length, 5);
+  h.unmount();
+});
+test("empty activity filter offers a direct way to show the full list again", async () => {
+  const h = mount(); h.emitAuth("owner-a"); await h.flush();
+  h.historyRequests[0].deferred.resolve(pageResult([item("100:send", "sent", "10000000")])); await h.flush();
+  h.click("Received");
+  assert.match(text(h.tree), /No transfers in this category yet/);
+  assert.equal(nodes(h.tree).filter(node => node.props["data-activity-receipt-trigger"]).length, 0);
+  h.click("Show all activity");
+  assert.equal(nodes(h.tree).filter(node => node.props["data-activity-receipt-trigger"]).length, 1);
   h.unmount();
 });
 test("empty confirmed history and unavailable history are distinct, with retry", async () => {

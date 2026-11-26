@@ -75,6 +75,14 @@ const copy = {
   hideDetails: ["Hide details", "Itago ang detalye", "Tutup detail", "Ẩn chi tiết"],
   quoteStaleShort: ["Older price", "Lumang presyo", "Harga sebelumnya", "Giá cũ"],
   identityScope: ["Handles are verified on Stellar. Photos appear only with the account owner's receipt-photo consent; other wallets use initials or a wallet icon.", "Verified sa Stellar ang mga handle. Larawan lang na may pahintulot ng may-ari ang ipinapakita; initials o wallet icon para sa iba.", "Handle diverifikasi di Stellar. Foto hanya tampil dengan persetujuan pemilik untuk receipt; wallet lain memakai inisial atau ikon wallet.", "Tên được xác minh trên Stellar. Ảnh chỉ hiển thị khi chủ tài khoản đồng ý cho biên nhận; ví khác dùng chữ cái hoặc biểu tượng ví."],
+  activityFilters: ["Filter activity", "I-filter ang activity", "Filter aktivitas", "Lọc hoạt động"],
+  filterAll: ["All", "Lahat", "Semua", "Tất cả"],
+  filterDonated: ["Donated", "Nag-donate", "Donasi", "Đã quyên góp"],
+  filterSent: ["Sent", "Ipinadala", "Terkirim", "Đã gửi"],
+  filterReceived: ["Received", "Natanggap", "Diterima", "Đã nhận"],
+  filterTopup: ["Top up", "Nag-top up", "Isi saldo", "Nạp tiền"],
+  noFilteredActivity: ["No transfers in this category yet.", "Wala pang transfer sa kategoryang ito.", "Belum ada transfer di kategori ini.", "Chưa có giao dịch trong danh mục này."],
+  showAllActivity: ["Show all activity", "Ipakita ang lahat ng activity", "Tampilkan semua aktivitas", "Hiện tất cả hoạt động"],
 } as const;
 
 export function activityCopy(locale: Locale | undefined) {
