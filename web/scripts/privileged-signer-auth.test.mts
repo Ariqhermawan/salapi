@@ -66,7 +66,7 @@ function setup(replies: Reply[]) {
     },
     "@/lib/money": money, "./disaster-actions": {}, "@/lib/local-preview": { isLocalPreview: false },
     "@/lib/arisan-list": {}, "@/lib/recipient-review": {}, "@/lib/server/xlmDeposit": {},
-    "@/lib/server/walletActivity": {}, "@/lib/server/arisanCommitment": {},
+    "@/lib/server/walletActivity": {}, "@/lib/server/arisanCommitment": {}, "@/lib/server/confirmationIntent": {},
   });
   return { calls, wallet, actions };
 }

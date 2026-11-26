@@ -359,7 +359,7 @@ function walletStateFixture(options: { wallet?: ReturnType<typeof walletFixture>
     "@/lib/supabase/admin": { createSupabaseAdmin: () => { calls.db++; throw new Error("Unexpected DB access"); } },
     "@/lib/local-preview": { isLocalPreview: options.preview ?? false, PREVIEW_WALLET: previewWallet },
     "@/lib/arisan-list": {}, "@/lib/recipient-review": {}, "@/lib/server/xlmDeposit": {},
-    "@/lib/server/walletActivity": {}, "@/lib/server/arisanCommitment": {},
+    "@/lib/server/walletActivity": {}, "@/lib/server/arisanCommitment": {}, "@/lib/server/confirmationIntent": {},
     "@stellar/stellar-sdk": { StrKey }, "@/lib/server/arisanAuthorization": { authenticatedArisanWallet: prohibited },
   });
   return { api, calls, previewWallet };

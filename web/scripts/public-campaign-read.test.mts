@@ -59,6 +59,8 @@ function harness(options: { preview?: boolean; contractId?: string | null; versi
       return options.mappings ?? [];
     } };
     if (name === "@/lib/campaign-money") return {};
+    if (name === "@/lib/server/confirmationIntent") return new Proxy({}, { get: () => forbidden("financial") });
+    if (name === "@/lib/format-stroops") return { formatStroops: forbidden("financial") };
     if (name === "@/lib/campaign") return campaign;
     if (name === "@/lib/local-preview") return { isLocalPreview: options.preview ?? false };
     throw Error(`Unexpected public discovery dependency ${name}`);

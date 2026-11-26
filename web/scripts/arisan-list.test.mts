@@ -83,6 +83,7 @@ function actionSetup(options: { count?: number; memberIds?: number[]; failId?: n
     "@/lib/money": money, "@/lib/arisan-list": { arisanRoomPage }, "@/lib/local-preview": { isLocalPreview: false },
     "./disaster-actions": {}, "@/lib/supabase/env": {}, "@/lib/supabase/admin": {}, "@/lib/recipient-review": {}, "@/lib/server/arisanCommitment": {}, "@/lib/server/xlmDeposit": {},
     "@/lib/server/walletActivity": { currentWalletActivity: async () => { throw Error("Unexpected activity access in isolated discovery tests"); } },
+    "@/lib/server/confirmationIntent": {},
     "@stellar/stellar-sdk": new Proxy({}, { get() { throw Error("Discovery must not validate signing input"); } }),
     "@/lib/server/arisanAuthorization": { authenticatedArisanWallet: async () => options.authenticated === false
       ? { ok: false, error: "No verified account" } : { ok: true, publicKey: me } },

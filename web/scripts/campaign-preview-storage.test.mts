@@ -192,13 +192,18 @@ test("actual campaign review remains frame-fixed with a bounded scrollable card 
 test("actual opening handler captures its opener before a disabled commit and Escape restores it without scrolling", () => {
   const source = readFileSync(new URL("../components/screens/CampaignScreen.tsx", import.meta.url), "utf8");
   const file = ts.createSourceFile("CampaignScreen.tsx", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-  let runSource = "", effectSource = "";
+  let runSource = "", cancelSource = "", effectSource = "";
   function visit(node: ts.Node) {
-    if (ts.isVariableDeclaration(node) && node.name.getText(file) === "run" && node.initializer) runSource = node.initializer.getText(file);
+    if (ts.isVariableDeclaration(node) && node.initializer) {
+      if (node.name.getText(file) === "run") runSource = node.initializer.getText(file);
+      if (node.name.getText(file) === "cancelConfirm" && ts.isCallExpression(node.initializer)) {
+        cancelSource = node.initializer.arguments[0]?.getText(file) ?? "";
+      }
+    }
     if (ts.isCallExpression(node) && node.expression.getText(file) === "useEffect" && node.arguments[0]?.getText(file).includes("function handleKey")) effectSource = node.arguments[0].getText(file);
     ts.forEachChild(node, visit);
   }
-  visit(file); assert.ok(runSource); assert.ok(effectSource);
+  visit(file); assert.ok(runSource); assert.ok(cancelSource); assert.ok(effectSource);
   const events: string[] = [], focusOptions: Record<string, unknown>[] = [];
   const listeners = new Map<string, (event: unknown) => void>();
   let active: FocusElement;
@@ -216,10 +221,13 @@ test("actual opening handler captures its opener before a disabled commit and Es
   }
   const opener = new FocusElement("review"), body = new FocusElement("body"), dialog = new FocusElement("dialog");
   active = opener;
+  const forbidden = () => { throw Error("Opening or cancelling a local dialog must not call a server action"); };
   const context = {
-    exports: {} as { open(...args: unknown[]): void; effect(): (() => void) | undefined },
+    exports: {} as { open(...args: unknown[]): void; cancel(): void; effect(): (() => void) | undefined },
     HTMLElement: FocusElement, openerRef: { current: null as FocusElement | null }, dialogRef: { current: dialog },
-    confirm: null as unknown, busy: false, submission: { locked: false },
+    confirm: null as unknown, busy: false, submittingBusy: false, submission: { locked: false }, isLocalPreview: true,
+    prepareCampaignConfirmation: forbidden, cancelCampaignConfirmation: forbidden,
+    cancelConfirm() { context.exports.cancel(); },
     document: {
       get activeElement() { events.push(`active:${active.name}`); return active; },
       addEventListener(name: string, listener: (event: unknown) => void) { listeners.set(name, listener); },
@@ -232,12 +240,12 @@ test("actual opening handler captures its opener before a disabled commit and Es
       if (opener.disabled) { events.push("disable:review"); active = body; }
     },
   };
-  const code = ts.transpileModule(`export const open = ${runSource}; export const effect = ${effectSource};`, {
+  const code = ts.transpileModule(`export const open = ${runSource}; export const cancel = ${cancelSource}; export const effect = ${effectSource};`, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
   runInNewContext(code, context);
-  const forbidden = () => { throw Error("Opening or cancelling a dialog must not submit"); };
-  context.exports.open("Review", forbidden, false, forbidden);
+  const request = { kind: "donate", campaignId: "1", amountStroops: "50000000" };
+  context.exports.open("Review", request, forbidden, false, forbidden);
   assert.equal(context.openerRef.current, opener);
   assert.ok(events.indexOf("active:review") < events.indexOf("disable:review"));
   assert.equal(active, body); assert.equal(opener.disabled, true);
@@ -251,7 +259,7 @@ test("actual opening handler captures its opener before a disabled commit and Es
   context.submission.locked = true;
   context.openerRef.current = null;
   const eventCount = events.length;
-  context.exports.open("Locked", forbidden, false, forbidden);
+  context.exports.open("Locked", request, forbidden, false, forbidden);
   assert.equal(context.openerRef.current, null); assert.equal(events.length, eventCount);
 });
 

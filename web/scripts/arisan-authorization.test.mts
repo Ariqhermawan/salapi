@@ -147,6 +147,7 @@ function setup(options: Options = {}) {
     "@/lib/money": money, "@/lib/local-preview": { isLocalPreview: options.preview ?? false },
     "@/lib/arisan-list": { arisanRoomPage }, "./disaster-actions": {},
     "@/lib/recipient-review": {}, "@/lib/server/xlmDeposit": {}, "@/lib/server/walletActivity": {},
+    "@/lib/server/confirmationIntent": {},
     "@/lib/server/arisanCommitment": { deriveArisanSecret: () => new Uint8Array(32), createArisanCommitment: () => new Uint8Array(32) },
   }, { Date: class extends Date { static now() { return now * 1000; } }, crypto: { getRandomValues: (value: Uint8Array) => value.fill(2) } });
   return { authorization, actions, calls };

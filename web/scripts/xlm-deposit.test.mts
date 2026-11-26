@@ -79,6 +79,7 @@ function actionSetup(options: { preview?: boolean; value?: unknown; failure?: bo
     "@/lib/local-preview": { isLocalPreview: options.preview ?? false, PREVIEW_WALLET },
     "@/lib/arisan-list": {}, "./disaster-actions": denied, "@/lib/supabase/env": denied,
     "@/lib/supabase/admin": denied, "@/lib/recipient-review": {}, "@/lib/server/arisanCommitment": denied,
+    "@/lib/server/confirmationIntent": denied,
   }, { fetch: forbidden("network"), localStorage: denied, sessionStorage: denied });
   return { api, calls };
 }

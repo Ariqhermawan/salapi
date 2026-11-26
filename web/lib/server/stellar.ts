@@ -55,7 +55,6 @@ function server() {
   return new rpc.Server(RPC_URL);
 }
 
-const READ_SOURCE = StrKey.encodeEd25519PublicKey(Buffer.alloc(32));
 const CONFIRMATION_TTL_SECONDS = 120;
 
 export type PreparedContractCall = {
@@ -193,7 +192,7 @@ export async function readContract(
   args: xdr.ScVal[] = []
 ): Promise<unknown> {
   const srv = server();
-  const acct = new Account(READ_SOURCE, "0");
+  const acct = new Account(StrKey.encodeEd25519PublicKey(Buffer.alloc(32)), "0");
   const tx = new TransactionBuilder(acct, {
     fee: BASE_FEE,
     networkPassphrase: Networks.TESTNET,

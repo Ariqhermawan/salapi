@@ -228,7 +228,7 @@ test("exported Server Action accepts only the cursor and delegates to the curren
     "@/lib/server/stellar": forbidden, "@/lib/money": money, "@/lib/server/userWallet": forbidden,
     "./disaster-actions": forbidden, "@/lib/supabase/env": forbidden, "@/lib/supabase/admin": forbidden,
     "@/lib/local-preview": { isLocalPreview: false }, "@/lib/arisan-list": forbidden, "@/lib/recipient-review": forbidden,
-    "@/lib/server/xlmDeposit": forbidden, "@/lib/server/arisanCommitment": forbidden,
+    "@/lib/server/xlmDeposit": forbidden, "@/lib/server/arisanCommitment": forbidden, "@/lib/server/confirmationIntent": forbidden,
     "@stellar/stellar-sdk": { StrKey }, "@/lib/server/arisanAuthorization": forbidden,
   });
   assert.equal(await api.walletActivity(undefined, other), result); assert.equal(await api.walletActivity("99", other), result);
@@ -243,7 +243,7 @@ test("direct unauthenticated exported Server Action reaches actual authorization
       "@/lib/server/walletActivity": backend.api, "@/lib/server/stellar": forbidden, "@/lib/money": money, "@/lib/server/userWallet": forbidden,
       "./disaster-actions": forbidden, "@/lib/supabase/env": forbidden, "@/lib/supabase/admin": forbidden,
       "@/lib/local-preview": { isLocalPreview: false }, "@/lib/arisan-list": forbidden, "@/lib/recipient-review": forbidden,
-      "@/lib/server/xlmDeposit": forbidden, "@/lib/server/arisanCommitment": forbidden,
+      "@/lib/server/xlmDeposit": forbidden, "@/lib/server/arisanCommitment": forbidden, "@/lib/server/confirmationIntent": forbidden,
       "@stellar/stellar-sdk": { StrKey }, "@/lib/server/arisanAuthorization": forbidden,
     });
     const result = await api.walletActivity("99"); assert.equal(result.ok, false);
@@ -259,7 +259,7 @@ test("cookie-switch race binds returned history to server-verified owner B, neve
     "@/lib/server/walletActivity": backend.api, "@/lib/server/stellar": forbidden, "@/lib/money": money, "@/lib/server/userWallet": forbidden,
     "./disaster-actions": forbidden, "@/lib/supabase/env": forbidden, "@/lib/supabase/admin": forbidden,
     "@/lib/local-preview": { isLocalPreview: false }, "@/lib/arisan-list": forbidden, "@/lib/recipient-review": forbidden,
-    "@/lib/server/xlmDeposit": forbidden, "@/lib/server/arisanCommitment": forbidden,
+    "@/lib/server/xlmDeposit": forbidden, "@/lib/server/arisanCommitment": forbidden, "@/lib/server/confirmationIntent": forbidden,
     "@stellar/stellar-sdk": { StrKey }, "@/lib/server/arisanAuthorization": forbidden,
   });
   const result = await api.walletActivity(null, "authenticated-a");
