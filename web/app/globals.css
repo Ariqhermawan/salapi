@@ -24,8 +24,31 @@
   --font-sans: var(--font-geist-sans), system-ui, sans-serif;
 }
 
-/* Base — light, high-contrast, intentional. No dark-mode flip:
-   Salapi is a deliberately light fintech surface. */
+/* The app tokens follow the selected theme at the document root. */
+:root {
+  color-scheme: light;
+  --sl-canvas: #f7f7f7;
+  --sl-surface: #fff;
+  --sl-surface-alt: #f0f0f0;
+  --sl-ink: #171717;
+  --sl-sub: #5c5c5c;
+  --sl-line: #dedede;
+  --sl-glass: rgb(255 255 255 / 88%);
+  --sl-tint: #ebf1ff;
+}
+[data-theme="dark"] {
+  color-scheme: dark;
+  --sl-canvas: #171717;
+  --sl-surface: #232323;
+  --sl-surface-alt: #292929;
+  --sl-ink: #f5f5f5;
+  --sl-sub: #b7b7b7;
+  --sl-line: #404040;
+  --sl-glass: rgb(35 35 35 / 90%);
+  --sl-tint: #252f50;
+}
+.sl-show-dark, [data-theme="dark"] .sl-show-light { display:none; }
+[data-theme="dark"] .sl-show-dark { display:inline-flex; }
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;
@@ -224,7 +247,7 @@
 /* Quiet blue-white surfaces and visible interaction states. */
 /* Keep fixed app dialogs inside this visible frame, not the scrolled route
    or the desktop marketing viewport. Container queries alone do not do this. */
-.sl-app-frame { box-shadow: 0 28px 80px -30px rgba(0,7,20,.65); container-type:inline-size; contain:layout; }
+.sl-app-frame { background:var(--sl-canvas); color:var(--sl-ink); box-shadow:0 28px 80px -30px rgba(0,7,20,.65); container-type:inline-size; contain:layout; }
 .sl-main { scrollbar-width: thin; scrollbar-color: #ccd7e8 transparent; scroll-behavior: smooth; }
 .sl-preview-banner { display:flex; align-items:center; justify-content:center; gap:7px; flex-shrink:0; padding:7px 10px; background:#e7effe; color:#244c91; font-size:10px; font-weight:650; letter-spacing:.02em; border-bottom:1px solid #d5e3fb; }
 .sl-preview-dot { width:5px; height:5px; border-radius:50%; background:#2563eb; }
@@ -240,7 +263,17 @@ input:disabled,button:disabled { cursor:not-allowed; }
 .sl-row[role=button]:hover { background:#f5f8fe; }
 .sl-btn:hover:not(:disabled) { filter:brightness(.96); }
 .sl-btn:active:not(:disabled) { transform:translateY(1px); }
-.sl-tabbar { backdrop-filter:blur(16px); background:rgba(255,255,255,.96)!important; }
+.sl-tabbar {
+  position:absolute; inset:auto 12px max(10px, env(safe-area-inset-bottom)) 12px;
+  z-index:20; display:grid; align-items:center; min-height:64px; padding:3px 6px;
+  border-radius:999px; border:1px solid var(--sl-line); background:var(--sl-glass);
+  backdrop-filter:blur(18px); box-shadow:0 8px 24px -14px #0008;
+}
+.sl-tabbar-create {
+  grid-row:1; width:40px; height:34px; align-self:center; display:grid; place-items:center;
+  border-radius:999px; background:linear-gradient(170deg,#2547d0,#4d82ff); color:#fff;
+}
+[data-theme="dark"] .sl-tabbar [aria-current="page"] { color:#a8bcff!important; }
 .sl-appbar h1 { text-wrap:balance; }
 .sl-marketing { width:390px; flex-direction:column; gap:20px; padding:24px 14px; color:#f7f9fd; text-align:center; }
 .sl-brand { display:flex; flex-direction:column; align-items:center; gap:5px; }

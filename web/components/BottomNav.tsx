@@ -4,13 +4,14 @@ import { usePathname, useRouter } from "next/navigation";
 import { useRef } from "react";
 import { TabBar, Ico } from "@/components/ui/kit";
 import { useT } from "@/components/I18nProvider";
+import { homeCopy } from "@/lib/i18n/revamp-home";
 
 type TabPrefetchKind = NonNullable<Parameters<ReturnType<typeof useRouter>["prefetch"]>[1]>["kind"];
 
 export default function BottomNav() {
   const path = usePathname();
   const router = useRouter();
-  const { t } = useT();
+  const { t, locale } = useT();
   const prefetched = useRef(new Set<string>());
 
   // Pre-auth / standalone screens have no app nav — keeps the tab bar from
@@ -27,8 +28,8 @@ export default function BottomNav() {
 
   const items = [
     { id: "/", label: t("nav.home"), icon: Ico.home },
-    { id: "/vaults", label: t("nav.vaults"), icon: Ico.vault },
-    { id: "/send", label: t("nav.send"), icon: Ico.send, fab: true },
+    { id: "/arisan", label: "Arisan", icon: Ico.vault },
+    { id: "/campaigns?create=1", label: homeCopy(locale, "Cause"), icon: Ico.plus, fab: true },
     { id: "/activity", label: t("nav.activity"), icon: Ico.activity },
     { id: "/settings", label: t("common.you"), icon: Ico.user },
   ];
@@ -39,9 +40,9 @@ export default function BottomNav() {
   const active =
     path === "/"
       ? "/"
-      : /^\/(vaults|arisan|paluwagan|campaigns|circles|savings|transparency)/.test(path)
-        ? "/vaults"
-        : /^\/(send|receive|topup|withdraw)/.test(path) ? "/send"
+      : path === "/campaigns" ? "/campaigns?create=1"
+      : /^\/(vaults|arisan|paluwagan|savings|transparency)(\/|$)/.test(path)
+        ? "/arisan"
         : path.startsWith("/tx/") ? "/activity"
         : path.startsWith("/you/") ? "/settings"
         : items.find((i) => i.id !== "/" && path.startsWith(i.id))?.id ?? "";

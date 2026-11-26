@@ -17,6 +17,7 @@ import { useAccountPhoto } from "@/components/useAccountPhoto";
 import { accountPhotoCopy } from "@/lib/i18n/account-photo";
 import MarketValue from "@/components/MarketValue";
 import { PoweredByStellarV2 } from "@/components/ui/brand";
+import { Moon, Sun } from "@phosphor-icons/react";
 
 // Preview uses its declared native token quantity, never its demo fiat balance.
 const [previewWhole, previewFraction = ""] = PREVIEW_WALLET.xlm.split(".");
@@ -94,8 +95,15 @@ export default function Home() {
       <div className={s.identity}>
         <Link href="/settings" className={s.avatar} aria-label={copy("Your account")}><AccountAvatar name={handle || photo.profile?.email || "Salapi"} photoUrl={photo.profile?.photoUrl ?? null} size={64} alt={photoCopy.alt} loading={photo.status === "loading"} /></Link>
         <div className={s.name}><span>{copy("Hi there")}</span><strong>{handle ? handle.charAt(0).toUpperCase() + handle.slice(1) : photo.profile?.email || copy("Welcome to Salapi")}</strong><small>{handle ? `@${handle}` : copy("Your community money, together.")}</small></div>
-        <Link href="/learn" className={s.round} aria-label={copy("Help and learning")}>{Ico.bulb({ size: 20, c: "#fff" })}</Link>
-        <Link href="/receive" className={s.round} aria-label={copy("Receive by QR")}>{Ico.qr({ size: 20, c: "#fff" })}</Link>
+        <button className={`${s.round} sl-theme-toggle`} type="button" onClick={() => {
+          const root = document.documentElement;
+          const theme = root.dataset.theme === "dark" ? "light" : "dark";
+          root.dataset.theme = theme;
+          document.cookie = `salapi-theme=${theme}; Path=/; SameSite=Lax; Max-Age=31536000`;
+        }}>
+          <span className="sl-show-light"><Moon size={20} aria-hidden /> <span className="sr-only">{copy("Dark theme")}</span></span>
+          <span className="sl-show-dark"><Sun size={20} aria-hidden /> <span className="sr-only">{copy("Light theme")}</span></span>
+        </button>
       </div>
       <div className={`${s.walletContent} ${s.walletMinimal}`}>
         <div className={s.balanceLabel}><span>{copy("TESTNET BALANCE")}</span></div>
@@ -108,6 +116,8 @@ export default function Home() {
             dashboardCaption={copy("Testnet · no real money")}
             dashboardActions={
               <nav className={s.walletActions} aria-label={copy("Wallet actions")}>
+                <Link href="/send" className={s.walletAction}><span className={s.walletActionIcon} aria-hidden="true">{Ico.send({ size: 18 })}</span><span className={s.walletActionLabel}>{copy("Send")}</span></Link>
+                <Link href="/receive" className={s.walletAction}><span className={s.walletActionIcon} aria-hidden="true">{Ico.qr({ size: 18 })}</span><span className={s.walletActionLabel}>{copy("Receive")}</span></Link>
                 <Link href="/topup" className={s.walletAction} aria-label={copy("Top up")}>
                   <span className={s.walletActionIcon} aria-hidden="true">{Ico.arrowDown({ size: 18, c: "currentColor" })}</span>
                   <span className={s.walletActionLabel}>{copy("Top up")}</span>
@@ -126,7 +136,6 @@ export default function Home() {
       {[
         { title: "Smart Savings", sub: "Coming soon", art: "savings", coming: true, to: "/savings", tone: "mint" },
         { title: "Arisan", sub: "Fund together, upfront", art: "arisan", to: "/arisan", tone: "blue" },
-        { title: "Send by @", sub: "Send to anyone by name", art: "send", to: "/send", tone: "blue" },
         { title: "Disaster Vault", sub: "Shared payout approvals", art: "disaster", to: "/transparency", tone: "cream" },
       ].map(tile => {
         const content = <><Image src={`/illustrations/${tile.art}.png`} alt="" width="78" height="78" /><div><strong>{copy(tile.title)}</strong><small>{copy(tile.sub)}</small>{tile.coming && <span className={s.coming}>{copy("Coming soon")}</span>}</div></>;

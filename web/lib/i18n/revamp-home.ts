@@ -2,6 +2,11 @@ import type { Locale } from "./config";
 
 // Tagalog, Indonesian, Vietnamese. Brands and user-provided cause names stay intact.
 export const HOME_COPY = {
+  "Cause": ["Kampanya", "Campaign", "Chiến dịch"],
+  "Send": ["Ipadala", "Kirim", "Gửi"],
+  "Receive": ["Tumanggap", "Terima", "Nhận"],
+  "Dark theme": ["Madilim na tema", "Tema gelap", "Giao diện tối"],
+  "Light theme": ["Maliwanag na tema", "Tema terang", "Giao diện sáng"],
   "Your Testnet wallet": ["Ang iyong Testnet wallet", "Wallet Testnet kamu", "Ví Testnet của bạn"],
   "Your account": ["Ang iyong account", "Akun kamu", "Tài khoản của bạn"],
   "Hi there": ["Kumusta", "Halo", "Xin chào"],

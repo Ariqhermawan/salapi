@@ -281,3 +281,24 @@
 .home .stellar { gap: 0 6px; margin-top: 0; font-size: 12px; line-height: 1.3; }
 .home .stellar > span { font-size: 12px !important; }
 .home .stellar > a { min-height: 44px; padding: 2px 0; font-size: 12px; line-height: 1.3; }
+
+/* v4.2 wallet overview. Keep the displayed balance and its quote attribution together. */
+.home { color:var(--sl-ink); padding-top:12px; }
+.wallet {
+  padding:14px;
+  border-radius:26px;
+  background:linear-gradient(161deg, #2646c7 0%, #3059e0 52%, #2146b9 100%);
+}
+.identity { padding-bottom:10px; }
+.walletContent { padding-top:9px; }
+.home .walletActions {
+  grid-template-columns:repeat(4,minmax(0,1fr)); gap:3px; padding:4px 2px;
+  border-radius:16px; background:#172e9a38;
+}
+.home .walletAction { flex-direction:column; gap:4px; min-height:50px; padding:3px 0; }
+.home .walletActionLabel { font-size:clamp(9px, 2.5cqw, 11px); }
+.home .walletActionIcon { background:#ffffff24; color:#fff; box-shadow:none; border-radius:50%; }
+.home .walletAction + .walletAction::before { content:none; }
+.home .quick { margin-top:14px; }
+:global([data-theme="dark"]) .giveHeader h1,
+:global([data-theme="dark"]) .catalogCard h2 { color:var(--sl-ink); }

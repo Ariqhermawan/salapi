@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { connection } from "next/server";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Outfit, Geist_Mono } from "next/font/google";
+import { cookies } from "next/headers";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
 import PwaRegister from "@/components/PwaRegister";
@@ -17,7 +18,7 @@ import SuccessFeedback from "@/components/SuccessFeedback";
 import { MarketPricesProvider } from "@/components/MarketPricesProvider";
 import UsernameOnboarding from "@/components/UsernameOnboarding";
 
-const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
+const outfit = Outfit({ variable: "--font-geist-sans", subsets: ["latin", "latin-ext"] });
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
@@ -66,6 +67,7 @@ export default async function RootLayout({
   // prerendered page would ship those scripts with no nonce, and the CSP would
   // block them (blank screen). See proxy.ts.
   await connection();
+  const theme = (await cookies()).get("salapi-theme")?.value === "dark" ? "dark" : "light";
   // Vercel serves these same-origin endpoints only after observability is
   // enabled for the project. Keep them explicitly opt-in so local builds and
   // deployments made before dashboard setup do not request a missing
@@ -76,7 +78,8 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      data-theme={theme}
+      className={`${outfit.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-dvh">
         <a className="sl-skip" href="#app-content">Skip to content</a>
@@ -93,7 +96,6 @@ export default async function RootLayout({
 
             <div
               className="sl-app-frame relative mx-auto flex h-svh w-full max-w-[500px] flex-col overflow-hidden lg:mx-0 lg:h-[900px] lg:max-h-[94vh] lg:min-h-0 lg:flex-none lg:rounded-[32px] lg:ring-1 lg:ring-blue-900/10"
-              style={{ background: "#F3F7FC" }}
             >
               <InstallBanner />
               {isLocalPreview && <div className="sl-preview-banner"><span className="sl-preview-dot" />Local preview · sample data · no transactions</div>}
