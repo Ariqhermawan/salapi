@@ -25,7 +25,7 @@ type EventFeed = Awaited<ReturnType<typeof disasterEvents>>;
 type Review =
   | { method: "propose"; input: unknown; summary: string }
   | { method: "approve" | "execute"; id: string; summary: string };
-type Tab = "overview" | "requests" | "proof";
+type Tab = "vault" | "activity";
 const PREVIEW = process.env.NEXT_PUBLIC_LOCAL_PREVIEW === "1";
 const REPORT =
   "https://github.com/Ariqhermawan/salapi/blob/98a4a701b3fbd6d71a55c346c06d76c0001bc37e/docs/instawards/week-3-d3.md";
@@ -43,7 +43,7 @@ export default function DisasterControls({
 }) {
   const submission = useUnresolvedSubmission("disaster:d3");
   const { currency } = useT();
-  const [tab, setTab] = useState<Tab>("overview");
+  const [tab, setTab] = useState<Tab>("vault");
   const [list, setList] = useState<Proposals | null>(null);
   const [feed, setFeed] = useState<EventFeed | null>(null);
   const [before, setBefore] = useState("0");
@@ -187,9 +187,8 @@ export default function DisasterControls({
     !PREVIEW && viewer !== null && pool.config.signers.includes(viewer);
   const state = pool.status;
   const tabs: { id: Tab; label: string }[] = [
-    { id: "overview", label: "Overview" },
-    { id: "requests", label: "Payout requests" },
-    { id: "proof", label: "Public proof" },
+    { id: "vault", label: "Vault" },
+    { id: "activity", label: "Activity" },
   ];
 
   return (
@@ -240,11 +239,11 @@ export default function DisasterControls({
         </div>
       )}
 
-      {tab === "overview" && (
+      {tab === "vault" && (
         <div
           role="tabpanel"
-          id="disaster-panel-overview"
-          aria-labelledby="disaster-tab-overview"
+          id="disaster-panel-vault"
+          aria-labelledby="disaster-tab-vault"
           className={styles.panel}
         >
           <section className={styles.rulesSection}>
@@ -290,7 +289,7 @@ export default function DisasterControls({
           </div>
           <div className={styles.readOnlyNotice}>
             {member
-              ? "Your wallet is a configured signer. Open Payout requests to propose, approve, or execute."
+              ? "Your wallet is a configured signer. Create and review payout requests below."
               : "Public view. Everyone can review the pool; signer actions are limited to the three configured wallets."}
             {!viewer && !PREVIEW && (
               <Link href="/signin?next=%2Ftransparency">
@@ -325,13 +324,8 @@ export default function DisasterControls({
         </div>
       )}
 
-      {tab === "requests" && (
-        <div
-          role="tabpanel"
-          id="disaster-panel-requests"
-          aria-labelledby="disaster-tab-requests"
-          className={styles.panel}
-        >
+      {tab === "vault" && (
+        <section aria-label="Payout requests" className={styles.panel}>
           {member && (
             <section className={styles.detailCard}>
               <h3>Create a payout request</h3>
@@ -616,14 +610,14 @@ export default function DisasterControls({
                 )}
             </div>
           </section>
-        </div>
+        </section>
       )}
 
-      {tab === "proof" && (
+      {tab === "activity" && (
         <div
           role="tabpanel"
-          id="disaster-panel-proof"
-          aria-labelledby="disaster-tab-proof"
+          id="disaster-panel-activity"
+          aria-labelledby="disaster-tab-activity"
           className={styles.panel}
         >
           <section className={styles.rulesSection}>

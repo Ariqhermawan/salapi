@@ -24,3 +24,15 @@ test("D3 explains the shared fund with a small safe illustration and live contra
   assert.match(controls, /Approving a request\s+does not reserve it/);
   assert.match(controls, /do not mean independent key custody/);
 });
+
+test("D3 groups the vault and activity view while keeping signer actions and proof intact", () => {
+  assert.match(controls, /\{ id: "vault", label: "Vault" \}/);
+  assert.match(controls, /\{ id: "activity", label: "Activity" \}/);
+  assert.equal((controls.match(/tab === "vault"/g) ?? []).length, 2);
+  assert.match(controls, /tab === "activity"/);
+  assert.match(controls, /aria-label="Payout requests"/);
+  assert.match(controls, /Two of the three different signer wallets must approve it/);
+  assert.match(controls, /wait \{pool\.config\.timelock_ledgers\}/);
+  assert.match(controls, /Recent D3 transactions/);
+  assert.match(controls, /D3 report, controls and acceptance evidence/);
+});

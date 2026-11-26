@@ -1,11 +1,14 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { test, expect, type Page } from "@playwright/test";
 
 // UI fixtures mock only HTTP responses in isolated test browsers. They do not
 // bypass production authentication and are NOT on-chain acceptance evidence.
 type ActionInfo = { exportedName: string };
 function actionNames() {
-  const manifest = JSON.parse(readFileSync(".next/server/server-reference-manifest.json", "utf8"));
+  const path = existsSync(".next/server/server-reference-manifest.json")
+    ? ".next/server/server-reference-manifest.json"
+    : ".next/dev/server/server-reference-manifest.json";
+  const manifest = JSON.parse(readFileSync(path, "utf8"));
   return new Map(Object.entries(manifest.node as Record<string, ActionInfo>)
     .map(([id, info]) => [id, info.exportedName]));
 }
@@ -84,6 +87,7 @@ test.describe("D3 local UI and HTTP authorization", () => {
       const appErrors: string[] = [];
       page.on("pageerror", error => appErrors.push(error.message));
       const writes = await fixture(page, { funded: true });
+      const controls = page.getByRole("region", { name: "Disaster Vault controls" });
       await expect(page.getByRole("heading", { name: "Disaster Vault", exact: true })).toBeVisible();
       await expect(page.getByRole("region", { name: "Community pool balance" })).toContainText("8.0307692");
       await expect(page.getByRole("img", { name: "Caring hands holding a blue community safe" })).toBeVisible();
@@ -95,10 +99,15 @@ test.describe("D3 local UI and HTTP authorization", () => {
       await expect(page.getByText(/Two of the three different signer wallets/)).toBeVisible();
       await expect(page.getByText(/wait 20 ledgers/)).toBeVisible();
 
-      for (const tab of ["Overview", "Payout requests", "Public proof"]) {
+      for (const tab of ["Vault", "Activity"]) {
         await page.getByRole("tab", { name: tab, exact: true }).click();
         await expect(page.getByRole("tabpanel", { name: tab, exact: true })).toBeVisible();
         await expect(page.getByRole("tabpanel")).toHaveCount(1);
+        if (tab === "Vault") {
+          await expect(controls.getByRole("region", { name: "Payout requests" })).toBeVisible();
+        } else {
+          await expect(controls.getByText("Recent D3 transactions", { exact: true })).toBeVisible();
+        }
         const geometry = await page.locator("#app-content").evaluate(main => {
           const footer = main.querySelector("footer")!;
           const rect = main.getBoundingClientRect();
@@ -110,7 +119,7 @@ test.describe("D3 local UI and HTTP authorization", () => {
         expect(geometry.horizontal).toBeLessThanOrEqual(1);
       }
 
-      await page.getByRole("tab", { name: "Overview", exact: true }).click();
+      await page.getByRole("tab", { name: "Vault", exact: true }).click();
       await page.getByText("The three signer wallets and custody details", { exact: true }).click();
       for (const signer of signers) await expect(page.getByRole("link", { name: signer, exact: true })).toBeVisible();
       await page.getByText("The three signer wallets and custody details", { exact: true }).click();
@@ -131,7 +140,7 @@ test.describe("D3 local UI and HTTP authorization", () => {
 
   test("signer UI reviews exact 6.50 PHP before sending a proposal (mocked responses)", async ({ page }) => {
     const writes = await fixture(page, { viewer: signers[0] });
-    await page.getByRole("tab", { name: "Payout requests", exact: true }).click();
+    await page.getByRole("region", { name: "Payout requests" }).waitFor({ state: "visible" });
     await page.getByLabel("Recipient wallet", { exact: true }).fill(recipient);
     await page.getByLabel("Payout amount", { exact: true }).fill("6.50");
     await page.getByRole("button", { name: "Review payout request", exact: true }).click();
@@ -151,7 +160,7 @@ test.describe("D3 local UI and HTTP authorization", () => {
       { ...payout, id: "2", kind: "Unpause", amount: null, recipient: null, epoch: "1" },
       { ...payout, id: "1", executed: true },
     ] });
-    await page.getByRole("tab", { name: "Payout requests", exact: true }).click();
+    await page.getByRole("region", { name: "Payout requests" }).waitFor({ state: "visible" });
     await expect(page.getByRole("button", { name: "Approve #4", exact: true })).toBeDisabled();
     await expect(page.getByRole("button", { name: "Execute #4", exact: true })).toBeDisabled();
     await expect(page.getByText(/Wait 20 ledgers/).first()).toBeVisible();
@@ -185,9 +194,9 @@ test("D3 public UI reads the expected live Testnet deployment (opt-in, no mocks)
   const controls = page.getByRole("region", { name: "Disaster Vault controls" });
   await expect(controls.getByText("Vault balance", { exact: true })).toBeVisible({ timeout: 30000 });
   await expect(controls.getByText(/Public view\. Everyone can review the pool/)).toBeVisible();
-  await controls.getByRole("tab", { name: "Payout requests", exact: true }).click();
+  await controls.getByRole("region", { name: "Payout requests" }).waitFor({ state: "visible" });
   await expect(controls.getByText("Loading requests…", { exact: true })).toHaveCount(0);
-  await controls.getByRole("tab", { name: "Public proof", exact: true }).click();
+  await controls.getByRole("tab", { name: "Activity", exact: true }).click();
   await expect(controls.getByRole("link", { name: /^Active D3 contract/ })).toHaveAttribute("href", `https://stellar.expert/explorer/testnet/contract/${expected}`, { timeout: 30000 });
   await expect(controls.getByRole("alert")).toHaveCount(0);
 });
