@@ -65,9 +65,9 @@ export async function disasterEvents() {
     const id = disasterId();
     if (!id) throw new Error("D3 deployment is not configured");
     const server = new rpc.Server(RPC_URL);
-    const latest = await server.getLatestLedger();
+    const { latestLedger, oldestLedger } = await server.getHealth();
     // A bounded live view, not a permanent index. Long-term proof lives in the D3 report/archive.
-    const events = await server.getEvents({ startLedger: Math.max(1, latest.sequence - 720),
+    const events = await server.getEvents({ startLedger: Math.max(oldestLedger, latestLedger - 720),
       filters: [{ type: "contract", contractIds: [id] }], limit: 100 });
     return { ok: true as const, events: events.events.filter(e => e.inSuccessfulContractCall).reverse().map(e => ({
       id: e.id, ledger: e.ledger, hash: e.txHash, link: txLink(e.txHash), action: String(scValToNative(e.topic[0])),

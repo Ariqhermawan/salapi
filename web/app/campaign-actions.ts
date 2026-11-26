@@ -111,8 +111,8 @@ export async function campaignEvents() {
   try {
     const id = await deployment();
     const server = new rpc.Server(RPC_URL);
-    const latest = await server.getLatestLedger();
-    const response = await server.getEvents({ startLedger: Math.max(1, latest.sequence - 720),
+    const { latestLedger, oldestLedger } = await server.getHealth();
+    const response = await server.getEvents({ startLedger: Math.max(oldestLedger, latestLedger - 720),
       filters: [{ type: "contract", contractIds: [id] }], limit: 100 });
     return { ok: true as const, events: response.events.filter(e => e.inSuccessfulContractCall).reverse().map(e => ({
       id: e.id, hash: e.txHash, link: txLink(e.txHash), action: String(scValToNative(e.topic[0])),
