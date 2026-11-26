@@ -1,14 +1,16 @@
 .screen {
-  color: #0c1730;
+  color: var(--sl-ink);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
   padding-bottom: 16px;
   container-type: inline-size;
 }
 
 .content { padding: 0 18px; }
+.amountHeader { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.unitSwitch { min-height: 44px; padding-inline: 12px; border-radius: 24px; background: var(--sl-tint); color: var(--sl-primary); font-size: 13px; font-weight: 500; }
+.unitSwitch:focus-visible { outline: 2px solid var(--sl-primary); outline-offset: 2px; }
 .reviewContent { padding-bottom: 230px; }
-/* The app frame contains fixed elements. Keep the reviewed wallet balance
-   and only submit control above the persistent nav and its raised Send icon. */
+/* Keep the reviewed wallet balance and submit control above the tab bar. */
 .reviewDock { position: fixed; inset: auto 0 calc(env(safe-area-inset-bottom, 0px) + 90px); z-index: 21; padding: 8px 18px 10px; background: #f3f7fc; border-top: 1px solid #dfe6f0; box-shadow: 0 -6px 18px #12213a08; }
 .reviewDock .actions { display: grid; grid-template-columns: minmax(0, 1fr) 80px; gap: 8px; margin-top: 6px; }
 .reviewDock .actions > :last-child { padding: 5px; font-size: 12px !important; line-height: 1.35; }
@@ -42,7 +44,7 @@
 .intro p {
   margin: 0;
   max-width: 32ch;
-  color: #586985;
+  color: var(--sl-sub);
   font-size: 12px;
   line-height: 1.55;
   text-wrap: pretty;
@@ -55,15 +57,15 @@
   position: relative;
   min-width: 0;
   padding: 18px;
-  border: 1px solid #dfe6f0;
+  border: 1px solid var(--sl-line);
   border-radius: 24px;
-  background: #fff;
+  background: var(--sl-surface);
   box-shadow: 0 10px 26px -20px rgba(24, 55, 105, .22);
 }
 
 .fieldLabel {
   display: block;
-  color: #586985;
+  color: var(--sl-sub);
   font-size: 12px;
   font-weight: 600;
   line-height: 1.4;
@@ -80,7 +82,7 @@
   border: 0;
   border-radius: 7px;
   background: transparent;
-  color: #0c1730;
+  color: var(--sl-ink);
   font-family: inherit;
   font-size: 28px;
   font-weight: 780;
@@ -91,14 +93,14 @@
 
 .amountInput::placeholder { color: #94a0b3; opacity: 1; }
 
-.draftAmount { margin: 2px 0 0; color: #0c1730; font-size: clamp(27px, 7vw, 36px); font-weight: 780; font-variant-numeric: tabular-nums; letter-spacing: -.04em; line-height: 1.15; overflow-wrap: anywhere; }
+.draftAmount { margin: 2px 0 0; color: var(--sl-ink); font-size: clamp(27px, 7vw, 36px); font-weight: 780; font-variant-numeric: tabular-nums; letter-spacing: -.04em; line-height: 1.15; overflow-wrap: anywhere; }
 .draftAmount > small, .receiptAmount > small, .summaryAmount > small { font-size: 12px; font-weight: 650; letter-spacing: 0; white-space: nowrap; }
 .refreshQuote { border: 0; padding: 0; background: transparent; color: #1d4ed8; font: inherit; font-weight: 700; cursor: pointer; text-decoration: underline; }
 
 .nativeUnit {
   margin: 2px 0 12px;
   overflow-wrap: anywhere;
-  color: #586985;
+  color: var(--sl-sub);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
   line-height: 1.5;

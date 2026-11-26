@@ -10,7 +10,7 @@ import { useAccountPhoto } from "@/components/useAccountPhoto";
 import { recipientUsername, RECIPIENT_USERNAME_PATTERN } from "@/lib/recipient-review";
 import { useGoBack } from "@/lib/ui/useGoBack";
 import { CURRENCY, formatLocalAmount, pesoFromLocal } from "@/lib/ui/currency";
-import { localToStroops, marketUsdToStroops, pesosToStroopsExact, STROOPS_PER_XLM, type MoneyInput } from "@/lib/money";
+import { localToStroops, marketUsdToStroops, nativeBalanceToStroops, pesosToStroopsExact, STROOPS_PER_XLM, type MoneyInput } from "@/lib/money";
 import { useMarketPrices } from "@/components/MarketPricesProvider";
 import { formatMarketValue, validateMarketPrices, type AvailableMarketPrices } from "@/lib/market-prices";
 import { isLocalPreview, PREVIEW_WALLET } from "@/lib/local-preview";
@@ -22,11 +22,12 @@ import TransferMotion from "@/components/ui/TransferMotion";
 import AvailableWalletBalance from "@/components/AvailableWalletBalance";
 
 const QUICK: Record<Locale, string[]> = { en: ["2", "5", "10", "20"], tl: ["100", "500", "1000", "2000"], id: ["20000", "50000", "100000", "200000"], vi: ["50000", "100000", "200000", "500000"] };
+const QUICK_XLM = ["0.1", "0.5", "1", "5"];
 const MAX_TRANSFER_STROOPS = pesosToStroopsExact("1000000000")!;
 const UNRESOLVED_SEND_KEY = "salapi:testnet:unresolved-send:v1";
 type UnresolvedSend = { hash: string | null };
 type ReviewedAmount = { amountStroops: string; usdEstimate: string | null };
-type ReviewedTransfer = ReviewedAmount & { username: string; address: string; input: MoneyInput; marketQuote: AvailableMarketPrices | null; intentId: string | null; feeStroops: string | null };
+type ReviewedTransfer = ReviewedAmount & { username: string; address: string; input: MoneyInput | null; marketQuote: AvailableMarketPrices | null; intentId: string | null; feeStroops: string | null };
 
 function exactXlm(stroops: string) {
   const units = BigInt(stroops);
@@ -52,6 +53,7 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
   const [claim, setClaim] = useState("");
   const [to, setTo] = useState(initialTo ?? "");
   const [amount, setAmount] = useState("");
+  const [nativeInput, setNativeInput] = useState(false);
   const [recipient, setRecipient] = useState<ReviewedTransfer | null>(null);
   const accountPhoto = useAccountPhoto();
   const [identity, setIdentity] = useState<{ username: string; address: string; handle: string | null; photoUrl: string | null } | null>(null);
@@ -66,14 +68,18 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
   const [unresolved, setUnresolved] = useState<UnresolvedSend | null>(null);
   const unresolvedRef = useRef<UnresolvedSend | null>(null);
   const clean = recipientUsername(to);
-  const usesMarketInput = !isLocalPreview && currency === "en";
+  const usesMarketInput = !nativeInput && !isLocalPreview && currency === "en";
   const quote = validateMarketPrices(prices);
   const freshQuote = quote.status === "fresh" ? quote : null;
-  const units = usesMarketInput
-    ? freshQuote && marketUsdToStroops(amount, freshQuote.assets.xlm.prices.usd)
-    : localToStroops(amount, currency);
+  const nativeAmount = nativeInput && /^\d+(?:\.\d{1,7})?$/.test(amount) ? nativeBalanceToStroops(amount) : null;
+  const invalidNative = nativeInput && amount !== "" && nativeAmount === null;
+  const units = nativeInput
+    ? nativeAmount
+    : usesMarketInput
+      ? freshQuote && marketUsdToStroops(amount, freshQuote.assets.xlm.prices.usd)
+      : localToStroops(amount, currency);
   const displayPesos = pesoFromLocal(Number(amount), currency);
-  const withinAmountLimit = (usesMarketInput || (Number.isFinite(displayPesos) && displayPesos <= 1_000_000_000))
+  const withinAmountLimit = (nativeInput || usesMarketInput || (Number.isFinite(displayPesos) && displayPesos <= 1_000_000_000))
     && (units === null || units <= MAX_TRANSFER_STROOPS);
   const draftUsdEstimate = !isLocalPreview && freshQuote && units !== null && units > 0n
     ? formatMarketValue(units.toString(), freshQuote, "en") : null;
@@ -175,7 +181,7 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
       return;
     }
     const marketQuote = usesMarketInput && checkedQuote.status === "fresh" ? checkedQuote : null;
-    const input = { amount, currency };
+    const input = nativeInput ? null : { amount, currency };
     const amountStroops = units.toString();
     const usdEstimate = draftUsdEstimate;
     const request = ++lookupVersion.current;
@@ -229,7 +235,7 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
     start(async () => {
       setErr("");
       try {
-        if (isLocalPreview) {
+        if (isLocalPreview && recipient.input) {
           const receipt = recordPreviewTransfer({ recipientHandle: recipient.username, recipientAddress: recipient.address,
             pesos: pesoFromLocal(Number(recipient.input.amount), recipient.input.currency), amountStroops: recipient.amountStroops });
           setDone({ address: recipient.address, localReceiptSaved: receipt !== null, amount: recipient });
@@ -335,7 +341,7 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
               <strong className={styles.summaryAmount}>{exactXlm(recipient.amountStroops)} <small>Testnet XLM</small></strong>
               {recipient.usdEstimate
                 ? <p className={styles.summaryNative}>≈ {recipient.usdEstimate} · {m("USD estimate")} · CoinGecko</p>
-                : <p className={styles.summaryNative}>{formatLocalAmount(Number(recipient.input.amount), recipient.input.currency)} · {m("Demo input")}</p>}
+                : recipient.input && <p className={styles.summaryNative}>{formatLocalAmount(Number(recipient.input.amount), recipient.input.currency)} · {m("Demo input")}</p>}
               <div className={styles.transferBridge}>
                 <div className={styles.transferParty}>
                   <AccountAvatar name={mine ?? "?"} photoUrl={accountPhoto.profile?.photoUrl ?? null} size={38} alt={mine ? `@${mine}` : m("Your account")} />
@@ -370,10 +376,16 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
               <Btn kind="ghost" size="md" disabled={pending} onClick={discardRecipient}>{m("Edit transfer")}</Btn>
             </div>
           </div>
-          {!usesMarketInput ? <p className={styles.notice}>{m("Testnet forms use fixed demo conversion, not the CoinGecko market estimate. Review the exact XLM before confirming.")}</p> : null}
+          {!nativeInput && !usesMarketInput ? <p className={styles.notice}>{m("Testnet forms use fixed demo conversion, not the CoinGecko market estimate. Review the exact XLM before confirming.")}</p> : null}
         </> : <>
           <section className={styles.composer} aria-label={m("Transfer details")}>
-            <label className={styles.fieldLabel} htmlFor="send-amount">{m("Amount ·")} {CURRENCY[currency].code}</label>
+            <div className={styles.amountHeader}>
+              <label className={styles.fieldLabel} htmlFor="send-amount">{m("Amount ·")} {nativeInput ? "XLM" : CURRENCY[currency].code}</label>
+              {!isLocalPreview && <button type="button" className={styles.unitSwitch} disabled={pending} onClick={() => {
+                editAmount("");
+                setNativeInput(!nativeInput);
+              }}>{nativeInput ? m("Enter {currency}", { currency: CURRENCY[currency].code }) : m("Enter XLM")}</button>}
+            </div>
             <input className={styles.amountInput} id="send-amount" aria-describedby="send-unit" value={amount} maxLength={64} onChange={(e) => editAmount(e.target.value)} inputMode="decimal" placeholder="0.00" />
             <div id="send-unit">
               {units !== null && units > 0n && withinAmountLimit ? <p className={styles.draftAmount}>{exactXlm(units.toString())} <small>Testnet XLM</small></p> : null}
@@ -382,11 +394,12 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
                 {!freshQuote ? <p className={styles.nativeUnit} role="status">{priceLoading ? m("Loading the CoinGecko quote…") : m("A fresh CoinGecko quote is unavailable.")}{" "}
                   {!priceLoading ? <button className={styles.refreshQuote} type="button" onClick={() => void refresh()}>{m("Refresh quote")}</button> : null}
                 </p> : null}
-              </> : <p className={styles.nativeUnit}>{m("Testnet XLM · illustrative rate")}</p>}
+              </> : !nativeInput && <p className={styles.nativeUnit}>{m("Testnet XLM · illustrative rate")}</p>}
+              {invalidNative && <p className={styles.inlineError} role="alert">{m("Enter XLM with up to 7 decimal places.")}</p>}
             </div>
             <AvailableWalletBalance amountStroops={units} />
             <div className={styles.presets} aria-label={m("Quick amounts")}>
-              {QUICK[currency].map(q => <button className={styles.preset} key={q} type="button" aria-pressed={amount === q} onClick={() => editAmount(q)}>{formatLocalAmount(Number(q), currency)}</button>)}
+              {(nativeInput ? QUICK_XLM : QUICK[currency]).map(q => <button className={styles.preset} key={q} type="button" aria-pressed={amount === q} onClick={() => editAmount(q)}>{nativeInput ? `${q} XLM` : formatLocalAmount(Number(q), currency)}</button>)}
             </div>
             <div className={styles.recipientField}>
               <label className={styles.fieldLabel} htmlFor="send-recipient">{m("Recipient @username")}</label>
@@ -408,7 +421,7 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
           </section>
           {!withinAmountLimit ? <p role="alert" className={styles.inlineError}>{m("The amount exceeds the supported safety limit.")}</p> : null}
           <div className={styles.actions}><Btn kind="primary" disabled={pending || !valid} loading={pending} trailing={Ico.chev({ c: "#fff" })} onClick={reviewTransfer}>{m("Review transfer")}</Btn></div>
-          <p className={styles.notice}>{m("Send valueless Testnet XLM. Review the amount and username before confirming.")} {!usesMarketInput ? m("Testnet forms use fixed demo conversion, not the CoinGecko market estimate. Review the exact XLM before confirming.") : null}</p>
+          <p className={styles.notice}>{m("Send valueless Testnet XLM. Review the amount and username before confirming.")} {!nativeInput && !usesMarketInput ? m("Testnet forms use fixed demo conversion, not the CoinGecko market estimate. Review the exact XLM before confirming.") : null}</p>
         </>}
         {err ? <p role="alert" className={styles.error}>{moneyMessage(locale, err)}</p> : null}
         <footer className={styles.footer}><PoweredByStellar /></footer>

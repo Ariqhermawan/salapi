@@ -42,6 +42,7 @@ The `revamp-ui` branch was tested with a fresh local Supabase instance that appl
 | Action | Confirmed Testnet result | Explorer |
 | --- | --- | --- |
 | Send by username | The native XLM contract transferred 1 XLM to the recipient wallet shown in review. | [Send transaction](https://stellar.expert/explorer/testnet/tx/fce40c024b71d4517aa5634366e3166e49300adbf603a254265dbed642f927d4) |
+| Send with native input | Entering 0.1250001 XLM without a market quote preserved all seven native decimal places through review and ledger confirmation. | [Native amount transaction](https://stellar.expert/explorer/testnet/tx/8fb25c7ba570bb02b0835631f53ed51ead4ef84caaabd47ead05e959b1bc4189) |
 | Create campaign | The D4 contract created QA campaign #35 with a 5% creator share and three designated approvers. | [Create transaction](https://stellar.expert/explorer/testnet/tx/16e3e1d3fa0d55dd68eac84eaaef281e0dac70cedd9cc554547add473240f83e) |
 | Donate | The D4 contract accepted 8.9230769 XLM for campaign #35. The app displayed the confirmed Testnet donor badge. | [Donation transaction](https://stellar.expert/explorer/testnet/tx/deb30e8284cb6da11bf15441a362a8998b7ee1ca26a305ea03e13465de84b639) |
 | Submit proof | The organizer submitted the public QA document URL and its SHA-256 after funding closed. | [Proof transaction](https://stellar.expert/explorer/testnet/tx/9ec1d3eebc8f9e51345ce7f7f1ba030e9db4039a86c3a6ef49d74ebced63cc2a) |

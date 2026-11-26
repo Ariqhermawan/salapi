@@ -52,7 +52,7 @@ function dictionary(locale: Locale, key: string, vars?: Record<string, string | 
 }
 
 // Executes real component functions and local helpers, not browser/SDK APIs.
-function mount(name: typeof names[number], locale: Locale, options: { preview?: boolean; next?: string; hash?: string; denied?: boolean; walletState?: () => Promise<{ ok: false; error: string }>; myHandle?: () => Promise<string | null>; receiveAccount?: () => Promise<AccountDetailsResult> } = {}) {
+function mount(name: typeof names[number], locale: Locale, options: { preview?: boolean; currency?: Locale; next?: string; hash?: string; denied?: boolean; walletState?: () => Promise<{ ok: false; error: string }>; myHandle?: () => Promise<string | null>; receiveAccount?: () => Promise<AccountDetailsResult> } = {}) {
   const preview = options.preview ?? true;
   const memory = new Map<string, string>();
   const storage = { getItem(key: string) { if (options.denied) throw Error("Isolated denied storage"); return memory.get(key) ?? null; }, setItem(key: string, value: string) { if (options.denied) throw Error("Isolated denied storage"); memory.set(key, value); }, removeItem(key: string) { memory.delete(key); } };
@@ -95,7 +95,7 @@ function mount(name: typeof names[number], locale: Locale, options: { preview?: 
         useCallback(fn: Handler) { return fn; },
         useTransition: () => [false, (fn: Handler) => transitions.push(Promise.resolve(fn()))],
       };
-      if (dependency === "@/components/I18nProvider") return { useT: () => ({ locale, currency: "tl", t: (key: string, vars?: Record<string, string | number>) => dictionary(locale, key, vars) }) };
+      if (dependency === "@/components/I18nProvider") return { useT: () => ({ locale, currency: options.currency ?? "tl", t: (key: string, vars?: Record<string, string | number>) => dictionary(locale, key, vars) }) };
       if (dependency === "@/lib/i18n/revamp-money") return copy;
       if (dependency === "@/lib/i18n/receive") return { receiveCopy };
       if (dependency === "@/lib/i18n/xlm-deposit") return { xlmDepositCopy };
@@ -176,6 +176,25 @@ test("owned Send accessibility and example username labels cannot regress to fix
     assert.equal(source.includes(`ariaLabel="${phrase}"`) || source.includes(`aria-label="${phrase}"`), false);
   }
   for (const phrase of ["e.g. jamamam", "your_username"]) assert.ok(source.includes(`placeholder={m("${phrase}")}`));
+});
+
+test("Send accepts exact XLM without a market quote and clears the amount when units change", async () => {
+  const ui = mount("SendScreen", "en", { preview: false, currency: "en", myHandle: async () => null });
+  const reviewButton = () => nodes(ui.tree).find(node => node.type === "Btn" && text(node.props.children) === "Review transfer")!;
+  await ui.flush();
+  ui.change("send-amount", "5");
+  assert.equal(reviewButton().props.disabled, true);
+  ui.click("Enter XLM");
+  assert.equal(nodes(ui.tree).find(node => node.props.id === "send-amount")?.props.value, "");
+  ui.change("send-amount", "0.00000019");
+  ui.find("Enter XLM with up to 7 decimal places.");
+  assert.equal(reviewButton().props.disabled, true);
+  ui.change("send-amount", "0.0000001");
+  assert.match(text(ui.tree), /0\.0000001\s*Testnet XLM/);
+  assert.equal(reviewButton().props.disabled, false);
+  ui.click("Enter USD");
+  assert.equal(nodes(ui.tree).find(node => node.props.id === "send-amount")?.props.value, "");
+  assert.equal(ui.calls.serverWrites, 0);
 });
 
 for (const locale of LOCALES) {
