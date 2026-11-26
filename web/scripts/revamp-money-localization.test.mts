@@ -92,6 +92,7 @@ function mount(name: typeof names[number], locale: Locale, options: { preview?: 
       if (dependency === "react") return {
         useState(initial: unknown) { const index = cursor++; if (!(index in slots)) slots[index] = typeof initial === "function" ? initial() : initial; return [slots[index], (value: unknown) => { slots[index] = typeof value === "function" ? value(slots[index]) : value; }]; },
         useRef(initial: unknown) { const index = cursor++; if (!(index in slots)) slots[index] = { current: initial }; return slots[index]; },
+        useId: () => "isolated-money-review-title",
         useEffect(fn: Handler) { if (!effectsRan) effects.push(fn); },
         useCallback(fn: Handler) { return fn; },
         useTransition: () => [false, (fn: Handler) => transitions.push(Promise.resolve(fn()))],

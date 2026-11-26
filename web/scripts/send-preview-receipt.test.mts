@@ -82,6 +82,7 @@ function setup(options: { preview?: boolean; storageUnavailable?: boolean } = {}
           if (!(index in state)) state[index] = { current: initial };
           return state[index];
         },
+        useId: () => "isolated-send-review-title",
         useEffect() {},
         useTransition: () => [false, (action: () => Promise<unknown>) => transitions.push(action())],
       };

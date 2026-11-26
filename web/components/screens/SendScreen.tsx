@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { registerUsername, myHandle, confirmUsernameSend, prepareUsernameSend, cancelUsernameSend, lookupRecipient, checkSubmittedTransfer } from "@/app/actions";
 import { useT } from "@/components/I18nProvider";
@@ -67,6 +67,10 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
   const [err, setErr] = useState("");
   const [unresolved, setUnresolved] = useState<UnresolvedSend | null>(null);
   const unresolvedRef = useRef<UnresolvedSend | null>(null);
+  const reviewDialog = useRef<HTMLDialogElement>(null);
+  const closeReview = useRef<HTMLButtonElement>(null);
+  const reviewTitle = useId();
+  const reviewOpen = !!recipient && !done && !unresolved && !transferPhase;
   const clean = recipientUsername(to);
   const usesMarketInput = !nativeInput && !isLocalPreview && currency === "en";
   const quote = validateMarketPrices(prices);
@@ -138,6 +142,30 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
       .finally(() => { if (active) setPhotoLoading(false); });
     return () => { active = false; controller.abort(); };
   }, [recipient, locale]);
+
+  useEffect(() => {
+    if (!reviewOpen || !reviewDialog.current) return;
+    const dialog = reviewDialog.current;
+    const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const frame = dialog.closest(".sl-app-frame");
+    const align = () => {
+      if (!frame) return;
+      const rect = frame.getBoundingClientRect();
+      dialog.style.setProperty("--review-center", `${rect.left + rect.width / 2}px`);
+      dialog.style.setProperty("--review-bottom", `${Math.max(0, window.innerHeight - rect.bottom)}px`);
+      dialog.style.setProperty("--review-frame-width", `${rect.width}px`);
+      dialog.style.setProperty("--review-frame-height", `${rect.height}px`);
+    };
+    align();
+    window.addEventListener("resize", align);
+    dialog.showModal();
+    closeReview.current?.focus({ preventScroll: true });
+    return () => {
+      window.removeEventListener("resize", align);
+      dialog.close();
+      if (trigger?.isConnected) trigger.focus({ preventScroll: true });
+    };
+  }, [reviewOpen]);
 
   function retainUnresolved(value: UnresolvedSend): boolean {
     if (isLocalPreview) return false;
@@ -281,12 +309,12 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
 
   return (
     <div className={styles.screen}>
-      <AppBar leading={transferPhase ? undefined : <IconButton ariaLabel={m("Back")} onClick={() => recipient && !done && !unresolved ? discardRecipient() : goBack()}>{Ico.back({})}</IconButton>} title={transferPhase ? m("Waiting for network confirmation") : done ? m("Transfer receipt") : unresolved ? m("Check submitted transaction") : recipient ? m("Review transfer") : t("send.title")} trailing={transferPhase ? undefined : <IconButton ariaLabel={m("Receive")} onClick={() => router.push("/receive")}>{Ico.qr({})}</IconButton>} />
-      <div className={`${styles.content} ${recipient && !done && !unresolved ? styles.reviewContent : ""}`}>
+      <AppBar leading={transferPhase ? undefined : <IconButton ariaLabel={m("Back")} onClick={goBack}>{Ico.back({})}</IconButton>} title={transferPhase ? m("Waiting for network confirmation") : done ? m("Transfer receipt") : unresolved ? m("Check submitted transaction") : t("send.title")} trailing={transferPhase ? undefined : <IconButton ariaLabel={m("Receive")} onClick={() => router.push("/receive")}>{Ico.qr({})}</IconButton>} />
+      <div className={styles.content}>
         <section className={styles.intro} aria-labelledby="send-heading">
           <div>
             <span className={styles.eyebrow}>{isLocalPreview ? m("LOCAL PREVIEW") : m("STELLAR TESTNET")}</span>
-            <h1 id="send-heading">{transferPhase ? (transferPhase === "check" ? m("Checking the original transaction…") : isLocalPreview ? m("LOCAL PREVIEW") : m("Sending Testnet XLM…")) : done ? (isLocalPreview ? m("Demo complete.") : done.statusOnly ? m("Transaction confirmed.") : m("Sent with a receipt.")) : unresolved ? m("Confirmation pending.") : recipient ? m("One last look.") : m("Send by name.")}</h1>
+            <h1 id="send-heading">{transferPhase ? (transferPhase === "check" ? m("Checking the original transaction…") : isLocalPreview ? m("LOCAL PREVIEW") : m("Sending Testnet XLM…")) : done ? (isLocalPreview ? m("Demo complete.") : done.statusOnly ? m("Transaction confirmed.") : m("Sent with a receipt.")) : unresolved ? m("Confirmation pending.") : m("Send by name.")}</h1>
             <p>{transferPhase ? (transferPhase === "check" ? m("This is a read-only check. No new transfer is being submitted.") : m("Keep this page open. Do not send again while this transfer is being checked.")) : done ? (isLocalPreview ? m("This local demonstration did not move any tokens.") : m("Open the transaction receipt to verify its details.")) : unresolved ? m("Check the original transaction. A new transfer is blocked while its outcome is unknown.") : m("A familiar @username. A clear amount. A public receipt.")}</p>
           </div>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -334,51 +362,21 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
             <Btn kind="ghost" size="md" onClick={() => router.push("/activity")}>{m("Open wallet history")}</Btn>
           </div>
           <p className={styles.notice}>{m("Only a confirmed failure unlocks another attempt. This session stores an unresolved hash or status marker, never payment or identity credentials.")}</p>
-        </> : recipient ? <>
-          <article className={styles.reviewTicket} aria-label={m("Transfer review details")}>
-            <div className={styles.reviewSummary}>
-              <div className={styles.summaryHeading}><span>{m("Token amount")}</span><span className={styles.summaryTag}>Testnet</span></div>
-              <strong className={styles.summaryAmount}>{exactXlm(recipient.amountStroops)} <small>Testnet XLM</small></strong>
-              {recipient.usdEstimate
-                ? <p className={styles.summaryNative}>≈ {recipient.usdEstimate} · {m("USD estimate")} · CoinGecko</p>
-                : recipient.input && <p className={styles.summaryNative}>{formatLocalAmount(Number(recipient.input.amount), recipient.input.currency)} · {m("Demo input")}</p>}
-              <div className={styles.transferBridge}>
-                <div className={styles.transferParty}>
-                  <AccountAvatar name={mine ?? "?"} photoUrl={accountPhoto.profile?.photoUrl ?? null} size={38} alt={mine ? `@${mine}` : m("Your account")} />
-                  <div><span>{m("From")}</span><strong>{mine ? `@${mine}` : m("Your account")}</strong></div>
-                </div>
-                <span className={styles.bridgeArrow} aria-hidden="true">{Ico.chev({ c: "#BED4F5", size: 18 })}</span>
-                <div className={styles.transferParty}>
-                  <AccountAvatar name={recipientHandle} photoUrl={shownIdentity?.photoUrl ?? null} size={38} alt={`@${recipientHandle}`} />
-                  <div><span>{isLocalPreview ? m("Example recipient") : m("To")}</span><strong>@{recipientHandle}</strong>
-                    {recipientHandle !== recipient.username ? <small>{m("Via alias @{username}", { username: recipient.username })}</small> : null}
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className={styles.reviewTear} aria-hidden="true"><span /></div>
-            <div className={styles.reviewEvidence}>
-              <p className={styles.verifiedRecipient}>{Ico.check({ c: T.moneyIn, size: 14 })}{isLocalPreview ? m("Example recipient") : m("Username registered on Stellar Testnet")}</p>
-              <dl>
-                <div className={styles.reviewNetwork}><dt>{m("Network")}</dt><dd><span aria-hidden="true" />Stellar Testnet</dd></div>
-                <div className={styles.reviewWallet}><dt>{m("Recipient wallet")}</dt><dd>{recipient.address}</dd></div>
-                {recipient.feeStroops ? <div><dt>{m("Maximum network fee")}</dt><dd>{exactXlm(recipient.feeStroops)} XLM</dd></div> : null}
-              </dl>
-              <p>{isLocalPreview ? m("This recipient is an example. Confirming shows a local receipt only.") : m("A registered username could still be the wrong person. Match this username and wallet with your recipient before confirming.")}</p>
-              {!isLocalPreview ? <small>{m("This review expires in 2 minutes. If it expires, review the transfer again.")}</small> : null}
-              {!isLocalPreview ? <details className={styles.photoNote}><summary>{m("About profile photos")}</summary><p>{photoLoading ? m("Loading the permitted account photo…") : m("Photos appear only when available and permitted by their owner. Otherwise, initials are shown. A photo is not proof of identity.")}</p></details> : null}
-            </div>
-          </article>
-          <div className={styles.reviewDock} data-testid="transfer-review-actions">
-            <AvailableWalletBalance amountStroops={BigInt(recipient.amountStroops)} compact />
-            <div className={styles.actions}>
-              <Btn kind="primary" disabled={pending} loading={pending} onClick={doSend}>{isLocalPreview ? m("Confirm local demo") : m("Confirm Testnet transfer")}</Btn>
-              <Btn kind="ghost" size="md" disabled={pending} onClick={discardRecipient}>{m("Edit transfer")}</Btn>
-            </div>
-          </div>
-          {!nativeInput && !usesMarketInput ? <p className={styles.notice}>{m("Testnet forms use fixed demo conversion, not the CoinGecko market estimate. Review the exact XLM before confirming.")}</p> : null}
         </> : <>
           <section className={styles.composer} aria-label={m("Transfer details")}>
+            <div className={styles.recipientField}>
+              <label className={styles.fieldLabel} htmlFor="send-recipient">{m("Recipient @username")}</label>
+              <div className={styles.usernameInput}>
+                <span aria-hidden="true">@</span>
+                <input id="send-recipient" value={to} maxLength={33} aria-describedby="send-recipient-help" aria-invalid={!!clean && !validUsername || !!lookupError}
+                  onChange={e => { lookupVersion.current++; setTo(e.target.value); setLookupError(""); }}
+                  placeholder={m("e.g. jamamam")} autoCapitalize="none" autoComplete="off" spellCheck={false} />
+              </div>
+              <p id="send-recipient-help" className={styles.recipientHelp}>{m("Use 3–32 letters, numbers or underscores. We check the exact username when you review.")}</p>
+              {clean && !validUsername ? <p role="alert" className={styles.inlineError}>{m("Enter a username with 3–32 letters, numbers or underscores.")}</p> : null}
+              {lookupError ? <p role="alert" className={styles.inlineError}>{lookupError}</p> : null}
+              {self ? <p role="alert" className={styles.inlineError}>{m("Choose a different recipient. You cannot send to yourself.")}</p> : null}
+            </div>
             <div className={styles.amountHeader}>
               <label className={styles.fieldLabel} htmlFor="send-amount">{m("Amount ·")} {nativeInput ? "XLM" : CURRENCY[currency].code}</label>
               {!isLocalPreview && <button type="button" className={styles.unitSwitch} disabled={pending} onClick={() => {
@@ -401,19 +399,6 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
             <div className={styles.presets} aria-label={m("Quick amounts")}>
               {(nativeInput ? QUICK_XLM : QUICK[currency]).map(q => <button className={styles.preset} key={q} type="button" aria-pressed={amount === q} onClick={() => editAmount(q)}>{nativeInput ? `${q} XLM` : formatLocalAmount(Number(q), currency)}</button>)}
             </div>
-            <div className={styles.recipientField}>
-              <label className={styles.fieldLabel} htmlFor="send-recipient">{m("Recipient @username")}</label>
-              <div className={styles.usernameInput}>
-                <span aria-hidden="true">@</span>
-                <input id="send-recipient" value={to} maxLength={33} aria-describedby="send-recipient-help" aria-invalid={!!clean && !validUsername || !!lookupError}
-                  onChange={e => { lookupVersion.current++; setTo(e.target.value); setLookupError(""); }}
-                  placeholder={m("e.g. jamamam")} autoCapitalize="none" autoComplete="off" spellCheck={false} />
-              </div>
-              <p id="send-recipient-help" className={styles.recipientHelp}>{m("Use 3–32 letters, numbers or underscores. We check the exact username when you review.")}</p>
-              {clean && !validUsername ? <p role="alert" className={styles.inlineError}>{m("Enter a username with 3–32 letters, numbers or underscores.")}</p> : null}
-              {lookupError ? <p role="alert" className={styles.inlineError}>{lookupError}</p> : null}
-              {self ? <p role="alert" className={styles.inlineError}>{m("Choose a different recipient. You cannot send to yourself.")}</p> : null}
-            </div>
             {mine ? <p className={styles.sender}><span>{m("Your username")}</span><strong>@{mine}</strong></p> : <div className={styles.claim}>
               <label className={styles.fieldLabel} htmlFor="send-claim">{m("Your username")}</label>
               <div><input className={styles.claimInput} id="send-claim" aria-label={m("Choose your username")} value={claim} onChange={e => setClaim(e.target.value.replace(/[^a-zA-Z0-9_]/g, "").slice(0,32))} placeholder={m("your_username")} /><Btn kind="secondary" size="md" full={false} disabled={pending || claim.length < 3} onClick={doClaim}>{m("Claim")}</Btn></div>
@@ -422,8 +407,68 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
           {!withinAmountLimit ? <p role="alert" className={styles.inlineError}>{m("The amount exceeds the supported safety limit.")}</p> : null}
           <div className={styles.actions}><Btn kind="primary" disabled={pending || !valid} loading={pending} trailing={Ico.chev({ c: "#fff" })} onClick={reviewTransfer}>{m("Review transfer")}</Btn></div>
           <p className={styles.notice}>{m("Send valueless Testnet XLM. Review the amount and username before confirming.")} {!nativeInput && !usesMarketInput ? m("Testnet forms use fixed demo conversion, not the CoinGecko market estimate. Review the exact XLM before confirming.") : null}</p>
+          {reviewOpen && recipient ? (
+            <dialog ref={reviewDialog} className={styles.reviewDialog} aria-labelledby={reviewTitle}
+              onCancel={event => { event.preventDefault(); if (!pending && !submitting.current) discardRecipient(); }}
+              onClick={event => {
+                if (event.target !== event.currentTarget || pending || submitting.current) return;
+                const rect = event.currentTarget.getBoundingClientRect();
+                if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) discardRecipient();
+              }}>
+              <div className={styles.sheet}>
+                <div className={styles.sheetHandle} aria-hidden="true" />
+                <header className={styles.sheetHeader}>
+                  <h2 id={reviewTitle}>{m("Review transfer")}</h2>
+                  <button ref={closeReview} className={styles.sheetClose} disabled={pending} type="button" onClick={discardRecipient} aria-label={m("Back")}>×</button>
+                </header>
+                <div className={styles.reviewScroll}>
+            <article className={styles.reviewTicket} aria-label={m("Transfer review details")}>
+            <div className={styles.reviewSummary}>
+              <div className={styles.summaryHeading}><span>{m("Token amount")}</span><span className={styles.summaryTag}>Testnet</span></div>
+              <strong className={styles.summaryAmount}>{exactXlm(recipient.amountStroops)} <small>Testnet XLM</small></strong>
+              {recipient.usdEstimate
+                ? <p className={styles.summaryNative}>≈ {recipient.usdEstimate} · {m("USD estimate")} · CoinGecko</p>
+                : recipient.input && <p className={styles.summaryNative}>{formatLocalAmount(Number(recipient.input.amount), recipient.input.currency)} · {m("Demo input")}</p>}
+            </div>
+            <p className={styles.reviewSectionLabel}>{m("From")}</p>
+            <div className={styles.reviewPartyCard}>
+              <AccountAvatar name={mine ?? "?"} photoUrl={accountPhoto.profile?.photoUrl ?? null} size={40} alt={mine ? `@${mine}` : m("Your account")} />
+              <div><strong>{mine ? `@${mine}` : m("Your account")}</strong></div>
+            </div>
+            <p className={styles.reviewSectionLabel}>{m("To")}</p>
+            <div className={styles.reviewPartyCard}>
+              <AccountAvatar name={recipientHandle} photoUrl={shownIdentity?.photoUrl ?? null} size={40} alt={`@${recipientHandle}`} />
+              <div><strong>@{recipientHandle}</strong>
+                {recipientHandle !== recipient.username ? <small>{m("Via alias @{username}", { username: recipient.username })}</small> : null}
+              </div>
+            </div>
+            <div className={styles.reviewEvidence}>
+              <p className={styles.verifiedRecipient}>{Ico.check({ c: T.moneyIn, size: 14 })}{isLocalPreview ? m("Example recipient") : m("Username registered on Stellar Testnet")}</p>
+              <dl>
+                <div className={styles.reviewNetwork}><dt>{m("Network")}</dt><dd><span aria-hidden="true" />Stellar Testnet</dd></div>
+                <div className={styles.reviewWallet}><dt>{m("Recipient wallet")}</dt><dd>{recipient.address}</dd></div>
+                {recipient.feeStroops ? <div><dt>{m("Maximum network fee")}</dt><dd>{exactXlm(recipient.feeStroops)} XLM</dd></div> : null}
+              </dl>
+              <p>{isLocalPreview ? m("This recipient is an example. Confirming shows a local receipt only.") : m("A registered username could still be the wrong person. Match this username and wallet with your recipient before confirming.")}</p>
+              {!isLocalPreview ? <small>{m("This review expires in 2 minutes. If it expires, review the transfer again.")}</small> : null}
+              {!isLocalPreview ? <details className={styles.photoNote}><summary>{m("About profile photos")}</summary><p>{photoLoading ? m("Loading the permitted account photo…") : m("Photos appear only when available and permitted by their owner. Otherwise, initials are shown. A photo is not proof of identity.")}</p></details> : null}
+            </div>
+            </article>
+                  {!nativeInput && !usesMarketInput ? <p className={styles.notice}>{m("Testnet forms use fixed demo conversion, not the CoinGecko market estimate. Review the exact XLM before confirming.")}</p> : null}
+                  {err ? <p role="alert" className={styles.error}>{moneyMessage(locale, err)}</p> : null}
+                </div>
+          <div className={styles.reviewDock} data-testid="transfer-review-actions">
+            <AvailableWalletBalance amountStroops={BigInt(recipient.amountStroops)} compact />
+            <div className={styles.actions}>
+              <Btn kind="primary" disabled={pending} loading={pending} onClick={doSend}>{isLocalPreview ? m("Confirm local demo") : m("Confirm Testnet transfer")}</Btn>
+              <Btn kind="ghost" size="md" disabled={pending} onClick={discardRecipient}>{m("Edit transfer")}</Btn>
+            </div>
+          </div>
+              </div>
+            </dialog>
+          ) : null}
         </>}
-        {err ? <p role="alert" className={styles.error}>{moneyMessage(locale, err)}</p> : null}
+        {err && !reviewOpen ? <p role="alert" className={styles.error}>{moneyMessage(locale, err)}</p> : null}
         <footer className={styles.footer}><PoweredByStellar /></footer>
       </div>
     </div>

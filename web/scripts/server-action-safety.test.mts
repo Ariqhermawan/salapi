@@ -551,6 +551,7 @@ function sendSetup(options: { storage?: Map<string, string>; unavailable?: boole
     "react": {
       useState: (initial: unknown) => { const i = cursor++; if (!(i in state)) state[i] = initial; return [state[i], (value: unknown) => { state[i] = typeof value === "function" ? value(state[i]) : value; }]; },
       useRef: (initial: unknown) => { const i = cursor++; if (!(i in state)) state[i] = { current: initial }; return state[i]; },
+      useId: () => "isolated-safety-review-title",
       useEffect: (effect: () => void) => { const i = cursor++; if (!(i in state)) { state[i] = true; effects.push(effect); } },
       useTransition: () => [false, (callback: () => Promise<unknown>) => { transitions.push(callback()); }],
     },

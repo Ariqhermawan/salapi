@@ -11,7 +11,8 @@ const explorer = `https://stellar.expert/explorer/testnet/tx/${receiptHash}`;
 const intentId = "11111111-1111-4111-8111-111111111111";
 const sender = "GAKZLTZFGSSM372XUKW2ZIJ5GSHVVIW5BYZIKIXRW2BW4MM6TUI5536Y";
 function actionNames() {
-  const manifest = JSON.parse(readFileSync(".next/server/server-reference-manifest.json", "utf8"));
+  const manifestPath = process.env.E2E_SERVER_ACTION_MANIFEST ?? ".next/server/server-reference-manifest.json";
+  const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
   return new Map(Object.entries(manifest.node as Record<string, { exportedName: string }>).map(([id, value]) => [id, value.exportedName]));
 }
 
@@ -162,14 +163,29 @@ for (const width of [390, 1280]) test(`review shows a permitted account photo an
   await expect(review.getByRole("img", { name: "@imam", exact: true })).toBeVisible();
   await expect(review.getByRole("img", { name: "@imam", exact: true })).toHaveAttribute("src", photo);
   await expect(review).toContainText("could still be the wrong person");
-  const bounds = await review.boundingBox(); const confirm = await f.main.getByRole("button", { name: "Confirm Testnet transfer", exact: true }).boundingBox();
-  expect(bounds!.x).toBeGreaterThanOrEqual(0); expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
-  expect(confirm!.y + confirm!.height).toBeLessThanOrEqual(744); // above bottom navigation, no confirmation scroll
+  const dialog = page.locator("dialog[open]");
+  await expect(dialog).toBeVisible();
+  expect(await dialog.evaluate(node => node.matches(":modal"))).toBe(true);
+  const bounds = await dialog.boundingBox(); const frame = await page.locator(".sl-app-frame").boundingBox();
+  const confirm = await dialog.getByRole("button", { name: "Confirm Testnet transfer", exact: true }).boundingBox();
+  const navigation = await page.locator(".sl-tabbar").boundingBox();
+  expect(bounds!.x).toBeGreaterThanOrEqual(frame!.x);
+  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(frame!.x + frame!.width);
+  expect(Math.abs(bounds!.y + bounds!.height - (frame!.y + frame!.height))).toBeLessThanOrEqual(1);
+  expect(confirm!.y).toBeGreaterThanOrEqual(bounds!.y);
+  expect(confirm!.y + confirm!.height).toBeLessThanOrEqual(bounds!.y + bounds!.height);
+  expect(bounds!.y + bounds!.height).toBeGreaterThanOrEqual(navigation!.y); // modal overlay safely covers tab navigation
+  expect(await dialog.getByTestId("transfer-review-actions").evaluate(node => {
+    const button = node.querySelector("button"); if (!button) return false;
+    const rect = button.getBoundingClientRect();
+    const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
+    return !!hit && button.contains(hit);
+  })).toBe(true);
   await page.screenshot({ path: testInfo.outputPath(`recipient-review-${width}.png`), fullPage: false });
   expect(errors).toEqual([]); expect(f.calls).toEqual({ lookups: 1, photos: 1, writes: 0 });
 });
 
-for (const width of [320, 375, 390]) test(`a long recipient username keeps the single review confirmation above navigation at ${width}px`, async ({ page }) => {
+for (const width of [320, 375, 390]) test(`a long recipient username keeps one reachable confirmation in the review sheet at ${width}px`, async ({ page }) => {
   await page.setViewportSize({ width, height: 812 });
   const f = await fixture(page, { photo });
   await f.main.getByLabel("Recipient @username", { exact: true }).fill("nonimaharani");
@@ -178,9 +194,13 @@ for (const width of [320, 375, 390]) test(`a long recipient username keeps the s
   const confirm = dock.getByRole("button", { name: "Confirm Testnet transfer", exact: true });
   await expect(confirm).toBeVisible(); await expect(confirm).toBeEnabled();
   await expect(f.main.getByRole("button", { name: "Confirm Testnet transfer", exact: true })).toHaveCount(1);
-  const navigation = await page.locator(".sl-tabbar").boundingBox();
-  const rect = await confirm.boundingBox();
-  expect(rect!.y).toBeGreaterThanOrEqual(0); expect(rect!.y + rect!.height).toBeLessThan(navigation!.y - 16);
+  const dialog = page.locator("dialog[open]");
+  await expect(dialog).toBeVisible();
+  expect(await dialog.evaluate(node => node.matches(":modal"))).toBe(true);
+  const sheetBounds = await dialog.boundingBox(); const rect = await confirm.boundingBox();
+  expect(rect!.y).toBeGreaterThanOrEqual(sheetBounds!.y);
+  expect(rect!.y + rect!.height).toBeLessThanOrEqual(sheetBounds!.y + sheetBounds!.height);
+  expect(await dock.evaluate(node => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
   expect(await f.main.evaluate(el => el.scrollTop)).toBe(0);
   expect(f.calls.writes).toBe(0);
 });
