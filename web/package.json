@@ -12,7 +12,7 @@
     "test:profile": "node --experimental-strip-types --test scripts/settings-profile-loading.test.mts scripts/settings-handle.test.mts",
     "test:photo": "node --experimental-strip-types --test scripts/account-photo.test.mts scripts/account-photo-ui.test.mts scripts/account-photo-csp.test.mts scripts/account-photo-read.test.mts",
     "test:performance": "node --experimental-strip-types --test scripts/navigation-performance.test.mts scripts/read-transport.test.mts scripts/vault-read-performance.test.mts scripts/vault-campaign-history.test.mts scripts/public-campaign-read.test.mts scripts/circles-identity-read.test.mts",
-    "test:receive": "node --experimental-strip-types --test scripts/receive-sharing.test.mts",
+    "test:receive": "node --experimental-strip-types --test scripts/receive-sharing.test.mts scripts/receive-poster.test.mts",
     "test:account-details": "node --experimental-strip-types --test scripts/account-details.test.mts scripts/account-details-ui.test.mts",
     "test:username": "node --experimental-strip-types --test scripts/username-onboarding.test.mts scripts/username-onboarding-ui.test.mts scripts/username-onboarding-client.test.mts",
     "test:activity": "node --experimental-strip-types --test scripts/wallet-activity.test.mts scripts/wallet-activity-ui.test.mts scripts/wallet-activity-identity.test.mts scripts/wallet-activity-live.test.mts",

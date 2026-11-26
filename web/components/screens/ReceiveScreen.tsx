@@ -2,12 +2,14 @@
 
 // The QR shows the saved Stellar Testnet address. Salapi links use @username.
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
-import { QRCodeSVG } from "qrcode.react";
+import { QRCodeCanvas, QRCodeSVG } from "qrcode.react";
 import { accountDetails } from "@/app/account-details-actions";
 import { createSupabaseBrowser } from "@/lib/supabase/client";
 import { supabaseConfigured } from "@/lib/supabase/env";
 import { receiveDestination, receiveShareData, type ReceiveDestination } from "@/lib/receive";
+import { drawReceivePoster } from "@/lib/receive-poster";
 import { receiveCopy } from "@/lib/i18n/receive";
 import { xlmDepositCopy } from "@/lib/i18n/xlm-deposit";
 import { useT } from "@/components/I18nProvider";
@@ -57,6 +59,7 @@ export default function ReceiveScreen() {
   const [status, setStatus] = useState<"loading" | "ready" | "guest" | "error">(isLocalPreview ? "ready" : "loading");
   const [copied, setCopied] = useState(false);
   const [guidanceOpen, setGuidanceOpen] = useState(false);
+  const [posterOpen, setPosterOpen] = useState(false);
   const [base, setBase] = useState(SITE);
   const [shareError, setShareError] = useState("");
   const owner = useRef<string | null | undefined>(undefined);
@@ -81,6 +84,7 @@ export default function ReceiveScreen() {
       const request = ++revision.current;
       setIdentity({ address: null, username: null });
       setCopied(false);
+      setPosterOpen(false);
       setShareError("");
       setStatus(nextOwner ? "loading" : "guest");
       if (timer.current !== null) clearTimeout(timer.current);
@@ -186,6 +190,7 @@ export default function ReceiveScreen() {
             aria-label={deposit.copy} aria-describedby="receive-address" data-copy-error={Boolean(shareError) || undefined}
             onClick={() => shareDestination(destination, true)}>
             <span id="receive-address">{destination.value}</span>{copied ? Ico.check({ size: 16 }) : Ico.link({ size: 16 })}
+            <span className="sr-only" aria-live="polite">{copied ? t("receive.copied") : ""}</span>
           </button>}
           <p className={styles.note}>{isLocalPreview ? deposit.previewBody : deposit.warning}</p>
           {!identity.username && !isLocalPreview && <p className={styles.note}>{c.addressHint}</p>}
@@ -204,12 +209,21 @@ export default function ReceiveScreen() {
       <div className={styles.pattern} aria-hidden="true" />
       <div className={styles.actions}>
         <Btn kind="secondary" onClick={goBack}>{t("send.done")}</Btn>
-        <Btn kind="primary" disabled={!destination} onClick={() => shareDestination(destination)}
+        <Btn kind="primary" disabled={!destination} onClick={() => setPosterOpen(true)}
           leading={copied ? Ico.check({ c: "#fff" }) : <ShareGlyph />}>
-          {copied ? t("receive.copied") : t("receive.share")}
+          {t("receive.share")}
         </Btn>
       </div>
       {guidanceOpen && <ReceiveGuidanceSheet copy={deposit} closeLabel={c.close} onClose={() => setGuidanceOpen(false)} />}
+      {posterOpen && destination && identity.address && <ReceivePosterSheet
+        address={identity.address}
+        username={usernameLink?.kind === "username" ? identity.username : null}
+        preview={isLocalPreview}
+        copy={c}
+        copiedLabel={t("receive.copied")}
+        closeLabel={c.close}
+        onClose={() => setPosterOpen(false)}
+      />}
     </div>
   );
 }
@@ -274,6 +288,149 @@ function ReceiveGuidanceSheet({ copy, closeLabel, onClose }: {
       <footer className={styles.guidanceFooter}>
         <Btn kind="primary" onClick={onClose}>{copy.gotIt}</Btn>
       </footer>
+    </div>
+  </dialog>;
+}
+
+function ReceivePosterSheet({ address, username, preview, copy, copiedLabel, closeLabel, onClose }: {
+  address: string;
+  username: string | null;
+  preview: boolean;
+  copy: ReturnType<typeof receiveCopy>;
+  copiedLabel: string;
+  closeLabel: string;
+  onClose: () => void;
+}) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  const closeButton = useRef<HTMLButtonElement>(null);
+  const qr = useRef<HTMLCanvasElement>(null);
+  const clickedBackdrop = useRef(false);
+  const [posterUrl, setPosterUrl] = useState<string | null>(null);
+  const [poster, setPoster] = useState<Blob | null>(null);
+  const [status, setStatus] = useState<"making" | "ready" | "error" | "saved" | "fallback" | "copied" | "copyFailed">("making");
+  const filename = username && /^[a-z0-9_]{3,32}$/.test(username) ? `salapi-${username}.png` : "salapi-receive.png";
+
+  useEffect(() => {
+    const source = qr.current;
+    if (!source) return;
+    let active = true;
+    let objectUrl: string | null = null;
+    void drawReceivePoster(source, address, username, preview, copy).then(blob => {
+      if (!active) return;
+      if (!blob) { setStatus("error"); return; }
+      objectUrl = URL.createObjectURL(blob);
+      setPoster(blob);
+      setPosterUrl(objectUrl);
+      setStatus("ready");
+    }).catch(() => { if (active) setStatus("error"); });
+    return () => {
+      active = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [address, copy, preview, username]);
+
+  useEffect(() => {
+    const node = dialog.current;
+    if (!node) return;
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const frame = node.closest(".sl-app-frame");
+    const align = () => {
+      const bounds = frame?.getBoundingClientRect();
+      if (!bounds) return;
+      node.style.setProperty("--poster-center", `${bounds.left + bounds.width / 2}px`);
+      node.style.setProperty("--poster-bottom", `${Math.max(0, window.innerHeight - bounds.bottom)}px`);
+      node.style.setProperty("--poster-frame-width", `${bounds.width}px`);
+      node.style.setProperty("--poster-frame-height", `${bounds.height}px`);
+    };
+    align();
+    window.addEventListener("resize", align);
+    node.showModal();
+    closeButton.current?.focus({ preventScroll: true });
+    return () => {
+      window.removeEventListener("resize", align);
+      node.close();
+      if (opener?.isConnected) opener.focus({ preventScroll: true });
+    };
+  }, []);
+
+  function download() {
+    if (!poster || !posterUrl) return;
+    const link = document.createElement("a");
+    link.href = posterUrl;
+    link.download = filename;
+    link.click();
+    setStatus("saved");
+  }
+
+  async function share() {
+    if (!poster) return;
+    const file = new File([poster], filename, { type: "image/png" });
+    const shareData: ShareData = { files: [file], title: copy.posterEyebrow, text: username ? `@${username}` : address };
+    try {
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        await navigator.share(shareData);
+        return;
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+    }
+    download();
+    setStatus("fallback");
+  }
+
+  async function copyValue(value: string) {
+    try {
+      await navigator.clipboard.writeText(value);
+      setStatus("copied");
+    } catch {
+      setStatus("copyFailed");
+    }
+  }
+
+  const statusText = status === "making" ? copy.makingPoster
+    : status === "error" ? copy.posterUnavailable
+      : status === "saved" ? copy.posterSaved
+        : status === "fallback" ? copy.posterSavedFallback
+          : status === "copied" ? copiedLabel
+            : status === "copyFailed" ? copy.copyFailed : "";
+
+  return <dialog
+    ref={dialog}
+    className={styles.posterDialog}
+    aria-labelledby="receive-poster-title"
+    onCancel={event => { event.preventDefault(); onClose(); }}
+    onPointerDown={event => { clickedBackdrop.current = event.target === event.currentTarget; }}
+    onClick={event => {
+      if (clickedBackdrop.current && event.target === event.currentTarget) onClose();
+      clickedBackdrop.current = false;
+    }}
+  >
+    <div className={styles.posterSheet}>
+      <header className={styles.posterHeader}>
+        <h2 id="receive-poster-title">{copy.sharePoster}</h2>
+        <button ref={closeButton} className={styles.guidanceClose} type="button" aria-label={closeLabel} onClick={onClose}>
+          {Ico.x({ size: 20 })}
+        </button>
+      </header>
+      <div className={styles.posterContent}>
+        <div className={styles.posterPreview}>
+          {posterUrl ? <Image src={posterUrl} alt={`${copy.posterEyebrow} ${username ? `@${username}` : copy.addressPosterTitle}`} width={270} height={480} unoptimized />
+            : <p role="status">{statusText}</p>}
+        </div>
+        {status === "error" ? <p className={styles.error} role="alert">{statusText}</p> : null}
+        <p className={styles.posterStatus} role="status" aria-live="polite">{status !== "making" && status !== "ready" && status !== "error" ? statusText : ""}</p>
+        <div className={styles.posterActions}>
+          <Btn kind="secondary" disabled={!poster} onClick={download}>{copy.downloadPoster}</Btn>
+          <Btn kind="primary" disabled={!poster} leading={<ShareGlyph />} onClick={() => void share()}>{copy.sharePoster}</Btn>
+        </div>
+        <div className={styles.posterCopies}>
+          {username ? <Btn kind="secondary" onClick={() => void copyValue(`@${username}`)}>{copy.copyUsername}</Btn> : null}
+          <Btn kind="secondary" onClick={() => void copyValue(address)}>{copy.copyAddress}</Btn>
+        </div>
+      </div>
+      <div className={styles.qrSource} aria-hidden="true">
+        <QRCodeCanvas ref={qr} value={address} size={680} level="M" marginSize={4} />
+      </div>
     </div>
   </dialog>;
 }

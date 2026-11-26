@@ -120,3 +120,33 @@
 .guidanceFooter { padding: 0 20px calc(20px + env(safe-area-inset-bottom, 0px)); }
 .guidanceFooter button { width: 100%; }
 .guidanceDialog :is(button):focus-visible { outline: 2px solid var(--sl-primary); outline-offset: 2px; }
+.posterDialog {
+  position: fixed;
+  inset: auto auto var(--poster-bottom, 0px) var(--poster-center, 50%);
+  box-sizing: border-box;
+  width: min(var(--poster-frame-width, 100vw), 500px);
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  transform: translateX(-50%);
+  overflow: hidden;
+  border: 0;
+  border-radius: 24px 24px 0 0;
+  background: var(--sl-surface);
+  color: var(--sl-ink);
+  box-shadow: 0 -14px 46px #0b18301c;
+}
+.posterDialog::backdrop { background: #101a2b66; }
+.posterSheet { display: flex; flex-direction: column; max-height: min(90dvh, var(--poster-frame-height, 100dvh)); }
+.posterHeader { position: relative; display: flex; flex: 0 0 auto; align-items: center; justify-content: center; min-height: 54px; padding: 2px 58px 10px; border-bottom: 1px solid var(--sl-line); }
+.posterHeader h2 { margin: 0; font-size: 18px; font-weight: 700; line-height: 1.35; text-align: center; }
+.posterContent { min-height: 0; overflow-y: auto; padding: 14px 18px calc(18px + env(safe-area-inset-bottom, 0px)); overscroll-behavior: contain; }
+.posterPreview { display: grid; min-height: 180px; place-items: center; overflow: hidden; border: 1px solid var(--sl-line); border-radius: 18px; background: var(--sl-tint); }
+.posterPreview img { display: block; width: auto; max-width: 100%; max-height: min(42dvh, 430px); object-fit: contain; box-shadow: 0 5px 20px #0c1a3920; }
+.posterPreview p { padding: 20px; color: var(--sl-sub); font-size: 13px; text-align: center; }
+.posterActions, .posterCopies { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+.posterCopies button:only-child { grid-column: 1 / -1; }
+.posterStatus { min-height: 18px; margin: 8px 2px 0; color: var(--sl-sub); font-size: 12px; text-align: center; }
+.qrSource { position: absolute; top: 0; left: -10000px; width: 680px; height: 680px; overflow: hidden; visibility: hidden; pointer-events: none; }
+.posterDialog :is(button):focus-visible { outline: 2px solid var(--sl-primary); outline-offset: 2px; }

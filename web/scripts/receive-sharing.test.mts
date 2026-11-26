@@ -76,7 +76,11 @@ function setup(options: { locale?: Locale; configured?: boolean; share?: Share; 
       if (name === "react") return hooks;
       if (name === "react/jsx-runtime") return jsxRuntime;
       if (name === "next/link") return { __esModule: true, default: (props: { href: string; children: React.ReactNode }) => React.createElement("a", { href: props.href }, props.children) };
-      if (name === "qrcode.react") return { QRCodeSVG: (props: { value: string }) => React.createElement("svg", { "data-qr-value": props.value }) };
+      if (name === "next/image") return { __esModule: true, default: (props: React.ImgHTMLAttributes<HTMLImageElement>) => React.createElement("img", props) };
+      if (name === "qrcode.react") return {
+        QRCodeSVG: (props: { value: string }) => React.createElement("svg", { "data-qr-value": props.value }),
+        QRCodeCanvas: (props: { value: string }) => React.createElement("canvas", { "data-qr-canvas": props.value }),
+      };
       if (name === "@/app/account-details-actions") return { accountDetails(owner: string) { const result = deferred<AccountDetailsResult>(); reads.push({ owner, result }); return result.promise; } };
       if (name === "@/lib/supabase/env") return { supabaseConfigured: () => options.configured ?? true };
       if (name === "@/lib/supabase/client") return { createSupabaseBrowser() { calls.auth++; return { auth: {
@@ -84,6 +88,7 @@ function setup(options: { locale?: Locale; configured?: boolean; share?: Share; 
         onAuthStateChange(callback: AuthListener) { listener = callback; return { data: { subscription: { unsubscribe() { calls.unsubscribed++; } } } }; },
       } }; } };
       if (name === "@/lib/receive") return { receiveDestination, receiveShareData };
+      if (name === "@/lib/receive-poster") return { drawReceivePoster: async () => null };
       if (name === "@/lib/i18n/receive") return { receiveCopy };
       if (name === "@/lib/i18n/xlm-deposit") return { xlmDepositCopy };
       if (name === "@/lib/i18n/revamp-money") return { moneyCopy, moneyMessage };
@@ -119,8 +124,14 @@ function setup(options: { locale?: Locale; configured?: boolean; share?: Share; 
     (button.props.onClick as () => void)();
     return render();
   }
+  async function copyMainAddress() {
+    const button = nodes(render()).find(node => node.type === "button" && node.props["aria-label"] === xlmDepositCopy(locale).copy);
+    assert.ok(button, "Receive screen should copy the verified full address");
+    await (button.props.onClick as () => Promise<void>)();
+  }
   return { render, reads, user, calls, html: () => renderToStaticMarkup(render()), shareButton,
     openGuidance,
+    copyMainAddress,
     async share() { const button = shareButton(); assert.equal(button.props.disabled, false); await (button.props.onClick as () => Promise<void>)(); },
     async shareUsername() {
       const button = nodes(render()).find(node => node.type === "button" && node.props.children === receiveCopy(locale).shareUsername);
@@ -171,13 +182,16 @@ for (const locale of LOCALES) {
     assert.doesNotMatch(html, /<details/);
     h.cleanup();
   });
-  test(`${locale}: no-handle share uses the complete public address as text and exposes manual-copy guidance`, async () => {
+  test(`${locale}: no-handle share opens a poster with its verified address and copy action`, async () => {
     const h = setup({ locale, share: async () => {} }); await ready(h, account(null)); const html = h.html();
     assert.ok(html.includes(address)); assert.ok(html.includes(receiveCopy(locale).addressHint));
     assert.ok(html.includes(receiveCopy(locale).addressScan)); assert.match(html, new RegExp(`data-qr-value="${address}"`));
     assert.doesNotMatch(html, /send\?to=|salapi\.app\/[A-Z2-7]{56}/); await h.share();
-    assert.deepEqual(h.calls.shares, [{ title: "Salapi", text: `${receiveCopy(locale).addressCaption}\n${address}` }]);
-    assert.equal("url" in h.calls.shares[0], false); h.cleanup();
+    const posterHtml = h.html();
+    assert.match(posterHtml, /<dialog/);
+    assert.ok(posterHtml.includes(receiveCopy(locale).sharePoster));
+    assert.ok(posterHtml.includes(receiveCopy(locale).copyAddress));
+    assert.deepEqual(h.calls.shares, []); h.cleanup();
   });
 }
 
@@ -185,19 +199,19 @@ test("clipboard fallback matches the selected share action", async () => {
   for (const handle of ["fixture_user", null]) {
     const h = setup(); await ready(h, account(handle));
     if (handle) await h.shareUsername();
-    else await h.share();
+    else await h.copyMainAddress();
     assert.deepEqual(h.calls.copies, [handle ? "https://salapi.app/send?to=fixture_user" : address]);
     assert.ok(h.html().includes("Copied")); h.cleanup();
   }
 });
 test("unsupported share falls back to clipboard; cancellation does not copy", async () => {
   const failed = setup({ share: async () => { throw new DOMException("Unsupported", "NotSupportedError"); } });
-  await ready(failed, account(null)); await failed.share(); assert.deepEqual(failed.calls.copies, [address]); failed.cleanup();
+  await ready(failed); await failed.shareUsername(); assert.deepEqual(failed.calls.copies, ["https://salapi.app/send?to=fixture_user"]); failed.cleanup();
   const cancelled = setup({ share: async () => { throw new DOMException("Cancelled", "AbortError"); } });
-  await ready(cancelled); await cancelled.share(); assert.deepEqual(cancelled.calls.copies, []); assert.equal(cancelled.timers.size, 0); cancelled.cleanup();
+  await ready(cancelled); await cancelled.shareUsername(); assert.deepEqual(cancelled.calls.copies, []); assert.equal(cancelled.timers.size, 0); cancelled.cleanup();
 });
 test("clipboard failure renders an honest localized alert without claiming success", async () => {
-  const h = setup({ locale: "id", copy: async () => { throw Error("Denied"); } }); await ready(h, account(null)); await h.share();
+  const h = setup({ locale: "id", copy: async () => { throw Error("Denied"); } }); await ready(h, account(null)); await h.copyMainAddress();
   assert.ok(h.html().includes(receiveCopy("id").shareUnavailable)); assert.match(h.html(), /role="alert"/); assert.equal(h.timers.size, 0); h.cleanup();
 });
 test("guests and unconfigured sessions have no wallet read, QR or enabled share and preserve sign-in return path", async () => {
@@ -233,8 +247,8 @@ test("late initial auth and unmounted reads do not restore a previous wallet", a
 });
 test("an account switch during sharing prevents stale clipboard fallback and copied state", async () => {
   const shared = deferred<void>(); const h = setup({ share: () => shared.promise }); await ready(h);
-  const attempt = h.share(); h.auth("SIGNED_OUT", null); shared.reject(new DOMException("Unsupported", "NotSupportedError")); await attempt;
+  const attempt = h.shareUsername(); h.auth("SIGNED_OUT", null); shared.reject(new DOMException("Unsupported", "NotSupportedError")); await attempt;
   assert.deepEqual(h.calls.copies, []); assert.equal(h.timers.size, 0); assert.doesNotMatch(h.html(), /Copied|fixture_user/); h.cleanup();
-  const copied = deferred<void>(); const h2 = setup({ copy: () => copied.promise }); await ready(h2); const copyAttempt = h2.share();
+  const copied = deferred<void>(); const h2 = setup({ copy: () => copied.promise }); await ready(h2); const copyAttempt = h2.shareUsername();
   h2.auth("SIGNED_OUT", null); copied.resolve(); await copyAttempt; assert.doesNotMatch(h2.html(), /Copied|fixture_user/); assert.equal(h2.timers.size, 0); h2.cleanup();
 });
