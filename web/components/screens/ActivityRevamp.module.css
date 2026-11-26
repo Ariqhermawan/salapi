@@ -616,27 +616,29 @@
 .activityFilters::-webkit-scrollbar { display: none; }
 .activityFilters button {
   flex: 0 0 auto;
-  min-height: 36px;
+  height: 36px;
   padding: 0 14px;
   border: 0;
   border-radius: 10px;
-  background: #e9eefb;
-  color: #4d5f7a;
+  background: color-mix(in srgb, var(--sl-primary) 10%, var(--sl-surface));
+  color: var(--sl-primary);
   font: inherit;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
   cursor: pointer;
+  transition: background-color 150ms ease, box-shadow 150ms ease;
 }
-.activityFilters button[aria-pressed="true"] { background: #dce8ff; color: #1748b8; box-shadow: inset 0 0 0 1px #2563eb; }
-.activityFilters button:focus-visible, .showAll:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+.activityFilters button[aria-pressed="true"] { background: var(--sl-tint); box-shadow: inset 0 0 0 1px var(--sl-primary); }
+.activityFilters button:focus-visible, .showAll:focus-visible { outline: 2px solid var(--sl-primary); outline-offset: 2px; }
 .showAll {
   min-height: 40px;
   margin-top: 12px;
   padding: 0 14px;
-  border: 1px solid #cbd8ec;
+  border: 1px solid var(--sl-line);
   border-radius: 11px;
-  background: #fff;
-  color: #1553d6;
+  background: var(--sl-surface);
+  color: var(--sl-primary);
   font: inherit;
   font-size: 12px;
   font-weight: 650;
