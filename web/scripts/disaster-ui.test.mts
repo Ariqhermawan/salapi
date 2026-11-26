@@ -14,6 +14,8 @@ test("D3 every contribution phase uses the single-navigation-reserve layout", ()
 test("D3 explains the shared fund with a small safe illustration and live contract rules", () => {
   assert.match(screen, /<h1>Disaster Vault<\/h1>/);
   assert.match(screen, /Shared pool, not your personal balance/);
+  assert.match(screen, /<h1>Contribute<\/h1>/);
+  assert.match(screen, /aria-label="Contribution destination"/);
   assert.match(screen, /disaster-safe\.webp/);
   assert.ok(statSync(new URL("../public/illustrations/disaster-safe.webp", import.meta.url)).size < 40_000);
   assert.match(controls, /<ol className=\{styles\.vaultSteps\}>/);

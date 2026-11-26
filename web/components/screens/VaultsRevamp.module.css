@@ -669,6 +669,23 @@
   font-variant-numeric: tabular-nums;
   color: #233f65;
 }
+.contributionDestination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid #e9eef5;
+  margin-top: 13px;
+  padding-top: 12px;
+  font-size: 12px;
+}
+.contributionDestination > span {
+  color: #7f8da2;
+}
+.contributionDestination strong {
+  color: #233f65;
+  font-weight: 650;
+}
 .technicalDetails summary {
   font-size: 11px;
   color: #607493;

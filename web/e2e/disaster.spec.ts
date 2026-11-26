@@ -133,7 +133,9 @@ test.describe("D3 local UI and HTTP authorization", () => {
         await page.screenshot({ path: `${process.env.DISASTER_QA_SCREENSHOTS}/disaster-${viewport.width}-bottom.png` });
       }
       await page.getByRole("button", { name: "Contribute to the pool", exact: true }).click();
-      await expect(page.getByLabel("Contribution amount (PHP)")).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Contribute", exact: true })).toBeVisible();
+      await expect(page.getByLabel("Amount · PHP")).toBeVisible();
+      await expect(page.getByRole("group", { name: "Contribution destination" })).toContainText("Disaster Vault");
       await page.getByRole("button", { name: "Disaster Vault", exact: true }).click();
       await expect(page.getByRole("heading", { name: "Disaster Vault", exact: true })).toBeVisible();
       expect(writes).toHaveLength(0);

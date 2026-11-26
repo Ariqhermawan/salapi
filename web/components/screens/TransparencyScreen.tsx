@@ -286,13 +286,10 @@ export default function TransparencyScreen() {
         </div>
         <section className={styles.publicHeader}>
           <div>
-            <span className={styles.eyebrow}>
-              Contribute to the public pool
-            </span>
-            <h1>Give together.</h1>
+            <span className={styles.eyebrow}>Disaster Vault</span>
+            <h1>Contribute</h1>
             <p>
-              Help fund this shared Disaster Vault. Payouts follow its approval
-              rules.
+              Add to the shared relief pool using your Testnet wallet.
             </p>
           </div>
         </section>
@@ -301,9 +298,9 @@ export default function TransparencyScreen() {
             Local preview · example data
           </div>
         )}
-        <div className={styles.warmSection}>
+        <div className={styles.detailCard}>
           <label className={styles.inputLabel} htmlFor="disaster-contribution">
-            Contribution amount ({CURRENCY[currency].code})
+            Amount · {CURRENCY[currency].code}
           </label>
           <input
             id="disaster-contribution"
@@ -345,6 +342,10 @@ export default function TransparencyScreen() {
             sends valueless Stellar Testnet XLM, not real money.
           </p>
           <AvailableWalletBalance amountStroops={localToStroops(amount, currency)} />
+          <div className={styles.contributionDestination} role="group" aria-label="Contribution destination">
+            <span>To</span>
+            <strong>Disaster Vault</strong>
+          </div>
         </div>
         <div className={styles.readOnlyNotice} style={{ marginTop: 17 }}>
           Contributions remain open even if payouts are paused. Two different
