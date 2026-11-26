@@ -8,11 +8,11 @@ import { T, Ico, AppBar, IconButton, Card, Row, Btn, Chip, Money, PoweredByStell
 import { useGoBack } from "@/lib/ui/useGoBack";
 import { CURRENCY, formatLocalAmount, localAmount, pesoFromLocal } from "@/lib/ui/currency";
 import { isLocalPreview, PREVIEW_WALLET } from "@/lib/local-preview";
-import PaymentProviderDemo from "./PaymentProviderDemo";
 import PaymentChannelOptions from "./PaymentChannelOptions";
 import SuccessMotion from "@/components/ui/SuccessMotion";
 import MarketValue from "@/components/MarketValue";
 import { accountCopy, type AccountCopyKey } from "@/lib/i18n/revamp-account";
+import PrototypeWithdrawScreen from "./PrototypeWithdrawScreen";
 
 export default function WithdrawScreen() {
   const { t, locale, currency } = useT();
@@ -48,7 +48,7 @@ export default function WithdrawScreen() {
       finally { submitting.current = false; }
     });
   }
-  if(isLocalPreview)return <PaymentProviderDemo payout/>;
+  if(isLocalPreview)return <PrototypeWithdrawScreen/>;
   return <div style={{ fontFamily: T.fontSans, color: T.ink, minHeight: "100%", paddingBottom: 24 }}>
     <AppBar title={t("withdraw.title")} leading={<IconButton ariaLabel={c.back} onClick={() => review && !done ? setReview(false) : goBack()}>{Ico.back({})}</IconButton>} />
     <div style={{ padding: "4px 20px" }}>

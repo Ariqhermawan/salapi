@@ -4,28 +4,22 @@ import { requireWalletState } from "@/lib/wallet-state";
 // Profile and settings share one compact account sheet. Unavailable features
 // remain explicitly labelled instead of resembling enabled security controls.
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BookmarkSimple } from "@phosphor-icons/react/dist/csr/BookmarkSimple";
-import { Moon } from "@phosphor-icons/react/dist/csr/Moon";
-import { Sun } from "@phosphor-icons/react/dist/csr/Sun";
+import { CopySimple } from "@phosphor-icons/react/dist/csr/CopySimple";
+import { UserPlus } from "@phosphor-icons/react/dist/csr/UserPlus";
 import type { ReactNode } from "react";
 import { isAuthSessionMissingError } from "@supabase/supabase-js";
 import {
   walletState,
-  registerUsername,
-  renameUsername,
 } from "@/app/actions";
 import { settingsHandle } from "@/app/account-actions";
-import AccountAvatar from "@/components/AccountAvatar";
-import { useAccountPhoto } from "@/components/useAccountPhoto";
-import { accountPhotoCopy } from "@/lib/i18n/account-photo";
 import { createSupabaseBrowser } from "@/lib/supabase/client";
 import { supabaseConfigured } from "@/lib/supabase/env";
 import { useT } from "@/components/I18nProvider";
 import { LOCALE_META } from "@/lib/i18n/config";
 import { accountCopy, accountCurrencyName, type AccountCopyKey } from "@/lib/i18n/revamp-account";
-import { homeCopy } from "@/lib/i18n/revamp-home";
 import { campaignDiscoveryCopy } from "@/lib/i18n/revamp-campaign-discovery";
 import { CURRENCY } from "@/lib/ui/currency";
 import { isLocalPreview, PREVIEW_WALLET } from "@/lib/local-preview";
@@ -33,8 +27,6 @@ import {
   T,
   Ico,
   Btn,
-  PoweredByStellar,
-  MakerLockup,
 } from "@/components/ui/kit";
 import styles from "./SettingsRevamp.module.css";
 
@@ -75,116 +67,8 @@ function SectionLabel({ children, id }: { children: ReactNode; id: string }) {
   );
 }
 
-// Username row + inline claim/rename editor. Renders as a fragment so it
-// can sit as the first row of the Akun card.
-function UsernamePanel({
-  current,
-  onChanged,
-}: {
-  current: string | null;
-  onChanged: (name: string) => void;
-}) {
-  const { t, locale } = useT();
-  const c = accountCopy(locale);
-  const [editing, setEditing] = useState(false);
-  const [val, setVal] = useState("");
-  const [msg, setMsg] = useState<{ ok: boolean; text: string; link?: string } | null>(null);
-  const [pending, start] = useTransition();
-  const has = Boolean(current);
-
-  function save() {
-    const clean = val.trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
-    if (clean.length < 3 || clean.length > 32) {
-      setMsg({ ok: false, text: t("settings.usernameMinChars") });
-      return;
-    }
-    start(async () => {
-      setMsg(null);
-      try {
-        const r = isLocalPreview
-          ? { ok: true as const, name: clean, link: undefined }
-          : has ? await renameUsername(clean) : await registerUsername(clean);
-        if (r.ok) {
-          setMsg({ ok: true, text: t("settings.usernameSaved", { name: r.name }), link: r.link });
-          setEditing(false);
-          setVal("");
-          onChanged(r.name);
-        } else {
-          setMsg({ ok: false, text: r.error || t("settings.usernameSaveFailed") });
-        }
-      } catch {
-        setMsg({ ok: false, text: c.usernameSaveError });
-      }
-    });
-  }
-
-  return (
-    <>
-      <SettingRow
-        icon={Ico.user({ size: 21, c: T.action })}
-        title={t("settings.username")}
-        sub={has ? `@${current}` : t("settings.claimPrompt")}
-        trailing={
-          !editing ? (
-            <button
-              type="button"
-              className={styles.textAction}
-              onClick={() => {
-                setEditing(true);
-                setMsg(null);
-                setVal("");
-              }}
-            >
-              {has ? t("settings.change") : t("settings.claim")}
-            </button>
-          ) : null
-        }
-      />
-      {editing && (
-        <div className={styles.usernameEditor}>
-          <div className={styles.usernameInput}>
-            <span>@</span>
-            <input
-              autoFocus
-              value={val}
-              aria-label={c.newUsername}
-              maxLength={32}
-              onChange={(e) => setVal(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 32))}
-              placeholder={t("settings.newnamePlaceholder")}
-            />
-          </div>
-          <div className={styles.editorActions}>
-            <Btn kind="primary" size="md" disabled={pending || val.length < 3} loading={pending} onClick={save}>
-              {has ? t("settings.saveNew") : t("settings.claimUsername")}
-            </Btn>
-            <Btn kind="ghost" size="md" full={false} disabled={pending} onClick={() => { setEditing(false); setMsg(null); }}>
-              {t("settings.cancel")}
-            </Btn>
-          </div>
-          <p className={styles.editorHint}>
-            {t("settings.usernameSub")} · {t("settings.usernameHint")}
-          </p>
-          {isLocalPreview ? <p className={styles.editorHint}>{c.previewNames}</p> : null}
-        </div>
-      )}
-      {msg && (
-        <div className={styles.messageWrap}>
-          <div className={msg.ok ? styles.success : styles.error} role={msg.ok ? "status" : "alert"}>
-            <span>{msg.ok ? "✓ " : ""}{msg.text}</span>
-            {msg.link && (
-              <a className={styles.externalLink} href={msg.link} target="_blank" rel="noopener noreferrer">
-                {t("settings.view")} {Ico.link({ size: 13, c: T.action })}
-              </a>
-            )}
-          </div>
-        </div>
-      )}
-    </>
-  );
-}
-
 export default function SettingsScreen() {
-  const { t, locale, currency, currencyPref } = useT();
+  const { t, locale, currency } = useT();
   const c = accountCopy(locale);
   const router = useRouter();
   const configured = !isLocalPreview && supabaseConfigured();
@@ -197,9 +81,9 @@ export default function SettingsScreen() {
   const [loadError, setLoadError] = useState<AccountCopyKey | "">("");
   const [signOutPending, setSignOutPending] = useState(false);
   const [signOutError, setSignOutError] = useState(false);
+  const [copiedAddress, setCopiedAddress] = useState(false);
+  const [updateMessage, setUpdateMessage] = useState("");
   const signOutInFlight = useRef(false);
-  const photo = useAccountPhoto(() => signOutInFlight.current);
-  const photoCopy = accountPhotoCopy(locale);
 
   useEffect(() => {
     let active = true;
@@ -288,14 +172,19 @@ export default function SettingsScreen() {
   // verified account email instead of briefly presenting a generic identity.
   const profileStatus = nameStatus !== "ready" || name
     ? nameStatus : !authChecked ? "loading" : authFailed ? "error" : "ready";
-  const guest = !isLocalPreview && profileStatus === "ready" && !name && !supaEmail && authChecked && !authFailed;
-  const display = name ? `@${name}` : supaEmail ?? c.guestAccount;
-  const profileSub = isLocalPreview ? c.previewAccount : profileStatus === "loading" ? c.loading
-    : profileStatus === "error" ? c.profileUnavailable : guest ? c.sharedDemoWallet : c.managedWallet;
+  const signedIn = isLocalPreview || Boolean(supaEmail);
+  const display = !isLocalPreview && name ? `@${name}` : signedIn ? "Your account" : "Guest account";
   const shortAddr = addr ? `${addr.slice(0, 4)}…${addr.slice(-4)}` : "-";
-  const explorer = addr
-    ? `https://stellar.expert/explorer/testnet/account/${addr}`
-    : undefined;
+  async function copyAddress() {
+    if (!addr) return;
+    try {
+      await navigator.clipboard.writeText(addr);
+      setCopiedAddress(true);
+      window.setTimeout(() => setCopiedAddress(false), 1600);
+    } catch {
+      setCopiedAddress(false);
+    }
+  }
   const value = (text: string) => (
     <span className={styles.preferenceValue}>
       <span>{text}</span>
@@ -310,109 +199,67 @@ export default function SettingsScreen() {
       </header>
       {loadError ? <p role="alert" className={styles.loadError}>{c[loadError]}</p> : null}
 
-      <button type="button" className={styles.profile} onClick={() => router.push("/settings/account")}
-        disabled={profileStatus === "loading" || signOutPending} aria-busy={profileStatus === "loading"} data-profile-state={profileStatus}
-        aria-label={profileStatus === "loading" ? c.profileLoading : profileStatus === "error" ? c.accountDetails : undefined}>
-        {profileStatus === "ready" ? <AccountAvatar name={name || supaEmail || c.guestAccount} photoUrl={photo.profile?.photoUrl ?? null} size={46} alt={photoCopy.alt} loading={photo.status === "loading"} />
-          : <span className={`${styles.profileAvatarPlaceholder} ${profileStatus === "loading" ? "sl-skel" : ""}`} aria-hidden="true" />}
+      <section className={styles.profile} aria-label={c.accountDetails}>
+        <span className={styles.accountMark} aria-hidden="true">{Ico.user({ size: 21, c: T.action })}</span>
         <span className={styles.profileCopy}>
-          <span className={styles.profileName}>{profileStatus === "loading"
-            ? <span className={`${styles.profileNamePlaceholder} sl-skel`} aria-hidden="true" />
-            : profileStatus === "error" ? c.profileUnavailable : display}</span>
-          <span className={styles.profileSub}>{profileSub}</span>
-          <span className={styles.profileMeta}>
-            <span className={styles.testnet}><span />Testnet</span>
-            <span className={styles.accountDetails}>{profileStatus === "loading" ? c.loading : <>{c.accountDetails}{Ico.chev({ size: 15, c: T.action })}</>}</span>
-          </span>
+          <span className={styles.profileName}>{profileStatus === "loading" ? c.loading : display}</span>
+          {signedIn ? (
+            <button type="button" className={styles.walletCopy} onClick={copyAddress} disabled={!addr || signOutPending} aria-label={copiedAddress ? "Wallet address copied" : "Copy wallet address"}>
+              <span>{copiedAddress ? "Copied" : shortAddr}</span>
+              {copiedAddress ? Ico.check({ size: 14, c: T.action }) : <CopySimple size={14} aria-hidden="true" />}
+            </button>
+          ) : <span className={styles.profileSub}>Sign in to see your wallet address and account details.</span>}
         </span>
-      </button>
+        {!signedIn ? <Btn kind="secondary" size="sm" full={false} onClick={() => router.push("/signin")}>{t("signin.signIn")}</Btn> : null}
+      </section>
 
+      <SectionLabel id="account-title">Account</SectionLabel>
       <section className={styles.sheet} aria-labelledby="account-title">
-        <SectionLabel id="account-title">Account</SectionLabel>
         <div className={styles.rows}>
-          {profileStatus === "ready" ? <UsernamePanel current={name} onChanged={setName} /> : <SettingRow
+          <SettingRow
             icon={Ico.user({ size: 21, c: T.action })}
             title={t("settings.username")}
-            sub={profileStatus === "loading" ? c.loading : c.profileUnavailable}
-          />}
-          {supaEmail && (
+            sub={!isLocalPreview && name ? `@${name}` : undefined}
+            onClick={() => router.push("/username")}
+            trailing={!isLocalPreview && name ? Ico.chev({ size: 15, c: T.slate }) : <span className={styles.textAction}>{t("settings.claim")}</span>}
+          />
+          {signedIn ? <>
             <SettingRow
               icon={Ico.user({ size: 21, c: T.action })}
-              title={t("settings.googleSignedIn")}
-              sub={supaEmail}
-              trailing={
-                <button type="button" className={styles.textAction} onClick={signOut} disabled={signOutPending} aria-busy={signOutPending}>
-                  {signOutPending ? c.signingOut : t("settings.signOut")}
-                </button>
-              }
-            />
-          )}
-          {signOutError ? <p role="alert" className={styles.loadError}>{c.signOutError}</p> : null}
-          {authChecked && !authFailed && !supaEmail && (
-            <SettingRow
-              icon={Ico.lock({ size: 21, c: T.action })}
-              title={t("signin.signIn")}
-              sub={t("signin.subtitle")}
-              onClick={() => router.push("/signin")}
+              title={c.accountDetails}
+              onClick={() => router.push("/you/account")}
               trailing={Ico.chev({ size: 15, c: T.slate })}
             />
-          )}
-          {authChecked && authFailed ? <p className={styles.loadError} role="alert">{c.profileUnavailable}</p> : null}
-          {!authChecked ? <p className={styles.authLoading} role="status">{t("common.loading")}</p> : null}
-          <SettingRow
-            icon={Ico.user({ size: 21, c: T.action })}
-            title={c.accountDetails}
-            onClick={() => router.push("/settings/account")}
-            trailing={Ico.chev({ size: 15, c: T.slate })}
-          />
-          <SettingRow
-            icon={Ico.link({ size: 21, c: T.action })}
-            title={c.inviteFriends}
-            onClick={() => router.push("/you/invite")}
-            trailing={Ico.chev({ size: 15, c: T.slate })}
-          />
-          <SettingRow
-            icon={Ico.sparkle({ size: 21, c: T.action })}
-            title={t("settings.stellarWallet")}
-            sub={shortAddr}
-            trailing={
-              explorer ? (
-                <a
-                  className={styles.externalLink}
-                  href={explorer}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {t("settings.view")} {Ico.link({ size: 13, c: T.action })}
-                </a>
-              ) : (
-                <span className={styles.muted}>{t("common.loading")}</span>
-              )
-            }
-          />
+            <SettingRow
+              icon={<UserPlus size={21} aria-hidden="true" />}
+              title={c.inviteFriends}
+              onClick={() => router.push("/you/invite")}
+              trailing={Ico.chev({ size: 15, c: T.slate })}
+            />
+          </> : null}
         </div>
       </section>
 
+      <SectionLabel id="fundraising-title">Fundraising</SectionLabel>
       <section className={styles.sheet} aria-labelledby="fundraising-title">
-        <SectionLabel id="fundraising-title">Fundraising</SectionLabel>
         <div className={styles.rows}>
           <SettingRow
-            icon={Ico.user({ size: 21, c: T.action })}
+            icon={Ico.vault({ size: 21, c: T.action })}
             title="Your causes"
             onClick={() => router.push("/manage")}
-            trailing={Ico.chev({ size: 15, c: T.slate })}
+            trailing={isLocalPreview ? <span className={styles.muted}>None yet</span> : Ico.chev({ size: 15, c: T.slate })}
           />
           <SettingRow
             icon={<BookmarkSimple size={21} aria-hidden="true" />}
             title={campaignDiscoveryCopy(locale)("Saved causes")}
-            onClick={() => router.push("/saved")}
-            trailing={Ico.chev({ size: 15, c: T.slate })}
+            onClick={() => router.push("/you/saved")}
+            trailing={isLocalPreview ? <span className={styles.muted}>None yet</span> : Ico.chev({ size: 15, c: T.slate })}
           />
         </div>
       </section>
 
+      <SectionLabel id="preferences-title">{t("settings.preferences")}</SectionLabel>
       <section className={styles.sheet} aria-labelledby="preferences-title">
-        <SectionLabel id="preferences-title">{t("settings.preferences")}</SectionLabel>
         <div className={styles.rows}>
           <SettingRow
             icon={Ico.globe({ size: 21, c: T.action })}
@@ -423,11 +270,6 @@ export default function SettingsScreen() {
           <SettingRow
             icon={<span className={styles.currencySymbol}>{CURRENCY[currency].symbol.trim()}</span>}
             title={t("settings.currency")}
-            sub={
-              currencyPref
-                ? t("settings.currencyManual")
-                : t("settings.currencySub")
-            }
             onClick={() => router.push("/settings/currency")}
             trailing={value(accountCurrencyName(locale, currency))}
           />
@@ -438,14 +280,10 @@ export default function SettingsScreen() {
             trailing={Ico.chev({ size: 15, c: T.slate })}
           />
           <SettingRow
-            icon={<><span className="sl-show-light"><Moon size={21} aria-hidden /></span><span className="sl-show-dark"><Sun size={21} aria-hidden /></span></>}
-            title={<><span className="sl-show-light">{homeCopy(locale, "Dark theme")}</span><span className="sl-show-dark">{homeCopy(locale, "Light theme")}</span></>}
-            onClick={() => {
-              const root = document.documentElement;
-              const theme = root.dataset.theme === "dark" ? "light" : "dark";
-              root.dataset.theme = theme;
-              document.cookie = `salapi-theme=${theme}; Path=/; SameSite=Lax; Max-Age=31536000`;
-            }}
+            icon={Ico.shield({ size: 21, c: T.action })}
+            title={t("settings.security")}
+            onClick={() => router.push("/you/security")}
+            trailing={Ico.chev({ size: 15, c: T.slate })}
           />
         </div>
       </section>
@@ -453,56 +291,48 @@ export default function SettingsScreen() {
       <section className={styles.support} aria-label={c.featuresSupport}>
         <SettingRow
           icon={Ico.bulb({ size: 21, c: T.action })}
-          title={locale === "id" ? "Kirim masukan" : locale === "tl" ? "Magpadala ng feedback" : locale === "vi" ? "Gửi phản hồi" : "Send feedback"}
-          sub={locale === "id" ? "Saran, pertanyaan, atau kendala" : "Suggestions, questions, or a problem"}
-          onClick={() => router.push("/you/feedback")}
-          trailing={Ico.chev({ size: 16, c: T.slate })}
-        />
-        <SettingRow
-          icon={Ico.shield({ size: 21, c: T.action })}
-          title={t("settings.security")}
-          sub={c.unavailableFeatures}
-          onClick={() => router.push("/settings/security")}
-          trailing={Ico.chev({ size: 16, c: T.slate })}
-        />
-        <SettingRow
-          icon={Ico.bulb({ size: 21, c: T.action })}
-          title={t("settings.helpCenter")}
-          sub={t("settings.helpCenterSub")}
+          title="Help center"
           onClick={() => router.push("/learn")}
           trailing={Ico.chev({ size: 16, c: T.slate })}
         />
         <SettingRow
-          icon={Ico.link({ size: 21, c: T.action })}
-          title={homeCopy(locale, "How Salapi works")}
-          onClick={() => router.push("/docs")}
+          icon={Ico.bulb({ size: 21, c: T.action })}
+          title={locale === "id" ? "Kirim masukan" : locale === "tl" ? "Magpadala ng feedback" : locale === "vi" ? "Gửi phản hồi" : "Send feedback"}
+          sub="Report a bug, suggest an idea, rate Salapi"
+          onClick={() => router.push("/you/feedback")}
+          trailing={Ico.chev({ size: 16, c: T.slate })}
+        />
+        <SettingRow
+          icon={Ico.lock({ size: 21, c: T.action })}
+          title="Privacy"
+          onClick={() => router.push("/you/privacy")}
           trailing={Ico.chev({ size: 16, c: T.slate })}
         />
         <SettingRow
           icon={Ico.shield({ size: 21, c: T.action })}
-          title={t("settings.privacy")}
-          sub={t("settings.privacySub")}
-          onClick={() => router.push("/privacy")}
+          title="Terms"
+          onClick={() => router.push("/you/terms")}
           trailing={Ico.chev({ size: 16, c: T.slate })}
         />
         <SettingRow
-          icon={Ico.shield({ size: 21, c: T.action })}
-          title={c.testnetTerms}
-          sub={c.termsSub}
-          onClick={() => router.push("/terms")}
-          trailing={Ico.chev({ size: 16, c: T.slate })}
+          icon={Ico.refresh({ size: 21, c: T.action })}
+          title="Check for updates"
+          sub={updateMessage || "Version 4.2.0 · Up to date"}
+          onClick={() => setUpdateMessage("Salapi is up to date")}
         />
       </section>
 
-      <footer className={styles.footer}>
-        <div className={styles.attribution}>
-          <MakerLockup />
-          <PoweredByStellar />
-        </div>
-        <span className={styles.version}>
-          Salapi 1.0 · testnet · {t("settings.forSEA")}
-        </span>
-      </footer>
+      {signedIn ? <section className={styles.support} aria-label={t("settings.signOut")}>
+        <SettingRow
+          icon={Ico.back({ size: 21, c: T.action })}
+          title={signOutPending ? c.signingOut : t("settings.signOut")}
+          onClick={signOut}
+          trailing={Ico.chev({ size: 16, c: T.slate })}
+        />
+        {signOutError ? <p role="alert" className={styles.loadError}>{c.signOutError}</p> : null}
+      </section> : null}
+
+      <footer className={styles.footer}><span className={styles.version}>Salapi 4.2.0</span></footer>
     </div>
   );
 }

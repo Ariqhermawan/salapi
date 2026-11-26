@@ -2,6 +2,17 @@ import type { Campaign } from "./campaign";
 
 /** Explicit local review mode. No keys or customer records are used. */
 export const isLocalPreview = process.env.NEXT_PUBLIC_LOCAL_PREVIEW === "1";
+export const PREVIEW_USERNAME_KEY = "salapi:local-preview:username:v1";
+export const PREVIEW_USERNAME_PATTERN = /^[a-z0-9_]{3,32}$/;
+
+export function localPreviewUsername(): string | null {
+  if (!isLocalPreview || typeof window === "undefined") return null;
+  try {
+    const value = window.localStorage.getItem(PREVIEW_USERNAME_KEY)?.trim().toLowerCase();
+    return value && PREVIEW_USERNAME_PATTERN.test(value) ? value : null;
+  } catch { return null; }
+}
+
 export const PREVIEW_PROOF_URL = "/evidence/local-example-proof.txt";
 export const PREVIEW_PROOF_HASH = "4709e27db6a7707a12557df52ad9ddb08c5258cd218847999c449055723a9fcc";
 /** The one local sample asset is not a valid public proof submission. */

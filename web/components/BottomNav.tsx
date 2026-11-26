@@ -24,12 +24,16 @@ export default function BottomNav() {
     path === "/signin" ||
     path === "/receive" ||
     path === "/you/invite" ||
+    path.startsWith("/you/verify/preview") ||
     path === "/you/heard" ||
     path === "/offline" ||
     path.startsWith("/docs") ||
     path === "/send" ||
+    /^\/activity\/[^/]+$/.test(path) ||
     path === "/topup" ||
     path === "/withdraw" ||
+    path.startsWith("/cause/") ||
+    path.startsWith("/donate/") ||
     (path === "/campaigns" && (params.has("id") || params.get("create") === "1")) ||
     path.startsWith("/circles/") ||
     path === "/arisan/new" ||

@@ -10,6 +10,7 @@ import { T, Ico, Btn, PoweredByStellar } from "@/components/ui/kit";
 import { CURRENCY, formatLocalAmount } from "@/lib/ui/currency";
 import { formatStroops } from "@/lib/format-stroops";
 import DisasterControls from "@/components/DisasterControls";
+import DisasterPartnersPreview from "@/components/screens/DisasterPartnersPreview";
 import { CampaignEvidence } from "@/components/screens/CampaignScreen";
 import type { Locale } from "@/lib/i18n/config";
 import styles from "./VaultsRevamp.module.css";
@@ -510,8 +511,9 @@ export default function TransparencyScreen({ initialPhase = "view" }: { initialP
                 </div>
                 <p className={styles.disasterRaised}>
                   ${PREVIEW_DISASTER.raised.toFixed(2)} raised of ${PREVIEW_DISASTER.target.toFixed(2)}
-                  {pool?.ok ? ` · up to ${formatStroops(pool.status.allowance)} XLM within the vault's current 24-hour limit` : " · vault limit unavailable"}
+                  {" · up to $321.05 of the vault can go to it"}
                 </p>
+                {PREVIEW ? <DisasterPartnersPreview view={ngoView} /> : null}
                 <Link className={styles.disasterCauseLink} href="/cause/bantayan">View cause {Ico.chev({ size: 14, c: T.action })}</Link>
               </div>
             </article>
@@ -526,21 +528,22 @@ export default function TransparencyScreen({ initialPhase = "view" }: { initialP
               </div>
             </section>
           )}
-          <section className={styles.partnerState} aria-labelledby="disaster-partners-title">
-            <span className={styles.eyebrow}>{ngoView === "team" ? "Salapi team · NGO review" : ngoView === "partner" ? "NGO view · profile preview" : "Disaster response partners"}</span>
-            <h2 id="disaster-partners-title">No NGOs assigned yet</h2>
-            <p>The Salapi team chooses the NGOs for this disaster.</p>
-            {ngoView === "partner" ? <Link href="/ngo/tulong-cebu">Open NGO profile preview {Ico.chev({ size: 14, c: T.action })}</Link> : null}
-          </section>
-          <details className={styles.payoutDisclosure}>
-            <summary><span>How the vault pays out</span>{Ico.chev({ size: 16, c: T.action })}</summary>
+          {!PREVIEW ? (
+            <section className={styles.partnerState} aria-labelledby="disaster-partners-title">
+              <span className={styles.eyebrow}>Disaster response partners</span>
+              <h2 id="disaster-partners-title">No NGOs assigned yet</h2>
+              <p>The Salapi team chooses the NGOs for this disaster.</p>
+            </section>
+          ) : null}
+          <section className={styles.payoutDisclosure} aria-labelledby="payout-info-title">
+            <h2 id="payout-info-title">How the vault pays out</h2>
             <p>Two of the three configured signer wallets must approve a payout. It then waits 20 Stellar ledgers before execution.</p>
             <div className={styles.payoutStats}>
               <span><small>Rolling 24-hour limit</small><strong>{pool?.ok ? `${pool.config.cap_bps / 100}% of the balance` : "Checking contract"}</strong></span>
               <span><small>Available now</small><strong>{pool?.ok ? `${formatStroops(pool.status.allowance)} XLM` : "Unavailable"}</strong></span>
             </div>
             <p>Contributions stay open while payouts are paused. The contract recalculates the limit when a payout is executed.</p>
-          </details>
+          </section>
           <details className={styles.controlsDisclosure} onToggle={(event) => setControlsOpen(event.currentTarget.open)}>
             <summary>On-chain approvals and signer controls</summary>
             {controlsOpen ? <DisasterControls pool={pool} onRefresh={refresh} publicProof={appendix} hideTabs /> : null}

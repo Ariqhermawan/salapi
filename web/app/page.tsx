@@ -17,6 +17,7 @@ import { useAccountPhoto } from "@/components/useAccountPhoto";
 import MarketValue from "@/components/MarketValue";
 import { Bell, Question } from "@phosphor-icons/react";
 import { PREVIEW_CAMPAIGNS, PREVIEW_TIME } from "@/lib/local-preview";
+import PrototypeHomeScreen from "@/components/screens/PrototypeHomeScreen";
 
 // Preview uses its declared native token quantity, never its demo fiat balance.
 const [previewWhole, previewFraction = ""] = PREVIEW_WALLET.xlm.split(".");
@@ -24,6 +25,11 @@ const previewNativeStroops = `${previewWhole}${previewFraction.padEnd(7, "0")}`;
 const HIDE_BALANCE_KEY = "salapi.security.hide-home-balance.v1";
 
 export default function Home() {
+  if (isLocalPreview) return <PrototypeHomeScreen />;
+  return <LiveHome />;
+}
+
+function LiveHome() {
   const { locale } = useT();
   const copy = (phrase: string) => homeCopy(locale, phrase);
   const photo = useAccountPhoto();

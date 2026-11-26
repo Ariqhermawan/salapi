@@ -13,7 +13,7 @@ import { CURRENCY, formatLocalAmount, pesoFromLocal } from "@/lib/ui/currency";
 import { localToStroops, marketUsdToStroops, nativeBalanceToStroops, pesosToStroopsExact, STROOPS_PER_XLM, type MoneyInput } from "@/lib/money";
 import { useMarketPrices } from "@/components/MarketPricesProvider";
 import { formatMarketValue, validateMarketPrices, type AvailableMarketPrices } from "@/lib/market-prices";
-import { isLocalPreview, PREVIEW_WALLET } from "@/lib/local-preview";
+import { isLocalPreview, localPreviewUsername, PREVIEW_WALLET } from "@/lib/local-preview";
 import { recordPreviewTransfer } from "@/lib/local-preview-history";
 import type { Locale } from "@/lib/i18n/config";
 import styles from "./SendRevamp.module.css";
@@ -102,7 +102,11 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
   }
 
   useEffect(() => {
-    if (isLocalPreview) return;
+    if (isLocalPreview) {
+      const username = localPreviewUsername();
+      if (username) setMine(username);
+      return;
+    }
     const saved = storedUnresolvedSend();
     unresolvedRef.current = saved;
     // Restore browser-only session state after hydration, never in SSR output.
@@ -309,9 +313,9 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
 
   return (
     <div className={styles.screen}>
-      <AppBar leading={transferPhase ? undefined : <IconButton ariaLabel={m("Back")} onClick={goBack}>{Ico.back({})}</IconButton>} title={transferPhase ? m("Waiting for network confirmation") : done ? m("Transfer receipt") : unresolved ? m("Check submitted transaction") : t("send.title")} trailing={transferPhase ? undefined : <IconButton ariaLabel={m("Receive")} onClick={() => router.push("/receive")}>{Ico.qr({})}</IconButton>} />
+      <AppBar leading={transferPhase ? undefined : <IconButton ariaLabel={m("Back")} onClick={goBack}>{Ico.back({})}</IconButton>} title={transferPhase ? m("Waiting for network confirmation") : done ? m("Transfer receipt") : unresolved ? m("Check submitted transaction") : t("send.title")} trailing={transferPhase || isLocalPreview ? undefined : <IconButton ariaLabel={m("Receive")} onClick={() => router.push("/receive")}>{Ico.qr({})}</IconButton>} />
       <div className={styles.content}>
-        <section className={styles.intro} aria-labelledby="send-heading">
+        {!isLocalPreview ? <section className={styles.intro} aria-labelledby="send-heading">
           <div>
             <span className={styles.eyebrow}>{isLocalPreview ? m("LOCAL PREVIEW") : m("STELLAR TESTNET")}</span>
             <h1 id="send-heading">{transferPhase ? (transferPhase === "check" ? m("Checking the original transaction…") : isLocalPreview ? m("LOCAL PREVIEW") : m("Sending Testnet XLM…")) : done ? (isLocalPreview ? m("Demo complete.") : done.statusOnly ? m("Transaction confirmed.") : m("Sent with a receipt.")) : unresolved ? m("Confirmation pending.") : m("Send by name.")}</h1>
@@ -319,7 +323,7 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
           </div>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img className={styles.doodle} src="/illustrations/send.png" alt="" width={102} height={102} />
-        </section>
+        </section> : null}
         {transferPhase ? <TransferMotion title={transferPhase === "check" ? m("Checking the original transaction…") : isLocalPreview ? m("LOCAL PREVIEW") : m("Waiting for network confirmation")} description={transferPhase === "check" ? m("This is a read-only check. No new transfer is being submitted.") : isLocalPreview ? m("No tokens moved. This is a local demonstration.") : m("Keep this page open. Do not send again while this transfer is being checked.")} /> : done ? <>
           <SuccessMotion variant="transfer" title={isLocalPreview ? m("Local transfer demo complete") : m("Testnet transfer confirmed")}><p>{isLocalPreview ? m("No tokens moved. This is a local demonstration.") : m("Verify the transaction details using the receipt below.")}</p></SuccessMotion>
           <article className={`${styles.ticket} ${styles.receipt}`} aria-label={m("Transfer receipt details")}>
@@ -363,7 +367,36 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
           </div>
           <p className={styles.notice}>{m("Only a confirmed failure unlocks another attempt. This session stores an unresolved hash or status marker, never payment or identity credentials.")}</p>
         </> : <>
-          <section className={styles.composer} aria-label={m("Transfer details")}>
+          {isLocalPreview ? <div className={styles.prototypeComposer}>
+            <section className={`${styles.composer} ${styles.prototypeRecipient}`} aria-label="Recipient">
+              <label className={styles.fieldLabel} htmlFor="send-recipient">{m("To")}</label>
+              <div className={styles.usernameInput}>
+                <span aria-hidden="true">@</span>
+                <input id="send-recipient" value={to} maxLength={33} aria-invalid={!!clean && !validUsername || !!lookupError}
+                  onChange={e => { lookupVersion.current++; setTo(e.target.value); setLookupError(""); }}
+                  placeholder="username" autoCapitalize="none" autoComplete="off" spellCheck={false} />
+              </div>
+              <span className={styles.recentLabel}>RECENT</span>
+              <div className={styles.recentList}>
+                {[["maria_s", "/prototype-causes/avatar-maria.png"], ["jamamam", ""], ["meis_family", "/prototype-causes/avatar-mei.png"]].map(([username, photo]) => <button key={username} type="button" onClick={() => { setTo(username); setLookupError(""); }}>
+                  <AccountAvatar name={username} photoUrl={photo || null} size={36} alt="" />
+                  <span>@{username}</span>
+                </button>)}
+              </div>
+              {clean && !validUsername ? <p role="alert" className={styles.inlineError}>{m("Enter a username with 3–32 letters, numbers or underscores.")}</p> : null}
+              {lookupError ? <p role="alert" className={styles.inlineError}>{lookupError}</p> : null}
+              {self ? <p role="alert" className={styles.inlineError}>{m("Choose a different recipient. You cannot send to yourself.")}</p> : null}
+            </section>
+            <section className={`${styles.composer} ${styles.prototypeAmount}`} aria-label="Amount">
+              <div className={styles.amountHeader}><label className={styles.fieldLabel} htmlFor="send-amount">{m("Amount ·")} {CURRENCY[currency].code} {CURRENCY[currency].symbol}</label></div>
+              <input className={styles.amountInput} id="send-amount" aria-describedby="send-unit" value={amount} maxLength={64} onChange={(e) => editAmount(e.target.value)} inputMode="decimal" placeholder={`${CURRENCY[currency].symbol}0`} />
+              <p className={styles.prototypeAvailable}>Available $2,412.26</p>
+              <div className={styles.presets} aria-label={m("Quick amounts")}>
+                {QUICK[currency].map(q => <button className={styles.preset} key={q} type="button" aria-pressed={amount === q} onClick={() => editAmount(q)}>{formatLocalAmount(Number(q), currency)}</button>)}
+              </div>
+              {invalidNative || !withinAmountLimit ? <p role="alert" className={styles.inlineError}>{invalidNative ? m("Enter XLM with up to 7 decimal places.") : m("The amount exceeds the supported safety limit.")}</p> : null}
+            </section>
+          </div> : <section className={styles.composer} aria-label={m("Transfer details")}>
             <div className={styles.recipientField}>
               <label className={styles.fieldLabel} htmlFor="send-recipient">{m("Recipient @username")}</label>
               <div className={styles.usernameInput}>
@@ -403,10 +436,11 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
               <label className={styles.fieldLabel} htmlFor="send-claim">{m("Your username")}</label>
               <div><input className={styles.claimInput} id="send-claim" aria-label={m("Choose your username")} value={claim} onChange={e => setClaim(e.target.value.replace(/[^a-zA-Z0-9_]/g, "").slice(0,32))} placeholder={m("your_username")} /><Btn kind="secondary" size="md" full={false} disabled={pending || claim.length < 3} onClick={doClaim}>{m("Claim")}</Btn></div>
             </div>}
-          </section>
-          {!withinAmountLimit ? <p role="alert" className={styles.inlineError}>{m("The amount exceeds the supported safety limit.")}</p> : null}
-          <div className={styles.actions}><Btn kind="primary" disabled={pending || !valid} loading={pending} trailing={Ico.chev({ c: "#fff" })} onClick={reviewTransfer}>{m("Review transfer")}</Btn></div>
-          <p className={styles.notice}>{m("Send valueless Testnet XLM. Review the amount and username before confirming.")} {!nativeInput && !usesMarketInput ? m("Testnet forms use fixed demo conversion, not the CoinGecko market estimate. Review the exact XLM before confirming.") : null}</p>
+          </section>}
+          {!isLocalPreview && !withinAmountLimit ? <p role="alert" className={styles.inlineError}>{m("The amount exceeds the supported safety limit.")}</p> : null}
+          {!isLocalPreview ? <><div className={styles.actions}><Btn kind="primary" disabled={pending || !valid} loading={pending} trailing={Ico.chev({ c: "#fff" })} onClick={reviewTransfer}>{m("Review transfer")}</Btn></div>
+          <p className={styles.notice}>{m("Send valueless Testnet XLM. Review the amount and username before confirming.")} {!nativeInput && !usesMarketInput ? m("Testnet forms use fixed demo conversion, not the CoinGecko market estimate. Review the exact XLM before confirming.") : null}</p></>
+          : <div className={styles.prototypeCta}><Btn kind="primary" disabled={pending || !valid} loading={pending} trailing={Ico.chev({ c: "#fff" })} onClick={reviewTransfer}>{m("Review transfer")}</Btn></div>}
           {reviewOpen && recipient ? (
             <dialog ref={reviewDialog} className={styles.reviewDialog} aria-labelledby={reviewTitle}
               onCancel={event => { event.preventDefault(); if (!pending && !submitting.current) discardRecipient(); }}
@@ -469,7 +503,7 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
           ) : null}
         </>}
         {err && !reviewOpen ? <p role="alert" className={styles.error}>{moneyMessage(locale, err)}</p> : null}
-        <footer className={styles.footer}><PoweredByStellar /></footer>
+        {!isLocalPreview ? <footer className={styles.footer}><PoweredByStellar /></footer> : null}
       </div>
     </div>
   );

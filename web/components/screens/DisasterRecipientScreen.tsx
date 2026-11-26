@@ -1,9 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { Flag } from "@phosphor-icons/react/dist/csr/Flag";
 import { useGoBack } from "@/lib/ui/useGoBack";
 import { disasterEvents } from "@/app/disaster-actions";
 import { formatStroops } from "@/lib/format-stroops";
+import { isLocalPreview } from "@/lib/local-preview";
 import { Ico } from "@/components/ui/kit";
 import styles from "./DisasterRecipientScreen.module.css";
 
@@ -12,6 +16,7 @@ const EXPLORER = "https://stellar.expert/explorer/testnet";
 
 export default function DisasterRecipientScreen({ address, slug }: { address?: string; slug?: string }) {
   const back = useGoBack("/vault");
+  const router = useRouter();
   const [feed, setFeed] = useState<Feed | null>(null);
 
   useEffect(() => {
@@ -25,6 +30,46 @@ export default function DisasterRecipientScreen({ address, slug }: { address?: s
   const payouts = feed?.ok
     ? feed.events.filter(event => event.kind === "payout" && event.counterparty === address)
     : [];
+
+  const previewNgo = slug ? ({
+    "tulong-cebu": { name: "Tulong Cebu Relief", initials: "TC", place: "Cebu City, PH", focus: "Typhoon and flood relief", about: "Volunteers who bring food packs, tarps and clean water to coastal barangays in the first week after a storm.", verified: true, reached: "1,240", payout: "$500.00", payoutCount: "1" },
+    "bangon-marikina": { name: "Bangon Marikina", initials: "BM", place: "Marikina, PH", focus: "Flood response", about: "A riverside volunteer group that runs evacuation boats and a community kitchen when the water rises.", verified: true, reached: "0", payout: "$0.00", payoutCount: "0" },
+    "dapur-siaga": { name: "Dapur Siaga Jakarta", initials: "DS", place: "Jakarta Utara, ID", focus: "Emergency kitchens", about: "Neighborhood cooks who open a shared kitchen within a day of a flood or a fire.", verified: false, reached: "0", payout: "$0.00", payoutCount: "0" },
+  } as const)[slug as "tulong-cebu" | "bangon-marikina" | "dapur-siaga"] : undefined;
+
+  if (isLocalPreview && previewNgo) return <main className={styles.screen}>
+    <header className={styles.header}>
+      <button type="button" aria-label="Back to Disaster Vault" className={styles.back} onClick={back}>{Ico.back({ size: 20 })}</button>
+      <h1>NGO</h1><span className={styles.spacer} aria-hidden="true" />
+    </header>
+    <section className={styles.previewNgoCard}>
+      <div className={styles.previewNgoTop}>
+        <span className={styles.previewNgoAvatar}>{previewNgo.initials}</span>
+        <div className={styles.previewNgoTitle}>
+          {previewNgo.verified ? <span className={styles.verified}>{Ico.check({ size: 12 })} Verified NGO</span> : <span className={styles.unverified}>Community NGO</span>}
+          <h2>{previewNgo.name}</h2>
+          <p>{previewNgo.place} · {previewNgo.focus}</p>
+        </div>
+      </div>
+      <p className={styles.previewNgoAbout}>{previewNgo.about}</p>
+      <div className={styles.previewNgoActions}>
+        <button type="button" className={styles.donateButton} onClick={() => router.push("/vault/contribute")}>Donate</button>
+        <button type="button" className={styles.reportButton} aria-label="Send feedback about this NGO" onClick={() => router.push("/you/feedback")}><Flag size={17} aria-hidden="true" /></button>
+      </div>
+      <p className={styles.sharedVaultNote}>Donations go to the shared Disaster Vault.</p>
+      <div className={styles.vaultTotal}><span>From the vault</span><strong>{previewNgo.payout}</strong></div>
+      <div className={styles.previewNgoStats}>
+        <div><span>Payouts</span><strong>{previewNgo.payoutCount}</strong></div>
+        <div><span>People reached</span><strong>{previewNgo.reached}</strong></div>
+      </div>
+    </section>
+    <section className={styles.previewActivity}>
+      <h2>Vault activity · {previewNgo.payoutCount}</h2>
+      {previewNgo.payoutCount === "1" ? <Link href="/vault?tab=activity" className={styles.previewActivityRow}>
+        <span><strong>Typhoon relief, Cebu</strong><small>12 Oct 2026</small></span><strong>{previewNgo.payout}</strong>
+      </Link> : <p>No sample payouts yet.</p>}
+    </section>
+  </main>;
 
   return <main className={styles.screen}>
     <header className={styles.header}>

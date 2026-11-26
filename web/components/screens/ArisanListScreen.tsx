@@ -22,8 +22,8 @@ import { readPreviewArisanRoom } from "./arisan-preview";
 
 type State = Awaited<ReturnType<typeof arisanList>>;
 const previewRooms: Extract<State, { ready: true }> = { ready: true, total: 2, nextCursor: null, mine: [
-  { id: 1, name: "Family arisan", status: "Open", memberCount: 5, memberTarget: 5, sharePeso: "250", potPeso: "1,250", sharePesos: 250, potPesos: 1250, cadence: "Weekly", firstKocok: 1791408000, round: 0, isMember: true, isHost: true, code: "FAM234" },
-  { id: 2, name: "Weekend community circle", status: "Active", memberCount: 4, memberTarget: 4, sharePeso: "180", potPeso: "720", sharePesos: 180, potPesos: 720, cadence: "Biweekly", firstKocok: 1791321600, round: 2, isMember: true, isHost: false, code: "CIR234" },
+  { id: 1, name: "Family Circle", status: "Open", memberCount: 2, memberTarget: 4, sharePeso: "145", potPeso: "580", sharePesos: 145, potPesos: 580, cadence: "Weekly", firstKocok: 1791408000, round: 0, isMember: true, isHost: true, code: "FAM234" },
+  { id: 2, name: "Kapitbahay Circle", status: "Active", memberCount: 5, memberTarget: 5, sharePeso: "290", potPeso: "1,450", sharePesos: 290, potPesos: 1450, cadence: "Biweekly", firstKocok: 1791321600, round: 2, isMember: true, isHost: false, code: "DRW789" },
 ] };
 
 const STATUS_TONE = {

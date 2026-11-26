@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { Info } from "@phosphor-icons/react/dist/csr/Info";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   disasterApprove,
@@ -665,7 +666,7 @@ export default function DisasterControls({
               <div className={styles.activitySummaryHeading}>
                 <span className={styles.eyebrow}>Shared pool balance</span>
                 <details className={styles.inlinePayoutInfo}>
-                  <summary>How the vault pays out</summary>
+                  <summary aria-label="How the vault pays out"><Info size={16} aria-hidden="true" /></summary>
                   <p>{state.paused ? "Payouts are paused. " : "Payouts are active. "}Two of three configured signers approve. Payouts wait 20 ledgers and stay within a {pool.config.cap_bps / 100}% rolling 24-hour cap.</p>
                 </details>
               </div>
@@ -680,7 +681,6 @@ export default function DisasterControls({
             <div className={styles.activitySectionHeading}>
               <h2 id="vault-activity-heading">Activity</h2>
               <label className={styles.activitySelectLabel}>
-                <span>Show</span>
                 <select
                   aria-label="Show activity"
                   value={activityFilter}

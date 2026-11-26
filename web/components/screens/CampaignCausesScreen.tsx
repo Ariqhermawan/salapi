@@ -19,6 +19,7 @@ import { formatIllustrativeUsd } from "@/lib/money";
 import { useGoBack } from "@/lib/ui/useGoBack";
 import { vaultCampaignMedia } from "@/lib/vault-campaign-media";
 import CauseCategoryDoodle from "@/components/ui/CauseCategoryDoodle";
+import PrototypeCausesScreen from "@/components/screens/PrototypeCausesScreen";
 import styles from "./CampaignCausesScreen.module.css";
 
 type State = Awaited<ReturnType<typeof campaignState>>;
@@ -95,6 +96,11 @@ function CauseCard({ campaign, status, category, featured, saved, onSave, localP
 }
 
 export default function CampaignCausesScreen({ initialSavedOnly = false }: { initialSavedOnly?: boolean }) {
+  if (isLocalPreview) return <PrototypeCausesScreen initialSavedOnly={initialSavedOnly} />;
+  return <LiveCampaignCausesScreen initialSavedOnly={initialSavedOnly} />;
+}
+
+function LiveCampaignCausesScreen({ initialSavedOnly = false }: { initialSavedOnly?: boolean }) {
   const { locale } = useT();
   const copy = campaignDiscoveryCopy(locale);
   const params = useSearchParams();

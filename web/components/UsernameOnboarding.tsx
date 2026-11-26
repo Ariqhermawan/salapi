@@ -1,18 +1,21 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
+import { createPortal } from "react-dom";
+import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { completeUsername } from "@/app/username-onboarding-actions";
 import { checkSubmittedTransaction } from "@/app/actions";
 import { createSupabaseBrowser } from "@/lib/supabase/client";
 import { supabaseConfigured } from "@/lib/supabase/env";
-import { isLocalPreview } from "@/lib/local-preview";
+import { isLocalPreview, PREVIEW_USERNAME_KEY } from "@/lib/local-preview";
 import { normalizedUsername, usernameGateExempt, type UsernameStatus } from "@/lib/username-onboarding";
 import { usernameOnboardingReader } from "@/lib/username-onboarding-client";
 import { usernameOnboardingCopy } from "@/lib/i18n/username-onboarding";
 import { useT } from "@/components/I18nProvider";
 import styles from "./UsernameOnboarding.module.css";
+import { AppBar, Btn, Ico, IconButton } from "@/components/ui/kit";
 
 type State = "idle" | "checking" | "ready" | "required" | "wallet_missing" | "unavailable";
 const subscribeReady = () => () => {};
@@ -32,6 +35,8 @@ export default function UsernameOnboarding() {
   const enabled = !isLocalPreview && supabaseConfigured();
   const [state, setState] = useState<State>(preview ? "required" : "idle");
   const [value, setValue] = useState("");
+  const [claimedPreviewUsername, setClaimedPreviewUsername] = useState<string | null>(null);
+  const [previewFrame, setPreviewFrame] = useState<HTMLElement | null>(null);
   const [busy, setBusy] = useState(false);
   const [uncertain, setUncertain] = useState(false);
   const [error, setError] = useState<"invalid" | "taken" | "failed" | null>(null);
@@ -48,6 +53,18 @@ export default function UsernameOnboarding() {
   const claimRequired = currentState === "required" || uncertain;
   const blocked = hydrated && (enabled || preview) && !usernameGateExempt(pathname)
     && (uncertain || !["idle", "ready", "checking"].includes(currentState));
+
+  useEffect(() => {
+    if (!preview) return;
+    setPreviewFrame(document.querySelector<HTMLElement>(".sl-app-frame"));
+    try {
+      const saved = window.localStorage.getItem(PREVIEW_USERNAME_KEY);
+      if (saved && normalizedUsername(saved)) {
+        setClaimedPreviewUsername(saved);
+        setValue(saved);
+      }
+    } catch { /* The claim form remains available when preview storage is blocked. */ }
+  }, [preview]);
 
   const check = useCallback(async (refresh = false) => {
     const expected = owner.current;
@@ -116,7 +133,16 @@ export default function UsernameOnboarding() {
     if (locked.current || uncertain || currentState !== "required") return;
     const name = normalizedUsername(value);
     if (!name) { setError("invalid"); return; }
-    if (preview) { setState("ready"); router.replace("/"); return; }
+    if (preview) {
+      try {
+        window.localStorage.setItem(PREVIEW_USERNAME_KEY, name);
+        if (window.localStorage.getItem(PREVIEW_USERNAME_KEY) !== name) throw new Error("Preview username could not be saved.");
+      } catch { setError("failed"); return; }
+      setState("ready");
+      const next = searchParams?.get("next");
+      router.replace(next && /^\/[a-z0-9/_-]*$/.test(next) ? next : "/");
+      return;
+    }
     const expected = owner.current;
     if (!expected) return;
     locked.current = true; setBusy(true); setError(null);
@@ -161,6 +187,26 @@ export default function UsernameOnboarding() {
   }
 
   if (!blocked) return null;
+  if (preview && previewFrame) {
+    const previewName = normalizedUsername(value);
+    const previewTyping = /^[a-z0-9_]{0,2}$/.test(value);
+    const previewAlreadyClaimed = !!previewName && previewName === claimedPreviewUsername;
+    return createPortal(<section className={styles.prototypeGate} aria-label={c.title}>
+      <AppBar leading={<IconButton ariaLabel="Back" onClick={() => router.replace("/")}>{Ico.back({})}</IconButton>} title="Choose a username" />
+      <div className={styles.prototypeBody}>
+        <p>{searchParams?.get("next") === "/receive" ? "You need a username to receive money. People send to it by name." : "People send you money by this name."} <span id="preview-username-notice">You can't change your username after you claim it.</span></p>
+        <div className={styles.prototypeCard}>
+          <label className="sr-only" htmlFor="required-username">Username</label>
+          <div className={styles.prototypeField}><span aria-hidden="true">@</span><input ref={input} id="required-username" value={value} onChange={event => { setValue(event.target.value.replace(/^@/, "").toLowerCase()); setError(null); }} minLength={3} maxLength={32} pattern="[a-z0-9_]{3,32}" required autoComplete="username" autoCapitalize="none" spellCheck={false} placeholder="username" readOnly={!!claimedPreviewUsername} disabled={busy} aria-describedby="preview-username-hint" /></div>
+          <p id="preview-username-hint" className={error ? styles.prototypeError : ""} role={error ? "alert" : undefined}>{error ? c[error] : previewAlreadyClaimed ? `@${previewName} is your username.` : previewTyping ? "3 to 32 letters, numbers or underscores." : previewName ? `@${previewName} is available` : "Use 3–32 letters, numbers or underscores."}</p>
+        </div>
+        <Image className={styles.prototypeDoodle} src="/prototype-causes/doodle-people.png" alt="" width={280} height={280} priority unoptimized />
+      </div>
+      <form className={styles.prototypeCta} onSubmit={save}>
+        <Btn type="submit" disabled={busy || !previewName || previewAlreadyClaimed}>{busy ? c.saving : "Claim"}</Btn>
+      </form>
+    </section>, previewFrame);
+  }
   return <dialog ref={dialog} className={styles.dialog} aria-labelledby="username-title" aria-describedby="username-intro" onCancel={event => event.preventDefault()}>
     <div className={styles.content} aria-busy={busy || currentState === "checking"}>
       <span className={styles.mark} aria-hidden="true">@</span>

@@ -16,6 +16,7 @@ import XlmDepositPanel from "./XlmDepositPanel";
 import depositStyles from "./XlmDepositPanel.module.css";
 import MarketValue from "@/components/MarketValue";
 import type { PaymentChannelId } from "@/lib/payment-channels";
+import PrototypeTopUpScreen from "./PrototypeTopUpScreen";
 
 export default function TopUpScreen({ initialMethod, initialChannel }: { initialMethod?: "topup" | "xlm" | "provider"; initialChannel?: PaymentChannelId } = {}) {
   const { t, locale } = useT();
@@ -55,6 +56,7 @@ export default function TopUpScreen({ initialMethod, initialChannel }: { initial
     <button type="button" aria-pressed={method === "xlm"} onClick={()=>setMethod("xlm")}>{Ico.qr({size:17})}{depositCopy.deposit}</button>
     {isLocalPreview ? <button type="button" aria-pressed={method === "topup" && faucet} onClick={()=>{setMethod("topup");setFaucet(true);}}>{depositCopy.faucet}</button> : <button type="button" aria-pressed={method === "provider"} onClick={()=>setMethod("provider")}>{depositCopy.paymentMethods}</button>}
   </nav>;
+  if (isLocalPreview && method === "topup" && !faucet) return <PrototypeTopUpScreen onFaucet={() => setFaucet(true)} />;
   if (method === "provider" && isLocalPreview) return <PaymentProviderDemo initialChannel={initialChannel} topupNavigation={navigation} />;
   // Payment-channel discovery must not load, fund or provision a wallet.
   // Real checkout remains unavailable until an authenticated provider flow exists.

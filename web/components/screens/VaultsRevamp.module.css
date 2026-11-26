@@ -58,8 +58,10 @@
 .activitySummaryHeading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .activitySummaryHeading .eyebrow { margin: 0; }
 .inlinePayoutInfo { position: relative; }
-.inlinePayoutInfo > summary { display: flex; min-height: 36px; align-items: center; color: var(--sl-primary); font-size: 10px; font-weight: 600; cursor: pointer; list-style: none; }
+.inlinePayoutInfo > summary { display: grid; width: 28px; height: 28px; place-items: center; border-radius: 50%; color: var(--sl-sub); font-size: 0; cursor: pointer; list-style: none; }
+.inlinePayoutInfo > summary:hover, .inlinePayoutInfo[open] > summary { background: var(--sl-surface-alt); color: var(--sl-primary); }
 .inlinePayoutInfo > summary::-webkit-details-marker { display: none; }
+.inlinePayoutInfo > p { position: absolute; z-index: 6; top: 32px; right: 0; width: min(240px, 72vw); margin: 0; padding: 12px; border: 1px solid var(--sl-glass-line); border-radius: 12px; background: var(--sl-surface); color: var(--sl-sub); font-size: 11px; line-height: 1.5; text-align: left; box-shadow: 0 8px 24px #0b163026; }
 .inlinePayoutInfo > p { position: absolute; z-index: 3; right: 0; top: calc(100% + 3px); width: min(250px, 70vw); padding: 12px; border: 1px solid var(--sl-glass-line); border-radius: 12px; background: var(--sl-surface); box-shadow: var(--sl-card-shadow); color: var(--sl-sub); font-size: 11px; line-height: 1.5; text-align: left; }
 .activityContribute { display: flex; width: 100%; min-height: 46px; align-items: center; justify-content: center; gap: 9px; margin-top: 16px; border: 0; border-radius: 999px; background: linear-gradient(105deg, #335cff, #527dff); box-shadow: 0 6px 16px #335cff38; color: white; font-size: 14px; font-weight: 650; cursor: pointer; }
 .activityContribute:disabled { opacity: .55; cursor: not-allowed; }

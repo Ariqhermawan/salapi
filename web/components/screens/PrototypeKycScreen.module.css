@@ -1,0 +1,61 @@
+.screen { min-height: 100%; padding: 12px 16px 24px; color: #252a32; background: #fbfbfc; }
+.screen button:focus-visible, .screen input:focus-visible { outline: 2px solid #5065e9; outline-offset: 2px; }
+.header { display: grid; grid-template-columns: 40px minmax(0, 1fr) 40px; align-items: center; gap: 4px; min-height: 45px; margin-bottom: 9px; }
+.header > button { display: inline-flex; width: 36px; height: 36px; align-items: center; justify-content: center; border: 0; border-radius: 50%; background: #fff; color: #30343c; box-shadow: 0 2px 8px #0000000a; cursor: pointer; }
+.header h1 { margin: 0; font-size: 16px; font-weight: 650; line-height: 1.25; }
+.header p { margin: 1px 0 0; color: #747b86; font-size: 10px; line-height: 1.35; }
+.header > span { width: 36px; }
+.progressHead { display: flex; justify-content: space-between; margin: 3px 0 6px; color: #707783; font-size: 10px; }
+.progressHead span:first-child { color: #5065e9; font-weight: 650; }
+.progress { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; margin-bottom: 11px; }
+.progress i { display: block; height: 4px; border-radius: 8px; background: #e9ebef; }
+.progress i[data-active] { background: #5366eb; }
+.kindPicker { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-bottom: 9px; }
+.kindPicker button { min-height: 66px; padding: 11px 12px; border: 1px solid #eceef1; border-radius: 14px; background: #fff; color: #282d35; text-align: left; cursor: pointer; }
+.kindPicker button[aria-pressed="true"] { border-color: #6576e8; background: #eef0ff; box-shadow: inset 0 0 0 1px #6576e8; }
+.kindPicker strong, .kindPicker small { display: block; }
+.kindPicker strong { font-size: 13px; font-weight: 650; }
+.kindPicker small { margin-top: 3px; color: #737a85; font-size: 10px; line-height: 1.35; }
+.checkCard, .levelCard { padding: 16px; border: 1px solid #e7e8eb; border-radius: 16px; background: #fff; box-shadow: 0 2px 5px #00000009; }
+.checkCard h2 { margin: 0; color: #343942; font-size: 17px; font-weight: 650; line-height: 1.3; }
+.checkCard > p { margin: 6px 0 9px; color: #6d7480; font-size: 11px; line-height: 1.5; }
+.checkCard label { display: flex; align-items: center; gap: 10px; min-height: 68px; padding: 9px 0; border-top: 1px solid #eeeef0; cursor: pointer; }
+.checkCard input { width: 18px; height: 18px; flex: 0 0 18px; accent-color: #5366eb; }
+.checkCard label strong, .checkCard label small { display: block; }
+.checkCard label strong { color: #343942; font-size: 12px; font-weight: 650; line-height: 1.4; }
+.checkCard label small { margin-top: 2px; color: #737a85; font-size: 10px; line-height: 1.45; }
+.buttonArea { display: grid; gap: 8px; margin-top: 10px; }
+.buttonArea p { margin: 0; color: #737a85; font-size: 11px; text-align: center; }
+.photoBox { display: flex; min-height: 180px; flex-direction: column; align-items: center; justify-content: center; gap: 12px; margin-top: 12px; border: 1px dashed #cbd2e3; border-radius: 16px; background: #f7f8fc; color: #576be9; }
+.photoBox span { color: #68717e; font-size: 11px; }
+.notConnected { display: inline-flex; margin-top: 10px; padding: 4px 7px; border-radius: 6px; background: #edf0f5; color: #657080; font-size: 9px; font-weight: 650; }
+.outcome { display: flex; flex-direction: column; align-items: center; min-height: 165px; padding: 23px 8px 17px; text-align: center; }
+.outcomeIcon { display: flex; width: 56px; height: 56px; align-items: center; justify-content: center; border-radius: 50%; background: #f0f2ff; color: #5366eb; }
+.outcome[data-tone="pending"] .outcomeIcon { background: #fff8e4; color: #cfaa4a; }
+.outcome[data-tone="rejected"] .outcomeIcon { background: #fff0ef; color: #bf504a; }
+.outcome h2 { margin: 12px 0 6px; color: #50545c; font-size: 21px; font-weight: 600; line-height: 1.25; }
+.outcome p { max-width: 275px; margin: 0; color: #707783; font-size: 11px; line-height: 1.55; }
+.tierLink { display: flex; width: 100%; min-height: 62px; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid #eceef1; border-radius: 16px; background: #fff; box-shadow: 0 2px 5px #00000009; color: #333841; text-align: left; cursor: pointer; }
+.tierIcon { display: flex; width: 36px; height: 36px; flex: 0 0 36px; align-items: center; justify-content: center; border-radius: 50%; background: #eef0ff; }
+.tierLink > span:nth-child(2) { flex: 1; min-width: 0; }
+.tierLink strong, .tierLink small { display: block; }
+.tierLink strong { font-size: 12px; font-weight: 650; }
+.tierLink small { margin-top: 2px; color: #737a85; font-size: 10px; }
+.emptyArt { display: flex; min-height: 230px; flex-direction: column; align-items: center; justify-content: flex-end; gap: 2px; padding-bottom: 14px; color: #a9adb3; opacity: .42; }
+.emptyArt > span { display: inline-block; margin: 0 12px -4px; font-size: 21px; }
+.emptyArt > div { display: flex; align-items: flex-end; gap: 14px; height: 100px; }
+.emptyArt svg { width: 36px; height: 56px; border: 1px solid currentColor; border-radius: 18px 18px 7px 7px; padding: 5px; }
+.packageIcon { display: inline-flex; width: 32px; height: 50px; align-items: center; justify-content: center; border: 1px solid currentColor; border-radius: 12px 12px 6px 6px; font-size: 20px; }
+.groupTitle { margin: 18px 0 8px; color: #707783; font-size: 12px; font-weight: 600; }
+.levelCard { margin-bottom: 10px; }
+.levelCard > p { margin: 0 0 3px; color: #737a85; font-size: 11px; }
+.levelCard h2 { margin: 0 0 11px; font-size: 22px; font-weight: 650; }
+.levelCard h3 { margin: 0 0 8px; font-size: 13px; font-weight: 650; }
+.levelCard > div { display: flex; justify-content: space-between; gap: 8px; padding: 8px 0; border-top: 1px solid #eeeef0; color: #737a85; font-size: 11px; }
+.levelCard strong { color: #333841; font-size: 11px; font-weight: 600; text-align: right; }
+[data-theme="dark"] .screen { color: #fff; background: #171717; }
+[data-theme="dark"] .header > button, [data-theme="dark"] .kindPicker button, [data-theme="dark"] .checkCard, [data-theme="dark"] .levelCard, [data-theme="dark"] .tierLink { border-color: #353535; background: #202020; color: #fff; }
+[data-theme="dark"] .kindPicker button[aria-pressed="true"] { background: #272b44; border-color: #6877ed; }
+[data-theme="dark"] .checkCard h2, [data-theme="dark"] .checkCard label strong, [data-theme="dark"] .outcome h2, [data-theme="dark"] .tierLink strong, [data-theme="dark"] .levelCard strong { color: #f2f2f2; }
+[data-theme="dark"] .header p, [data-theme="dark"] .checkCard > p, [data-theme="dark"] .checkCard label small, [data-theme="dark"] .kindPicker small, [data-theme="dark"] .outcome p, [data-theme="dark"] .tierLink small, [data-theme="dark"] .levelCard > p, [data-theme="dark"] .levelCard > div { color: #aaa; }
+@media (max-width: 350px) { .screen { padding-inline: 12px; } .checkCard, .levelCard { padding: 13px; } }

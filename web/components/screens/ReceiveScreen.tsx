@@ -22,7 +22,7 @@ import {
   Btn,
 } from "@/components/ui/kit";
 import { useGoBack } from "@/lib/ui/useGoBack";
-import { isLocalPreview, PREVIEW_WALLET } from "@/lib/local-preview";
+import { isLocalPreview, localPreviewUsername, PREVIEW_WALLET } from "@/lib/local-preview";
 import styles from "./ReceiveScreen.module.css";
 
 const SITE = "https://salapi.app";
@@ -66,6 +66,12 @@ export default function ReceiveScreen() {
   const revision = useRef(0);
   const active = useRef(false);
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!isLocalPreview) return;
+    const username = localPreviewUsername();
+    if (username) setIdentity(current => ({ ...current, username }));
+  }, []);
 
   useEffect(() => {
     active.current = true;
@@ -194,8 +200,8 @@ export default function ReceiveScreen() {
           </button>}
           <p className={styles.note}>{isLocalPreview ? deposit.previewBody : deposit.warning}</p>
           {!identity.username && !isLocalPreview && <p className={styles.note}>{c.addressHint}</p>}
-          {!isLocalPreview && <button className={styles.link} type="button" aria-haspopup="dialog"
-            onClick={() => setGuidanceOpen(true)}>{deposit.stepsTitle}</button>}
+          <button className={styles.link} type="button" aria-haspopup="dialog"
+            onClick={() => setGuidanceOpen(true)}>{deposit.stepsTitle}</button>
           {!isLocalPreview && usernameLink?.kind === "username" && <button className={styles.link} type="button"
             onClick={() => shareDestination(usernameLink)}>{c.shareUsername}</button>}
         </> : <>

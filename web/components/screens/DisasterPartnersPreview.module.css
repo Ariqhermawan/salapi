@@ -1,0 +1,29 @@
+.panel { margin-top: 14px; padding: 13px 0 0; border-top: 1px solid #eceef2; color: #171a21; }
+.panel h2 { margin: 0; font-size: 14px; font-weight: 650; line-height: 1.35; }
+.eyebrow { margin: 0 0 7px; color: #6a5bb5; font-size: 9px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+.subheading { margin: 12px 0 5px; font-size: 12px; font-weight: 650; }
+.note { margin: 7px 0 0; color: #646b77; font-size: 11px; line-height: 1.5; }
+.list { margin-top: 8px; }
+.row { display: flex; width: 100%; min-height: 54px; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; border: 0; border-top: 1px solid #eceef2; background: transparent; color: inherit; text-align: left; text-decoration: none; }
+.row span { min-width: 0; }
+.row strong, .row small { display: block; }
+.row strong { font-size: 11px; font-weight: 650; line-height: 1.35; }
+.row small { margin-top: 2px; color: #717783; font-size: 9px; line-height: 1.35; }
+.row > svg { flex: 0 0 auto; color: #717783; }
+.fieldset { min-width: 0; margin: 10px 0; padding: 0; border: 0; }
+.fieldset legend, .recommendForm > label { margin-bottom: 4px; color: #646b77; font-size: 10px; font-weight: 600; }
+.fieldset .row { cursor: pointer; }
+.fieldset input { width: 17px; height: 17px; flex: 0 0 17px; accent-color: #5266e8; }
+.primary, .secondary { display: inline-flex; min-height: 42px; align-items: center; justify-content: center; gap: 7px; padding: 9px 14px; border: 0; border-radius: 12px; font: inherit; font-size: 11px; font-weight: 650; cursor: pointer; }
+.primary { width: 100%; background: linear-gradient(180deg,#304ddb,#5b79f2); color: #fff; }
+.primary:disabled { opacity: .45; cursor: not-allowed; }
+.secondary { margin-top: 8px; border: 1px solid #e4e7ec; background: #fff; color: #29303a; }
+.recommendForm { display: grid; gap: 7px; margin-top: 10px; padding: 12px; border: 1px solid #e5e7eb; border-radius: 13px; background: #fff; }
+.recommendForm select, .recommendForm textarea { width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid #dce1e9; border-radius: 9px; background: #fff; color: inherit; font: inherit; font-size: 11px; }
+.recommendForm textarea { min-height: 66px; resize: vertical; }
+.saved { display: flex; align-items: center; gap: 5px; margin: 8px 0 0; color: #478d61; font-size: 10px; }
+[data-theme="dark"] .panel { color: #fff; border-color: #333; }
+[data-theme="dark"] .note, [data-theme="dark"] .row small { color: #aaa; }
+[data-theme="dark"] .row { border-color: #333; }
+[data-theme="dark"] .secondary, [data-theme="dark"] .recommendForm { border-color: #393939; background: #222; color: #fff; }
+[data-theme="dark"] .recommendForm select, [data-theme="dark"] .recommendForm textarea { border-color: #444; background: #191919; color: #fff; }
