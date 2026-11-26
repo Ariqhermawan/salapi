@@ -429,6 +429,12 @@ export default function SettingsScreen() {
 
       <section className={styles.support} aria-label={c.featuresSupport}>
         <SettingRow
+          icon={Ico.link({ size: 21, c: T.action })}
+          title={c.inviteFriends}
+          onClick={() => router.push("/you/invite")}
+          trailing={Ico.chev({ size: 16, c: T.slate })}
+        />
+        <SettingRow
           icon={(locale === "id" ? Ico.qr : Ico.arrowDown)({ size: 21, c: T.slate })}
           title={locale === "id" ? "QRIS" : "GCash"}
           sub={t("settings.gcashSub")}

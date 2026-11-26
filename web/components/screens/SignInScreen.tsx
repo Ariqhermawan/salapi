@@ -12,6 +12,8 @@ import { authRedirectPath } from "@/lib/authRedirect";
 import { isAdminHost } from "@/lib/admin-host";
 import { isLocalPreview } from "@/lib/local-preview";
 import { initializeWallet } from "@/app/wallet-setup-actions";
+import { applySignInReferral } from "@/app/referral-actions";
+import { referralCodeFromNext } from "@/lib/referral";
 
 function GoogleMark() {
   return (
@@ -106,6 +108,7 @@ export default function SignInScreen() {
       form.reset();
       let destination = next;
       if (!isAdminHost(window.location.hostname)) {
+        if (referralCodeFromNext(next)) await applySignInReferral(next).catch(() => {});
         const wallet = await initializeWallet().catch(() => null);
         if (!wallet?.ok) destination = `/wallet/setup?next=${encodeURIComponent(next)}`;
       }

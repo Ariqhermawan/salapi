@@ -41,6 +41,7 @@ function callbackHarness({ preview = false, configured = true, exchangeError = f
     if (name === "@/lib/authRedirect") return redirects;
     if (name === "@/lib/ui/app-navigation") return pureModule("../lib/ui/app-navigation.ts");
     if (name === "@/lib/admin-host") return adminHost;
+    if (name === "@/lib/server/referrals") return { async recordReferralSignup() {} };
     if (name === "@/lib/supabase/server") return { async createSupabaseServer() {
       if (serverThrows) throw new Error("Fixture cookie/Auth creation outage");
       return { auth: { async exchangeCodeForSession(code: string) {

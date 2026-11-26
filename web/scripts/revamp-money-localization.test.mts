@@ -18,6 +18,7 @@ import { requireWalletState } from "../lib/wallet-state.ts";
 import { receiveCopy } from "../lib/i18n/receive.ts";
 import { xlmDepositCopy } from "../lib/i18n/xlm-deposit.ts";
 import { receiveDestination, receiveShareData } from "../lib/receive.ts";
+import { referralCodeFromNext } from "../lib/referral.ts";
 import type { AccountDetailsResult } from "../lib/account-details.ts";
 import * as contentCopy from "../lib/i18n/circles-content.ts";
 import * as adminHost from "../lib/admin-host.ts";
@@ -133,6 +134,8 @@ function mount(name: typeof names[number], locale: Locale, options: { preview?: 
       if (dependency === "@/lib/admin-host") return adminHost;
       if (dependency === "@/lib/supabase/env") return { supabaseConfigured: () => true };
       if (dependency === "@/app/wallet-setup-actions") return { initializeWallet() { calls.serverWrites++; throw Error("Write forbidden"); } };
+      if (dependency === "@/app/referral-actions") return { applySignInReferral() { calls.serverWrites++; throw Error("Write forbidden"); } };
+      if (dependency === "@/lib/referral") return { referralCodeFromNext };
       if (dependency === "@/lib/supabase/client") return { createSupabaseBrowser() {
         calls.auth++;
         if (name === "ReceiveScreen" && !preview) return { auth: {

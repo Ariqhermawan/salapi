@@ -10,6 +10,12 @@ The local app used a separate Supabase instance and disposable Testnet wallets f
 | Scheduled Arisan | The host created room #1. A second wallet joined without a deposit and then contributed 0.5 XLM. Start stayed disabled with incomplete funding. The host cancelled, the contract reported `Dissolved` and the room pool returned to 0 XLM. | [Contract](https://stellar.expert/explorer/testnet/contract/CC6FH4DNOCXAZM5Z6BTZ7G6IJKPLACXUZRW4I5QCZEHRNRYRNLYYEMAL) · [Create](https://stellar.expert/explorer/testnet/tx/924fb7db7d1b8bdf937ca31e722d70588088862632b393cc0410ac4ae1370970) · [Join](https://stellar.expert/explorer/testnet/tx/50464a33f8ec8292f98c93cb0e823f12288247b06d3cdcb1a22c585054c9ec6d) · [Deposit](https://stellar.expert/explorer/testnet/tx/292984df986cce1dbbb32baedb967d86bf9e9cd0ea71d9cbe41ae2cb8a5682e8) · [Cancel](https://stellar.expert/explorer/testnet/tx/c1f6baabf25fec9dfca07ec69d8cb0bbf0b8cde66f7bd9a646a2619744e66653) |
 | Disaster Vault | The vault accepted 5 XLM while payouts were paused. Two signer wallets approved resuming payouts. A 1 XLM payout then required two approvals and stayed disabled for the on-chain 20-ledger wait. Execution succeeded once the wait elapsed. A subsequent contribution appeared in the app's Public proof tab. | [Contract](https://stellar.expert/explorer/testnet/contract/CDLX5RMGGZJ35EI7DCEGZ3CSSNFFETPSQGVJZPVB5N6XZHFEEOCIVEP5) · [Contribution](https://stellar.expert/explorer/testnet/tx/b7e5f41b604cee272de392123724b60dd3455456df1e87a5888b195afab14a2a) · [Second payout approval](https://stellar.expert/explorer/testnet/tx/1f72983b1b48903ede3a6748a62fc4495cfcf5809d9424473b737f832eeaf3b2) · [Execute](https://stellar.expert/explorer/testnet/tx/e364743a22b54f7fd0e2e73860676670a87bf19710eefc78465eb14bf3d91944) · [Public proof entry](https://stellar.expert/explorer/testnet/tx/4102fbd395ea7ffeabeff64fa2c5823abc36cb07c80322e8249bd3d2663cbb00) |
 
+Referral attribution was exercised in the local browser with Supabase password
+sign-in. A newly created test account followed an invite link and increased only
+the inviting account's count. Signing in again through another invite preserved
+the first attribution. An older account did not count as a new invite, and both
+referral tables denied anonymous reads. Referral records are stored in Supabase.
+
 ## D4 donation campaigns
 
 Verified deployment: `CC6D7P35SVCNZLOKTHKDNH4S2ZELYHBP5UO3IWADFORKEF7BCSBY37FU`.

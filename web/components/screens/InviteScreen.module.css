@@ -1,0 +1,17 @@
+:global(.sl-main):has(.screen) { padding-bottom: 0; }
+.screen { min-height: 100%; display: flex; flex-direction: column; color: var(--sl-ink); }
+.body { flex: 1; padding: 12px 16px; }
+.note { margin: 0 4px 12px; color: var(--sl-sub); font-size: 14px; line-height: 1.5; }
+.card { background: var(--sl-surface); border: 1px solid var(--sl-line); border-radius: 20px; padding: 10px 16px; }
+.card a { display: inline-flex; align-items: center; min-height: 44px; color: var(--sl-primary); }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 0; }
+.row + .row, .count { border-top: 1px solid var(--sl-line); }
+.row > div { min-width: 0; }
+.row span { display: block; font-size: 13px; color: var(--sl-sub); }
+.row strong { display: block; overflow-wrap: anywhere; font-size: 16px; font-weight: 500; user-select: all; }
+.row .code { font-family: var(--font-geist-mono), monospace; font-size: 18px; letter-spacing: .06em; }
+.count { display: flex; align-items: center; justify-content: space-between; padding: 9px 0 3px; font-size: 13px; color: var(--sl-sub); }
+.count strong { color: var(--sl-ink); }
+.art { display: block; max-width: 70%; height: auto; margin: 24px auto 12px; object-fit: contain; }
+.actions { position: sticky; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); display: grid; grid-template-columns: 1fr 2fr; gap: 6px; margin: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); padding: 5px; border: 1px solid var(--sl-glass-line); border-radius: 32px; backdrop-filter: blur(20px) saturate(1.6); box-shadow: var(--sl-glass-shadow); }
+.actions button { border-radius: 28px !important; }
