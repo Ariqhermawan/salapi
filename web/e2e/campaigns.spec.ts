@@ -107,10 +107,11 @@ test.describe("D4 isolated local UI and HTTP authorization", () => {
         await page.getByLabel("1. Name your cause", { exact: true }).fill("Long cause terms for a careful review. ".repeat(40));
         await page.getByRole("button", { name: "Continue", exact: true }).click();
         await page.getByLabel("Beneficiary public wallet", { exact: true }).fill(wallets[1]);
-        await page.getByLabel("2. Funding closes", { exact: true }).fill("2030-01-01T12:00");
         await page.getByRole("button", { name: "Continue", exact: true }).click();
+        await page.getByLabel("3. Funding closes", { exact: true }).fill("2030-01-01T12:00");
         await page.getByLabel("Review closes", { exact: true }).fill("2030-01-02T12:00");
-        for (let i = 0; i < 3; i++) await page.getByLabel(`${i === 0 ? "3. " : ""}Approver ${i + 1} public wallet`, { exact: true }).fill(wallets[i]);
+        await page.getByRole("button", { name: "Continue", exact: true }).click();
+        for (let i = 0; i < 3; i++) await page.getByLabel(`${i === 0 ? "4. " : ""}Approver ${i + 1} public wallet`, { exact: true }).fill(wallets[i]);
       } else {
         await page.getByLabel("Donation amount (USD)", { exact: true }).fill("6.50");
       }
@@ -171,10 +172,11 @@ test.describe("D4 isolated local UI and HTTP authorization", () => {
     await page.getByRole("button", { name: "Continue", exact: true }).click();
     await page.getByLabel("Beneficiary public wallet", { exact: true }).fill(wallets[1]);
     await page.getByLabel("Creator share, 0 to 10%", { exact: true }).fill("5.25");
-    await page.getByLabel("2. Funding closes", { exact: true }).fill("2030-01-01T12:00");
     await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await page.getByLabel("3. Funding closes", { exact: true }).fill("2030-01-01T12:00");
     await page.getByLabel("Review closes", { exact: true }).fill("2030-01-02T12:00");
-    for (let i = 0; i < 3; i++) await page.getByLabel(`${i === 0 ? "3. " : ""}Approver ${i + 1} public wallet`, { exact: true }).fill(wallets[i]);
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    for (let i = 0; i < 3; i++) await page.getByLabel(`${i === 0 ? "4. " : ""}Approver ${i + 1} public wallet`, { exact: true }).fill(wallets[i]);
     await page.getByRole("button", { name: "Review campaign terms", exact: true }).click();
     await expect(page.getByRole("dialog")).toContainText("cannot be changed"); expect(writes).toHaveLength(0);
     expect(preparations).toHaveLength(1);
@@ -198,14 +200,16 @@ test.describe("D4 isolated local UI and HTTP authorization", () => {
     await expect(page.getByText("Creator share cannot exceed 10%", { exact: true })).toBeVisible();
     await page.getByLabel("Creator share, 0 to 10%", { exact: true }).fill("5.25");
     await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
     await expect(page.getByText(/Funding must end in the future/)).toBeVisible();
-    await page.getByLabel("2. Funding closes", { exact: true }).fill("2030-01-01T12:00");
-    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await page.getByLabel("3. Funding closes", { exact: true }).fill("2030-01-01T12:00");
     await page.getByLabel("Review closes", { exact: true }).fill("2030-01-02T12:00");
-    await page.getByRole("button", { name: "Back", exact: true }).last().click();
-    await expect(page.getByLabel("2. Funding closes", { exact: true })).toHaveValue("2030-01-01T12:00");
     await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await page.getByRole("button", { name: "Back", exact: true }).last().click();
+    await expect(page.getByLabel("3. Funding closes", { exact: true })).toHaveValue("2030-01-01T12:00");
     await expect(page.getByLabel("Review closes", { exact: true })).toHaveValue("2030-01-02T12:00");
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await expect(page.getByLabel("4. Approver 1 public wallet", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Review campaign terms", exact: true }).click();
     await expect(page.getByText(/Enter complete Stellar public wallet addresses/)).toBeVisible();
     expect(writes).toHaveLength(0); expect(preparations).toHaveLength(0);
