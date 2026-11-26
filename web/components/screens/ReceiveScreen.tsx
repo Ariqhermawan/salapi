@@ -1,14 +1,15 @@
 "use client";
 
-// A username QR opens Salapi Send. An address QR is for Stellar Testnet wallets.
+// The QR shows the saved Stellar Testnet address. Salapi links use @username.
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { QRCodeSVG } from "qrcode.react";
 import { accountDetails } from "@/app/account-details-actions";
 import { createSupabaseBrowser } from "@/lib/supabase/client";
 import { supabaseConfigured } from "@/lib/supabase/env";
-import { receiveDestination, receiveShareData } from "@/lib/receive";
+import { receiveDestination, receiveShareData, type ReceiveDestination } from "@/lib/receive";
 import { receiveCopy } from "@/lib/i18n/receive";
+import { xlmDepositCopy } from "@/lib/i18n/xlm-deposit";
 import { useT } from "@/components/I18nProvider";
 import { moneyCopy, moneyMessage } from "@/lib/i18n/revamp-money";
 import {
@@ -17,10 +18,10 @@ import {
   AppBar,
   IconButton,
   Btn,
-  PoweredByStellar,
 } from "@/components/ui/kit";
 import { useGoBack } from "@/lib/ui/useGoBack";
 import { isLocalPreview, PREVIEW_WALLET } from "@/lib/local-preview";
+import styles from "./ReceiveScreen.module.css";
 
 const SITE = "https://salapi.app";
 
@@ -49,7 +50,8 @@ export default function ReceiveScreen() {
   const { t, locale } = useT();
   const m = moneyCopy(locale);
   const c = receiveCopy(locale);
-  const goBack = useGoBack("/send");
+  const deposit = xlmDepositCopy(locale);
+  const goBack = useGoBack("/");
   const [identity, setIdentity] = useState<{ address: string | null; username: string | null }>(isLocalPreview
     ? { address: PREVIEW_WALLET.address, username: PREVIEW_WALLET.handle } : { address: null, username: null });
   const [status, setStatus] = useState<"loading" | "ready" | "guest" | "error">(isLocalPreview ? "ready" : "loading");
@@ -125,16 +127,21 @@ export default function ReceiveScreen() {
     };
   }, []);
 
-  const destination = status === "ready" ? receiveDestination(identity.address, identity.username, base) : null;
+  const usernameLink = status === "ready" && identity.username
+    ? receiveDestination(identity.address, identity.username, base)
+    : null;
+  const destination = isLocalPreview ? usernameLink
+    : status === "ready" ? receiveDestination(identity.address, null, base) : null;
+  const qrLabel = isLocalPreview ? t("receive.scan") : c.addressScan;
 
-  async function onShare() {
-    if (!destination || !active.current) return;
+  async function shareDestination(target: ReceiveDestination | null, copyOnly = false) {
+    if (!target || !active.current) return;
     const request = revision.current;
     const current = () => active.current && revision.current === request;
     setShareError("");
-    const data = receiveShareData(destination, destination.kind === "username" ? c.usernameCaption : c.addressCaption);
+    const data = receiveShareData(target, target.kind === "username" ? c.usernameCaption : c.addressCaption);
     try {
-      if (typeof navigator !== "undefined" && navigator.share) {
+      if (!copyOnly && typeof navigator !== "undefined" && navigator.share) {
         await navigator.share(data);
         return;
       }
@@ -144,7 +151,7 @@ export default function ReceiveScreen() {
     }
     if (!current()) return;
     try {
-      await navigator.clipboard.writeText(destination.value);
+      await navigator.clipboard.writeText(target.value);
       if (!current()) return;
       setCopied(true);
       if (copyTimer.current !== null) clearTimeout(copyTimer.current);
@@ -155,125 +162,54 @@ export default function ReceiveScreen() {
   }
 
   return (
-    <div
-      style={{
-        fontFamily: T.fontSans,
-        color: T.ink,
-        minHeight: "100%",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
+    <div className={styles.screen}>
       <AppBar
-        leading={
-          <IconButton ariaLabel={m("Back")} onClick={goBack}>
-            {Ico.back({})}
-          </IconButton>
-        }
+        leading={<IconButton ariaLabel={m("Back")} onClick={goBack}>{Ico.back({})}</IconButton>}
         title={t("receive.title")}
       />
-
-      <div style={{ padding: "4px 24px 0", textAlign: "center" }}>
-        <p
-          style={{
-            fontSize: 13.5,
-            color: T.slate,
-            lineHeight: 1.5,
-            maxWidth: 300,
-            margin: "0 auto",
-          }}
-        >
-          {isLocalPreview ? m("Try receiving with your example username in this local preview.") : status === "guest" ? c.guest : destination?.kind === "address" ? c.addressHint : c.usernameHint}
-        </p>
-        {status === "guest" ? <Link href="/signin?next=%2Freceive">{c.signIn}</Link> : null}
-        {status === "ready" && !destination ? <p style={{ fontSize: 13, color: T.slate }}>{c.noWallet}</p> : null}
-      </div>
-
-      {/* QR card */}
-      <div style={{ padding: "20px 16px 0", display: "flex", justifyContent: "center" }}>
-        <div
-          style={{
-            width: "100%",
-            maxWidth: 320,
-            background: "#F2EFE7",
-            borderRadius: 28,
-            boxShadow:
-              "0 20px 44px -22px rgba(11,18,32,.4), inset 0 0 0 1px " + T.hairline,
-            padding: "24px 24px 22px",
-            textAlign: "center",
-          }}
-        >
-          <div
-            style={{
-              fontSize: 10.5,
-              fontWeight: 700,
-              letterSpacing: "0.14em",
-              textTransform: "uppercase",
-              color: T.slate,
-            }}
-          >
-            {destination?.kind === "address" ? c.addressScan : t("receive.scan")}
-          </div>
-          <div
-            style={{
-              marginTop: 14,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: 16,
-              borderRadius: 18,
-              background: "#fff",
-              boxShadow: "inset 0 0 0 1px " + T.hairline,
-            }}
-          >
-            {destination ? <QRCodeSVG
+      <section className={styles.card} aria-label={qrLabel}>
+        {destination ? <>
+          <div className={styles.qr}>
+            <QRCodeSVG
               value={destination.value}
-              size={188}
+              size={232}
               level="M"
-              marginSize={2}
+              marginSize={4}
               fgColor={T.ink}
               bgColor="#ffffff"
-            /> : <div role="status" style={{ width: 188, height: 188, display: "grid", placeItems: "center", color: T.slate, fontSize: 13 }}>{status === "loading" ? m("Loading receive code…") : m("Receive code unavailable")}</div>}
+              title={qrLabel}
+            />
           </div>
-          <div
-            style={{
-              marginTop: 18,
-              fontSize: 22,
-              fontWeight: 800,
-              letterSpacing: "-0.02em",
-              color: T.action,
-              overflowWrap: "anywhere",
-              userSelect: "text",
-            }}
-          >
-            {destination?.display ?? "…"}
-          </div>
-          {destination?.kind === "address" ? <p style={{ fontSize: 12, color: T.slate }}>{c.addressLabel}</p> : null}
-          <div style={{ marginTop: 4, fontSize: 12, color: T.slate }}>
-            {m("Testnet only · no real money")}
-          </div>
-        </div>
-      </div>
-
-      {/* Spacer keeps the CTA + footer low without a sticky bar (short screen). */}
-      <div style={{ flex: 1, minHeight: 12 }} />
-
-      <div style={{ padding: "18px 16px 0" }}>
-        {shareError && <p role="alert" style={{ color: T.danger, fontSize: 13, lineHeight: 1.5 }}>{moneyMessage(locale, shareError)}</p>}
-        <Btn
-          kind="primary"
-          disabled={!destination}
-          onClick={onShare}
-          leading={copied ? Ico.check({ c: "#fff" }) : <ShareGlyph />}
-        >
+          {usernameLink?.kind === "username" && <h2>{usernameLink.display}</h2>}
+          {destination.kind === "address" && <button className={styles.copy} type="button" title={destination.value}
+            aria-label={deposit.copy} aria-describedby="receive-address" data-copy-error={Boolean(shareError) || undefined}
+            onClick={() => shareDestination(destination, true)}>
+            <span id="receive-address">{destination.value}</span>{copied ? Ico.check({ size: 16 }) : Ico.link({ size: 16 })}
+          </button>}
+          <p className={styles.note}>{isLocalPreview ? deposit.previewBody : deposit.warning}</p>
+          {!identity.username && !isLocalPreview && <p className={styles.note}>{c.addressHint}</p>}
+          {!isLocalPreview && <details className={styles.instructions}>
+            <summary>{deposit.stepsTitle}</summary>
+            <ol><li>{deposit.step1}</li><li>{deposit.step2}</li><li>{deposit.step3}</li><li>{deposit.inactive}</li></ol>
+          </details>}
+          {!isLocalPreview && usernameLink?.kind === "username" && <button className={styles.link} type="button"
+            onClick={() => shareDestination(usernameLink)}>{c.shareUsername}</button>}
+        </> : <>
+          <p className={styles.status} role="status">{status === "loading" ? m("Loading receive code…") : m("Receive code unavailable")}</p>
+          {status === "guest" && <p className={styles.note}>{c.guest} <Link href="/signin?next=%2Freceive">{c.signIn}</Link></p>}
+          {status === "ready" && <p className={styles.note}>{c.noWallet}</p>}
+        </>}
+        {(isLocalPreview || !destination) && <p className={styles.note}>{m("Testnet only · no real money")}</p>}
+        {shareError && <p className={styles.error} role="alert">{moneyMessage(locale, shareError)}</p>}
+      </section>
+      <div className={styles.pattern} aria-hidden="true" />
+      <div className={styles.actions}>
+        <Btn kind="secondary" onClick={goBack}>{t("send.done")}</Btn>
+        <Btn kind="primary" disabled={!destination} onClick={() => shareDestination(destination)}
+          leading={copied ? Ico.check({ c: "#fff" }) : <ShareGlyph />}>
           {copied ? t("receive.copied") : t("receive.share")}
         </Btn>
       </div>
-
-      <div style={{ padding: "16px 16px 0", display: "flex", justifyContent: "center" }}>
-        <PoweredByStellar />
-      </div>
-      <div style={{ height: 8 }} />
     </div>
   );
 }

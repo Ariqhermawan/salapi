@@ -16,6 +16,7 @@ import { authRedirectPath } from "../lib/authRedirect.ts";
 import { PREVIEW_WALLET, PREVIEW_RECIPIENT } from "../lib/local-preview.ts";
 import { requireWalletState } from "../lib/wallet-state.ts";
 import { receiveCopy } from "../lib/i18n/receive.ts";
+import { xlmDepositCopy } from "../lib/i18n/xlm-deposit.ts";
 import { receiveDestination, receiveShareData } from "../lib/receive.ts";
 import type { AccountDetailsResult } from "../lib/account-details.ts";
 import * as contentCopy from "../lib/i18n/circles-content.ts";
@@ -97,6 +98,7 @@ function mount(name: typeof names[number], locale: Locale, options: { preview?: 
       if (dependency === "@/components/I18nProvider") return { useT: () => ({ locale, currency: "tl", t: (key: string, vars?: Record<string, string | number>) => dictionary(locale, key, vars) }) };
       if (dependency === "@/lib/i18n/revamp-money") return copy;
       if (dependency === "@/lib/i18n/receive") return { receiveCopy };
+      if (dependency === "@/lib/i18n/xlm-deposit") return { xlmDepositCopy };
       if (dependency === "@/lib/receive") return { receiveDestination, receiveShareData };
       if (dependency === "@/app/account-details-actions") return { accountDetails() { calls.receiveReads++; if (!options.receiveAccount) throw Error("Unexpected receive identity read"); return options.receiveAccount(); } };
       if (dependency === "@/lib/i18n/wallet-activity") return activityCopyModule;

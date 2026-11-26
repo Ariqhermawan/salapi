@@ -1,0 +1,60 @@
+:global(.sl-main):has(.screen) { padding-bottom: 0; }
+.screen { min-height: 100%; display: flex; flex-direction: column; color: var(--sl-ink); }
+.card {
+  margin: 8px 16px 0;
+  padding: 16px;
+  background: var(--sl-surface);
+  border: 1px solid var(--sl-line);
+  border-radius: 20px;
+  text-align: center;
+  box-shadow: 0 4px 8px #0000000d;
+}
+.card h2 { margin-top: 16px; font-size: 20px; line-height: 28px; font-weight: 500; }
+.qr { width: min(100%, 232px); margin-inline: auto; background: #fff; border-radius: 16px; overflow: hidden; }
+.qr svg { display: block; width: 100%; height: auto; }
+.copy {
+  min-height: 44px;
+  max-width: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding-inline: 8px;
+  border-radius: 8px;
+  color: var(--sl-sub);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 13px;
+}
+.copy span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.copy[data-copy-error] span { white-space: normal; overflow-wrap: anywhere; user-select: all; }
+.copy svg { flex-shrink: 0; }
+.note { margin: 8px 0 0; color: var(--sl-sub); font-size: 13px; line-height: 1.45; }
+.link, .instructions summary { min-height: 44px; color: var(--sl-primary); font-size: 14px; }
+.instructions summary { display: inline-flex; align-items: center; cursor: pointer; }
+.instructions ol { list-style: decimal; padding-left: 20px; color: var(--sl-sub); text-align: left; font-size: 13px; }
+.instructions li + li { margin-top: 8px; }
+.status { min-height: 200px; display: grid; place-items: center; color: var(--sl-sub); }
+.error { margin-top: 8px; color: #b91c1c; font-size: 13px; }
+:global([data-theme="dark"]) .error { color: #fca5a5; }
+.card :is(button, summary):focus-visible { outline: 2px solid var(--sl-primary); outline-offset: 2px; }
+.pattern {
+  min-height: 100px;
+  flex: 1;
+  margin-top: 12px;
+  background: var(--sl-primary);
+  mask: url("/illustrations/home-card-pattern.png") center / 100% 100% no-repeat, linear-gradient(0deg, #000 30%, transparent);
+  mask-composite: intersect;
+}
+.actions {
+  position: sticky;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  padding: 5px;
+  border: 1px solid var(--sl-glass-line);
+  border-radius: 32px;
+  backdrop-filter: blur(20px) saturate(1.6);
+  box-shadow: var(--sl-glass-shadow);
+}
+.actions button { border-radius: 28px !important; }

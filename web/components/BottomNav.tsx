@@ -21,6 +21,7 @@ export default function BottomNav() {
   if (
     path === "/onboarding" ||
     path === "/signin" ||
+    path === "/receive" ||
     path === "/offline" ||
     path.startsWith("/docs")
   ) {

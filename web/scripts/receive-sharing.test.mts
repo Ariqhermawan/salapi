@@ -9,6 +9,7 @@ import ts from "typescript";
 import { StrKey } from "@stellar/stellar-sdk";
 import { receiveDestination, receiveShareData } from "../lib/receive.ts";
 import { receiveCopy } from "../lib/i18n/receive.ts";
+import { xlmDepositCopy } from "../lib/i18n/xlm-deposit.ts";
 import { moneyCopy, moneyMessage } from "../lib/i18n/revamp-money.ts";
 import { DICTS } from "../lib/i18n/dictionaries.ts";
 import { LOCALES, type Locale } from "../lib/i18n/config.ts";
@@ -84,16 +85,18 @@ function setup(options: { locale?: Locale; configured?: boolean; share?: Share; 
       } }; } };
       if (name === "@/lib/receive") return { receiveDestination, receiveShareData };
       if (name === "@/lib/i18n/receive") return { receiveCopy };
+      if (name === "@/lib/i18n/xlm-deposit") return { xlmDepositCopy };
       if (name === "@/lib/i18n/revamp-money") return { moneyCopy, moneyMessage };
       if (name === "@/components/I18nProvider") return { useT: () => ({ locale, t: translated }) };
       if (name === "@/lib/ui/useGoBack") return { useGoBack: () => () => {} };
       if (name === "@/lib/local-preview") return { isLocalPreview: false };
       if (name === "@/components/ui/kit") return {
-        T: {}, Ico: { back: () => null, check: () => null }, PoweredByStellar: () => null,
+        T: {}, Ico: { back: () => null, check: () => null, link: () => null },
         AppBar: (props: { title: string }) => React.createElement("h1", {}, props.title),
         IconButton: (props: { ariaLabel: string }) => React.createElement("button", { "aria-label": props.ariaLabel }),
         Btn: (props: { children: React.ReactNode; disabled: boolean; onClick: () => void }) => React.createElement("button", { disabled: props.disabled, onClick: props.onClick }, props.children),
       };
+      if (name.endsWith(".module.css")) return {};
       throw Error(`Unexpected Receive dependency ${name}`);
     },
   });
@@ -112,6 +115,11 @@ function setup(options: { locale?: Locale; configured?: boolean; share?: Share; 
   function shareButton() { const button = nodes(render()).find(node => node.props.onClick && node.props.kind === "primary"); assert.ok(button); return button; }
   return { render, reads, user, calls, html: () => renderToStaticMarkup(render()), shareButton,
     async share() { const button = shareButton(); assert.equal(button.props.disabled, false); await (button.props.onClick as () => Promise<void>)(); },
+    async shareUsername() {
+      const button = nodes(render()).find(node => node.type === "button" && node.props.children === receiveCopy(locale).shareUsername);
+      assert.ok(button);
+      await (button.props.onClick as () => Promise<void>)();
+    },
     auth(event: string, id: string | null) { listener(event, id ? { user: { id } } : null); },
     timers,
     cleanup() { for (const effect of effects.values()) effect.cleanup?.(); },
@@ -138,10 +146,11 @@ test("username builds a valid Send URL; public address is QR/copy text and never
 });
 
 for (const locale of LOCALES) {
-  test(`${locale}: actual username share uses Testnet copy and URL without private account details`, async () => {
+  test(`${locale}: the address QR and separate Salapi link use the verified wallet identity`, async () => {
     const h = setup({ locale, share: async () => {} }); await ready(h); const html = h.html();
-    assert.match(html, /data-qr-value="https:\/\/salapi\.app\/send\?to=fixture_user"/);
-    assert.doesNotMatch(html, /private@example|peso/i); await h.share();
+    assert.match(html, new RegExp(`data-qr-value="${address}"`));
+    assert.ok(html.includes("@fixture_user"));
+    assert.doesNotMatch(html, /private@example|peso/i); await h.shareUsername();
     assert.deepEqual(h.calls.shares, [{ title: "Salapi", text: receiveCopy(locale).usernameCaption, url: "https://salapi.app/send?to=fixture_user" }]);
     assert.deepEqual(h.calls.copies, []); h.cleanup();
   });
@@ -155,9 +164,11 @@ for (const locale of LOCALES) {
   });
 }
 
-test("clipboard fallback copies the exact username URL or full public address", async () => {
+test("clipboard fallback matches the selected share action", async () => {
   for (const handle of ["fixture_user", null]) {
-    const h = setup(); await ready(h, account(handle)); await h.share();
+    const h = setup(); await ready(h, account(handle));
+    if (handle) await h.shareUsername();
+    else await h.share();
     assert.deepEqual(h.calls.copies, [handle ? "https://salapi.app/send?to=fixture_user" : address]);
     assert.ok(h.html().includes("Copied")); h.cleanup();
   }
