@@ -27,12 +27,15 @@ const state = {
 };
 type Proposal = { id: string; kind: string; amount: string | null; recipient: string | null;
   approvals: string[]; readyLedger: number | null; epoch: string; executed: boolean };
+type EventFixture = { id: string; ledger: number; hash: string; link: string; action: string;
+  kind: "contribution" | "payout" | "other"; counterparty: string | null; amount: string | null; time: string };
 
-async function fixture(page: Page, options: { viewer?: string; unavailable?: boolean; proposals?: Proposal[]; funded?: boolean } = {}) {
+async function fixture(page: Page, options: { viewer?: string; unavailable?: boolean; proposals?: Proposal[];
+  funded?: boolean; events?: EventFixture[] } = {}) {
   const names = actionNames();
   const writes: { name: string; args: unknown[] }[] = [];
   await page.addInitScript(() => localStorage.setItem("salapi_currency", "tl"));
-  await page.route("**/transparency", async route => {
+  await page.route("**/transparency**", async route => {
     const request = route.request();
     const name = names.get(request.headers()["next-action"]);
     if (!name?.startsWith("disaster")) return route.continue();
@@ -41,7 +44,7 @@ async function fixture(page: Page, options: { viewer?: string; unavailable?: boo
       ? { ok: false, error: "Configured contract does not match the D3 Testnet controls" }
       : options.funded ? { ...state, status: { ...state.status, balance: "80307692", cap: "16061538", allowance: "16061538" } } : state;
     else if (name === "disasterProposals") value = { ok: true, viewer: options.viewer ?? null, proposals: options.proposals ?? [] };
-    else if (name === "disasterEvents") value = { ok: true, events: [] };
+    else if (name === "disasterEvents") value = { ok: true, events: options.events ?? [] };
     else {
       writes.push({ name, args: JSON.parse(request.postData() ?? "[]") });
       value = { ok: true, link: "https://stellar.expert/explorer/testnet/tx/ui-fixture-only" };
@@ -185,6 +188,45 @@ test.describe("D3 local UI and HTTP authorization", () => {
       expect(body).not.toContain('"ok":true');
     });
   }
+});
+
+test("D3 tab and activity filters are shareable and separate contract-backed money events", async ({ page, baseURL }) => {
+  test.skip(!["localhost", "127.0.0.1", "[::1]"].includes(new URL(baseURL!).hostname),
+    "Action fixtures and local Server Action manifest must not target a remote deployment");
+  const events: EventFixture[] = [
+    { id: "contribution-1", ledger: 100, hash: "a".repeat(64),
+      link: "https://stellar.expert/explorer/testnet/tx/" + "a".repeat(64), action: "Contribution",
+      kind: "contribution", counterparty: signers[2], amount: "10000000", time: "2026-11-27T00:00:00Z" },
+    { id: "payout-1", ledger: 101, hash: "b".repeat(64),
+      link: "https://stellar.expert/explorer/testnet/tx/" + "b".repeat(64), action: "Payout",
+      kind: "payout", counterparty: recipient, amount: "8923077", time: "2026-11-27T00:01:00Z" },
+    { id: "approval-1", ledger: 102, hash: "c".repeat(64),
+      link: "https://stellar.expert/explorer/testnet/tx/" + "c".repeat(64), action: "Approval",
+      kind: "other", counterparty: null, amount: null, time: "2026-11-27T00:02:00Z" },
+  ];
+  await fixture(page, { funded: true, events });
+  const controls = page.getByRole("region", { name: "Disaster Vault controls" });
+
+  await controls.getByRole("tab", { name: "Activity", exact: true }).click();
+  await expect(page).toHaveURL(/\/transparency\?tab=activity$/);
+  await expect(controls.getByRole("link", { name: /Contribution\. From/ })).toBeVisible();
+  await expect(controls.getByRole("link", { name: /Payout\. To/ })).toBeVisible();
+  await expect(controls.getByRole("link", { name: /Approval\. Ledger/ })).toBeVisible();
+
+  await controls.getByRole("button", { name: "Payouts", exact: true }).click();
+  await expect(page).toHaveURL(/tab=activity&filter=payouts$/);
+  await expect(controls.getByRole("link", { name: /Payout\. To/ })).toBeVisible();
+  await expect(controls.getByRole("link", { name: /Contribution/ })).toHaveCount(0);
+  await expect(controls.getByRole("link", { name: /Approval/ })).toHaveCount(0);
+
+  await controls.getByRole("button", { name: "Contributions", exact: true }).click();
+  await expect(page).toHaveURL(/tab=activity&filter=contributions$/);
+  await expect(controls.getByRole("link", { name: /Contribution\. From/ })).toBeVisible();
+  await expect(controls.getByRole("link", { name: /Payout/ })).toHaveCount(0);
+
+  await controls.getByRole("tab", { name: "Vault", exact: true }).click();
+  await expect(page).toHaveURL(/\/transparency$/);
+  await expect(controls.getByRole("tabpanel", { name: "Vault", exact: true })).toBeVisible();
 });
 
 test("D3 public UI reads the expected live Testnet deployment (opt-in, no mocks)", async ({ page }) => {

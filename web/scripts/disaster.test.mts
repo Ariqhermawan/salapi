@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { Keypair } from "@stellar/stellar-sdk";
-import { disasterError, disasterProposalId, formatStroops, parseDisasterAction, requireDisasterMembership } from "../lib/disaster.ts";
+import { describeDisasterEvent, disasterError, disasterProposalId, formatStroops, parseDisasterAction, requireDisasterMembership } from "../lib/disaster.ts";
 
 const [a, b, c, outsider] = Array.from({ length: 4 }, () => Keypair.random().publicKey());
 const signers = [a, b, c];
@@ -12,6 +12,21 @@ test("D3 proposal retains exact PHP-to-stroop conversion", () => {
   assert.equal(formatStroops(action[2]!), "1");
   assert.equal(formatStroops("10000001"), "1.0000001");
   assert.equal(formatStroops("0"), "0");
+});
+
+test("D3 activity classifies only contributions and executed disbursements as money events", () => {
+  assert.deepEqual(describeDisasterEvent("contrib", 10_000_000n, a), {
+    action: "Contribution", kind: "contribution", counterparty: a, amount: "10000000",
+  });
+  assert.deepEqual(describeDisasterEvent("execute", ["Disburse", b, 8_923_077n]), {
+    action: "Payout", kind: "payout", counterparty: b, amount: "8923077",
+  });
+  assert.deepEqual(describeDisasterEvent("execute", ["Pause"]), {
+    action: "Vault control", kind: "other", counterparty: null, amount: null,
+  });
+  assert.deepEqual(describeDisasterEvent("approve", 120n, c), {
+    action: "Approval", kind: "other", counterparty: null, amount: null,
+  });
 });
 
 test("D3 rejects malformed, negative, zero, numeric, and oversized money", () => {

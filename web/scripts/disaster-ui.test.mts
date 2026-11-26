@@ -31,6 +31,10 @@ test("D3 groups the vault and activity view while keeping signer actions and pro
   assert.equal((controls.match(/tab === "vault"/g) ?? []).length, 2);
   assert.match(controls, /tab === "activity"/);
   assert.match(controls, /aria-label="Payout requests"/);
+  assert.match(controls, /useSearchParams/);
+  assert.match(controls, /params\.set\("tab", "activity"\)/);
+  assert.match(controls, /aria-label="Activity filter"/);
+  assert.match(controls, /event\.kind === "payout"/);
   assert.match(controls, /Two of the three different signer wallets must approve it/);
   assert.match(controls, /wait \{pool\.config\.timelock_ledgers\}/);
   assert.match(controls, /Recent D3 transactions/);

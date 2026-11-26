@@ -3,7 +3,25 @@ import { moneyInputToStroops, pesosToStroopsExact } from "./money.ts";
 export { formatStroops } from "./format-stroops.ts";
 
 export type DisasterAction = ["Disburse", string, bigint] | ["Pause"] | ["Unpause"];
+export type DisasterEventKind = "contribution" | "payout" | "other";
 const MAX_AMOUNT = pesosToStroopsExact("1000000000")!;
+
+export function describeDisasterEvent(action: string, value: unknown, topicParty?: unknown) {
+  const isContribution = action === "contrib";
+  const isPayout = action === "execute" && Array.isArray(value) && value[0] === "Disburse";
+  const kind: DisasterEventKind = isContribution ? "contribution" : isPayout ? "payout" : "other";
+  const label = isContribution ? "Contribution" : isPayout ? "Payout"
+    : action === "approve" ? "Approval" : action === "propose" ? "Payout request"
+      : action === "execute" ? "Vault control" : action === "paused" ? "Pause status" : action;
+  const party = isContribution ? topicParty : isPayout ? value[1] : null;
+  const rawAmount = isContribution ? value : isPayout ? value[2] : null;
+  return {
+    action: label,
+    kind,
+    counterparty: typeof party === "string" ? party : null,
+    amount: typeof rawAmount === "bigint" ? rawAmount.toString() : null,
+  };
+}
 
 export function parseDisasterAction(input: unknown): DisasterAction {
   if (!input || typeof input !== "object") throw new Error("Invalid proposal");

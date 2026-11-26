@@ -3,7 +3,7 @@
 import { nativeToScVal, rpc, scValToNative, xdr } from "@stellar/stellar-sdk";
 import { disasterId, readContract, invokeAs, sc, txLink, stroopsToPesos, fmtPeso, RPC_URL, CONTRACTS } from "@/lib/server/stellar";
 import { currentWalletPublicKey, getAuthenticatedSigner, getSigner } from "@/lib/server/userWallet";
-import { disasterError, disasterProposalId, parseDisasterAction, requireDisasterMembership } from "@/lib/disaster";
+import { describeDisasterEvent, disasterError, disasterProposalId, parseDisasterAction, requireDisasterMembership } from "@/lib/disaster";
 import { moneyInputToStroops, pesosToStroopsExact, type MoneyInput } from "@/lib/money";
 import { isLocalPreview } from "@/lib/local-preview";
 
@@ -70,10 +70,16 @@ export async function disasterEvents() {
     const events = await server.getEvents({ startLedger: Math.max(oldestLedger, latestLedger - 720),
       filters: [{ type: "contract", contractIds: [id] }], limit: 100 });
     // Newer RPC versions omit the legacy success flag from contract events.
-    return { ok: true as const, events: events.events.filter(e => e.type === "contract" && e.inSuccessfulContractCall !== false).reverse().map(e => ({
-      id: e.id, ledger: e.ledger, hash: e.txHash, link: txLink(e.txHash), action: String(scValToNative(e.topic[0])),
-      time: e.ledgerClosedAt,
-    })) };
+    return { ok: true as const, events: events.events.filter(e => e.type === "contract" && e.inSuccessfulContractCall !== false).reverse().map(e => {
+      const action = String(scValToNative(e.topic[0]));
+      const value = scValToNative(e.value);
+      const topicParty = e.topic[1] ? scValToNative(e.topic[1]) : null;
+      const details = describeDisasterEvent(action, value, topicParty);
+      return {
+        id: e.id, ledger: e.ledger, hash: e.txHash, link: txLink(e.txHash), ...details,
+        time: e.ledgerClosedAt,
+      };
+    }) };
   } catch {
     return { ok: false as const, error: "Recent event feed is unavailable. Contract/proposal state remains authoritative." };
   }

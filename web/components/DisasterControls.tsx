@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   disasterApprove,
   disasterEvents,
@@ -26,6 +27,7 @@ type Review =
   | { method: "propose"; input: unknown; summary: string }
   | { method: "approve" | "execute"; id: string; summary: string };
 type Tab = "vault" | "activity";
+type ActivityFilter = "all" | "contributions" | "payouts";
 const PREVIEW = process.env.NEXT_PUBLIC_LOCAL_PREVIEW === "1";
 const REPORT =
   "https://github.com/Ariqhermawan/salapi/blob/98a4a701b3fbd6d71a55c346c06d76c0001bc37e/docs/instawards/week-3-d3.md";
@@ -43,7 +45,14 @@ export default function DisasterControls({
 }) {
   const submission = useUnresolvedSubmission("disaster:d3");
   const { currency } = useT();
-  const [tab, setTab] = useState<Tab>("vault");
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const tab: Tab = searchParams.get("tab") === "activity" ? "activity" : "vault";
+  const requestedFilter = searchParams.get("filter");
+  const activityFilter: ActivityFilter = requestedFilter === "contributions" || requestedFilter === "payouts"
+    ? requestedFilter
+    : "all";
   const [list, setList] = useState<Proposals | null>(null);
   const [feed, setFeed] = useState<EventFeed | null>(null);
   const [before, setBefore] = useState("0");
@@ -55,6 +64,17 @@ export default function DisasterControls({
   const [error, setError] = useState("");
   const [receipt, setReceipt] = useState<string | null>(null);
   const contractId = pool?.ok ? pool.contractId : null;
+  function setView(nextTab: Tab, nextFilter: ActivityFilter = "all") {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("tab");
+    params.delete("filter");
+    if (nextTab === "activity") {
+      params.set("tab", "activity");
+      if (nextFilter !== "all") params.set("filter", nextFilter);
+    }
+    const query = params.toString();
+    router.replace(`${pathname}${query ? `?${query}` : ""}`, { scroll: false });
+  }
   const refresh = useCallback(async () => {
     if (!contractId) return;
     if (PREVIEW) {
@@ -212,7 +232,7 @@ export default function DisasterControls({
                     : null;
           if (next !== null) {
             event.preventDefault();
-            setTab(tabs[next].id);
+            setView(tabs[next].id);
             document.getElementById(`disaster-tab-${tabs[next].id}`)?.focus();
           }
         }}
@@ -227,7 +247,7 @@ export default function DisasterControls({
             aria-controls={`disaster-panel-${item.id}`}
             tabIndex={tab === item.id ? 0 : -1}
             className={styles.tab}
-            onClick={() => setTab(item.id)}
+            onClick={() => setView(item.id)}
           >
             {item.label}
           </button>
@@ -621,11 +641,83 @@ export default function DisasterControls({
           className={styles.panel}
         >
           <section className={styles.rulesSection}>
-            <h2>Follow the public trail.</h2>
+            <h2>Activity</h2>
             <p>
-              Inspect the configured contract and archived Testnet payout on
-              Stellar Expert.
+              Review recent Testnet contributions, executed payouts, and signer
+              actions recorded by the contract.
             </p>
+          </section>
+          <div className={`${styles.tabs} ${styles.activityFilters}`} role="group" aria-label="Activity filter">
+            {([
+              ["all", "All activity"],
+              ["contributions", "Contributions"],
+              ["payouts", "Payouts"],
+            ] as const).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                aria-pressed={activityFilter === id}
+                className={styles.tab}
+                onClick={() => setView("activity", id)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <section className={styles.detailCard}>
+            <h3>Recent D3 transactions</h3>
+            <p>
+              A bounded feed of up to 100 events from the last 720 ledgers.
+              Contributions and completed payouts can be filtered here; signer
+              controls remain under All activity. Older evidence is in the D3 report.
+            </p>
+            {!feed ? (
+              <p role="status">Loading events…</p>
+            ) : !feed.ok ? (
+              <div role="alert" className={styles.errorText}>
+                {feed.error}
+              </div>
+            ) : !feed.events.some((event) => activityFilter === "all"
+              || (activityFilter === "contributions" && event.kind === "contribution")
+              || (activityFilter === "payouts" && event.kind === "payout")) ? (
+              <p>
+                {activityFilter === "contributions"
+                  ? "No contributions in this window."
+                  : activityFilter === "payouts"
+                    ? "No completed payouts in this window."
+                    : "No events in this window."} This does not mean the pool
+                has no historical transactions.
+              </p>
+            ) : (
+              feed.events
+                .filter((event) => activityFilter === "all"
+                  || (activityFilter === "contributions" && event.kind === "contribution")
+                  || (activityFilter === "payouts" && event.kind === "payout"))
+                .map((event) => {
+                  const party = event.counterparty
+                    ? `${event.kind === "contribution" ? "From" : "To"} ${event.counterparty.slice(0, 8)}…${event.counterparty.slice(-5)}`
+                    : `Ledger ${event.ledger}`;
+                  const amount = event.amount === null
+                    ? null
+                    : `${event.kind === "contribution" ? "+" : "−"}${formatStroops(event.amount)} XLM`;
+                  return (
+                    <a
+                      key={event.id}
+                      className={styles.eventLink}
+                      href={event.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`${event.action}. ${party}. ${amount ?? `Ledger ${event.ledger}`}.`}
+                    >
+                      <span className={styles.eventCopy}>
+                        <strong>{event.action}</strong>
+                        <span>{party} · ledger {event.ledger}</span>
+                      </span>
+                      <span className={styles.eventAmount}>{amount ?? `${event.hash.slice(0, 9)}… ↗`}</span>
+                    </a>
+                  );
+                })
+            )}
           </section>
           <a
             className={styles.receiptLink}
@@ -653,40 +745,6 @@ export default function DisasterControls({
             </div>
             {Ico.link({ size: 17, c: T.action })}
           </a>
-          <section className={styles.detailCard}>
-            <h3>Recent D3 transactions</h3>
-            <p>
-              A bounded feed of up to 100 events from the last 720 ledgers.
-              Older evidence remains in the D3 report.
-            </p>
-            {!feed ? (
-              <p role="status">Loading events…</p>
-            ) : !feed.ok ? (
-              <div role="alert" className={styles.errorText}>
-                {feed.error}
-              </div>
-            ) : feed.events.length === 0 ? (
-              <p>
-                No events in this window. This does not mean the pool has no
-                historical transactions.
-              </p>
-            ) : (
-              feed.events.map((event) => (
-                <a
-                  key={event.id}
-                  className={styles.eventLink}
-                  href={event.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <span>
-                    {event.action} · ledger {event.ledger}
-                  </span>
-                  <span>{event.hash.slice(0, 9)}… ↗</span>
-                </a>
-              ))
-            )}
-          </section>
           <details className={styles.technicalDetails}>
             <summary>Technical documentation and implementation</summary>
             <ul>
