@@ -14,14 +14,32 @@ const codes = { disaster: compile("../app/disaster-actions.ts"), campaign: compi
 
 // SDK, auth and RPC are isolated. The campaign path confirms one stored intent;
 // no live transaction is submitted.
-function setup(feature: keyof typeof codes, options: { preview?: boolean; result?: Result; authFail?: boolean } = {}) {
+function setup(feature: keyof typeof codes, options: { preview?: boolean; result?: Result; authFail?: boolean; eventFeed?: boolean } = {}) {
   const calls = { auth: 0, reads: 0, invokes: 0, rpc: 0, consumes: 0, preparedSubmissions: 0 };
   const sandboxModule = { exports: {} as Actions };
   const sc = new Proxy({}, { get: () => (value: unknown) => value });
   const dependencies = {
     "@stellar/stellar-sdk": { nativeToScVal: (value: unknown) => value, scValToNative: (value: unknown) => value,
       StrKey: { isValidEd25519PublicKey: () => true, isValidContract: () => true },
-      xdr: { ScVal: { scvVec: (value: unknown) => value } }, rpc: { Server: class { constructor() { calls.rpc++; throw new Error("No provider request authorized"); } } } },
+      xdr: { ScVal: { scvVec: (value: unknown) => value } }, rpc: { Server: class {
+        constructor() {
+          calls.rpc++;
+          if (!options.eventFeed) throw new Error("No provider request authorized");
+        }
+        async getHealth() { return { oldestLedger: 950, latestLedger: 1000 }; }
+        async getEvents(request: { startLedger: number; filters: { type: string; contractIds: string[] }[] }) {
+          assert.equal(request.startLedger, 950);
+          assert.equal(request.filters[0].type, "contract");
+          assert.equal(request.filters[0].contractIds[0], feature === "disaster" ? "d3" : "d4");
+          const base = { type: "contract", ledger: 951, ledgerClosedAt: "2026-11-26T00:00:00Z", topic: ["confirmed", 1], txHash: hash };
+          return { events: [
+            { ...base, id: "current" },
+            { ...base, id: "older-accepted", inSuccessfulContractCall: true },
+            { ...base, id: "older-rejected", inSuccessfulContractCall: false },
+            { ...base, id: "diagnostic", type: "diagnostic" },
+          ] };
+        }
+      } } },
     "@/lib/local-preview": { isLocalPreview: options.preview ?? false },
     "@/lib/server/circlesTestnet": { readCircleDiscoveryMappings: async () => [], circleDiscoveryLinks: () => ({}) },
     "@/lib/server/stellar": { sc, CONTRACTS: { tokenXlmSac: "test-token" }, RPC_URL: "https://isolated.invalid", disasterId: () => "d3", donationCampaignId: () => "d4", txLink: (value: string) => `https://stellar.expert/explorer/testnet/tx/${value}`, stroopsToPesos: () => 5, fmtPeso: () => "PHP 5",
@@ -50,6 +68,13 @@ const mutations = {
 } as const;
 
 for (const feature of ["disaster", "campaign"] as const) {
+  test(`${feature}: recent proof uses retained ledgers and accepts contract events from current RPC`, async () => {
+    const env = setup(feature, { eventFeed: true });
+    const result = await env.api[`${feature}Events`]() as Result & { events: { id: string }[] };
+    assert.equal(result.ok, true);
+    assert.deepEqual(Array.from(result.events, event => event.id), ["older-accepted", "current"]);
+    assert.equal(env.calls.invokes + env.calls.preparedSubmissions, 0);
+  });
   test(`${feature}: pending mutations preserve hash/error without announcing success`, async () => {
     const methods = feature === "campaign" ? [mutations.campaign[0]] : mutations.disaster;
     for (const [method, ...args] of methods) {
