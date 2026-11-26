@@ -8,6 +8,8 @@ import PwaRegister from "@/components/PwaRegister";
 import { I18nProvider } from "@/components/I18nProvider";
 import InstallBanner from "@/components/InstallBanner";
 import MarketingAside from "@/components/MarketingAside";
+import PrototypePreviewAside from "@/components/PrototypePreviewAside";
+import { StatusBarIcons, StatusBarTime } from "@/components/PrototypeStatusBar";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { isLocalPreview } from "@/lib/local-preview";
@@ -89,22 +91,34 @@ export default async function RootLayout({
           <MarketPricesProvider>
           <Suspense fallback={null}><UsernameOnboarding /></Suspense>
           <Suspense fallback={null}><AppScrollReset /></Suspense>
-          {/* Mobile: full-screen app. Desktop (≥1024px): the same app shown as
-              a phone on a calm dark backdrop with a marketing column, so the
-              browser view reads as intentional instead of a lonely column. */}
-          <div className="sl-shell flex min-h-dvh w-full flex-col lg:flex-row lg:items-center lg:justify-center lg:gap-12 xl:gap-20">
-            <div
-              className="sl-app-frame relative mx-auto flex h-svh w-full max-w-[390px] flex-col overflow-hidden lg:mx-0 lg:h-[844px] lg:max-h-[94vh] lg:min-h-0 lg:flex-none lg:rounded-[32px] lg:ring-1 lg:ring-blue-900/10"
-            >
+          <div className={`sl-shell flex min-h-dvh w-full flex-col lg:flex-row lg:items-center lg:justify-center lg:gap-12 xl:gap-20${isLocalPreview ? " sl-shell-preview" : ""}`}>
+            {isLocalPreview ? <div className="sl-preview-device-slot">
+              <div className="sl-preview-device">
+                <div className="sl-app-frame sl-app-frame-preview relative mx-auto flex h-svh w-full max-w-[390px] flex-col overflow-hidden">
+                  <div className="sl-prototype-statusbar" aria-hidden="true"><StatusBarTime /><StatusBarIcons /></div>
+                  <div className="sl-preview-status-spacer" />
+                  <main id="app-content" tabIndex={-1} className="sl-main flex-1 overflow-y-auto pb-[calc(env(safe-area-inset-bottom,0px)+90px)]">
+                    <RouteMotion>{children}</RouteMotion>
+                  </main>
+                  <SuccessFeedback />
+                  <BottomNav />
+                  <div className="sl-preview-home-indicator" aria-hidden="true" />
+                </div>
+                <span className="sl-preview-island" aria-hidden="true" />
+                <span className="sl-preview-device-button sl-preview-device-button-action" aria-hidden="true" />
+                <span className="sl-preview-device-button sl-preview-device-button-up" aria-hidden="true" />
+                <span className="sl-preview-device-button sl-preview-device-button-down" aria-hidden="true" />
+                <span className="sl-preview-device-button sl-preview-device-button-power" aria-hidden="true" />
+              </div>
+            </div> : <div className="sl-app-frame relative mx-auto flex h-svh w-full max-w-[390px] flex-col overflow-hidden lg:mx-0 lg:h-[844px] lg:max-h-[94vh] lg:min-h-0 lg:flex-none lg:rounded-[32px] lg:ring-1 lg:ring-blue-900/10">
               <InstallBanner />
-              {isLocalPreview && <div className="sl-preview-banner"><span className="sl-preview-dot" />Local preview · sample data · no transactions</div>}
               <main id="app-content" tabIndex={-1} className="sl-main flex-1 overflow-y-auto pb-[calc(env(safe-area-inset-bottom,0px)+90px)]">
                 <RouteMotion>{children}</RouteMotion>
               </main>
               <SuccessFeedback />
               <BottomNav />
-            </div>
-            <MarketingAside />
+            </div>}
+            {isLocalPreview ? <PrototypePreviewAside /> : <MarketingAside />}
           </div>
           </MarketPricesProvider>
         </I18nProvider>

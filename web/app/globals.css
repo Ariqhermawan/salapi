@@ -283,6 +283,16 @@
 }
 .sl-app-frame:has(> .sl-preview-banner) > .sl-main { background:transparent; }
 .sl-app-frame:has([data-testid="prototype-home"])::before { content:none; }
+.sl-shell-preview { background:#f7f7f7!important; }
+.sl-app-frame-preview { background:var(--sl-canvas); color:var(--sl-ink); }
+.sl-preview-status-spacer { flex:none; height:0; }
+.sl-prototype-statusbar,.sl-preview-island,.sl-preview-device-button,.sl-preview-home-indicator { display:none; }
+.sl-app-frame-preview::before {
+  content:""; position:absolute; z-index:0; inset:0 0 auto; height:320px; pointer-events:none; background:#335cff;
+  -webkit-mask:url('/illustrations/home-card-pattern.png') center / 100% 100% no-repeat,linear-gradient(180deg,#000 20%,transparent);
+  -webkit-mask-composite:source-in; mask:url('/illustrations/home-card-pattern.png') center / 100% 100% no-repeat,linear-gradient(180deg,#000 20%,transparent); mask-composite:intersect;
+}
+.sl-app-frame-preview > .sl-main { background:transparent; }
 .sl-preview-banner { display:flex; align-items:center; justify-content:center; gap:7px; flex-shrink:0; padding:7px 10px; background:#e7effe; color:#244c91; font-size:10px; font-weight:650; letter-spacing:.02em; border-bottom:1px solid #d5e3fb; }
 .sl-preview-dot { width:5px; height:5px; border-radius:50%; background:#2563eb; }
 [data-theme="dark"] .sl-preview-banner { background:#262626; color:#a3a3a3; border-color:#333; }
@@ -352,6 +362,28 @@ input:disabled,button:disabled { cursor:not-allowed; }
   .sl-marketing-footer { gap:10px; padding-top:14px; }
 }
 @media(max-width:1023px) { .sl-app-frame { box-shadow:none; } }
+@media(min-width:640px) {
+  .sl-shell-preview { --device-s:min(1,tan(atan2(100dvh - 48px,868px))); flex-direction:row!important; align-items:center!important; justify-content:center!important; gap:56px!important; padding:24px!important; }
+  .sl-preview-device-slot { flex:none; width:calc(414px * var(--device-s)); height:calc(868px * var(--device-s)); }
+  .sl-preview-device { position:relative; width:414px; height:868px; padding:12px; border-radius:56px; background:#060606; transform:scale(var(--device-s)); transform-origin:0 0; box-shadow:inset 0 0 0 2px #4a4a4e,inset 0 0 0 3.5px #0a0a0a,0 0 0 1px #1c1c1e,0 24px 80px #0004; }
+  .sl-app-frame-preview { position:absolute; top:12px; left:12px; width:390px; height:844px; max-width:none; max-height:none; flex:none; border-radius:44px; box-shadow:none; clip-path:inset(0 round 44px); }
+  .sl-prototype-statusbar { position:absolute; inset:0 0 auto; z-index:8; display:flex; height:54px; align-items:center; justify-content:space-between; padding:8px 34px 0 57px; color:var(--sl-ink); pointer-events:none; }
+  .sl-prototype-statusbar svg { flex:none; }
+  .sl-preview-status-spacer { height:54px; }
+  .sl-preview-island { position:absolute; top:25px; left:50%; z-index:9; display:block; width:124px; height:36px; translate:-50% 0; border-radius:18px; background:#000; pointer-events:none; }
+  .sl-preview-device-button { position:absolute; display:block; width:3px; border-radius:2px; background:#2c2c2e; }
+  .sl-preview-device-button-action { top:132px; left:-3px; height:30px; }
+  .sl-preview-device-button-up { top:190px; left:-3px; height:58px; }
+  .sl-preview-device-button-down { top:262px; left:-3px; height:58px; }
+  .sl-preview-device-button-power { top:220px; right:-3px; height:92px; }
+  .sl-preview-home-indicator { position:absolute; bottom:8px; left:50%; z-index:9; display:block; width:134px; height:5px; translate:-50% 0; border-radius:99px; background:var(--sl-ink); opacity:.55; pointer-events:none; }
+  .sl-app-frame-preview .sl-tabbar { bottom:22px; }
+}
+@media(max-width:639px) {
+  .sl-preview-device-slot,.sl-preview-device { width:100%; height:100dvh; }
+  .sl-preview-device { position:relative; border-radius:0; background:var(--sl-canvas); }
+  .sl-app-frame-preview { position:relative; width:100%; height:100%; max-width:390px; border-radius:0; box-shadow:none; }
+}
 @media(prefers-reduced-motion:reduce) { .sl-main { scroll-behavior:auto; } .sl-btn,.sl-card,.sl-row { transition:none; } }
 
 /* ── Vault "Brankas Hidup" — living-vault motion ──────────────────
