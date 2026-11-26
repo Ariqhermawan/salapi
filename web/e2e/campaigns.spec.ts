@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { test, expect, type Page } from "@playwright/test";
 
 const wallets = [
@@ -11,7 +11,10 @@ const campaign = { id: "1", title: "UI fixture campaign", state: "Funding", tota
     creator_cut_bps: 500, funding_deadline: "1100", review_deadline: "1200", approvers: wallets },
   proofHash: null as string | null, proofUrl: "", approvals: [] as string[], contribution: { amount: "300000000", refunded: false } };
 function actions() {
-  const m = JSON.parse(readFileSync(".next/server/server-reference-manifest.json", "utf8"));
+  const devManifest = ".next/dev/server/server-reference-manifest.json";
+  const buildManifest = ".next/server/server-reference-manifest.json";
+  const manifest = existsSync(devManifest) ? devManifest : buildManifest;
+  const m = JSON.parse(readFileSync(manifest, "utf8"));
   return new Map(Object.entries(m.node as Record<string, { exportedName: string }>).map(([id, v]) => [id, v.exportedName]));
 }
 function xlm(stroops: string) {
@@ -102,8 +105,10 @@ test.describe("D4 isolated local UI and HTTP authorization", () => {
       if (variant.create) {
         await page.getByText("Start a campaign", { exact: true }).click();
         await page.getByLabel("1. Name your cause", { exact: true }).fill("Long cause terms for a careful review. ".repeat(40));
+        await page.getByRole("button", { name: "Continue", exact: true }).click();
         await page.getByLabel("Beneficiary public wallet", { exact: true }).fill(wallets[1]);
         await page.getByLabel("2. Funding closes", { exact: true }).fill("2030-01-01T12:00");
+        await page.getByRole("button", { name: "Continue", exact: true }).click();
         await page.getByLabel("Review closes", { exact: true }).fill("2030-01-02T12:00");
         for (let i = 0; i < 3; i++) await page.getByLabel(`${i === 0 ? "3. " : ""}Approver ${i + 1} public wallet`, { exact: true }).fill(wallets[i]);
       } else {
@@ -163,9 +168,11 @@ test.describe("D4 isolated local UI and HTTP authorization", () => {
     const { writes, preparations } = await fixture(page, { viewer: wallets[0] });
     await page.getByText("Start a campaign", { exact: true }).click();
     await page.getByLabel("1. Name your cause", { exact: true }).fill("Test release");
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
     await page.getByLabel("Beneficiary public wallet", { exact: true }).fill(wallets[1]);
     await page.getByLabel("Creator share, 0 to 10%", { exact: true }).fill("5.25");
     await page.getByLabel("2. Funding closes", { exact: true }).fill("2030-01-01T12:00");
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
     await page.getByLabel("Review closes", { exact: true }).fill("2030-01-02T12:00");
     for (let i = 0; i < 3; i++) await page.getByLabel(`${i === 0 ? "3. " : ""}Approver ${i + 1} public wallet`, { exact: true }).fill(wallets[i]);
     await page.getByRole("button", { name: "Review campaign terms", exact: true }).click();
@@ -175,6 +182,33 @@ test.describe("D4 isolated local UI and HTTP authorization", () => {
     await page.getByRole("button", { name: "Confirm transaction", exact: true }).click();
     await expect(page.getByRole("link", { name: "Open created campaign #2" })).toBeVisible();
     expect(writes).toEqual([{ name: "campaignCreate", args: ["11111111-1111-4111-8111-111111111111"] }]);
+  });
+  test("campaign wizard validates each step and keeps terms when going back", async ({ page }) => {
+    const { writes, preparations } = await fixture(page, { viewer: wallets[0] });
+    await page.getByText("Start a campaign", { exact: true }).click();
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await expect(page.getByText("Enter a campaign name.", { exact: true })).toBeVisible();
+    expect(writes).toHaveLength(0); expect(preparations).toHaveLength(0);
+
+    await page.getByLabel("1. Name your cause", { exact: true }).fill("Wizard campaign");
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await page.getByLabel("Beneficiary public wallet", { exact: true }).fill(wallets[1]);
+    await page.getByLabel("Creator share, 0 to 10%", { exact: true }).fill("11");
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await expect(page.getByText("Creator share cannot exceed 10%", { exact: true })).toBeVisible();
+    await page.getByLabel("Creator share, 0 to 10%", { exact: true }).fill("5.25");
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await expect(page.getByText(/Funding must end in the future/)).toBeVisible();
+    await page.getByLabel("2. Funding closes", { exact: true }).fill("2030-01-01T12:00");
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await page.getByLabel("Review closes", { exact: true }).fill("2030-01-02T12:00");
+    await page.getByRole("button", { name: "Back", exact: true }).last().click();
+    await expect(page.getByLabel("2. Funding closes", { exact: true })).toHaveValue("2030-01-01T12:00");
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await expect(page.getByLabel("Review closes", { exact: true })).toHaveValue("2030-01-02T12:00");
+    await page.getByRole("button", { name: "Review campaign terms", exact: true }).click();
+    await expect(page.getByText(/Enter complete Stellar public wallet addresses/)).toBeVisible();
+    expect(writes).toHaveLength(0); expect(preparations).toHaveLength(0);
   });
   test("campaign navigation clears drafts and prior page state", async ({ page }) => {
     await fixture(page, { viewer: wallets[0] });

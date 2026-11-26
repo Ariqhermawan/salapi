@@ -40,6 +40,13 @@
 .formGrid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
 .dateGrid { display: grid; grid-template-columns: minmax(0,1fr); gap: 12px; }
 .formSection { display: grid; gap: 14px; padding-top: 18px; margin-top: 18px; border-top: 1px solid #e7ebf2; }
+.createProgress { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
+.createProgress li { min-width: 0; padding-top: 8px; border-top: 3px solid #e5eaf2; color: #78849a; font-size: 10px; line-height: 1.4; }
+.createProgress li[aria-current="step"] { border-color: #2563eb; color: #2563eb; font-weight: 700; }
+.createStep { display: grid; gap: 12px; }
+.createStep h2 { margin: 0; color: #101d35; font-size: 20px; font-weight: 750; letter-spacing: -.035em; line-height: 1.25; }
+.createStepActions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.createStepActions[data-first="true"] { grid-template-columns: 1fr; }
 .createSummary { display: flex; justify-content: space-between; gap: 12px; align-items: center; cursor: pointer; list-style: none; }
 .createSummary::-webkit-details-marker { display: none; }
 .createSummary strong { display: block; font-size: 16px; letter-spacing: -.02em; }

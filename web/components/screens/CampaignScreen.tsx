@@ -85,20 +85,43 @@ function AddressLink({ address }: { address: string }) {
 }
 
 function CreateCampaign({ run, busy, onPreviewCreate, initialCreate = false }: { run: Run; busy: boolean; onPreviewCreate?: (campaign: Campaign) => boolean; initialCreate?: boolean }) {
+  const { locale } = useT();
+  const h = campaignDiscoveryCopy(locale);
   const [values, setValues] = useState({ title: "", beneficiary: "", creatorCut: "5", funding: "", review: "", a: "", b: "", c: "" });
+  const [step, setStep] = useState(1);
   const [error, setError] = useState("");
   const input = (key: keyof typeof values, label: string, type = "text") => <Field label={label}><input className={styles.input} type={type} autoFocus={key === "title" && initialCreate}
-    value={values[key]} onChange={e => { const value = e.target.value; setValues(previous => ({ ...previous, [key]: value })); }} disabled={busy} step={type === "datetime-local" ? "60" : undefined} /></Field>;
-  function submit() {
+    value={values[key]} onChange={e => { const value = e.target.value; setValues(previous => ({ ...previous, [key]: value })); setError(""); }} disabled={busy} step={type === "datetime-local" ? "60" : undefined} /></Field>;
+  function validate(target: number) {
     try {
       setError("");
-      creatorCutBps(values.creatorCut);
+      if (target >= 1 && !values.title.trim()) throw new Error("Enter a campaign name.");
+      if (target >= 2) {
+        try { creatorCutBps(values.creatorCut); }
+        catch (e) {
+          const message = e instanceof Error ? e.message : "Invalid campaign";
+          if (message === "Creator share must be 0–10%, with at most 2 decimal places" || message === "Creator share cannot exceed 10%") throw new Error(h(message));
+          throw e;
+        }
+        const fundingDeadline = String(new Date(values.funding).getTime() / 1000);
+        if (!/^G[A-Z2-7]{55}$/.test(values.beneficiary.trim())) throw new Error("Enter complete Stellar public wallet addresses beginning with G.");
+        if (!/^\d+$/.test(fundingDeadline) || Number(fundingDeadline) <= Date.now() / 1000) throw new Error("Funding must end in the future. Review must end after funding.");
+      }
+      if (target >= 3) {
+        const fundingDeadline = String(new Date(values.funding).getTime() / 1000);
+        const reviewDeadline = String(new Date(values.review).getTime() / 1000);
+        if (!/^\d+$/.test(reviewDeadline) || Number(reviewDeadline) <= Number(fundingDeadline)) throw new Error("Funding must end in the future. Review must end after funding.");
+        if (![values.a, values.b, values.c].every(value => /^G[A-Z2-7]{55}$/.test(value.trim()))) throw new Error("Enter complete Stellar public wallet addresses beginning with G.");
+        if (new Set([values.a.trim(), values.b.trim(), values.c.trim()]).size !== 3) throw new Error("Choose three different approver wallets.");
+      }
+      return true;
+    } catch (e) { setError(e instanceof Error ? e.message : "Invalid campaign"); return false; }
+  }
+  function submit() {
+    if (!validate(3)) return;
+    try {
       const fundingDeadline = String(new Date(values.funding).getTime() / 1000);
       const reviewDeadline = String(new Date(values.review).getTime() / 1000);
-      if (!values.title.trim() || !/^\d+$/.test(fundingDeadline) || !/^\d+$/.test(reviewDeadline)) throw new Error("Enter a title and both deadlines");
-      if (Number(fundingDeadline) <= Date.now() / 1000 || Number(reviewDeadline) <= Number(fundingDeadline)) throw new Error("Funding must end in the future. Review must end after funding.");
-      if (![values.beneficiary, values.a, values.b, values.c].every(value => /^G[A-Z2-7]{55}$/.test(value.trim()))) throw new Error("Enter complete Stellar public wallet addresses beginning with G.");
-      if (new Set([values.a.trim(), values.b.trim(), values.c.trim()]).size !== 3) throw new Error("Choose three different approver wallets.");
       run(`Create “${values.title}” with a ${values.creatorCut}% creator share. Funding closes ${new Date(values.funding).toLocaleString()}; review closes ${new Date(values.review).toLocaleString()}. The three approvers, recipients, share and deadlines cannot be changed.`,
         { kind: "create", input: { title: values.title, beneficiary: values.beneficiary, creatorCut: values.creatorCut,
           fundingDeadline, reviewDeadline, approvers: [values.a, values.b, values.c] } },
@@ -110,16 +133,38 @@ function CreateCampaign({ run, busy, onPreviewCreate, initialCreate = false }: {
           });
     } catch (e) { setError(e instanceof Error ? e.message : "Invalid campaign"); }
   }
-  return <details className={`${styles.card} ${styles.creation}`} open={initialCreate || undefined}><summary className={styles.createSummary}><div><strong>Start a campaign</strong><span>Bring your cause to the community.</span></div>{Ico.plus({ c: T.action, size: 20 })}</summary>
+  const stepNames = ["Campaign basics", "Funding terms", "Reviewers"] as const;
+  const headings = ["Name your cause", "Set payout and funding dates", "Choose three distinct reviewers"] as const;
+  function advance() { if (validate(step)) setStep(current => current + 1); }
+  return <details className={`${styles.card} ${styles.creation}`} open={initialCreate || undefined}><summary className={styles.createSummary}><div><strong>{h("Start a campaign")}</strong><span>{h("Bring your cause to the community.")}</span></div>{Ico.plus({ c: T.action, size: 20 })}</summary>
     <div className={styles.formSection}>
-      <p className={styles.muted}>Set the terms, then review before creating. Recipients, share, reviewers and deadlines lock at creation.</p>
-      <p className={styles.muted}>After creation, open the campaign to add a public gallery of 3 to 6 organizer photos. Photos are stored separately from the locked financial terms and are not delivery proof.</p>
-      {input("title", "1. Name your cause")}{input("beneficiary", "Beneficiary public wallet")}{input("creatorCut", "Creator share, 0 to 10%")}
-      <p className={styles.muted}>This share goes to the creator. It is not a Salapi platform fee.</p>
-      <div className={styles.dateGrid}>{input("funding", "2. Funding closes", "datetime-local")}{input("review", "Review closes", "datetime-local")}</div>
-      <p className={styles.muted}>Dates use your local timezone. Proof review starts after funding closes.</p>
-      {input("a", "3. Approver 1 public wallet")}{input("b", "Approver 2 public wallet")}{input("c", "Approver 3 public wallet")}
-      {error && <p className={styles.error} role="alert">{error}</p>}<Btn disabled={busy} onClick={submit}>Review campaign terms</Btn>
+      <ol className={styles.createProgress} aria-label={h("Campaign basics")}>
+        {stepNames.map((name, index) => <li key={name} aria-current={step === index + 1 ? "step" : undefined}>{h(name)}</li>)}
+      </ol>
+      <section className={styles.createStep} aria-labelledby="campaign-create-step-title">
+        <h2 id="campaign-create-step-title">{h(headings[step - 1])}</h2>
+        <p className={styles.muted}>{h("These Testnet contract terms become fixed after creation.")}</p>
+        {step === 1 ? input("title", h("1. Name your cause")) : null}
+        {step === 2 ? <>
+          {input("beneficiary", h("Beneficiary public wallet"))}
+          {input("creatorCut", h("Creator share, 0 to 10%"))}
+          <p className={styles.muted}>{h("The creator share is not a Salapi platform fee.")}</p>
+          {input("funding", h("2. Funding closes"), "datetime-local")}
+        </> : null}
+        {step === 3 ? <>
+          {input("review", h("Review closes"), "datetime-local")}
+          <p className={styles.muted}>{h("Dates use your local timezone. Proof review starts after funding closes.")}</p>
+          {input("a", h("3. Approver 1 public wallet"))}
+          {input("b", h("Approver 2 public wallet"))}
+          {input("c", h("Approver 3 public wallet"))}
+        </> : null}
+        {error && <p className={styles.error} role="alert">{error}</p>}
+        <div className={styles.createStepActions} data-first={step === 1 || undefined}>
+          {step > 1 ? <Btn kind="secondary" disabled={busy} onClick={() => { setError(""); setStep(current => current - 1); }}>{h("Back")}</Btn> : null}
+          <Btn disabled={busy} onClick={step < 3 ? advance : submit}>{step < 3 ? h("Continue") : h("Review campaign terms")}</Btn>
+        </div>
+      </section>
+      <p className={styles.muted}>{h("After creation, add a public gallery of organizer photos from the campaign page. These photos are not delivery proof.")}</p>
     </div>
   </details>;
 }
