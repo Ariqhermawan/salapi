@@ -80,6 +80,21 @@ export async function publicCampaignState(before: unknown = "0") {
     return { ok: true as const, contractId, now: now.toString(), campaigns };
   } catch (error) { return { ok: false as const, error: campaignError(error) }; }
 }
+
+/** Validate a campaign link against the public D4 ledger without requesting a viewer wallet. */
+export async function publicCampaignForFeedback(id: unknown) {
+  if (isLocalPreview) return { ok: false as const, error: "Local preview does not read live campaign state." };
+  try {
+    const contractId = await deployment();
+    const numericId = campaignId(id);
+    const raw = await readContract(contractId, "campaign", [sc.u64(numericId)]);
+    const campaign = publicCampaign(raw);
+    if (campaign.id !== numericId.toString()) throw new Error("Campaign lookup mismatch");
+    return { ok: true as const, campaign: { id: campaign.id, title: campaign.title, state: campaign.state } };
+  } catch {
+    return { ok: false as const, error: "This campaign could not be verified on Stellar Testnet." };
+  }
+}
 export async function campaignState(id = "", before = "0") {
   if (isLocalPreview) return { ok: false as const, error: "Local preview does not read live campaign state." };
   try {
@@ -106,6 +121,21 @@ export async function campaignState(id = "", before = "0") {
       ...(Object.keys(circleLinks).length ? { circleLinks } : {}) };
   } catch (error) { return { ok: false as const, error: campaignError(error) }; }
 }
+
+/** Resolve a campaign creator's public on-chain username without reading a private wallet record. */
+export async function publicUsernameForWallet(address: unknown) {
+  if (typeof address !== "string" || !StrKey.isValidEd25519PublicKey(address))
+    return { ok: false as const, error: "Invalid wallet address." };
+  try {
+    const username = await readContract(CONTRACTS.usernameRegistry, "username_of", [sc.addr(address)]);
+    if (typeof username !== "string" || !/^[a-z0-9_]{3,32}$/.test(username))
+      return { ok: false as const, error: "This creator has no public username." };
+    return { ok: true as const, username };
+  } catch {
+    return { ok: false as const, error: "Public username lookup is unavailable." };
+  }
+}
+
 export async function campaignEvents() {
   if (isLocalPreview) return { ok: false as const, error: "Local preview does not read live campaign events." };
   try {

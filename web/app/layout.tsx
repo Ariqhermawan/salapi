@@ -67,7 +67,8 @@ export default async function RootLayout({
   // prerendered page would ship those scripts with no nonce, and the CSP would
   // block them (blank screen). See proxy.ts.
   await connection();
-  const theme = (await cookies()).get("salapi-theme")?.value === "dark" ? "dark" : "light";
+  const savedTheme = (await cookies()).get("salapi-theme")?.value;
+  const theme = savedTheme === "dark" ? "dark" : "light";
   // Vercel serves these same-origin endpoints only after observability is
   // enabled for the project. Keep them explicitly opt-in so local builds and
   // deployments made before dashboard setup do not request a missing
@@ -92,10 +93,8 @@ export default async function RootLayout({
               a phone on a calm dark backdrop with a marketing column, so the
               browser view reads as intentional instead of a lonely column. */}
           <div className="sl-shell flex min-h-dvh w-full flex-col lg:flex-row lg:items-center lg:justify-center lg:gap-12 xl:gap-20">
-            <MarketingAside />
-
             <div
-              className="sl-app-frame relative mx-auto flex h-svh w-full max-w-[500px] flex-col overflow-hidden lg:mx-0 lg:h-[900px] lg:max-h-[94vh] lg:min-h-0 lg:flex-none lg:rounded-[32px] lg:ring-1 lg:ring-blue-900/10"
+              className="sl-app-frame relative mx-auto flex h-svh w-full max-w-[390px] flex-col overflow-hidden lg:mx-0 lg:h-[844px] lg:max-h-[94vh] lg:min-h-0 lg:flex-none lg:rounded-[32px] lg:ring-1 lg:ring-blue-900/10"
             >
               <InstallBanner />
               {isLocalPreview && <div className="sl-preview-banner"><span className="sl-preview-dot" />Local preview · sample data · no transactions</div>}
@@ -105,6 +104,7 @@ export default async function RootLayout({
               <SuccessFeedback />
               <BottomNav />
             </div>
+            <MarketingAside />
           </div>
           </MarketPricesProvider>
         </I18nProvider>

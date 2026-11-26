@@ -80,6 +80,16 @@
 .phaseRail { display: flex; gap: 7px; margin-top: 15px; }
 .phaseRail span { flex: 1; text-align: center; font-size: 10px; font-weight: 650; padding: 7px 4px; background: #fff; border-radius: 8px; color: #61708a; }
 .phaseRail .currentPhase { background: #2563eb; color: white; }
+.arisanScreen { padding-bottom: 120px; }
+.arisanActions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 14px 16px 18px; }
+.arisanContent { padding: 0 16px; }
+.arisanFilters { display: flex; gap: 7px; overflow-x: auto; margin: 0 -16px 12px; padding: 4px 16px; scrollbar-width: none; }
+.arisanFilters::-webkit-scrollbar { display: none; }
+.arisanEmpty { display: grid; justify-items: center; gap: 8px; min-height: 270px; align-content: center; padding: 20px; text-align: center; }
+.arisanEmpty img { width: 120px; height: 120px; object-fit: contain; margin-bottom: 2px; }
+.arisanEmpty h2 { margin: 0; color: #171717; font-size: 18px; font-weight: 650; line-height: 24px; }
+.arisanEmpty p { max-width: 270px; margin: 0; color: #687386; font-size: 13px; line-height: 19px; }
+.arisanEmpty .arisanUnavailable { max-width: 300px; margin-top: 8px; color: #8a6c35; font-size: 11px; line-height: 16px; }
 @keyframes loading { to { background-position: -200% 0; } }
 @media (max-width:380px) { .body { padding-inline: 14px; } .hero { padding: 20px 16px; grid-template-columns: minmax(0,1fr) 80px; } .doodle { width: 80px; height: 90px; } .formGrid { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion:reduce) { .skeleton { animation: none; } .roomLink { transition: none; } }

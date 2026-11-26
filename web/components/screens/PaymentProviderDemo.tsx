@@ -16,7 +16,7 @@ import styles from "./PaymentProviderDemo.module.css";
 
 const QUICK: Record<PaymentNativeCurrency,string[]>={tl:["100","250","500","1000"],id:["25000","50000","100000","250000"]};
 
-export default function PaymentProviderDemo({payout=false,onFaucet,topupNavigation}:{payout?:boolean;onFaucet?:()=>void;topupNavigation?:ReactNode}) {
+export default function PaymentProviderDemo({payout=false,onFaucet,topupNavigation,initialChannel}:{payout?:boolean;onFaucet?:()=>void;topupNavigation?:ReactNode;initialChannel?:PaymentChannelId}) {
   const {currency,locale}=useT();
   const c=accountCopy(locale);
   const goBack=useGoBack("/");
@@ -24,7 +24,7 @@ export default function PaymentProviderDemo({payout=false,onFaucet,topupNavigati
   const [provider,setProvider]=useState<PaymentProviderId>("xendit");
   const [status,setStatus]=useState<DemoPaymentStatus>("entry");
   const [destination,setDestination]=useState("bank");
-  const [channel,setChannel]=useState<PaymentChannelId>("gcash");
+  const [channel,setChannel]=useState<PaymentChannelId>(initialChannel ?? "gcash");
   const [methodChanged,setMethodChanged]=useState(false);
   const rail=paymentChannel(channel)!;
   const nativeCurrency=rail.nativeCurrency;

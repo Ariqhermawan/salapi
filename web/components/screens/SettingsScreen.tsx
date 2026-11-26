@@ -6,7 +6,7 @@ import { requireWalletState } from "@/lib/wallet-state";
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
+import { BookmarkSimple } from "@phosphor-icons/react/dist/csr/BookmarkSimple";
 import { Moon } from "@phosphor-icons/react/dist/csr/Moon";
 import { Sun } from "@phosphor-icons/react/dist/csr/Sun";
 import type { ReactNode } from "react";
@@ -26,7 +26,7 @@ import { useT } from "@/components/I18nProvider";
 import { LOCALE_META } from "@/lib/i18n/config";
 import { accountCopy, accountCurrencyName, type AccountCopyKey } from "@/lib/i18n/revamp-account";
 import { homeCopy } from "@/lib/i18n/revamp-home";
-import { signupSourceCopy } from "@/lib/i18n/signup-source";
+import { campaignDiscoveryCopy } from "@/lib/i18n/revamp-campaign-discovery";
 import { CURRENCY } from "@/lib/ui/currency";
 import { isLocalPreview, PREVIEW_WALLET } from "@/lib/local-preview";
 import {
@@ -38,7 +38,6 @@ import {
 } from "@/components/ui/kit";
 import styles from "./SettingsRevamp.module.css";
 
-const NOTIF_KEY = "salapi_notif";
 
 function SettingRow({
   icon,
@@ -195,7 +194,6 @@ export default function SettingsScreen() {
   const [supaEmail, setSupaEmail] = useState<string | null>(null);
   const [authChecked, setAuthChecked] = useState(!configured);
   const [authFailed, setAuthFailed] = useState(false);
-  const [notif, setNotif] = useState(false);
   const [loadError, setLoadError] = useState<AccountCopyKey | "">("");
   const [signOutPending, setSignOutPending] = useState(false);
   const [signOutError, setSignOutError] = useState(false);
@@ -255,22 +253,8 @@ export default function SettingsScreen() {
       }
       void loadAccountEmail();
     }
-    try { Promise.resolve(localStorage.getItem(NOTIF_KEY) === "1").then((enabled) => { if (active) setNotif(enabled); }); }
-    catch { /* Browser storage may be unavailable. Keep notifications off. */ }
     return () => { active = false; };
   }, [configured]);
-
-  function toggleNotif() {
-    setNotif((v) => {
-      const next = !v;
-      try {
-        localStorage.setItem(NOTIF_KEY, next ? "1" : "0");
-      } catch {
-        /* ignore */
-      }
-      return next;
-    });
-  }
 
   async function signOut() {
     if (isLocalPreview) { router.push("/signin"); return; }
@@ -322,12 +306,7 @@ export default function SettingsScreen() {
   return (
     <div className={styles.screen}>
       <header className={styles.header}>
-        <div>
-          <span className={styles.eyebrow}>Salapi · Testnet</span>
-          <h1>{t("settings.you")}</h1>
-          <p>{t("settings.youSub")}</p>
-        </div>
-        <Image src="/illustrations/community-world.png" width={160} height={110} alt={c.communityAlt} />
+        <h1>{t("settings.you")}</h1>
       </header>
       {loadError ? <p role="alert" className={styles.loadError}>{c[loadError]}</p> : null}
 
@@ -349,7 +328,7 @@ export default function SettingsScreen() {
       </button>
 
       <section className={styles.sheet} aria-labelledby="account-title">
-        <SectionLabel id="account-title">{t("settings.accounts")}</SectionLabel>
+        <SectionLabel id="account-title">Account</SectionLabel>
         <div className={styles.rows}>
           {profileStatus === "ready" ? <UsernamePanel current={name} onChanged={setName} /> : <SettingRow
             icon={Ico.user({ size: 21, c: T.action })}
@@ -381,6 +360,18 @@ export default function SettingsScreen() {
           {authChecked && authFailed ? <p className={styles.loadError} role="alert">{c.profileUnavailable}</p> : null}
           {!authChecked ? <p className={styles.authLoading} role="status">{t("common.loading")}</p> : null}
           <SettingRow
+            icon={Ico.user({ size: 21, c: T.action })}
+            title={c.accountDetails}
+            onClick={() => router.push("/settings/account")}
+            trailing={Ico.chev({ size: 15, c: T.slate })}
+          />
+          <SettingRow
+            icon={Ico.link({ size: 21, c: T.action })}
+            title={c.inviteFriends}
+            onClick={() => router.push("/you/invite")}
+            trailing={Ico.chev({ size: 15, c: T.slate })}
+          />
+          <SettingRow
             icon={Ico.sparkle({ size: 21, c: T.action })}
             title={t("settings.stellarWallet")}
             sub={shortAddr}
@@ -398,6 +389,24 @@ export default function SettingsScreen() {
                 <span className={styles.muted}>{t("common.loading")}</span>
               )
             }
+          />
+        </div>
+      </section>
+
+      <section className={styles.sheet} aria-labelledby="fundraising-title">
+        <SectionLabel id="fundraising-title">Fundraising</SectionLabel>
+        <div className={styles.rows}>
+          <SettingRow
+            icon={Ico.user({ size: 21, c: T.action })}
+            title="Your causes"
+            onClick={() => router.push("/manage")}
+            trailing={Ico.chev({ size: 15, c: T.slate })}
+          />
+          <SettingRow
+            icon={<BookmarkSimple size={21} aria-hidden="true" />}
+            title={campaignDiscoveryCopy(locale)("Saved causes")}
+            onClick={() => router.push("/saved")}
+            trailing={Ico.chev({ size: 15, c: T.slate })}
           />
         </div>
       </section>
@@ -425,8 +434,8 @@ export default function SettingsScreen() {
           <SettingRow
             icon={Ico.bell({ size: 21, c: T.action })}
             title={t("settings.notifications")}
-            sub={c.localReminders}
-            trailing={<button type="button" role="switch" aria-checked={notif} aria-label={t("settings.notifications")} className={styles.switch} onClick={toggleNotif}><span className={notif ? styles.switchOn : styles.switchOff}><span /></span></button>}
+            onClick={() => router.push("/notifications")}
+            trailing={Ico.chev({ size: 15, c: T.slate })}
           />
           <SettingRow
             icon={<><span className="sl-show-light"><Moon size={21} aria-hidden /></span><span className="sl-show-dark"><Sun size={21} aria-hidden /></span></>}
@@ -443,53 +452,19 @@ export default function SettingsScreen() {
 
       <section className={styles.support} aria-label={c.featuresSupport}>
         <SettingRow
-          icon={Ico.link({ size: 21, c: T.action })}
-          title={c.inviteFriends}
-          onClick={() => router.push("/you/invite")}
-          trailing={Ico.chev({ size: 16, c: T.slate })}
-        />
-        <SettingRow
           icon={Ico.bulb({ size: 21, c: T.action })}
-          title={signupSourceCopy[locale].title}
-          onClick={() => router.push("/you/heard")}
+          title={locale === "id" ? "Kirim masukan" : locale === "tl" ? "Magpadala ng feedback" : locale === "vi" ? "Gửi phản hồi" : "Send feedback"}
+          sub={locale === "id" ? "Saran, pertanyaan, atau kendala" : "Suggestions, questions, or a problem"}
+          onClick={() => router.push("/you/feedback")}
           trailing={Ico.chev({ size: 16, c: T.slate })}
         />
         <SettingRow
-          icon={(locale === "id" ? Ico.qr : Ico.arrowDown)({ size: 21, c: T.slate })}
-          title={locale === "id" ? "QRIS" : "GCash"}
-          sub={t("settings.gcashSub")}
-          trailing={<span className={styles.plannedBadge}>{c.planned}</span>}
+          icon={Ico.shield({ size: 21, c: T.action })}
+          title={t("settings.security")}
+          sub={c.unavailableFeatures}
+          onClick={() => router.push("/settings/security")}
+          trailing={Ico.chev({ size: 16, c: T.slate })}
         />
-        <details className={styles.security}>
-          <summary>
-            <span className={styles.rowIcon}>{Ico.shield({ size: 21, c: T.slate })}</span>
-            <span className={styles.rowCopy}>
-              <span className={styles.rowTitle}>{t("settings.security")}</span>
-              <span className={styles.rowSub}>{c.unavailableFeatures}</span>
-            </span>
-            <span className={styles.disclosureArrow}>{Ico.chev({ size: 15, c: T.slate })}</span>
-          </summary>
-          <div className={styles.securityBody}>
-            <SettingRow
-              icon={Ico.lock({ size: 18, c: T.slate })}
-              title={t("settings.faceId")}
-              sub={c.biometricUnavailable}
-              trailing={<span className={styles.unavailableBadge}>{c.notAvailable}</span>}
-            />
-            <SettingRow
-              icon={Ico.shield({ size: 18, c: T.slate })}
-              title={t("settings.pin")}
-              sub={c.pinUnavailable}
-              trailing={<span className={styles.unavailableBadge}>{c.notAvailable}</span>}
-            />
-            <SettingRow
-              icon={Ico.user({ size: 18, c: T.slate })}
-              title={t("settings.hideBalance")}
-              sub={c.visibilityPlanned}
-              trailing={<span className={styles.unavailableBadge}>{c.comingSoon}</span>}
-            />
-          </div>
-        </details>
         <SettingRow
           icon={Ico.bulb({ size: 21, c: T.action })}
           title={t("settings.helpCenter")}

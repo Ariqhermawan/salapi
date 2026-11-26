@@ -1,7 +1,7 @@
-import VaultsScreen from "@/components/screens/VaultsScreen";
+import ArisanListScreen from "@/components/screens/ArisanListScreen";
 
-export const metadata = { title: "Vaults · Salapi" };
+export const metadata = { title: "Arisan · Salapi" };
 
 export default function VaultsPage() {
-  return <VaultsScreen />;
+  return <ArisanListScreen />;
 }

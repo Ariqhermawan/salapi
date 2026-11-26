@@ -44,12 +44,12 @@ export function TestnetPill() {
   return <TestnetPillV2 />;
 }
 
-export function IconButton({ children, onClick, size = 44, ariaLabel }: { children: ReactNode; onClick?: () => void; size?: number; ariaLabel?: string }) {
+export function IconButton({ children, onClick, size = 40, ariaLabel }: { children: ReactNode; onClick?: () => void; size?: number; ariaLabel?: string }) {
   // ariaLabel falls back to "button" so the Lighthouse button-name audit
   // never fails on an icon-only button; screens should pass a more
   // descriptive label (back / activity / settings / etc) when available.
   return (
-    <button onClick={onClick} aria-label={ariaLabel ?? "button"} style={{ width: size, height: size, borderRadius: size / 2, border: "none", background: "rgba(11,18,32,.04)", color: T.ink, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+      <button onClick={onClick} aria-label={ariaLabel ?? "button"} style={{ width: size, height: size, borderRadius: size / 2, border: "1px solid var(--sl-glass-line)", background: "var(--sl-glass-fill)", color: T.ink, boxShadow: "inset 0 1px 0 var(--sl-glass-rim, #ffffff29), 0 1px 2px rgba(14,18,27,.06), 0 4px 12px -4px rgba(14,18,27,.12)", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
       {children}
     </button>
   );
@@ -78,7 +78,7 @@ export function Btn({ children, type = "button", kind = "primary", size = "lg", 
   const h = size === "lg" ? 52 : size === "md" ? 44 : 36;
   const fs = size === "lg" ? 16 : size === "md" ? 15 : 14;
   const kinds: Record<BtnKind, CSSProperties> = {
-    primary: { background: T.action, color: "#fff", boxShadow: "0 1px 2px rgba(11,18,32,.06), 0 6px 16px -6px rgba(37,99,235,.55)" },
+    primary: { background: "linear-gradient(180deg, #2547d0, #4d82ff)", color: "#fff", boxShadow: "0 6px 14px -4px rgba(37,71,208,.5)" },
     secondary: { background: T.surface, color: T.ink, boxShadow: "inset 0 0 0 1px " + T.hairline },
     ghost: { background: "transparent", color: T.ink },
     success: { background: T.moneyIn, color: "#fff" },
@@ -95,7 +95,7 @@ export function Btn({ children, type = "button", kind = "primary", size = "lg", 
   );
 }
 
-export function Card({ children, p = 16, style = {}, onClick, hairline = true, elevation = false, className }: { children: ReactNode; p?: number; style?: CSSProperties; onClick?: () => void; hairline?: boolean; elevation?: boolean; className?: string }) {
+export function Card({ children, p = 20, style = {}, onClick, hairline = true, elevation = false, className }: { children: ReactNode; p?: number; style?: CSSProperties; onClick?: () => void; hairline?: boolean; elevation?: boolean; className?: string }) {
   return (
     <div className={["sl-card", className].filter(Boolean).join(" ")} onClick={onClick} role={onClick ? "button" : undefined} tabIndex={onClick ? 0 : undefined} onKeyDown={onClick ? (e) => { if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); onClick(); } } : undefined} style={{ background: T.surface, borderRadius: T.rCard, padding: p, boxShadow: elevation ? T.shadow + (hairline ? ", inset 0 0 0 1px " + T.hairline : "") : hairline ? "inset 0 0 0 1px " + T.hairline : "none", ...style }}>
       {children}

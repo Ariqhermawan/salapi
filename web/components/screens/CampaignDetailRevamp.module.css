@@ -29,6 +29,14 @@
 .campaignPhoto > div { min-width: 0; padding: 40px 18px 17px; color: #fff; }
 .campaignPhoto span { font-size: 9px; color: #e2eaff; }
 .campaignPhoto h2 { color: #fff; font-size: 26px; margin: 6px 0 0; text-wrap: pretty; overflow-wrap: anywhere; }
+.campaignFeedbackLinks { display:flex; flex-wrap:wrap; gap:12px; padding:2px 0; }
+.campaignFeedbackLinks a { color:#476184; font-size:11px; font-weight:600; text-decoration:none; }
+.campaignFeedbackLinks a:hover { color:#2563eb; text-decoration:underline; }
+.campaignTabs { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:4px; padding:4px; border-radius:12px; background:#f0f2f5; }
+.campaignTabs a { display:grid; place-items:center; min-height:36px; border-radius:9px; color:#607394; font-size:10px; font-weight:600; text-decoration:none; }
+.campaignTabs a:hover,.campaignTabs a:focus-visible { background:#fff; color:#2563eb; }
+.anchor { display:block; scroll-margin-top:70px; }
+.campaignActivity { display:grid; gap:12px; scroll-margin-top:70px; }
 .organizerProfile { display: flex; align-items: center; gap: 10px; padding-bottom: 12px; border-bottom: 1px solid #e7edf6; color: #101d35; }
 .organizerProfile img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 2px solid #fff; box-shadow: 0 0 0 1px #dce5f2; }
 .organizerProfile > span { display: grid; gap: 3px; min-width: 0; flex: 1; }

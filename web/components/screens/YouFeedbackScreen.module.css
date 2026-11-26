@@ -1,0 +1,39 @@
+.page { min-height: 100%; }
+.layer { position: fixed; inset: 0; z-index: 100; display: flex; align-items: flex-end; justify-content: center; }
+.scrim { position: absolute; inset: 0; border: 0; background: #3333333d; }
+.sheet { position: relative; width: 100%; max-height: 90%; overflow-y: auto; padding: 8px 20px calc(24px + env(safe-area-inset-bottom)); border: 1px solid var(--sl-line); border-bottom: 0; border-radius: 24px 24px 0 0; background: var(--sl-surface); color: var(--sl-ink); box-shadow: 0 -8px 36px #17171712; animation: sheetIn 260ms cubic-bezier(.32,.72,0,1) both; }
+.handle { width: 36px; height: 4px; margin: 0 auto 14px; border-radius: 99px; background: var(--sl-line); }
+.header { display: flex; align-items: center; gap: 8px; min-height: 36px; }
+.header h2 { flex: 1; min-width: 0; margin: 0; font-size: 16px; font-weight: 650; line-height: 22px; letter-spacing: -.015em; }
+.back, .close { display: grid; flex: none; width: 36px; height: 36px; place-items: center; border: 0; border-radius: 999px; background: transparent; color: var(--sl-sub); }
+.back { font-size: 29px; line-height: 1; }
+.intro { margin: 4px 0 12px; color: var(--sl-sub); font-size: 12px; line-height: 18px; }
+.options { display: grid; padding: 0 16px; border: 1px solid var(--sl-line); border-radius: 20px; background: var(--sl-surface); }
+.option { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 70px; padding: 9px 0; border: 0; border-bottom: 1px solid var(--sl-line); background: transparent; color: inherit; text-align: left; }
+.option:last-child { border-bottom: 0; }
+.optionIcon { display: grid; flex: none; width: 36px; height: 36px; place-items: center; border-radius: 50%; background: var(--sl-tint); color: var(--sl-primary); }
+.optionCopy { display: grid; flex: 1; min-width: 0; gap: 3px; }
+.optionCopy strong { font-size: 14px; font-weight: 600; line-height: 18px; }
+.optionCopy small { color: var(--sl-sub); font-size: 11px; line-height: 15px; }
+.chevron { flex: none; color: var(--sl-sub); }
+.form { display: grid; gap: 14px; padding-top: 8px; }
+.status, .guest { margin: 0; color: var(--sl-sub); font-size: 14px; line-height: 20px; }
+.guest { display: grid; gap: 12px; padding: 14px; border: 1px solid var(--sl-line); border-radius: 16px; }
+.guest p { margin: 0; }
+.guest button { display: inline-flex; align-items: center; gap: 4px; width: fit-content; min-height: 40px; border: 0; background: transparent; color: var(--sl-primary); font-weight: 600; }
+.field { display: grid; gap: 7px; color: var(--sl-ink); font-size: 13px; font-weight: 600; }
+.field textarea { width: 100%; min-height: 116px; resize: vertical; box-sizing: border-box; padding: 12px; border: 1px solid var(--sl-line); border-radius: 14px; background: var(--sl-surface-alt); color: var(--sl-ink); font: 400 14px/20px var(--font-geist-sans), sans-serif; }
+.field textarea:focus-visible { outline: 2px solid var(--sl-primary); outline-offset: 1px; }
+.field small { color: var(--sl-sub); font-size: 11px; font-weight: 400; }
+.rateBlock { display: grid; justify-items: center; gap: 6px; padding: 4px 0 8px; color: var(--sl-sub); font-size: 13px; }
+.rateBlock small { font-size: 11px; }
+.stars { display: flex; gap: 8px; }
+.stars button { display: grid; width: 40px; height: 40px; place-items: center; border: 0; border-radius: 50%; background: var(--sl-tint); color: var(--sl-primary); }
+.success, .error { margin: 0; padding: 10px 12px; border-radius: 12px; font-size: 13px; line-height: 18px; }
+.success { background: var(--sl-success-tint); color: var(--sl-success); }
+.error { background: var(--sl-warning-tint); color: var(--sl-warning); }
+.privacy { margin: -5px 0 0; color: var(--sl-sub); font-size: 11px; text-align: center; }
+.cancel { display: block; width: 100%; min-height: 44px; margin-top: 12px; border: 1px solid var(--sl-line); border-radius: 999px; background: var(--sl-surface); color: var(--sl-sub); font-size: 12px; font-weight: 550; }
+
+@keyframes sheetIn { from { transform: translateY(24px); opacity: .75; } to { transform: translateY(0); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .sheet { animation: none; } }

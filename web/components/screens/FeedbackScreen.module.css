@@ -1,0 +1,24 @@
+.screen { min-height: 100%; color: #101d35; }
+.body { display: grid; gap: 12px; padding: 8px 18px 18px; }
+.hero { display: grid; grid-template-columns: minmax(0,1fr) 62px; align-items: center; gap: 12px; padding: 17px; border: 1px solid #e9e5dc; border-radius: 22px; background: #f2efe7; }
+.eyebrow { color: #2563eb; font-size: 9px; font-weight: 750; letter-spacing: .08em; }
+.hero h1 { margin: 5px 0 7px; font-size: 25px; font-weight: 750; letter-spacing: -.045em; line-height: 1.12; }
+.hero p { margin: 0; color: #607394; font-size: 11px; line-height: 1.55; }
+.illustration { width: 58px; height: 58px; display: grid; place-items: center; border-radius: 18px; background: #e6eefb; color: #2563eb; font-size: 30px; }
+.campaign { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; }
+.campaign small { color: #607394; font-size: 11px; }
+.campaign strong { color: #2563eb; font-size: 14px; }
+.form { display: grid; gap: 16px; padding: 16px; }
+.field { display: grid; gap: 7px; color: #607394; font-size: 11px; font-weight: 650; }
+.field select, .field textarea { width: 100%; box-sizing: border-box; min-height: 46px; padding: 11px 12px; border: 1px solid #dce5f2; border-radius: 11px; background: #fbfcfe; color: #101d35; font: 500 13px var(--font-geist-sans), sans-serif; }
+.field textarea { min-height: 142px; resize: vertical; line-height: 1.5; }
+.field select:focus, .field textarea:focus { outline: 3px solid #2563eb26; border-color: #2563eb; }
+.field small { color: #8593aa; font-size: 10px; font-weight: 450; text-align: right; }
+.private { margin: -5px 0 0; color: #8593aa; font-size: 10px; line-height: 1.5; text-align: center; }
+.guest { display: grid; gap: 10px; padding: 18px; color: #607394; font-size: 12px; line-height: 1.55; }
+.guest p { margin: 0; }
+.signIn { color: #2563eb; font-size: 13px; font-weight: 700; text-decoration: none; }
+.success, .error { margin: 0; padding: 10px 12px; border-radius: 10px; font-size: 12px; line-height: 1.5; }
+.success { background: #e6f6ef; color: #047857; }
+.error { background: #fbeae8; color: #b91c1c; }
+@media (max-width: 380px) { .body { padding-inline: 14px; } .hero { grid-template-columns: minmax(0,1fr) 50px; padding: 14px; } .hero h1 { font-size: 22px; } .illustration { width: 48px; height: 48px; } }

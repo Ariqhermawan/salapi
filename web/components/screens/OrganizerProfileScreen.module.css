@@ -1,0 +1,28 @@
+.screen { display: grid; align-content: start; gap: 14px; min-width: 0; padding: 8px 16px 130px; color: var(--sl-ink); }
+.header { position: sticky; top: -1px; z-index: 5; display: flex; align-items: center; gap: 12px; min-height: 48px; margin: -8px -16px 2px; padding: 0 16px; background: color-mix(in srgb, var(--sl-canvas) 88%, transparent); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); }
+.header h1 { flex: 1; margin: 0; font-size: 20px; font-weight: 650; line-height: 28px; text-align: center; }
+.back, .spacer { display: grid; width: 40px; height: 40px; flex: none; place-items: center; border: 1px solid var(--sl-glass-line); border-radius: 999px; background: var(--sl-surface); color: var(--sl-ink); }
+.back { padding: 0; cursor: pointer; }
+.spacer { border-color: transparent; background: transparent; }
+.identity, .section { min-width: 0; border: 1px solid var(--sl-glass-line); border-radius: 20px; background: var(--sl-surface); }
+.identity { display: flex; align-items: center; gap: 12px; padding: 16px; }
+.avatar { display: grid; width: 56px; height: 56px; flex: none; place-items: center; border-radius: 50%; background: #eaf0ff; color: var(--sl-primary); font-size: 22px; font-weight: 700; }
+.identityCopy { min-width: 0; flex: 1; }
+.identity h2 { margin: 0; font-size: 19px; line-height: 25px; letter-spacing: -.03em; overflow-wrap: anywhere; }
+.identity p { margin: 3px 0 0; color: var(--sl-sub); font-size: 11px; line-height: 16px; }
+.identity > a { display: grid; width: 40px; height: 40px; flex: none; place-items: center; color: var(--sl-primary); }
+.section { padding: 15px; }
+.sectionHeader { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.sectionHeader h2 { margin: 0; font-size: 17px; font-weight: 650; letter-spacing: -.02em; }
+.sectionHeader > span { color: var(--sl-sub); font-size: 11px; font-variant-numeric: tabular-nums; }
+.campaigns { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.campaigns li { min-width: 0; border: 1px solid var(--sl-line); border-radius: 14px; }
+.campaigns a { display: grid; gap: 6px; min-height: 88px; padding: 12px; color: inherit; text-decoration: none; }
+.campaigns strong { overflow-wrap: anywhere; font-size: 14px; line-height: 19px; }
+.campaignTop { display: flex; justify-content: space-between; gap: 8px; color: var(--sl-sub); font-size: 10px; }
+.campaignTop > span:last-child { font-weight: 650; color: var(--sl-primary); text-align: right; }
+.raised { color: var(--sl-sub); font-size: 11px; font-variant-numeric: tabular-nums; }
+.message, .note { margin: 0; color: var(--sl-sub); font-size: 12px; line-height: 18px; }
+.error { margin: 8px 0; color: #b42318; font-size: 12px; line-height: 18px; }
+.loadMore { display: block; width: 100%; min-height: 42px; margin-top: 12px; border: 1px solid var(--sl-line); border-radius: 999px; background: var(--sl-surface); color: var(--sl-primary); font-size: 13px; font-weight: 650; }
+.note { padding: 0 6px; font-size: 10px; text-align: center; }

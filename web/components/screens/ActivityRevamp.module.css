@@ -743,3 +743,29 @@
   .receiptButton:not(.transferButton) { flex-direction: column; }
   .receiptButton:not(.transferButton) .receiptAmount { align-items: flex-start; }
 }
+
+/* Prototype v4 Activity: a floating page title, segmented tabs, and a plain
+   list. Wallet identity stays available in account settings, not as a banner. */
+.screen { padding: 0 16px 24px; color: var(--sl-ink); }
+.header { position: sticky; top: -1px; z-index: 4; display: block; margin: 0; padding: 18px 0 14px; background: color-mix(in srgb, var(--sl-canvas) 80%, transparent); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); }
+.header h1 { margin: 0; color: var(--sl-ink); font-size: 28px; font-weight: 550; letter-spacing: -.02em; line-height: 36px; }
+.header p, .walletRow { display: none; }
+.tabs { gap: 4px; padding: 4px; margin: 0 0 14px; border: 0; border-radius: 10px; background: var(--sl-surface-alt); }
+.tab { min-height: 36px; padding: 6px 10px; border-radius: 7px; color: var(--sl-sub); font-size: 14px; font-weight: 500; }
+.tab[aria-selected="true"] { background: var(--sl-surface); color: var(--sl-ink); box-shadow: 0 1px 3px #10182820; }
+.creamPanel { padding: 0; border-radius: 0; background: transparent; }
+.sectionHeading { margin: 0 2px 10px; }
+.sectionHeading h2 { color: var(--sl-ink); font-size: 18px; font-weight: 550; }
+.sectionHeading p, .historyNotes, .proofTeaser, .footer { display: none; }
+.activityFilters { margin: 0 -16px 12px; padding-inline: 16px; }
+.activityFilters button { border-radius: 8px; background: var(--sl-surface-alt); }
+.activityFilters button[aria-pressed="true"] { background: var(--sl-surface); color: var(--sl-primary); }
+.emptyState { min-height: 360px; justify-content: center; padding: 24px 16px; }
+.emptyArt { display: block; width: 96px; height: 96px; margin: 0 auto 8px; object-fit: contain; }
+.emptyState h2 { max-width: 320px; color: var(--sl-ink); font-size: 18px; font-weight: 550; letter-spacing: -.01em; }
+.emptyState p { color: var(--sl-sub); font-size: 14px; line-height: 20px; }
+.emptyState .sendButton { width: auto; min-width: 112px; margin-top: 12px; padding: 0 18px; border-radius: 999px; }
+.proofIntro { margin: 0 0 12px; color: var(--sl-sub); font-size: 14px; line-height: 20px; }
+.proofHeader { display: none; }
+.archiveNote { margin: 10px 2px; color: var(--sl-sub); font-size: 12px; line-height: 18px; }
+.technicalDetails { display: none; }

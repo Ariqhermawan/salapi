@@ -15,8 +15,9 @@ import { xlmDepositCopy } from "@/lib/i18n/xlm-deposit";
 import XlmDepositPanel from "./XlmDepositPanel";
 import depositStyles from "./XlmDepositPanel.module.css";
 import MarketValue from "@/components/MarketValue";
+import type { PaymentChannelId } from "@/lib/payment-channels";
 
-export default function TopUpScreen() {
+export default function TopUpScreen({ initialMethod, initialChannel }: { initialMethod?: "topup" | "xlm" | "provider"; initialChannel?: PaymentChannelId } = {}) {
   const { t, locale } = useT();
   const c = accountCopy(locale);
   const router = useRouter();
@@ -27,7 +28,7 @@ export default function TopUpScreen() {
   const [error, setError] = useState<AccountCopyKey | "">("");
   const submitting = useRef(false);
   const [faucet,setFaucet]=useState(false);
-  const [method,setMethod]=useState<"topup"|"xlm"|"provider">(isLocalPreview ? "topup" : "xlm");
+  const [method,setMethod]=useState<"topup"|"xlm"|"provider">(initialMethod ?? (isLocalPreview ? "topup" : "xlm"));
   const depositCopy = xlmDepositCopy(locale);
   useEffect(() => {
     if (isLocalPreview || method !== "topup") return;
@@ -54,6 +55,7 @@ export default function TopUpScreen() {
     <button type="button" aria-pressed={method === "xlm"} onClick={()=>setMethod("xlm")}>{Ico.qr({size:17})}{depositCopy.deposit}</button>
     {isLocalPreview ? <button type="button" aria-pressed={method === "topup" && faucet} onClick={()=>{setMethod("topup");setFaucet(true);}}>{depositCopy.faucet}</button> : <button type="button" aria-pressed={method === "provider"} onClick={()=>setMethod("provider")}>{depositCopy.paymentMethods}</button>}
   </nav>;
+  if (method === "provider" && isLocalPreview) return <PaymentProviderDemo initialChannel={initialChannel} topupNavigation={navigation} />;
   // Payment-channel discovery must not load, fund or provision a wallet.
   // Real checkout remains unavailable until an authenticated provider flow exists.
   if(method === "provider") return <div style={{ fontFamily:T.fontSans, color:T.ink, paddingBottom:24 }}>

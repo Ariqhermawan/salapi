@@ -4,6 +4,9 @@ import D4CampaignGallery from "@/components/D4CampaignGallery";
 import CampaignDonorActivity from "@/components/CampaignDonorActivity";
 import CampaignUpdateSubscription from "@/components/CampaignUpdateSubscription";
 import CampaignOrganizerUpdates from "@/components/CampaignOrganizerUpdates";
+import CampaignReviews from "@/components/screens/CampaignReviews";
+import CampaignReportSheet from "@/components/screens/CampaignReportSheet";
+import OrganizerProfileLink from "@/components/OrganizerProfileLink";
 
 import Link from "next/link";
 import Image from "next/image";
@@ -214,6 +217,7 @@ function CampaignCard({ c, circleId, viewer, now, run, busy, detail, onPreviewUp
       <Image src={media.organizerPhotoSrc} width={44} height={44} alt={photoCopy("Illustrative profile photo, not a verified identity")} />
       <span><small>{photoCopy("Fictional organizer example")}</small><strong>{media.organizerName}</strong></span>{Ico.chev({size:16,c:T.action})}
     </Link> : null}
+    {detail && !isLocalPreview ? <div className={styles.organizerProfile}><OrganizerProfileLink address={c.config.creator} /></div> : null}
     <div><div className={styles.row}><span className={styles.eyebrow}>Campaign #{c.id.length > 8 ? "Local draft" : c.id}</span><span className={styles.badge}>{status}</span></div>{(!media || detail) && <Link href={`/campaigns?id=${c.id}`}><h2>{displayTitle}</h2></Link>}
       <p className={styles.muted}>Funding closes {stamp(c.config.funding_deadline)}{viewer ? ` · ${role}` : ""}</p></div>
     {detail && <D4CampaignGallery key={c.id} campaignId={c.id} creatorWallet={c.config.creator} viewer={viewer}
@@ -222,6 +226,15 @@ function CampaignCard({ c, circleId, viewer, now, run, busy, detail, onPreviewUp
       <div><small>Total donated · USD estimate</small><strong>≈ {formatIllustrativeUsd(c.total)} <span>{formatStroops(c.total)} Testnet XLM</span></strong></div>
       <div><small>Remaining escrow · USD estimate</small><strong>≈ {formatIllustrativeUsd(c.escrow)} <span>{formatStroops(c.escrow)} Testnet XLM</span></strong></div>
     </div>
+    {detail ? <nav className={styles.campaignTabs} aria-label="Campaign details">
+      <a href="#campaign-story">Story</a><a href="#campaign-activity">Activity</a><a href="#campaign-proof">Proof</a>
+      <a href="#campaign-reviews">Reviews</a>
+    </nav> : null}
+    {detail ? <span id="campaign-story" className={styles.anchor} /> : null}
+    {detail ? <nav className={styles.campaignFeedbackLinks} aria-label="Campaign feedback">
+      <Link href={`/cause/${c.id}/feedback`}>Send feedback</Link>
+      <Link href={`/cause/${c.id}/report`}>Report this cause</Link>
+    </nav> : null}
     {viewer && fundingOpen && <div className={styles.donationForm}>
       {detail && <AvailableWalletBalance />}
       <div className={styles.formGrid}><Field label="Donation amount (USD)"><input className={`${styles.input} ${styles.amountInput}`} placeholder="0.00" inputMode="decimal" maxLength={64} value={amount} onChange={e => setAmount(e.target.value)} disabled={busy} /></Field></div>
@@ -250,7 +263,7 @@ function CampaignCard({ c, circleId, viewer, now, run, busy, detail, onPreviewUp
       {donorBadge === "testnet" && <small>{donorCopy("Confirmed by this wallet's D4 contract record. Not a fiat donation, KYC check or proof of delivery.")}</small>}
       {donorBadge === "example" && <small>{donorCopy("Browser-only example. No confirmed Testnet donation or donor badge.")}</small>}
     </div>}
-    {viewer === c.config.creator && c.state === "Funding" && reviewOpen && <div style={group}>
+    {viewer === c.config.creator && c.state === "Funding" && reviewOpen && <div id="campaign-proof" style={group}>
       <h3>Submit proof once</h3>
       <Field label="Public proof URL"><input style={field} type="url" value={url} onChange={e => setUrl(e.target.value)} disabled={busy} /></Field>
       <Field label="Proof SHA-256"><input style={field} value={hash} onChange={e => setHash(e.target.value)} maxLength={64} disabled={busy} /></Field>
@@ -279,11 +292,14 @@ function CampaignCard({ c, circleId, viewer, now, run, busy, detail, onPreviewUp
       { kind: "close_empty", campaignId: c.id }, intentId => campaignCloseEmpty(intentId), false,
       () => onPreviewUpdate({ ...c, state: "Closed" }))}>Close empty campaign</Btn>}
     {error && !(viewer && fundingOpen) && <p className={styles.error} role="alert">{error}</p>}
-    {detail && !isLocalPreview && c.title.startsWith("QA Circles: ") && <>
-      <CampaignDonorActivity campaignId={c.id} refreshKey={`${c.total}:${c.escrow}`} />
-      <CampaignUpdateSubscription campaignId={c.id} />
-      <CampaignOrganizerUpdates campaignId={c.id} />
-    </>}
+    {detail && <div id="campaign-activity" className={styles.campaignActivity}>
+      {!isLocalPreview && c.title.startsWith("QA Circles: ") && <>
+        <CampaignDonorActivity campaignId={c.id} refreshKey={`${c.total}:${c.escrow}`} />
+        <CampaignUpdateSubscription campaignId={c.id} />
+        <CampaignOrganizerUpdates campaignId={c.id} />
+      </>}
+      <CampaignReviews campaignId={c.id} />
+    </div>}
   </div></section>;
 }
 
@@ -314,7 +330,7 @@ export function CampaignEvidence() {
   </Card></section>;
 }
 
-export default function CampaignScreen({ id, initialCreate = false }: { id: string; initialCreate?: boolean }) {
+export default function CampaignScreen({ id, initialCreate = false, initialReport = false }: { id: string; initialCreate?: boolean; initialReport?: boolean }) {
   const goBack = useGoBack(id || initialCreate ? "/campaigns?mode=testnet" : "/vaults");
   const { locale } = useT();
   const copy = previewCopy[locale] ?? previewCopy.en;
@@ -451,6 +467,7 @@ export default function CampaignScreen({ id, initialCreate = false }: { id: stri
       <p className={styles.muted}>If timely approval is incomplete, each donor can claim their full recorded donation after review closes. These campaigns have their own rules, separate from Disaster Vault.</p>
       <footer className={styles.footer}><PoweredByStellar /><small>Public proof on Stellar Testnet.</small></footer>
     </div>
+    {initialReport && id ? <CampaignReportSheet campaignId={id} /> : null}
     {confirm && <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Confirm campaign transaction" style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(11,18,32,.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, boxSizing: "border-box", overflowY: "auto" }}>
       <Card style={{ maxWidth: 420, width: "100%", minHeight: 0, maxHeight: "100%", boxSizing: "border-box", overflowY: "auto", overscrollBehavior: "contain" }}><div style={group}><span className={styles.eyebrow}>{isLocalPreview ? "Local preview" : "Testnet transaction"}</span><h2 style={{ fontSize: 24, fontWeight: 750, letterSpacing: "-.04em" }}>Review before confirming</h2><p className={styles.muted} style={{ overflowWrap: "anywhere" }}>{confirm.label}</p>
         {confirm.feeStroops && <p className={styles.muted}>Maximum network fee: {formatStroops(confirm.feeStroops)} Testnet XLM</p>}

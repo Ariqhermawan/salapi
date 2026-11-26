@@ -33,15 +33,25 @@ const REPORT =
   "https://github.com/Ariqhermawan/salapi/blob/98a4a701b3fbd6d71a55c346c06d76c0001bc37e/docs/instawards/week-3-d3.md";
 const ARCHIVED_PAYOUT =
   "https://stellar.expert/explorer/testnet/tx/4559f41883fdc0a0e4fefa7e5bb16c19c26683768cbffaaf10edf9019d7eb0ac";
+const PREVIEW_EVENT_COPY: Record<string, { title: string; detail: string; amount: string }> = {
+  "sample-contribution-1": { title: "Contribution", detail: "From a sample donor", amount: "+0.05 XLM" },
+  "sample-contribution-2": { title: "Contribution", detail: "From a sample donor", amount: "+0.25 XLM" },
+  "sample-contribution-3": { title: "Contribution", detail: "From a sample donor", amount: "+0.12 XLM" },
+  "sample-payout-1": { title: "Typhoon relief, Cebu", detail: "NGO · To Tulong Cebu Relief", amount: "−0.50 XLM" },
+};
 
 export default function DisasterControls({
   pool,
   onRefresh,
   publicProof,
+  hideTabs = false,
+  onContribute,
 }: {
   pool: Pool | null;
   onRefresh: () => Promise<void>;
   publicProof?: ReactNode;
+  hideTabs?: boolean;
+  onContribute?: () => void;
 }) {
   const submission = useUnresolvedSubmission("disaster:d3");
   const { currency } = useT();
@@ -106,7 +116,12 @@ export default function DisasterControls({
           },
         ],
       });
-      setFeed({ ok: true, events: [] });
+      setFeed({ ok: true, events: [
+        { id: "sample-contribution-1", ledger: 19, hash: "", link: "", action: "Contribution", kind: "contribution", counterparty: null, amount: "500000", time: "" },
+        { id: "sample-contribution-2", ledger: 20, hash: "", link: "", action: "Contribution", kind: "contribution", counterparty: null, amount: "2500000", time: "" },
+        { id: "sample-contribution-3", ledger: 21, hash: "", link: "", action: "Contribution", kind: "contribution", counterparty: null, amount: "1200000", time: "" },
+        { id: "sample-payout-1", ledger: 21, hash: "", link: "", action: "Payout", kind: "payout", counterparty: null, amount: "5000000", time: "" },
+      ] });
       return;
     }
     try {
@@ -214,7 +229,7 @@ export default function DisasterControls({
   return (
     <section aria-label="Disaster Vault controls">
       <SubmissionStatusPanel guard={submission} onRefresh={async () => { await Promise.all([refresh(), onRefresh()]); }} />
-      <div
+      {!hideTabs && <div
         role="tablist"
         aria-label="Disaster Vault details"
         className={styles.tabs}
@@ -252,13 +267,7 @@ export default function DisasterControls({
             {item.label}
           </button>
         ))}
-      </div>
-      {PREVIEW && (
-        <div className={styles.previewNotice}>
-          Example data for the local design preview. No transactions are sent.
-        </div>
-      )}
-
+      </div>}
       {tab === "vault" && (
         <div
           role="tabpanel"
@@ -312,7 +321,7 @@ export default function DisasterControls({
               ? "Your wallet is a configured signer. Create and review payout requests below."
               : "Public view. Everyone can review the pool; signer actions are limited to the three configured wallets."}
             {!viewer && !PREVIEW && (
-              <Link href="/signin?next=%2Ftransparency">
+              <Link href="/signin?next=%2Fvault">
                 Sign in for signer access
               </Link>
             )}
@@ -537,18 +546,21 @@ export default function DisasterControls({
                       <span className={styles.proposalStatus}>{status}</span>
                     </div>
                     {proposal.amount && (
-                      <p>
-                        {formatStroops(proposal.amount)} Testnet XLM to{" "}
-                        <a
-                          href={`https://stellar.expert/explorer/testnet/account/${proposal.recipient}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{ color: T.action, overflowWrap: "anywhere" }}
-                        >
-                          {proposal.recipient?.slice(0, 8)}…
-                          {proposal.recipient?.slice(-5)}
-                        </a>
-                      </p>
+                      <div>
+                        <p>
+                          {formatStroops(proposal.amount)} Testnet XLM to{" "}
+                          <a
+                            href={`https://stellar.expert/explorer/testnet/account/${proposal.recipient}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ color: T.action, overflowWrap: "anywhere" }}
+                          >
+                            {proposal.recipient?.slice(0, 8)}…
+                            {proposal.recipient?.slice(-5)}
+                          </a>
+                        </p>
+                        <Link href={`/ngo/${encodeURIComponent(proposal.recipient ?? "")}`} className={styles.textButton}>View recipient profile</Link>
+                      </div>
                     )}
                     <div
                       className={styles.approvalTrack}
@@ -640,37 +652,46 @@ export default function DisasterControls({
           aria-labelledby="disaster-tab-activity"
           className={styles.panel}
         >
-          <section className={styles.rulesSection}>
-            <h2>Activity</h2>
-            <p>
-              Review recent Testnet contributions, executed payouts, and signer
-              actions recorded by the contract.
-            </p>
+          <section className={styles.vaultBank} aria-label="Shared pool balance">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              className={styles.vaultArt}
+              src={state.balance !== "0" ? "/illustrations/disaster-vault-funded.webp" : "/illustrations/disaster-vault-empty.webp"}
+              alt=""
+              width={720}
+              height={480}
+            />
+            <div className={styles.vaultSummary}>
+              <div className={styles.activitySummaryHeading}>
+                <span className={styles.eyebrow}>Shared pool balance</span>
+                <details className={styles.inlinePayoutInfo}>
+                  <summary>How the vault pays out</summary>
+                  <p>{state.paused ? "Payouts are paused. " : "Payouts are active. "}Two of three configured signers approve. Payouts wait 20 ledgers and stay within a {pool.config.cap_bps / 100}% rolling 24-hour cap.</p>
+                </details>
+              </div>
+              <div className={styles.poolAmount}>{formatStroops(state.balance)}<small>XLM</small></div>
+              <p className={styles.activityContributionMeta}>
+                {feed?.ok ? `From ${feed.events.filter(event => event.kind === "contribution").length} ${PREVIEW ? "" : "recent "}contributions` : "Recent activity is unavailable"}
+              </p>
+              <button type="button" className={styles.activityContribute} disabled={!onContribute} onClick={onContribute}>＋ <span>Contribute</span></button>
+            </div>
           </section>
-          <div className={`${styles.tabs} ${styles.activityFilters}`} role="group" aria-label="Activity filter">
-            {([
-              ["all", "All activity"],
-              ["contributions", "Contributions"],
-              ["payouts", "Payouts"],
-            ] as const).map(([id, label]) => (
-              <button
-                key={id}
-                type="button"
-                aria-pressed={activityFilter === id}
-                className={styles.tab}
-                onClick={() => setView("activity", id)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          <section className={styles.detailCard}>
-            <h3>Recent D3 transactions</h3>
-            <p>
-              A bounded feed of up to 100 events from the last 720 ledgers.
-              Contributions and completed payouts can be filtered here; signer
-              controls remain under All activity. Older evidence is in the D3 report.
-            </p>
+          <section className={styles.activityCard} aria-labelledby="vault-activity-heading">
+            <div className={styles.activitySectionHeading}>
+              <h2 id="vault-activity-heading">Activity</h2>
+              <label className={styles.activitySelectLabel}>
+                <span>Show</span>
+                <select
+                  aria-label="Show activity"
+                  value={activityFilter}
+                  onChange={(event) => setView("activity", event.target.value as ActivityFilter)}
+                >
+                  <option value="all">All activity</option>
+                  <option value="contributions">Contributions</option>
+                  <option value="payouts">Payouts</option>
+                </select>
+              </label>
+            </div>
             {!feed ? (
               <p role="status">Loading events…</p>
             ) : !feed.ok ? (
@@ -694,24 +715,25 @@ export default function DisasterControls({
                   || (activityFilter === "contributions" && event.kind === "contribution")
                   || (activityFilter === "payouts" && event.kind === "payout"))
                 .map((event) => {
-                  const party = event.counterparty
+                  const sampleCopy = PREVIEW ? PREVIEW_EVENT_COPY[event.id] : undefined;
+                  const party = PREVIEW
+                    ? sampleCopy?.detail ?? "Sample contribution"
+                    : event.counterparty
                     ? `${event.kind === "contribution" ? "From" : "To"} ${event.counterparty.slice(0, 8)}…${event.counterparty.slice(-5)}`
                     : `Ledger ${event.ledger}`;
-                  const amount = event.amount === null
+                  const amount = sampleCopy?.amount ?? (event.amount === null
                     ? null
-                    : `${event.kind === "contribution" ? "+" : "−"}${formatStroops(event.amount)} XLM`;
+                    : `${event.kind === "contribution" ? "+" : "−"}${formatStroops(event.amount)} XLM`);
                   return (
                     <a
                       key={event.id}
-                      className={styles.eventLink}
-                      href={event.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                      className={`${styles.activityEvent} ${PREVIEW ? styles.sampleActivityEvent : ""}`}
+                      {...(PREVIEW ? {} : { href: event.link, target: "_blank", rel: "noopener noreferrer" })}
                       aria-label={`${event.action}. ${party}. ${amount ?? `Ledger ${event.ledger}`}.`}
                     >
                       <span className={styles.eventCopy}>
-                        <strong>{event.action}</strong>
-                        <span>{party} · ledger {event.ledger}</span>
+                        <strong>{sampleCopy?.title ?? event.action}</strong>
+                        <span>{sampleCopy?.detail ?? party}</span>
                       </span>
                       <span className={styles.eventAmount}>{amount ?? `${event.hash.slice(0, 9)}… ↗`}</span>
                     </a>
@@ -719,6 +741,8 @@ export default function DisasterControls({
                 })
             )}
           </section>
+          <details className={styles.technicalDetails}>
+            <summary>On-chain records and technical documentation</summary>
           <a
             className={styles.receiptLink}
             href={`https://stellar.expert/explorer/testnet/contract/${pool.contractId}`}
@@ -772,6 +796,7 @@ export default function DisasterControls({
             </p>
           </details>
           {publicProof}
+          </details>
         </div>
       )}
     </section>

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useGoBack } from "@/lib/ui/useGoBack";
 import { disasterState, disasterContribute } from "@/app/actions";
 import { useT } from "@/components/I18nProvider";
@@ -108,15 +109,30 @@ const previewPool: Pool = {
     next_id: "3",
   },
 };
+const PREVIEW_DISASTER = {
+  title: "Bantayan Island - new roofs for a barangay school",
+  location: "Cebu, PH",
+  raised: 318.5,
+  target: 600,
+  photos: [
+    "/circles/generated/quezon-roof-repair.png",
+    "/circles/generated/cebu-family-home.png",
+    "/circles/generated/cebu-boat-repairs.png",
+    "/circles/generated/tino-relief-materials.png",
+  ],
+};
 
-export default function TransparencyScreen() {
+export default function TransparencyScreen({ initialPhase = "view" }: { initialPhase?: "view" | "amount" }) {
   const submission = useUnresolvedSubmission("disaster:d3");
   const { currency } = useT();
-  const goBack = useGoBack("/vaults");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const ngoView = searchParams.get("ngo");
+  const activityView = searchParams.get("tab") === "activity";
+  const goBack = useGoBack(initialPhase === "amount" ? "/vault" : "/");
   const [pool, setPool] = useState<Pool | null>(PREVIEW ? previewPool : null);
-  const [phase, setPhase] = useState<"view" | "amount" | "processing" | "done">(
-    "view",
-  );
+  const [phase, setPhase] = useState<"view" | "amount" | "processing" | "done">(initialPhase);
+  const [controlsOpen, setControlsOpen] = useState(false);
   const [amount, setAmount] = useState("");
   const [done, setDone] = useState<{ link?: string } | null>(null);
   const [err, setErr] = useState("");
@@ -177,6 +193,15 @@ export default function TransparencyScreen() {
     });
   }
 
+  function selectVaultTab(tab: "vault" | "activity") {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("tab");
+    params.delete("filter");
+    if (tab === "activity") params.set("tab", "activity");
+    const query = params.toString();
+    router.replace(`/vault${query ? `?${query}` : ""}`, { scroll: false });
+  }
+
   if (phase === "processing")
     return (
       <div className={`${styles.screen} ${styles.disasterScreen}`}>
@@ -219,7 +244,8 @@ export default function TransparencyScreen() {
             type="button"
             onClick={() => {
               setDone(null);
-              setPhase("view");
+              if (initialPhase === "amount") router.push("/vault");
+              else setPhase("view");
             }}
           >
             {Ico.back({ size: 14, c: T.action })} Back to the pool
@@ -278,7 +304,7 @@ export default function TransparencyScreen() {
           <button
             type="button"
             className={styles.backLink}
-            onClick={() => setPhase("view")}
+            onClick={() => { if (initialPhase === "amount") router.push("/vault"); else setPhase("view"); }}
           >
             {Ico.back({ size: 14, c: T.action })} Disaster Vault
           </button>
@@ -437,99 +463,101 @@ export default function TransparencyScreen() {
     </>
   );
   return (
-    <div className={`${styles.screen} ${styles.disasterScreen}`}>
-      <div className={styles.publicBack}>
+    <div className={`${styles.screen} ${styles.disasterScreen} ${styles.prototypeVault}`}>
+      <div className={styles.vaultPageHeader}>
         <button type="button" className={styles.backLink} onClick={goBack}>
-          {Ico.back({ size: 14, c: T.action })} Vaults
+          {Ico.back({ size: 18, c: T.ink })}
         </button>
-        <span className={styles.publicBadge}>Public · no login needed</span>
+        <h1>Disaster Vault</h1>
+        <span className={styles.headerSpacer} aria-hidden="true" />
       </div>
-      <header className={styles.disasterHero}>
-        <div>
-          <span className={styles.eyebrow}>Community relief fund</span>
-          <h1>Disaster Vault</h1>
-          <p>
-            One shared fund for disaster relief. Contribute together;
-            configured signers review each payout, and everyone can follow it.
-          </p>
-        </div>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/illustrations/disaster-safe.webp"
-          alt="Caring hands holding a blue community safe"
-          width={120}
-          height={120}
-        />
-      </header>
-      <div className={styles.testnetNote}>
-        <span className={styles.statusDot} /> Stellar Testnet{" "}
-        <span>No real money</span>
-        {PREVIEW && <strong>Example data</strong>}
-      </div>
-      <section className={styles.poolCard} aria-label="Community pool balance">
-        <span className={styles.eyebrow}>Shared pool balance</span>
-        {pool === null ? (
-          <p role="status" className={styles.amountNote}>
-            Reading the Testnet pool…
-          </p>
-        ) : pool.ok ? (
-          <div className={styles.poolAmount}>
-            {formatStroops(pool.status.balance)}
-            <small>Testnet XLM</small>
-          </div>
-        ) : (
-          <div role="alert">
-            <p className={styles.amountNote}>{pool.error}</p>
-            <button
-              type="button"
-              className={styles.textButton}
-              onClick={() => void refresh()}
-            >
-              Try again
-            </button>
-          </div>
-        )}
-        <div className={styles.poolMeta}>
-          <span
-            className={
-              pool?.ok && !pool.status.paused
-                ? styles.activePill
-                : styles.pausedPill
-            }
+      <div className={styles.tabs} role="tablist" aria-label="Disaster Vault sections">
+        {(["vault", "activity"] as const).map(tab => (
+          <button
+            key={tab}
+            id={`disaster-tab-${tab}`}
+            type="button"
+            role="tab"
+            aria-selected={activityView === (tab === "activity")}
+            aria-controls={`disaster-panel-${tab}`}
+            className={styles.tab}
+            onClick={() => selectVaultTab(tab)}
           >
-            {pool?.ok
-              ? pool.status.paused
-                ? "Payouts paused"
-                : "Payouts active"
-              : "Status unavailable"}
-          </span>
-          <span>
-            {pool?.ok ? "2-of-3 wallet approvals" : "Checking contract"}
-          </span>
-        </div>
-      </section>
-      <p className={styles.amountNote}>
-        Shared pool, not your personal balance. Testnet XLM has no real value.
-      </p>
-      <div className={styles.donateRow}>
-        <Btn
-          disabled={!pool?.ok}
-          kind="primary"
-          size="md"
-          leading={Ico.plus({ size: 16, c: "white" })}
-          onClick={() => {
-            setErr("");
-            setPhase("amount");
-          }}
-        >
-          Contribute to the pool
-        </Btn>
+            {tab === "vault" ? "Vault" : "Activity"}
+          </button>
+        ))}
       </div>
-      <DisasterControls
-        pool={pool}
-        onRefresh={refresh}
-        publicProof={appendix}
-      />
+      {!activityView ? (
+        <>
+          {PREVIEW ? (
+            <article className={styles.featuredDisaster} aria-labelledby="featured-disaster-title">
+              <div className={styles.disasterPhotos}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img className={styles.disasterCover} src={PREVIEW_DISASTER.photos[0]} alt="Community members repairing a roof" />
+                <div className={styles.disasterGallery}>
+                  {PREVIEW_DISASTER.photos.slice(1).map((photo, index) => (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img key={photo} src={photo} alt={`Disaster response example ${index + 2}`} />
+                  ))}
+                </div>
+              </div>
+              <div className={styles.disasterFeatureCopy}>
+                <span className={styles.disasterStatus}><i aria-hidden="true" /> Ongoing disaster</span>
+                <h2 id="featured-disaster-title">{PREVIEW_DISASTER.title}</h2>
+                <p className={styles.disasterLocation}>{PREVIEW_DISASTER.location}</p>
+                <div className={styles.disasterProgress} role="progressbar" aria-label="Sample cause funding progress" aria-valuemin={0} aria-valuemax={PREVIEW_DISASTER.target} aria-valuenow={PREVIEW_DISASTER.raised}>
+                  <span style={{ width: `${(PREVIEW_DISASTER.raised / PREVIEW_DISASTER.target) * 100}%` }} />
+                </div>
+                <p className={styles.disasterRaised}>
+                  ${PREVIEW_DISASTER.raised.toFixed(2)} raised of ${PREVIEW_DISASTER.target.toFixed(2)}
+                  {pool?.ok ? ` · up to ${formatStroops(pool.status.allowance)} XLM within the vault's current 24-hour limit` : " · vault limit unavailable"}
+                </p>
+                <Link className={styles.disasterCauseLink} href="/cause/bantayan">View cause {Ico.chev({ size: 14, c: T.action })}</Link>
+              </div>
+            </article>
+          ) : (
+            <section className={styles.disasterEmpty} aria-labelledby="disaster-empty-title">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/illustrations/disaster-vault-empty.webp" alt="" />
+              <div>
+                <span className={styles.eyebrow}>Disaster response</span>
+                <h2 id="disaster-empty-title">No verified disaster response yet</h2>
+                <p>Cause details will appear here after the Salapi team confirms a response.</p>
+              </div>
+            </section>
+          )}
+          <section className={styles.partnerState} aria-labelledby="disaster-partners-title">
+            <span className={styles.eyebrow}>{ngoView === "team" ? "Salapi team · NGO review" : ngoView === "partner" ? "NGO view · profile preview" : "Disaster response partners"}</span>
+            <h2 id="disaster-partners-title">No NGOs assigned yet</h2>
+            <p>The Salapi team chooses the NGOs for this disaster.</p>
+            {ngoView === "partner" ? <Link href="/ngo/tulong-cebu">Open NGO profile preview {Ico.chev({ size: 14, c: T.action })}</Link> : null}
+          </section>
+          <details className={styles.payoutDisclosure}>
+            <summary><span>How the vault pays out</span>{Ico.chev({ size: 16, c: T.action })}</summary>
+            <p>Two of the three configured signer wallets must approve a payout. It then waits 20 Stellar ledgers before execution.</p>
+            <div className={styles.payoutStats}>
+              <span><small>Rolling 24-hour limit</small><strong>{pool?.ok ? `${pool.config.cap_bps / 100}% of the balance` : "Checking contract"}</strong></span>
+              <span><small>Available now</small><strong>{pool?.ok ? `${formatStroops(pool.status.allowance)} XLM` : "Unavailable"}</strong></span>
+            </div>
+            <p>Contributions stay open while payouts are paused. The contract recalculates the limit when a payout is executed.</p>
+          </details>
+          <details className={styles.controlsDisclosure} onToggle={(event) => setControlsOpen(event.currentTarget.open)}>
+            <summary>On-chain approvals and signer controls</summary>
+            {controlsOpen ? <DisasterControls pool={pool} onRefresh={refresh} publicProof={appendix} hideTabs /> : null}
+          </details>
+        </>
+      ) : (
+        <DisasterControls
+          pool={pool}
+          onRefresh={refresh}
+          publicProof={appendix}
+          hideTabs
+          onContribute={() => {
+            setErr("");
+            router.push("/vault/contribute");
+          }}
+        />
+      )}
       <footer className={styles.footer}>
         <PoweredByStellar />
         <span>Public proof on Stellar Testnet.</span>

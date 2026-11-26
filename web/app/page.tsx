@@ -11,14 +11,17 @@ import type { Campaign } from "@/lib/campaign";
 import { isLocalPreview, PREVIEW_WALLET } from "@/lib/local-preview";
 import s from "./home.module.css";
 import { homeCopy } from "@/lib/i18n/revamp-home";
-import HomeCirclesCatalog from "@/components/HomeCirclesCatalog";
+import HomeCauseShelf from "@/components/HomeCauseShelf";
+import HomeDonationTicker from "@/components/HomeDonationTicker";
 import { useAccountPhoto } from "@/components/useAccountPhoto";
 import MarketValue from "@/components/MarketValue";
 import { Bell, Question } from "@phosphor-icons/react";
+import { PREVIEW_CAMPAIGNS, PREVIEW_TIME } from "@/lib/local-preview";
 
 // Preview uses its declared native token quantity, never its demo fiat balance.
 const [previewWhole, previewFraction = ""] = PREVIEW_WALLET.xlm.split(".");
 const previewNativeStroops = `${previewWhole}${previewFraction.padEnd(7, "0")}`;
+const HIDE_BALANCE_KEY = "salapi.security.hide-home-balance.v1";
 
 export default function Home() {
   const { locale } = useT();
@@ -27,11 +30,13 @@ export default function Home() {
   const guest = !isLocalPreview && photo.code === "unauthenticated";
   const [wallet, setWallet] = useState<{ pesos: number; address: string; nativeStroops?: string } | null>(isLocalPreview ? PREVIEW_WALLET : null);
   const [handle, setHandle] = useState<string | null>(isLocalPreview ? PREVIEW_WALLET.handle : null);
-  const [campaigns, setCampaigns] = useState<Omit<Campaign, "contribution">[]>([]);
-  const [circleLinks, setCircleLinks] = useState<Record<string, string>>({});
+  const [campaigns, setCampaigns] = useState<Omit<Campaign, "contribution">[]>(isLocalPreview ? PREVIEW_CAMPAIGNS : []);
+  const [campaignNow, setCampaignNow] = useState(String(PREVIEW_TIME));
   const [loading, setLoading] = useState(!isLocalPreview);
   const [walletError, setWalletError] = useState("");
   const [error, setError] = useState("");
+  const [hideBalance, setHideBalance] = useState(false);
+  const [updateReady, setUpdateReady] = useState(false);
   const walletRequest = useRef(0);
   const campaignLoadRevision = useRef(0);
   const loadWallet = useCallback(async () => {
@@ -64,15 +69,14 @@ export default function Home() {
     setLoading(true); setError("");
     try {
       let before = "0"; const rows: Omit<Campaign, "contribution">[] = [];
-      const links: Record<string, string> = Object.create(null);
       for (let page = 0; page < 100; page++) {
         const state = await readPublicCampaigns(before);
         if (request !== campaignLoadRevision.current) return;
         if (!state.ok) throw new Error(state.error);
+        setCampaignNow(state.now);
         rows.push(...state.campaigns);
-        Object.assign(links, state.circleLinks ?? {});
         // Show usable discovery after page one, not after the whole catalog.
-        setCampaigns([...rows]); setCircleLinks({ ...links });
+        setCampaigns([...rows]);
         if (state.campaigns.length < 10) break;
         const next = state.campaigns.at(-1)?.id;
         if (!next || next === before) break;
@@ -82,15 +86,30 @@ export default function Home() {
     finally { if (request === campaignLoadRevision.current) setLoading(false); }
   }, []);
   useEffect(() => {
+    setUpdateReady(new URLSearchParams(window.location.search).get("update") === "ready");
+    try { setHideBalance(localStorage.getItem(HIDE_BALANCE_KEY) === "1"); }
+    catch { setHideBalance(false); }
     const requestVersion = walletRequest;
     const campaignVersion = campaignLoadRevision;
     const task = setTimeout(() => { void loadWallet(); void loadCampaigns(); }, 0);
     return () => { clearTimeout(task); requestVersion.current++; campaignVersion.current++; };
   }, [loadWallet, loadCampaigns]);
+  function toggleBalanceVisibility() {
+    setHideBalance(current => {
+      const next = !current;
+      try { localStorage.setItem(HIDE_BALANCE_KEY, next ? "1" : "0"); }
+      catch { /* Keep the control usable for the current visit. */ }
+      return next;
+    });
+  }
+  function closeUpdatePreview() {
+    window.history.replaceState(null, "", window.location.pathname);
+    setUpdateReady(false);
+  }
   return <div className={s.home} data-testid="home-dashboard">
     <header className={s.greeting}>
-      <Link href="/settings" className={s.mark} aria-label={copy("Your account")}>
-        <Image src="/icon.svg" alt="" width={28} height={28} />
+      <Link href="/you" className={s.mark} aria-label={copy("Your account")}>
+        <Image src="/salapi-mark-prototype.svg" alt="" width={28} height={28} />
       </Link>
       <h1>{copy("Welcome to Salapi")}{handle ? `, @${handle}` : ""}</h1>
       <Link href="/learn" className={s.round} aria-label={copy("Help and learning")}><Question size={24} aria-hidden /></Link>
@@ -106,13 +125,16 @@ export default function Home() {
           <strong>{copy("Guest account")}</strong>
           <Link href="/signin">{copy("Sign in to see your balance")}</Link>
         </div> : <div className={s.amount} data-preview-balance={isLocalPreview || undefined}>
-          <MarketValue
-            nativeStroops={walletError ? undefined : wallet?.nativeStroops ?? (isLocalPreview && wallet ? previewNativeStroops : undefined)}
-            size={40} color="#fff" compact showNative dashboard
-            balanceLoading={!wallet && !walletError}
-            dashboardBalanceError={walletError ? <button className={s.walletRetry} onClick={loadWallet}>{copy(walletError)} {copy("Retry")}</button> : undefined}
-            dashboardCaption={copy("Testnet · no real money")}
-          />
+          {hideBalance ? <div className={s.hiddenBalance}>
+            <strong aria-label="Balance hidden">••••••</strong>
+            <button type="button" onClick={toggleBalanceVisibility}>{copy("Show balance")}</button>
+          </div> : <MarketValue
+              nativeStroops={walletError ? undefined : wallet?.nativeStroops ?? (isLocalPreview && wallet ? previewNativeStroops : undefined)}
+              size={40} color="#fff" compact showNative dashboard
+              balanceLoading={!wallet && !walletError}
+              dashboardBalanceError={walletError ? <button className={s.walletRetry} onClick={loadWallet}>{copy(walletError)} {copy("Retry")}</button> : undefined}
+              dashboardCaption=""
+            />}
         </div>}
       </div>
     </section>
@@ -129,13 +151,14 @@ export default function Home() {
         </Link>
       ))}
     </nav>
-    <HomeCirclesCatalog campaigns={campaigns} circleLinks={circleLinks} loading={loading} error={error} onRetry={loadCampaigns} />
+    <HomeDonationTicker campaigns={campaigns} loading={loading} localPreview={isLocalPreview} />
+    <HomeCauseShelf campaigns={campaigns} now={campaignNow} loading={loading} error={error} onRetry={loadCampaigns} localPreview={isLocalPreview} />
     <section className={s.quick} aria-label={copy("QUICK ACTIONS")}><div className={s.quickGrid}>
       <Link href="/vaults" className={s.tile}>
         <Image src="/illustrations/tile-arisan.png" alt="" width={44} height={32} />
         <strong>{copy("Arisan")}</strong>
       </Link>
-      <Link href="/transparency" className={s.tile}>
+      <Link href="/vault" className={s.tile}>
         <Image src="/illustrations/tile-vault.png" alt="" width={44} height={32} />
         <strong>{copy("Disaster Vault")}</strong>
       </Link>
@@ -145,5 +168,6 @@ export default function Home() {
         <span className={s.coming}>{copy("Coming soon")}</span>
       </button>
     </div></section>
+    {isLocalPreview && updateReady ? <div className={s.updateStrip} role="status"><span aria-hidden="true">↓</span><strong>Update ready</strong><button type="button" onClick={closeUpdatePreview}>Update</button><button type="button" aria-label="Dismiss" onClick={closeUpdatePreview}>×</button></div> : null}
   </div>;
 }

@@ -31,7 +31,7 @@ export default function MarketingAside() {
         <Link href="/send">Send by @ <span>↗</span></Link>
       </div>
       <footer className="sl-marketing-footer">
-        <div className="sl-marketing-powered"><PoweredByStellar c="#fff" /></div>
+        <div className="sl-marketing-powered"><PoweredByStellar c="#171717" /></div>
         <Link href="/docs">Public documentation <span aria-hidden="true">↗</span></Link>
         <small>Testnet only. No real-money donations or cash-out.</small>
       </footer>

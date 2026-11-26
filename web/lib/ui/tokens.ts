@@ -32,24 +32,24 @@ export const S = {
 } as const;
 
 export const T = {
-  ink: "#0C1730",
-  ink80: "rgba(11,18,32,0.80)",
-  ink60: "rgba(11,18,32,0.60)",
-  slate: "#586985",
-  hairline: "#DFE6F0",
-  canvas: "#F3F7FC",
-  surface: "#FFFFFF",
-  surfaceAlt: "#F2EFE7",
-  action: "#2563EB",
-  actionPress: "#1D4ED8",
-  actionTint: "#EFF4FE",
-  moneyIn: "#059669",
-  moneyInTint: "#E6F6EF",
+  ink: "var(--sl-ink)",
+  ink80: "color-mix(in srgb, var(--sl-ink) 80%, transparent)",
+  ink60: "color-mix(in srgb, var(--sl-ink) 60%, transparent)",
+  slate: "var(--sl-sub)",
+  hairline: "var(--sl-line)",
+  canvas: "var(--sl-canvas)",
+  surface: "var(--sl-surface)",
+  surfaceAlt: "var(--sl-surface-alt)",
+  action: "var(--sl-primary)",
+  actionPress: "var(--sl-primary-pressed)",
+  actionTint: "var(--sl-tint)",
+  moneyIn: "var(--sl-success)",
+  moneyInTint: "var(--sl-success-tint)",
   // warn was #B45309 — 4.48:1 on warnTint, below the 4.5 a11y bar for
   // small text. #92400E is amber-800, ~6.5:1 on the same tint, well over.
-  warn: "#92400E",
-  warnTint: "#FBF1E0",
-  danger: "#B91C1C",
+  warn: "var(--sl-warning)",
+  warnTint: "var(--sl-warning-tint)",
+  danger: "var(--sl-danger)",
   d_ink: "#F4F6FB",
   d_slate: "#9AA3B2",
   d_canvas: "#0A0F1A",
@@ -59,12 +59,12 @@ export const T = {
     "var(--font-geist-sans), system-ui, -apple-system, sans-serif",
   fontMono: "var(--font-geist-mono), ui-monospace, Menlo, monospace",
   fontUni: "var(--font-geist-sans), 'Noto Sans', system-ui, sans-serif",
-  rCard: 22,
-  rCtrl: 14,
+  rCard: 20,
+  rCtrl: 999,
   rPill: 999,
   shadow:
-    "0 3px 5px rgba(24,55,105,0.03), 0 10px 28px -16px rgba(24,55,105,0.18)",
-  shadowSm: "0 1px 2px rgba(11,18,32,0.05)",
+    "var(--sl-card-shadow)",
+  shadowSm: "var(--sl-shadow-sm)",
 } as const;
 
 export type Tokens = typeof T;

@@ -1,4 +1,8 @@
 .home { display: flex; flex-direction: column; min-height: 100cqh; padding: 4px 12px 0; color: #0c1730; }
+.updateStrip { position: absolute; z-index: 80; right: 14px; bottom: 98px; left: 14px; display: flex; align-items: center; gap: 10px; min-height: 54px; padding: 7px 8px 7px 14px; border: 1px solid var(--sl-glass-line); border-radius: 16px; background: var(--sl-surface); color: var(--sl-ink); box-shadow: var(--sl-glass-shadow); }
+.updateStrip > strong { flex: 1; min-width: 0; font-size: 13px; font-weight: 650; }
+.updateStrip > button:first-of-type { min-height: 38px; padding: 0 15px; border: 0; border-radius: 999px; background: var(--sl-primary); color: #fff; font-size: 12px; font-weight: 650; }
+.updateStrip > button:last-of-type { width: 38px; height: 38px; border: 0; border-radius: 50%; background: transparent; color: var(--sl-sub); font-size: 20px; }
 /* Keep the last link clear of the raised Cause button at maximum scroll. */
 :global(.sl-main):has(.home) { container: home-viewport / size; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 90px); }
 .crowdfunding { margin-top: 10px; padding: 12px; background: #f2efe7; border: 1px solid #e7e3db; border-radius: 25px; }
@@ -160,6 +164,33 @@
 .home { color:var(--sl-ink); padding-top:4px; }
 :global([data-theme="dark"]) .giveHeader h1,
 :global([data-theme="dark"]) .catalogCard h2 { color:var(--sl-ink); }
+:global([data-theme="dark"]) .crowdfunding { background:#262626; border-color:#333; }
+:global([data-theme="dark"]) .giveHeader p,
+:global([data-theme="dark"]) .stripLabel,
+:global([data-theme="dark"]) .catalogNotice,
+:global([data-theme="dark"]) .catalogCount,
+:global([data-theme="dark"]) .catalogOrganizer small,
+:global([data-theme="dark"]) .carouselFooter { color:#a3a3a3; }
+:global([data-theme="dark"]) .start { background:#1f2d4d; color:#a8c8ff; }
+:global([data-theme="dark"]) .plus { background:#29406d; color:#8db0ff; }
+:global([data-theme="dark"]) .campaign,
+:global([data-theme="dark"]) .empty,
+:global([data-theme="dark"]) .controls,
+:global([data-theme="dark"]) .pause,
+:global([data-theme="dark"]) .catalogTools select { background:#1c1c1c; border-color:#333; color:#fff; }
+:global([data-theme="dark"]) .campaign p,
+:global([data-theme="dark"]) .raised > span,
+:global([data-theme="dark"]) .catalogProgress > span,
+:global([data-theme="dark"]) .empty { color:#a3a3a3; }
+:global([data-theme="dark"]) .progress { background:#333; }
+:global([data-theme="dark"]) .sectionTitle { color:#a3a3a3; }
+:global([data-theme="dark"]) .sectionTitle span { background:#333; }
+:global([data-theme="dark"]) .catalogProgress strong,
+:global([data-theme="dark"]) .empty h2 { color:#fff; }
+:global([data-theme="dark"]) .testnetBridge { background:#1d2741; border-color:#2c3d66; color:#a8c8ff; }
+:global([data-theme="dark"]) .testnetBridge small { color:#a3a3a3; }
+:global([data-theme="dark"]) .controls button,
+:global([data-theme="dark"]) .pause { color:#fff; }
 
 .greeting { display: flex; align-items: center; gap: 4px; margin: 0 0 6px; }
 .greeting h1 { flex: 1; margin: 0 0 0 6px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: clamp(16px, 4.8cqw, 20px); font-weight: 500; letter-spacing: -.015em; }
@@ -185,6 +216,9 @@
 .guest a { display: inline-flex; align-items: center; min-height: 44px; font-size: 14px; }
 .guest a:focus-visible, .walletRetry:focus-visible { outline: 2px solid white; outline-offset: 2px; }
 .walletRetry { min-height: 44px; color: white; font-size: 13px; text-align: left; text-decoration: underline; }
+.hiddenBalance { display: flex; align-items: center; gap: 14px; min-height: 60px; }
+.hiddenBalance strong { color: #fff; font-size: 38px; font-weight: 650; letter-spacing: .1em; line-height: 1; }
+.hiddenBalance button { min-height: 36px; padding: 0 12px; border: 1px solid #ffffff75; border-radius: 999px; background: #ffffff18; color: #fff; font: inherit; font-size: 12px; font-weight: 600; }
 .walletActions {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -216,12 +250,10 @@
 @media (hover: hover) { .walletAction:hover { background: var(--sl-tint); } }
 @media (prefers-reduced-motion: reduce) { .walletAction { transition: none; } }
 
-.quick { margin-top: 6px; margin-right: -12px; }
-.quickGrid { display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; padding-right: 12px; }
-.quickGrid::-webkit-scrollbar { display: none; }
+.quick { margin-top: 8px; }
+.quickGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .tile {
-  flex: 0 0 43%;
-  min-height: 78px;
+  min-height: 88px;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -232,9 +264,8 @@
   background: #476cff1a;
   color: var(--sl-ink);
   text-align: center;
-  scroll-snap-align: start;
 }
-.tile img { width: 44px; height: 26px; object-fit: contain; }
+.tile img { width: 44px; height: 32px; object-fit: contain; }
 .tile strong { font-size: clamp(12px, 4cqw, 16px); line-height: 1.25; font-weight: 500; overflow-wrap: anywhere; }
 .tile:disabled { opacity: .55; }
 .tile:focus-visible { outline: 2px solid var(--sl-primary); outline-offset: 2px; }

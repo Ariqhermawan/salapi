@@ -1,0 +1,14 @@
+.screen { min-height: 100%; padding-bottom: 120px; color: var(--sl-ink); }
+.rows { padding: 8px 16px 0; }
+.row { display: flex; align-items: center; gap: 11px; min-height: 75px; padding: 12px 14px; border-bottom: 1px solid var(--sl-line); }
+.row:last-child { border-bottom: 0; }
+.icon { display: grid; width: 30px; flex: none; place-items: center; }
+.copy { display: grid; min-width: 0; flex: 1; gap: 3px; }
+.copy strong { font-size: 14px; font-weight: 600; }
+.copy small { color: var(--sl-sub); font-size: 11px; line-height: 16px; }
+.unavailable { flex: none; color: var(--sl-sub); font-size: 10px; }
+.switch { display: inline-flex; width: 48px; height: 30px; flex: none; align-items: center; padding: 3px; border: 0; border-radius: 999px; background: #adb7c5; cursor: pointer; }
+.switch > span { width: 24px; height: 24px; border-radius: 50%; background: #fff; transition: transform .16s; }
+.switchOn { background: var(--sl-primary); }
+.switchOn > span { transform: translateX(18px); }
+.note { margin: 14px 20px; color: var(--sl-sub); font-size: 11px; line-height: 17px; }

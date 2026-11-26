@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useRef } from "react";
 import { House, Pulse, User, Users } from "@phosphor-icons/react";
 import { TabBar, Ico, type Tab } from "@/components/ui/kit";
@@ -11,6 +11,7 @@ type TabPrefetchKind = NonNullable<Parameters<ReturnType<typeof useRouter>["pref
 
 export default function BottomNav() {
   const path = usePathname();
+  const params = useSearchParams();
   const router = useRouter();
   const { t, locale } = useT();
   const prefetched = useRef(new Set<string>());
@@ -25,7 +26,16 @@ export default function BottomNav() {
     path === "/you/invite" ||
     path === "/you/heard" ||
     path === "/offline" ||
-    path.startsWith("/docs")
+    path.startsWith("/docs") ||
+    path === "/send" ||
+    path === "/topup" ||
+    path === "/withdraw" ||
+    (path === "/campaigns" && (params.has("id") || params.get("create") === "1")) ||
+    path.startsWith("/circles/") ||
+    path === "/arisan/new" ||
+    path === "/arisan/join" ||
+    path === "/arisan/funding" ||
+    path.startsWith("/vault/contribute")
   ) {
     return null;
   }
@@ -35,7 +45,7 @@ export default function BottomNav() {
     { id: "/vaults", label: "Arisan", icon: ({ size, active } = {}) => <Users size={size} weight={active ? "fill" : "regular"} /> },
     { id: "/campaigns?create=1", label: homeCopy(locale, "Cause"), icon: Ico.plus, fab: true },
     { id: "/activity", label: t("nav.activity"), icon: ({ size, active } = {}) => <Pulse size={size} weight={active ? "bold" : "regular"} /> },
-    { id: "/settings", label: t("common.you"), icon: ({ size, active } = {}) => <User size={size} weight={active ? "fill" : "regular"} /> },
+    { id: "/you", label: t("common.you"), icon: ({ size, active } = {}) => <User size={size} weight={active ? "fill" : "regular"} /> },
   ];
 
   // Highlight the tab whose section the current path is under. If the path
@@ -44,11 +54,14 @@ export default function BottomNav() {
   const active =
     path === "/"
       ? "/"
+      : path === "/vault" ? "/"
       : path === "/campaigns" ? "/campaigns?create=1"
-      : /^\/(vaults|arisan|paluwagan|savings|transparency)(\/|$)/.test(path)
+      : /^\/(vaults|arisan|paluwagan|savings)(\/|$)/.test(path)
         ? "/vaults"
+      : path === "/saved" ? "/you"
         : path.startsWith("/tx/") ? "/activity"
-        : path.startsWith("/you/") ? "/settings"
+      : path === "/settings" || path.startsWith("/settings/") ? "/you"
+      : path === "/you" || path.startsWith("/you/") ? "/you"
         : items.find((i) => i.id !== "/" && path.startsWith(i.id))?.id ?? "";
 
   function prefetch(id: string) {

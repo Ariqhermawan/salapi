@@ -44,7 +44,7 @@ const EXAMPLE_MEDIA: Record<string, VaultCampaignMedia> = {
   },
 };
 
-export function vaultCampaignMedia(campaign: Campaign, localPreview: boolean): VaultCampaignMedia | null {
+export function vaultCampaignMedia(campaign: Pick<Campaign, "id" | "title" | "config">, localPreview: boolean): VaultCampaignMedia | null {
   if (!localPreview) return null;
   const original = PREVIEW_CAMPAIGNS.find(example => example.id === campaign.id);
   if (!original || original.title !== campaign.title || original.config.creator !== campaign.config.creator) return null;

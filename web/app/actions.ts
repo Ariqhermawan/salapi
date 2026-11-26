@@ -794,7 +794,7 @@ async function readArisanRoom(id: string, roomId: number) {
 export async function arisanList(cursor?: number) {
   if (isLocalPreview) return { ready: false as const, error: "Local preview does not read live rooms." };
   const id = arisanRoomsId();
-  if (!id) return { ready: false as const };
+  if (!id) return { ready: false as const, error: "The Arisan Rooms contract is not deployed in this environment yet." };
   if (cursor !== undefined && (typeof cursor !== "number" || !Number.isSafeInteger(cursor) || cursor < 1))
     return { ready: false as const, error: "Invalid room cursor" };
   try {

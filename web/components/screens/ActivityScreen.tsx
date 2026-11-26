@@ -10,8 +10,7 @@ import AccountAvatar from "@/components/AccountAvatar";
 import { useMarketPrices } from "@/components/MarketPricesProvider";
 import { createSupabaseBrowser } from "@/lib/supabase/client";
 import { supabaseConfigured } from "@/lib/supabase/env";
-import { Ico, IconButton, T, PoweredByStellar } from "@/components/ui/kit";
-import { useGoBack } from "@/lib/ui/useGoBack";
+import { Ico, T } from "@/components/ui/kit";
 import { useT } from "@/components/I18nProvider";
 import { moneyCopy, moneyMessage } from "@/lib/i18n/revamp-money";
 import { activityCopy, activityEstimateLabel } from "@/lib/i18n/wallet-activity";
@@ -87,42 +86,6 @@ const TRAIL = [
 ] as const;
 const highlights = [TRAIL[0], TRAIL[1], TRAIL[3], TRAIL[5]];
 
-function FolderIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      width="29"
-      height="29"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.7"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M3 7V5.5A1.5 1.5 0 0 1 4.5 4H9l2 2h8.5A1.5 1.5 0 0 1 21 7.5V19a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7Z" />
-      <path d="M3 9h18" />
-    </svg>
-  );
-}
-function InformationIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      width="18"
-      height="18"
-      viewBox="0 0 20 20"
-      fill="none"
-      stroke="#2563eb"
-      strokeWidth="1.7"
-      strokeLinecap="round"
-    >
-      <circle cx="10" cy="10" r="7.5" />
-      <path d="M10 9v5" />
-      <circle cx="10" cy="6" r=".6" fill="#2563eb" stroke="none" />
-    </svg>
-  );
-}
 function TrailIcon({ name }: { name: (typeof TRAIL)[number]["icon"] }) {
   if (name === "register") return <span className={styles.atSymbol}>@</span>;
   if (name === "fund") return Ico.plus({ size: 18, c: T.action });
@@ -175,7 +138,6 @@ const shortCounterparty = (address: string | null) => address && /^[GC][A-Z2-7]{
   ? `${address.slice(0, 6)}…${address.slice(-6)}` : null;
 
 export default function ActivityScreen() {
-  const goBack = useGoBack("/");
   const { currency, locale } = useT();
   const m = moneyCopy(locale);
   const h = activityCopy(locale);
@@ -349,12 +311,6 @@ export default function ActivityScreen() {
   }, [owner, address, authError, tab, refresh]);
   const identitiesByAddress = new Map(personal.identities.map(identity => [identity.address, identity]));
   const loading = !isLocalPreview && !authError && (owner === undefined || Boolean(owner && personal.status === "loading"));
-  const shortAddress = address
-    ? `${address.slice(0, 6)}…${address.slice(-6)}`
-    : loading
-      ? m("Loading wallet…")
-      : authError || personal.status === "error" ? m("Wallet unavailable") : m("No saved wallet");
-  const account = address ? `${EXPLORER}/account/${address}` : null;
 
   function navigateTabs(
     event: KeyboardEvent<HTMLButtonElement>,
@@ -370,64 +326,11 @@ export default function ActivityScreen() {
     setTab(tabs[next].id);
     document.getElementById(`activity-tab-${tabs[next].id}`)?.focus();
   }
-  function showProof() {
-    setTab("proof");
-    document.getElementById("activity-tab-proof")?.focus();
-  }
-
   return (
     <div className={styles.screen}>
       <header className={styles.header}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <IconButton ariaLabel={m("Back")} onClick={goBack}>{Ico.back({ size: 19, c: T.action })}</IconButton>
-          <h1>{m("Activity")}</h1>
-        </div>
-        <p>{m("Your money, with a paper trail.")}</p>
+        <h1>{m("Activity")}</h1>
       </header>
-      <section
-        className={styles.walletRow}
-        aria-label={
-          isLocalPreview
-            ? m("Example Testnet wallet")
-            : m("Your saved Testnet wallet")
-        }
-      >
-        <span className={styles.walletIcon}>
-          {Ico.sparkle({ size: 21, c: "#fff" })}
-        </span>
-        <div className={styles.walletIdentity}>
-          <strong>{shortAddress}</strong>
-          <span>
-            <i />
-            {isLocalPreview
-              ? m("Example Testnet wallet")
-              : address
-                ? m("Saved Testnet wallet")
-                : loading
-                  ? m("Read-only lookup")
-                  : authError || personal.status === "error" ? m("Read-only lookup") : owner ? m("No saved wallet") : m("Sign in to view history")}
-          </span>
-        </div>
-        {account ? (
-          <a
-            className={styles.walletExplorer}
-            href={account}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            {m("Open explorer")} {Ico.link({ size: 13, c: "#bdd8ff" })}
-          </a>
-        ) : (
-          !loading && !owner && !authError && (
-            <Link
-              className={styles.walletExplorer}
-              href="/signin?next=%2Factivity"
-            >
-              {m("Sign in")} {Ico.chev({ size: 13, c: "#bdd8ff" })}
-            </Link>
-          )
-        )}
-      </section>
       <div className={styles.tabs} role="tablist" aria-label={m("Activity source")}>
         {tabs.map((item, index) => (
           <button
@@ -460,7 +363,7 @@ export default function ActivityScreen() {
               {loading ? (
                 <div className={styles.loadingState} role="status" aria-live="polite">
                   <span className={styles.loadingOrbit} aria-hidden="true">{Ico.sparkle({ size: 28, c: T.action })}</span>
-                  <h2>{m("Loading your Testnet activity…")}</h2>
+                  <h2>{h("checking")}</h2>
                   <p>{h("checking")}</p>
                 </div>
               ) : authError ? (
@@ -470,15 +373,16 @@ export default function ActivityScreen() {
                 </div>
               ) : !owner ? (
                 <div className={styles.emptyState}>
+                  <Image className={styles.emptyArt} src="/illustrations/empty-activity.png" alt="" width={96} height={96} />
                   <h2>{m("Sign in to see your transfers.")}</h2>
-                  <p>{h("signedOut")}</p>
+                  <p>{h("moneyAppears")}</p>
                   <Link href="/signin?next=%2Factivity" className={styles.sendButton}>{m("Sign in")}</Link>
                 </div>
               ) : (
                 <>
                   <div className={styles.sectionHeading}>
                     <div>
-                      <h2>{m("Your Testnet transfers")}</h2>
+                      <h2>{h("activityTitle")}</h2>
                       <p>{h("confirmed")}</p>
                     </div>
                     <button type="button" className={styles.refresh} disabled={loadingMore || refreshing} aria-busy={refreshing} aria-label={m("Refresh activity")} onClick={() => void refresh(null, true)}>
@@ -513,8 +417,10 @@ export default function ActivityScreen() {
                     </div>
                   ) : personal.status === "ready" && !personal.items.length ? (
                     <div className={styles.emptyState}>
+                      <Image className={styles.emptyArt} src="/illustrations/empty-activity.png" alt="" width={96} height={96} />
                       <h2>{personal.nextCursor ? h("emptyPage") : h("empty")}</h2>
-                      <p>{personal.nextCursor ? m("Other on-chain activity was found. Load earlier transfers to check older records.") : m("A new transfer may take a moment to be indexed. Refresh to check again, or open your wallet in the explorer.")}</p>
+                      <p>{personal.nextCursor ? m("Other on-chain activity was found. Load earlier transfers to check older records.") : h("moneyAppears")}</p>
+                      {!personal.nextCursor && <Link href="/topup" className={styles.sendButton}>{h("addMoney")}</Link>}
                     </div>
                   ) : null}
                   {personal.items.length && !filteredItems.length ? (
@@ -571,7 +477,7 @@ export default function ActivityScreen() {
                                 <div className={`${styles.receiptAmount} ${received ? styles.incomingAmount : ""}`}>
                                   <div className={styles.nativeLine}>
                                     <strong data-activity-native-amount>{amountSign}{activityStroopsToXlm(receipt.amountStroops)}</strong>
-                                    <small>Testnet {receipt.asset.code}</small>
+                                    <small>{receipt.asset.code}</small>
                                   </div>
                                   {equivalent ? (
                                     <div className={styles.equivalent} data-activity-equivalent={equivalent.status}>
@@ -688,40 +594,23 @@ export default function ActivityScreen() {
             <div className={styles.emptyState}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                className={styles.doodle}
-                src="/illustrations/send.png"
-                alt="Salapi send-by-name illustration"
-                width={142}
-                height={118}
+                className={styles.emptyArt}
+                src="/illustrations/empty-activity.png"
+                alt=""
+                width={96}
+                height={96}
               />
               <h2>
-                {isLocalPreview
-                  ? m("No recorded transfers yet.")
-                  : m("Your history is in the explorer.")}
+                {h("empty")}
               </h2>
               <p>
-                {isLocalPreview
-                  ? m("Confirm a Send demo to record it here. Local examples do not move tokens or appear on-chain.")
-                  : m("Personal transactions are not loaded on this screen. Open your saved wallet in the explorer for its Testnet history.")}
+                {h("moneyAppears")}
               </p>
-              <Link href="/send" className={styles.sendButton}>
-                {Ico.send({ size: 18, c: "#fff" })} {m("Send by @")}
+              <Link href="/topup" className={styles.sendButton}>
+                {h("addMoney")}
               </Link>
             </div>
           )}
-          <button
-            type="button"
-            className={styles.proofTeaser}
-            onClick={showProof}
-          >
-            <FolderIcon />
-            <span>
-              <strong>{m("Salapi public proof")}</strong>
-              <small>{m("Project receipts, not your transactions.")}</small>
-              <b>{m("View project archive")} {Ico.chev({ size: 12, c: T.action })}</b>
-            </span>
-            {Ico.chev({ size: 16, c: "#617a9e" })}
-          </button>
         </section>
       ) : (
         <section
@@ -731,13 +620,7 @@ export default function ActivityScreen() {
           aria-labelledby="activity-tab-proof"
           className={`${styles.creamPanel} ${styles.proofPanel}`}
         >
-          <header className={styles.proofHeader}>
-            <FolderIcon />
-            <div>
-              <h2>{m("Salapi public proof")}</h2>
-              <p>{m("Project receipts, not your transactions.")}</p>
-            </div>
-          </header>
+          <p className={styles.proofIntro}>{m("Project receipts, not your transactions.")}</p>
           <ol className={`${styles.timeline} ${styles.archiveTimeline}`}>
             {highlights.map((row) => (
               <li key={row.hash} className={styles.timelineItem}>
@@ -759,12 +642,9 @@ export default function ActivityScreen() {
               </li>
             ))}
           </ol>
-          <div className={styles.archiveNote}>
-            <InformationIcon />
-            <p>
-              {m("These historical receipts document an earlier Testnet deployment. They are not personal transactions or the current D3/D4 operational state.")}
-            </p>
-          </div>
+          <p className={styles.archiveNote}>
+            {h("archiveDisclosure")}
+          </p>
           <details className={styles.technicalDetails}>
             <summary>
               {m("Technical details · all 6 receipts")}{" "}
@@ -789,14 +669,11 @@ export default function ActivityScreen() {
               ))}
             </ol>
           </details>
-          <Link href="/docs" className={styles.projectDocs}>
-            {m("View project documentation")} {Ico.chev({ size: 13, c: T.action })}
+          <Link href="/learn" className={styles.projectDocs}>
+            {h("howSalapiWorks")} {Ico.chev({ size: 13, c: T.action })}
           </Link>
         </section>
       )}
-      <footer className={styles.footer}>
-        <PoweredByStellar />
-      </footer>
     </div>
   );
 }

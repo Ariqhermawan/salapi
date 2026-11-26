@@ -2,14 +2,12 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { useGoBack } from "@/lib/ui/useGoBack";
 import { arisanList } from "@/app/actions";
 import { useT } from "@/components/I18nProvider";
 import {
   T,
   Ico,
   AppBar,
-  IconButton,
   Card,
   Btn,
   Chip,
@@ -21,7 +19,6 @@ import Image from "next/image";
 import { isLocalPreview } from "@/lib/local-preview";
 import styles from "./CampaignArisan.module.css";
 import { readPreviewArisanRoom } from "./arisan-preview";
-import ArisanInboxLink from "@/components/ArisanInboxLink";
 
 type State = Awaited<ReturnType<typeof arisanList>>;
 const previewRooms: Extract<State, { ready: true }> = { ready: true, total: 2, nextCursor: null, mine: [
@@ -36,15 +33,15 @@ const STATUS_TONE = {
   Dissolved: "warn" as const,
 };
 
-export default function ArisanListScreen() {
+export default function ArisanListScreen({ emptyPreview = false }: { emptyPreview?: boolean }) {
   const { t, currency, locale } = useT();
   const router = useRouter();
-  const goBack = useGoBack("/vaults");
   const [st, setSt] = useState<State | null>(null);
   const [filter, setFilter] = useState("All");
   const [loadError, setLoadError] = useState("");
   const [loading, startLoad] = useTransition();
   const loadingRef = useRef(false);
+  const contractUnavailable = Boolean(st && !st.ready && /not deployed|not configured|awaiting deployment/i.test(st.error ?? ""));
 
   function loadPage(cursor?: number) {
     if (loadingRef.current) return;
@@ -53,6 +50,10 @@ export default function ArisanListScreen() {
       try {
         setLoadError("");
         if (isLocalPreview) {
+          if (emptyPreview) {
+            setSt({ ready: true, total: 0, nextCursor: null, mine: [] });
+            return;
+          }
           let mine = previewRooms.mine.map(room => ({ ...room }));
           try {
             const draft = JSON.parse(sessionStorage.getItem("salapi.preview.arisan-draft") || "null");
@@ -95,7 +96,7 @@ export default function ArisanListScreen() {
     refresh();
     // Only the initial load runs on mount; later pages are explicit actions.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [emptyPreview]);
 
   const shell: React.CSSProperties = {
     fontFamily: T.fontSans,
@@ -105,62 +106,56 @@ export default function ArisanListScreen() {
   };
 
   return (
-    <div style={shell}>
-      <AppBar
-        leading={
-          <IconButton ariaLabel="Back to vaults" onClick={goBack}>
-            {Ico.back({})}
-          </IconButton>
-        }
-        title={t("arisan.title")}
-        trailing={<ArisanInboxLink locale={locale} />}
-      />
+    <div className={styles.arisanScreen} style={shell}>
+      <AppBar title="Arisan" />
 
-      {(isLocalPreview || process.env.NEXT_PUBLIC_ARISAN_SCHEDULED === "1") && <div className={styles.body}><Link href="/arisan/scheduled" className={styles.roomLink}><span className={styles.eyebrow}>{({ en: "SCHEDULED ROOMS · TESTNET", id: "RUANG TERJADWAL · TESTNET", tl: "MGA SCHEDULED ROOM · TESTNET", vi: "PHÒNG CÓ LỊCH · TESTNET" })[locale]}</span><h2>{({ en: "Your scheduled arisan rooms", id: "Ruang arisan terjadwalmu", tl: "Iyong mga scheduled arisan room", vi: "Phòng arisan có lịch của bạn" })[locale]} →</h2><p className={styles.muted}>{({ en: "Agree on dates before joining. Pay your full cycle before Start. Existing rooms below retain their original terms.", id: "Sepakati tanggal sebelum bergabung. Lunasi satu siklus sebelum Mulai. Ruang lama di bawah tetap memakai aturan semula.", tl: "Pagkasunduan ang petsa bago sumali. Bayaran ang buong cycle bago Start. Hindi nagbabago ang lumang room sa ibaba.", vi: "Thống nhất ngày trước khi tham gia. Góp đủ cả chu kỳ trước khi bắt đầu. Phòng cũ bên dưới giữ nguyên điều khoản." })[locale]}</p></Link></div>}
-      {(isLocalPreview || process.env.NEXT_PUBLIC_ARISAN_INSTALLMENTS === "1") && <div className={styles.body}><Link href="/arisan/funding" className={styles.roomLink}><span className={styles.eyebrow}>Separate installment candidate · Testnet</span><h2>Join first. Pay in steps.</h2><p className={styles.muted}>No deposit at join. Fund in smaller amounts before the deadline. Start only after every member is fully funded. Existing rooms below keep their original terms.</p></Link></div>}
-
-      <div className={styles.body} style={{ paddingTop: 20, paddingBottom: 20, gap: 12 }}>
-        <header className={`${styles.hero} ${styles.compactHero}`}><div><span className={styles.eyebrow}>Arisan / Paluwagan · Testnet</span><h1>Save together.</h1><p>Each member deposits N × their share upfront. One payout per member across the circle.</p></div><Image className={styles.doodle} width={95} height={95} src="/illustrations/arisan.png" alt="Friends contributing to a shared money pool" /></header>
-        <p className={styles.muted}>{isLocalPreview ? "Example data · Local preview · No transactions" : "Valueless Testnet XLM. Display amounts are illustrative."}</p>
-      </div>
-
-      {/* Action rail */}
-      <div style={{ padding: "0 20px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+      <div className={styles.arisanActions}>
         <Btn
           kind="primary"
+          size="md"
+          style={{ paddingInline: 10, fontSize: 13, whiteSpace: "nowrap" }}
           onClick={() => router.push("/arisan/new")}
           leading={Ico.plus({ size: 16, c: "#fff" })}
         >
-          {t("arisan.createCta")}
+          Create a room
         </Btn>
         <Btn
           kind="secondary"
+          size="md"
+          style={{ paddingInline: 10, fontSize: 13, whiteSpace: "nowrap" }}
           onClick={() => router.push("/arisan/join")}
           leading={Ico.qr({ size: 16, c: T.ink })}
         >
-          {t("arisan.joinCta")}
+          Join with a code
         </Btn>
       </div>
 
-      {/* My rooms */}
-      <div style={{ padding: "24px 20px 0" }}>
-        <div className={styles.toolbar}><h2 style={{ fontSize: 20, fontWeight: 750, letterSpacing: "-.035em" }}>{t("arisan.myRooms")}</h2><button className={styles.textButton} onClick={refresh} disabled={loading}>Refresh</button></div>
-        <nav className={styles.filters} aria-label="Filter rooms">{["All", "Open", "Active", "Done"].map(label => <button key={label} className={`${styles.filter} ${filter === label ? styles.filterActive : ""}`} aria-pressed={filter === label} onClick={() => setFilter(label)}>{label}</button>)}</nav>
+      <div className={styles.arisanContent}>
+        {st?.ready && st.mine.length > 0 && <nav className={styles.arisanFilters} aria-label="Filter rooms">{["All", "Open", "Active", "Done"].map(label => <button key={label} className={`${styles.filter} ${filter === label ? styles.filterActive : ""}`} aria-pressed={filter === label} onClick={() => setFilter(label)}>{label}</button>)}</nav>}
 
         {st === null && (
           <div className={styles.skeleton} aria-label={t("common.loading")} style={{ marginTop: 15 }} />
         )}
 
         {st && st.ready && st.mine.length === 0 && (
-          <Card p={24} style={{ background: "#F2EFE7", marginTop: 15 }}>
-            <div style={{ fontSize: 14, fontWeight: 600 }}>{t("arisan.noneTitle")}</div>
-            <div style={{ marginTop: 4, fontSize: 13, color: T.slate, lineHeight: 1.5 }}>
-              {st.nextCursor !== null ? "No memberships were found in the rooms checked so far. Older rooms are still available below." : t("arisan.noneBody")}
-            </div>
-          </Card>
+          <section className={styles.arisanEmpty}>
+            <Image src="/illustrations/empty-rooms.png" width={120} height={120} alt="" />
+            <h2>{t("arisan.noneTitle")}</h2>
+            <p>{st.nextCursor !== null ? "No memberships were found in the rooms checked so far. Older rooms are still available below." : t("arisan.noneBody")}</p>
+          </section>
         )}
 
-        {st && !st.ready && (
+        {st && !st.ready && contractUnavailable && (
+          <section className={styles.arisanEmpty}>
+            <Image src="/illustrations/empty-rooms.png" width={120} height={120} alt="" />
+            <h2>No rooms yet</h2>
+            <p>Start a room or join one with a code.</p>
+            <p className={styles.arisanUnavailable}>Arisan rooms are not deployed to this Testnet environment yet.</p>
+            <button className={styles.textButton} onClick={refresh} disabled={loading}>Try again</button>
+          </section>
+        )}
+
+        {st && !st.ready && !contractUnavailable && (
           <Card p={18} style={{ marginTop: 15 }}>
             <div style={{ fontSize: 14, fontWeight: 600 }}>{t("arisan.notConfiguredTitle")}</div>
             <div style={{ marginTop: 4, fontSize: 13, color: T.slate, lineHeight: 1.5 }}>
@@ -204,7 +199,7 @@ export default function ArisanListScreen() {
             {!st.mine.some(r => filter === "All" || r.status === filter) && <div className={styles.empty}><h2>No {filter.toLowerCase()} rooms</h2><p className={styles.muted}>Choose another status to see your rooms.</p></div>}
           </div>
         )}
-        {loadError ? <p className={styles.error} role="alert">{loadError}</p> : null}
+        {loadError && !contractUnavailable ? <p className={styles.error} role="alert">{loadError}</p> : null}
         {st?.ready && st.nextCursor !== null ? <div style={{ marginTop: 16 }}>
           <Btn kind="secondary" disabled={loading} loading={loading} onClick={loadOlder}>Load older rooms</Btn>
           <p className={styles.muted} role="status" style={{ marginTop: 8 }}>Each request checks up to 50 older rooms. Only your memberships are listed.</p>
