@@ -37,6 +37,14 @@ The GitHub Actions web job also runs the D1 automated suite. [CI workflow](../..
 
 ## Testnet acceptance
 
-Apply the Supabase migration to staging before using the new flow there. Record an explorer receipt for a signed-in username transfer and a campaign donation, and compare each receipt with the amount and destination shown in review. Apply the migration to the deployed app's database before releasing the update. [Supabase migration](../../web/supabase/migrations/20261123120000_week1_confirmation_intents.sql)
+The `revamp-ui` branch was tested with a fresh local Supabase instance that applied the confirmation-intent migration and signed-in QA wallets on Stellar Testnet. The app submitted each transaction through its review and confirmation screen. Transaction envelopes were checked against the Stellar Testnet RPC. [Supabase migration](../../web/supabase/migrations/20261123120000_week1_confirmation_intents.sql)
+
+| Action | Confirmed Testnet result | Explorer |
+| --- | --- | --- |
+| Send by username | The native XLM contract transferred 1 XLM to the recipient wallet shown in review. | [Send transaction](https://stellar.expert/explorer/testnet/tx/fce40c024b71d4517aa5634366e3166e49300adbf603a254265dbed642f927d4) |
+| Create campaign | The D4 contract created QA campaign #35 with a 5% creator share and three designated approvers. | [Create transaction](https://stellar.expert/explorer/testnet/tx/16e3e1d3fa0d55dd68eac84eaaef281e0dac70cedd9cc554547add473240f83e) |
+| Donate | The D4 contract accepted 8.9230769 XLM for campaign #35. The app displayed the confirmed Testnet donor badge. | [Donation transaction](https://stellar.expert/explorer/testnet/tx/deb30e8284cb6da11bf15441a362a8998b7ee1ca26a305ea03e13465de84b639) |
+
+Apply the migration to the deployed app's database before releasing the confirmation update there.
 
 The original Week 1 report records the earlier work on exact XLM amounts. Salapi's transparency page shows existing Testnet receipts. [Original Week 1 report](https://github.com/Ariqhermawan/salapi/blob/main/docs/instawards/week-1-d1.md) · [Salapi transparency](https://salapi.app/transparency)
