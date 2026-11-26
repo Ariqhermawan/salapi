@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { initializeWallet } from "@/app/wallet-setup-actions";
@@ -38,6 +39,18 @@ export default function WalletSetupScreen({ nextPath }: { nextPath: string }) {
       inFlight.current = false;
     }
   }
+
+  if (isLocalPreview) return <section className={styles.previewPage} aria-label="Finish wallet setup">
+    <h1>Finish wallet setup</h1>
+    <p className={styles.previewIntro}>Your account needs a confirmed Stellar wallet before you can transact.</p>
+    <div className={styles.previewWarning} role="status">
+      <span aria-hidden="true">!</span>
+      <div><strong>Wallet setup is not confirmed yet</strong><p>Check your connection and retry, or sign in again. Your saved wallet will not be replaced.</p></div>
+    </div>
+    <button type="button" className={styles.primary} disabled aria-disabled="true">Retry wallet setup</button>
+    <Link className={styles.signin} href={`/signin?next=${encodeURIComponent(next)}`}>Sign in again</Link>
+    <Image className={styles.previewDoodle} src="/prototype-causes/doodle-people.png" alt="" width={250} height={250} unoptimized />
+  </section>;
 
   return <div className={styles.page}>
     <p className={styles.eyebrow}>STELLAR TESTNET</p>

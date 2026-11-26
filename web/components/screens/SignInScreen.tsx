@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition, type FormEvent } from "react";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createSupabaseBrowser } from "@/lib/supabase/client";
 import { supabaseConfigured } from "@/lib/supabase/env";
@@ -14,6 +15,7 @@ import { isLocalPreview } from "@/lib/local-preview";
 import { initializeWallet } from "@/app/wallet-setup-actions";
 import { applySignInReferral } from "@/app/referral-actions";
 import { signupReturnPath } from "@/lib/referral";
+import styles from "./SignInPreview.module.css";
 
 function GoogleMark() {
   return (
@@ -125,6 +127,22 @@ export default function SignInScreen() {
   }
 
   const working = pending || busy;
+
+  if (isLocalPreview) return <div className={styles.screen}>
+    <header className={styles.brand}><Wordmark size={20} /></header>
+    <main className={styles.middle}>
+      <Image className={styles.doodle} src="/prototype-causes/doodle-people.png" alt="" width={230} height={230} priority unoptimized />
+      <h1>Sign in</h1>
+      <p>You do not need to write down a seed phrase. Your wallet is created automatically and stays linked to your Google account.</p>
+      {authError ? <div role="alert" style={{ marginTop:12, color:"#b42318", fontSize:12, textAlign:"center" }}>{moneyMessage(locale, authError)}</div> : null}
+      <div className={styles.actions}>
+        <Btn kind="secondary" disabled={working} loading={working} onClick={google}>{m("Enter local preview")}</Btn>
+        <Btn kind="quiet" disabled={working} onClick={() => router.replace("/")}>Cancel</Btn>
+      </div>
+      <p className={styles.smallPrint}>Explore Salapi on Stellar. Read the <a href="/terms">terms</a> and <a href="/privacy">privacy</a> information before using an account.</p>
+    </main>
+    <footer className={styles.footer}><PoweredByStellar /></footer>
+  </div>;
 
   return (
     <div style={{ fontFamily: T.fontSans, color: T.ink, minHeight: "100%", display: "flex", flexDirection: "column", paddingBottom: 110 }}>

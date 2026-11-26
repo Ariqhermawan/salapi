@@ -49,7 +49,7 @@ export default function HeardScreen({ signup, destination }: {
   }
 
   return (
-    <form className={styles.screen} onSubmit={continueToApp}>
+    <form className={`${styles.screen} ${preview ? styles.sourcePreview : ""}`} onSubmit={continueToApp}>
       <div className={styles.body}>
         <h1 className={styles.question}>{c.title}</h1>
         {canAnswer || preview ? <>
@@ -70,7 +70,7 @@ export default function HeardScreen({ signup, destination }: {
               onChange={event => { setCode(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8)); setError(null); }} />
             <p id="signup-code-hint" role={codeInvalid ? "alert" : undefined}>{codeInvalid ? c.codeInvalid : c.codeHint}</p>
           </div>}
-          {preview && <p className={styles.note}>{c.preview}</p>}
+          {preview && <p className={`${styles.note} ${styles.previewNotice}`}>{c.preview}</p>}
           {error === "unavailable" && <p role="alert" className={styles.note}>{c.unavailable}</p>}
         </> : <div className={styles.card}>
           {signup.status === "guest" ? <Link href="/signin">{t("signin.signIn")}</Link>
@@ -78,7 +78,7 @@ export default function HeardScreen({ signup, destination }: {
             : source ? <><p>{c.saved}</p><strong>{source === "invite_link" ? c.inviteLink : c[source]}</strong></>
             : <p>{c.noSource}</p>}
         </div>}
-        <Image className={styles.art} src="/illustrations/referral-people.png" alt="" width={200} height={200} />
+        <Image className={styles.art} src={preview ? "/prototype-causes/doodle-people.png" : "/illustrations/referral-people.png"} alt="" width={230} height={230} unoptimized />
       </div>
       <div className={`${styles.actions} ${styles.single}`}>
         {canAnswer || preview ? <Btn type="submit" disabled={preview || !choice || (choice === "referral" && code !== "" && !referralCode(code)) || busy} loading={busy}>{c.continue}</Btn>

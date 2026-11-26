@@ -4,7 +4,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, BookmarkSimple, Check, DotsThree, Flag, ShareNetwork, UserCircle, X } from "@phosphor-icons/react";
+import { localPreviewCauses, type LocalPreviewCause } from "@/lib/local-preview";
 import { useGoBack } from "@/lib/ui/useGoBack";
 import { PROTOTYPE_CAUSES, type PrototypeCause } from "@/lib/prototype-causes";
 import styles from "./PrototypeCauseDetailScreen.module.css";
@@ -31,15 +33,30 @@ function Progress({ cause }: { cause: PrototypeCause }) {
   </span>;
 }
 
-export default function PrototypeCauseDetailScreen({ id }: { id: string }) {
-  const cause = PROTOTYPE_CAUSES.find(item => item.id === id);
+export default function PrototypeCauseDetailScreen({ id, initialTab = "Story", initialReport = false }: { id: string; initialTab?: "Story" | "Reviews"; initialReport?: boolean }) {
+  const sampleCause = PROTOTYPE_CAUSES.find(item => item.id === id);
+  const [createdCause, setCreatedCause] = useState<LocalPreviewCause | null>(null);
+  const cause = sampleCause ?? (createdCause ? {
+    id: createdCause.id, title: createdCause.title, category: createdCause.category,
+    organizer: "@you", place: createdCause.location, story: createdCause.story,
+    raised: 0, target: createdCause.targetCents, donors: 0,
+    organizerFeeBps: createdCause.organizerFeePercent * 100,
+    daysLeft: Math.max(0, Math.ceil((new Date(`${createdCause.endDate}T00:00:00`).getTime() - new Date().setHours(0, 0, 0, 0)) / 86_400_000)),
+    status: "Funding" as const,
+  } : undefined);
+  const router = useRouter();
   const back = useGoBack("/causes");
-  const [tab, setTab] = useState<"Story" | "Activity" | "Proof" | "Reviews">("Story");
+  const [tab, setTab] = useState<"Story" | "Activity" | "Proof" | "Reviews">(initialTab);
   const [more, setMore] = useState(false);
   const [image, setImage] = useState<number | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [reporting, setReporting] = useState(initialReport);
+  const [reportReason, setReportReason] = useState("");
+  const [reportText, setReportText] = useState("");
+  const [reportFiles, setReportFiles] = useState<string[]>([]);
+  const [reportSent, setReportSent] = useState(false);
   const [layer, setLayer] = useState<HTMLElement | null>(null);
   const photos = cause?.photos ?? (cause?.image ? [cause.image] : []);
   const thumbnails = cause?.image ? photos.slice(1) : photos;
@@ -48,6 +65,7 @@ export default function PrototypeCauseDetailScreen({ id }: { id: string }) {
 
   useEffect(() => {
     setLayer(document.querySelector<HTMLElement>(".sl-app-frame"));
+    if (/^local-[0-9a-z-]+$/.test(id)) setCreatedCause(localPreviewCauses().find(item => item.id === id) ?? null);
     try {
       const ids: unknown = JSON.parse(localStorage.getItem(SAVED_KEY) || "[]");
       setSaved(Array.isArray(ids) && ids.includes(id));
@@ -82,6 +100,10 @@ export default function PrototypeCauseDetailScreen({ id }: { id: string }) {
       if (navigator.share) await navigator.share({ title: cause.title, url });
       else { await navigator.clipboard.writeText(url); setCopied(true); window.setTimeout(() => setCopied(false), 1600); }
     } catch { /* Share sheet dismissed. */ }
+  };
+  const closeReport = () => {
+    setReporting(false);
+    if (initialReport) router.replace(`/cause/${id}`);
   };
 
   return <>
@@ -173,5 +195,24 @@ export default function PrototypeCauseDetailScreen({ id }: { id: string }) {
         <button type="button" className={styles.galleryNext} aria-label="Next photo" onClick={() => setImage((image + 1) % photos.length)}>›</button>
       </>}
     </div>}
+
+    {reporting && layer ? createPortal(<div className={styles.reportBackdrop} role="presentation" onClick={event => { if (event.target === event.currentTarget) closeReport(); }}>
+      <section className={styles.reportSheet} role="dialog" aria-modal="true" aria-labelledby="prototype-report-title">
+        <div className={styles.reportHandle} />
+        <header><h2 id="prototype-report-title">{reportSent ? "Report sent" : "Report this cause"}</h2><button type="button" aria-label="Close" onClick={closeReport}><X size={18} /></button></header>
+        {reportSent ? <><p>We review every report. You can follow what happens to it in Notifications.</p><button className={styles.reportPrimary} type="button" onClick={() => { closeReport(); router.push("/notifications"); }}>Go to Notifications</button><button className={styles.reportSecondary} type="button" onClick={closeReport}>Done</button></> : <>
+          <p className={styles.reportSubject}>{cause.title}</p><p>All fields are required. Add at least one photo.</p>
+          <strong className={styles.reportLabel}>Reason</strong>
+          <div className={styles.reasons} role="radiogroup" aria-label="Reason">
+            {["Fraud", "Scam", "Misleading story", "Money not used as promised", "Something else"].map(reason => <button type="button" role="radio" aria-checked={reportReason === reason} key={reason} onClick={() => setReportReason(reason)}>{reason}<span /></button>)}
+          </div>
+          <label className={styles.reportLabel} htmlFor="prototype-report-text">What happened?</label>
+          <textarea id="prototype-report-text" maxLength={500} placeholder="Tell us what you saw" value={reportText} onChange={event => setReportText(event.target.value)} />
+          <label className={styles.reportLabel} htmlFor="prototype-report-files">Photos · {reportFiles.length} of 5</label>
+          <input id="prototype-report-files" type="file" accept="image/*" multiple onChange={event => setReportFiles(current => [...current, ...Array.from(event.target.files ?? []).map(file => file.name)].slice(0, 5))} />
+          <button className={styles.reportPrimary} type="button" disabled={!reportReason || !reportText.trim() || reportFiles.length === 0} onClick={() => setReportSent(true)}>Send report</button>
+        </>}
+      </section>
+    </div>, layer) : null}
   </>;
 }

@@ -3,7 +3,45 @@ import type { Campaign } from "./campaign";
 /** Explicit local review mode. No keys or customer records are used. */
 export const isLocalPreview = process.env.NEXT_PUBLIC_LOCAL_PREVIEW === "1";
 export const PREVIEW_USERNAME_KEY = "salapi:local-preview:username:v1";
+export const PREVIEW_CAUSES_KEY = "salapi:local-preview:causes:v1";
 export const PREVIEW_USERNAME_PATTERN = /^[a-z0-9_]{3,32}$/;
+
+export type LocalPreviewCause = {
+  id: string;
+  title: string;
+  category: string;
+  story: string;
+  beneficiaryName: string;
+  location: string;
+  targetCents: number;
+  organizerFeePercent: number;
+  endDate: string;
+  photoNames: string[];
+  createdAt: number;
+};
+
+export function localPreviewCauses(): LocalPreviewCause[] {
+  if (!isLocalPreview || typeof window === "undefined") return [];
+  try {
+    const value: unknown = JSON.parse(window.localStorage.getItem(PREVIEW_CAUSES_KEY) ?? "[]");
+    return Array.isArray(value) ? value.filter((cause): cause is LocalPreviewCause => !!cause
+      && typeof cause.id === "string" && /^local-[0-9a-z-]+$/.test(cause.id)
+      && typeof cause.title === "string" && typeof cause.category === "string"
+      && typeof cause.story === "string" && typeof cause.beneficiaryName === "string"
+      && typeof cause.location === "string" && Number.isFinite(cause.targetCents)
+      && Number.isFinite(cause.organizerFeePercent) && typeof cause.endDate === "string"
+      && Array.isArray(cause.photoNames) && typeof cause.createdAt === "number") : [];
+  } catch { return []; }
+}
+
+export function saveLocalPreviewCause(cause: LocalPreviewCause): boolean {
+  if (!isLocalPreview || typeof window === "undefined") return false;
+  const next = [cause, ...localPreviewCauses().filter(item => item.id !== cause.id)].slice(0, 20);
+  try {
+    window.localStorage.setItem(PREVIEW_CAUSES_KEY, JSON.stringify(next));
+    return true;
+  } catch { return false; }
+}
 
 export function localPreviewUsername(): string | null {
   if (!isLocalPreview || typeof window === "undefined") return null;

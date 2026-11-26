@@ -6,7 +6,7 @@ import PrototypeCauseDetailScreen from "@/components/screens/PrototypeCauseDetai
 
 export default async function CauseAliasPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  if (isLocalPreview && PROTOTYPE_CAUSES.some(cause => cause.id === id))
+  if (isLocalPreview && (PROTOTYPE_CAUSES.some(cause => cause.id === id) || /^local-[0-9a-z-]+$/.test(id)))
     return <PrototypeCauseDetailScreen id={id} />;
   const campaignId = resolveCampaignRouteId(id, isLocalPreview);
   if (campaignId) redirect(`/campaigns?id=${encodeURIComponent(campaignId)}`);

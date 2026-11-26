@@ -9,6 +9,11 @@ import { useRouter } from "next/navigation";
 import { BookmarkSimple } from "@phosphor-icons/react/dist/csr/BookmarkSimple";
 import { CopySimple } from "@phosphor-icons/react/dist/csr/CopySimple";
 import { UserPlus } from "@phosphor-icons/react/dist/csr/UserPlus";
+import { At } from "@phosphor-icons/react/dist/csr/At";
+import { HandHeart } from "@phosphor-icons/react/dist/csr/HandHeart";
+import { Question } from "@phosphor-icons/react/dist/csr/Question";
+import { ChatCircle } from "@phosphor-icons/react/dist/csr/ChatCircle";
+import { FileText } from "@phosphor-icons/react/dist/csr/FileText";
 import type { ReactNode } from "react";
 import { isAuthSessionMissingError } from "@supabase/supabase-js";
 import {
@@ -217,7 +222,7 @@ export default function SettingsScreen() {
       <section className={styles.sheet} aria-labelledby="account-title">
         <div className={styles.rows}>
           <SettingRow
-            icon={Ico.user({ size: 21, c: T.action })}
+            icon={isLocalPreview ? <At size={21} aria-hidden="true" /> : Ico.user({ size: 21, c: T.action })}
             title={t("settings.username")}
             sub={!isLocalPreview && name ? `@${name}` : undefined}
             onClick={() => router.push("/username")}
@@ -244,7 +249,7 @@ export default function SettingsScreen() {
       <section className={styles.sheet} aria-labelledby="fundraising-title">
         <div className={styles.rows}>
           <SettingRow
-            icon={Ico.vault({ size: 21, c: T.action })}
+            icon={<HandHeart size={21} aria-hidden="true" />}
             title="Your causes"
             onClick={() => router.push("/manage")}
             trailing={isLocalPreview ? <span className={styles.muted}>None yet</span> : Ico.chev({ size: 15, c: T.slate })}
@@ -269,9 +274,9 @@ export default function SettingsScreen() {
           />
           <SettingRow
             icon={<span className={styles.currencySymbol}>{CURRENCY[currency].symbol.trim()}</span>}
-            title={t("settings.currency")}
+            title={isLocalPreview ? "Currency" : t("settings.currency")}
             onClick={() => router.push("/settings/currency")}
-            trailing={value(accountCurrencyName(locale, currency))}
+            trailing={value(isLocalPreview ? "USD" : accountCurrencyName(locale, currency))}
           />
           <SettingRow
             icon={Ico.bell({ size: 21, c: T.action })}
@@ -290,13 +295,13 @@ export default function SettingsScreen() {
 
       <section className={styles.support} aria-label={c.featuresSupport}>
         <SettingRow
-          icon={Ico.bulb({ size: 21, c: T.action })}
+          icon={<Question size={21} aria-hidden="true" />}
           title="Help center"
           onClick={() => router.push("/learn")}
           trailing={Ico.chev({ size: 16, c: T.slate })}
         />
         <SettingRow
-          icon={Ico.bulb({ size: 21, c: T.action })}
+          icon={<ChatCircle size={21} aria-hidden="true" />}
           title={locale === "id" ? "Kirim masukan" : locale === "tl" ? "Magpadala ng feedback" : locale === "vi" ? "Gửi phản hồi" : "Send feedback"}
           sub="Report a bug, suggest an idea, rate Salapi"
           onClick={() => router.push("/you/feedback")}
@@ -309,7 +314,7 @@ export default function SettingsScreen() {
           trailing={Ico.chev({ size: 16, c: T.slate })}
         />
         <SettingRow
-          icon={Ico.shield({ size: 21, c: T.action })}
+          icon={<FileText size={21} aria-hidden="true" />}
           title="Terms"
           onClick={() => router.push("/you/terms")}
           trailing={Ico.chev({ size: 16, c: T.slate })}

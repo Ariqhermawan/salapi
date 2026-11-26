@@ -10,3 +10,14 @@
 .primary:focus-visible, .signin:focus-visible { outline: 3px solid var(--color-action); outline-offset: 4px; }
 .signin { display: block; padding: 14px 4px; margin-top: 8px; text-align: center; color: var(--color-action); font-weight: 600; }
 .address { overflow-wrap: anywhere; font-size: 12px; }
+.previewPage { box-sizing:border-box; display:flex; min-height:100%; flex-direction:column; padding:52px 14px 22px; color:var(--sl-ink); font-family:var(--font-geist-sans),system-ui,sans-serif; }
+.previewPage h1 { margin:0; font-size:20px; font-weight:600; letter-spacing:-.025em; line-height:1.3; }
+.previewIntro { margin:7px 0 14px; color:#737985; font-size:11px; line-height:1.5; }
+.previewWarning { display:grid; grid-template-columns:16px minmax(0,1fr); gap:7px; padding:12px; border-radius:14px; background:#fff1e9; color:#171717; }
+.previewWarning > span { display:grid; width:14px; height:14px; place-items:center; border-radius:50%; background:#f2a772; color:#fff; font-size:10px; font-weight:800; }
+.previewWarning strong { display:block; font-size:11px; font-weight:650; line-height:15px; }
+.previewWarning p { margin:4px 0 0; color:#737985; font-size:11px; line-height:1.5; }
+.previewPage .primary { min-height:44px; margin-top:10px; border-radius:999px; font-size:12px; }
+.previewPage .primary:disabled { opacity:.55; cursor:not-allowed; }
+.previewPage .signin { min-height:44px; margin-top:0; padding:11px 4px; color:#171717; font-size:12px; font-weight:500; }
+.previewDoodle { display:block; width:min(250px,80%); height:auto; margin:auto auto 42px; object-fit:contain; opacity:.72; }

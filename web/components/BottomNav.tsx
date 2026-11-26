@@ -21,6 +21,8 @@ export default function BottomNav() {
   // falsely lighting the Home tab there).
   if (
     path === "/onboarding" ||
+    (path === "/create" && process.env.NEXT_PUBLIC_LOCAL_PREVIEW === "1") ||
+    (path === "/wallet/setup" && process.env.NEXT_PUBLIC_LOCAL_PREVIEW === "1") ||
     path === "/signin" ||
     path === "/receive" ||
     path === "/you/invite" ||
@@ -32,6 +34,7 @@ export default function BottomNav() {
     /^\/activity\/[^/]+$/.test(path) ||
     path === "/topup" ||
     path === "/withdraw" ||
+    /^\/manage\/[^/]+\/updates\/new$/.test(path) ||
     path.startsWith("/cause/") ||
     path.startsWith("/donate/") ||
     (path === "/campaigns" && (params.has("id") || params.get("create") === "1")) ||
@@ -64,6 +67,7 @@ export default function BottomNav() {
         ? "/vaults"
       : path === "/saved" ? "/you"
         : path.startsWith("/tx/") ? "/activity"
+      : path.startsWith("/manage") ? "/you"
       : path === "/settings" || path.startsWith("/settings/") ? "/you"
       : path === "/you" || path.startsWith("/you/") ? "/you"
         : items.find((i) => i.id !== "/" && path.startsWith(i.id))?.id ?? "";
