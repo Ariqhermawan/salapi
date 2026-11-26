@@ -12,12 +12,9 @@ import { isLocalPreview, PREVIEW_WALLET } from "@/lib/local-preview";
 import s from "./home.module.css";
 import { homeCopy } from "@/lib/i18n/revamp-home";
 import HomeCirclesCatalog from "@/components/HomeCirclesCatalog";
-import AccountAvatar from "@/components/AccountAvatar";
 import { useAccountPhoto } from "@/components/useAccountPhoto";
-import { accountPhotoCopy } from "@/lib/i18n/account-photo";
 import MarketValue from "@/components/MarketValue";
-import { PoweredByStellarV2 } from "@/components/ui/brand";
-import { Moon, Sun } from "@phosphor-icons/react";
+import { Bell, Moon, Question, Sun } from "@phosphor-icons/react";
 
 // Preview uses its declared native token quantity, never its demo fiat balance.
 const [previewWhole, previewFraction = ""] = PREVIEW_WALLET.xlm.split(".");
@@ -27,7 +24,7 @@ export default function Home() {
   const { locale } = useT();
   const copy = (phrase: string) => homeCopy(locale, phrase);
   const photo = useAccountPhoto();
-  const photoCopy = accountPhotoCopy(locale);
+  const guest = !isLocalPreview && photo.code === "unauthenticated";
   const [wallet, setWallet] = useState<{ pesos: number; address: string; nativeStroops?: string } | null>(isLocalPreview ? PREVIEW_WALLET : null);
   const [handle, setHandle] = useState<string | null>(isLocalPreview ? PREVIEW_WALLET.handle : null);
   const [campaigns, setCampaigns] = useState<Omit<Campaign, "contribution">[]>([]);
@@ -91,52 +88,47 @@ export default function Home() {
     return () => { clearTimeout(task); requestVersion.current++; campaignVersion.current++; };
   }, [loadWallet, loadCampaigns]);
   return <div className={s.home} data-testid="home-dashboard">
+    <header className={s.greeting}>
+      <Link href="/settings" className={s.mark} aria-label={copy("Your account")}>
+        <Image src="/icon.svg" alt="" width={28} height={28} />
+      </Link>
+      <h1>{copy("Welcome to Salapi")}{handle ? `, @${handle}` : ""}</h1>
+      <Link href="/learn" className={s.round} aria-label={copy("Help and learning")}><Question size={24} aria-hidden /></Link>
+      <Link href="/notifications" className={s.round} aria-label={copy("Notifications")}><Bell size={24} aria-hidden /></Link>
+    </header>
     <section className={s.wallet} aria-label={copy("Your Testnet wallet")}>
-      <div className={s.identity}>
-        <Link href="/settings" className={s.avatar} aria-label={copy("Your account")}><AccountAvatar name={handle || photo.profile?.email || "Salapi"} photoUrl={photo.profile?.photoUrl ?? null} size={64} alt={photoCopy.alt} loading={photo.status === "loading"} /></Link>
-        <div className={s.name}><span>{copy("Hi there")}</span><strong>{handle ? handle.charAt(0).toUpperCase() + handle.slice(1) : photo.profile?.email || copy("Welcome to Salapi")}</strong><small>{handle ? `@${handle}` : copy("Your community money, together.")}</small></div>
-        <button className={`${s.round} sl-theme-toggle`} type="button" onClick={() => {
-          const root = document.documentElement;
-          const theme = root.dataset.theme === "dark" ? "light" : "dark";
-          root.dataset.theme = theme;
-          document.cookie = `salapi-theme=${theme}; Path=/; SameSite=Lax; Max-Age=31536000`;
-        }}>
-          <span className="sl-show-light"><Moon size={20} aria-hidden /> <span className="sr-only">{copy("Dark theme")}</span></span>
-          <span className="sl-show-dark"><Sun size={20} aria-hidden /> <span className="sr-only">{copy("Light theme")}</span></span>
-        </button>
+      <div className={s.walletHeader}>
+        <div><span>{copy(guest ? "Wallet" : "Total balance")}</span><span className={s.walletPill}>Testnet</span></div>
+        <Image src="/stellar-white.png" alt="Stellar" width={68} height={17} />
       </div>
-      <div className={`${s.walletContent} ${s.walletMinimal}`}>
-        <div className={s.balanceLabel}><span>{copy("TESTNET BALANCE")}</span></div>
-        <div className={s.amount} data-preview-balance={isLocalPreview || undefined}>
+      <div className={s.walletContent}>
+        {guest ? <div className={s.guest}>
+          <strong>{copy("Guest account")}</strong>
+          <Link href="/signin">{copy("Sign in to see your balance")}</Link>
+        </div> : <div className={s.amount} data-preview-balance={isLocalPreview || undefined}>
           <MarketValue
             nativeStroops={walletError ? undefined : wallet?.nativeStroops ?? (isLocalPreview && wallet ? previewNativeStroops : undefined)}
             size={40} color="#fff" compact showNative dashboard
             balanceLoading={!wallet && !walletError}
             dashboardBalanceError={walletError ? <button className={s.walletRetry} onClick={loadWallet}>{copy(walletError)} {copy("Retry")}</button> : undefined}
             dashboardCaption={copy("Testnet · no real money")}
-            dashboardActions={
-              <nav className={s.walletActions} aria-label={copy("Wallet actions")}>
-                <Link href="/send" className={s.walletAction} aria-label={copy("Send")}>
-                  <span className={s.walletActionIcon} aria-hidden="true">{Ico.send({ size: 18 })}</span>
-                  <span className={s.walletActionLabel}>{copy("Send")}</span>
-                </Link>
-                <Link href="/receive" className={s.walletAction} aria-label={copy("Receive")}>
-                  <span className={s.walletActionIcon} aria-hidden="true">{Ico.qr({ size: 18 })}</span>
-                  <span className={s.walletActionLabel}>{copy("Receive")}</span>
-                </Link>
-                <Link href="/topup" className={s.walletAction} aria-label={copy("Top up")}>
-                  <span className={s.walletActionIcon} aria-hidden="true">{Ico.arrowDown({ size: 18, c: "currentColor" })}</span>
-                  <span className={s.walletActionLabel}>{copy("Top up")}</span>
-                </Link>
-                <Link href="/withdraw" className={s.walletAction} aria-label={copy("Withdraw")}>
-                  <span className={s.walletActionIcon} aria-hidden="true">{Ico.arrowUp({ size: 18, c: "currentColor" })}</span>
-                  <span className={s.walletActionLabel}>{copy("Withdraw")}</span>
-                </Link>
-              </nav>
-            } />
-        </div>
+          />
+        </div>}
       </div>
     </section>
+    <nav className={s.walletActions} aria-label={copy("Wallet actions")}>
+      {[
+        { href: "/topup", label: "Top up", icon: Ico.arrowDown },
+        { href: "/withdraw", label: "Withdraw", icon: Ico.arrowUp },
+        { href: "/send", label: "Send", icon: Ico.send },
+        { href: "/receive", label: "Receive", icon: Ico.qr },
+      ].map(({ href, label, icon }) => (
+        <Link key={href} href={guest ? `/signin?next=${encodeURIComponent(href)}` : href} className={s.walletAction} aria-label={copy(label)}>
+          <span className={s.walletActionIcon} aria-hidden="true">{icon({ size: 20, c: "currentColor" })}</span>
+          <span className={s.walletActionLabel}>{copy(label)}</span>
+        </Link>
+      ))}
+    </nav>
     <HomeCirclesCatalog campaigns={campaigns} circleLinks={circleLinks} loading={loading} error={error} onRetry={loadCampaigns} />
     <section className={s.quick} aria-label={copy("QUICK ACTIONS")}><div className={s.quickGrid}>
       {[
@@ -151,6 +143,17 @@ export default function Home() {
           : <Link key={tile.art} href={tile.to} className={`${s.tile} ${s[tile.tone]}`}>{content}</Link>;
       })}
     </div></section>
-    <footer className={s.stellar}><PoweredByStellarV2 /><small>{copy("Public proof on Stellar Testnet")}</small><Link href="/learn">{copy("Help and learning")}</Link><Link href="/docs">{copy("How Salapi works")}</Link></footer>
+    <footer className={s.stellar}>
+      <Link href="/docs">{copy("How Salapi works")}</Link>
+      <button className={s.round} type="button" onClick={() => {
+        const root = document.documentElement;
+        const theme = root.dataset.theme === "dark" ? "light" : "dark";
+        root.dataset.theme = theme;
+        document.cookie = `salapi-theme=${theme}; Path=/; SameSite=Lax; Max-Age=31536000`;
+      }}>
+        <span className="sl-show-light"><Moon size={20} aria-hidden /><span className="sr-only">{copy("Dark theme")}</span></span>
+        <span className="sl-show-dark"><Sun size={20} aria-hidden /><span className="sr-only">{copy("Light theme")}</span></span>
+      </button>
+    </footer>
   </div>;
 }

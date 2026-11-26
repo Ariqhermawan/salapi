@@ -919,12 +919,11 @@ test("photo-first campaign hero spans the card and overlays a full centered titl
   ui.cleanup();
 });
 
-test("Home wires discovery into one manual catalog and renders the shared Stellar footer", () => {
+test("Home wires discovery into one manual catalog and credits Stellar in the balance card", () => {
   const home = source("../app/page.tsx"), catalog = source("../components/HomeCirclesCatalog.tsx");
   assert.equal((home.match(/<HomeCirclesCatalog\b/g) ?? []).length, 1);
   assert.match(home, /<HomeCirclesCatalog\s+campaigns=\{campaigns\}\s+circleLinks=\{circleLinks\}\s+loading=\{loading\}\s+error=\{error\}\s+onRetry=\{loadCampaigns\}\s*\/>/);
-  assert.match(home, /import\s*\{\s*PoweredByStellarV2\s*\}\s*from\s*["']@\/components\/ui\/brand["']/);
-  assert.match(home, /<footer\b[^>]*><PoweredByStellarV2\s*\/>/);
+  assert.match(home, /<Image src="\/stellar-white\.png" alt="Stellar"/);
   assert.doesNotMatch(home, /s\.(?:fundraise|strip)|Pause|Play|setInterval\s*\(/);
   assert.doesNotMatch(catalog, /campaignState|walletState|myHandle|sessionStorage|localStorage|fetch\s*\(/);
   assert.doesNotMatch(catalog, /setInterval\s*\(/);

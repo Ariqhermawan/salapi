@@ -225,7 +225,14 @@ test("receive, activity and withdraw retain the section that actually opened the
 
   await nav.getByRole("button", { name: "Home", exact: true }).click();
   await expectRoute(page, "/");
-  await page.getByRole("navigation", { name: "Wallet actions" }).getByRole("link", { name: "Send", exact: true }).click();
+  const send = page.getByRole("navigation", { name: "Wallet actions" }).getByRole("link", { name: "Send", exact: true });
+  if ((await send.getAttribute("href"))?.startsWith("/signin?")) {
+    await send.click();
+    await expect(page).toHaveURL(/\/signin\?next=%2Fsend$/);
+    await page.goto("/send");
+  } else {
+    await send.click();
+  }
   await expectRoute(page, "/send");
   await page.getByRole("button", { name: "Receive", exact: true }).click();
   await expectRoute(page, "/receive");
@@ -234,7 +241,13 @@ test("receive, activity and withdraw retain the section that actually opened the
 
   await nav.getByRole("button", { name: "Home", exact: true }).click();
   await expectRoute(page, "/");
-  await page.getByRole("link", { name: "Withdraw", exact: true }).click();
+  const withdraw = page.getByRole("link", { name: "Withdraw", exact: true });
+  if ((await withdraw.getAttribute("href"))?.startsWith("/signin?")) {
+    await withdraw.click();
+    await expect(page).toHaveURL(/\/signin\?next=%2Fwithdraw$/);
+    return;
+  }
+  await withdraw.click();
   await expectRoute(page, "/withdraw");
   await headerBack(page);
   await expectRoute(page, "/");

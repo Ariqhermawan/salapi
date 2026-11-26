@@ -102,15 +102,15 @@ function render(options: { preview?: boolean; locale?: Locale; currency?: Locale
   });
   const tree = exports.default();
   const wallet = nodes(tree).find(node => node.type === "section" && hasClass(node, "wallet"))!; assert.ok(wallet);
-  const rail = nodes(wallet).find(node => node.type === "nav" && hasClass(node, "walletActions"))!; assert.ok(rail);
+  const rail = nodes(tree).find(node => node.type === "nav" && hasClass(node, "walletActions"))!; assert.ok(rail);
   return { tree, wallet, rail, calls, links: nodes(rail).filter(node => node.type === "Link") };
 }
 
 const actions = [
-  { href: "/send", label: "Send", icon: "send" },
-  { href: "/receive", label: "Receive", icon: "qr" },
   { href: "/topup", label: "Top up", icon: "arrowDown" },
   { href: "/withdraw", label: "Withdraw", icon: "arrowUp" },
+  { href: "/send", label: "Send", icon: "send" },
+  { href: "/receive", label: "Receive", icon: "qr" },
 ];
 
 test("Home exposes four native wallet action links in both modes and four languages", () => {
@@ -137,7 +137,7 @@ test("Home exposes four native wallet action links in both modes and four langua
   }
 });
 
-test("Home delegates balance, native action links and truthful caption to one dashboard layout", () => {
+test("Home separates wallet actions from the balance card and renders each exactly once", () => {
   for (const preview of [true, false]) for (const locale of LOCALES) {
     const ui = render({ preview, locale });
     const walletChildren = directChildren(ui.wallet.props.children);
@@ -147,10 +147,10 @@ test("Home delegates balance, native action links and truthful caption to one da
     assert.equal(markets.length, 1, "Balance must not be duplicated in two responsive layouts");
     const market = markets[0]!;
     assert.equal(market.props.dashboard, true);
-    assert.equal(market.props.dashboardActions, ui.rail, "The complete navigation rail enters the dashboard action slot");
     assert.ok(String(market.props.dashboardCaption).includes(homeCopy(locale, "Testnet · no real money")));
     assert.equal(walletChildren.some(node => hasClass(node, "walletCaption")), false, "Testnet footer must not be repeated as a separate card row");
-    assert.equal(nodes(content).filter(node => node === ui.rail).length, 1);
+    assert.equal(nodes(ui.wallet).includes(ui.rail), false);
+    assert.equal(nodes(ui.tree).filter(node => node === ui.rail).length, 1);
     assert.deepEqual(ui.calls, { read: 0, write: 0, storage: 0, network: 0 });
   }
 });
@@ -164,7 +164,7 @@ test("action labels follow language independently of currency and retain exact b
     assert.equal(market.props.showNative, true, "Home exposes the native quantity without opening market details");
     assert.equal(market.props.dashboard, true, "Minimal metadata is scoped to Home, not transaction/review screens");
     assert.equal(nodes(ui.wallet).some(node => node.type === "Peso"), false, "No Home mode may present the static peso demo as a current wallet market estimate");
-    assert.ok(text(ui.wallet).includes(homeCopy(locale, "TESTNET BALANCE")));
+    assert.ok(text(ui.wallet).includes(homeCopy(locale, "Total balance")));
     assert.ok(String(market.props.dashboardCaption).includes(homeCopy(locale, "Testnet · no real money")));
     assert.deepEqual(ui.calls, { read: 0, write: 0, storage: 0, network: 0 });
   }
@@ -216,7 +216,7 @@ test("pending Home balance uses the dashboard loading slot rather than a currenc
     assert.ok(market);
     assert.equal(market.props.balanceLoading, true);
     assert.equal(market.props.nativeStroops, undefined);
-    assert.equal(market.props.dashboardActions, ui.rail);
+    assert.equal(nodes(ui.wallet).includes(ui.rail), false);
     assert.equal(nodes(ui.wallet).some(node => hasClass(node, "sl-skel")), false, "MarketValue owns consistent native-amount loading geometry");
     assert.equal(nodes(ui.wallet).some(node => node.type === "Peso"), false, "Pending state must not fabricate a balance");
     assert.deepEqual(ui.calls, { read: 0, write: 0, storage: 0, network: 0 });
@@ -236,14 +236,14 @@ function insideReducedMotion(rule: Rule) {
 
 test("compact wallet CSS retains equal labelled actions with readable labels and minimum touch height", () => {
   const rail = rules(".walletActions").find(rule => declaration(rule, "display") === "grid")!; assert.ok(rail);
-  assert.equal(declaration(rail, "grid-template-columns")?.replace(/\s/g, ""), "repeat(2,minmax(0,1fr))");
+  assert.equal(declaration(rail, "grid-template-columns")?.replace(/\s/g, ""), "repeat(4,minmax(0,1fr))");
   assert.ok(declaration(rail, "border-radius"));
-  const action = rules(".wallet .walletAction").find(rule => declaration(rule, "min-height"))!; assert.ok(action);
+  const action = rules(".walletAction").find(rule => declaration(rule, "min-height"))!; assert.ok(action);
   assert.ok(Number.parseFloat(declaration(action, "min-height")!) >= 44);
   assert.ok(Number.parseFloat(declaration(action, "border-radius")!) > 0);
-  assert.equal(declaration(action, "flex-direction"), "row", "The approved wallet panel aligns each action icon with its label");
-  assert.ok(rules(".wallet .walletAction + .walletAction::before").some(rule => declaration(rule, "content") === "none"), "The two actions remain distinct buttons without a shared divider");
-  assert.ok(rules(".wallet .walletActionLabel").every(rule => Number.parseFloat(declaration(rule, "font-size") ?? "12") >= 12), "Compact action labels must remain at least 12px");
+  assert.equal(declaration(action, "flex-direction"), "column");
+  assert.ok(rules(".walletAction + .walletAction::before").some(rule => declaration(rule, "width") === "1px"));
+  assert.ok(rules(".walletActionLabel").every(rule => Number.parseFloat(declaration(rule, "font-size") ?? "12") >= 12), "Compact action labels must remain at least 12px");
 });
 
 test("wallet CSS never hides labels or disables links at narrow breakpoints", () => {

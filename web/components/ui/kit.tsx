@@ -116,29 +116,18 @@ export function Row({ leading, title, sub, trailing, onClick, divider = true, st
   );
 }
 
-export type Tab = { id: string; label: string; icon: (p?: { size?: number; c?: string }) => ReactNode; fab?: boolean };
+export type Tab = { id: string; label: string; icon: (p?: { size?: number; c?: string; active?: boolean }) => ReactNode; fab?: boolean };
 export function TabBar({ active = "home", items, onNav, onPrefetch }: { active?: string; items: Tab[]; onNav?: (id: string) => void; onPrefetch?: (id: string) => void }) {
   return (
     <nav aria-label="Main navigation" className="sl-tabbar" style={{ gridTemplateColumns: `repeat(${items.length},minmax(0,1fr))` }}>
       {items.map((it) => {
         const isActive = it.id === active;
-        const col = isActive ? T.action : T.slate;
-        const tabStyle: CSSProperties = { display: "grid", gridTemplateRows: "24px 14px", alignContent: "center", justifyItems: "center", gap: 8, position: "relative", minWidth: 0, height: 52, padding: 0, color: it.fab ? T.action : col, cursor: "pointer", border: 0, background: "transparent", fontFamily: T.fontSans };
-        const labelStyle: CSSProperties = { gridRow: 2, fontSize: 10, lineHeight: "14px", fontWeight: isActive || it.fab ? 600 : 500, textAlign: "center" };
-        if (it.fab) {
-          return (
-            <button type="button" aria-label={it.label} aria-current={isActive ? "page" : undefined} key={it.id} onPointerEnter={() => onPrefetch?.(it.id)} onFocus={() => onPrefetch?.(it.id)} onPointerDown={() => onPrefetch?.(it.id)} onClick={() => onNav?.(it.id)} style={tabStyle}>
-              <span className="sl-tabbar-create">
-                {it.icon({ size: 23, c: "#fff" })}
-              </span>
-              <span style={labelStyle}>{it.label}</span>
-            </button>
-          );
-        }
+        const prefetch = () => onPrefetch?.(it.id);
         return (
-          <button type="button" aria-current={isActive ? "page" : undefined} key={it.id} onPointerEnter={() => onPrefetch?.(it.id)} onFocus={() => onPrefetch?.(it.id)} onPointerDown={() => onPrefetch?.(it.id)} onClick={() => onNav?.(it.id)} style={tabStyle}>
-            <span style={{ display: "grid", placeItems: "center", width: 24, height: 24 }}>{it.icon({ size: 21, c: col })}</span>
-            <span style={labelStyle}>{it.label}</span>
+          <button type="button" className="sl-tabbar-tab" data-create={it.fab || undefined} aria-current={isActive ? "page" : undefined} key={it.id}
+            onPointerEnter={prefetch} onFocus={prefetch} onPointerDown={prefetch} onClick={() => onNav?.(it.id)}>
+            <span className={it.fab ? "sl-tabbar-create" : undefined} aria-hidden="true">{it.icon({ size: it.fab ? 26 : 24, c: "currentColor", active: isActive })}</span>
+            {it.label}
           </button>
         );
       })}

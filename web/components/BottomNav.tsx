@@ -2,7 +2,8 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useRef } from "react";
-import { TabBar, Ico } from "@/components/ui/kit";
+import { House, Pulse, User, Users } from "@phosphor-icons/react";
+import { TabBar, Ico, type Tab } from "@/components/ui/kit";
 import { useT } from "@/components/I18nProvider";
 import { homeCopy } from "@/lib/i18n/revamp-home";
 
@@ -26,12 +27,12 @@ export default function BottomNav() {
     return null;
   }
 
-  const items = [
-    { id: "/", label: t("nav.home"), icon: Ico.home },
-    { id: "/arisan", label: "Arisan", icon: Ico.vault },
+  const items: Tab[] = [
+    { id: "/", label: t("nav.home"), icon: ({ size, active } = {}) => <House size={size} weight={active ? "fill" : "regular"} /> },
+    { id: "/arisan", label: "Arisan", icon: ({ size, active } = {}) => <Users size={size} weight={active ? "fill" : "regular"} /> },
     { id: "/campaigns?create=1", label: homeCopy(locale, "Cause"), icon: Ico.plus, fab: true },
-    { id: "/activity", label: t("nav.activity"), icon: Ico.activity },
-    { id: "/settings", label: t("common.you"), icon: Ico.user },
+    { id: "/activity", label: t("nav.activity"), icon: ({ size, active } = {}) => <Pulse size={size} weight={active ? "bold" : "regular"} /> },
+    { id: "/settings", label: t("common.you"), icon: ({ size, active } = {}) => <User size={size} weight={active ? "fill" : "regular"} /> },
   ];
 
   // Highlight the tab whose section the current path is under. If the path

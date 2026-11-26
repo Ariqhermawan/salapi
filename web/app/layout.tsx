@@ -18,10 +18,10 @@ import SuccessFeedback from "@/components/SuccessFeedback";
 import { MarketPricesProvider } from "@/components/MarketPricesProvider";
 import UsernameOnboarding from "@/components/UsernameOnboarding";
 
-const outfit = Outfit({ variable: "--font-geist-sans", subsets: ["latin", "latin-ext"] });
+const outfit = Outfit({ variable: "--font-geist-sans", preload: false });
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
-  subsets: ["latin"],
+  preload: false,
 });
 
 export const metadata: Metadata = {
