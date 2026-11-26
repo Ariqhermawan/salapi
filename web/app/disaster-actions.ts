@@ -69,7 +69,8 @@ export async function disasterEvents() {
     // A bounded live view, not a permanent index. Long-term proof lives in the D3 report/archive.
     const events = await server.getEvents({ startLedger: Math.max(oldestLedger, latestLedger - 720),
       filters: [{ type: "contract", contractIds: [id] }], limit: 100 });
-    return { ok: true as const, events: events.events.filter(e => e.inSuccessfulContractCall).reverse().map(e => ({
+    // Newer RPC versions omit the legacy success flag from contract events.
+    return { ok: true as const, events: events.events.filter(e => e.type === "contract" && e.inSuccessfulContractCall !== false).reverse().map(e => ({
       id: e.id, ledger: e.ledger, hash: e.txHash, link: txLink(e.txHash), action: String(scValToNative(e.topic[0])),
       time: e.ledgerClosedAt,
     })) };

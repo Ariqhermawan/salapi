@@ -44,6 +44,9 @@ The `revamp-ui` branch was tested with a fresh local Supabase instance that appl
 | Send by username | The native XLM contract transferred 1 XLM to the recipient wallet shown in review. | [Send transaction](https://stellar.expert/explorer/testnet/tx/fce40c024b71d4517aa5634366e3166e49300adbf603a254265dbed642f927d4) |
 | Create campaign | The D4 contract created QA campaign #35 with a 5% creator share and three designated approvers. | [Create transaction](https://stellar.expert/explorer/testnet/tx/16e3e1d3fa0d55dd68eac84eaaef281e0dac70cedd9cc554547add473240f83e) |
 | Donate | The D4 contract accepted 8.9230769 XLM for campaign #35. The app displayed the confirmed Testnet donor badge. | [Donation transaction](https://stellar.expert/explorer/testnet/tx/deb30e8284cb6da11bf15441a362a8998b7ee1ca26a305ea03e13465de84b639) |
+| Submit proof | The organizer submitted the public QA document URL and its SHA-256 after funding closed. | [Proof transaction](https://stellar.expert/explorer/testnet/tx/9ec1d3eebc8f9e51345ce7f7f1ba030e9db4039a86c3a6ef49d74ebced63cc2a) |
+| Approve proof | Two separate reviewer wallets approved the submitted proof. | [First approval](https://stellar.expert/explorer/testnet/tx/9058321b728ff762651b9533cf653ac9ff27a2f577f0bd5f65f10f1b358a7868) · [Second approval](https://stellar.expert/explorer/testnet/tx/96085ae4082e255a686127252e04d851771d9d367e0b87e8004a7734ff978f6a) |
+| Release | The campaign entered `Released` with two approvals and 0 XLM remaining in escrow. | [Release transaction](https://stellar.expert/explorer/testnet/tx/baf562ad91e158b7f6f7c32f3274d16d2ae71743d8a68953b445e6391b3b5f03) |
 
 Apply the migration to the deployed app's database before releasing the confirmation update there.
 
