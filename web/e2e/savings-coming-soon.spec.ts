@@ -8,15 +8,15 @@ for (const width of [375, 390, 1280]) test(`Savings is coming soon at ${width}px
   await page.goto("/", { waitUntil: "domcontentloaded" });
   await expect(page).toHaveTitle(/Salapi/);
   const home = page.getByTestId("home-dashboard");
-  const savings = home.getByTestId("smart-savings-coming-soon");
-  await expect(savings).toBeDisabled();
-  await expect(savings).toContainText("Coming soon");
+  const socialFeed = home.getByTestId("social-feed-coming-soon");
+  await expect(socialFeed).toBeDisabled();
+  await expect(socialFeed).toContainText("Coming soon");
   await expect(home.locator('a[href="/savings"]')).toHaveCount(0);
   await page.evaluate(async () => { await document.fonts.ready; });
-  await savings.scrollIntoViewIfNeeded();
+  await socialFeed.scrollIntoViewIfNeeded();
   // Compact quick actions deliberately allow two lines. Test the actual
   // label bounds and clipping, not a single-line typography assumption.
-  for (const label of [savings.locator("strong"), savings.locator(":scope > div > span")]) {
+  for (const label of [socialFeed.locator("strong"), socialFeed.locator(":scope > span")]) {
     const geometry = await label.evaluate(node => {
       const labelRect = node.getBoundingClientRect();
       const cardRect = node.closest("button")!.getBoundingClientRect();
@@ -33,11 +33,11 @@ for (const width of [375, 390, 1280]) test(`Savings is coming soon at ${width}px
     expect(geometry.bottom).toBeLessThanOrEqual(geometry.cardBottom);
   }
   const tiles = home.locator('section[aria-label="QUICK ACTIONS"]');
-  await expect(tiles.getByRole("link")).toHaveCount(3);
+  await expect(tiles.getByRole("link")).toHaveCount(2);
   await tiles.screenshot({ path: testInfo.outputPath(`savings-coming-soon-${width}.png`) });
   // An ordinary neighboring tile still navigates, rather than disabling the row.
   await tiles.getByRole("link", { name: /Arisan/ }).click();
-  await expect(page).toHaveURL(/\/arisan$/);
+  await expect(page).toHaveURL(/\/vaults$/);
   await expect(page.locator("#app-content").getByRole("heading", { level: 1 })).toBeVisible();
   await page.goto("/vaults", { waitUntil: "domcontentloaded" });
   await expect(page.getByTestId("vault-savings-coming-soon")).toContainText("Coming soon");

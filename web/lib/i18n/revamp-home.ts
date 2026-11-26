@@ -62,6 +62,7 @@ export const HOME_COPY = {
   "Shared payout approvals": ["Sabay na pag-apruba sa payout", "Persetujuan pencairan bersama", "Cùng phê duyệt chi trả"],
   "Local demo": ["Lokal na demo", "Simulasi lokal", "Mô phỏng cục bộ"],
   "Coming soon": ["Malapit na", "Segera hadir", "Sắp ra mắt"],
+  "Social feed": ["Feed ng komunidad", "Linimasa komunitas", "Bảng tin cộng đồng"],
   "Back to Vaults": ["Bumalik sa Vaults", "Kembali ke Vaults", "Quay lại Vaults"],
   "Vaults": ["Mga Vault", "Vault", "Kho quỹ"],
   "Explore vaults": ["Tuklasin ang mga vault", "Jelajahi vault", "Khám phá các kho quỹ"],

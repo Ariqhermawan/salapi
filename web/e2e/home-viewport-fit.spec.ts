@@ -240,27 +240,28 @@ for (const { viewport, locale } of viewportCases) {
     await reachable(previous, "Previous example footer control");
     await reachable(next, "Next example footer control");
     for (const [control, label] of [[category, "Category"], [pledge, "Preview pledge"], [tools, "Campaign tools"], [previous, "Previous example"], [next, "Next example"]] as const) await expectTouchTarget(control, label);
-    for (const label of ["Top up", "Withdraw"]) {
-      const action = wallet.getByRole("link", { name: homeCopy(locale, label), exact: true });
+    const walletActions = page.getByRole("navigation", { name: homeCopy(locale, "Wallet actions"), exact: true });
+    for (const label of ["Top up", "Withdraw", "Send", "Receive"]) {
+      const action = walletActions.getByRole("link", { name: homeCopy(locale, label), exact: true });
       await reachable(action, `Wallet ${label} action`);
       await expectTouchTarget(action, label);
     }
-    for (const label of ["Your account", "Help and learning", "Receive by QR"]) {
-      const action = wallet.getByRole("link", { name: homeCopy(locale, label), exact: true });
+    for (const label of ["Your account", "Help and learning", "Notifications"]) {
+      const action = page.getByTestId("home-dashboard").getByRole("link", { name: homeCopy(locale, label), exact: true });
       await reachable(action, label);
       await expectTouchTarget(action, label);
     }
 
     const quick = page.getByRole("region", { name: homeCopy(locale, "QUICK ACTIONS"), exact: true });
     await reachable(quick, "Quick actions section");
-    await expect(quick.getByRole("link")).toHaveCount(3);
-    const savings = quick.getByTestId("smart-savings-coming-soon");
-    await expect(savings).toBeDisabled();
-    await expect(savings).toContainText(homeCopy(locale, "Coming soon"));
+    await expect(quick.getByRole("link")).toHaveCount(2);
+    const socialFeed = quick.getByTestId("social-feed-coming-soon");
+    await expect(socialFeed).toBeDisabled();
+    await expect(socialFeed).toContainText(homeCopy(locale, "Coming soon"));
     await expect(quick.locator('a[href="/savings"]')).toHaveCount(0);
-    // Keep measuring all four cards, including the unavailable placeholder.
+    // Measure the two linked cards and the disabled shortcut.
     const tiles = quick.locator("a, button");
-    await expect(tiles).toHaveCount(4);
+    await expect(tiles).toHaveCount(3);
     for (const action of await tiles.all()) {
       await reachable(action, "Quick action");
       await expectTouchTarget(action, "Quick action");

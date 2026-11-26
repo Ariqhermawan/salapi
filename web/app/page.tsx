@@ -131,17 +131,19 @@ export default function Home() {
     </nav>
     <HomeCirclesCatalog campaigns={campaigns} circleLinks={circleLinks} loading={loading} error={error} onRetry={loadCampaigns} />
     <section className={s.quick} aria-label={copy("QUICK ACTIONS")}><div className={s.quickGrid}>
-      {[
-        { title: "Smart Savings", sub: "Coming soon", art: "savings", coming: true, to: "/savings", tone: "mint" },
-        { title: "Arisan", sub: "Fund together, upfront", art: "arisan", to: "/arisan", tone: "blue" },
-        { title: "Disaster Vault", sub: "Shared payout approvals", art: "disaster", to: "/transparency", tone: "cream" },
-        { title: "Vaults", sub: "Explore vaults", art: "crowdfund-together", to: "/vaults", tone: "mint" },
-      ].map(tile => {
-        const content = <><Image src={`/illustrations/${tile.art}.png`} alt="" width="78" height="78" /><div><strong>{copy(tile.title)}</strong><small>{copy(tile.sub)}</small>{tile.coming && <span className={s.coming}>{copy("Coming soon")}</span>}</div></>;
-        return tile.coming
-          ? <button key={tile.art} type="button" disabled data-testid="smart-savings-coming-soon" aria-label={`${copy(tile.title)}: ${copy(tile.sub)}`} className={`${s.tile} ${s[tile.tone]} ${s.unavailable}`}>{content}</button>
-          : <Link key={tile.art} href={tile.to} className={`${s.tile} ${s[tile.tone]}`}>{content}</Link>;
-      })}
+      <Link href="/vaults" className={s.tile}>
+        <Image src="/illustrations/tile-arisan.png" alt="" width={44} height={32} />
+        <strong>{copy("Arisan")}</strong>
+      </Link>
+      <Link href="/transparency" className={s.tile}>
+        <Image src="/illustrations/tile-vault.png" alt="" width={44} height={32} />
+        <strong>{copy("Disaster Vault")}</strong>
+      </Link>
+      <button type="button" disabled data-testid="social-feed-coming-soon" className={s.tile}>
+        <Image src="/illustrations/tile-feed.png" alt="" width={44} height={32} />
+        <strong>{copy("Social feed")}</strong>
+        <span className={s.coming}>{copy("Coming soon")}</span>
+      </button>
     </div></section>
     <footer className={s.stellar}>
       <Link href="/docs">{copy("How Salapi works")}</Link>
