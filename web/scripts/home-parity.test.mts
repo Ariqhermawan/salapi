@@ -34,7 +34,7 @@ test("Savings stays coming soon in Vaults and the direct route without mounting 
   assert.doesNotMatch(placeholder, /@\/app\/actions|SavingsScreen|useEffect|smartSavings|localStorage|sessionStorage/);
 });
 
-test("compact Home keeps the three prototype shortcuts and readable labels", () => {
+test("Home shortcuts use the prototype's clipped horizontal row and readable labels", () => {
   const home = readFileSync(new URL("../app/page.tsx", import.meta.url), "utf8");
   const css = readFileSync(new URL("../app/home.module.css", import.meta.url), "utf8");
   const sheet = parse(css);
@@ -45,7 +45,11 @@ test("compact Home keeps the three prototype shortcuts and readable labels", () 
     });
     return values;
   };
-  assert.deepEqual(declarations(".quickGrid", "grid-template-columns"), ["repeat(3, minmax(0, 1fr))"]);
+  assert.deepEqual(declarations(".quickGrid", "display"), ["flex"]);
+  assert.deepEqual(declarations(".quickGrid", "overflow-x"), ["auto"]);
+  assert.deepEqual(declarations(".quickGrid", "scroll-snap-type"), ["x mandatory"]);
+  assert.deepEqual(declarations(".tile", "flex"), ["0 0 43%"]);
+  assert.deepEqual(declarations(".tile", "scroll-snap-align"), ["start"]);
   assert.ok(declarations(".tile", "min-height").every(value => Number.parseFloat(value) >= 44));
   assert.deepEqual(declarations(".tile strong", "font-size"), ["clamp(12px, 4cqw, 16px)"]);
   assert.match(css, /\.tile:focus-visible[^}]*outline:\s*2px/);

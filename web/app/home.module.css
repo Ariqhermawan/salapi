@@ -216,9 +216,11 @@
 @media (hover: hover) { .walletAction:hover { background: var(--sl-tint); } }
 @media (prefers-reduced-motion: reduce) { .walletAction { transition: none; } }
 
-.quick { margin-top: 6px; }
-.quickGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.quick { margin-top: 6px; margin-right: -12px; }
+.quickGrid { display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; padding-right: 12px; }
+.quickGrid::-webkit-scrollbar { display: none; }
 .tile {
+  flex: 0 0 43%;
   min-height: 78px;
   min-width: 0;
   display: flex;
@@ -230,6 +232,7 @@
   background: #476cff1a;
   color: var(--sl-ink);
   text-align: center;
+  scroll-snap-align: start;
 }
 .tile img { width: 44px; height: 26px; object-fit: contain; }
 .tile strong { font-size: clamp(12px, 4cqw, 16px); line-height: 1.25; font-weight: 500; overflow-wrap: anywhere; }
