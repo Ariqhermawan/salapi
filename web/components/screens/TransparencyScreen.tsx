@@ -10,6 +10,7 @@ import { T, Ico, Btn, PoweredByStellar } from "@/components/ui/kit";
 import { CURRENCY, formatLocalAmount } from "@/lib/ui/currency";
 import { formatStroops } from "@/lib/format-stroops";
 import DisasterControls from "@/components/DisasterControls";
+import DisasterNgoDirectory from "@/components/screens/DisasterNgoDirectory";
 import DisasterPartnersPreview from "@/components/screens/DisasterPartnersPreview";
 import { CampaignEvidence } from "@/components/screens/CampaignScreen";
 import type { Locale } from "@/lib/i18n/config";
@@ -544,6 +545,7 @@ export default function TransparencyScreen({ initialPhase = "view" }: { initialP
             </div>
             <p>Contributions stay open while payouts are paused. The contract recalculates the limit when a payout is executed.</p>
           </section>
+          <DisasterNgoDirectory />
           <details className={styles.controlsDisclosure} onToggle={(event) => setControlsOpen(event.currentTarget.open)}>
             <summary>On-chain approvals and signer controls</summary>
             {controlsOpen ? <DisasterControls pool={pool} onRefresh={refresh} publicProof={appendix} hideTabs /> : null}
