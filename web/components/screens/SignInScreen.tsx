@@ -140,7 +140,7 @@ export default function SignInScreen() {
       <p>You do not need to write down a seed phrase. Your wallet is created automatically and stays linked to your Google account.</p>
       {authError ? <div role="alert" style={{ marginTop:12, color:"#b42318", fontSize:12, textAlign:"center" }}>{moneyMessage(locale, authError)}</div> : null}
       <div className={styles.actions}>
-        <Btn kind="secondary" disabled={working} loading={working} leading={<GoogleMonochromeMark />} onClick={google} style={{ fontWeight: 500, letterSpacing: "-0.011em" }}>{t("signin.google")}</Btn>
+        <Btn kind="primary" disabled={working} loading={working} onClick={google} style={{ fontWeight: 500, letterSpacing: "-0.011em" }}>{m("Enter local preview")}</Btn>
         <Btn kind="quiet" disabled={working} onClick={() => router.replace("/")} style={{ fontWeight: 500, letterSpacing: "-0.011em" }}>Cancel</Btn>
       </div>
       <p className={styles.smallPrint}>Explore Salapi on Stellar. Read the <a href="/terms">terms</a> and <a href="/privacy">privacy</a> information before using an account.</p>

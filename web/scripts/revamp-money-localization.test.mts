@@ -58,7 +58,7 @@ function mount(name: typeof names[number], locale: Locale, options: { preview?: 
   const memory = new Map<string, string>();
   const storage = { getItem(key: string) { if (options.denied) throw Error("Isolated denied storage"); return memory.get(key) ?? null; }, setItem(key: string, value: string) { if (options.denied) throw Error("Isolated denied storage"); memory.set(key, value); }, removeItem(key: string) { memory.delete(key); } };
   const calls = { auth: 0, serverWrites: 0, lookups: 0, walletReads: 0, handleReads: 0, receiveReads: 0, navigations: [] as string[], clipboard: [] as string[], cookies: 0 };
-  const localPreview = { isLocalPreview: preview, PREVIEW_WALLET, PREVIEW_RECIPIENT };
+  const localPreview = { isLocalPreview: preview, PREVIEW_WALLET, PREVIEW_RECIPIENT, localPreviewUsername: () => PREVIEW_WALLET.handle };
   let id = 0;
   const base = { window: { location: { origin: "http://localhost:3000", assign: (value: string) => calls.navigations.push(value) }, sessionStorage: storage }, sessionStorage: storage,
     crypto: { randomUUID: () => `00000000-0000-0000-0000-${String(++id).padStart(12, "0")}` },
@@ -110,6 +110,7 @@ function mount(name: typeof names[number], locale: Locale, options: { preview?: 
       if (dependency === "@/components/AccountAvatar") return { default: "AccountAvatar" };
       if (dependency === "@/lib/vault-campaign-cover") return { vaultCircleCover: () => null };
       if (dependency === "./ActivityReceiptSheet") return { default: "ActivityReceiptSheet" };
+      if (dependency === "./PrototypeDoodle") return { default: "PrototypeDoodle" };
       if (dependency === "@/components/useAccountPhoto") return { useAccountPhoto: () => ({ profile: null }) };
       if (dependency === "@/lib/recipient-review") return recipientReview;
       if (dependency === "@/components/MarketPricesProvider") return { useMarketPrices: () => ({ prices: { status: "unavailable", source: "CoinGecko", reason: "preview" } }) };
@@ -241,7 +242,7 @@ for (const locale of LOCALES) {
     assert.equal(nodes(ui.tree).filter(item => String(item.props.href ?? "").includes("/tx/")).length, 0);
   });
   test(`${locale}: Activity tabs, empty help and public archive remain localized and separated`, async () => {
-    const ui = mount("ActivityScreen", locale); await ui.flush(); ui.find(m("Activity")); ui.find(m("No recorded transfers yet."));
+    const ui = mount("ActivityScreen", locale); await ui.flush(); ui.find(m("Activity")); ui.find(activityCopyModule.activityCopy(locale)("empty"));
     ui.click(m("Public proof")); await ui.flush(); ui.find(m("Project receipts, not your transactions.")); ui.find(m("Technical details · all 6 receipts"));
     assert.equal(nodes(ui.tree).filter(item => String(item.props.href ?? "").includes("/tx/")).length, 10);
     assert.equal(ui.calls.serverWrites, 0);

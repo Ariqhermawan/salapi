@@ -122,7 +122,7 @@ function mount(options: { preview?: boolean; configured?: boolean; locale?: "en"
       if (dependency === "@/lib/vault-campaign-cover") return { vaultCircleCover: () => null };
       if (dependency === "@/lib/i18n/circles-content") return contentCopy;
       if (dependency === "@/lib/ui/currency") return { formatLocal };
-      if (dependency === "@/lib/local-preview") return { isLocalPreview: preview, PREVIEW_WALLET };
+      if (dependency === "@/lib/local-preview") return { isLocalPreview: preview, PREVIEW_WALLET, localPreviewUsername: () => PREVIEW_WALLET.handle };
       if (dependency === "@/lib/local-preview-history") return { listPreviewTransfers: () => [] };
       if (dependency.endsWith(".module.css")) return { default: new Proxy({}, { get: (_, key) => key }) };
       throw Error(`Unexpected dependency: ${dependency}`);
@@ -163,7 +163,7 @@ function state(tree: Element) { return nodes(tree).find((node) => node.props["da
 test("initial authenticated lookup has an accessible loading state, not fake empty history", () => {
   const h = mount();
   assert.equal(state(h.tree), "loading");
-  assert.ok(nodes(h.tree).some((node) => node.props.role === "status" && text(node).includes("Loading your Testnet activity")));
+  assert.ok(nodes(h.tree).some((node) => node.props.role === "status" && text(node).includes(activityCopy("en")("checking"))));
   assert.doesNotMatch(text(h.tree), /Your history is in the explorer|No confirmed XLM transfers yet/);
   assert.equal(h.historyRequests.length, 0);
   h.unmount();
@@ -247,7 +247,7 @@ test("empty confirmed history and unavailable history are distinct, with retry",
   assert.equal(h.historyRequests.length, 2);
   h.historyRequests[1].deferred.resolve(pageResult()); await h.flush();
   assert.equal(state(h.tree), "empty");
-  assert.match(text(h.tree), /No confirmed XLM or verified USDC transfers yet/);
+  assert.match(text(h.tree), new RegExp(activityCopy("en")("empty")));
   h.unmount();
 });
 test("pagination requests are single-flight and duplicate operation rows are deduplicated", async () => {
@@ -340,7 +340,7 @@ test("public archive is not mixed into an authenticated wallet's empty history",
 });
 test("local preview uses only local receipts without Auth or live actions", async () => {
   const h = mount({ preview: true }); await h.flush();
-  assert.match(text(h.tree), /No recorded transfers yet/);
+  assert.ok(text(h.tree).includes(activityCopy("en")("empty")));
   assert.equal(h.authRequests.length, 0);
   assert.equal(h.historyRequests.length, 0);
   assert.equal(h.subscriptions, 0);
