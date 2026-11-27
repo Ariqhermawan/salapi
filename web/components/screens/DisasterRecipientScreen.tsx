@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Flag } from "@phosphor-icons/react/dist/csr/Flag";
 import { useGoBack } from "@/lib/ui/useGoBack";
 import { disasterEvents } from "@/app/disaster-actions";
 import { formatStroops } from "@/lib/format-stroops";
-import { isLocalPreview } from "@/lib/local-preview";
+import { DISASTER_NGO_CATEGORIES, findDisasterNgo } from "@/lib/disaster-ngos";
 import { Ico } from "@/components/ui/kit";
 import styles from "./DisasterRecipientScreen.module.css";
 
@@ -31,45 +32,43 @@ export default function DisasterRecipientScreen({ address, slug }: { address?: s
     ? feed.events.filter(event => event.kind === "payout" && event.counterparty === address)
     : [];
 
-  const previewNgo = slug ? ({
-    "tulong-cebu": { name: "Tulong Cebu Relief", initials: "TC", place: "Cebu City, PH", focus: "Typhoon and flood relief", about: "Volunteers who bring food packs, tarps and clean water to coastal barangays in the first week after a storm.", verified: true, reached: "1,240", payout: "$500.00", payoutCount: "1" },
-    "bangon-marikina": { name: "Bangon Marikina", initials: "BM", place: "Marikina, PH", focus: "Flood response", about: "A riverside volunteer group that runs evacuation boats and a community kitchen when the water rises.", verified: true, reached: "0", payout: "$0.00", payoutCount: "0" },
-    "dapur-siaga": { name: "Dapur Siaga Jakarta", initials: "DS", place: "Jakarta Utara, ID", focus: "Emergency kitchens", about: "Neighborhood cooks who open a shared kitchen within a day of a flood or a fire.", verified: false, reached: "0", payout: "$0.00", payoutCount: "0" },
-  } as const)[slug as "tulong-cebu" | "bangon-marikina" | "dapur-siaga"] : undefined;
+  const previewNgo = findDisasterNgo(slug);
 
-  if (isLocalPreview && previewNgo) return <main className={styles.screen}>
+  if (previewNgo) {
+    const category = DISASTER_NGO_CATEGORIES.find((item) => item.id === previewNgo.category)!;
+    return <main className={styles.screen}>
     <header className={styles.header}>
       <button type="button" aria-label="Back to Disaster Vault" className={styles.back} onClick={back}>{Ico.back({ size: 20 })}</button>
       <h1>NGO</h1><span className={styles.spacer} aria-hidden="true" />
     </header>
     <section className={styles.previewNgoCard}>
       <div className={styles.previewNgoTop}>
-        <span className={styles.previewNgoAvatar}>{previewNgo.initials}</span>
+        <span className={styles.previewNgoAvatar}><Image src={category.art} alt="" width={42} height={42} /></span>
         <div className={styles.previewNgoTitle}>
-          {previewNgo.verified ? <span className={styles.verified}>{Ico.check({ size: 12 })} Verified NGO</span> : <span className={styles.unverified}>Community NGO</span>}
+          <span className={styles.unverified}>Testnet example profile</span>
           <h2>{previewNgo.name}</h2>
-          <p>{previewNgo.place} · {previewNgo.focus}</p>
+          <p>{category.name} · {previewNgo.place} · {previewNgo.focus}</p>
         </div>
       </div>
       <p className={styles.previewNgoAbout}>{previewNgo.about}</p>
       <div className={styles.previewNgoActions}>
-        <button type="button" className={styles.donateButton} onClick={() => router.push("/vault/contribute")}>Donate</button>
+        <button type="button" className={styles.donateButton} onClick={() => router.push("/vault/contribute")}>Contribute to the vault</button>
         <button type="button" className={styles.reportButton} aria-label="Send feedback about this NGO" onClick={() => router.push("/you/feedback")}><Flag size={17} aria-hidden="true" /></button>
       </div>
-      <p className={styles.sharedVaultNote}>Donations go to the shared Disaster Vault.</p>
-      <div className={styles.vaultTotal}><span>From the vault</span><strong>{previewNgo.payout}</strong></div>
+      <p className={styles.sharedVaultNote}>This sample is not a real or verified organization. Testnet contributions go to the shared Disaster Vault, not directly to this profile.</p>
+      <div className={styles.vaultTotal}><span>On-chain payouts linked</span><strong>None</strong></div>
       <div className={styles.previewNgoStats}>
-        <div><span>Payouts</span><strong>{previewNgo.payoutCount}</strong></div>
-        <div><span>People reached</span><strong>{previewNgo.reached}</strong></div>
+        <div><span>Testnet payouts</span><strong>0</strong></div>
+        <div><span>People reached</span><strong>Not tracked</strong></div>
       </div>
     </section>
     <section className={styles.previewActivity}>
-      <h2>Vault activity · {previewNgo.payoutCount}</h2>
-      {previewNgo.payoutCount === "1" ? <Link href="/vault?tab=activity" className={styles.previewActivityRow}>
-        <span><strong>Typhoon relief, Cebu</strong><small>12 Oct 2026</small></span><strong>{previewNgo.payout}</strong>
-      </Link> : <p>No sample payouts yet.</p>}
+      <h2>Vault activity · 0</h2>
+      <p>No on-chain payouts are linked to this example profile.</p>
+      <Link href="/vault?tab=activity" className={styles.previewActivityRow}>View Disaster Vault activity {Ico.chev({ size: 16 })}</Link>
     </section>
   </main>;
+  }
 
   return <main className={styles.screen}>
     <header className={styles.header}>

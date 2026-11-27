@@ -4,16 +4,12 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createPortal } from "react-dom";
 import { ArrowRight } from "@phosphor-icons/react";
+import { DISASTER_NGOS as NGOS } from "@/lib/disaster-ngos";
 import styles from "./DisasterPartnersPreview.module.css";
 
 const KEY = "salapi.local-preview.disaster-ngos";
 type Recommendation = { ngo: string; note: string };
 type SavedPartners = { assigned?: unknown; recommendation?: unknown; recommended?: unknown };
-const NGOS = [
-  { id: "tulong-cebu", name: "Tulong Cebu Relief", place: "Cebu City, PH", focus: "Typhoon and flood relief" },
-  { id: "bangon-marikina", name: "Bangon Marikina", place: "Marikina, PH", focus: "Flood response" },
-  { id: "dapur-siaga", name: "Dapur Siaga Jakarta", place: "Jakarta Utara, ID", focus: "Emergency kitchens" },
-];
 
 export default function DisasterPartnersPreview({ view }: { view: string | null }) {
   const team = view === "team";
@@ -27,24 +23,27 @@ export default function DisasterPartnersPreview({ view }: { view: string | null 
   const [showRecommend, setShowRecommend] = useState(false);
 
   useEffect(() => {
-    try {
-      const data = JSON.parse(localStorage.getItem(KEY) ?? "null") as SavedPartners | null;
-      const storedAssigned = Array.isArray(data?.assigned) && data.assigned.every((id) => typeof id === "string")
-        ? data.assigned as string[]
-        : null;
-      const storedRecommendation = data?.recommendation && typeof data.recommendation === "object"
-        ? data.recommendation as Recommendation
-        : typeof data?.recommended === "string"
-          ? { ngo: data.recommended, note: "" }
+    const timer = window.setTimeout(() => {
+      try {
+        const data = JSON.parse(localStorage.getItem(KEY) ?? "null") as SavedPartners | null;
+        const storedAssigned = Array.isArray(data?.assigned) && data.assigned.every((id) => typeof id === "string")
+          ? data.assigned as string[]
           : null;
-      const nextAssigned = team || unassigned
-        ? storedAssigned?.length ? [] : storedAssigned ?? []
-        : storedAssigned?.length ? storedAssigned : ["tulong-cebu", "bangon-marikina"];
-      const nextRecommendation = (team || unassigned) && storedAssigned?.length ? null : storedRecommendation;
-      setAssigned(nextAssigned);
-      setRecommended(nextRecommendation);
-      setRecommendNote(nextRecommendation?.note ?? "");
-    } catch { /* Corrupt demo state is ignored; this is only a local sample. */ }
+        const storedRecommendation = data?.recommendation && typeof data.recommendation === "object"
+          ? data.recommendation as Recommendation
+          : typeof data?.recommended === "string"
+            ? { ngo: data.recommended, note: "" }
+            : null;
+        const nextAssigned = team || unassigned
+          ? storedAssigned?.length ? [] : storedAssigned ?? []
+          : storedAssigned?.length ? storedAssigned : ["tulong-cebu", "bangon-marikina"];
+        const nextRecommendation = (team || unassigned) && storedAssigned?.length ? null : storedRecommendation;
+        setAssigned(nextAssigned);
+        setRecommended(nextRecommendation);
+        setRecommendNote(nextRecommendation?.note ?? "");
+      } catch { /* Corrupt demo state is ignored; this is only a local sample. */ }
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [team, unassigned]);
 
   useEffect(() => {
