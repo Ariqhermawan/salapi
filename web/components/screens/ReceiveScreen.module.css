@@ -27,6 +27,17 @@
 .copy span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .copy[data-copy-error] span { white-space: normal; overflow-wrap: anywhere; user-select: all; }
 .copy svg { flex-shrink: 0; }
+.receiveRows { margin-top: 12px; padding:12px; border:1px solid var(--sl-line); border-radius:12px; background:var(--sl-tint); text-align:left; }
+.receiveRow { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 0; }
+.receiveRow:first-child { padding-top:0; }
+.receiveRow + .receiveRow { border-top:1px solid var(--sl-line); }
+.receiveRow:last-of-type { padding-bottom:0; }
+.receiveValue { display:grid; min-width:0; flex:1; gap:4px; }
+.receiveLabel { color:var(--sl-sub); font-size:12px; line-height:17px; }
+.receiveLabel strong { color:#c33d35; font-weight:600; }
+.fullAddress { display:grid; overflow-wrap:anywhere; color:var(--sl-ink); font-family:var(--font-geist-mono),monospace; font-size:11px; line-height:16px; }
+.memoValue { color:var(--sl-ink); font-family:var(--font-geist-mono),monospace; font-size:13px; line-height:18px; }
+.rowCopy { display:grid; width:38px; height:38px; flex:0 0 38px; place-items:center; border:0; border-radius:50%; background:var(--sl-tint); color:var(--sl-primary); }
 .note { margin: 8px 0 0; color: var(--sl-sub); font-size: 13px; line-height: 1.45; }
 .link { min-height: 44px; color: var(--sl-primary); font-size: 14px; }
 .status { min-height: 200px; display: grid; place-items: center; color: var(--sl-sub); }

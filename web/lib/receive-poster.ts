@@ -30,6 +30,7 @@ export function drawReceivePoster(
   username: string | null,
   preview: boolean,
   copy: ReceivePosterCopy,
+  memo: string | null = null,
 ): Promise<Blob | null> {
   const canvas = document.createElement("canvas");
   canvas.width = 1080;
@@ -87,7 +88,8 @@ export function drawReceivePoster(
   context.fillText(address.slice(0, midpoint), 540, y + 940);
   context.fillText(address.slice(midpoint), 540, y + 986);
   context.font = "400 32px system-ui, sans-serif";
-  const note = preview ? copy.previewPosterWarning : copy.posterNetworkNote;
+  const note = [preview ? copy.previewPosterWarning : copy.posterNetworkNote, memo ? `Memo (required): ${memo}` : ""]
+    .filter(Boolean).join(" ");
   for (const [index, line] of wrappedLines(context, note, 760).entries())
     context.fillText(line, 540, y + 1060 + index * 44);
   context.fillStyle = soft;

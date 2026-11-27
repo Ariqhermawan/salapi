@@ -16,6 +16,8 @@ export type LocalPreviewCause = {
   targetCents: number;
   organizerFeePercent: number;
   endDate: string;
+  recurring?: boolean;
+  coverDataUrl?: string;
   photoNames: string[];
   createdAt: number;
 };
@@ -30,6 +32,7 @@ export function localPreviewCauses(): LocalPreviewCause[] {
       && typeof cause.story === "string" && typeof cause.beneficiaryName === "string"
       && typeof cause.location === "string" && Number.isFinite(cause.targetCents)
       && Number.isFinite(cause.organizerFeePercent) && typeof cause.endDate === "string"
+      && (cause.coverDataUrl === undefined || typeof cause.coverDataUrl === "string" && /^data:image\/(?:jpeg|png|webp);base64,/.test(cause.coverDataUrl))
       && Array.isArray(cause.photoNames) && typeof cause.createdAt === "number") : [];
   } catch { return []; }
 }

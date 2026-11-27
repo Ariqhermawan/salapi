@@ -1,13 +1,33 @@
 .screen { min-height:100%; padding-bottom:22px; color:var(--sl-ink); font-family:var(--font-geist-sans),system-ui,sans-serif; }
-.methods { display:grid; gap:10px; padding:4px 14px 0; }
-.method { display:flex; width:100%; min-height:80px; align-items:center; gap:12px; padding:12px; border:1px solid #e5e7eb; border-radius:17px; background:#fff; color:#171717; box-shadow:0 2px 5px #1118270d,0 5px 10px -8px #11182722; text-align:left; cursor:pointer; }
-.method:active { transform:scale(.99); }
+.currencyChooser { padding:7px 14px 0; }
+.currencyChooser h2 { margin:0 4px 12px; color:#171717; font-size:20px; font-weight:700; line-height:28px; }
+.currencyChooser > div { display:grid; gap:8px; }
+.currencyOption { display:flex; width:100%; min-height:72px; align-items:center; gap:12px; padding:12px; border:1px solid #e5e7eb; border-radius:16px; background:#fff; color:#171717; box-shadow:0 2px 5px #1118270d,0 5px 10px -8px #11182722; text-align:left; }
+.currencyOption > span { display:grid; min-width:0; flex:1; gap:3px; }
+.currencyOption strong { font-size:14px; font-weight:600; line-height:20px; }
+.currencyOption small { color:#737985; font-size:12px; line-height:17px; }
+.currencyOption i { width:19px; height:19px; flex:0 0 19px; border:1.5px solid #c9cdd5; border-radius:50%; }
+.currencyTabs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px; margin:5px 14px 14px; padding:4px; border-radius:10px; background:#ececf2; }
+.currencyTabs button { height:28px; min-height:28px; border:0; border-radius:6px; background:transparent; color:#737985; font:500 14px/20px var(--font-geist-sans),system-ui,sans-serif; }
+.currencyTabs button[aria-selected="true"] { background:#fff; color:#171717; box-shadow:0 1px 3px #1118271c; }
+.methods { display:grid; gap:10px; padding:0 14px; }
+.method { display:flex; width:100%; min-height:72px; align-items:center; gap:12px; padding:12px 14px; border:1px solid #e5e7eb; border-radius:16px; background:#fff; color:#171717; box-shadow:0 2px 5px #1118270d,0 5px 10px -8px #11182722; text-align:left; cursor:pointer; }
+.method:active:not(:disabled) { transform:scale(.99); }
 .method:disabled { cursor:default; opacity:.58; }
-.badge { display:grid; width:34px; height:34px; flex:0 0 34px; place-items:center; border-radius:50%; background:#f0f1fb; color:#3155dc; font-size:11px; font-weight:650; }
+.badge { display:grid; width:40px; height:40px; flex:0 0 40px; place-items:center; border-radius:50%; background:#f0f1fb; color:#3155dc; font-size:12px; font-weight:650; }
+.coinBadge { width:38px; height:38px; }
 .copy { display:grid; min-width:0; flex:1; gap:3px; }
-.name { font-size:13px; font-weight:650; line-height:18px; }
-.note { color:#737985; font-size:11px; line-height:15px; }
-.wallets { display:flex; gap:3px; margin-top:2px; }
-.wallets span { padding:2px 4px; border:1px solid #eceef2; border-radius:4px; background:#fff; color:#666d78; font-size:8px; font-weight:700; line-height:10px; }
+.name { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:600; line-height:20px; }
+.note { color:#737985; font-size:12px; line-height:16px; }
+.brand { display:inline-flex; width:30px; height:21px; flex:0 0 auto; align-items:center; justify-content:center; padding:2px 4px; border:1px solid #eceef2; border-radius:4px; background:#fff; }
+.brand img { display:block; max-width:100%; max-height:100%; object-fit:contain; }
+.markLine { display:flex; min-width:0; align-items:center; gap:4px; margin-top:6px; }
+.wordMark { padding:0 5px; border:0; border-radius:6px; background:#ee4d2d; color:#fff; font-size:10px; font-weight:600; line-height:20px; white-space:nowrap; }
 .tag { flex:0 0 auto; padding:5px 8px; border-radius:99px; background:#f5f5f7; color:#737985; font-size:10px; line-height:13px; }
+.infoRows { display:grid; gap:0; margin:0 2px; padding:0 12px; border:1px solid #e5e7eb; border-radius:14px; background:#fff; box-shadow:0 2px 5px #1118270d,0 5px 10px -8px #11182722; }
+.infoRows > div { display:flex; min-height:42px; align-items:center; justify-content:space-between; gap:12px; border-bottom:1px solid #eceef2; font-size:12px; line-height:17px; }
+.infoRows > div:last-child { border-bottom:0; }
+.infoRows span { color:#737985; }
+.infoRows strong { color:#171717; font-weight:600; }
 .footer { display:flex; justify-content:center; padding:22px 0 10px; }
+@media (max-width:360px) { .markLine { gap:2px; } .brand { width:26px; } }

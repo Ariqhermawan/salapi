@@ -45,3 +45,16 @@
 .actions { display:grid; gap:6px; margin:0 14px; }
 .done h1 { margin:0; font-size:21px; line-height:27px; }
 .done p { margin:0; color:#737985; font-size:12px; line-height:18px; }
+.currencyChooser { padding:7px 14px 0; }
+.currencyChooser h2 { margin:0 4px 12px; color:#171717; font-size:20px; font-weight:700; line-height:28px; }
+.currencyChooser > div { display:grid; gap:8px; }
+.currencyOption { display:flex; width:100%; min-height:72px; align-items:center; gap:12px; padding:12px; border:1px solid #e5e7eb; border-radius:16px; background:#fff; color:#171717; box-shadow:0 2px 5px #1118270d,0 5px 10px -8px #11182722; text-align:left; }
+.currencyOption > span { display:grid; min-width:0; flex:1; gap:3px; }
+.currencyOption strong { font-size:14px; font-weight:600; line-height:20px; }
+.currencyOption small { color:#737985; font-size:12px; line-height:17px; }
+.currencyOption i { width:19px; height:19px; flex:0 0 19px; border:1.5px solid #c9cdd5; border-radius:50%; }
+.currencyTabs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:3px; margin:5px 14px 14px; padding:4px; border-radius:12px; background:#ececf2; }
+.currencyTabs button { min-height:36px; border:0; border-radius:9px; background:transparent; color:#737985; font:600 13px/18px var(--font-geist-sans),system-ui,sans-serif; }
+.currencyTabs button[aria-selected="true"] { background:#fff; color:#171717; box-shadow:0 1px 3px #1118271c; }
+.error { margin:0; color:#c23835; font-size:13px; line-height:18px; }
+.badge img { display:block; }

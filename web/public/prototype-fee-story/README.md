@@ -1,0 +1,1 @@
+Fee story illustrations copied from `sawargy/salapi-app` branch `prototype` at `c167bd5` for Create Cause and donation review parity. The story images follow that branch's `ORGANIZER_STORY` and `donorStory`; `illo-vault.png` is the artwork used in the Disaster Vault information sheet.

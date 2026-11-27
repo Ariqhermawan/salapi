@@ -1,0 +1,16 @@
+.slider { display:grid; gap:12px; }
+.track { display:flex; gap:16px; overflow-x:auto; overscroll-behavior-x:contain; scroll-snap-type:x mandatory; scrollbar-width:none; border-radius:20px; }
+.track::-webkit-scrollbar { display:none; }
+.track:focus-visible { outline:2px solid #335cff; outline-offset:2px; }
+.slide { flex:0 0 100%; min-width:0; margin:0; scroll-snap-align:start; scroll-snap-stop:always; }
+.slide > img { display:block; width:100%; height:auto; aspect-ratio:4 / 3; border:1px solid #e5e7eb; border-radius:20px; background:#fff; object-fit:contain; user-select:none; }
+.slide > figcaption { display:grid; gap:4px; padding:12px 4px 0; text-align:left; }
+.count { color:#335cff; font-size:12px; font-weight:500; line-height:16px; font-variant-numeric:tabular-nums; }
+.slide strong { font-size:16px; font-weight:650; line-height:22px; }
+.slide p { min-height:72px; margin:0; color:var(--sl-sub); font-size:12px; line-height:18px; }
+.dots { display:flex; justify-content:center; gap:4px; }
+.dots > button { display:grid; width:28px; height:24px; place-items:center; padding:0; border:0; background:none; }
+.dots > button::before { width:8px; height:8px; border-radius:999px; background:#e2e5ec; content:""; transition:width 180ms ease-out,background-color 180ms ease-out; }
+.dots > button[aria-current]::before { width:20px; background:#335cff; }
+[data-theme="dark"] .slide > img { border-color:#333; }
+@media(prefers-reduced-motion:reduce) { .dots > button::before { transition:none; } }

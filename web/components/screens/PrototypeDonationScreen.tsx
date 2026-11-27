@@ -7,6 +7,7 @@ import { createPortal } from "react-dom";
 import { ArrowLeft, CheckCircle, HandHeart, Info, Wallet } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { PROTOTYPE_CAUSES } from "@/lib/prototype-causes";
+import PrototypeFeeStory, { donorFeeStory, donorStoryStart, type DonorStoryKey } from "./PrototypeFeeStory";
 import styles from "./PrototypeDonationScreen.module.css";
 
 const BALANCE_CENTS = 241_226;
@@ -14,6 +15,7 @@ const money = (cents: number) => `$${(cents / 100).toLocaleString("en-US", { min
 const shortMoney = (cents: number) => `$${(cents / 100).toLocaleString("en-US", { minimumFractionDigits: cents % 100 ? 2 : 0, maximumFractionDigits: 2 })}`;
 const amountToCents = (value: string) => /^\d{1,6}(?:\.\d{0,2})?$/.test(value) ? Math.round(Number(value) * 100) : null;
 const DONATIONS_KEY = "salapi.local-preview.prototype-donations.v1";
+const VAULT_BALANCE_CENTS = 128_420;
 
 type Split = { donation: number; vault: number; salapi: number; organizer: number; receives: number };
 function splitDonation(donation: number, organizerFeeBps: number): Split {
@@ -34,13 +36,24 @@ export default function PrototypeDonationScreen({ id, step, amount: initialAmoun
   const [amount, setAmount] = useState(initialAmount || "5");
   const [confirming, setConfirming] = useState(false);
   const [help, setHelp] = useState<string | null>(null);
+  const [story, setStory] = useState<DonorStoryKey | null>(null);
+  const [vaultInfo, setVaultInfo] = useState(false);
   const [copied, setCopied] = useState(false);
   const [layer, setLayer] = useState<HTMLElement | null>(null);
+  const [portalHost, setPortalHost] = useState<HTMLElement | null>(null);
   const cents = amountToCents(amount);
   const error = cents === null || cents < 100 ? "Enter $1 or more." : cents > BALANCE_CENTS ? `That is more than your Salapi balance of ${money(BALANCE_CENTS)}.` : "";
   const split = useMemo(() => splitDonation(cents ?? 0, cause?.organizerFeeBps ?? 0), [cents, cause?.organizerFeeBps]);
+  const donorSlides = useMemo(() => donorFeeStory(false), []);
 
   useEffect(() => setLayer(document.querySelector<HTMLElement>(".sl-app-frame")), []);
+  useEffect(() => setPortalHost(document.getElementById("phone-layer") ?? document.body), []);
+  useEffect(() => {
+    if (!help && !story && !vaultInfo) return;
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") { setHelp(null); setStory(null); setVaultInfo(false); } };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [help, story, vaultInfo]);
   useEffect(() => { if (step === "review") setAmount(initialAmount || "5"); }, [initialAmount, step]);
 
   if (!cause) return <div className={styles.missing}><h1>Cause not found</h1><Link href="/causes">Browse causes</Link></div>;
@@ -100,13 +113,13 @@ export default function PrototypeDonationScreen({ id, step, amount: initialAmoun
         <section className={styles.breakdown}><div className={styles.row}><span className={styles.rowIcon}><Wallet size={20} /></span><span className={styles.rowMain}><strong>Salapi balance</strong><small>{money(BALANCE_CENTS)} available</small></span></div></section>
         <h2 className={styles.groupLabel}>To</h2>
         <section className={styles.breakdown}>
-          <div className={styles.row}><span className={styles.person}>{cause.avatar ? <Image src={cause.avatar} width={40} height={40} alt="" /> : cause.organizer.slice(1, 2).toUpperCase()}</span><span className={styles.rowMain}><span className={styles.rowName}><strong>{cause.organizer}</strong>{cause.verified ? <span className={styles.verified}>Verified</span> : null}</span><small>Organizer fee</small></span><strong className={styles.value}>{money(split.organizer)}<small>{(cause.organizerFeeBps / 100).toFixed(0)}%</small></strong><button type="button" aria-label="What is the organizer fee?" onClick={() => setHelp("This sample cause sets an organizer fee. In a live Testnet campaign, actual contract terms are shown on the campaign page.")}><Info size={18} /></button></div>
+          <div className={styles.row}><span className={styles.person}>{cause.avatar ? <Image src={cause.avatar} width={40} height={40} alt="" /> : cause.organizer.slice(1, 2).toUpperCase()}</span><span className={styles.rowMain}><span className={styles.rowName}><strong>{cause.organizer}</strong>{cause.verified ? <span className={styles.verified}>Verified</span> : null}</span><small>Organizer fee</small></span><strong className={styles.value}>{money(split.organizer)}<small>{(cause.organizerFeeBps / 100).toFixed(0)}%</small></strong><button type="button" aria-label="What is the organizer fee?" aria-haspopup="dialog" onClick={() => setStory("organizer")}><Info size={18} /></button></div>
         </section>
         <section className={styles.breakdown}>
-          <div className={styles.row}><span className={`${styles.rowIcon} ${styles.vaultIcon}`}><Image src="/prototype-ui/tile-vault.png" width={28} height={28} alt="" /></span><span className={styles.rowMain}><strong>Disaster Vault</strong></span><strong className={styles.value}>{money(split.vault)}<small>1%</small></strong><button type="button" aria-label="What is the Disaster Vault?" onClick={() => setHelp("This is the prototype's sample split only. The live Disaster Vault follows its own deployed contract rules.")}><Info size={18} /></button></div>
-          <div className={styles.row}><span className={styles.rowIcon}>%</span><span className={styles.rowMain}><strong>Platform fee</strong></span><strong className={styles.value}>{money(split.salapi)}<small>1%</small></strong><button type="button" aria-label="What is the platform fee?" onClick={() => setHelp("This is an illustrative prototype line item. It is not a charge or a Testnet contract operation.")}><Info size={18} /></button></div>
+          <div className={styles.row}><span className={`${styles.rowIcon} ${styles.vaultIcon}`}><Image src="/prototype-ui/tile-vault.png" width={28} height={28} alt="" /></span><span className={styles.rowMain}><strong>Disaster Vault</strong></span><strong className={styles.value}>{money(split.vault)}<small>1%</small></strong><button type="button" aria-label="What is the Disaster Vault?" aria-haspopup="dialog" onClick={() => setVaultInfo(true)}><Info size={18} /></button></div>
+          <div className={styles.row}><span className={styles.rowIcon}>%</span><span className={styles.rowMain}><strong>Platform fee</strong></span><strong className={styles.value}>{money(split.salapi)}<small>1%</small></strong><button type="button" aria-label="What is the platform fee?" aria-haspopup="dialog" onClick={() => setStory("platform")}><Info size={18} /></button></div>
         </section>
-        <section className={`${styles.breakdown} ${styles.causeReceives}`}><div className={styles.row}><span className={`${styles.rowIcon} ${styles.receiveIcon}`}><HandHeart size={22} /></span><span className={styles.rowMain}><strong>Cause receives</strong></span><strong className={styles.value}>{money(split.receives)}<small>{Math.round(split.receives / Math.max(split.donation, 1) * 100)}%</small></strong><button type="button" aria-label="What does the cause receive?" onClick={() => setHelp("The displayed amounts belong to the no-transaction prototype flow. Live campaign terms and on-chain results are different.")}><Info size={18} /></button></div></section>
+        <section className={`${styles.breakdown} ${styles.causeReceives}`}><div className={styles.row}><span className={`${styles.rowIcon} ${styles.receiveIcon}`}><HandHeart size={22} /></span><span className={styles.rowMain}><strong>Cause receives</strong></span><strong className={styles.value}>{money(split.receives)}<small>{Math.round(split.receives / Math.max(split.donation, 1) * 100)}%</small></strong><button type="button" aria-label="What does the cause receive?" aria-haspopup="dialog" onClick={() => setStory("cause")}><Info size={18} /></button></div></section>
       </>}
 
       {step === "success" && <section className={styles.success}>
@@ -128,6 +141,17 @@ export default function PrototypeDonationScreen({ id, step, amount: initialAmoun
           : <><button type="button" className={styles.shareSuccess} onClick={() => void shareReceipt()}>{copied ? "Copied" : "Share"}</button><Link className={styles.primaryButton} href={`/cause/${id}`}>Done</Link></>}
     </div>, layer) : null}
 
-    {help && <div className={styles.sheetBackdrop} role="presentation" onClick={() => setHelp(null)}><section className={styles.helpSheet} role="dialog" aria-modal="true" aria-label="Donation details" onClick={event => event.stopPropagation()}><h2>Where your donation goes</h2><p>{help}</p><button type="button" className={styles.primaryButton} onClick={() => setHelp(null)}>Got it</button></section></div>}
+    {portalHost && (help || story || vaultInfo) && createPortal(<div className={styles.sheetBackdrop} role="presentation" onClick={() => { setHelp(null); setStory(null); setVaultInfo(false); }}>
+      {story && <section className={styles.storySheet} role="dialog" aria-modal="true" aria-label="Where your donation goes" onClick={event => event.stopPropagation()}>
+        <div className={styles.sheetHandle} /><PrototypeFeeStory key={story} slides={donorSlides} start={donorStoryStart[story]} ariaLabel="Where your donation goes" onDone={() => setStory(null)} />
+      </section>}
+      {vaultInfo && <section className={styles.helpSheet} role="dialog" aria-modal="true" aria-label="Disaster Vault" onClick={event => event.stopPropagation()}>
+        <div className={styles.sheetHandle} /><figure className={styles.vaultStory}><img src="/prototype-fee-story/illo-vault.png" alt="" /><figcaption>A shared pool for the next disaster.</figcaption></figure>
+        <p>1% of every donation goes into the Disaster Vault, a shared pool for disaster relief. Every amount in and out is public on Stellar.</p>
+        <div className={styles.vaultRows}><div><span>From this donation</span><strong>{money(split.vault)}</strong></div><div><span>Vault balance</span><strong>{money(VAULT_BALANCE_CENTS)}</strong></div><div><span>Network</span><strong>Stellar</strong></div></div>
+        <button type="button" className={styles.primaryButton} onClick={() => setVaultInfo(false)}>Got it</button><Link href="/vault" className={styles.vaultLink}>See the vault</Link>
+      </section>}
+      {help && <section className={styles.helpSheet} role="dialog" aria-modal="true" aria-label="Local preview not saved" onClick={event => event.stopPropagation()}><h2>Local preview not saved</h2><p>{help}</p><button type="button" className={styles.primaryButton} onClick={() => setHelp(null)}>Got it</button></section>}
+    </div>, portalHost)}
   </>;
 }

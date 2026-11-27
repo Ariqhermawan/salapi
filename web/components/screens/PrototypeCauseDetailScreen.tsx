@@ -39,6 +39,7 @@ export default function PrototypeCauseDetailScreen({ id, initialTab = "Story", i
   const cause = sampleCause ?? (createdCause ? {
     id: createdCause.id, title: createdCause.title, category: createdCause.category,
     organizer: "@you", place: createdCause.location, story: createdCause.story,
+    image: createdCause.coverDataUrl, photos: createdCause.coverDataUrl ? [createdCause.coverDataUrl] : [],
     raised: 0, target: createdCause.targetCents, donors: 0,
     organizerFeeBps: createdCause.organizerFeePercent * 100,
     daysLeft: Math.max(0, Math.ceil((new Date(`${createdCause.endDate}T00:00:00`).getTime() - new Date().setHours(0, 0, 0, 0)) / 86_400_000)),
@@ -109,7 +110,7 @@ export default function PrototypeCauseDetailScreen({ id, initialTab = "Story", i
   return <>
     <div className={styles.screen}>
       <div className={styles.hero}>
-        {cause.image ? <Image src={cause.image} fill priority sizes="100vw" alt="" /> : <div className={styles.emptyImage} />}
+        {cause.image ? <Image src={cause.image} fill priority sizes="100vw" alt="" unoptimized={cause.id.startsWith("local-")} /> : <div className={styles.emptyImage} />}
         {cause.image && <button type="button" className={styles.heroHitArea} aria-label={`Open photos, ${photos.length} in total`} onClick={() => setImage(0)} />}
         <div className={styles.heroCategories}>{categories.map(name => <CausePill name={name} key={name} />)}</div>
         <button type="button" className={`${styles.glassButton} ${styles.heroBack}`} aria-label="Back" onClick={back}><ArrowLeft size={20} /></button>

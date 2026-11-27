@@ -24,6 +24,7 @@ import {
 import { useGoBack } from "@/lib/ui/useGoBack";
 import { isLocalPreview, localPreviewUsername } from "@/lib/local-preview";
 import styles from "./ReceiveScreen.module.css";
+import PrototypeDoodle from "./PrototypeDoodle";
 
 const SITE = "https://salapi.app";
 
@@ -56,6 +57,7 @@ function CopyGlyph({ size = 16 }: { size?: number }) {
 }
 
 const PREVIEW_RECEIVE_ADDRESS = "GCUBZ4SAR4LELX2YPLHN4IYU5L4VGVQNGVVZCHYSQECPBPBK6AB7GHY7";
+const PREVIEW_RECEIVE_MEMO = "7302418659";
 
 export default function ReceiveScreen({ previewUsername }: { previewUsername?: string } = {}) {
   const { t, locale } = useT();
@@ -67,6 +69,7 @@ export default function ReceiveScreen({ previewUsername }: { previewUsername?: s
     ? { address: PREVIEW_RECEIVE_ADDRESS, username: previewUsername ?? null } : { address: null, username: null });
   const [status, setStatus] = useState<"loading" | "ready" | "guest" | "error">(isLocalPreview ? "ready" : "loading");
   const [copied, setCopied] = useState(false);
+  const [copiedMemo, setCopiedMemo] = useState(false);
   const [guidanceOpen, setGuidanceOpen] = useState(false);
   const [posterOpen, setPosterOpen] = useState(false);
   const [base, setBase] = useState(SITE);
@@ -181,6 +184,14 @@ export default function ReceiveScreen({ previewUsername }: { previewUsername?: s
     }
   }
 
+  async function copyPreviewMemo() {
+    try {
+      await navigator.clipboard.writeText(PREVIEW_RECEIVE_MEMO);
+      setCopiedMemo(true);
+      setTimeout(() => setCopiedMemo(false), 1800);
+    } catch { setShareError(c.shareUnavailable); }
+  }
+
   return (
     <div className={styles.screen}>
       <AppBar
@@ -201,14 +212,24 @@ export default function ReceiveScreen({ previewUsername }: { previewUsername?: s
             />
           </div>
           {usernameLink?.kind === "username" && <h2>{usernameLink.display}</h2>}
-          {destination.kind === "address" && <button className={styles.copy} type="button" title={destination.value}
+          {destination.kind === "address" && isLocalPreview ? <div className={styles.receiveRows}>
+            <div className={styles.receiveRow}>
+              <span className={styles.receiveValue}><span className={styles.receiveLabel}>Stellar address</span><span className={styles.fullAddress} aria-label={destination.value}><span>{destination.value.slice(0, 28)}</span><span>{destination.value.slice(28)}</span></span></span>
+              <button className={styles.rowCopy} type="button" aria-label="Copy address" onClick={() => shareDestination(destination, true)}>{copied ? Ico.check({ size: 16 }) : <CopyGlyph />}</button>
+            </div>
+            <div className={styles.receiveRow}>
+              <span className={styles.receiveValue}><span className={styles.receiveLabel}>Memo · <strong>Required</strong></span><span className={styles.memoValue}>{PREVIEW_RECEIVE_MEMO}</span></span>
+              <button className={styles.rowCopy} type="button" aria-label="Copy memo" onClick={() => void copyPreviewMemo()}>{copiedMemo ? Ico.check({ size: 16 }) : <CopyGlyph />}</button>
+            </div>
+            <span className="sr-only" aria-live="polite">{copied ? "Address copied" : copiedMemo ? "Memo copied" : ""}</span>
+          </div> : destination.kind === "address" && <button className={styles.copy} type="button" title={destination.value}
             aria-label={deposit.copy} aria-describedby="receive-address" data-copy-error={Boolean(shareError) || undefined}
             onClick={() => shareDestination(destination, true)}>
             <span id="receive-address">{isLocalPreview ? `${destination.value.slice(0, 4).toLowerCase()}…${destination.value.slice(-4).toLowerCase()}` : destination.value}</span>
             {copied ? Ico.check({ size: 16 }) : isLocalPreview ? <CopyGlyph /> : Ico.link({ size: 16 })}
             <span className="sr-only" aria-live="polite">{copied ? t("receive.copied") : ""}</span>
           </button>}
-          <p className={styles.note}>{isLocalPreview ? "Send only XLM on Stellar to this address." : deposit.warning}</p>
+          <p className={styles.note}>{isLocalPreview ? "Send only XLM or USDC on the Stellar network to this address, with the memo." : deposit.warning}</p>
           {!identity.username && !isLocalPreview && <p className={styles.note}>{c.addressHint}</p>}
           <button className={styles.link} type="button" aria-haspopup="dialog"
             onClick={() => setGuidanceOpen(true)}>{deposit.stepsTitle}</button>
@@ -222,7 +243,7 @@ export default function ReceiveScreen({ previewUsername }: { previewUsername?: s
         {!isLocalPreview && !destination && <p className={styles.note}>{m("Testnet only · no real money")}</p>}
         {shareError && <p className={styles.error} role="alert">{moneyMessage(locale, shareError)}</p>}
       </section>
-      <div className={styles.pattern} aria-hidden="true" />
+      {isLocalPreview ? <PrototypeDoodle variant="receive" /> : <div className={styles.pattern} aria-hidden="true" />}
       <div className={styles.actions}>
         <Btn kind="secondary" onClick={goBack}>{t("send.done")}</Btn>
         <Btn kind="primary" disabled={!destination} onClick={() => setPosterOpen(true)}
@@ -235,6 +256,7 @@ export default function ReceiveScreen({ previewUsername }: { previewUsername?: s
         address={identity.address}
         username={usernameLink?.kind === "username" ? identity.username : null}
         preview={isLocalPreview}
+        memo={isLocalPreview ? PREVIEW_RECEIVE_MEMO : null}
         copy={c}
         copiedLabel={t("receive.copied")}
         closeLabel={c.close}
@@ -308,10 +330,11 @@ function ReceiveGuidanceSheet({ copy, closeLabel, onClose }: {
   </dialog>;
 }
 
-function ReceivePosterSheet({ address, username, preview, copy, copiedLabel, closeLabel, onClose }: {
+function ReceivePosterSheet({ address, username, preview, memo, copy, copiedLabel, closeLabel, onClose }: {
   address: string;
   username: string | null;
   preview: boolean;
+  memo: string | null;
   copy: ReturnType<typeof receiveCopy>;
   copiedLabel: string;
   closeLabel: string;
@@ -331,7 +354,7 @@ function ReceivePosterSheet({ address, username, preview, copy, copiedLabel, clo
     if (!source) return;
     let active = true;
     let objectUrl: string | null = null;
-    void drawReceivePoster(source, address, username, preview, copy).then(blob => {
+    void drawReceivePoster(source, address, username, preview, copy, memo).then(blob => {
       if (!active) return;
       if (!blob) { setStatus("error"); return; }
       objectUrl = URL.createObjectURL(blob);
@@ -343,7 +366,7 @@ function ReceivePosterSheet({ address, username, preview, copy, copiedLabel, clo
       active = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [address, copy, preview, username]);
+  }, [address, copy, memo, preview, username]);
 
   useEffect(() => {
     const node = dialog.current;

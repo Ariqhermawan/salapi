@@ -14,7 +14,7 @@ import MarketValue from "@/components/MarketValue";
 import { accountCopy, type AccountCopyKey } from "@/lib/i18n/revamp-account";
 import PrototypeWithdrawScreen from "./PrototypeWithdrawScreen";
 
-export default function WithdrawScreen() {
+export default function WithdrawScreen({ initialCurrency }: { initialCurrency?: "IDR" | "PHP" | "USDC" } = {}) {
   const { t, locale, currency } = useT();
   const c = accountCopy(locale);
   const router = useRouter();
@@ -48,7 +48,7 @@ export default function WithdrawScreen() {
       finally { submitting.current = false; }
     });
   }
-  if(isLocalPreview)return <PrototypeWithdrawScreen/>;
+  if(isLocalPreview)return <PrototypeWithdrawScreen initialCurrency={initialCurrency} />;
   return <div style={{ fontFamily: T.fontSans, color: T.ink, minHeight: "100%", paddingBottom: 24 }}>
     <AppBar title={t("withdraw.title")} leading={<IconButton ariaLabel={c.back} onClick={() => review && !done ? setReview(false) : goBack()}>{Ico.back({})}</IconButton>} />
     <div style={{ padding: "4px 20px" }}>

@@ -17,8 +17,9 @@ import depositStyles from "./XlmDepositPanel.module.css";
 import MarketValue from "@/components/MarketValue";
 import type { PaymentChannelId } from "@/lib/payment-channels";
 import PrototypeTopUpScreen from "./PrototypeTopUpScreen";
+import PrototypeTopUpFlowScreen from "./PrototypeTopUpFlowScreen";
 
-export default function TopUpScreen({ initialMethod, initialChannel }: { initialMethod?: "topup" | "xlm" | "provider"; initialChannel?: PaymentChannelId } = {}) {
+export default function TopUpScreen({ initialMethod, initialChannel, initialCurrency, initialVia, initialStep, initialAmount }: { initialMethod?: "topup" | "xlm" | "provider"; initialChannel?: PaymentChannelId; initialCurrency?: "IDR" | "PHP" | "USDC"; initialVia?: "qris" | "card" | "va"; initialStep?: "amount" | "pay"; initialAmount?: string } = {}) {
   const { t, locale } = useT();
   const c = accountCopy(locale);
   const router = useRouter();
@@ -56,7 +57,8 @@ export default function TopUpScreen({ initialMethod, initialChannel }: { initial
     <button type="button" aria-pressed={method === "xlm"} onClick={()=>setMethod("xlm")}>{Ico.qr({size:17})}{depositCopy.deposit}</button>
     {isLocalPreview ? <button type="button" aria-pressed={method === "topup" && faucet} onClick={()=>{setMethod("topup");setFaucet(true);}}>{depositCopy.faucet}</button> : <button type="button" aria-pressed={method === "provider"} onClick={()=>setMethod("provider")}>{depositCopy.paymentMethods}</button>}
   </nav>;
-  if (isLocalPreview && method === "topup" && !faucet) return <PrototypeTopUpScreen onFaucet={() => setFaucet(true)} />;
+  if (isLocalPreview && method === "topup" && !faucet) return <PrototypeTopUpScreen initialCurrency={initialCurrency} onFaucet={() => setFaucet(true)} />;
+  if (isLocalPreview && method === "provider" && initialCurrency && initialCurrency !== "USDC" && initialVia) return <PrototypeTopUpFlowScreen currency={initialCurrency} via={initialVia} step={initialStep} initialAmount={initialAmount} />;
   if (method === "provider" && isLocalPreview) return <PaymentProviderDemo initialChannel={initialChannel} topupNavigation={navigation} />;
   // Payment-channel discovery must not load, fund or provision a wallet.
   // Real checkout remains unavailable until an authenticated provider flow exists.

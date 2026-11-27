@@ -1,0 +1,40 @@
+.screen { min-height:100%; padding-bottom:22px; color:#171717; font-family:var(--font-geist-sans),system-ui,sans-serif; }
+.body { display:grid; gap:12px; padding:8px 14px 145px; }
+.amountCard { padding:20px !important; text-align:center; }
+.amountCard label { display:block; color:#8b9099; font-size:14px; line-height:20px; }
+.amountCard input { display:block; width:100%; min-height:72px; border:0; outline:0; background:transparent; color:#171717; font:500 54px/66px var(--font-geist-sans),system-ui,sans-serif; letter-spacing:-.03em; text-align:center; }
+.amountCard input[aria-invalid="true"] { color:#c23835; }
+.amountCard > p { margin:0; color:#737985; font-size:12px; }
+.amountCard h1 { margin:0 0 6px; font-size:17px; line-height:24px; }
+.payAmount { display:block; margin:4px 0 10px; font-size:25px; line-height:32px; }
+.presets { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin-top:14px; }
+.presets button { min-height:36px; border:0; border-radius:8px; background:#eeeffa; color:#3155dc; font:500 14px/20px var(--font-geist-sans),system-ui,sans-serif; }
+.presets button[aria-pressed="true"] { background:#dfe3ff; }
+.error { display:block; color:#c23835; font-size:12px; text-align:left; }
+.qr { display:grid; width:232px; height:232px; place-items:center; margin:12px auto; border:1px solid #eceef2; border-radius:14px; background:#fff; }
+.methodCard { display:flex; min-height:62px; align-items:center; gap:12px; padding:10px 12px; border:1px solid #e5e7eb; border-radius:16px; background:#fff; box-shadow:0 2px 5px #1118270d,0 5px 10px -8px #11182722; }
+.methodCard > span { display:grid; width:34px; height:34px; flex:0 0 34px; place-items:center; border-radius:50%; background:#f0f1fb; color:#3155dc; font-size:11px; font-weight:700; }
+.methodCard > div { display:grid; min-width:0; flex:1; gap:3px; }
+.methodCard strong { font-size:13px; line-height:18px; }
+.methodCard small { color:#737985; font-size:11px; line-height:15px; }
+.methodCard > b { padding:5px 8px; border-radius:99px; background:#f5f5f7; color:#737985; font-size:10px; font-weight:500; }
+.infoRows { display:grid; padding:0 12px; border:1px solid #e5e7eb; border-radius:14px; background:#fff; box-shadow:0 2px 5px #1118270d,0 5px 10px -8px #11182722; }
+.infoRows > div { display:flex; min-height:42px; align-items:center; justify-content:space-between; gap:12px; border-bottom:1px solid #eceef2; font-size:12px; line-height:17px; }
+.infoRows > div:last-child { border-bottom:0; }
+.infoRows span { color:#737985; }
+.infoRows strong { color:#171717; font-weight:600; text-align:right; }
+.cardForm { display:grid; gap:13px; margin-top:12px; text-align:left; }
+.cardForm > div { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.cardForm label { display:grid; gap:5px; color:#171717; font-size:12px; font-weight:600; text-align:left; }
+.cardForm input { box-sizing:border-box; min-height:42px; padding:8px 10px; border:1px solid #e5e7eb; border-radius:9px; background:#fafafa; font:400 14px/20px var(--font-geist-sans),system-ui,sans-serif; text-align:left; }
+.waiting { display:flex; align-items:center; justify-content:center; gap:7px; margin:12px 0 0; color:#737985; font-size:12px; }
+.waiting i { width:7px; height:7px; border-radius:50%; background:#3155dc; }
+.localNote { margin:0; color:#737985; font-size:12px; line-height:18px; text-align:center; }
+.complete { display:grid; gap:12px; padding:26px 18px 20px; border:1px solid #e5e7eb; border-radius:20px; background:#fff; text-align:center; }
+.complete > span { display:grid; width:48px; height:48px; place-items:center; margin:auto; border-radius:50%; background:#e8f8ee; color:#20864a; font-size:25px; }
+.complete h1 { margin:0; font-size:20px; line-height:26px; }
+.complete p { margin:0; color:#737985; font-size:13px; line-height:19px; }
+.powered { display:flex; justify-content:center; padding:10px 0; }
+.cta { position:absolute; inset:auto 0 0; z-index:40; padding:12px 16px calc(env(safe-area-inset-bottom,0px) + 12px); border-top:1px solid #e8eaf0; background:linear-gradient(180deg,#f7f7f700,#f7f7f0 28%); }
+.cta button { width:100%; border-radius:999px; }
+.body :global(.sl-btn) { width:100%; border-radius:999px; }
