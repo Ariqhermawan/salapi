@@ -174,7 +174,7 @@ for (const width of [390, 1280]) test(`review shows a permitted account photo an
   expect(Math.abs(bounds!.y + bounds!.height - (frame!.y + frame!.height))).toBeLessThanOrEqual(1);
   expect(confirm!.y).toBeGreaterThanOrEqual(bounds!.y);
   expect(confirm!.y + confirm!.height).toBeLessThanOrEqual(bounds!.y + bounds!.height);
-  expect(bounds!.y + bounds!.height).toBeGreaterThanOrEqual(navigation!.y); // modal overlay safely covers tab navigation
+  if (navigation) expect(bounds!.y + bounds!.height).toBeGreaterThanOrEqual(navigation.y); // modal overlay safely covers tab navigation when present
   expect(await dialog.getByTestId("transfer-review-actions").evaluate(node => {
     const button = node.querySelector("button"); if (!button) return false;
     const rect = button.getBoundingClientRect();

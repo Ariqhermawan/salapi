@@ -1,35 +1,46 @@
 import { test, expect } from "@playwright/test";
 import { collectCspViolations } from "./helpers";
 
-// Read-only candidate checks. No hosted checkout, funding or payout is invoked.
-test("GCash and QRIS remain discoverable but disconnected outside local preview", async ({ page }) => {
+// Read-only checks for the prototype payment choices. Hosted checkout and
+// bank payout are intentionally disconnected on the production app.
+test("top-up providers remain visible and disabled until checkout is connected", async ({ page }) => {
   const csp = collectCspViolations(page);
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
-  await page.goto("/topup", { waitUntil: "domcontentloaded" });
-  await expect(page.getByRole("button", { name: "Deposit XLM", exact: true })).toHaveAttribute("aria-pressed", "true");
-  // The default tab is also server-rendered. Its settled address control is
-  // client-only, so wait for real hydration before testing the first tab click.
-  await expect(page.getByRole("button", { name: "Refresh address", exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "GCash / QRIS", exact: true }).click();
-  await expect(page.getByText("Providers not connected", { exact: true })).toBeVisible();
-  await expect(page.locator('[data-payment-channel="gcash"]')).toBeDisabled();
-  await expect(page.locator('[data-payment-channel="qris"]')).toBeDisabled();
-  await expect(page.getByText(/No provider request, checkout, ledger credit/)).toBeVisible();
+
+  await page.goto("/topup?method=provider&cur=idr", { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("tab", { name: "IDR", exact: true })).toHaveAttribute("aria-selected", "true");
+  for (const name of [/QRIS/, /Virtual account/, /Debit or credit card/]) {
+    const method = page.getByRole("button", { name });
+    await expect(method).toBeVisible();
+    await expect(method).toBeDisabled();
+    await expect(method).toContainText("Coming soon");
+  }
+  await expect(page.getByText("Payment provider not connected yet", { exact: true }).first()).toBeVisible();
+
+  await page.goto("/topup?method=provider&cur=php", { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("tab", { name: "PHP", exact: true })).toHaveAttribute("aria-selected", "true");
+  const gcash = page.getByRole("button", { name: /GCash/ });
+  await expect(gcash).toBeVisible();
+  await expect(gcash).toBeDisabled();
+  await expect(gcash).toContainText("Coming soon");
   await expect(page.locator('input[type="password"],input[type="email"],input[type="file"]')).toHaveCount(0);
-  await page.getByRole("button", { name: "Deposit XLM", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Deposit XLM", exact: true })).toHaveAttribute("aria-pressed", "true");
   expect(errors).toEqual([]);
   expect(csp).toEqual([]);
 });
 
-test("withdraw discovery distinguishes GCash and bank payout from merchant QRIS", async ({ page }) => {
+test("bank withdrawal discovery does not collect bank details or claim payout support", async ({ page }) => {
   const csp = collectCspViolations(page);
-  await page.goto("/withdraw", { waitUntil: "domcontentloaded" });
-  await expect(page.locator('[data-payment-channel="gcash"]')).toBeDisabled();
-  await expect(page.locator('[data-payment-channel="qris"]')).toBeDisabled();
-  await expect(page.locator('[data-payment-channel="bank-wallet"]')).toBeDisabled();
-  await expect(page.getByText(/QRIS TUNTAS/)).toBeVisible();
-  await expect(page.locator('input[type="password"],input[type="email"],input[type="file"]')).toHaveCount(0);
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+
+  for (const currency of ["idr", "php"]) {
+    await page.goto(`/withdraw?cur=${currency}`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { name: "Bank payout is not connected", exact: true })).toBeVisible();
+    await expect(page.getByText("No bank details are collected or stored here.", { exact: false })).toBeVisible();
+    await expect(page.locator('input[type="password"],input[type="email"],input[type="file"]')).toHaveCount(0);
+  }
+
+  expect(errors).toEqual([]);
   expect(csp).toEqual([]);
 });

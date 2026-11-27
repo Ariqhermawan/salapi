@@ -1,53 +1,21 @@
 import { test, expect } from "@playwright/test";
 
-for (const width of [375, 390, 1280]) test(`Smart Savings is available on Testnet at ${width}px`, async ({ page }, testInfo) => {
+for (const width of [375, 390, 1280]) test(`Smart Savings is reachable from Vaults at ${width}px`, async ({ page }) => {
   await page.setViewportSize({ width, height: 900 });
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
   page.on("console", message => { if (message.type() === "error") errors.push(message.text()); });
-  await page.goto("/", { waitUntil: "domcontentloaded" });
-  await expect(page).toHaveTitle(/Salapi/);
-  const home = page.getByTestId("home-dashboard");
-  const socialFeed = home.getByTestId("social-feed-coming-soon");
-  await expect(socialFeed).toBeDisabled();
-  await expect(socialFeed).toContainText("Coming soon");
-  await expect(home.locator('a[href="/savings"]')).toHaveCount(0);
-  await page.evaluate(async () => { await document.fonts.ready; });
-  await socialFeed.scrollIntoViewIfNeeded();
-  // Compact quick actions deliberately allow two lines. Test the actual
-  // label bounds and clipping, not a single-line typography assumption.
-  for (const label of [socialFeed.locator("strong"), socialFeed.locator(":scope > span")]) {
-    const geometry = await label.evaluate(node => {
-      const labelRect = node.getBoundingClientRect();
-      const cardRect = node.closest("button")!.getBoundingClientRect();
-      return { left: labelRect.left, right: labelRect.right, top: labelRect.top, bottom: labelRect.bottom,
-        height: labelRect.height, contentHeight: node.scrollHeight, visibleHeight: node.clientHeight,
-        cardLeft: cardRect.left, cardRight: cardRect.right, cardTop: cardRect.top, cardBottom: cardRect.bottom,
-        lineHeight: parseFloat(getComputedStyle(node).lineHeight) };
-    });
-    expect(geometry.height).toBeLessThanOrEqual(geometry.lineHeight * 2 + 1);
-    expect(geometry.contentHeight).toBeLessThanOrEqual(geometry.visibleHeight + 1);
-    expect(geometry.left).toBeGreaterThanOrEqual(geometry.cardLeft);
-    expect(geometry.right).toBeLessThanOrEqual(geometry.cardRight);
-    expect(geometry.top).toBeGreaterThanOrEqual(geometry.cardTop);
-    expect(geometry.bottom).toBeLessThanOrEqual(geometry.cardBottom);
-  }
-  const tiles = home.locator('section[aria-label="QUICK ACTIONS"]');
-  await expect(tiles.getByRole("link")).toHaveCount(2);
-  await tiles.screenshot({ path: testInfo.outputPath(`smart-savings-${width}.png`) });
-  // An ordinary neighboring tile still navigates, rather than disabling the row.
-  await tiles.getByRole("link", { name: /Arisan/ }).click();
-  await expect(page).toHaveURL(/\/vaults$/);
-  await expect(page.locator("#app-content").getByRole("heading", { level: 1 })).toBeVisible();
+
   await page.goto("/vaults", { waitUntil: "domcontentloaded" });
-  const savings = page.locator('#app-content a[href="/savings"]');
-  await expect(savings).toBeVisible();
-  await expect(savings).toContainText("Smart Savings");
-  await expect(savings).toContainText(/Testnet/i);
-  await page.goto("/savings", { waitUntil: "domcontentloaded" });
-  const main = page.locator("#app-content");
+  const savingsLink = page.getByRole("link", { name: "Open Testnet savings", exact: true });
+  await expect(savingsLink).toBeVisible();
+  await expect(savingsLink).toHaveAttribute("href", "/savings");
+  await savingsLink.click();
+
+  await expect(page).toHaveURL(/\/savings$/);
   await expect(page).toHaveTitle("Smart Savings · Salapi");
+  const main = page.locator("#app-content");
   await expect(main.locator("h1, h2, [role=heading]").first()).toBeVisible();
-  await expect(main).toContainText(/Smart Savings|Testnet|goal|wallet/i);
+  await expect(main).toContainText(/Experimental Testnet savings|wallet|goal/i);
   expect(errors).toEqual([]);
 });

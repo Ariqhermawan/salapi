@@ -32,7 +32,7 @@ async function mount(page: Page, width = 390) {
   await page.setViewportSize({ width, height: 844 });
   await page.setContent(`<style>${styles}</style><main><h1>Salapi account</h1><p>Home and Vaults remain visible while verifying.</p></main><div id="fixture-root"></div>`);
   await page.addScriptTag({ content: `
-    const fixture = window.fixture = { path: '/', owner: '${owner}', reads: [], flashes: 0, mounts: 0 };
+    const fixture = window.fixture = { path: '/you', owner: '${owner}', reads: [], flashes: 0, mounts: 0 };
     let auth;
     const cache = {};
     const modules = {${Object.entries(sources).map(([name, code]) => `${JSON.stringify(name)}: (module, exports, require) => { ${code}\n }`).join(",")}};

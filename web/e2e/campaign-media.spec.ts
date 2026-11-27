@@ -27,6 +27,8 @@ async function fixture(page: Page, empty = false, unavailable = false) {
       photos: empty || unavailable ? [] : paths.map(id => ({ src: `/circles/generated/${id}.png`, width: 1536, height: 1024 })),
       updatedAt: null, ownerId: null, canManage: false, permissionCode: "unauthenticated",
     };
+    else if (name === "publicUsernameForWallet") value = { ok: false, error: "This creator has no public username." };
+    else if (name === "campaignRatingState") value = { ok: false, error: "Campaign ratings are unavailable in this preview." };
     else {
       forbidden.push(name ?? request.url());
       return route.fulfill({ status: 403, body: "Read-only candidate QA: mutation blocked" });

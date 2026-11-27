@@ -92,6 +92,7 @@ test.describe("CoinGecko wallet estimates, isolated browser QA", () => {
     const home = page.getByTestId("home-dashboard");
     const actions = home.getByRole("navigation", { name: "Wallet actions", exact: true });
     for (const label of ["Top up", "Withdraw", "Send", "Receive"]) await expect(actions.getByRole("link", { name: label, exact: true })).toBeVisible();
+    await market.locator("details > summary").click();
     await market.getByRole("button", { name: "Refresh prices", exact: true }).click();
     price = 0.3;
     await expect(market.locator("[data-market-estimate]")).toHaveText("≈ $3,000.00 USD");
@@ -163,7 +164,7 @@ test.describe("CoinGecko wallet estimates, isolated browser QA", () => {
       expect(geometry.frameWidth).toBeGreaterThan(0);
       expect(geometry.mainContent).toBeLessThanOrEqual(geometry.mainWidth + 1);
       expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewportWidth + 1);
-      const causes = page.locator('#prototype-home-causes').locator("..");
+      const causes = page.locator('section[aria-labelledby="prototype-home-causes"]');
       await expect(causes.locator('a[href^="/cause/"]')).toHaveCount(8);
       await expect(causes.getByRole("link", { name: "See all", exact: true })).toHaveAttribute("href", "/campaigns?mode=testnet");
       expect(fixture.calls.forbidden).toEqual([]);
