@@ -166,7 +166,7 @@ test.describe("CoinGecko wallet estimates, isolated browser QA", () => {
       expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewportWidth + 1);
       const causes = page.locator('section[aria-labelledby="prototype-home-causes"]');
       await expect(causes.locator('a[href^="/cause/"]')).toHaveCount(8);
-      await expect(causes.getByRole("link", { name: "See all", exact: true })).toHaveAttribute("href", "/campaigns?mode=testnet");
+      await expect(causes.getByRole("link", { name: "See all", exact: true })).toHaveAttribute("href", "/causes");
       expect(fixture.calls.forbidden).toEqual([]);
       expect(fixture.errors).toEqual([]);
       await expect(market.locator("[data-native-balance]")).toBeVisible();

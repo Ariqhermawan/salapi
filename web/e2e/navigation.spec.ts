@@ -37,12 +37,15 @@ test("Home cause detail Back returns to the actual Home entry", async ({ page })
   await expect(page.locator(homeSelector)).toHaveCount(1);
 });
 
-test("Home See all opens Testnet discovery and example browsing stays separate", async ({ page }) => {
+test("Home See all opens Causes and the separate campaign catalogs remain available", async ({ page }) => {
   await home(page);
   await page.locator(`${homeSelector} section[aria-labelledby="prototype-home-causes"]`).getByRole("link", { name: "See all", exact: true }).click();
-  await expect(page).toHaveURL(/\/campaigns\?mode=testnet$/);
-  await expect(page.getByRole("link", { name: "Testnet campaigns", exact: true })).toHaveAttribute("aria-current", "page");
+  await expect(page).toHaveURL(/\/causes$/);
   await expect(page.getByRole("heading", { name: "Causes", exact: true })).toBeVisible();
+  await expect(page.getByRole("searchbox", { name: "Search campaigns", exact: true })).toBeVisible();
+
+  await page.goto("/campaigns?mode=testnet");
+  await expect(page.getByRole("link", { name: "Testnet campaigns", exact: true })).toHaveAttribute("aria-current", "page");
   await page.getByRole("link", { name: "Browse examples", exact: true }).click();
   await expect(page).toHaveURL(/\/campaigns\?mode=examples$/);
   await expect(page.getByRole("heading", { name: "A cause can bring us closer.", exact: true })).toBeVisible();

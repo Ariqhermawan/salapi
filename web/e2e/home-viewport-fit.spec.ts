@@ -58,7 +58,7 @@ for (const viewport of viewports) {
     const causes = home.locator('section[aria-labelledby="prototype-home-causes"]');
     const cards = causes.locator('a[href^="/cause/"]');
     await expect(cards).toHaveCount(8);
-    await expect(causes.getByRole("link", { name: "See all", exact: true })).toHaveAttribute("href", "/campaigns?mode=testnet");
+    await expect(causes.getByRole("link", { name: "See all", exact: true })).toHaveAttribute("href", "/causes");
     const photo = cards.first().locator("img").first();
     await expect.poll(() => photo.evaluate(image => (image as HTMLImageElement).complete && (image as HTMLImageElement).naturalWidth > 0)).toBe(true);
     const controls = navigation.getByRole("button");
