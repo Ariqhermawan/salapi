@@ -4,6 +4,7 @@
 // adapted to the web screen pattern (global BottomNav; no own TabBar).
 
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { T, Ico, AppBar, IconButton, PoweredByStellar } from "@/components/ui/kit";
 import { SalapiMascot, type MascotPose } from "@/components/ui/mascot";
@@ -133,17 +134,16 @@ function LearnCTA({
   label,
   sub,
   doodle,
-  onClick,
+  href,
 }: {
   label: string;
   sub: string;
   doodle: ReactNode;
-  onClick: () => void;
+  href: string;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
+    <Link
+      href={href}
       style={{
         marginTop: 18,
         background: T.action,
@@ -159,6 +159,7 @@ function LearnCTA({
         border: 0,
         textAlign: "left",
         fontFamily: "inherit",
+        textDecoration: "none",
       }}
     >
       <div style={{ flex: "0 0 auto" }}>{doodle}</div>
@@ -167,7 +168,7 @@ function LearnCTA({
         <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", marginTop: 2 }}>{sub}</div>
       </div>
       {Ico.chev({ c: "#fff", size: 18 })}
-    </button>
+    </Link>
   );
 }
 
@@ -451,7 +452,7 @@ export default function LearnArticleScreen({ topic }: { topic: LearnTopicId }) {
           label={xtopic.cta.label}
           sub={xtopic.cta.sub}
           doodle={spot(xtopic.cta.icon, { size: 30, accent: "#fff" })}
-          onClick={() => router.push(CTA_ROUTE[topic])}
+          href={CTA_ROUTE[topic]}
         />
         <div style={{ marginTop: 24, textAlign: "center" }}>
           <a href="/docs" style={{ color: T.action, fontSize: 13, fontWeight: 700, display: "inline-block", marginBottom: 18 }}>Read public documentation ↗</a>

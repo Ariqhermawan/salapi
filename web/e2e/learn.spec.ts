@@ -48,3 +48,12 @@ test("unknown Learn topics return 404, and guest Terms state the active D3 rules
   await expect(page.getByText(/D4 campaign donations do not automatically send a percentage into D3/i)).toBeVisible();
   await expect(page.getByText(/rolling 24-hour limit of 20% of the current balance/i)).toBeVisible();
 });
+
+test("Smart Savings Learn CTA opens the guest savings screen", async ({ page }) => {
+  await page.goto("/learn/grow");
+  const cta = page.getByRole("link", { name: /See Smart Savings/ });
+  await expect(cta).toHaveAttribute("href", "/savings");
+  await cta.click();
+  await expect(page).toHaveURL(/\/savings$/);
+  await expect(page.locator("#app-content").getByText("Smart Savings", { exact: true }).first()).toBeVisible();
+});
