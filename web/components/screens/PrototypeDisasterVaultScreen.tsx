@@ -113,7 +113,7 @@ export function PrototypeDisasterVaultScreen() {
         <PhotoGallery />
         <div className={styles.disasterBody}>
           <p className={styles.live}><span aria-hidden="true" />Ongoing disaster</p>
-          <h1>Bantayan Island - new roofs for a barangay school</h1>
+          <h1>Bantayan Island - new<br />roofs for a barangay school</h1>
           <p className={styles.location}>Cebu, PH</p>
           <div className={styles.progress} role="img" aria-label="$318.50 raised of $600.00"><span /></div>
           <p className={styles.progressText}>$318.50 raised of $600.00{state.vaultCents > 0 ? ` · up to ${usd(release)} of the vault can go to it` : ""}</p>

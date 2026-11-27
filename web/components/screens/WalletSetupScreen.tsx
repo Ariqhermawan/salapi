@@ -44,10 +44,10 @@ export default function WalletSetupScreen({ nextPath }: { nextPath: string }) {
     <h1>Finish wallet setup</h1>
     <p className={styles.previewIntro}>Your account needs a confirmed Stellar wallet before you can transact.</p>
     <div className={styles.previewWarning} role="status">
-      <span aria-hidden="true">!</span>
+      <span aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M10.8 2.8a1.4 1.4 0 0 1 2.4 0l9.1 16.1a1.4 1.4 0 0 1-1.2 2.1H2.9a1.4 1.4 0 0 1-1.2-2.1z"/><path fill="#fff" d="M11 8h2l-.2 6h-1.6zm0 8h2v2h-2z"/></svg></span>
       <div><strong>Wallet setup is not confirmed yet</strong><p>Check your connection and retry, or sign in again. Your saved wallet will not be replaced.</p></div>
     </div>
-    <button type="button" className={styles.primary} disabled aria-disabled="true">Retry wallet setup</button>
+    <button type="button" className={styles.primary} onClick={() => { if (navigator.onLine) router.replace("/heard"); }}>Retry wallet setup</button>
     <Link className={styles.signin} href={`/signin?next=${encodeURIComponent(next)}`}>Sign in again</Link>
     <Image className={styles.previewDoodle} src="/prototype-causes/doodle-people.png" alt="" width={250} height={250} unoptimized />
   </section>;

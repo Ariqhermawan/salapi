@@ -25,14 +25,14 @@ function NoticeGroup({ title, notices }: { title: string; notices: Notice[] }) {
 }
 
 const TODAY: Notice[] = [
-  { title: "Santos family roof is finished. Rate the proof", time: "Just now", icon: Ico.bulb({ size: 17 }), href: "/cause/santos-roof/feedback" },
-  { title: "Your $5 donation was confirmed", subtitle: "Donated · Ate Mei needs dialysis", time: "2m", icon: Ico.arrowDown({ size: 17 }), href: "/activity/a1" },
-  { title: "@jamamam received your $5", subtitle: "Sent · @jamamam", time: "1h", icon: Ico.send({ size: 17 }), href: "/activity/a2" },
+  { title: "Santos family roof is finished. Rate the proof", time: "Just now", icon: Ico.bulb({ size: 20 }), href: "/cause/santos-roof/feedback" },
+  { title: "Your $5 donation was confirmed", subtitle: "Donated · Ate Mei needs dialysis", time: "2m", icon: Ico.arrowDown({ size: 20 }), href: "/activity/a1" },
+  { title: "@jamamam received your $5", subtitle: "Sent · @jamamam", time: "1h", icon: Ico.send({ size: 20 }), href: "/activity/a2" },
 ];
 
 const EARLIER: Notice[] = [
-  { title: "Top up of $5 credited", subtitle: "Top up · QRIS", time: "Yesterday", icon: Ico.arrowDown({ size: 17 }), href: "/activity/a5" },
-  { title: "$0.05 went to the Disaster Vault", subtitle: "Donated · Ate Mei needs dialysis", time: "Yesterday", icon: Ico.shield({ size: 16 }), href: "/vault?tab=activity" },
+  { title: "Top up of $5 credited", subtitle: "Top up · QRIS", time: "Yesterday", icon: Ico.arrowDown({ size: 20 }), href: "/activity/a5" },
+  { title: "$0.05 went to the Disaster Vault", subtitle: "Donated · Ate Mei needs dialysis", time: "Yesterday", icon: Ico.shield({ size: 20 }), href: "/vault?tab=activity" },
 ];
 
 export default function PrototypeNotificationsScreen() {

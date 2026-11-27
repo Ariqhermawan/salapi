@@ -22,7 +22,7 @@ import {
   Btn,
 } from "@/components/ui/kit";
 import { useGoBack } from "@/lib/ui/useGoBack";
-import { isLocalPreview, localPreviewUsername, PREVIEW_WALLET } from "@/lib/local-preview";
+import { isLocalPreview, localPreviewUsername } from "@/lib/local-preview";
 import styles from "./ReceiveScreen.module.css";
 
 const SITE = "https://salapi.app";
@@ -48,14 +48,23 @@ function ShareGlyph({ c = "#fff", size = 18 }: { c?: string; size?: number }) {
   );
 }
 
-export default function ReceiveScreen() {
+function CopyGlyph({ size = 16 }: { size?: number }) {
+  return <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <rect x="8" y="8" width="12" height="12" rx="2" />
+    <path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" />
+  </svg>;
+}
+
+const PREVIEW_RECEIVE_ADDRESS = "GCUBZ4SAR4LELX2YPLHN4IYU5L4VGVQNGVVZCHYSQECPBPBK6AB7GHY7";
+
+export default function ReceiveScreen({ previewUsername }: { previewUsername?: string } = {}) {
   const { t, locale } = useT();
   const m = moneyCopy(locale);
   const c = receiveCopy(locale);
   const deposit = xlmDepositCopy(locale);
   const goBack = useGoBack("/");
   const [identity, setIdentity] = useState<{ address: string | null; username: string | null }>(isLocalPreview
-    ? { address: PREVIEW_WALLET.address, username: PREVIEW_WALLET.handle } : { address: null, username: null });
+    ? { address: PREVIEW_RECEIVE_ADDRESS, username: previewUsername ?? null } : { address: null, username: null });
   const [status, setStatus] = useState<"loading" | "ready" | "guest" | "error">(isLocalPreview ? "ready" : "loading");
   const [copied, setCopied] = useState(false);
   const [guidanceOpen, setGuidanceOpen] = useState(false);
@@ -141,9 +150,9 @@ export default function ReceiveScreen() {
   const usernameLink = status === "ready" && identity.username
     ? receiveDestination(identity.address, identity.username, base)
     : null;
-  const destination = isLocalPreview ? usernameLink
+  const destination = isLocalPreview ? receiveDestination(identity.address, null, base)
     : status === "ready" ? receiveDestination(identity.address, null, base) : null;
-  const qrLabel = isLocalPreview ? t("receive.scan") : c.addressScan;
+  const qrLabel = isLocalPreview && identity.username ? `QR code for @${identity.username}` : c.addressScan;
 
   async function shareDestination(target: ReceiveDestination | null, copyOnly = false) {
     if (!target || !active.current) return;
@@ -195,10 +204,11 @@ export default function ReceiveScreen() {
           {destination.kind === "address" && <button className={styles.copy} type="button" title={destination.value}
             aria-label={deposit.copy} aria-describedby="receive-address" data-copy-error={Boolean(shareError) || undefined}
             onClick={() => shareDestination(destination, true)}>
-            <span id="receive-address">{destination.value}</span>{copied ? Ico.check({ size: 16 }) : Ico.link({ size: 16 })}
+            <span id="receive-address">{isLocalPreview ? `${destination.value.slice(0, 4).toLowerCase()}…${destination.value.slice(-4).toLowerCase()}` : destination.value}</span>
+            {copied ? Ico.check({ size: 16 }) : isLocalPreview ? <CopyGlyph /> : Ico.link({ size: 16 })}
             <span className="sr-only" aria-live="polite">{copied ? t("receive.copied") : ""}</span>
           </button>}
-          <p className={styles.note}>{isLocalPreview ? deposit.previewBody : deposit.warning}</p>
+          <p className={styles.note}>{isLocalPreview ? "Send only XLM on Stellar to this address." : deposit.warning}</p>
           {!identity.username && !isLocalPreview && <p className={styles.note}>{c.addressHint}</p>}
           <button className={styles.link} type="button" aria-haspopup="dialog"
             onClick={() => setGuidanceOpen(true)}>{deposit.stepsTitle}</button>
@@ -209,7 +219,7 @@ export default function ReceiveScreen() {
           {status === "guest" && <p className={styles.note}>{c.guest} <Link href="/signin?next=%2Freceive">{c.signIn}</Link></p>}
           {status === "ready" && <p className={styles.note}>{c.noWallet}</p>}
         </>}
-        {(isLocalPreview || !destination) && <p className={styles.note}>{m("Testnet only · no real money")}</p>}
+        {!isLocalPreview && !destination && <p className={styles.note}>{m("Testnet only · no real money")}</p>}
         {shareError && <p className={styles.error} role="alert">{moneyMessage(locale, shareError)}</p>}
       </section>
       <div className={styles.pattern} aria-hidden="true" />

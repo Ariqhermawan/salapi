@@ -8,6 +8,9 @@
 .sl-success-feedback{position:absolute;left:14px;right:14px;bottom:110px;z-index:70;filter:drop-shadow(0 8px 16px #102b5120)}
 .sl-success-feedback>button{position:absolute;right:0;top:0;min-width:44px;min-height:44px;border:0;border-radius:12px;background:transparent;color:#115d4c;font-size:22px;cursor:pointer}
 .sl-success-feedback>div{padding-right:44px}
+html[data-local-preview="true"] .sl-appbar-row{justify-content:flex-start!important;gap:8px}
+html[data-local-preview="true"] .sl-appbar-title{flex:1;text-align:left}
+html[data-local-preview="true"] .sl-appbar-trailing{margin-left:auto}
 @media(prefers-reduced-motion:reduce){.sl-state-enter{animation:none}}
 
 /* ── Invisible Rails — design tokens ─────────────────────────────── */

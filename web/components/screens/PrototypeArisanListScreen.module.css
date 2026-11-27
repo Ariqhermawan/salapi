@@ -67,4 +67,15 @@
   .roomMain { gap:7px; }
   .roomCopy small { font-size:9px; }
 }
+@media (min-width:640px) {
+  .page { min-height:672px; padding:16px 16px 0; }
+  .emptyPage { min-height:672px; padding-bottom:0; }
+  .heading { margin-bottom:12px; transform:translateY(-8px); }
+  .emptyState { padding:40px 4px; transform:translateY(-15px); }
+  .emptyState > img { width:240px; height:240px; margin-bottom:16px; opacity:.32; }
+  .emptyState p { font-size:14px; line-height:20px; }
+  .emptyWays { margin-top:28px; }
+  .ways a { font-size:14px; line-height:20px; }
+  .emptyFooter { transform:none; }
+}
 @media (prefers-reduced-motion:reduce) { .ways a { transition:none; } }

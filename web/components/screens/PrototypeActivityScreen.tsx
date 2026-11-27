@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowDownLeft, ArrowUpRight, HandHeart, PaperPlaneTilt, Receipt, ArrowsLeftRight } from "@phosphor-icons/react";
 import { listPreviewTransfers, type PreviewTransfer } from "@/lib/local-preview-history";
 import { useT } from "@/components/I18nProvider";
@@ -35,6 +36,7 @@ function Icon({ kind }: { kind: Kind }) {
 }
 
 export default function PrototypeActivityScreen() {
+  const router = useRouter();
   const { currency } = useT();
   const [tab, setTab] = useState<"personal" | "proof">("personal");
   const [filter, setFilter] = useState<Kind | "all">("all");
@@ -76,12 +78,10 @@ export default function PrototypeActivityScreen() {
       </section> : null}
     </> : <section className={styles.proof}>
       <p>Project receipts, not your transactions.</p>
-      <div className={styles.card}>{PROOF.map(item => <a className={styles.proofRow} key={item.hash} href={`https://stellar.expert/explorer/testnet/tx/${item.hash}`} target="_blank" rel="noopener noreferrer">
-        <span className={styles.icon}><Receipt size={20} aria-hidden="true" /></span>
-        <span className={styles.copy}><strong>{item.title}</strong><small>{item.detail}</small></span>
-        <span className={styles.link}>View</span>
-      </a>)}</div>
-      <p className={styles.note}>These public project receipts are separate from your personal activity.</p>
+      <div className={styles.card}>{PROOF.map(item => <div className={styles.proofRow} key={item.hash}>
+        <span className={styles.proofTitle}>{item.title}</span>
+      </div>)}</div>
+      <div className={styles.proofMore}><button type="button" onClick={() => router.push("/learn")}>How Salapi works <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M5 12h14m-6-6 6 6-6 6" /></svg></button></div>
     </section>}
   </div>;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppBar, Btn, Ico, IconButton } from "@/components/ui/kit";
 import { useGoBack } from "@/lib/ui/useGoBack";
@@ -11,6 +11,50 @@ const COUNTRIES = [
   { id: "PH", name: "Philippines", banks: ["BDO Unibank", "BPI", "Metrobank", "UnionBank", "Landbank", "Security Bank", "RCBC"] },
   { id: "VN", name: "Vietnam", banks: ["Vietcombank", "Techcombank", "BIDV", "VietinBank", "MB Bank", "ACB"] },
 ] as const;
+
+function PickerField({ id, value, placeholder, options, searchable = false, onChange }: {
+  id: string;
+  value: string;
+  placeholder: string;
+  options: readonly string[];
+  searchable?: boolean;
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const root = useRef<HTMLDivElement>(null);
+  const filtered = options.filter(option => option.toLowerCase().includes(query.trim().toLowerCase()));
+
+  useEffect(() => {
+    if (!open) return;
+    const closeOutside = (event: PointerEvent) => {
+      if (event.target instanceof Node && !root.current?.contains(event.target)) setOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
+    document.addEventListener("pointerdown", closeOutside);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOutside);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [open]);
+
+  return <div className={styles.picker} ref={root}>
+    <button id={id} type="button" className={styles.pickerTrigger} data-empty={!value || undefined} aria-haspopup="listbox" aria-expanded={open} aria-controls={`${id}-options`} onClick={() => { setQuery(""); setOpen(value => !value); }}>
+      <span>{value || placeholder}</span>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="m6 9 6 6 6-6" /></svg>
+    </button>
+    {open && <div id={`${id}-options`} className={styles.pickerMenu} role="listbox" aria-label={placeholder}>
+      {searchable && <input className={styles.pickerSearch} type="search" autoFocus aria-label="Search banks" placeholder="Search banks" value={query} onChange={event => setQuery(event.target.value)} />}
+      <div className={styles.pickerOptions}>
+        {filtered.map(option => <button key={option} type="button" role="option" aria-selected={option === value} className={styles.pickerOption} onClick={() => { onChange(option); setOpen(false); setQuery(""); }}>
+          {option}{option === value ? <span aria-hidden="true">✓</span> : null}
+        </button>)}
+        {!filtered.length && <p className={styles.pickerEmpty}>No bank matches “{query.trim()}”.</p>}
+      </div>
+    </div>}
+  </div>;
+}
 
 export default function PrototypeWithdrawScreen() {
   const router = useRouter();
@@ -44,7 +88,7 @@ export default function PrototypeWithdrawScreen() {
         <div className={styles.row}><span>To</span><strong>{bank} · •••• {digits.slice(-4)}</strong></div>
         <div className={styles.row}><span>Amount</span><strong>${amount.toFixed(2)}</strong></div>
         <div className={styles.row}><span>Fee</span><strong>$0.25</strong></div>
-        <div className={styles.row}><span>You'll receive</span><strong>${Math.max(0, amount - 0.25).toFixed(2)}</strong></div>
+        <div className={styles.row}><span>You&apos;ll receive</span><strong>${Math.max(0, amount - 0.25).toFixed(2)}</strong></div>
       </section>
       <div className={styles.actions}>
         <div className={styles.cta}><Btn onClick={() => router.push("/")}>Home</Btn></div>
@@ -56,15 +100,11 @@ export default function PrototypeWithdrawScreen() {
         <span className={styles.methodCopy}><span className={styles.methodName}>Bank account</span><span className={styles.methodNote}>Same day · $0.25 fee</span></span>
       </div>
       <section className={styles.form} aria-label="Bank account details">
-        <label className={styles.field}><span>Country</span><select value={countryId} onChange={event => { setCountryId(event.target.value as typeof countryId); setBank(""); }}>
-          {COUNTRIES.map(entry => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
-        </select></label>
-        <label className={styles.field}><span>Bank name</span><select value={bank} onChange={event => setBank(event.target.value)}>
-          <option value="">Search for a bank</option>{country.banks.map(name => <option key={name} value={name}>{name}</option>)}
-        </select></label>
-        <label className={styles.field}><span>Account number</span><input inputMode="numeric" autoComplete="off" placeholder="Bank account number" value={number} onChange={event => setNumber(event.target.value)} /></label>
-        <label className={styles.field}><span>Legal name</span><input autoComplete="name" placeholder="Name on the bank account" value={holder} onChange={event => setHolder(event.target.value)} /></label>
-        <p className={styles.hint}><span aria-hidden="true">ⓘ</span>Check the number and the name. A withdrawal can't be reversed.</p>
+        <div className={styles.field}><label htmlFor="prototype-withdraw-country">Country</label><PickerField id="prototype-withdraw-country" value={country.name} placeholder="Select a country" options={COUNTRIES.map(entry => entry.name)} onChange={name => { const entry = COUNTRIES.find(item => item.name === name); if (entry) { setCountryId(entry.id); setBank(""); } }} /></div>
+        <div className={styles.field}><label htmlFor="prototype-withdraw-bank">Bank name</label><PickerField id="prototype-withdraw-bank" value={bank} placeholder="Search for a bank" options={country.banks} searchable onChange={setBank} /></div>
+        <div className={styles.field}><label htmlFor="prototype-withdraw-number">Account number</label><input id="prototype-withdraw-number" inputMode="numeric" autoComplete="off" placeholder="Bank account number" value={number} onChange={event => setNumber(event.target.value)} /></div>
+        <div className={styles.field}><label htmlFor="prototype-withdraw-legal-name">Legal name</label><input id="prototype-withdraw-legal-name" autoComplete="name" placeholder="Name on the bank account" value={holder} onChange={event => setHolder(event.target.value)} /></div>
+        <p className={styles.hint}><span aria-hidden="true">ⓘ</span>Check the number and the name. A withdrawal can&apos;t be reversed.</p>
       </section>
       <section className={styles.amount} data-disabled={!numberOk} aria-label="Withdrawal amount">
         <label htmlFor="prototype-withdraw-amount" className={styles.amountLabel}>Amount · USD · ${balance.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} available</label>
@@ -84,7 +124,7 @@ export default function PrototypeWithdrawScreen() {
           <div className={styles.row}><span>Legal name</span><strong>{holder.trim()}</strong></div>
           <div className={styles.row}><span>Amount</span><strong>${amount.toFixed(2)}</strong></div>
           <div className={styles.row}><span>Fee</span><strong>$0.25</strong></div>
-          <div className={styles.row}><span>You'll receive</span><strong>${Math.max(0, amount - 0.25).toFixed(2)}</strong></div>
+          <div className={styles.row}><span>You&apos;ll receive</span><strong>${Math.max(0, amount - 0.25).toFixed(2)}</strong></div>
           <div className={styles.row}><span>Arrives</span><strong>Same day</strong></div>
           <p className={styles.sheetNote}>Local preview only. No bank details are saved or sent, and no funds will move.</p>
           <Btn onClick={() => { setReview(false); setDone(true); }}>Withdraw</Btn>

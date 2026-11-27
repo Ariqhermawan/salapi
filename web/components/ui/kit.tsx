@@ -58,10 +58,10 @@ export function IconButton({ children, onClick, size = 40, ariaLabel }: { childr
 export function AppBar({ title, leading, trailing, sub, large = false }: { title?: ReactNode; leading?: ReactNode; trailing?: ReactNode; sub?: ReactNode; large?: boolean }) {
   return (
     <header className="sl-appbar" style={{ padding: large ? "20px 20px 8px" : "12px 16px", display: "flex", flexDirection: "column", gap: large ? 8 : 0, background: T.canvas }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", minHeight: 36 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>{leading}</div>
-        {!large && <div style={{ fontSize: 15, fontWeight: 600, letterSpacing: "-0.01em" }}>{title}</div>}
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>{trailing}</div>
+      <div className="sl-appbar-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", minHeight: 36 }}>
+        <div className="sl-appbar-leading" style={{ display: "flex", alignItems: "center", gap: 8 }}>{leading}</div>
+        {!large && <div className="sl-appbar-title" style={{ fontSize: 15, fontWeight: 600, letterSpacing: "-0.01em" }}>{title}</div>}
+        <div className="sl-appbar-trailing" style={{ display: "flex", alignItems: "center", gap: 8 }}>{trailing}</div>
       </div>
       {large && (
         <div style={{ padding: "4px 4px 12px" }}>

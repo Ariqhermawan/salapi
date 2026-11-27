@@ -82,6 +82,7 @@ export default async function RootLayout({
     <html
       lang="en"
       data-theme={theme}
+      data-local-preview={isLocalPreview ? "true" : undefined}
       className={`${outfit.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-dvh">

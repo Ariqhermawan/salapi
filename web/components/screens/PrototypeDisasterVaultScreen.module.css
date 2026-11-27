@@ -1,7 +1,8 @@
 .screen { min-height:100%; padding-bottom:28px; color:var(--sl-ink,#171717); font-family:var(--font-geist-sans),system-ui,sans-serif; }
-.screen :global(.sl-appbar) { background:var(--sl-canvas,#f7f7f7)!important; }
-.tabs { display:grid; grid-template-columns:1fr 1fr; gap:3px; margin:2px 14px 12px; padding:3px; border-radius:12px; background:#eff0f3; }
-.tabs button { min-height:34px; border:0; border-radius:9px; background:transparent; color:#737985; font:500 11px/16px var(--font-geist-sans),system-ui,sans-serif; }
+.screen :global(.sl-appbar) { padding-left:22px!important; padding-right:20px!important; background:var(--sl-canvas,#f7f7f7)!important; }
+.screen :global(.sl-appbar-title) { font-size:20px!important; line-height:28px; }
+.tabs { display:grid; grid-template-columns:1fr 1fr; gap:3px; margin:8px 14px 6px; padding:3px; border-radius:12px; background:#eff0f3; }
+.tabs button { min-height:34px; border:0; border-radius:9px; background:transparent; color:#737985; font:500 14px/20px var(--font-geist-sans),system-ui,sans-serif; }
 .tabs button[aria-selected="true"] { background:#fff; color:#171717; box-shadow:0 1px 4px #10182818; }
 .disasterCard,.explainer,.bankCard { margin:0 14px 12px; overflow:hidden; border:1px solid #e5e7eb!important; border-radius:20px!important; background:var(--sl-surface,#fff)!important; box-shadow:0 2px 5px #1118270d,0 5px 10px -8px #11182722!important; }
 .photos { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:3px; overflow:hidden; }
@@ -9,21 +10,24 @@
 .photos button:first-child { grid-column:1/-1; aspect-ratio:16/9; }
 .photos img { display:block; width:100%; height:100%; object-fit:cover; }
 .photos button:focus-visible,.lightbox button:focus-visible { outline:2px solid #3155dc; outline-offset:-3px; }
-.disasterBody { padding:15px 16px 16px; }
-.live { display:flex; align-items:center; gap:6px; margin:0; color:#e59b19; font-size:10px; font-weight:650; letter-spacing:.04em; line-height:15px; text-transform:uppercase; }
+.disasterBody { padding:20px 22px 18px; }
+.live { display:flex; align-items:center; gap:6px; margin:0; color:#e59b19; font-size:14px; font-weight:650; letter-spacing:.04em; line-height:20px; text-transform:uppercase; }
 .live span { width:7px; height:7px; border-radius:50%; background:currentColor; }
-.disasterBody h1 { margin:8px 0 3px; font-size:17px; font-weight:680; letter-spacing:-.025em; line-height:23px; }
-.location { margin:0; color:#737985; font-size:11px; line-height:16px; }
-.progress { height:6px; margin:13px 0 7px; overflow:hidden; border-radius:99px; background:#e8eaf0; }
+.disasterBody h1 { max-width:320px; margin:8px 0 5px; font-size:22px; font-weight:500; letter-spacing:-.005em; line-height:28px; }
+.location { margin:0; color:#737985; font-size:14px; line-height:20px; }
+.progress { height:6px; margin:5px 0 7px; overflow:hidden; border-radius:99px; background:#e8eaf0; }
 .progress span { display:block; width:53.08%; height:100%; border-radius:inherit; background:#6887ff; }
-.progressText { margin:0; color:#737985; font-size:10px; line-height:15px; }
-.disasterBody :global(.panel) { margin-top:15px; padding-top:14px; }
-.disasterBody > :global(.sl-btn) { width:100%; margin-top:12px; border-radius:999px!important; font-size:12px!important; }
-.explainer { display:grid; gap:0; padding:15px 16px!important; }
-.explainer h2 { margin:0; font-size:12px; font-weight:650; line-height:18px; }
-.explainer > p { margin:4px 0 8px; color:#737985; font-size:11px; line-height:16px; }
-.amountRows { display:flex; justify-content:space-between; gap:12px; min-height:31px; align-items:center; border-top:1px solid #eceef2; color:#737985; font-size:10px; }
-.amountRows strong { color:#171717; font-size:11px; font-weight:620; font-variant-numeric:tabular-nums; }
+.progressText { margin:0; color:#737985; font-size:14px; line-height:20px; }
+.disasterBody :global([aria-label="Disaster response partners"]) { margin-top:18px; padding-top:14px; }
+.disasterBody :global([aria-label="Disaster response partners"]) h2 { font-size:18px; line-height:24px; font-weight:500; letter-spacing:-.011em; }
+.disasterBody :global([aria-label="Disaster response partners"]) p { font-size:18px; line-height:26px; letter-spacing:-.011em; }
+.disasterBody :global([aria-label="Disaster response partners"]) button { min-height:52px; font-size:14px; }
+.disasterBody > :global(.sl-btn) { width:100%; margin-top:12px; border-radius:999px!important; font-size:16px!important; }
+.explainer { display:grid; gap:0; padding:18px 20px!important; }
+.explainer h2 { margin:0; font-size:18px; font-weight:500; line-height:24px; letter-spacing:-.011em; }
+.explainer > p { margin:4px 0 8px; color:#737985; font-size:16px; line-height:24px; letter-spacing:-.011em; }
+.amountRows { display:flex; justify-content:space-between; gap:12px; min-height:40px; align-items:center; border-top:1px solid #eceef2; color:#737985; font-size:14px; line-height:20px; }
+.amountRows strong { color:#171717; font-size:16px; font-weight:500; line-height:24px; font-variant-numeric:tabular-nums; }
 .bankCard { margin-top:2px; }
 .bankArt { display:block; width:100%; aspect-ratio:3/2; object-fit:cover; }
 .bankSummary { display:grid; justify-items:center; padding:14px 16px 18px; text-align:center; }

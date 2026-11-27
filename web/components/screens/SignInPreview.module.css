@@ -1,11 +1,11 @@
-.screen { box-sizing:border-box; display:flex; min-height:100%; flex-direction:column; padding:0 18px 22px; color:var(--sl-ink); font-family:var(--font-geist-sans),system-ui,sans-serif; }
-.brand { display:flex; min-height:54px; align-items:center; padding-top:30px; }
-.middle { display:flex; flex:1 1 auto; flex-direction:column; align-items:center; justify-content:center; padding:18px 0 24px; }
-.doodle { display:block; width:min(230px,76%); height:auto; margin:0 auto 14px; object-fit:contain; }
-.middle h1 { margin:0; font-size:26px; font-weight:650; letter-spacing:-.035em; line-height:1.2; text-align:center; }
-.middle > p { max-width:31ch; margin:8px 0 0; color:#737985; font-size:12px; line-height:1.55; text-align:center; }
-.actions { display:grid; width:100%; gap:8px; margin-top:18px; }
-.actions :global(.sl-btn) { width:100%; min-height:48px; border-radius:999px; font-size:13px; }
-.smallPrint { max-width:34ch; margin:14px 0 0; color:#737985; font-size:10px; line-height:1.5; text-align:center; }
+.screen { box-sizing:border-box; display:flex; min-height:100%; flex-direction:column; padding:0 16px 22px; color:var(--sl-ink); font-family:var(--font-geist-sans),system-ui,sans-serif; }
+.brand { display:flex; min-height:48px; align-items:center; padding-top:0; }
+.middle { display:flex; flex:1 1 auto; flex-direction:column; align-items:center; justify-content:center; padding:18px 0 48px; }
+.doodle { display:block; width:min(240px,100%); height:auto; margin:0 auto 12px; object-fit:contain; }
+.middle h1 { margin:0; font-size:36px; font-weight:500; letter-spacing:-.01em; line-height:44px; text-align:center; }
+.middle > p { max-width:100%; margin:6px 0 0; color:#737985; font-size:16px; line-height:24px; text-align:center; }
+.actions { display:grid; width:100%; gap:14px; margin-top:16px; }
+.actions :global(.sl-btn) { width:100%; min-height:52px; border-radius:999px; font-size:16px; }
+.smallPrint { max-width:100%; margin:16px 0 0; color:#737985; font-size:14px; line-height:20px; text-align:center; }
 .smallPrint a { color:#3155dc; text-decoration:underline; text-underline-offset:2px; }
-.footer { display:flex; justify-content:center; padding-top:12px; }
+.footer { display:flex; justify-content:center; padding-top:20px; transform:translateY(-40px); }

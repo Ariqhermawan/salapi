@@ -194,7 +194,7 @@ export default function UsernameOnboarding() {
     return createPortal(<section className={styles.prototypeGate} aria-label={c.title}>
       <AppBar leading={<IconButton ariaLabel="Back" onClick={() => router.replace("/")}>{Ico.back({})}</IconButton>} title="Choose a username" />
       <div className={styles.prototypeBody}>
-        <p>{searchParams?.get("next") === "/receive" ? "You need a username to receive money. People send to it by name." : "People send you money by this name."} <span id="preview-username-notice">You can't change your username after you claim it.</span></p>
+        <p>{searchParams?.get("next") === "/receive" ? "You need a username to receive money. People send to it by name." : "People send you money by this name."} <span id="preview-username-notice">You can&apos;t change your username after you claim it.</span></p>
         <div className={styles.prototypeCard}>
           <label className="sr-only" htmlFor="required-username">Username</label>
           <div className={styles.prototypeField}><span aria-hidden="true">@</span><input ref={input} id="required-username" value={value} onChange={event => { setValue(event.target.value.replace(/^@/, "").toLowerCase()); setError(null); }} minLength={3} maxLength={32} pattern="[a-z0-9_]{3,32}" required autoComplete="username" autoCapitalize="none" spellCheck={false} placeholder="username" readOnly={!!claimedPreviewUsername} disabled={busy} aria-describedby="preview-username-hint" /></div>
