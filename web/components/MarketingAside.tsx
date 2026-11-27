@@ -9,8 +9,8 @@ export default function MarketingAside() {
   return (
     <aside className="sl-marketing hidden lg:flex" lang="en">
       <div className="sl-brand">
-        <Wordmark size={30} c="#f7f9fd" dot="#78a7ff" />
-        <MakerLockup c="#e2e8f0" />
+        <Wordmark size={30} c="#171717" dot="#335cff" />
+        <MakerLockup c="#5c5c5c" />
       </div>
       <span className="sl-marketing-badge"><span />Built on Stellar Testnet</span>
       <div>
@@ -36,7 +36,7 @@ export default function MarketingAside() {
         <Link href="/send">Send by @ <span>↗</span></Link>
       </div>
       <footer className="sl-marketing-footer">
-        <div className="sl-marketing-powered"><PoweredByStellar c="#fff" /></div>
+        <div className="sl-marketing-powered"><PoweredByStellar c="#171717" /></div>
         <Link href="/docs">Public documentation <span aria-hidden="true">↗</span></Link>
         <small>Testnet only. No real-money donations or cash-out.</small>
       </footer>
