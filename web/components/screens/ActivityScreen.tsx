@@ -477,7 +477,7 @@ export default function ActivityScreen() {
                                 <div className={`${styles.receiptAmount} ${received ? styles.incomingAmount : ""}`}>
                                   <div className={styles.nativeLine}>
                                     <strong data-activity-native-amount>{amountSign}{activityStroopsToXlm(receipt.amountStroops)}</strong>
-                                    <small>{receipt.asset.code}</small>
+                                    <small>{receipt.asset.network === "testnet" ? `Testnet ${receipt.asset.code}` : receipt.asset.code}</small>
                                   </div>
                                   {equivalent ? (
                                     <div className={styles.equivalent} data-activity-equivalent={equivalent.status}>
