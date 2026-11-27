@@ -36,5 +36,8 @@ export function campaignDiscoveryView(
 ): CampaignDiscoveryView {
   if (params.id || params.create === "1" || params.mode === "testnet") return "testnet";
   if (params.mode === "examples" || localPreview) return "examples";
-  return "testnet";
+  // Keep the default discovery page on the same, clearly labeled prototype
+  // catalog in local and production. Live contract campaigns stay available
+  // from the explicit Testnet tab and direct campaign links.
+  return "examples";
 }

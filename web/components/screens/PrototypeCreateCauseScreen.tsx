@@ -487,7 +487,7 @@ export default function PrototypeCreateCauseScreen() {
 
       {step === 1 && <div className={styles.powered}><PoweredByStellar /></div>}
     </> : <section className={styles.finished}>
-      <span className={styles.check}>✓</span><h1>Your cause is ready to launch</h1><p>Saved in this browser's local preview. It has not been published and no transaction was sent.</p>
+      <span className={styles.check}>✓</span><h1>Your cause is ready to launch</h1><p>Saved in this browser&apos;s local preview. It has not been published and no transaction was sent.</p>
       <div className={styles.finishCard}><strong>{title}</strong><span>{category} · Goal {money(rawGoal)}</span><p>{story}</p></div>
       <Btn onClick={() => router.push(createdId ? `/cause/${createdId}` : "/manage")}>View local cause</Btn>
       <button type="button" onClick={() => { setDone(false); setStep(1); }}>Edit cause</button>

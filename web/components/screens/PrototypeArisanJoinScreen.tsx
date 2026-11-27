@@ -101,7 +101,7 @@ export default function PrototypeArisanJoinScreen() {
           <InfoRow label="Location" value={found.place} />
           <InfoRow label="If the room is cancelled" value="Deposit returned" />
         </dl>
-        <p className={styles.hint}>On each draw day two members sign and the Room Master draws. You can't leave once the room starts.</p>
+        <p className={styles.hint}>On each draw day two members sign and the Room Master draws. You can&apos;t leave once the room starts.</p>
         <p className={styles.localNote}>Local example · no Testnet transaction or deposit will be made.</p>
         {portalHost ? createPortal(<div className={styles.cta}>
           <Btn kind="secondary" onClick={() => setConfirming(false)} disabled={busy}>Back</Btn>

@@ -78,7 +78,14 @@ function loadLocalRoom(roomId: number, scenario?: PreviewScenario): ReadyRoom {
   const seats = names.map((label,i) => ({ addr: i === 0 ? PREVIEW_WALLET : `LOCAL_MEMBER_${i}`, label, fundedStroops: (shareStroops * BigInt(target)).toString(), won: active && i === 1, committed: active && i === 2, revealed: false, isYou: i === 0 })).filter(seat => !left || !seat.isYou);
   const room: ReadyRoom = { ready: true, id: roomId, viewer: PREVIEW_WALLET, viewerIdentity: "unverified", name: created && draft ? draft.name : active ? "Kapitbahay Circle" : "Family Circle", code: left ? null : created ? "NEW234" : active ? "DRW789" : "FAM234", host: joined || left || active ? "LOCAL_MEMBER_1" : PREVIEW_WALLET, hostLabel: joined || left || active ? "Farrel" : "Ariqhermawan", cadence: created && draft ? draft.cadence : active ? "Biweekly" : "Weekly", cadenceSecs: 604800, memberTarget: target, memberCount: seats.length, sharePesos: share, shareStroops: shareStroops.toString(), depositStroops: (shareStroops * BigInt(target)).toString(), sharePeso: String(share), potPesos: share*target, potPeso: String(share*target), status: cancelled ? "Dissolved" : active ? "Active" : "Open", round: active ? 2 : 0, drawPhase: active ? "Commit" : null, firstKocok: time+86400, joinDeadline: time+43200, commitAt: time+3600, revealAt: time+7200, nextActionAt: time+3600, commitCount: active ? 1 : 0, revealCount: 0, eligibleCount: active ? 3 : target, seats, winners: active ? [{ round: 1, addr: "LOCAL_MEMBER_1", label: "Farrel", ts: time-604800 }] : [], isMember: !left, isHost, canUseDemoFriends: isHost, readyToStart: !cancelled && !active && !joined && !left && seats.length === target, canCommit: active, canReveal: false, canFinalize: false };
   if (!scenario) return room;
-  if (scenario === "countdown") return { ...room, status: "Open", drawPhase: null, round: 0, isHost: true, host: PREVIEW_WALLET, hostLabel: "Ariqhermawan", readyToStart: true, canCommit: false };
+  if (scenario === "countdown") {
+    const seats = [...room.seats];
+    while (seats.length < room.memberTarget) {
+      const index = seats.length;
+      seats.push({ addr: `LOCAL_MEMBER_${index}`, label: ["Maya", "Rina", "Bayu", "Nadia", "Lila"][index % 5], fundedStroops: room.depositStroops, won: false, committed: false, revealed: false, isYou: false });
+    }
+    return { ...room, seats, memberCount: seats.length, status: "Open", drawPhase: null, round: 0, isHost: true, host: PREVIEW_WALLET, hostLabel: "Ariqhermawan", readyToStart: true, canCommit: false };
+  }
   if (scenario === "draw-member") return { ...room, status: "Active", drawPhase: "Commit", round: 2, isHost: false, canCommit: true, canReveal: false, canFinalize: false };
   if (scenario === "master-away") return { ...room, status: "Active", drawPhase: "Reveal", round: 2, host: "LOCAL_MEMBER_1", hostLabel: "Farrel", isHost: false, canCommit: false, canReveal: false, canFinalize: false, nextActionAt: time - 60 };
   const resolvedSeats = room.seats.map(seat => ({ ...seat, committed: !seat.won, revealed: !seat.won }));

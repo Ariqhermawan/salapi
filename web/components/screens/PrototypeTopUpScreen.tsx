@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { AppBar, IconButton, Ico, PoweredByStellar } from "@/components/ui/kit";
 import { useGoBack } from "@/lib/ui/useGoBack";
+import { isLocalPreview } from "@/lib/local-preview";
 import PrototypeDoodle from "./PrototypeDoodle";
 import styles from "./PrototypeTopUpScreen.module.css";
 
@@ -54,7 +55,7 @@ function Method({ badge, title, description, tag, mark, extra, onClick, disabled
   </button>;
 }
 
-export default function PrototypeTopUpScreen({ onFaucet, initialCurrency }: { onFaucet: () => void; initialCurrency?: Currency }) {
+export default function PrototypeTopUpScreen({ onFaucet, initialCurrency, localPreview = isLocalPreview }: { onFaucet: () => void; initialCurrency?: Currency; localPreview?: boolean }) {
   const router = useRouter();
   const goBack = useGoBack("/");
   const currency = initialCurrency ?? null;
@@ -79,19 +80,19 @@ export default function PrototypeTopUpScreen({ onFaucet, initialCurrency }: { on
       </nav>
       <div className={styles.methods}>
         {currency === "IDR" && <>
-          <Method badge="QR" title="QRIS" mark="qris" description="Instant · No fee" extra={<><Marks names={["GoPay", "OVO", "DANA", "ShopeePay"]} label="E-wallets:"/><Marks names={["BCA", "Mandiri", "BNI", "BRI"]} label="Bank apps:"/></>} onClick={() => openProvider("qris", currency)} />
-          <Method badge={<BankGlyph />} title="Virtual account" description="Bank transfer to a virtual account number" extra={<Marks names={["BCA", "Mandiri", "BNI", "BRI"]} label="Banks:"/>} onClick={() => openProvider("va", currency)} />
-          <Method badge={<CardGlyph />} title="Debit or credit card" description="Visa or Mastercard" extra={<Marks names={["Visa", "Mastercard"]} label="Card networks:"/>} onClick={() => openProvider("card", currency)} />
+          <Method badge="QR" title="QRIS" mark="qris" description={localPreview ? "Instant · No fee" : "Payment provider not connected yet"} tag={localPreview ? undefined : "Coming soon"} extra={<><Marks names={["GoPay", "OVO", "DANA", "ShopeePay"]} label="E-wallets:"/><Marks names={["BCA", "Mandiri", "BNI", "BRI"]} label="Bank apps:"/></>} onClick={() => openProvider("qris", currency)} disabled={!localPreview} />
+          <Method badge={<BankGlyph />} title="Virtual account" description={localPreview ? "Bank transfer to a virtual account number" : "Payment provider not connected yet"} tag={localPreview ? undefined : "Coming soon"} extra={<Marks names={["BCA", "Mandiri", "BNI", "BRI"]} label="Banks:"/>} onClick={() => openProvider("va", currency)} disabled={!localPreview} />
+          <Method badge={<CardGlyph />} title="Debit or credit card" description={localPreview ? "Visa or Mastercard" : "Payment provider not connected yet"} tag={localPreview ? undefined : "Coming soon"} extra={<Marks names={["Visa", "Mastercard"]} label="Card networks:"/>} onClick={() => openProvider("card", currency)} disabled={!localPreview} />
         </>}
         {currency === "PHP" && <>
           <Method badge="G" title="GCash" mark="gcash" tag="Coming soon" disabled />
-          <Method badge={<BankGlyph />} title="Bank transfer" description="From a Philippine bank account" extra={<Marks names={["BDO", "BPI", "Metrobank", "UnionBank"]} label="Banks:"/>} onClick={() => openProvider("va", currency)} />
-          <Method badge={<CardGlyph />} title="Debit or credit card" description="Visa or Mastercard" extra={<Marks names={["Visa", "Mastercard"]} label="Card networks:"/>} onClick={() => openProvider("card", currency)} />
+          <Method badge={<BankGlyph />} title="Bank transfer" description={localPreview ? "From a Philippine bank account" : "Payment provider not connected yet"} tag={localPreview ? undefined : "Coming soon"} extra={<Marks names={["BDO", "BPI", "Metrobank", "UnionBank"]} label="Banks:"/>} onClick={() => openProvider("va", currency)} disabled={!localPreview} />
+          <Method badge={<CardGlyph />} title="Debit or credit card" description={localPreview ? "Visa or Mastercard" : "Payment provider not connected yet"} tag={localPreview ? undefined : "Coming soon"} extra={<Marks names={["Visa", "Mastercard"]} label="Card networks:"/>} onClick={() => openProvider("card", currency)} disabled={!localPreview} />
         </>}
         {currency === "USDC" && <>
-          <Method badge={<img className={styles.coinBadge} src="/prototype-money/xlm.svg" alt="" />} title="From another wallet" description="Send USDC to your Stellar address" onClick={() => router.push("/receive")} />
-          <div className={styles.infoRows}><div><span>Network</span><strong>Stellar only</strong></div><div><span>Network fee</span><strong>$0.25</strong></div><div><span>Memo</span><strong>Required</strong></div></div>
-          <Method badge={<DropGlyph />} title="Faucet" description="Adds $10 to your balance" onClick={onFaucet} />
+          <Method badge={<img className={styles.coinBadge} src="/prototype-money/xlm.svg" alt="" />} title="From another wallet" description={localPreview ? "Send USDC to your Stellar address" : "Deposit Testnet XLM to your Stellar address"} onClick={() => router.push("/receive")} />
+          <div className={styles.infoRows}><div><span>Network</span><strong>Stellar only</strong></div><div><span>Network fee</span><strong>{localPreview ? "$0.25" : "Testnet"}</strong></div><div><span>Memo</span><strong>{localPreview ? "Required" : "Check Receive"}</strong></div></div>
+          <Method badge={<DropGlyph />} title={localPreview ? "Faucet" : "Testnet faucet"} description={localPreview ? "Adds $10 to your balance" : "Request native XLM from Stellar Friendbot"} onClick={onFaucet} />
         </>}
       </div>
       <div className={styles.footer}><PoweredByStellar /></div>

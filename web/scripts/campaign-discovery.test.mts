@@ -61,10 +61,10 @@ function previewModule(preview: boolean) {
   return exports as { PREVIEW_CAMPAIGNS: Campaign[]; PREVIEW_TIME: number; PREVIEW_WALLET: { address: string }; isLocalPreview: boolean } & Record<string, unknown>;
 }
 
-test("route policy keeps flag0 default D4, explicit mode choices, and authoritative id/create intents", () => {
+test("prototype catalog is the default while explicit Testnet id and create intents stay authoritative", () => {
   for (const preview of [false, true]) {
     for (const mode of [undefined, "examples", "testnet", "unknown", "", "TESTNET"]) {
-      const expected = mode === "testnet" ? "testnet" : preview || mode === "examples" ? "examples" : "testnet";
+      const expected = mode === "testnet" ? "testnet" : "examples";
       assert.equal(campaignDiscoveryView({ mode }, preview), expected, `${preview}:${mode}`);
       assert.equal(campaignDiscoveryView({ mode, create: "0" }, preview), expected);
       assert.equal(campaignDiscoveryView({ mode, create: "true" }, preview), expected);

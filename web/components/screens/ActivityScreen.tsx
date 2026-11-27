@@ -358,6 +358,10 @@ export default function ActivityScreen() {
           aria-labelledby="activity-tab-personal"
           className={styles.creamPanel}
         >
+          <div className={styles.activityFilters} role="group" aria-label={h("activityFilters")}>
+            {personalFilters.map(item => <button key={item.id} type="button" aria-pressed={filter === item.id}
+              onClick={() => { setFilter(item.id); setExpanded(null); }}>{h(item.label)}</button>)}
+          </div>
           {!isLocalPreview ? (
             <div data-personal-history-state={authError ? "auth-error" : loading ? "loading" : !owner ? "signed-out" : personal.status === "error" ? "error" : !address ? "no-wallet" : personal.items.length ? "ready" : "empty"}>
               {loading ? (
@@ -390,10 +394,6 @@ export default function ActivityScreen() {
                     </button>
                   </div>
                   {address ? <p className={styles.liveStatus} data-activity-auto-update>{h(refreshing ? "updating" : "autoUpdates")}</p> : null}
-                  {personal.items.length ? <div className={styles.activityFilters} role="group" aria-label={h("activityFilters")}>
-                    {personalFilters.map(item => <button key={item.id} type="button" aria-pressed={filter === item.id}
-                      onClick={() => { setFilter(item.id); setExpanded(null); }}>{h(item.label)}</button>)}
-                  </div> : null}
                   {personal.items.length ? (
                     <details className={styles.historyNotes}>
                       <summary>{h("historyDetails")}</summary>
