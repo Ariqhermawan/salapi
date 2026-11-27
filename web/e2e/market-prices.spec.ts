@@ -93,8 +93,8 @@ test.describe("CoinGecko wallet estimates, isolated browser QA", () => {
     const actions = home.getByRole("navigation", { name: "Wallet actions", exact: true });
     for (const label of ["Top up", "Withdraw", "Send", "Receive"]) await expect(actions.getByRole("link", { name: label, exact: true })).toBeVisible();
     await market.locator("details > summary").click();
-    await market.getByRole("button", { name: "Refresh prices", exact: true }).click();
     price = 0.3;
+    await market.getByRole("button", { name: "Refresh prices", exact: true }).click();
     await expect(market.locator("[data-market-estimate]")).toHaveText("≈ $3,000.00 USD");
     expect(fixture.calls.quotes).toBe(2);
     expect(fixture.calls.walletFailuresVerified).toBe(1);

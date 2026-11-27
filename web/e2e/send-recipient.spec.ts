@@ -168,7 +168,8 @@ for (const width of [390, 1280]) test(`review shows a permitted account photo an
   expect(await dialog.evaluate(node => node.matches(":modal"))).toBe(true);
   const bounds = await dialog.boundingBox(); const frame = await page.locator(".sl-app-frame").boundingBox();
   const confirm = await dialog.getByRole("button", { name: "Confirm Testnet transfer", exact: true }).boundingBox();
-  const navigation = await page.locator(".sl-tabbar").boundingBox();
+  const navigationLocator = page.locator(".sl-tabbar");
+  const navigation = await navigationLocator.isVisible() ? await navigationLocator.boundingBox() : null;
   expect(bounds!.x).toBeGreaterThanOrEqual(frame!.x);
   expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(frame!.x + frame!.width);
   expect(Math.abs(bounds!.y + bounds!.height - (frame!.y + frame!.height))).toBeLessThanOrEqual(1);
