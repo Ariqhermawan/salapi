@@ -7,7 +7,7 @@ import PrototypeDonationScreen from "@/components/screens/PrototypeDonationScree
 export default async function DonateReviewAliasPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ amount?: string }> }) {
   const { id } = await params;
   const { amount } = await searchParams;
-  if (isLocalPreview && PROTOTYPE_CAUSES.some(cause => cause.id === id))
+  if (PROTOTYPE_CAUSES.some(cause => cause.id === id))
     return <PrototypeDonationScreen id={id} step="review" amount={typeof amount === "string" ? amount : ""} />;
   const campaignId = resolveCampaignRouteId(id, isLocalPreview);
   if (campaignId) redirect(`/campaigns?id=${encodeURIComponent(campaignId)}`);
