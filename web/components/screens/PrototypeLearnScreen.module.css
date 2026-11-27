@@ -11,4 +11,6 @@
 .legal { display:flex; align-items:center; justify-content:center; gap:16px; margin-top:16px; }
 .legal button { padding:0; border:0; background:none; color:#696e78; font:400 14px/20px var(--font-geist-sans),system-ui,sans-serif; cursor:pointer; }
 .powered { margin-top:4px; }
-.guide summary:focus-visible,.link:focus-visible,.legal button:focus-visible { outline:2px solid #3155dc; outline-offset:3px; border-radius:4px; }
+.localeControl select { min-height:32px; max-width:116px; border:1px solid #e8e9ed; border-radius:10px; background:#fff; color:#171717; padding:0 8px; font:500 12px/18px var(--font-geist-sans),system-ui,sans-serif; }
+.visuallyHidden { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+.guide summary:focus-visible,.link:focus-visible,.legal button:focus-visible,.localeControl select:focus-visible { outline:2px solid #3155dc; outline-offset:3px; border-radius:4px; }

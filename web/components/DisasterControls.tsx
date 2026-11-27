@@ -247,7 +247,7 @@ export default function DisasterControls({
           )}
           {(activityFilter === "all" || activityFilter === "in") && (
             <>
-              <div className={styles.vaultContributionHeading}><h3>Contributions</h3><span>1% of every donation</span></div>
+              <div className={styles.vaultContributionHeading}><h3>Contributions</h3><span>Separate Testnet deposits</span></div>
               <section className={styles.vaultContributions} aria-label="Contributions">
                 <p className={styles.activityEmpty}>Contribution history is unavailable until the Testnet pool is verified.</p>
               </section>
@@ -829,7 +829,7 @@ export default function DisasterControls({
               {(activityFilter === "all" || activityFilter === "in") && (
                 <>
                   <div className={styles.vaultContributionHeading}>
-                    <h3>Contributions</h3><span>1% of every donation</span>
+                    <h3>Contributions</h3><span>Separate Testnet deposits</span>
                   </div>
                   <section className={styles.vaultContributions} aria-label="Contributions">
                     {contributionEvents.length === 0 ? <p className={styles.activityEmpty}>No contributions yet</p> : contributionEvents.map(event => {

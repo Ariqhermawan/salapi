@@ -198,7 +198,7 @@ test.describe("D3 local UI and HTTP authorization", () => {
     await expect(page).toHaveURL(/\/vault\?tab=activity&filter=in$/);
     await expect(panel.getByRole("tab", { name: "Contributions", exact: true })).toHaveAttribute("aria-selected", "true");
     await expect(panel.getByRole("heading", { name: "Contributions", exact: true })).toBeVisible();
-    await expect(panel.getByText("1% of every donation", { exact: true })).toBeVisible();
+    await expect(panel.getByText("Separate Testnet deposits", { exact: true })).toBeVisible();
     await expect(panel.getByText("Contributed to the Disaster Vault", { exact: true })).toBeVisible();
     await expect(panel.locator('[class*="vaultBanknote"]')).toHaveCount(16);
     const animation = await panel.locator('[class*="vaultBanknote"]').first().evaluate(element => getComputedStyle(element).animationName);
