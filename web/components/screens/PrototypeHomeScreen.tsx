@@ -111,7 +111,7 @@ export default function PrototypeHomeScreen({ liveData }: { liveData?: Prototype
   const showComingSoon = () => window.dispatchEvent(new CustomEvent("salapi:success-motion", { detail: "Social feed is coming soon" }));
   const walletHref = (href: string) => liveData?.guest ? `/signin?next=${encodeURIComponent(href)}` : href;
 
-  return <div className={styles.home} data-testid="prototype-home">
+  return <div className={styles.home} data-testid={liveData ? "home-dashboard" : "prototype-home"}>
     <header className={styles.greeting}>
       <Link href="/you" className={styles.mark} aria-label="Your account">
         <Image src="/salapi-mark-prototype.svg" alt="Salapi" width={28} height={28} priority />
@@ -123,7 +123,7 @@ export default function PrototypeHomeScreen({ liveData }: { liveData?: Prototype
       </Link>
     </header>
 
-    <section className={styles.balance} aria-label={liveData?.guest ? "Your Testnet wallet" : "Total balance"}>
+    <section className={styles.balance} aria-label={liveData ? "Your Testnet wallet" : "Total balance"}>
       <div className={styles.balanceHeader}>
         <span>Total balance <span className={styles.testnet}>Testnet</span></span>
         <Image src="/stellar-white.png" alt="Powered by Stellar" width={68} height={17} />
@@ -208,7 +208,7 @@ export default function PrototypeHomeScreen({ liveData }: { liveData?: Prototype
         <span className={styles.vaultPig} aria-hidden="true"><img src="/prototype-ui/disaster-vault-funded.webp" alt="" /></span>
         <strong>Disaster Vault</strong><span>{liveData ? "View vault" : "$1,284.20"}</span>
       </Link>
-      <button type="button" className={styles.tile} data-coming-soon onClick={showComingSoon}>
+      <button type="button" className={styles.tile} data-coming-soon data-testid={liveData ? "social-feed-coming-soon" : undefined} disabled={Boolean(liveData)} onClick={showComingSoon}>
         <Image src="/illustrations/tile-feed.png" alt="" width={44} height={32} />
         <strong>Social feed</strong><span>Coming soon</span>
       </button>
