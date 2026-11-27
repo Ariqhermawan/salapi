@@ -1,8 +1,12 @@
 import "server-only";
 
+import { StrKey } from "@stellar/stellar-sdk";
 import { isAuthSessionMissingError } from "@supabase/supabase-js";
 import { isLocalPreview } from "@/lib/local-preview";
+import { estimateUsdc } from "@/lib/market-prices";
 import { isSignupSourceChoice, referralCode, referralCodeFromNext, referralSignupEligible, signupReturnPath, type SignupSource } from "@/lib/referral";
+import { getMarketPrices } from "@/lib/server/marketPrices";
+import { donationCampaignId } from "@/lib/server/stellar";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseAdminConfigured, supabaseConfigured } from "@/lib/supabase/env";
 import { createSupabaseServer } from "@/lib/supabase/server";
@@ -33,6 +37,12 @@ export async function referralInviteRedirect(raw: string): Promise<string> {
 
 type Account = NonNullable<Awaited<ReturnType<typeof account>>>;
 type Admin = ReturnType<typeof createSupabaseAdmin>;
+type RewardStatus = "eligible" | "pending" | "preparing" | "submitted" | "paid" | "failed" | "unavailable";
+
+function rewardStatus(value: unknown): RewardStatus | null {
+  return typeof value === "string" && ["pending", "preparing", "submitted", "paid", "failed"].includes(value)
+    ? value as RewardStatus : null;
+}
 
 async function findInviter(admin: Admin, code: string, user: Account) {
   const { data: inviter, error } = await admin.from("referral_codes").select("owner_id,created_at").eq("code", code)
@@ -113,15 +123,85 @@ export async function readOwnReferral() {
     const { error: createError } = await admin.from("referral_codes").upsert({ owner_id: user.id },
       { onConflict: "owner_id", ignoreDuplicates: true }).abortSignal(AbortSignal.timeout(4000));
     if (createError) return { status: "unavailable" as const };
-    const [profile, count] = await Promise.all([
+    const [profile, count, market] = await Promise.all([
       admin.from("referral_codes").select("code").eq("owner_id", user.id).abortSignal(AbortSignal.timeout(4000)).single(),
       admin.from("referral_attributions").select("invited_id", { count: "exact", head: true })
         .eq("inviter_id", user.id).abortSignal(AbortSignal.timeout(4000)),
+      getMarketPrices(),
     ]);
     const code = profile.data && referralCode(profile.data.code);
     if (profile.error || count.error || count.count === null || !code) return { status: "unavailable" as const };
-    return { status: "ready" as const, code, invitedCount: count.count };
+
+    let qualifiedCount = 0;
+    let progressStatus: "ready" | "unavailable" = "unavailable";
+    const contractId = donationCampaignId();
+    if (contractId && market.status === "fresh" && StrKey.isValidContract(contractId)) {
+      const totals = await admin.rpc("referral_donation_totals", { p_inviter_id: user.id, p_contract_id: contractId })
+        .abortSignal(AbortSignal.timeout(6000));
+      if (!totals.error && Array.isArray(totals.data)) {
+        progressStatus = "ready";
+        const maxI128 = 170_141_183_460_469_231_731_687_303_715_884_105_727n;
+        for (const row of totals.data as unknown[]) {
+          if (!row || typeof row !== "object" || Array.isArray(row)) { progressStatus = "unavailable"; break; }
+          const total = (row as Record<string, unknown>).amount_stroops;
+          if (typeof total !== "string" || !/^(?:0|[1-9]\d{0,99})$/.test(total)) { progressStatus = "unavailable"; break; }
+          const raw = BigInt(total);
+          if (raw > maxI128) { progressStatus = "unavailable"; break; }
+          if ((estimateUsdc(total, market) ?? 0) >= 5) qualifiedCount += 1;
+        }
+        if (progressStatus === "unavailable") qualifiedCount = 0;
+      }
+    }
+
+    let currentRewardStatus: RewardStatus = "unavailable";
+    let rewardHash: string | null = null;
+    let usdcTrustline: boolean | null = null;
+    let walletReady = false;
+    if (progressStatus === "ready" && qualifiedCount >= 10) {
+      const payout = await admin.from("referral_reward_payouts").select("status,transaction_hash")
+        .eq("owner_id", user.id).abortSignal(AbortSignal.timeout(4000)).maybeSingle();
+      if (!payout.error) {
+        const savedStatus = rewardStatus(payout.data?.status);
+        currentRewardStatus = payout.data ? savedStatus ?? "unavailable" : "eligible";
+        rewardHash = typeof payout.data?.transaction_hash === "string" ? payout.data.transaction_hash : null;
+        if (currentRewardStatus === "eligible" || currentRewardStatus === "pending" || currentRewardStatus === "preparing" || currentRewardStatus === "submitted") {
+          const wallet = await admin.from("wallets").select("public_key").eq("user_id", user.id)
+            .abortSignal(AbortSignal.timeout(4000)).maybeSingle();
+          if (!wallet.error && typeof wallet.data?.public_key === "string" && StrKey.isValidEd25519PublicKey(wallet.data.public_key)) {
+            walletReady = true;
+            usdcTrustline = await referralUsdcTrustline(wallet.data.public_key);
+          } else if (!wallet.error) usdcTrustline = false;
+        }
+      }
+    } else if (progressStatus === "ready") {
+      currentRewardStatus = "eligible";
+    }
+
+    return { status: "ready" as const, code, invitedCount: count.count, qualifiedCount, progressStatus, rewardStatus: currentRewardStatus, rewardHash, usdcTrustline, walletReady };
   } catch {
     return { status: "unavailable" as const };
+  }
+}
+
+async function referralUsdcTrustline(publicKey: string): Promise<boolean | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 4000);
+  try {
+    const response = await fetch(`https://horizon-testnet.stellar.org/accounts/${publicKey}`, {
+      cache: "no-store", redirect: "error", signal: controller.signal,
+    });
+    if (!response.ok) return null;
+    const raw: unknown = await response.json();
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+    const accountData = raw as { account_id?: unknown; balances?: unknown };
+    if (accountData.account_id !== publicKey || !Array.isArray(accountData.balances)) return null;
+    return accountData.balances.some(value => value && typeof value === "object" && !Array.isArray(value)
+      && (value as Record<string, unknown>).asset_type === "credit_alphanum4"
+      && (value as Record<string, unknown>).asset_code === "USDC"
+      && (value as Record<string, unknown>).asset_issuer === "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5");
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
   }
 }

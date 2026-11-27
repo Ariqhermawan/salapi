@@ -30,6 +30,8 @@ export default function InviteScreen({ referral }: { referral: Awaited<ReturnTyp
   const previewCode = "K7M2Q9XD";
   const intro = preview ? "Anyone who signs up with your link or code is recorded as invited by you." : c.referralIntro;
   const ready = referral.status === "ready" || preview;
+  const earnedNow = preview ? rewardEarned : referral.status === "ready" && referral.rewardStatus === "paid";
+  const rewardCount = preview ? rewardEarned ? 10 : 3 : referral.status === "ready" && referral.progressStatus === "ready" ? referral.qualifiedCount : null;
   const code = preview ? previewCode : referral.status === "ready" ? referral.code : "";
   const link = preview ? `https://salapi.app/r/${previewCode}` : ready ? `${origin}/r/${code}` : "";
   const shownLink = preview ? `salapi.app/r/${previewCode}` : link;
@@ -84,11 +86,11 @@ export default function InviteScreen({ referral }: { referral: Awaited<ReturnTyp
             </div>
             {!preview && <p className={styles.count}>{c.referralCount} <strong>{referral.status === "ready" ? referral.invitedCount : 0}</strong></p>}
           </section>
-          {preview && <Link className={styles.campaign} href={rewardEarned ? "/you/referrals?state=earned" : "/you/referrals"}>
-            <span className={styles.campaignHead}><strong>Referral reward</strong><strong>{rewardEarned ? "Earned" : "3 of 10"}</strong></span>
-            <span className={styles.campaignProgress} role="img" aria-label={rewardEarned ? "10 of 10" : "3 of 10"}><i style={{ width: rewardEarned ? "100%" : undefined }} /></span>
-            <span className={styles.campaignTerms}>{rewardEarned ? "You earned $20 USDC: 10 friends you invited have each donated $5 or more. It was added to your balance." : "You get $20 USDC once 10 friends you invited have each donated $5 or more."}</span>
-            <span className={styles.campaignLink}>{rewardEarned ? "View your referrals" : "View your referrals"} <span aria-hidden="true">→</span></span>
+          {(preview || referral.status === "ready") && <Link className={styles.campaign} href={earnedNow ? "/activity/referral-reward" : "/you/referrals"}>
+            <span className={styles.campaignHead}><strong>Referral reward</strong><strong>{earnedNow ? "Earned" : `${rewardCount === null ? "—" : Math.min(rewardCount, 10)} of 10`}</strong></span>
+            <span className={styles.campaignProgress} role="img" aria-label={earnedNow ? "10 of 10" : `${rewardCount ?? 0} of 10`}><i style={{ width: earnedNow ? "100%" : rewardCount === null ? "0%" : `${Math.min(rewardCount * 10, 100)}%` }} /></span>
+            <span className={styles.campaignTerms}>{earnedNow ? "You earned $20 USDC on Stellar Testnet. View your transaction receipt." : rewardCount === null ? "Verified Testnet donation progress will appear when receipts and a fresh price quote are available." : "You get $20 USDC on Testnet once 10 friends you invited have each donated at least $5 at a fresh market estimate."}</span>
+            <span className={styles.campaignLink}>View your referrals <span aria-hidden="true">→</span></span>
           </Link>}
           {feedback === "failed" && <p role="alert" className={styles.note}>{c.referralCopyError}</p>}
           {feedback && feedback !== "failed" && <p role="status" className="sr-only">{c.referralCopied}</p>}

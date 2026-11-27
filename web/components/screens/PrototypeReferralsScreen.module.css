@@ -9,6 +9,7 @@
 .progress i { display:block; height:100%; border-radius:inherit; background:#335cff; }
 .terms { margin:12px 0 0; padding-top:12px; border-top:1px solid var(--sl-line,#e5e7eb); color:var(--sl-sub,#737985); font-size:12px; line-height:18px; }
 .backendNote { margin:0; padding:9px 11px; border-radius:10px; background:#f4f5f7; color:var(--sl-sub,#737985); font-size:12px; line-height:17px; }
+.rewardExplorer { justify-self:center; color:#3155dc; font-size:12px; font-weight:600; text-decoration:none; }
 .inviteButton { display:grid; min-height:44px; place-items:center; border-radius:999px; background:#f0f2ff; color:#3155dc; font-size:14px; font-weight:600; text-decoration:none; }
 .groupTitle { margin:18px 4px 8px; font-size:14px; font-weight:600; line-height:20px; }
 .rows { overflow:hidden; padding:0 14px; border:1px solid var(--sl-line,#e5e7eb); border-radius:17px; background:var(--sl-surface,#fff); }
@@ -32,5 +33,6 @@
 [data-theme="dark"] .rows { border-color:#333; }
 [data-theme="dark"] .friend + .friend,.dark .terms span + span { border-color:#333; }
 [data-theme="dark"] .backendNote { background:#252525; }
+[data-theme="dark"] .rewardExplorer { color:#9bb0ff; }
 [data-theme="dark"] .donated { background:#173627; color:#7cd69b; }
 [data-theme="dark"] .waiting { background:#292929; color:#aaa; }
