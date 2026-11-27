@@ -240,7 +240,7 @@ export default function PublicDocsPage() {
             <li>D4 escrows each campaign separately, fixes its three approvers and creator share at creation, requires two approvals of the same proof, and supports full donor-claimed refunds if review expires incomplete. The Testnet asset is fixed at deployment. D4 has no D3 spending cap or 20-ledger wait.</li>
             <li>Independent audit, independent signer custody, and fiat anchor integration remain outside this Testnet implementation.</li>
             <li>Current wallets are managed by Salapi. Three distinct signer wallets do not establish three independent organizations or independent key custody.</li>
-            <li>Smart Savings is coming soon in this product experience. Its Testnet contract source remains listed as technical reference.</li>
+            <li>Smart Savings is available on Testnet for signed-in wallet owners. One contract vault holds the on-chain balance; additional goal labels and allocation weights are saved locally per wallet in that browser. No yield or fiat withdrawal is available.</li>
           </ul>
           <p style={{ margin: "12px 0 0", color: "#5b6472", fontSize: 12.5, lineHeight: 1.5 }}>
             Security assumptions, custody trade-offs, and the mainnet checklist

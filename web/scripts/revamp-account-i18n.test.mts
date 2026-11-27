@@ -11,11 +11,13 @@ import { ACCOUNT_COPY, accountCopy, accountText, accountCurrencyName, accountLan
 import { xlmDepositCopy } from "../lib/i18n/xlm-deposit.ts";
 import { homeCopy } from "../lib/i18n/revamp-home.ts";
 import { signupSourceCopy } from "../lib/i18n/signup-source.ts";
+import * as campaignDiscoveryCopy from "../lib/i18n/revamp-campaign-discovery.ts";
 import { accountPhotoCopy } from "../lib/i18n/account-photo.ts";
 import { LOCALES, LOCALE_META, type Locale } from "../lib/i18n/config.ts";
 import { DICTS } from "../lib/i18n/dictionaries.ts";
 import { CURRENCY, localAmount, formatLocalAmount, pesoFromLocal } from "../lib/ui/currency.ts";
-import { PREVIEW_WALLET } from "../lib/local-preview.ts";
+import { PREVIEW_RECIPIENT, PREVIEW_WALLET } from "../lib/local-preview.ts";
+import { xlmToStroopsExact } from "../lib/money.ts";
 import { demoAmountMinor, nextDemoPaymentStatus } from "../lib/provider-demo.ts";
 import * as paymentChannels from "../lib/payment-channels.ts";
 import { paymentChannelText } from "../lib/i18n/payment-channels.ts";
@@ -23,8 +25,10 @@ import { createSumsubDemoState, canPrepareSumsubDemo, canChooseSumsubDemoResult,
 import { requireWalletState } from "../lib/wallet-state.ts";
 
 const files = ["PaymentProviderDemo", "TopUpScreen", "WithdrawScreen", "KycTierScreen", "SettingsScreen", "LanguagePickerScreen", "CurrencyPickerScreen"] as const;
-const sources = Object.fromEntries(files.map(name => [name, readFileSync(new URL(`../components/screens/${name}.tsx`, import.meta.url), "utf8")])) as Record<typeof files[number], string>;
-const codes = Object.fromEntries(files.map(name => [name, ts.transpileModule(sources[name], { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText]));
+type ScreenName = typeof files[number] | "TestnetWithdrawScreen";
+const runtimeFiles: readonly ScreenName[] = [...files, "TestnetWithdrawScreen"];
+const sources = Object.fromEntries(runtimeFiles.map(name => [name, readFileSync(new URL(`../components/screens/${name}.tsx`, import.meta.url), "utf8")])) as Record<ScreenName, string>;
+const codes = Object.fromEntries(runtimeFiles.map(name => [name, ts.transpileModule(sources[name], { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText]));
 const copyModule = { accountCopy, accountText, accountCurrencyName, accountLanguageName };
 const allowanceModule = { exports: {} as { KYC_TIER_CEILING: Record<number, number> } };
 runInNewContext(ts.transpileModule(readFileSync(new URL("../lib/circles/allowance.ts", import.meta.url), "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, { exports: allowanceModule.exports, require: () => ({}) });
@@ -38,7 +42,7 @@ function translate(locale: Locale, key: string): string {
 
 // Render the actual screens with real React SSR. No server action, browser,
 // provider, storage, camera or auth boundary is permitted in this harness.
-function render(name: typeof files[number], locale: Locale, preview = true, props: Record<string, unknown> = {}, mounted?: { hooks: typeof React; walletState: () => Promise<{ ok: false; error: string }> }): string {
+function render(name: ScreenName, locale: Locale, preview = true, props: Record<string, unknown> = {}, mounted?: { hooks: typeof React; walletState: () => Promise<{ ok: false; error: string }> }): string {
   const screen = {} as { default: React.ComponentType<Record<string, unknown>> };
   const forbidden = () => { throw new Error("Unexpected external boundary"); };
   const box = (props: Record<string, unknown>) => React.createElement("div", null, props.leading as React.ReactNode, props.title as React.ReactNode, props.sub as React.ReactNode, props.children as React.ReactNode, props.trailing as React.ReactNode);
@@ -51,7 +55,8 @@ function render(name: typeof files[number], locale: Locale, preview = true, prop
       if (dependency === "@supabase/supabase-js") return { isAuthSessionMissingError };
       if (dependency === "next/link") return { default: box };
       if (dependency === "next/image") return { default: (props: Record<string, unknown>) => React.createElement("span", null, props.alt as string) };
-      if (dependency === "next/navigation") return { useRouter: () => ({ push: forbidden }) };
+      if (dependency === "next/navigation") return { useRouter: () => ({ push: forbidden, replace: forbidden }) };
+      if (dependency.startsWith("@phosphor-icons/react/dist/csr/")) return { [dependency.split("/").at(-1)!]: () => null };
       if (dependency === "@phosphor-icons/react/dist/csr/Moon") return { Moon: () => null };
       if (dependency === "@phosphor-icons/react/dist/csr/Sun") return { Sun: () => null };
       if (dependency === "@/components/I18nProvider") return { useT: () => ({ locale, currency: "en", currencyPref: "en", t: (key: string) => translate(locale, key), setLocale: forbidden, setCurrency: forbidden }) };
@@ -62,9 +67,11 @@ function render(name: typeof files[number], locale: Locale, preview = true, prop
       if (dependency === "@/lib/i18n/account-photo") return { accountPhotoCopy };
       if (dependency === "@/lib/i18n/revamp-account") return copyModule;
       if (dependency === "@/lib/i18n/revamp-home") return { homeCopy };
+      if (dependency === "@/lib/i18n/revamp-campaign-discovery") return campaignDiscoveryCopy;
       if (dependency === "@/lib/i18n/signup-source") return { signupSourceCopy };
       if (dependency === "@/lib/i18n/xlm-deposit") return { xlmDepositCopy };
       if (dependency === "./XlmDepositPanel") return { default: () => React.createElement("span", null, xlmDepositCopy(locale).warning) };
+      if (["./PrototypeTopUpScreen", "./PrototypeTopUpFlowScreen", "./PrototypeWithdrawScreen", "./TestnetWithdrawScreen"].includes(dependency)) return { default: () => React.createElement("span", null, dependency.slice(2)) };
       if (dependency === "@/lib/i18n/config") return { LOCALES, LOCALE_META };
       if (dependency === "@/lib/ui/currency") return { CURRENCY, localAmount, formatLocalAmount, pesoFromLocal };
       if (dependency === "@/lib/wallet-state") return { requireWalletState };
@@ -74,7 +81,8 @@ function render(name: typeof files[number], locale: Locale, preview = true, prop
       if (dependency === "@/components/ui/SuccessMotion") return { default: box };
       if (dependency === "./PaymentProviderDemo") return { default: () => React.createElement("span", null, accountCopy(locale).providersDisconnected) };
       if (dependency === "./PaymentChannelOptions") return { default: () => React.createElement("span", null, paymentChannelText(locale, "notMoney")) };
-      if (dependency === "@/lib/local-preview") return { isLocalPreview: preview, PREVIEW_WALLET };
+      if (dependency === "@/lib/local-preview") return { isLocalPreview: preview, PREVIEW_WALLET, PREVIEW_RECIPIENT };
+      if (dependency === "@/lib/money") return { xlmToStroopsExact };
       if (dependency === "@/lib/provider-demo") return { demoAmountMinor, nextDemoPaymentStatus };
       if (dependency === "@/lib/payment-channels") return paymentChannels;
       if (dependency === "@/lib/i18n/payment-channels") return { paymentChannelText };
@@ -85,6 +93,7 @@ function render(name: typeof files[number], locale: Locale, preview = true, prop
       if (dependency === "@/lib/supabase/env") return { supabaseConfigured: () => false };
       if (dependency === "@/lib/supabase/client") return { createSupabaseBrowser: forbidden };
       if (dependency === "@/app/actions") return { walletState: mounted?.walletState ?? forbidden, myHandle: forbidden, topUpSandbox: forbidden, withdrawSandbox: forbidden, renameUsername: forbidden, registerUsername: forbidden };
+      if (dependency === "@/app/withdraw-actions") return { walletWithdrawalState: mounted?.walletState ?? forbidden, prepareWalletWithdrawal: forbidden, confirmWalletWithdrawal: forbidden, cancelWalletWithdrawal: forbidden };
       if (dependency === "@/app/account-actions") return { settingsHandle: forbidden };
       if (dependency.endsWith(".module.css")) return { default: new Proxy({}, { get: (_, key) => key }) };
       throw new Error(`Unexpected dependency: ${dependency}`);
@@ -121,8 +130,14 @@ for (const locale of LOCALES) {
   const c = accountCopy(locale);
   test(`${locale}: actual account and preference screens localize warnings and option descriptions`, () => {
     const settings = render("SettingsScreen", locale);
-    for (const key of ["previewAccount", "localReminders", "biometricUnavailable", "pinUnavailable", "visibilityPlanned", "testnetTerms"] as const) assert.ok(settings.includes(c[key]), key);
-    assert.ok(settings.includes(accountCurrencyName(locale, "en")));
+    assert.ok(settings.includes(`@${PREVIEW_WALLET.handle}`));
+    for (const key of ["accountDetails", "fundraising", "yourCauses", "darkMode", "off", "helpCenter", "sendFeedback", "feedbackDescription", "privacy", "terms", "checkForUpdates"] as const) assert.ok(settings.includes(c[key]), key);
+    const signedOutSettings = render("SettingsScreen", locale, false);
+    assert.ok(signedOutSettings.includes(c.profileLoading));
+    assert.ok(signedOutSettings.includes('data-profile-state="loading"'));
+    assert.ok(!signedOutSettings.includes(c.guestAccountDetails));
+    assert.ok(settings.includes("USD"));
+    assert.ok(signedOutSettings.includes(accountCurrencyName(locale, "en")));
     const languages = render("LanguagePickerScreen", locale);
     for (const language of LOCALES) assert.ok(languages.includes(accountLanguageName(locale, language)));
     const currencies = render("CurrencyPickerScreen", locale);
@@ -145,11 +160,12 @@ for (const locale of LOCALES) {
     assert.doesNotMatch(payout, /type="(?:file|email|password)"/);
   });
   test(`${locale}: real non-preview faucet and withdrawal surfaces retain Testnet/sandbox warnings`, () => {
-    const topup = render("TopUpScreen", locale, false);
+    assert.ok(render("TopUpScreen", locale, false).includes("PrototypeTopUpScreen"));
+    const topup = render("TopUpScreen", locale, false, { initialMethod: "xlm" });
     assert.ok(topup.includes(xlmDepositCopy(locale).deposit));
     assert.ok(topup.includes(xlmDepositCopy(locale).warning));
     const withdraw = render("WithdrawScreen", locale, false);
-    for (const key of ["noCashOut", "withdrawalIntro", "withdrawalsPlanned", "reviewSandbox"] as const) assert.ok(withdraw.includes(c[key]), key);
+    assert.ok(withdraw.includes("TestnetWithdrawScreen"));
   });
   test(`${locale}: mounted withdrawal reports a returned wallet failure without a zero balance or perpetual loading`, async () => {
     const slots: unknown[] = [], effects: (() => void)[] = [];
@@ -162,12 +178,12 @@ for (const locale of LOCALES) {
       useTransition: () => [false, forbidden],
     } as unknown as typeof React;
     const runtime = { hooks, walletState: async () => { reads++; return { ok: false as const, error: "Isolated unavailable wallet" }; } };
-    const draw = () => { cursor = 0; return render("WithdrawScreen", locale, false, {}, runtime); };
-    assert.ok(draw().includes(c.loading)); mountedOnce = true;
+    const draw = () => { cursor = 0; return render("TestnetWithdrawScreen", locale, false, { initialCurrency: "XLM" }, runtime); };
+    assert.ok(draw().includes("Reading your signed-in Testnet wallet.")); mountedOnce = true;
     for (const effect of effects) effect(); await new Promise(resolve => setImmediate(resolve));
-    const html = draw(); assert.ok(html.includes(c.balanceLoad)); assert.match(html, /role="alert"/);
-    assert.equal(html.includes(c.loading), false); assert.doesNotMatch(html, /data-money-value=/);
-    assert.ok(html.includes(c.withdrawalsPlanned)); assert.match(html, /disabled=""/); assert.equal(reads, 1);
+    const html = draw(); assert.ok(html.includes("Isolated unavailable wallet")); assert.match(html, /role="status"/);
+    assert.equal(html.includes("Reading your signed-in Testnet wallet."), false); assert.doesNotMatch(html, /Wallet balance: /);
+    assert.ok(html.includes("Testnet wallet balance unavailable")); assert.match(html, /disabled=""/); assert.equal(reads, 1);
   });
   test(`${locale}: actual KYC surface localizes checklist and preserves no-verification/proposed-tier warnings`, () => {
     const kyc = render("KycTierScreen", locale);

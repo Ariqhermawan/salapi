@@ -141,11 +141,12 @@ function screenHarness({ locale = "en" as Locale, preview = false, nextPath = "/
   let stateCursor = 0, refCursor = 0;
   const calls = { initializations: [] as ReturnType<typeof deferred<{ ok: boolean; address?: string }>>[], replaces: [] as string[] };
   const exports = {} as { default: (props: { nextPath: string }) => React.ReactElement };
-  runInNewContext(compile("../components/screens/WalletSetupScreen.tsx"), { exports,
+  runInNewContext(compile("../components/screens/WalletSetupScreen.tsx"), { exports, navigator: { onLine: true },
     require(name: string) {
       if (name === "react") return { ...React, useState(initial: unknown) { const index = stateCursor++; if (index >= states.length) states[index] = initial; return [states[index], (value: unknown) => { states[index] = typeof value === "function" ? value(states[index]) : value; }]; }, useRef(initial: unknown) { const index = refCursor++; return refs[index] ?? (refs[index] = { current: initial }); } };
       if (name === "react/jsx-runtime") return jsxRuntime;
       if (name === "next/link") return { __esModule: true, default: (props: { href: string; children: React.ReactNode }) => React.createElement("a", { href: props.href }, props.children) };
+      if (name === "next/image") return { __esModule: true, default: (props: Record<string, unknown>) => React.createElement("img", props) };
       if (name === "next/navigation") return { useRouter: () => ({ replace: (destination: string) => calls.replaces.push(destination) }) };
       if (name === "@/components/I18nProvider") return { useT: () => ({ locale }) };
       if (name === "@/lib/i18n/wallet-setup") return { walletSetupCopy };
@@ -209,9 +210,11 @@ for (const next of ["https://evil.invalid", "//evil.invalid", "/\\evil.invalid",
   const save = (button(h, "retry").props.onClick as () => Promise<void>)(); h.calls.initializations[0].resolve({ ok: true, address }); await save;
   (button(h, "continue").props.onClick as () => void)(); assert.deepEqual(h.calls.replaces, ["/"]);
 });
-test("preview UI disables retry and callback guard never invokes initialization", async () => {
-  const h = screenHarness({ preview: true }); assert.equal(button(h, "retry").props.disabled, true); await (button(h, "retry").props.onClick as () => Promise<void>)();
-  assert.equal(h.calls.initializations.length, 0); assert.ok(renderToStaticMarkup(h.render()).includes(h.copy("preview")));
+test("preview retry only forwards to source questions and never initializes a wallet", async () => {
+  const h = screenHarness({ preview: true });
+  await (button(h, "retry").props.onClick as () => Promise<void>)();
+  assert.equal(h.calls.initializations.length, 0); assert.deepEqual(h.calls.replaces, ["/heard"]);
+  assert.ok(renderToStaticMarkup(h.render()).includes("Wallet setup is not confirmed yet"));
 });
 for (const locale of LOCALES) test(`${locale}: initial, waiting, failed and ready copy stay localized`, async () => {
   const h = screenHarness({ locale }); assert.ok(renderToStaticMarkup(h.render()).includes(h.copy("title")));

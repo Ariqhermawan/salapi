@@ -141,7 +141,7 @@ function room(id: number, name = `Room ${id}`): Room { return { id, name, status
 function screenSetup(fetchPage: (cursor?: number) => Promise<Page>, preview = false, scheduled = false) {
   const state: unknown[] = []; const effects: (() => void)[] = []; const transitions: Promise<unknown>[] = []; const cursors: (number | undefined)[] = []; let index = 0;
   const jsx = (type: string, props: Record<string, unknown>) => ({ type, props });
-  const api = loadModule<{ default(): Element }>(componentCode, {
+  const api = loadModule<{ default(props: { emptyPreview?: boolean }): Element }>(componentCode, {
     "react/jsx-runtime": { jsx, jsxs: jsx, Fragment: "Fragment" },
     "react": {
       useState: (initial: unknown) => { const i = index++; if (!(i in state)) state[i] = initial; return [state[i], (value: unknown) => { state[i] = typeof value === "function" ? value(state[i]) : value; }]; },
@@ -153,11 +153,13 @@ function screenSetup(fetchPage: (cursor?: number) => Promise<Page>, preview = fa
     "@/lib/ui/useGoBack": { useGoBack: () => () => {} }, "@/components/I18nProvider": { useT: () => ({ locale: "en", currency: "tl", t: (value: string) => value }) },
     "@/components/ui/kit": { ...Object.fromEntries(["AppBar", "IconButton", "Card", "Btn", "Chip", "PoweredByStellar"].map(name => [name, name])), T: {}, Ico: new Proxy({}, { get: () => () => null }) },
     "@/lib/ui/currency": { formatLocal: (value: number) => String(value) }, "@/lib/local-preview": { isLocalPreview: preview },
-    "./CampaignArisan.module.css": { default: {} }, "./arisan-preview": { readPreviewArisanRoom: () => null },
+    "./CampaignArisan.module.css": { default: {} },
+    "./PrototypeArisanListScreen.module.css": { default: { page: "page", emptyPage: "emptyPage", heading: "heading", emptyState: "emptyState", ways: "ways", emptyWays: "emptyWays", create: "create", join: "join", emptyFooter: "emptyFooter" } },
+    "./arisan-preview": { readPreviewArisanRoom: () => null },
     "@/components/ArisanInboxLink": { default: "InboxLink" },
     "@/app/actions": { arisanList: async (cursor?: number) => { cursors.push(cursor); return fetchPage(cursor); } },
   }, { sessionStorage: { getItem: () => null }, process: { env: { NEXT_PUBLIC_ARISAN_SCHEDULED: scheduled ? "1" : "0" } } });
-  const render = () => { index = 0; return api.default(); }; let tree = render(); for (const effect of effects.splice(0)) effect();
+  const render = () => { index = 0; return api.default({}); }; let tree = render(); for (const effect of effects.splice(0)) effect();
   async function settle() { while (transitions.length) await Promise.all(transitions.splice(0)); tree = render(); }
   function button(label: string) { return nodes(tree).find(node => ["button", "Btn"].includes(node.type) && text(node) === label); }
   return { cursors, settle, button, get tree() { return tree; },
@@ -165,11 +167,11 @@ function screenSetup(fetchPage: (cursor?: number) => Promise<Page>, preview = fa
   };
 }
 function roomLinks(tree: Element) { return nodes(tree).filter(node => node.type === "Link" && /^\/arisan\/\d+$/.test(String(node.props.href))); }
-test("scheduled rooms are discoverable from the arisan list only with the separate feature enabled", async () => {
+test("empty Arisan screen keeps the prototype actions without a separate scheduled-room CTA", async () => {
   for (const enabled of [false, true]) {
     const ui = screenSetup(async () => ({ ready: true, mine: [], total: 0, nextCursor: null }), false, enabled); await ui.settle();
-    const links = nodes(ui.tree).filter(node => node.type === "Link" && node.props.href === "/arisan/scheduled"); assert.equal(links.length, enabled ? 1 : 0);
-    if (enabled) assert.match(text(links[0]), /Your scheduled arisan rooms/);
+    const links = nodes(ui.tree).filter(node => node.type === "Link");
+    assert.deepEqual(links.map(node => node.props.href), ["/arisan/new", "/arisan/join"]);
   }
 });
 test("the real list UI continues through empty membership pages until an older member is reachable", async () => {

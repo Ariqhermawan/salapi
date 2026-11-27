@@ -135,6 +135,13 @@ function setup(name: ScreenName, locale: Locale = "en", preview = true, circleId
       if (module === "@/lib/i18n/circles-content") return content;
       if (module === "@/components/CirclesSignupEmail") return signupEmail;
       if (module === "@/lib/ui/useCirclesSignupIdentity") return { useCirclesSignupIdentity: () => ({ identity: { status: "guest" }, refresh: () => {}, captureOwnerRevision: () => 0, isCurrentOwner: () => true }) };
+      if (module === "@/lib/circles/drafts") return { parseCircleDraft(value: unknown) {
+        if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+        const draft = value as Record<string, unknown>;
+        const gallery = draftGallery.readDraftGallery(draft.category as CircleCategory, draft.cover, draft.gallery);
+        return gallery ? { ...draft, gallery } : null;
+      } };
+      if (module === "@/app/circles-draft-actions") return { savePrivateCircleDraft: forbidden("action"), readPrivateCircleDraft: forbidden("action") };
       if (module === "@/lib/ui/useCircleTestnet") return { useCircleTestnet: () => ({ result: qaState === "loading" ? null : qaState === "ready" ? { ok: true, circleId, mapping: { campaignId: "6" } } : { ok: false, code: qaState, circleId }, loading: qaState === "loading", refresh: forbidden("action") }) };
       if (["@/components/CircleTestnetSummary", "@/components/CampaignDonorActivity", "@/components/CampaignUpdateSubscription", "@/components/CampaignOrganizerUpdates", "@/components/CircleTestnetDonate"].includes(module)) return { default: module };
       if (module === "@/lib/i18n/revamp-campaign-discovery") return discoveryCopy;
@@ -451,7 +458,7 @@ test("four-locale creator wizard prepares the complete draft with explicit save 
     screen.click(c("Continue")); assert.ok(text(screen.tree).includes(c("Give the idea a goal.")));
     screen.input("circle-draft-goal", "10.00"); screen.click(c("Continue"));
     assert.ok(text(screen.tree).includes(c("Make the concept yours."))); screen.click(c("Continue"));
-    assert.ok(text(screen.tree).includes(c("Review your browser draft")));
+    assert.ok(text(screen.tree).includes(c("Review your private draft")));
     screen.check(c("Save this concept on this device only. It is not a live campaign and will replace the last Circles browser draft."));
     screen.click(c("Save complete browser draft"));
     assert.ok(text(screen.tree).includes(c("Complete draft saved in this browser.")));

@@ -15,5 +15,5 @@ export default async function CampaignsPage({ searchParams }: { searchParams: Pr
   if (view === "examples") return <><CampaignDiscoveryNav view={view} /><CirclesDiscoverScreen campaignEntry />
   </>;
   if (campaignId || create === "1") return <CampaignScreen key={campaignId + ":" + (create === "1" ? "create" : "view") + ":" + (report === "1" ? "report" : "normal")} id={campaignId} initialCreate={create === "1"} initialReport={report === "1"} />;
-  return <CampaignCausesScreen />;
+  return <><CampaignDiscoveryNav view={view} /><CampaignCausesScreen /></>;
 }

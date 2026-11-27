@@ -83,7 +83,7 @@ async function mount(page: Page, width = 390, stream = true, withQuote = false) 
     f.auth=id=>{f.owner=id;for(const cb of auths)cb(id?'SIGNED_IN':'SIGNED_OUT',id?{user:{id}}:null)};
     require('react-dom/client').createRoot(document.getElementById('fixture-root')).render(React().createElement(require('screen').default));
   ` });
-  await expect(page.getByRole("heading", { name: "Your Testnet transfers" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Activity", exact: true })).toBeVisible();
   await page.clock.runFor(250);
   await expect(page.locator("[data-activity-auto-update]")).toHaveText("Updates automatically while this page is open.");
 }

@@ -74,8 +74,10 @@ function mountNavigation(initialHref = "/") {
     exports, require(name: string) {
       if (name === "react/jsx-runtime") return { jsx, jsxs: jsx };
       if (name === "react") return { useRef: () => ref };
+      if (name === "@phosphor-icons/react") return new Proxy({}, { get: () => () => null });
       if (name === "next/navigation") return {
         usePathname: () => path,
+        useSearchParams: () => new URLSearchParams(location.search),
         useRouter: () => ({
           push(id: string) {
             pushes.push(id); history.splice(historyIndex + 1); history.push(id); historyIndex++;
@@ -86,7 +88,8 @@ function mountNavigation(initialHref = "/") {
         }),
       };
       if (name === "@/components/ui/kit") return { TabBar: "TabBar", Ico: new Proxy({}, { get: () => () => null }) };
-      if (name === "@/components/I18nProvider") return { useT: () => ({ t: (key: string) => key }) };
+      if (name === "@/components/I18nProvider") return { useT: () => ({ t: (key: string) => key, locale: "en" }) };
+      if (name === "@/lib/i18n/revamp-home") return { homeCopy: (_locale: string, key: string) => key };
       throw Error(`Unexpected navigation dependency: ${name}`);
     },
   });
@@ -109,12 +112,12 @@ test("tab prefetch follows intent only, deduplicates, refreshes after invalidati
   assert.deepEqual(ui.prefetched, ["/vaults"]);
   ui.invalidations.get("/vaults")!(); prefetch("/vaults");
   assert.deepEqual(ui.prefetched, ["/vaults", "/vaults"]);
-  for (const id of ["/send", "/activity", "/settings"]) prefetch(id);
-  assert.deepEqual(ui.prefetched.slice(2), ["/send", "/activity", "/settings"]);
+  for (const id of ["/campaigns?create=1", "/activity", "/you"]) prefetch(id);
+  assert.deepEqual(ui.prefetched.slice(2), ["/campaigns?create=1", "/activity", "/you"]);
   (tree.props.onNav as (id: string) => void)("/");
   assert.deepEqual(ui.pushes, [], "Clicking the current tab must not remount its reads");
-  (tree.props.onNav as (id: string) => void)("/send");
-  assert.deepEqual(ui.pushes, ["/send"]);
+  (tree.props.onNav as (id: string) => void)("/you");
+  assert.deepEqual(ui.pushes, ["/you"]);
 });
 
 test("same-path Home click clears an entry query via push without replacing its prior history entry", () => {
@@ -136,7 +139,7 @@ test("same-path Home click clears an entry query via push without replacing its 
 });
 
 test("same-path tab click clears a fragment without replacing the fragment history entry", () => {
-  for (const path of ["/", "/vaults", "/activity"]) {
+  for (const path of ["/", "/vaults", "/activity", "/you"]) {
     const entry = `${path}#campaign-donors`;
     const ui = mountNavigation(entry);
     (ui.render()!.props.onNav as (id: string) => void)(path);
@@ -157,7 +160,7 @@ test("same-path query and fragment are both cleared by one tab navigation", () =
 });
 
 test("an exact same-path tab click with no query or fragment does not push or replace", () => {
-  for (const path of ["/", "/vaults", "/send", "/activity", "/settings"]) {
+  for (const path of ["/", "/vaults", "/activity", "/you"]) {
     const ui = mountNavigation(path);
     const navigate = ui.render()!.props.onNav as (id: string) => void;
     navigate(path); navigate(path);
@@ -169,12 +172,12 @@ test("an exact same-path tab click with no query or fragment does not push or re
 test("different-route tab navigation still pushes the clean destination with or without source query and fragment", () => {
   for (const sourceHref of ["/vaults", "/vaults?filter=mine", "/vaults#rooms", "/vaults?filter=mine#rooms"]) {
     const ui = mountNavigation(sourceHref);
-    (ui.render()!.props.onNav as (id: string) => void)("/send");
-    assert.deepEqual(ui.pushes, ["/send"]); assert.deepEqual(ui.replacements, []);
-    assert.deepEqual(ui.history, [sourceHref, "/send"]);
-    assert.equal(ui.location.pathname, "/send"); assert.equal(ui.location.search, ""); assert.equal(ui.location.hash, "");
-    (ui.render()!.props.onNav as (id: string) => void)("/send");
-    assert.deepEqual(ui.pushes, ["/send"]);
+    (ui.render()!.props.onNav as (id: string) => void)("/you");
+    assert.deepEqual(ui.pushes, ["/you"]); assert.deepEqual(ui.replacements, []);
+    assert.deepEqual(ui.history, [sourceHref, "/you"]);
+    assert.equal(ui.location.pathname, "/you"); assert.equal(ui.location.search, ""); assert.equal(ui.location.hash, "");
+    (ui.render()!.props.onNav as (id: string) => void)("/you");
+    assert.deepEqual(ui.pushes, ["/you"]);
     ui.back();
     assert.equal(ui.location.pathname + ui.location.search + ui.location.hash, sourceHref);
   }
@@ -208,12 +211,12 @@ test("every actual TabBar button exposes pointer, touch-pointer and keyboard int
   assert.equal(buttons.length, 5);
   for (const [index, button] of buttons.entries()) {
     assert.equal(button.props.type, "button");
-    assert.equal((button.props.style as { height: number }).height, 52);
+    assert.equal(button.props.className, "sl-tabbar-tab");
+    assert.equal((button.props.children as unknown[])[1], items[index].label);
     for (const event of ["onPointerEnter", "onFocus", "onPointerDown"]) (button.props[event] as () => void)();
     (button.props.onClick as () => void)();
     assert.deepEqual(intents.slice(index * 3, index * 3 + 3), Array(3).fill(items[index].id));
   }
   assert.deepEqual(clicks, items.map(item => item.id));
   assert.equal(buttons[2].props["aria-current"], "page");
-  assert.equal(buttons[2].props["aria-label"], "/send");
 });

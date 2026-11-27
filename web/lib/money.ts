@@ -102,6 +102,15 @@ export function nativeBalanceToStroops(balance: string): bigint | null {
     : null;
 }
 
+/** Parse an XLM withdrawal amount exactly; reject precision that would round. */
+export function xlmToStroopsExact(input: unknown): bigint | null {
+  if (typeof input !== "string") return null;
+  const value = input.trim();
+  if (value.length > 24 || !/^\d{1,12}(?:\.\d{1,7})?$/.test(value)) return null;
+  const [whole, fraction = ""] = value.split(".");
+  return BigInt(whole) * STROOPS_PER_XLM + BigInt(fraction.padEnd(7, "0") || "0");
+}
+
 /** Validate a server-action money payload and return integer token units. */
 export function moneyInputToStroops(input: unknown): bigint | null {
   if (!input || typeof input !== "object") return null;

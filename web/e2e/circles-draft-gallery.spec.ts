@@ -44,7 +44,10 @@ for (const width of [320, 390, 1280]) test(`new three-photo browser draft saves,
     const choice = page.locator(`#circle-draft-photo-${index}`);
     await choice.selectOption(source);
     await expect(choice.locator("option:checked")).toHaveText(`AI ${index + 4}`);
-    const bounds = await choice.boundingBox(); expect(bounds?.height).toBeGreaterThanOrEqual(44);
+    const bounds = await choice.boundingBox();
+    const touchHeight = await choice.evaluate(element => (element as HTMLElement).offsetHeight);
+    expect(bounds?.height).toBeGreaterThan(0);
+    expect(touchHeight).toBeGreaterThanOrEqual(44);
   }
   await expect.poll(() => picker.locator("img").evaluateAll(images => images.every(image => (image as HTMLImageElement).complete && (image as HTMLImageElement).naturalWidth > 0))).toBe(true);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);

@@ -26,9 +26,12 @@ import { supabaseConfigured } from "@/lib/supabase/env";
 import { useT } from "@/components/I18nProvider";
 import { LOCALE_META } from "@/lib/i18n/config";
 import { accountCopy, accountCurrencyName, type AccountCopyKey } from "@/lib/i18n/revamp-account";
+import { accountPhotoCopy } from "@/lib/i18n/account-photo";
 import { campaignDiscoveryCopy } from "@/lib/i18n/revamp-campaign-discovery";
 import { CURRENCY } from "@/lib/ui/currency";
 import { isLocalPreview, PREVIEW_WALLET } from "@/lib/local-preview";
+import AccountAvatar from "@/components/AccountAvatar";
+import { useAccountPhoto } from "@/components/useAccountPhoto";
 import {
   T,
   Ico,
@@ -43,6 +46,8 @@ function SettingRow({
   sub,
   trailing,
   onClick,
+  disabled,
+  busy,
   switchOn,
   ariaLabel,
 }: {
@@ -51,6 +56,8 @@ function SettingRow({
   sub?: ReactNode;
   trailing?: ReactNode;
   onClick?: () => void;
+  disabled?: boolean;
+  busy?: boolean;
   switchOn?: boolean;
   ariaLabel?: string;
 }) {
@@ -66,7 +73,7 @@ function SettingRow({
   );
   return (
     onClick
-      ? <button type="button" className={styles.row} onClick={onClick} role={switchOn === undefined ? undefined : "switch"} aria-checked={switchOn} aria-label={switchOn === undefined ? undefined : ariaLabel}>{content}</button>
+      ? <button type="button" className={styles.row} onClick={onClick} disabled={disabled} aria-busy={busy} role={switchOn === undefined ? undefined : "switch"} aria-checked={switchOn} aria-label={switchOn === undefined ? undefined : ariaLabel}>{content}</button>
       : <div className={styles.row}>{content}</div>
   );
 }
@@ -95,6 +102,7 @@ export default function SettingsScreen() {
   const [darkTheme, setDarkTheme] = useState(false);
   const [updateMessage, setUpdateMessage] = useState("");
   const signOutInFlight = useRef(false);
+  const photo = useAccountPhoto(() => signOutInFlight.current);
 
   useEffect(() => {
     let active = true;
@@ -196,8 +204,13 @@ export default function SettingsScreen() {
   // verified account email instead of briefly presenting a generic identity.
   const profileStatus = nameStatus !== "ready" || name
     ? nameStatus : !authChecked ? "loading" : authFailed ? "error" : "ready";
-  const signedIn = isLocalPreview || Boolean(supaEmail);
-  const display = name ? `@${name}` : signedIn ? "Your account" : "Guest account";
+  const signedIn = isLocalPreview || Boolean(supaEmail) || Boolean(name);
+  const display = profileStatus === "loading" ? c.profileLoading
+    : profileStatus === "error" ? c.profileUnavailable
+      : name ? `@${name}` : signedIn ? supaEmail ?? c.profileUnavailable : c.guestAccount;
+  const avatarName = name ?? supaEmail ?? c.guestAccount;
+  const avatarPhoto = signedIn && supaEmail && photo.status === "ready" && photo.profile?.email === supaEmail
+    ? photo.profile.photoUrl : null;
   const shortAddr = addr ? `${addr.slice(0, 4)}…${addr.slice(-4)}` : "-";
   async function copyAddress() {
     if (!addr) return;
@@ -223,34 +236,38 @@ export default function SettingsScreen() {
       </header>
       {loadError ? <p role="alert" className={styles.loadError}>{c[loadError]}</p> : null}
 
-      <section className={styles.profile} aria-label={c.accountDetails}>
-        <span className={styles.accountMark} aria-hidden="true">{isLocalPreview && name ? name[0].toUpperCase() : Ico.user({ size: 21, c: T.action })}</span>
+      <section className={styles.profile} data-profile-state={profileStatus} aria-busy={profileStatus === "loading"} aria-label={c.accountDetails}>
+        {profileStatus === "loading" || profileStatus === "error"
+          ? <span className={styles.profileAvatarPlaceholder} aria-hidden="true" />
+          : <AccountAvatar name={avatarName} photoUrl={avatarPhoto} size={44} alt={accountPhotoCopy(locale).alt} />}
         <span className={styles.profileCopy}>
-          <span className={styles.profileName}>{profileStatus === "loading" ? c.loading : display}</span>
-          {signedIn ? (
-            <button type="button" className={styles.walletCopy} onClick={copyAddress} disabled={!addr || signOutPending} aria-label={copiedAddress ? "Wallet address copied" : "Copy wallet address"}>
-              <span>{copiedAddress ? "Copied" : shortAddr}</span>
+          <span className={`${styles.profileName}${profileStatus === "loading" ? ` ${styles.profileNamePlaceholder}` : ""}`}>{display}</span>
+          {profileStatus !== "ready" ? null : signedIn ? <>
+            <span className={styles.profileSub}>{c.managedWallet}</span>
+            <button type="button" className={styles.walletCopy} onClick={copyAddress} disabled={!addr || signOutPending} aria-label={copiedAddress ? c.walletAddressCopied : c.copyWalletAddress}>
+              <span>{copiedAddress ? c.copied : shortAddr}</span>
               {copiedAddress ? Ico.check({ size: 14, c: T.action }) : <CopySimple size={14} aria-hidden="true" />}
             </button>
-          ) : <span className={styles.profileSub}>Sign in to see your wallet address and account details.</span>}
+          </> : <span className={styles.profileSub}>{c.sharedDemoWallet}</span>}
         </span>
-        {!signedIn ? <Btn kind="secondary" size="sm" full={false} onClick={() => router.push("/signin")}>{t("signin.signIn")}</Btn> : null}
+        {profileStatus === "ready" && !signedIn ? <Btn kind="secondary" size="sm" full={false} onClick={() => router.push("/signin")}>{t("signin.signIn")}</Btn> : null}
       </section>
 
-      <SectionLabel id="account-title">Account</SectionLabel>
+      <SectionLabel id="account-title">{c.accountDetails}</SectionLabel>
       <section className={styles.sheet} aria-labelledby="account-title">
         <div className={styles.rows}>
           <SettingRow
             icon={isLocalPreview ? <At size={21} aria-hidden="true" /> : Ico.user({ size: 21, c: T.action })}
             title={t("settings.username")}
             sub={!isLocalPreview && name ? `@${name}` : undefined}
-            onClick={isLocalPreview && name ? undefined : () => router.push("/username")}
-            trailing={isLocalPreview && name ? <span className={styles.muted}>@{name}</span> : !isLocalPreview && name ? Ico.chev({ size: 15, c: T.slate }) : <span className={styles.textAction}>{t("settings.claim")}</span>}
+            onClick={profileStatus !== "ready" || (isLocalPreview && name) ? undefined : () => router.push("/username")}
+            trailing={isLocalPreview && name ? <span className={styles.muted}>@{name}</span> : !isLocalPreview && name ? <span className={styles.textAction}>{t("settings.change")}</span> : profileStatus === "ready" ? <span className={styles.textAction}>{t("settings.claim")}</span> : undefined}
           />
           {signedIn ? <>
             <SettingRow
               icon={Ico.user({ size: 21, c: T.action })}
               title={c.accountDetails}
+              sub={supaEmail ?? undefined}
               onClick={() => router.push("/you/account")}
               trailing={Ico.chev({ size: 15, c: T.slate })}
             />
@@ -264,20 +281,20 @@ export default function SettingsScreen() {
         </div>
       </section>
 
-      <SectionLabel id="fundraising-title">Fundraising</SectionLabel>
+      <SectionLabel id="fundraising-title">{c.fundraising}</SectionLabel>
       <section className={styles.sheet} aria-labelledby="fundraising-title">
         <div className={styles.rows}>
           <SettingRow
             icon={<HandHeart size={21} aria-hidden="true" />}
-            title="Your causes"
+            title={c.yourCauses}
             onClick={() => router.push("/manage")}
-            trailing={isLocalPreview ? value("None yet") : Ico.chev({ size: 15, c: T.slate })}
+            trailing={isLocalPreview ? value(c.noneYet) : Ico.chev({ size: 15, c: T.slate })}
           />
           <SettingRow
             icon={<BookmarkSimple size={21} aria-hidden="true" />}
             title={campaignDiscoveryCopy(locale)("Saved causes")}
             onClick={() => router.push("/you/saved")}
-            trailing={isLocalPreview ? value("None yet") : Ico.chev({ size: 15, c: T.slate })}
+            trailing={isLocalPreview ? value(c.noneYet) : Ico.chev({ size: 15, c: T.slate })}
           />
         </div>
       </section>
@@ -310,12 +327,12 @@ export default function SettingsScreen() {
             trailing={Ico.chev({ size: 15, c: T.slate })}
           />
           <SettingRow
-            icon={<Moon size={21} aria-hidden="true" />}
-            title={locale === "id" ? "Mode gelap" : locale === "tl" ? "Dark mode" : locale === "vi" ? "Chế độ tối" : "Dark mode"}
-            sub={darkTheme ? (locale === "id" ? "Aktif" : locale === "vi" ? "Đang bật" : "On") : (locale === "id" ? "Nonaktif" : locale === "vi" ? "Đang tắt" : "Off")}
+            icon={darkTheme ? <Moon size={21} aria-hidden="true" /> : <Moon size={21} aria-hidden="true" />}
+            title={c.darkMode}
+            sub={darkTheme ? c.on : c.off}
             onClick={toggleTheme}
             switchOn={darkTheme}
-            ariaLabel={locale === "id" ? "Mode gelap" : locale === "vi" ? "Chế độ tối" : "Dark mode"}
+            ariaLabel={c.darkMode}
             trailing={<span className={styles.switch} aria-hidden="true"><span className={darkTheme ? styles.switchOn : styles.switchOff}><span /></span></span>}
           />
         </div>
@@ -324,50 +341,52 @@ export default function SettingsScreen() {
       <section className={styles.support} aria-label={c.featuresSupport}>
         <SettingRow
           icon={<Question size={21} aria-hidden="true" />}
-          title="Help center"
+          title={c.helpCenter}
           onClick={() => router.push("/learn")}
           trailing={Ico.chev({ size: 16, c: T.slate })}
         />
         <SettingRow
           icon={<ChatCircle size={21} aria-hidden="true" />}
-          title={locale === "id" ? "Kirim masukan" : locale === "tl" ? "Magpadala ng feedback" : locale === "vi" ? "Gửi phản hồi" : "Send feedback"}
-          sub="Report a bug, suggest an idea, rate Salapi"
+          title={c.sendFeedback}
+          sub={c.feedbackDescription}
           onClick={() => router.push("/you/feedback")}
           trailing={Ico.chev({ size: 16, c: T.slate })}
         />
         <SettingRow
           icon={Ico.lock({ size: 21, c: T.action })}
-          title="Privacy"
+          title={c.privacy}
           onClick={() => router.push("/you/privacy")}
           trailing={Ico.chev({ size: 16, c: T.slate })}
         />
         <SettingRow
           icon={<FileText size={21} aria-hidden="true" />}
-          title="Terms"
+          title={c.terms}
           onClick={() => router.push("/you/terms")}
           trailing={Ico.chev({ size: 16, c: T.slate })}
         />
         <SettingRow
           icon={Ico.refresh({ size: 21, c: T.action })}
-          title="Check for updates"
-          sub={updateMessage || "Version 4.2.0 · Up to date"}
-          onClick={() => setUpdateMessage("Salapi is up to date")}
+          title={c.checkForUpdates}
+          sub={updateMessage || `${c.version} 4.2.0 · ${c.upToDate}`}
+          onClick={() => setUpdateMessage(c.salapiUpToDate)}
         />
       </section>
 
       {signedIn ? <section className={styles.support} aria-label={t("settings.signOut")}>
         {isLocalPreview ? (
-          <button type="button" className={styles.signOutPreview} onClick={signOut}>{signOutPending ? c.signingOut : t("settings.signOut")}</button>
+          <button type="button" className={styles.signOutPreview} onClick={signOut} disabled={signOutPending} aria-busy={signOutPending}>{signOutPending ? c.signingOut : t("settings.signOut")}</button>
         ) : <SettingRow
           icon={Ico.back({ size: 21, c: T.action })}
           title={signOutPending ? c.signingOut : t("settings.signOut")}
           onClick={signOut}
+          disabled={signOutPending}
+          busy={signOutPending}
           trailing={Ico.chev({ size: 16, c: T.slate })}
         />}
         {signOutError ? <p role="alert" className={styles.loadError}>{c.signOutError}</p> : null}
       </section> : null}
 
-      <footer className={styles.footer}><span className={styles.version}>Salapi 4.2.0</span></footer>
+      <footer className={styles.footer}><span className={styles.version}>{`Salapi ${c.version} 4.2.0`}</span></footer>
     </div>
   );
 }

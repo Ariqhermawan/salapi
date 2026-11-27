@@ -273,11 +273,14 @@ for (const locale of LOCALES) {
   });
 }
 
-test("Home and Settings use the same avatar component and account-backed hook, not a browser-only override", () => {
-  for (const path of ["../app/page.tsx", "../components/screens/SettingsScreen.tsx"]) {
-    const source = readFileSync(new URL(path, import.meta.url), "utf8"); assert.match(source, /<AccountAvatar/); assert.match(source, /useAccountPhoto\(/);
-    if (path.includes("SettingsScreen")) assert.match(source, /useAccountPhoto\(\(\) => signOutInFlight\.current\)/);
-  }
+test("live Home derives guest state from the account-backed hook and Settings renders the verified photo", () => {
+  const home = readFileSync(new URL("../app/page.tsx", import.meta.url), "utf8");
+  assert.match(home, /useAccountPhoto\(/); assert.match(home, /photo\.code === "unauthenticated"/);
+  const prototypeHome = readFileSync(new URL("../components/screens/PrototypeHomeScreen.tsx", import.meta.url), "utf8");
+  assert.match(prototypeHome, /<Image src="\/salapi-mark-prototype\.svg"/);
+  const settings = readFileSync(new URL("../components/screens/SettingsScreen.tsx", import.meta.url), "utf8");
+  assert.match(settings, /<AccountAvatar/); assert.match(settings, /useAccountPhoto\(/);
+  assert.match(settings, /useAccountPhoto\(\(\) => signOutInFlight\.current\)/);
   const hook = readFileSync(new URL("../components/useAccountPhoto.ts", import.meta.url), "utf8");
   assert.doesNotMatch(hook, /(?:localStorage|sessionStorage)\.(?:getItem|setItem)/);
 });

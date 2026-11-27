@@ -33,6 +33,7 @@ function setup(locale: Locale = "en", preview = false) {
   const reads: { owner: string; result: ReturnType<typeof deferred<UsernameStatus>> }[] = [];
   const writes: { owner: string; name: string; result: ReturnType<typeof deferred<UsernameSaveResult>> }[] = [];
   const calls = { reloads: 0, replacements: [] as string[], subscriptions: 0, unsubscriptions: 0, statusChecks: [] as string[] };
+  const localStorage = new Map<string, string>();
   let transactionResult: unknown = { ok: false, pending: true, hash: "a".repeat(64), error: "Still pending" };
   const hooks = {
     useState(initial: unknown) { const n = cursor++; if (!(n in cells)) cells[n] = initial; return [cells[n], (x: unknown) => { cells[n] = typeof x === "function" ? x(cells[n]) : x; }]; },
@@ -50,7 +51,11 @@ function setup(locale: Locale = "en", preview = false) {
   };
   const component = {} as { default: () => React.ReactElement | null };
   runInNewContext(source, { exports: component, queueMicrotask, AbortSignal: { timeout: () => undefined },
-    window: { location: { reload() { calls.reloads++; } } },
+    document: { querySelector(selector: string) { assert.equal(selector, ".sl-app-frame"); return {}; } },
+    window: { location: { reload() { calls.reloads++; } }, localStorage: {
+      getItem(key: string) { return localStorage.get(key) ?? null; },
+      setItem(key: string, value: string) { localStorage.set(key, value); },
+    } },
     async fetch(url: string, options: { cache: string; credentials: string; headers: Record<string, string> }) {
       assert.equal(url, "/api/account/username-onboarding"); assert.equal(options.cache, "no-store"); assert.equal(options.credentials, "same-origin");
       const result = deferred<UsernameStatus>(); reads.push({ owner: options.headers["X-Salapi-Owner"], result });
@@ -58,8 +63,16 @@ function setup(locale: Locale = "en", preview = false) {
     }, require(name: string) {
       if (name === "react") return hooks;
       if (name === "react/jsx-runtime") return jsxRuntime;
+      if (name === "react-dom") return { createPortal: (node: React.ReactNode) => node };
       if (name === "next/navigation") return { usePathname: () => pathname, useSearchParams: () => new URLSearchParams(query), useRouter: () => ({ replace: (p: string) => calls.replacements.push(p) }) };
       if (name === "next/link") return { __esModule: true, default: (p: { href: string; children: React.ReactNode }) => React.createElement("a", { href: p.href }, p.children) };
+      if (name === "next/image") return { __esModule: true, default: (props: Record<string, unknown>) => React.createElement("img", props) };
+      if (name === "@/components/ui/kit") return {
+        AppBar: (props: { leading?: React.ReactNode; title: React.ReactNode }) => React.createElement("header", null, props.leading, props.title),
+        Btn: (props: Record<string, unknown> & { children?: React.ReactNode }) => React.createElement("button", props, props.children),
+        IconButton: (props: Record<string, unknown> & { children?: React.ReactNode }) => React.createElement("button", props, props.children),
+        Ico: { back: () => null },
+      };
       if (name === "@/app/username-onboarding-actions") return { completeUsername(owner: string, username: string) { const result = deferred<UsernameSaveResult>(); writes.push({ owner, name: username, result }); return result.promise; } };
       if (name === "@/app/actions") return { async checkSubmittedTransaction(hash: string) { calls.statusChecks.push(hash); return transactionResult; } };
       if (name === "@/lib/supabase/client") return { createSupabaseBrowser: () => ({ auth: { onAuthStateChange(cb: typeof authCallback) { calls.subscriptions++; authCallback = cb; return { data: { subscription: { unsubscribe() { calls.unsubscriptions++; } } } }; } } }) };

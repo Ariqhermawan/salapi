@@ -703,11 +703,11 @@ export default function VaultsScreen() {
         </div>
       </section>
       </div>
-      <div className={styles.comingSoon} aria-disabled="true" data-testid="vault-savings-coming-soon">
+      <Link href="/savings" className={`${styles.comingSoon} ${styles.comingSoonLink}`} aria-label={homeCopy(locale, "Open Testnet savings")}>
         <Image src="/illustrations/savings.png" alt="" width={32} height={34} />
-        <div><strong>Smart Savings</strong></div>
-        <span className={styles.softLabel}>{homeCopy(locale, "Coming soon")}</span>
-      </div>
+        <div><strong>{homeCopy(locale, "Smart Savings")}</strong></div>
+        <span className={styles.softLabel}>{homeCopy(locale, "Open Testnet savings")}</span>
+      </Link>
       <footer className={styles.footer}>
         <PoweredByStellar />
         <span>Public proof on Stellar Testnet.</span>

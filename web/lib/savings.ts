@@ -17,11 +17,14 @@ export type SavingsGoal = {
 };
 
 const KEY = "salapi_savings_goals";
+function storageKey(ownerAddress?: string): string {
+  return ownerAddress && /^G[A-Z2-7]{55}$/.test(ownerAddress) ? `${KEY}:${ownerAddress}` : KEY;
+}
 
-export function loadGoals(): SavingsGoal[] {
+export function loadGoals(ownerAddress?: string): SavingsGoal[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = localStorage.getItem(storageKey(ownerAddress));
     if (!raw) return [];
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
@@ -40,19 +43,19 @@ export function loadGoals(): SavingsGoal[] {
   }
 }
 
-export function saveGoals(goals: SavingsGoal[]): void {
+export function saveGoals(goals: SavingsGoal[], ownerAddress?: string): void {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(KEY, JSON.stringify(goals));
+    localStorage.setItem(storageKey(ownerAddress), JSON.stringify(goals));
   } catch {
     /* storage may be unavailable */
   }
 }
 
-export function clearGoals(): void {
+export function clearGoals(ownerAddress?: string): void {
   if (typeof window === "undefined") return;
   try {
-    localStorage.removeItem(KEY);
+    localStorage.removeItem(storageKey(ownerAddress));
   } catch {
     /* storage may be unavailable */
   }

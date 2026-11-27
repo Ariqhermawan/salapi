@@ -74,8 +74,8 @@ async function reviewDockGeometry(page: Page) {
   return page.getByTestId("donation-review-actions").evaluate(dock => {
     const frame = dock.closest(".sl-app-frame")!.getBoundingClientRect();
     const rect = dock.getBoundingClientRect();
-    const nav = document.querySelector('.sl-tabbar')!;
-    const navTop = Math.min(...[nav, ...nav.querySelectorAll("button, button > span")].map(node => node.getBoundingClientRect().top));
+    const nav = document.querySelector('.sl-tabbar');
+    const navTop = nav ? Math.min(...[nav, ...nav.querySelectorAll("button, button > span")].map(node => node.getBoundingClientRect().top)) : frame.bottom;
     const buttons = [...dock.querySelectorAll("button")].map(button => {
       const bounds = button.getBoundingClientRect();
       const hit = document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);

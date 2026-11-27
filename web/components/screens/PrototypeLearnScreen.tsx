@@ -26,8 +26,10 @@ const GUIDES = [
     href: "/vaults",
   },
   {
-    title: "How will Smart Savings work?",
-    body: "You'll set a goal and lock money toward it. The money unlocks when you reach the goal.",
+    title: "How does Smart Savings work on Testnet?",
+    body: "A Testnet contract holds one XLM vault per wallet. In disciplined mode, it unlocks when the contract target is reached; flexible mode allows withdrawal at any time. Extra goal labels are local plans, not separate locks. Testnet XLM has no real-world value, and the feature has no yield or fiat withdrawal.",
+    link: "Open Smart Savings",
+    href: "/savings",
   },
   {
     title: "How do receipts work?",

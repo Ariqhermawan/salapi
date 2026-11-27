@@ -1,18 +1,24 @@
 .page { position:relative; isolation:isolate; display:flex; min-height:calc(100svh - 30px); flex-direction:column; padding:55px 12px 110px; color:#171717; }
-.page::before { position:absolute; z-index:-1; top:0; left:0; right:0; height:300px; background:url('/illustrations/home-card-pattern.png') center top / 100% 100% no-repeat; opacity:.16; pointer-events:none; content:""; }
+.page::before { position:absolute; z-index:-1; top:0; left:0; right:0; height:320px; background:#335cff; -webkit-mask:url('/illustrations/home-card-pattern.png') center / 100% 100% no-repeat,linear-gradient(180deg,#000 20%,transparent); -webkit-mask-composite:source-in; mask:url('/illustrations/home-card-pattern.png') center / 100% 100% no-repeat,linear-gradient(180deg,#000 20%,transparent); mask-composite:intersect; pointer-events:none; content:""; }
 .heading { flex:none; padding:0 8px; }
 .heading h1 { margin:0; font-size:24px; font-weight:550; line-height:32px; letter-spacing:-.02em; }
-.emptyPage { min-height:calc(100svh - 30px); padding-bottom:220px; }
-.emptyState { display:flex; flex:1 1 auto; flex-direction:column; align-items:center; justify-content:center; min-height:0; text-align:center; }
-.emptyState > img { display:block; width:210px; height:210px; object-fit:contain; }
-.emptyState h2 { margin:0; color:#171717; font-size:16px; font-weight:550; line-height:24px; }
-.emptyState p { margin:0; color:#8b9098; font-size:12px; line-height:20px; }
+.emptyPage { min-height:calc(100svh - 30px); padding:16px 18.5px 82px; }
+.emptyPage .heading { height:36px; padding:0; }
+.emptyPage .heading h1 { font-size:28px; font-weight:500; line-height:36px; }
+.emptyState { display:flex; flex:1 1 auto; flex-direction:column; align-items:center; justify-content:center; min-height:0; margin:12px 0 24px; text-align:center; }
+.emptyState > img { display:block; width:min(240px,100%); height:240px; margin-bottom:16px; object-fit:contain; opacity:.32; }
+.emptyState h2 { margin:0; color:#171717; font-size:18px; font-weight:500; line-height:24px; }
+.emptyState p { margin:4px 0 0; color:#5c5c5c; font-size:16px; line-height:24px; }
 .ways { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; width:100%; }
-.emptyWays { margin-top:12px; }
+.emptyWays { margin-top:16px; }
+.olderRooms { display:grid; justify-items:center; gap:4px; margin-top:10px; }
+.olderRooms button { min-height:32px; padding:0 8px; border:0; background:none; color:#3155dc; font:500 13px/20px var(--font-geist-sans), Outfit, system-ui, sans-serif; }
+.olderRooms button:disabled { opacity:.6; }
+.olderRooms p { max-width:280px; margin:0; color:#777d86; font-size:12px; line-height:18px; }
 .ways a { display:flex; min-width:0; min-height:52px; align-items:center; justify-content:center; padding:0 8px; border:1px solid #e6e7ea; border-radius:999px; background:#fff; color:#5c5c5c; font-size:16px; font-weight:500; line-height:24px; letter-spacing:-.011em; text-align:center; text-decoration:none; white-space:nowrap; }
 .ways .create { border-color:transparent; background:linear-gradient(180deg,#2547d0,#4d82ff); color:#fff; }
 .ways a:active { transform:scale(.98); }
-.emptyFooter { flex:none; display:flex; justify-content:center; margin-top:0; color:#9095a0; transform:translateY(8px); }
+.emptyFooter { flex:none; display:flex; justify-content:center; margin-top:0; color:#9095a0; }
 .withRooms { padding-bottom:120px; }
 .filters { flex:none; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:4px; margin-top:0; padding:4px; border-radius:10px; background:#f0f1f3; }
 .filters button { min-width:0; min-height:28px; border:0; border-radius:6px; background:transparent; color:#737982; font:500 16px/24px var(--font-geist-sans), Outfit, system-ui, sans-serif; }
@@ -40,7 +46,6 @@
 .noRooms button { border:0; background:none; color:#3155dc; font:500 12px/18px var(--font-geist-sans), Outfit, system-ui, sans-serif; }
 
 [data-theme="dark"] .page { color:#f5f5f5; }
-[data-theme="dark"] .page::before { opacity:.04; }
 [data-theme="dark"] .heading h1,[data-theme="dark"] .emptyState h2,[data-theme="dark"] .roomCopy strong,[data-theme="dark"] .codeRow > strong,[data-theme="dark"] .noRooms strong { color:#f5f5f5; }
 [data-theme="dark"] .ways a,[data-theme="dark"] .roomCard { border-color:#35383f; background:#1c1c1ce8; color:#f5f5f5; }
 [data-theme="dark"] .ways .create { border-color:transparent; background:linear-gradient(180deg,#2547d0,#4d82ff); }
@@ -51,16 +56,16 @@
 
 @media (max-height:760px) {
   .page { padding-top:30px; }
-  .emptyPage { padding-bottom:145px; }
-  .emptyState > img { width:150px; height:150px; }
-  .emptyWays { margin-top:9px; }
+  .emptyPage { padding-top:16px; padding-bottom:82px; }
+  .emptyState > img { width:min(210px,100%); height:210px; margin-bottom:12px; }
+  .emptyWays { margin-top:12px; }
   .roomCard { padding-block:12px; }
   .listFooter { margin-top:12px; }
 }
 @media (max-height:620px) {
   .page { min-height:590px; }
-  .emptyPage { padding-bottom:90px; }
-  .emptyState > img { width:120px; height:120px; }
+  .emptyPage { padding-bottom:82px; }
+  .emptyState > img { width:min(180px,100%); height:180px; }
 }
 @media (max-width:360px) {
   .page { padding-inline:10px; }
@@ -70,16 +75,21 @@
   .roomCopy small { font-size:9px; }
 }
 @media (min-width:640px) {
+  .page::before { top:-54px; }
   .page { min-height:672px; padding:16px 16px 0; }
-  .emptyPage { min-height:672px; padding-bottom:0; }
+  .emptyPage { min-height:672px; padding:16px 18.5px 82px; }
   .heading { margin-bottom:12px; transform:translateY(-8px); }
   .withRooms .heading { margin-bottom:4px; }
 .withRooms .heading h1 { font-size:28px; line-height:36px; }
-  .emptyState { padding:40px 4px; transform:translateY(-15px); }
-  .emptyState > img { width:240px; height:240px; margin-bottom:16px; opacity:.32; }
-  .emptyState p { font-size:14px; line-height:20px; }
-  .emptyWays { margin-top:28px; }
+  .emptyPage .heading { margin:0; transform:none; }
+  .emptyPage .emptyState { padding:0; transform:none; }
+  .emptyPage .emptyState { margin-bottom:0; }
+  .emptyPage .emptyState > img { width:min(240px,100%); height:240px; margin-bottom:16px; opacity:.32; }
+  .emptyPage .emptyState p { font-size:16px; line-height:24px; }
+  .emptyPage .emptyWays { margin-top:16px; }
+  .emptyPage .emptyFooter { min-height:24px; margin-top:20px; align-items:center; }
   .ways a { font-size:16px; line-height:24px; }
   .emptyFooter { transform:none; }
+  .emptyPage { min-height:760px; padding:8px 18.5px 82px; }
 }
 @media (prefers-reduced-motion:reduce) { .ways a { transition:none; } }

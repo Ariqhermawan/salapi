@@ -6,7 +6,6 @@ import type { ReactNode } from "react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDown,
-  ArrowRight,
   ArrowUp,
   ArrowsClockwise,
   Bell,
@@ -20,6 +19,8 @@ import {
 import { usePathname, useSearchParams } from "next/navigation";
 import { PROTOTYPE_CAUSES, type PrototypeCause } from "@/lib/prototype-causes";
 import { previewReferralNoticeIsNew, previewUsdcBalanceCents } from "@/lib/local-preview";
+import { useT } from "@/components/I18nProvider";
+import { homeCopy } from "@/lib/i18n/revamp-home";
 import MarketValue from "@/components/MarketValue";
 import HomeDonationTicker from "@/components/HomeDonationTicker";
 import type { Campaign } from "@/lib/campaign";
@@ -47,6 +48,8 @@ export type PrototypeHomeLiveData = {
 };
 
 export default function PrototypeHomeScreen({ liveData }: { liveData?: PrototypeHomeLiveData }) {
+  const { locale } = useT();
+  const copy = (phrase: string) => homeCopy(locale, phrase);
   const greetingRef = useRef<HTMLHeadingElement>(null);
   const [currency, setCurrency] = useState<"USDC" | "XLM">("USDC");
   const [balanceCents, setBalanceCents] = useState(241_226);
@@ -117,25 +120,25 @@ export default function PrototypeHomeScreen({ liveData }: { liveData?: Prototype
 
   return <div className={styles.home} data-testid={liveData ? "home-dashboard" : "prototype-home"}>
     <header className={styles.greeting}>
-      <Link href="/you" className={styles.mark} aria-label="Your account">
+      <Link href="/you" className={styles.mark} aria-label={copy("Your account")}>
         <Image src="/salapi-mark-prototype.svg" alt="Salapi" width={28} height={28} priority />
       </Link>
-      <h1 ref={greetingRef}>Welcome to Salapi{liveData?.handle ? `, @${liveData.handle}` : ""}</h1>
-      <Link href="/learn" className={styles.round} aria-label="Help"><Question size={24} aria-hidden="true" /></Link>
-      <Link href="/notifications" className={`${styles.round} ${newNotification ? styles.hasNotification : ""}`} aria-label={newNotification ? "Notifications, 1 new" : "Notifications"}>
+      <h1 ref={greetingRef}>{copy("Welcome to Salapi")}{liveData?.handle ? `, @${liveData.handle}` : ""}</h1>
+      <Link href="/learn" className={styles.round} aria-label={copy("Help")}><Question size={24} aria-hidden="true" /></Link>
+      <Link href="/notifications" className={`${styles.round} ${newNotification ? styles.hasNotification : ""}`} aria-label={copy("Notifications")}>
         <Bell size={24} aria-hidden="true" />{newNotification && <span className={styles.notificationDot} aria-hidden="true" />}
       </Link>
     </header>
 
     <section className={styles.balance} aria-label={liveData ? "Your Testnet wallet" : "Total balance"}>
       <div className={styles.balanceHeader}>
-        <span>{liveData?.guest ? "Wallet" : "Total balance"} <span className={styles.testnet}>Testnet</span></span>
+        <span>{liveData?.guest ? copy("Wallet") : copy("Total balance")} <span className={styles.testnet}>Testnet</span></span>
         <Image src="/stellar-white.png" alt="Powered by Stellar" width={68} height={17} />
       </div>
       {liveData ? liveData.guest ? <div className={styles.liveGuest}>
-        <strong>Guest account</strong><Link href="/signin">Sign in to see your balance</Link>
+        <strong>{copy("Guest account")}</strong><Link href="/signin">{copy("Sign in to see your balance")}</Link>
       </div> : hidden ? <div className={styles.hiddenBalance}>
-        <strong aria-label="Balance hidden">••••••</strong><button type="button" onClick={toggleHidden}>Show balance</button>
+        <strong aria-label="Balance hidden">••••••</strong><button type="button" onClick={toggleHidden}>{copy("Show balance")}</button>
       </div> : <div className={styles.liveBalance}>
         <MarketValue nativeStroops={liveData.wallet?.nativeStroops} size={40} color="#fff" compact showNative dashboard
           balanceLoading={liveData.walletLoading}
@@ -148,18 +151,18 @@ export default function PrototypeHomeScreen({ liveData }: { liveData?: Prototype
             {currency}<CaretDown size={16} aria-hidden="true" />
           </button>}
         </div>
-        {hidden ? <button type="button" className={styles.priceLine} onClick={toggleHidden}>Hidden. Show it in Security</button> :
-          <button type="button" className={styles.priceLine} aria-label="Price details" onClick={() => setPricesOpen(true)}>
+        {hidden ? <button type="button" className={styles.priceLine} onClick={toggleHidden}>{copy("Hidden. Show it in Security")}</button> :
+          <button type="button" className={styles.priceLine} aria-label={copy("Price details")} onClick={() => setPricesOpen(true)}>
             <span>≈ {currency === "USDC" ? balanceXlm + " XLM" : "$" + balanceUsd + " USDC"}</span><Info size={15} aria-hidden="true" />
           </button>}
       </>}
     </section>
 
-    <nav className={styles.actions} aria-label="Wallet actions">
-      <Action href={walletHref("/topup")} label="Top up"><ArrowDown size={20} aria-hidden="true" /></Action>
-      <Action href={walletHref("/withdraw")} label="Withdraw"><ArrowUp size={20} aria-hidden="true" /></Action>
-      <Action href={walletHref("/send")} label="Send"><PaperPlaneTilt size={20} aria-hidden="true" /></Action>
-      <Action href={walletHref("/receive")} label="Receive"><QrCode size={20} aria-hidden="true" /></Action>
+    <nav className={styles.actions} aria-label={copy("Wallet actions")}>
+      <Action href={walletHref("/topup")} label={copy("Top up")}><ArrowDown size={20} aria-hidden="true" /></Action>
+      <Action href={walletHref("/withdraw")} label={copy("Withdraw")}><ArrowUp size={20} aria-hidden="true" /></Action>
+      <Action href={walletHref("/send")} label={copy("Send")}><PaperPlaneTilt size={20} aria-hidden="true" /></Action>
+      <Action href={walletHref("/receive")} label={copy("Receive")}><QrCode size={20} aria-hidden="true" /></Action>
     </nav>
 
     {liveData ? <HomeDonationTicker campaigns={liveData.campaigns} loading={liveData.campaignsLoading} localPreview={false} /> :
@@ -179,9 +182,9 @@ export default function PrototypeHomeScreen({ liveData }: { liveData?: Prototype
 
     <section className={styles.causes} aria-labelledby="prototype-home-causes">
       <div className={styles.sectionHeading}>
-        <h2 id="prototype-home-causes">Causes</h2>
-        {liveData ? <span className={styles.exampleLabel}>EXAMPLES</span> : null}
-        <Link href="/campaigns?mode=testnet">See all</Link>
+        <h2 id="prototype-home-causes">{copy("Causes")}</h2>
+        {liveData ? <span className={styles.exampleLabel}>{copy("EXAMPLES")}</span> : null}
+        <Link href="/campaigns?mode=testnet">{copy("See all")}</Link>
       </div>
       {causesLayout === "b" ? <div className={styles.causeLayoutB} aria-label="Featured cause and more causes">
         {causes.slice(0, 3).map((cause, index) => index === 0 ? <Link key={cause.id} href={`/cause/${cause.id}`} className={styles.featuredCause}>
@@ -207,15 +210,15 @@ export default function PrototypeHomeScreen({ liveData }: { liveData?: Prototype
     <section className={styles.tiles} aria-label="More from Salapi">
       <Link href="/vaults" className={styles.tile}>
         <Image src="/illustrations/tile-arisan.png" alt="" width={44} height={32} />
-        <strong>Arisan</strong>
+        <strong>{copy("Arisan")}</strong>
       </Link>
       <Link href="/vault" className={styles.tile}>
         <span className={styles.vaultPig} aria-hidden="true"><img src="/prototype-ui/disaster-vault-funded.webp" alt="" /></span>
-        <strong>Disaster Vault</strong><span>{liveData ? "View vault" : "$1,284.20"}</span>
+        <strong>{copy("Disaster Vault")}</strong><span>{liveData ? copy("View vault") : "$1,284.20"}</span>
       </Link>
       <button type="button" className={styles.tile} data-coming-soon data-testid={liveData ? "social-feed-coming-soon" : undefined} disabled={Boolean(liveData)} onClick={showComingSoon}>
         <Image src="/illustrations/tile-feed.png" alt="" width={44} height={32} />
-        <strong>Social feed</strong><span>Coming soon</span>
+        <strong>{copy("Social feed")}</strong><span>{copy("Coming soon")}</span>
       </button>
     </section>
 

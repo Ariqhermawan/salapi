@@ -6,6 +6,9 @@ import {
   rpc,
   Keypair,
   Contract,
+  Asset,
+  Memo,
+  Operation,
   TransactionBuilder,
   Transaction,
   Networks,
@@ -27,6 +30,7 @@ export const RPC_URL =
   process.env.STELLAR_RPC_URL ?? "https://soroban-testnet.stellar.org";
 export const HORIZON = "https://horizon-testnet.stellar.org";
 export const FRIENDBOT = "https://friendbot.stellar.org";
+export const STELLAR_BASE_FEE_STROOPS = BASE_FEE;
 
 // Deployed on testnet, see docs/operations/deployments.md.
 export const CONTRACTS = {
@@ -71,6 +75,58 @@ export type PreparedContractCallExpectation = {
   args: xdr.ScVal[];
   feeStroops?: string;
 };
+
+export type PreparedNativePaymentExpectation = {
+  source: string;
+  destination: string;
+  amountStroops: string;
+  memoType: "none" | "text" | "id";
+  memo: string;
+  feeStroops?: string;
+};
+
+export type PreparedNativePayment = {
+  transactionXdr: string;
+  feeStroops: string;
+  maxTime: string;
+};
+
+function stroopsAsXlm(stroops: string): string {
+  const amount = BigInt(stroops);
+  const whole = amount / 10_000_000n;
+  const fraction = (amount % 10_000_000n).toString().padStart(7, "0").replace(/0+$/, "");
+  return fraction ? `${whole}.${fraction}` : whole.toString();
+}
+
+function parsedPreparedNativePayment(
+  transactionXdr: string,
+  expected: PreparedNativePaymentExpectation,
+): Transaction {
+  if (typeof transactionXdr !== "string" || transactionXdr.length > 128_000)
+    throw new Error("The prepared withdrawal is invalid. Review it again.");
+  const transaction = TransactionBuilder.fromXDR(transactionXdr, Networks.TESTNET);
+  if (!(transaction instanceof Transaction) || transaction.source !== expected.source
+    || transaction.operations.length !== 1 || !transaction.timeBounds
+    || Number(transaction.timeBounds.maxTime) <= Math.floor(Date.now() / 1000))
+    throw new Error("The prepared withdrawal expired or changed. Review it again.");
+  if (expected.feeStroops !== undefined && transaction.fee !== expected.feeStroops)
+    throw new Error("The prepared withdrawal fee changed. Review it again.");
+  const operation = transaction.operations[0];
+  if (operation.type !== "payment" || operation.source !== undefined
+    || operation.destination !== expected.destination || operation.amount !== stroopsAsXlm(expected.amountStroops)
+    || !operation.asset.isNative())
+    throw new Error("The prepared transaction does not match the reviewed XLM withdrawal.");
+  const memoValue = transaction.memo.value;
+  const memoText = typeof memoValue === "string" ? memoValue
+    : Buffer.isBuffer(memoValue) ? memoValue.toString("utf8") : null;
+  const memoMatches = expected.memoType === "none"
+    ? transaction.memo.type === "none"
+    : expected.memoType === "text"
+      ? transaction.memo.type === "text" && memoText === expected.memo
+      : transaction.memo.type === "id" && transaction.memo.value === BigInt(expected.memo).toString();
+  if (!memoMatches) throw new Error("The prepared withdrawal memo changed. Review it again.");
+  return transaction;
+}
 
 function parsedPreparedContractCall(
   transactionXdr: string,
@@ -134,6 +190,45 @@ export async function prepareContractCallAs(
   };
 }
 
+/** Build the exact unsigned native XLM payment shown in the withdrawal review. */
+export async function prepareNativePaymentAs(
+  source: string,
+  destination: string,
+  amountStroops: string,
+  memoType: "none" | "text" | "id",
+  memo: string,
+): Promise<PreparedNativePayment> {
+  if (isLocalPreview) throw new Error("Local preview cannot prepare Testnet transactions.");
+  if (!StrKey.isValidEd25519PublicKey(source) || !StrKey.isValidEd25519PublicKey(destination)
+    || !/^[1-9]\d{0,15}$/.test(amountStroops) || BigInt(amountStroops) > 10_000_000_000_000_000n
+    || typeof memo !== "string"
+    || (memoType === "text" && Buffer.byteLength(memo, "utf8") > 28)
+    || (memoType === "id" && (!/^(?:0|[1-9]\d{0,19})$/.test(memo) || BigInt(memo) > 18_446_744_073_709_551_615n))
+    || (memoType === "none" && memo !== "") || (memo !== "" && memoType === "none"))
+    throw new Error("The withdrawal details are invalid.");
+  const srv = server();
+  const network = await srv.getNetwork();
+  if (network.passphrase !== Networks.TESTNET)
+    throw new Error("The configured Stellar RPC is not connected to Testnet.");
+  const sourceAccount = await srv.getAccount(source);
+  const builder = new TransactionBuilder(sourceAccount, {
+    fee: BASE_FEE,
+    networkPassphrase: Networks.TESTNET,
+  }).addOperation(Operation.payment({
+    destination,
+    asset: Asset.native(),
+    amount: stroopsAsXlm(amountStroops),
+  }));
+  if (memoType === "text") builder.addMemo(Memo.text(memo));
+  else if (memoType === "id") builder.addMemo(Memo.id(memo));
+  const transaction = builder.setTimeout(CONFIRMATION_TTL_SECONDS).build();
+  const preparedXdr = transaction.toXDR();
+  const verified = parsedPreparedNativePayment(preparedXdr, { source, destination, amountStroops, memoType, memo });
+  if (!/^[1-9]\d{0,15}$/.test(verified.fee))
+    throw new Error("The network fee could not be verified.");
+  return { transactionXdr: preparedXdr, feeStroops: verified.fee, maxTime: verified.timeBounds!.maxTime };
+}
+
 /** Sign and submit the exact prepared envelope after its owner confirms it. */
 export async function submitPreparedContractCallAs(
   secret: string,
@@ -154,6 +249,29 @@ export async function submitPreparedContractCallAs(
     return await submitAndConfirm(srv, transaction);
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "The prepared transaction could not be signed." };
+  }
+}
+
+/** Sign and submit only the exact native XLM payment confirmed by its owner. */
+export async function submitPreparedNativePaymentAs(
+  secret: string,
+  transactionXdr: string,
+  expected: PreparedNativePaymentExpectation,
+): Promise<TxResult> {
+  if (isLocalPreview) return { ok: false, error: "Local preview cannot submit transactions." };
+  try {
+    const srv = server();
+    const network = await srv.getNetwork();
+    if (network.passphrase !== Networks.TESTNET)
+      throw new Error("The configured Stellar RPC is not connected to Testnet.");
+    const kp = Keypair.fromSecret(secret);
+    if (kp.publicKey() !== expected.source)
+      return { ok: false, error: "The signed-in wallet changed. Review the withdrawal again." };
+    const transaction = parsedPreparedNativePayment(transactionXdr, expected);
+    transaction.sign(kp);
+    return await submitAndConfirm(srv, transaction);
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "The prepared withdrawal could not be signed." };
   }
 }
 
@@ -303,7 +421,8 @@ export function paluwaganId(): string | null {
   return process.env.PALUWAGAN_CONTRACT ?? null;
 }
 export function smartSavingsId(): string | null {
-  return process.env.SMARTSAVINGS_CONTRACT ?? null;
+  const id = process.env.SMARTSAVINGS_CONTRACT?.trim();
+  return id && StrKey.isValidContract(id) ? id : null;
 }
 export function arisanRoomsId(): string | null {
   return process.env.ARISAN_ROOMS_CONTRACT ?? null;

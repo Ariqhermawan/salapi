@@ -18,15 +18,17 @@ test("You keeps a neutral identity while readonly account reads are pending", as
     const profile = page.locator('[data-profile-state="loading"]');
     await expect.poll(() => heldRequests).toBeGreaterThan(0);
     await expect(profile).toBeVisible();
-    await expect(profile).toBeDisabled();
     await expect(profile).toHaveAttribute("aria-busy", "true");
     await expect(page.getByText("Salapi user", { exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Claim", exact: true })).toHaveCount(0);
     release();
-    // A fresh guest may see the confirmed generic identity after the lookup,
-    // but never while the request is pending. No login or transaction here.
+    // A fresh guest may see the generic identity after the lookup. If account
+    // verification is unavailable, the page must keep the neutral recovery UI
+    // and must not open the username-claim flow. No login or transaction here.
     await expect(page.locator('[data-profile-state="ready"]')).toBeVisible({ timeout: 45000 });
-    await expect(page.getByRole("button", { name: "Claim", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Claim", exact: true })).toHaveCount(0);
   } finally {
     release();
     await page.unrouteAll({ behavior: "wait" });

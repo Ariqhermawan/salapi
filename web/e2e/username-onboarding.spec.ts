@@ -32,18 +32,20 @@ async function mount(page: Page, width = 390) {
   await page.setViewportSize({ width, height: 844 });
   await page.setContent(`<style>${styles}</style><main><h1>Salapi account</h1><p>Home and Vaults remain visible while verifying.</p></main><div id="fixture-root"></div>`);
   await page.addScriptTag({ content: `
-    const fixture = window.fixture = { path: '/', owner: '${owner}', reads: [], flashes: 0, mounts: 0 };
+    const fixture = window.fixture = { path: '/you', owner: '${owner}', reads: [], flashes: 0, mounts: 0 };
     let auth;
     const cache = {};
     const modules = {${Object.entries(sources).map(([name, code]) => `${JSON.stringify(name)}: (module, exports, require) => { ${code}\n }`).join(",")}};
     const stubs = {
       'next/navigation': { usePathname: () => fixture.path, useSearchParams: () => new URLSearchParams(), useRouter: () => ({ replace() {} }) },
       'next/link': { __esModule: true, default: p => require('react').createElement('a', {href: p.href}, p.children) },
+      'next/image': { __esModule: true, default: p => require('react').createElement('img', p) },
       '@/app/username-onboarding-actions': { completeUsername() { throw Error('No registration in a read-only fixture'); } },
       '@/app/actions': { checkSubmittedTransaction() { throw Error('No transaction in this fixture'); } },
       '@/lib/supabase/env': { supabaseConfigured: () => true },
       '@/lib/local-preview': { isLocalPreview: false },
       '@/components/I18nProvider': { useT: () => ({ locale: 'en' }) },
+      '@/components/ui/kit': { AppBar: () => null, Btn: () => null, Ico: {}, IconButton: () => null },
       './UsernameOnboarding.module.css': { __esModule: true, default: new Proxy({}, {get: (_, key) => key}) },
       '@/lib/supabase/client': { createSupabaseBrowser: () => ({auth: { onAuthStateChange(cb) {
         fixture.mounts++;
@@ -68,7 +70,7 @@ async function mount(page: Page, width = 390) {
     const React = require('react');
     const Component = require('component').default;
     const root = require('react-dom/client').createRoot(document.getElementById('fixture-root'));
-    fixture.render = () => root.render(React.createElement(Component));
+    fixture.render = () => require('react-dom').flushSync(() => root.render(React.createElement(Component)));
     fixture.navigate = path => {fixture.path = path; fixture.render();};
     fixture.auth = owner => {fixture.owner = owner; auth(owner ? 'SIGNED_IN' : 'SIGNED_OUT', owner ? {user: {id: owner, is_anonymous: false}} : null);};
     fixture.remount = () => {require('react-dom').flushSync(() => root.render(null)); setTimeout(fixture.render, 0);};

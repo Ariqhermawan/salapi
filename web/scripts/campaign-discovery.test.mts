@@ -84,26 +84,28 @@ test("actual server page dispatches without action calls and preserves direct D4
     runInNewContext(code, { exports, require(name: string) {
       if (name === "react/jsx-runtime") return { jsx, jsxs: jsx, Fragment: "Fragment" };
       if (name === "@/components/screens/CampaignScreen") return { default: "CampaignScreen" };
+      if (name === "@/components/screens/CampaignCausesScreen") return { default: "CampaignCausesScreen" };
       if (name === "@/components/screens/CirclesDiscoverScreen") return { default: "CirclesDiscoverScreen" };
       if (name === "@/components/CampaignDiscoveryNav") return { default: "CampaignDiscoveryNav" };
       if (name === "@/lib/campaign-discovery") return { campaignDiscoveryView };
       if (name === "@/lib/local-preview") return previewModule(preview);
       throw Error(`Forbidden server page dependency: ${name}`);
     } });
-    for (const params of [{}, { mode: "examples" }, { mode: "testnet" }, { mode: "unknown" }, { id: "101", mode: "examples" }, { id: "not-a-number", mode: "examples" }, { create: "1", mode: "examples" }, { id: "101", create: "1", mode: "examples" }]) {
+    for (const params of [{}, { mode: "examples" }, { mode: "testnet" }, { mode: "unknown" }, { id: "101", mode: "examples" }, { id: "not-a-number", mode: "examples" }, { create: "1", mode: "examples" }, { id: "101", create: "1", mode: "examples" }] as Array<Record<string, string>>) {
       const tree = await exports.default({ searchParams: Promise.resolve(params) });
       const expected = campaignDiscoveryView(params, preview);
-      assert.equal(nodes(tree).find(node => node.type === "CampaignDiscoveryNav")?.props.view, expected);
+      const direct = Boolean(params.id || params.create === "1");
+      assert.equal(nodes(tree).find(node => node.type === "CampaignDiscoveryNav")?.props.view, direct ? undefined : expected);
       if (expected === "examples") {
         assert.equal(nodes(tree).find(node => node.type === "CirclesDiscoverScreen")?.props.campaignEntry, true);
         assert.equal(nodes(tree).some(node => node.type === "CampaignScreen"), false);
-      } else {
+      } else if (direct) {
         const screen = nodes(tree).find(node => node.type === "CampaignScreen")!; assert.ok(screen);
         const id = "id" in params ? params.id : "", create = "create" in params && params.create === "1";
         assert.equal(screen.props.id, id); assert.equal(screen.props.initialCreate, create);
-        assert.equal(screen.key, `${id}:${create ? "create" : "view"}`);
+        assert.equal(screen.key, `${id}:${create ? "create" : "view"}:${params.report === "1" ? "report" : "normal"}`);
         assert.equal(nodes(tree).some(node => node.type === "CirclesDiscoverScreen"), false);
-      }
+      } else assert.ok(nodes(tree).some(node => node.type === "CampaignCausesScreen"));
     }
   }
 });
@@ -247,6 +249,7 @@ function campaignCard(campaign: Campaign, preview: boolean, locale: Locale = "en
       // Independently tested ledger/subscription/organizer panels are isolated
       // boundaries here. Discovery still forbids all action/network/storage use.
       if (name === "@/components/CampaignDonorActivity") return { default: "CampaignDonorActivity" };
+      if (name === "@/components/OrganizerProfileLink") return { default: "OrganizerProfileLink" };
       if (name === "@/components/CampaignUpdateSubscription") return { default: "CampaignUpdateSubscription" };
       if (name === "@/components/CampaignOrganizerUpdates") return { default: "CampaignOrganizerUpdates" };
       if (name === "@/components/I18nProvider") return { useT: () => ({ locale }) };
@@ -269,6 +272,7 @@ function campaignCard(campaign: Campaign, preview: boolean, locale: Locale = "en
       if (name === "@/lib/ui/useUnresolvedSubmission") return { useUnresolvedSubmission: forbidden("action") };
       if (name === "@/lib/campaign-preview-storage") return { saveCampaignPreview: forbidden("storage") };
       if (name === "@/components/ui/SubmissionStatusPanel" || name === "@/components/ui/SuccessMotion") return { default: "Stub" };
+      if (name === "@/components/screens/CampaignReviews" || name === "@/components/screens/CampaignReportSheet") return { default: name.split("/").at(-1) };
       if (name.endsWith(".module.css")) return { default: {} };
       throw Error(`Unexpected actual campaign dependency: ${name}`);
     },

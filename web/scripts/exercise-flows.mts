@@ -1,8 +1,9 @@
-// End-to-end exerciser for the five SOW day-30 flows, driven through the REAL
-// app server actions in web/app/actions.ts (no UI, no long-lived server).
+// End-to-end exerciser for the service-authorized SOW flows supported here,
+// driven through app server actions (no UI, no long-lived server).
 // Loads .env.local first so getSigner() resolves the demo signer and the
-// Paluwagan / Smart-Savings contract ids point at the freshly deployed ones.
-// Prints one real testnet tx hash per flow. Read docs/operations/deployments.md for context.
+// Paluwagan contract id points at the deployed Testnet instance. Smart Savings
+// requires a signed-in personal wallet and is exercised through the /savings UI.
+// Prints real Testnet transaction hashes. Read docs/operations/deployments.md for context.
 import { readFileSync } from "node:fs";
 
 // --- load .env.local into process.env (before importing the actions) ---
@@ -53,10 +54,6 @@ show("3_disasterContribute", await A.disasterContribute({ amount: "25", currency
 show("4a_paluwaganPayMine", await A.paluwaganPayMine());
 show("4b_paluwaganFriendsPay", await A.paluwaganFriendsPay());
 show("4c_paluwaganCollect", await A.paluwaganCollect());
-
-// 5. Smart Savings: open a goal, then deposit into it.
-show("5a_smartSavingsOpen", await A.smartSavingsOpen({ amount: "5000", currency: "tl" }));
-show("5b_smartSavingsDeposit", await A.smartSavingsDeposit({ amount: "100", currency: "tl" }));
 
 console.log("\n=== HASH SUMMARY ===");
 for (const [k, v] of Object.entries(out)) {

@@ -437,8 +437,8 @@ test("Send confirmation rejects changed registry identity or a different authent
 });
 test("Savings, Paluwagan and Arisan wrappers preserve pending hashes without announcing success", async () => {
   for (const [method, args] of [
-    ["smartSavingsDeposit", [{ amount: "100", currency: "tl" }]], ["smartSavingsOpen", [{ amount: "100", currency: "tl" }]],
-    ["smartSavingsWithdraw", []], ["paluwaganPayMine", []], ["paluwaganCollect", []],
+    ["smartSavingsDeposit", [{ amount: "100", currency: "tl" }, arisanSender]], ["smartSavingsOpen", [{ amount: "100", currency: "tl" }, arisanSender]],
+    ["smartSavingsWithdraw", [arisanSender]], ["paluwaganPayMine", []], ["paluwaganCollect", []],
     ["arisanCreate", [{ name: "Isolated", memberTarget: 3, share: { amount: "100", currency: "tl" }, cadence: "Weekly" }]],
     ["arisanJoin", [reviewedArisan]], ["arisanLeave", [1]], ["arisanStart", [1]], ["arisanCancel", [1]], ["arisanCommit", [1]], ["arisanReveal", [1]], ["arisanFinalize", [1]], ["arisanPostpone", [1, 60]],
     ["registerUsername", ["jamamam"]], ["renameUsername", ["jamamam"]],
@@ -570,7 +570,7 @@ function sendSetup(options: { storage?: Map<string, string>; unavailable?: boole
     "@/components/ui/SuccessMotion": { default: "SuccessMotion" }, "./SendRevamp.module.css": { default: {} },
     "@/components/ui/TransferMotion": { default: "TransferMotion" },
     "@/lib/ui/useGoBack": { useGoBack: () => () => {} }, "@/lib/ui/currency": { CURRENCY, formatLocalAmount, pesoFromLocal }, "@/lib/money": money,
-    "@/lib/local-preview": { isLocalPreview: preview, PREVIEW_WALLET: { handle: "ariqhermawan", address: "preview-public" } },
+    "@/lib/local-preview": { isLocalPreview: preview, PREVIEW_WALLET: { handle: "ariqhermawan", address: "preview-public" }, localPreviewUsername: () => "ariqhermawan", previewUsdcBalanceCents: () => 241_226 },
     "@/lib/local-preview-history": { recordPreviewTransfer: () => { calls.localRecords++; return {}; } },
     "@/app/actions": { myHandle: async () => "sender", registerUsername: async () => { throw Error("Unexpected registration"); },
       lookupRecipient: async (username: string) => ({ ok: true, username, address: "recipient-public" }),
