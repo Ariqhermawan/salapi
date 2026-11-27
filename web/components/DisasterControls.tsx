@@ -81,7 +81,6 @@ export default function DisasterControls({
   const [amount, setAmount] = useState("");
   const [review, setReview] = useState<Review | null>(null);
   const [submittingBusy, setBusy] = useState(false);
-  const [loadedVaultPoster, setLoadedVaultPoster] = useState("");
   const busy = submittingBusy || submission.locked;
   const [error, setError] = useState("");
   const [receipt, setReceipt] = useState<string | null>(null);
@@ -736,7 +735,7 @@ export default function DisasterControls({
                   <feComposite in2="SourceGraphic" operator="atop" />
                 </filter>
               </svg>
-              {funded && loadedVaultPoster === vaultPoster && (
+              {funded && (
                 <div className={styles.vaultNotes}>
                   {VAULT_NOTES.map((left, index) => (
                     <span
@@ -759,7 +758,6 @@ export default function DisasterControls({
                 alt=""
                 width={720}
                 height={480}
-                onLoad={() => setLoadedVaultPoster(vaultPoster)}
               />
               {!funded && (
                 <>

@@ -87,6 +87,20 @@ test.describe("D3 local UI and HTTP authorization", () => {
     await expect(controls.getByRole("button", { name: /Approve #|Execute #|Review payout|Contribute/ })).toHaveCount(0);
   });
 
+  test("funded activity vault keeps its animated banknotes after image loading", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await fixture(page, { funded: true }, "/vault?tab=activity");
+
+    const activity = page.getByRole("tabpanel", { name: "Activity", exact: true });
+    const art = activity.locator('[class*="vaultArt"]');
+    await expect.poll(() => art.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
+
+    const banknotes = activity.locator('[class*="vaultBanknote"]');
+    await expect(banknotes).toHaveCount(16);
+    await expect.poll(() => banknotes.first().evaluate(element => getComputedStyle(element).animationName)).not.toBe("none");
+    await expect.poll(() => banknotes.first().evaluate(element => element.getAnimations().some(animation => animation.playState === "running"))).toBe(true);
+  });
+
   for (const viewport of [{ width: 320, height: 740 }, { width: 390, height: 844 }, { width: 430, height: 900 }, { width: 1280, height: 900 }]) {
     test(`compact Disaster Vault explains the fund and bounds trailing scroll at ${viewport.width}px`, async ({ page }) => {
       await page.setViewportSize(viewport);
