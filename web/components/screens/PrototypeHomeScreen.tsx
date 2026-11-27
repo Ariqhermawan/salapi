@@ -129,7 +129,7 @@ export default function PrototypeHomeScreen({ liveData }: { liveData?: Prototype
 
     <section className={styles.balance} aria-label={liveData ? "Your Testnet wallet" : "Total balance"}>
       <div className={styles.balanceHeader}>
-        <span>Total balance <span className={styles.testnet}>Testnet</span></span>
+        <span>{liveData?.guest ? "Wallet" : "Total balance"} <span className={styles.testnet}>Testnet</span></span>
         <Image src="/stellar-white.png" alt="Powered by Stellar" width={68} height={17} />
       </div>
       {liveData ? liveData.guest ? <div className={styles.liveGuest}>

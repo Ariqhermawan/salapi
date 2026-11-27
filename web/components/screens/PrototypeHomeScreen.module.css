@@ -1,4 +1,4 @@
-:global(.sl-main:has([data-testid="prototype-home"])) { container:prototype-home-viewport / size; padding-bottom:calc(env(safe-area-inset-bottom,0px) + 90px); }
+:global(.sl-main:has([data-testid="prototype-home"])),:global(.sl-main:has([data-testid="home-dashboard"])) { container:prototype-home-viewport / size; padding-bottom:calc(env(safe-area-inset-bottom,0px) + 90px); }
 .home { position:relative; display:flex; height:calc(100cqh - 8px); min-height:0; flex-direction:column; padding:0 16px 3px; color:#171717; }
 .greeting { display:flex; align-items:center; gap:8px; min-height:44px; margin:0 0 6px; }
 .mark { display:grid; flex:none; width:28px; height:28px; place-items:center; overflow:hidden; border-radius:8px; }
