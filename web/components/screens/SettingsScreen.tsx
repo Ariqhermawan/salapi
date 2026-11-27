@@ -178,7 +178,7 @@ export default function SettingsScreen() {
   const profileStatus = nameStatus !== "ready" || name
     ? nameStatus : !authChecked ? "loading" : authFailed ? "error" : "ready";
   const signedIn = isLocalPreview || Boolean(supaEmail);
-  const display = !isLocalPreview && name ? `@${name}` : signedIn ? "Your account" : "Guest account";
+  const display = name ? `@${name}` : signedIn ? "Your account" : "Guest account";
   const shortAddr = addr ? `${addr.slice(0, 4)}…${addr.slice(-4)}` : "-";
   async function copyAddress() {
     if (!addr) return;
@@ -205,7 +205,7 @@ export default function SettingsScreen() {
       {loadError ? <p role="alert" className={styles.loadError}>{c[loadError]}</p> : null}
 
       <section className={styles.profile} aria-label={c.accountDetails}>
-        <span className={styles.accountMark} aria-hidden="true">{Ico.user({ size: 21, c: T.action })}</span>
+        <span className={styles.accountMark} aria-hidden="true">{isLocalPreview && name ? name[0].toUpperCase() : Ico.user({ size: 21, c: T.action })}</span>
         <span className={styles.profileCopy}>
           <span className={styles.profileName}>{profileStatus === "loading" ? c.loading : display}</span>
           {signedIn ? (
@@ -225,8 +225,8 @@ export default function SettingsScreen() {
             icon={isLocalPreview ? <At size={21} aria-hidden="true" /> : Ico.user({ size: 21, c: T.action })}
             title={t("settings.username")}
             sub={!isLocalPreview && name ? `@${name}` : undefined}
-            onClick={() => router.push("/username")}
-            trailing={!isLocalPreview && name ? Ico.chev({ size: 15, c: T.slate }) : <span className={styles.textAction}>{t("settings.claim")}</span>}
+            onClick={isLocalPreview && name ? undefined : () => router.push("/username")}
+            trailing={isLocalPreview && name ? <span className={styles.muted}>@{name}</span> : !isLocalPreview && name ? Ico.chev({ size: 15, c: T.slate }) : <span className={styles.textAction}>{t("settings.claim")}</span>}
           />
           {signedIn ? <>
             <SettingRow
@@ -252,13 +252,13 @@ export default function SettingsScreen() {
             icon={<HandHeart size={21} aria-hidden="true" />}
             title="Your causes"
             onClick={() => router.push("/manage")}
-            trailing={isLocalPreview ? <span className={styles.muted}>None yet</span> : Ico.chev({ size: 15, c: T.slate })}
+            trailing={isLocalPreview ? value("None yet") : Ico.chev({ size: 15, c: T.slate })}
           />
           <SettingRow
             icon={<BookmarkSimple size={21} aria-hidden="true" />}
             title={campaignDiscoveryCopy(locale)("Saved causes")}
             onClick={() => router.push("/you/saved")}
-            trailing={isLocalPreview ? <span className={styles.muted}>None yet</span> : Ico.chev({ size: 15, c: T.slate })}
+            trailing={isLocalPreview ? value("None yet") : Ico.chev({ size: 15, c: T.slate })}
           />
         </div>
       </section>
@@ -328,12 +328,14 @@ export default function SettingsScreen() {
       </section>
 
       {signedIn ? <section className={styles.support} aria-label={t("settings.signOut")}>
-        <SettingRow
+        {isLocalPreview ? (
+          <button type="button" className={styles.signOutPreview} onClick={signOut}>{signOutPending ? c.signingOut : t("settings.signOut")}</button>
+        ) : <SettingRow
           icon={Ico.back({ size: 21, c: T.action })}
           title={signOutPending ? c.signingOut : t("settings.signOut")}
           onClick={signOut}
           trailing={Ico.chev({ size: 16, c: T.slate })}
-        />
+        />}
         {signOutError ? <p role="alert" className={styles.loadError}>{c.signOutError}</p> : null}
       </section> : null}
 

@@ -19,6 +19,7 @@ import {
 } from "@phosphor-icons/react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { PROTOTYPE_CAUSES, type PrototypeCause } from "@/lib/prototype-causes";
+import { PREVIEW_WALLET } from "@/lib/local-preview";
 import styles from "./PrototypeHomeScreen.module.css";
 
 const BALANCE_KEY = "salapi.prototype-home.hide-balance.v1";
@@ -69,7 +70,7 @@ export default function PrototypeHomeScreen() {
       <Link href="/you" className={styles.mark} aria-label="Your account">
         <Image src="/salapi-mark-prototype.svg" alt="Salapi" width={28} height={28} priority />
       </Link>
-      <h1>Welcome to Salapi</h1>
+      <h1>Welcome to Salapi, @{PREVIEW_WALLET.handle}</h1>
       <Link href="/learn" className={styles.round} aria-label="Help"><Question size={24} aria-hidden="true" /></Link>
       <Link href="/notifications" className={styles.round} aria-label="Notifications"><Bell size={24} aria-hidden="true" /></Link>
     </header>
@@ -98,8 +99,8 @@ export default function PrototypeHomeScreen() {
       <Action href="/receive" label="Receive"><QrCode size={20} aria-hidden="true" /></Action>
     </nav>
 
-    <section className={styles.ticker} aria-label="Sample donation activity">
-      <span className={styles.live}><i />SAMPLE</span>
+    <section className={styles.ticker} aria-label="Live donations">
+      <span className={styles.live}><i />LIVE</span>
       <div className={styles.tickerWindow}>
         <div className={styles.tickerTrack}>
           {[...causes, ...causes].flatMap((cause, index) => DONORS.map((donor, donorIndex) => {
@@ -172,7 +173,7 @@ function Action({ href, label, children }: { href: string; label: string; childr
 }
 
 function CauseCard({ cause, featured }: { cause: PrototypeCause; featured: boolean }) {
-  const progress = Math.min(100, Math.round(cause.raised / cause.target * 10_000) / 100);
+  const progress = Math.round(cause.raised / cause.target * 10_000) / 100;
   const category = cause.category;
   const raised = USD(cause.raised);
   const target = USD(cause.target);
@@ -186,7 +187,7 @@ function CauseCard({ cause, featured }: { cause: PrototypeCause; featured: boole
     </span>
     <span className={styles.cardBody}>
       <strong>{cause.title}</strong>
-      <span className={styles.progress} role="img" aria-label={`${progress}% of goal`}><i style={{ width: `${progress}%` }} /></span>
+      <span className={styles.progress} role="img" aria-label={`${progress}% of goal`}><i style={{ width: `${Math.min(100, progress)}%` }} /></span>
       <span className={styles.raised}>≈ {raised} USDC</span>
       <span className={styles.goal}>raised of {target}</span>
     </span>
