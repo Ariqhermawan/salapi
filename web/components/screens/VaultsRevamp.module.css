@@ -4,18 +4,19 @@
   font-family: var(--font-geist-sans), sans-serif;
   min-width: 0;
 }
-.prototypeVault { padding-top: 8px; }
-.prototypeVault .vaultPageHeader { position: sticky; top: -1px; z-index: 5; display: flex; align-items: center; gap: 12px; min-height: 48px; margin: -8px -20px 8px; padding: 0 16px; background: color-mix(in srgb, var(--sl-canvas) 88%, transparent); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); }
-.prototypeVault .vaultPageHeader h1 { flex: 1; margin: 0; color: var(--sl-ink); font-size: 20px; font-weight: 650; line-height: 26px; letter-spacing: -.02em; text-align: center; }
+.disasterScreen.prototypeVault { padding: 23px 16px 16px; }
+.prototypeVault .vaultPageHeader { position: sticky; top: -1px; z-index: 5; display: flex; align-items: center; gap: 16px; min-height: 48px; margin: -8px -16px 8px; padding: 0 16px; background: color-mix(in srgb, var(--sl-canvas) 88%, transparent); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); }
+.prototypeVault .vaultPageHeader h1 { flex: 1; margin: 0; color: var(--sl-ink); font-size: 20px; font-weight: 650; line-height: 26px; letter-spacing: -.02em; text-align: left; }
 .prototypeVault .backLink { display: grid; width: 40px; height: 40px; padding: 0; place-items: center; border: 1px solid var(--sl-glass-line); border-radius: 999px; background: var(--sl-surface); color: var(--sl-ink); }
 .prototypeVault .headerSpacer { display: block; width: 40px; height: 40px; flex: none; }
 .prototypeVault .vaultBank { overflow: hidden; border: 1px solid var(--sl-glass-line); border-radius: 22px; background: var(--sl-surface); }
-.prototypeVault .vaultArt { display: block; width: 100%; height: auto; aspect-ratio: 3 / 2; object-fit: cover; background: radial-gradient(ellipse at 50% 68%, #dceaff 0%, #edf3ff 58%, #f7f8fb 100%); }
-.prototypeVault .vaultSummary { padding: 16px 18px 18px; text-align: center; }
+.prototypeVault .vaultArt { display: block; width: 100%; height: auto; aspect-ratio: 3 / 2; object-fit: cover; }
+.prototypeVault .vaultSummary { padding: 10px 18px 20px; text-align: center; }
 .prototypeVault .vaultSummary > .eyebrow { margin-bottom: 4px; }
 .prototypeVault .vaultSummary .poolAmount { margin: 0; color: var(--sl-ink); font-size: 28px; line-height: 34px; }
 .prototypeVault .vaultSummary .poolMeta { justify-content: center; flex-wrap: wrap; gap: 8px 12px; margin-top: 10px; }
 .prototypeVault .vaultDisclosure { margin: 4px 0 8px; color: var(--sl-sub); font-size: 12px; line-height: 18px; text-align: center; }
+.prototypeVault .activityPanel { gap: 0; }
 .partnerState { display: grid; gap: 8px; margin: 4px 0 10px; padding: 16px; border: 1px solid var(--sl-glass-line); border-radius: 18px; background: var(--sl-surface); }
 .partnerState .eyebrow { margin: 0; }
 .partnerState h2 { margin: 0; color: var(--sl-ink); font-size: 16px; font-weight: 650; line-height: 22px; }
@@ -77,7 +78,7 @@
 .activityEvent .eventCopy strong { color: inherit; font-size: 12px; }
 .activityEvent .eventCopy > span { color: var(--sl-sub); font-size: 10px; }
 .activityEvent .eventAmount { color: var(--sl-ink); font-size: 12px; font-weight: 650; }
-@media (max-width: 380px) { .prototypeVault .vaultPageHeader { margin-inline: -12px; } }
+@media (max-width: 380px) { .disasterScreen.prototypeVault { padding-inline: 12px; } .prototypeVault .vaultPageHeader { margin-inline: -12px; } }
 .screen h1,
 .screen h2,
 .screen h3,
@@ -1926,13 +1927,13 @@
     font-size: 27px;
   }
 }
-.prototypeVault .tabs { gap: 2px; padding: 3px; margin: 12px 0 12px; border-radius: 11px; }
+.prototypeVault .tabs { gap: 2px; padding: 3px; margin: 18px 0 10px; border-radius: 11px; }
 .prototypeVault .tab { min-height: 31px; padding: 6px 5px; border-radius: 8px; font-size: 11px; }
 .prototypeVault .activitySummaryHeading > .eyebrow { color: var(--sl-sub); font-size: 10px; font-weight: 500; letter-spacing: 0; text-transform: none; }
 .prototypeVault .activitySummaryHeading .inlinePayoutInfo > summary { min-height: 32px; }
 .prototypeVault .activityContributionMeta { margin: 4px 0 0; color: var(--sl-sub); font-size: 10px; line-height: 1.45; }
 .prototypeVault .vaultSummary .poolAmount { justify-content: center; margin-top: 6px; font-size: 30px; }
-.prototypeVault .activityContribute { min-height: 42px; margin-top: 14px; font-size: 13px; }
+.prototypeVault .activityContribute { min-height: 52px; margin-top: 16px; font-size: 13px; }
 .prototypeVault .activityCard { gap: 8px; }
 .prototypeVault .activitySectionHeading h2 { font-size: 15px; }
 .prototypeVault .activityEvent { min-height: 54px; }
@@ -1945,7 +1946,7 @@
 }
 
 /* Live Disaster Vault activity follows the prototype card and segmented-filter layout. */
-.vaultScene { position: relative; aspect-ratio: 3 / 2; overflow: hidden; isolation: isolate; background: radial-gradient(ellipse at 50% 68%, #dceaff 0%, #edf3ff 58%, #f7f8fb 100%); }
+.vaultScene { position: relative; aspect-ratio: 3 / 2; overflow: hidden; isolation: isolate; background: transparent; }
 .vaultScene::before, .vaultScene::after { position: absolute; z-index: 0; inset: -3%; pointer-events: none; content: ""; }
 .vaultScene::before { background: conic-gradient(at 2% -5%, transparent 78deg, #ffda872d 95deg, #ffda8778 116deg, #ffda8780 132deg, #ffda8778 148deg, #ffda872d 169deg, transparent 187deg); mask-image: radial-gradient(ellipse 88% 115% at 2% -5%, black, #000c 34%, #0006 66%, transparent); filter: blur(5px); }
 .vaultScene::after { background: conic-gradient(at 98% -4%, transparent 194deg, color-mix(in srgb, var(--sl-primary, #3155dc) 54%, transparent) 218deg 231deg, transparent 251deg); mask-image: radial-gradient(ellipse 34% 59% at 98% -4%, black, #0009 48%, transparent); filter: blur(3px); }
@@ -1976,6 +1977,7 @@
 .vaultSummary .inlinePayoutInfo > summary { width: 24px; height: 24px; }
 .vaultSummary .inlinePayoutInfo > p { width: min(280px, 78vw); }
 .vaultMarketValue { margin: 3px 0 0; color: var(--sl-ink, #171717); font-size: 30px; font-weight: 500; letter-spacing: -.005em; line-height: 38px; font-variant-numeric: tabular-nums; }
+.vaultMarketUnavailable { font-size: 16px; line-height: 37px; white-space: nowrap; }
 .vaultNativeValue { margin: 2px 0 0; color: var(--sl-sub, #737985); font-size: 14px; line-height: 20px; font-variant-numeric: tabular-nums; }
 .vaultSummary .activityContributionMeta { margin: 3px 0 0; color: var(--sl-sub, #737985); font-size: 14px; line-height: 20px; }
 .activityContribute { display: flex; width: 100%; min-height: 52px; align-items: center; justify-content: center; margin-top: 16px; border: 0; border-radius: 999px; background: linear-gradient(105deg, #294bdd, #4d7cff); color: #fff; font: 500 16px/24px var(--font-geist-sans), sans-serif; cursor: pointer; }
@@ -2003,6 +2005,13 @@
 .vaultActivityRow strong { display: block; overflow: hidden; color: var(--sl-ink, #171717); font-size: 16px; font-weight: 500; letter-spacing: -.011em; line-height: 24px; text-overflow: ellipsis; white-space: nowrap; }
 .vaultActivityRow small { display: block; overflow: hidden; color: var(--sl-sub, #737985); font-size: 14px; font-weight: 400; letter-spacing: -.006em; line-height: 20px; text-overflow: ellipsis; white-space: nowrap; }
 .vaultActivityRow > b { flex: none; color: var(--sl-ink, #171717); font-size: 16px; font-weight: 500; letter-spacing: -.011em; line-height: 24px; font-variant-numeric: tabular-nums; }
+.prototypeVault .vaultActivityHeading { margin: 12px 0 8px; }
+.prototypeVault .vaultActivityFilters { gap: 2px; margin: 0 0 12px; padding: 4px; }
+.prototypeVault .vaultActivityFilters button { min-height: 28px; }
+.prototypeVault .vaultPayouts { margin-inline: 0; }
+.prototypeVault .vaultContributionHeading { margin: 0 4px 8px; }
+.prototypeVault .vaultContributionHeading h3 { line-height: 24px; }
+.prototypeVault .vaultContributions { margin-inline: 0; }
 .vaultPayouts .vaultActivityRow { min-height: 52px; gap: 9px; }
 .vaultPayouts .vaultActivityRow + .vaultActivityRow { border-top-color: color-mix(in srgb, var(--sl-primary, #3155dc) 14%, transparent); }
 .vaultPayouts .vaultActivityRow > span > strong { font-size: 13px; }
