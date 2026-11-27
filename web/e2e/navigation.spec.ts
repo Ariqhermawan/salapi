@@ -56,8 +56,8 @@ test("Main tabs navigate to Home, Arisan, Cause creation, Activity and You", asy
   const createRoom = page.getByRole("link", { name: "Create a room", exact: true }).or(page.getByRole("button", { name: "Create a room", exact: true }));
   await expect(createRoom).toBeVisible();
   await page.getByRole("navigation", { name: "Main navigation", exact: true }).getByRole("button", { name: "Cause", exact: true }).click();
-  await expect(page).toHaveURL(/\/campaigns\?create=1$/);
-  await expect(page.getByText("Donation campaigns", { exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/create$/);
+  await expect(page.getByText("Create cause", { exact: true })).toBeVisible();
   await home(page);
   await page.getByRole("navigation", { name: "Main navigation", exact: true }).getByRole("button", { name: "Activity", exact: true }).click();
   await expect(page).toHaveURL(/\/activity$/);

@@ -112,8 +112,8 @@ test("tab prefetch follows intent only, deduplicates, refreshes after invalidati
   assert.deepEqual(ui.prefetched, ["/vaults"]);
   ui.invalidations.get("/vaults")!(); prefetch("/vaults");
   assert.deepEqual(ui.prefetched, ["/vaults", "/vaults"]);
-  for (const id of ["/campaigns?create=1", "/activity", "/you"]) prefetch(id);
-  assert.deepEqual(ui.prefetched.slice(2), ["/campaigns?create=1", "/activity", "/you"]);
+  for (const id of ["/create", "/activity", "/you"]) prefetch(id);
+  assert.deepEqual(ui.prefetched.slice(2), ["/create", "/activity", "/you"]);
   (tree.props.onNav as (id: string) => void)("/");
   assert.deepEqual(ui.pushes, [], "Clicking the current tab must not remount its reads");
   (tree.props.onNav as (id: string) => void)("/you");

@@ -54,7 +54,7 @@ export default function BottomNav() {
   const items: Tab[] = [
     { id: "/", label: t("nav.home"), icon: ({ size, active } = {}) => <House size={size} weight={active ? "fill" : "regular"} /> },
     { id: "/vaults", label: "Arisan", icon: ({ size, active } = {}) => <Users size={size} weight={active ? "fill" : "regular"} /> },
-    { id: "/campaigns?create=1", label: homeCopy(locale, "Cause"), icon: Ico.plus, fab: true },
+    { id: "/create", label: homeCopy(locale, "Cause"), icon: Ico.plus, fab: true },
     { id: "/activity", label: t("nav.activity"), icon: ({ size, active } = {}) => <Pulse size={size} weight={active ? "bold" : "regular"} /> },
     { id: "/you", label: t("common.you"), icon: ({ size, active } = {}) => <User size={size} weight={active ? "fill" : "regular"} /> },
   ];
@@ -67,7 +67,8 @@ export default function BottomNav() {
       ? "/"
       : path === "/causes" ? "/"
       : path === "/vault" ? "/"
-      : path === "/campaigns" ? "/campaigns?create=1"
+      : path === "/create" ? "/create"
+      : path === "/campaigns" ? "/create"
       : /^\/(vaults|arisan|paluwagan|savings)(\/|$)/.test(path)
         ? "/vaults"
       : path === "/saved" ? "/you"

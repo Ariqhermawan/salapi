@@ -306,7 +306,7 @@ test("Arisan and Crowdfund keep their own cards, empty states, actions and legac
   assert.equal(nodes(arisan).some(node => String(node.props["aria-labelledby"] ?? "").startsWith("vault-campaign-")), false);
   assert.equal(nodes(crowdfunding).some(node => String(node.props.className).includes("arisanVault")), false);
   for (const href of ["/arisan/new", "/arisan/join", "/paluwagan"]) assert.ok(nodes(arisan).some(node => node.props.href === href));
-  for (const href of ["/campaigns?mode=examples", "/campaigns?create=1", "/campaigns?id=101", "/transparency", "/circles"]) assert.ok(nodes(crowdfunding).some(node => node.props.href === href));
+  for (const href of ["/campaigns?mode=examples", "/create", "/campaigns?id=101", "/transparency", "/circles"]) assert.ok(nodes(crowdfunding).some(node => node.props.href === href));
   const savings = nodes(tree).find(node => node.props.href === "/savings")!;
   assert.ok(savings, "Smart Savings is reachable from Vaults");
   assert.equal(nodes(arisan).some(node => node.props.href === "/savings"), false);

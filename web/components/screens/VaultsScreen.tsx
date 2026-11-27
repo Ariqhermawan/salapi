@@ -557,7 +557,7 @@ export default function VaultsScreen() {
         <p className={styles.sectionCopy}>{vaultCopy.campaignSub}</p>
         <div className={styles.vaultActions}>
           <Link href="/campaigns?mode=examples" className={styles.primaryLink}>{vaultCopy.explore}</Link>
-          <Link href="/campaigns?create=1" className={styles.secondaryLink}>{vaultCopy.start}</Link>
+          <Link href="/create" className={styles.secondaryLink}>{vaultCopy.start}</Link>
         </div>
         {loading && mine.length === 0 && <div role="status" aria-label={vaultCopy.campaignLoading} className={styles.loadingGrid}><div className={styles.skeleton} /><div className={styles.skeleton} /></div>}
         {campaignsIncomplete && <div className={styles.inlineNotice} role="alert">

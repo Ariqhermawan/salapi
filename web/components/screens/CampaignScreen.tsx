@@ -87,7 +87,7 @@ function AddressLink({ address }: { address: string }) {
   return <a style={wordBreak} href={`https://stellar.expert/explorer/testnet/account/${address}`} target="_blank" rel="noreferrer">{address}</a>;
 }
 
-function CreateCampaign({ run, busy, onPreviewCreate, initialCreate = false }: { run: Run; busy: boolean; onPreviewCreate?: (campaign: Campaign) => boolean; initialCreate?: boolean }) {
+function CreateCampaign({ run, busy, onPreviewCreate, initialCreate = false, standalone = false }: { run: Run; busy: boolean; onPreviewCreate?: (campaign: Campaign) => boolean; initialCreate?: boolean; standalone?: boolean }) {
   const { locale } = useT();
   const h = campaignDiscoveryCopy(locale);
   const [values, setValues] = useState({ title: "", beneficiary: "", creatorCut: "5", funding: "", review: "", a: "", b: "", c: "" });
@@ -140,7 +140,7 @@ function CreateCampaign({ run, busy, onPreviewCreate, initialCreate = false }: {
   const stepNames = ["Campaign basics", "Beneficiary", "Funding dates", "Reviewers"] as const;
   const headings = ["Name your cause", "Set beneficiary and creator share", "Set funding and review dates", "Choose three distinct reviewers"] as const;
   function advance() { if (validate(step)) setStep(current => current + 1); }
-  return <details className={`${styles.card} ${styles.creation}`} open={initialCreate || undefined}><summary className={styles.createSummary}><div><strong>{h("Start a campaign")}</strong><span>{h("Bring your cause to the community.")}</span></div>{Ico.plus({ c: T.action, size: 20 })}</summary>
+  return <details className={`${styles.card} ${styles.creation}`} open={initialCreate || undefined}><summary className={styles.createSummary} hidden={standalone}><div><strong>{h("Start a campaign")}</strong><span>{h("Bring your cause to the community.")}</span></div>{Ico.plus({ c: T.action, size: 20 })}</summary>
     <div className={styles.formSection}>
       <ol className={styles.createProgress} aria-label={h("Campaign setup progress")}>
         {stepNames.map((name, index) => <li key={name} aria-current={step === index + 1 ? "step" : undefined}>{h(name)}</li>)}
@@ -330,8 +330,8 @@ export function CampaignEvidence() {
   </Card></section>;
 }
 
-export default function CampaignScreen({ id, initialCreate = false, initialReport = false }: { id: string; initialCreate?: boolean; initialReport?: boolean }) {
-  const goBack = useGoBack(id || initialCreate ? "/campaigns?mode=testnet" : "/vaults");
+export default function CampaignScreen({ id, initialCreate = false, initialReport = false, standaloneCreate = false }: { id: string; initialCreate?: boolean; initialReport?: boolean; standaloneCreate?: boolean }) {
+  const goBack = useGoBack(standaloneCreate ? "/" : id || initialCreate ? "/campaigns?mode=testnet" : "/vaults");
   const { locale } = useT();
   const copy = previewCopy[locale] ?? previewCopy.en;
   const submission = useUnresolvedSubmission("campaign:d4");
@@ -443,28 +443,32 @@ export default function CampaignScreen({ id, initialCreate = false, initialRepor
   const visibleCampaigns = state?.ok ? state.campaigns.filter(c => filter === "All" || filter === "My campaigns" && c.config.creator === state.viewer || filter === "Funding" && c.state === "Funding" && BigInt(state.now) < BigInt(c.config.funding_deadline) || filter === "In review" && (c.state === "PendingProof" || c.state === "Funding" && BigInt(state.now) >= BigInt(c.config.funding_deadline)) || filter === "Completed" && (c.state === "Released" || c.state === "Closed")) : [];
   return <div className={styles.screen} style={{ fontFamily: T.fontSans }}>
     <SubmissionStatusPanel guard={submission} onRefresh={refresh} />
-    <header className={styles.appBar}><button type="button" onClick={goBack} aria-label={accountCopy(locale).back}>{Ico.back({ size: 20 })}</button><strong>Donation campaigns</strong><span>Testnet</span></header>
+    <header className={styles.appBar}><button type="button" onClick={goBack} aria-label={accountCopy(locale).back}>{Ico.back({ size: 20 })}</button><strong>{standaloneCreate ? "Create cause" : "Donation campaigns"}</strong><span>Testnet</span></header>
     <div className={styles.body}>
-      <header className={`${styles.hero} ${id ? styles.detailHero : ""}`}><div><span className={styles.eyebrow}>Crowdfunding · Testnet</span><h1>Give with clarity.</h1><p>{id ? "Funds stay in escrow until proof receives two wallet approvals." : "Choose a cause. See the terms before you give. Funds stay in escrow until proof receives two wallet approvals."}</p></div><Image className={styles.doodle} width={112} height={112} src="/illustrations/giving.png" alt="Two people sharing a heart" /></header>
+      {!standaloneCreate && <header className={`${styles.hero} ${id ? styles.detailHero : ""}`}><div><span className={styles.eyebrow}>Crowdfunding · Testnet</span><h1>Give with clarity.</h1><p>{id ? "Funds stay in escrow until proof receives two wallet approvals." : "Choose a cause. See the terms before you give. Funds stay in escrow until proof receives two wallet approvals."}</p></div><Image className={styles.doodle} width={112} height={112} src="/illustrations/giving.png" alt="Two people sharing a heart" /></header>}
       <p className={styles.previewNote}>{isLocalPreview ? "Example data · Local preview · No real donations" : "Valueless Testnet XLM · Managed Salapi wallets"}</p>
-      <div className={styles.toolbar}><Link href="/transparency">{Ico.link({ size: 15 })} Public proof</Link>{id && <Link href="/campaigns?mode=testnet">All campaigns</Link>}<button className={styles.textButton} onClick={() => void refresh()} disabled={busy}>{Ico.refresh({ size: 15 })} Refresh</button></div>
+      {!standaloneCreate && <div className={styles.toolbar}><Link href="/transparency">{Ico.link({ size: 15 })} Public proof</Link>{id && <Link href="/campaigns?mode=testnet">All campaigns</Link>}<button className={styles.textButton} onClick={() => void refresh()} disabled={busy}>{Ico.refresh({ size: 15 })} Refresh</button></div>}
       {!state && <div aria-label="Loading campaigns" className={styles.skeleton} />}
       {state && !state.ok && <div className={styles.error} role="alert"><strong>Campaigns could not load.</strong><p>{state.error}</p><button className={styles.textButton} onClick={() => void refresh()}>Try again</button></div>}
       {state?.ok && <>
-        {state.viewer ? (!id || initialCreate) && <CreateCampaign run={run} busy={busy || !!confirm} initialCreate={initialCreate} onPreviewCreate={campaign => savePreview([campaign,...previewCampaigns])} />
-          : <div className={styles.notice}><p>Explore campaign terms and proof publicly. Sign in to give or manage a campaign.</p><Link className={styles.textButton} href={`/signin?next=${encodeURIComponent(initialCreate ? "/campaigns?create=1" : `/campaigns${id ? `?id=${id}` : "?mode=testnet"}`)}`}>Sign in →</Link></div>}
-        {!id && <nav aria-label="Filter campaigns" className={styles.filters}>{["All", "Funding", "In review", "My campaigns", "Completed"].map(label => <button key={label} aria-pressed={filter === label} className={`${styles.filter} ${filter === label ? styles.filterActive : ""}`} onClick={() => setFilter(label)}>{label}</button>)}</nav>}
-        {visibleCampaigns.length === 0 && <div className={styles.empty}><h2>{id ? "Campaign not found" : "No campaigns in this view"}</h2><p className={styles.muted}>{id ? "Return to all campaigns to choose another cause." : "Choose another filter, or start a cause with clear terms."}</p></div>}
-        {visibleCampaigns.map(c => <CampaignCard key={c.id} c={c} circleId={"circleLinks" in state ? state.circleLinks?.[c.id] : undefined} now={BigInt(state.now)} viewer={state.viewer} busy={busy || !!confirm} run={run} detail={!!id} onPreviewUpdate={updatePreview} />)}
-        {id && !initialCreate && state.viewer && <Link className={styles.startLink} href="/campaigns?create=1">{Ico.plus({ size: 18 })}<span>Start a campaign</span>{Ico.chev({ size: 17 })}</Link>}
-        {!id && <div style={{ display: "flex", gap: 12 }}>{before !== "0" && <button onClick={() => setBefore("0")}>Newest campaigns</button>}
+        {standaloneCreate
+          ? state.viewer
+            ? <CreateCampaign run={run} busy={busy || !!confirm} initialCreate standalone onPreviewCreate={campaign => savePreview([campaign,...previewCampaigns])} />
+            : <div className={styles.notice}><p>Sign in to create a cause with fixed Testnet terms and three independent reviewers.</p><Link className={styles.textButton} href={`/signin?next=${encodeURIComponent("/create")}`}>Sign in →</Link></div>
+          : state.viewer ? (!id || initialCreate) && <CreateCampaign run={run} busy={busy || !!confirm} initialCreate={initialCreate} onPreviewCreate={campaign => savePreview([campaign,...previewCampaigns])} />
+            : <div className={styles.notice}><p>Explore campaign terms and proof publicly. Sign in to give or manage a campaign.</p><Link className={styles.textButton} href={`/signin?next=${encodeURIComponent(initialCreate ? "/create" : `/campaigns${id ? `?id=${id}` : "?mode=testnet"}`)}`}>Sign in →</Link></div>}
+        {!standaloneCreate && !id && <nav aria-label="Filter campaigns" className={styles.filters}>{["All", "Funding", "In review", "My campaigns", "Completed"].map(label => <button key={label} aria-pressed={filter === label} className={`${styles.filter} ${filter === label ? styles.filterActive : ""}`} onClick={() => setFilter(label)}>{label}</button>)}</nav>}
+        {!standaloneCreate && visibleCampaigns.length === 0 && <div className={styles.empty}><h2>{id ? "Campaign not found" : "No campaigns in this view"}</h2><p className={styles.muted}>{id ? "Return to all campaigns to choose another cause." : "Choose another filter, or start a cause with clear terms."}</p></div>}
+        {!standaloneCreate && visibleCampaigns.map(c => <CampaignCard key={c.id} c={c} circleId={"circleLinks" in state ? state.circleLinks?.[c.id] : undefined} now={BigInt(state.now)} viewer={state.viewer} busy={busy || !!confirm} run={run} detail={!!id} onPreviewUpdate={updatePreview} />)}
+        {!standaloneCreate && id && !initialCreate && state.viewer && <Link className={styles.startLink} href="/create">{Ico.plus({ size: 18 })}<span>Start a campaign</span>{Ico.chev({ size: 17 })}</Link>}
+        {!standaloneCreate && !id && <div style={{ display: "flex", gap: 12 }}>{before !== "0" && <button onClick={() => setBefore("0")}>Newest campaigns</button>}
           {state.campaigns.length === 10 && <button onClick={() => setBefore(state.campaigns.at(-1)!.id)}>Older campaigns</button>}</div>}
         {!isLocalPreview && <details className={styles.terms}><summary>View the D4 Testnet contract</summary><a className={styles.address} href={`https://stellar.expert/explorer/testnet/contract/${state.contractId}`} target="_blank" rel="noreferrer">{state.contractId}</a></details>}
       </>}
       {localDone && <SuccessMotion key={localDone} title={copy.title}>{localDone}</SuccessMotion>}
       {done && <SuccessMotion title="Testnet transaction confirmed"><a href={done.link} target="_blank" rel="noreferrer">View transaction</a>{done.id && <Link href={`/campaigns?id=${done.id}`}>Open created campaign #{done.id}</Link>}</SuccessMotion>}
       {error && <p className={styles.error} role="alert">{error}</p>}
-      <p className={styles.muted}>If timely approval is incomplete, each donor can claim their full recorded donation after review closes. These campaigns have their own rules, separate from Disaster Vault.</p>
+      {!standaloneCreate && <p className={styles.muted}>If timely approval is incomplete, each donor can claim their full recorded donation after review closes. These campaigns have their own rules, separate from Disaster Vault.</p>}
       <footer className={styles.footer}><PoweredByStellar /><small>Public proof on Stellar Testnet.</small></footer>
     </div>
     {initialReport && id ? <CampaignReportSheet campaignId={id} /> : null}
