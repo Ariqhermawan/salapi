@@ -33,16 +33,8 @@ const STATUS_TONE = {
   Done: "neutral" as const,
   Dissolved: "warn" as const,
 };
-const scheduledRoomCopy = {
-  en: "Create a scheduled room · agree on dates and fund the full cycle →",
-  id: "Buat room terjadwal · sepakati tanggal dan danai seluruh siklus →",
-  tl: "Mag-iskedyul ng room · magkasundo sa petsa at pondohan ang buong cycle →",
-  vi: "Tạo phòng theo lịch · thống nhất ngày và nạp đủ cả chu kỳ →",
-} as const;
-const scheduledRoomsEnabled = process.env.NEXT_PUBLIC_ARISAN_SCHEDULED === "1";
-
 export default function ArisanListScreen({ emptyPreview = false }: { emptyPreview?: boolean }) {
-  const { t, currency, locale } = useT();
+  const { t, currency } = useT();
   const router = useRouter();
   const [st, setSt] = useState<State | null>(null);
   const [filter, setFilter] = useState("All");
@@ -106,7 +98,7 @@ export default function ArisanListScreen({ emptyPreview = false }: { emptyPrevie
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [emptyPreview]);
 
-  if ((st?.ready && st.mine.length === 0 && st.nextCursor === null) || contractUnavailable) {
+  if ((st?.ready && st.mine.length === 0) || contractUnavailable) {
     return (
       <div className={`${prototypeStyles.page} ${prototypeStyles.emptyPage}`} data-testid="arisan-empty">
         <header className={prototypeStyles.heading}><h1>Arisan</h1></header>
@@ -120,7 +112,10 @@ export default function ArisanListScreen({ emptyPreview = false }: { emptyPrevie
             <Link className={prototypeStyles.create} href="/arisan/new">Create a room</Link>
             <Link className={prototypeStyles.join} href="/arisan/join">Join with a code</Link>
           </nav>
-          {scheduledRoomsEnabled ? <Link href="/arisan/scheduled" className={styles.textButton}>{scheduledRoomCopy[locale]}</Link> : null}
+          {st?.ready && st.nextCursor !== null ? <div className={prototypeStyles.olderRooms}>
+            <button type="button" onClick={loadOlder} disabled={loading}>Load older rooms</button>
+            <p role="status">Each request checks up to 50 older rooms. Only your memberships are listed.</p>
+          </div> : null}
         </section>
         <footer className={prototypeStyles.emptyFooter}><PoweredByStellar /></footer>
       </div>
@@ -158,10 +153,6 @@ export default function ArisanListScreen({ emptyPreview = false }: { emptyPrevie
           Join with a code
         </Btn>
       </div>
-      {scheduledRoomsEnabled ? <Link href="/arisan/scheduled" className={styles.textButton} style={{ display: "block", margin: "-8px 20px 12px", textAlign: "center" }}>
-        {scheduledRoomCopy[locale]}
-      </Link> : null}
-
       <div className={styles.arisanContent}>
         {st?.ready && st.mine.length > 0 && <nav className={styles.arisanFilters} aria-label="Filter rooms">{["All", "Open", "Active", "Done"].map(label => <button key={label} className={`${styles.filter} ${filter === label ? styles.filterActive : ""}`} aria-pressed={filter === label} onClick={() => setFilter(label)}>{label}</button>)}</nav>}
 

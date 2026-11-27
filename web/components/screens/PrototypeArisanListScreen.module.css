@@ -11,6 +11,10 @@
 .emptyState p { margin:4px 0 0; color:#5c5c5c; font-size:16px; line-height:24px; }
 .ways { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; width:100%; }
 .emptyWays { margin-top:16px; }
+.olderRooms { display:grid; justify-items:center; gap:4px; margin-top:10px; }
+.olderRooms button { min-height:32px; padding:0 8px; border:0; background:none; color:#3155dc; font:500 13px/20px var(--font-geist-sans), Outfit, system-ui, sans-serif; }
+.olderRooms button:disabled { opacity:.6; }
+.olderRooms p { max-width:280px; margin:0; color:#777d86; font-size:12px; line-height:18px; }
 .ways a { display:flex; min-width:0; min-height:52px; align-items:center; justify-content:center; padding:0 8px; border:1px solid #e6e7ea; border-radius:999px; background:#fff; color:#5c5c5c; font-size:16px; font-weight:500; line-height:24px; letter-spacing:-.011em; text-align:center; text-decoration:none; white-space:nowrap; }
 .ways .create { border-color:transparent; background:linear-gradient(180deg,#2547d0,#4d82ff); color:#fff; }
 .ways a:active { transform:scale(.98); }
