@@ -1,29 +1,21 @@
 import "server-only";
-import { isLocalPreview } from "@/lib/local-preview";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
-import { supabaseAdminConfigured } from "@/lib/supabase/env";
-import { resolveCirclesSignupIdentity } from "@/lib/server/circlesSignup";
+import { verifiedAccountOwner } from "@/lib/server/verifiedAccountOwner";
 import { parseCircleDraft, type CircleDraft } from "@/lib/circles/drafts";
 
 const TABLE = "circles_drafts";
 type Failure = { ok: false; code: "local_preview" | "unavailable" | "unauthenticated" | "unverified" | "account_changed" | "invalid"; error: string };
-type Owner = { ok: true; userId: string } | Failure;
-
-async function owner(expectedOwnerId: unknown): Promise<Owner> {
-  if (isLocalPreview) return { ok: false, code: "local_preview", error: "Local preview does not save account drafts." };
-  if (!supabaseAdminConfigured()) return { ok: false, code: "unavailable", error: "Private draft storage is unavailable. Nothing was saved." };
-  const identity = await resolveCirclesSignupIdentity();
-  if (identity.status === "guest") return { ok: false, code: "unauthenticated", error: "Sign in with a verified account to save a private draft." };
-  if (identity.status === "unverified") return { ok: false, code: "unverified", error: "Verify your account email before saving a private draft." };
-  if (identity.status !== "verified") return { ok: false, code: "unavailable", error: "Your account could not be checked. Nothing was saved." };
-  if (typeof expectedOwnerId !== "string" || identity.ownerId !== expectedOwnerId)
-    return { ok: false, code: "account_changed", error: "Your signed-in account changed. Refresh the page and try again." };
-  return { ok: true, userId: identity.ownerId };
-}
+const ownerError = (code: Exclude<Failure["code"], "invalid">) => ({
+  local_preview: "Local preview does not save account drafts.",
+  unavailable: "Private draft storage is unavailable. Nothing was saved.",
+  unauthenticated: "Sign in with a verified account to save a private draft.",
+  unverified: "Verify your account email before saving a private draft.",
+  account_changed: "Your signed-in account changed. Refresh the page and try again.",
+})[code];
 
 export async function saveCircleDraft(input: unknown, expectedOwnerId: unknown): Promise<{ ok: true; draft: CircleDraft; persisted: true } | Failure> {
-  const who = await owner(expectedOwnerId);
-  if (!who.ok) return who;
+  const who = await verifiedAccountOwner(expectedOwnerId);
+  if (!who.ok) return { ...who, error: ownerError(who.code) };
   const draft = parseCircleDraft(input, new Date().toISOString());
   if (!draft) return { ok: false, code: "invalid", error: "The draft details could not be verified. Nothing was saved." };
   try {
@@ -39,8 +31,8 @@ export async function saveCircleDraft(input: unknown, expectedOwnerId: unknown):
 }
 
 export async function readCircleDraft(expectedOwnerId: unknown): Promise<{ ok: true; draft: CircleDraft | null } | Failure> {
-  const who = await owner(expectedOwnerId);
-  if (!who.ok) return who;
+  const who = await verifiedAccountOwner(expectedOwnerId);
+  if (!who.ok) return { ...who, error: ownerError(who.code) };
   try {
     const { data, error } = await createSupabaseAdmin().from(TABLE).select("draft")
       .eq("user_id", who.userId).maybeSingle();

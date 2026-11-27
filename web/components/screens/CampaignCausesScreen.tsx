@@ -13,6 +13,8 @@ import { useT } from "@/components/I18nProvider";
 import type { Campaign } from "@/lib/campaign";
 import { isLocalPreview, PREVIEW_CAMPAIGNS, PREVIEW_TIME, PREVIEW_WALLET } from "@/lib/local-preview";
 import { campaignDiscoveryCopy } from "@/lib/i18n/revamp-campaign-discovery";
+import { readAccountSavedCampaigns, setAccountSavedCampaign } from "@/app/campaign-saved-actions";
+import { useCirclesSignupIdentity } from "@/lib/ui/useCirclesSignupIdentity";
 import { d4CampaignStatus, filterD4Campaigns, type D4CampaignLayout } from "@/lib/campaign-discovery";
 import { formatStroops } from "@/lib/format-stroops";
 import { formatIllustrativeUsd } from "@/lib/money";
@@ -54,9 +56,9 @@ function CategoryChip({ label, category }: { label: string; category: string }) 
   return <span className={styles.categoryChip} data-category={category}>{label}</span>;
 }
 
-function CauseCard({ campaign, status, category, featured, saved, onSave, localPreview }: {
+function CauseCard({ campaign, status, category, featured, saved, onSave, localPreview, saveDisabled = false }: {
   campaign: CampaignRow; status: string; category: string; featured?: boolean; saved: boolean;
-  onSave: () => void; localPreview: boolean;
+  onSave: () => void; localPreview: boolean; saveDisabled?: boolean;
 }) {
   const href = `/campaigns?id=${encodeURIComponent(campaign.id)}`;
   const categoryId = category.toLowerCase().replace(/[^a-z]+/g, "-");
@@ -87,7 +89,7 @@ function CauseCard({ campaign, status, category, featured, saved, onSave, localP
         </span>
       </span>
     </Link>
-    <button type="button" className={styles.saveButton} aria-pressed={saved}
+    <button type="button" className={styles.saveButton} aria-pressed={saved} disabled={saveDisabled}
       aria-label={saved ? `Remove ${campaign.title} from saved causes` : `Save ${campaign.title}`}
       title={saved ? "Remove from saved causes" : "Save this cause"} onClick={onSave}>
       <BookmarkSimple size={19} weight={saved ? "fill" : "regular"} aria-hidden="true" />
@@ -124,8 +126,14 @@ function LiveCampaignCausesScreen({ initialSavedOnly = false }: { initialSavedOn
   const [olderError, setOlderError] = useState(false);
   const [nextCursor, setNextCursor] = useState("0");
   const [saved, setSaved] = useState<string[]>([]);
-  const [saveError, setSaveError] = useState(false);
-
+  const [saveError, setSaveError] = useState<"browser" | "account" | null>(null);
+  const [savedStatus, setSavedStatus] = useState<"loading" | "device" | "account" | "failed">("loading");
+  const [savedMutation, setSavedMutation] = useState<string | null>(null);
+  const { identity, captureOwnerRevision, isCurrentOwner } = useCirclesSignupIdentity(() => {
+    setSaved([]);
+    setSaveError(null);
+    setSavedStatus("loading");
+  });
   const updateParams = useCallback((updates: Record<string, string | null>) => {
     const next = new URLSearchParams(params.toString());
     for (const [key, value] of Object.entries(updates)) value ? next.set(key, value) : next.delete(key);
@@ -152,14 +160,42 @@ function LiveCampaignCausesScreen({ initialSavedOnly = false }: { initialSavedOn
   }, [refresh]);
 
   useEffect(() => {
-    const initialLoad = setTimeout(() => {
-      try {
-        const value: unknown = JSON.parse(localStorage.getItem(SAVED_KEY) || "[]");
-        if (Array.isArray(value) && value.every(id => typeof id === "string" && /^\d{1,20}$/.test(id))) setSaved(value);
-      } catch { setSaveError(true); }
-    }, 0);
-    return () => clearTimeout(initialLoad);
-  }, []);
+    let active = true;
+    const current = identity;
+    const localKey = current.status === "verified" ? `${SAVED_KEY}:${current.ownerId}` : SAVED_KEY;
+    const readDeviceCopy = () => {
+      const value: unknown = JSON.parse(localStorage.getItem(localKey) || "[]");
+      return Array.isArray(value) && value.every(id => typeof id === "string" && /^[1-9]\d{0,19}$/.test(id)) ? value as string[] : [];
+    };
+    if (current.status === "loading") {
+      setSaved([]); setSavedStatus("loading"); setSaveError(null);
+      return () => { active = false; };
+    }
+    if (current.status === "unavailable") {
+      setSaved([]); setSavedStatus("failed"); setSaveError("account");
+      return () => { active = false; };
+    }
+    if (current.status !== "verified") {
+      try { setSaved(readDeviceCopy()); setSavedStatus("device"); setSaveError(null); }
+      catch { setSaved([]); setSavedStatus("failed"); setSaveError("browser"); }
+      return () => { active = false; };
+    }
+    let deviceCopy: string[] = [];
+    try { deviceCopy = readDeviceCopy(); setSaved(deviceCopy); }
+    catch { setSaveError("browser"); }
+    setSavedStatus("loading");
+    const ownerRevision = captureOwnerRevision();
+    void readAccountSavedCampaigns(current.ownerId).then(result => {
+      if (!active || !isCurrentOwner(ownerRevision)) return;
+      if (!result.ok) { setSaved(deviceCopy); setSavedStatus("failed"); setSaveError("account"); return; }
+      setSaved(result.campaignIds); setSavedStatus("account"); setSaveError(null);
+      try { localStorage.setItem(localKey, JSON.stringify(result.campaignIds)); } catch { /* The account copy remains authoritative. */ }
+    }).catch(() => {
+      if (!active || !isCurrentOwner(ownerRevision)) return;
+      setSaved(deviceCopy); setSavedStatus("failed"); setSaveError("account");
+    });
+    return () => { active = false; };
+  }, [identity, captureOwnerRevision, isCurrentOwner]);
 
   const loadOlder = async () => {
     if (!nextCursor || nextCursor === "0" || olderLoading) return;
@@ -204,11 +240,31 @@ function LiveCampaignCausesScreen({ initialSavedOnly = false }: { initialSavedOn
   const rest = visible.filter(campaign => campaign.id !== featured?.id);
 
   function toggleSaved(campaignId: string) {
-    const next = saved.includes(campaignId) ? saved.filter(id => id !== campaignId) : [campaignId, ...saved];
+    if (savedMutation) return;
+    const current = identity;
+    const nextSaved = saved.includes(campaignId) ? saved.filter(id => id !== campaignId) : [campaignId, ...saved];
+    const savedNow = nextSaved.includes(campaignId);
+    const localKey = current.status === "verified" ? `${SAVED_KEY}:${current.ownerId}` : SAVED_KEY;
+    if (current.status === "verified") {
+      setSavedMutation(campaignId);
+      const ownerRevision = captureOwnerRevision();
+      try { localStorage.setItem(localKey, JSON.stringify(nextSaved)); } catch { /* The server action remains authoritative. */ }
+      void setAccountSavedCampaign(campaignId, savedNow, current.ownerId).then(result => {
+        if (!isCurrentOwner(ownerRevision)) return;
+        if (!result.ok) { setSaved(nextSaved); setSavedStatus("failed"); setSaveError("account"); return; }
+        setSaved(nextSaved); setSavedStatus("account"); setSaveError(null);
+        try { localStorage.setItem(localKey, JSON.stringify(nextSaved)); } catch { /* The account copy remains saved. */ }
+      }).catch(() => {
+        if (!isCurrentOwner(ownerRevision)) return;
+        setSaved(nextSaved); setSavedStatus("failed"); setSaveError("account");
+      }).finally(() => setSavedMutation(null));
+      return;
+    }
+    if (current.status !== "guest" && current.status !== "unverified") return;
     try {
-      localStorage.setItem(SAVED_KEY, JSON.stringify(next));
-      setSaved(next); setSaveError(false);
-    } catch { setSaveError(true); }
+      localStorage.setItem(localKey, JSON.stringify(nextSaved));
+      setSaved(nextSaved); setSavedStatus("device"); setSaveError(null);
+    } catch { setSaveError("browser"); }
   }
 
   const statusOptions = [...new Set([ALL, ...availableStatuses, ...(selectedStatus !== ALL ? [selectedStatus] : []), ...(state?.ok && state.viewer ? ["My campaigns"] : [])])];
@@ -216,7 +272,8 @@ function LiveCampaignCausesScreen({ initialSavedOnly = false }: { initialSavedOn
   const searchPlaceholder = copy("Search causes");
   const cardCampaign = (campaign: Campaign) => <CauseCard key={campaign.id} campaign={campaign}
     status={d4CampaignStatus(campaign, now)} category={categoryFor(campaign, circleLinks) ? circlesCategory(locale, categoryFor(campaign, circleLinks) as CircleCategory) : ""}
-    featured={campaign.id === featured?.id} saved={saved.includes(campaign.id)} onSave={() => toggleSaved(campaign.id)} localPreview={isLocalPreview} />;
+    featured={campaign.id === featured?.id} saved={saved.includes(campaign.id)} onSave={() => toggleSaved(campaign.id)} localPreview={isLocalPreview}
+    saveDisabled={identity.status === "loading" || identity.status === "unavailable" || savedStatus === "loading" || savedMutation === campaign.id} />;
 
   return <div className={styles.screen}>
     <header className={styles.header}>
@@ -253,7 +310,10 @@ function LiveCampaignCausesScreen({ initialSavedOnly = false }: { initialSavedOn
 
     {loading && <div className={styles.loading} role="status">{copy("Loading causes")}…</div>}
     {state && !state.ok && <div className={styles.empty} role="alert"><h2>{copy("Causes could not load")}</h2><p>{state.error}</p><button type="button" onClick={() => void refresh()}>{copy("Try again")}</button></div>}
-    {saveError && <p className={styles.saveError} role="status">{copy("Saved causes could not be updated in this browser.")}</p>}
+    {saveError && <p className={styles.saveError} role="status">{saveError === "browser"
+      ? copy("Saved causes could not be updated in this browser.")
+      : copy("Saved causes could not be synced to your account. This device copy may differ.")}</p>}
+    {savedOnly && savedStatus === "loading" && <div className={styles.loading} role="status">{copy("Loading saved causes")}…</div>}
     {state?.ok && !loading && <>
       {mineOnly && !state.viewer ? <div className={styles.empty} role="status">
         <h2>{copy("Your causes")}</h2><p>{copy("Sign in to manage your causes.")}</p>
@@ -274,7 +334,7 @@ function LiveCampaignCausesScreen({ initialSavedOnly = false }: { initialSavedOn
           {rest.map(cardCampaign)}
         </div>
       </>}
-      {visible.length === 0 && (!mineOnly || !!state.viewer) && <div className={styles.empty} role="status">
+      {visible.length === 0 && (!savedOnly || savedStatus !== "loading") && (!mineOnly || !!state.viewer) && <div className={styles.empty} role="status">
         {savedOnly && <Image src="/illustrations/empty-causes.png" alt="" width={96} height={96} />}
         <h2>{savedOnly ? copy("No saved causes") : mineOnly ? copy("No causes yet") : query ? `${copy("No results for")} “${query.trim()}”` : copy("No causes match")}</h2>
         <p>{savedOnly ? copy("Tap the bookmark on a cause to keep it here.") : mineOnly ? "Create a campaign with fixed recipients, deadlines, and reviewers." : copy("Try all causes, another category, or load older causes.")}</p>

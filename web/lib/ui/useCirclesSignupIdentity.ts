@@ -70,6 +70,7 @@ export function useCirclesSignupIdentity(onOwnerChange?: () => void) {
     setIdentity({ status: "loading" });
     void reload();
   }
-  return { identity, refresh, captureOwnerRevision: () => ownerRevision.current,
-    isCurrentOwner: (revision: number) => active.current && revision === ownerRevision.current };
+  const captureOwnerRevision = useCallback(() => ownerRevision.current, []);
+  const isCurrentOwner = useCallback((revision: number) => active.current && revision === ownerRevision.current, []);
+  return { identity, refresh, captureOwnerRevision, isCurrentOwner };
 }
