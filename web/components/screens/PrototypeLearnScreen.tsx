@@ -9,13 +9,13 @@ import styles from "./PrototypeLearnScreen.module.css";
 const GUIDES = [
   {
     title: "How do causes work?",
-    body: "Each cause keeps its donations in its own escrow. When it ends, the organizer posts proof and two of three reviewers check it. Once approved, the money goes to the recipients set at launch. If it isn't approved in time, every donor can claim a full refund.",
+    body: "Each cause keeps its donations in its own escrow. When it ends, the organizer posts proof and donors rate it, at least three of them. Once approved, the money goes to the recipients set at launch. If it isn't approved in time, every donor can claim a full refund.",
     link: "Browse causes",
     href: "/causes",
   },
   {
     title: "How does the Disaster Vault work?",
-    body: "A shared relief pool. A payout needs two of three signers, then a short wait before it is sent. No more than 20% of the pool can leave in 24 hours.",
+    body: "A shared relief pool. Every donation adds 1% to it. Up to 25% of the pool can be released to any one disaster, through an NGO on the ground.",
     link: "Open Disaster Vault",
     href: "/vault",
   },
@@ -26,10 +26,8 @@ const GUIDES = [
     href: "/vaults",
   },
   {
-    title: "How does Smart Savings work on Testnet?",
-    body: "A Testnet contract holds one XLM vault per wallet. In disciplined mode, it unlocks when the contract target is reached; flexible mode allows withdrawal at any time. Extra goal labels are local plans, not separate locks. Testnet XLM has no real-world value, and the feature has no yield or fiat withdrawal.",
-    link: "Open Smart Savings",
-    href: "/savings",
+    title: "How will Smart Savings work?",
+    body: "You'll set a goal and lock money toward it. The money unlocks when you reach the goal.",
   },
   {
     title: "How do receipts work?",
