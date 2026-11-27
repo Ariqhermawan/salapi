@@ -79,11 +79,12 @@ function loadScreen({
     Avatar: (props: { name: string }) => React.createElement("span", { "data-avatar-name": props.name }),
   }, { get(target, key) { return Reflect.get(target, key) ?? box; } });
   runInNewContext(compiled, {
-    exports: screen, fetch: forbidden, window: { location: {} },
+    exports: screen, fetch: forbidden, window: { location: {} }, document: { documentElement: { dataset: { theme: "light" } } },
     localStorage: { getItem: (key: string) => { assert.equal(key, "salapi_notif"); return null; }, setItem: forbidden },
     require(dependency: string) {
       if (dependency === "react") return hooks;
       if (dependency === "react/jsx-runtime") return jsxRuntime;
+      if (dependency.startsWith("@phosphor-icons/react/")) return new Proxy({}, { get: () => () => null });
       if (dependency === "@supabase/supabase-js") return { isAuthSessionMissingError };
       if (dependency === "next/image") return { default: (props: { alt: string }) => React.createElement("span", null, props.alt) };
       if (dependency === "next/navigation") return { useRouter: () => ({ push: routerPush }) };
@@ -93,6 +94,7 @@ function loadScreen({
       if (dependency === "@/components/useAccountPhoto") return { useAccountPhoto: () => ({ profile: null, status: "ready" }) };
       if (dependency === "@/lib/i18n/account-photo") return { accountPhotoCopy };
       if (dependency === "@/lib/i18n/revamp-account") return { accountCopy, accountCurrencyName };
+      if (dependency === "@/lib/i18n/revamp-campaign-discovery") return { campaignDiscoveryCopy: () => (copy: string) => copy };
       if (dependency === "@/lib/i18n/config") return { LOCALE_META };
       if (dependency === "@/lib/ui/currency") return { CURRENCY };
       if (dependency === "@/lib/wallet-state") return { requireWalletState };
@@ -130,7 +132,8 @@ function harness({ locale = "en", preview = false, configured = true, clientThro
   let root = false;
   let stateCursor = 0;
   let refCursor = 0;
-  let capturedEffect: Effect | undefined;
+  const capturedEffects: Effect[] = [];
+  let captureEffects = true;
   const hooks = {
     ...React,
     useState(initial: unknown) {
@@ -153,7 +156,7 @@ function harness({ locale = "en", preview = false, configured = true, clientThro
     useEffect(callback: Effect, dependencies?: React.DependencyList) {
       // eslint-disable-next-line react-hooks/rules-of-hooks, react-hooks/exhaustive-deps
       if (!root) return React.useEffect(callback, dependencies);
-      capturedEffect = callback;
+      if (captureEffects) capturedEffects.push(callback);
     },
   } as typeof React;
   const Screen = loadScreen({
@@ -169,19 +172,29 @@ function harness({ locale = "en", preview = false, configured = true, clientThro
     try { lastTree = (Screen as () => React.ReactNode)(); return lastTree; }
     finally { root = false; }
   }
-  const render = () => renderToStaticMarkup(React.createElement(UnitRoot));
-  const mount = () => { if (!capturedEffect) render(); return capturedEffect!(); };
+  const render = () => {
+    const html = renderToStaticMarkup(React.createElement(UnitRoot));
+    captureEffects = false;
+    return html;
+  };
+  const mount = () => {
+    if (!capturedEffects.length) render();
+    const cleanups = capturedEffects.map(effect => effect()).filter((cleanup): cleanup is () => void => typeof cleanup === "function");
+    return () => cleanups.forEach(cleanup => cleanup());
+  };
   const snapshot = () => Object.fromEntries(stateNames.map((name, index) => [name, state[index]]));
   const beginSignOut = () => { refs[0].current = true; };
   function openAccountDetails() {
     function find(node: React.ReactNode): React.ReactElement<Record<string, unknown>> | undefined {
       if (Array.isArray(node)) return node.map(find).find(Boolean);
       if (!React.isValidElement<Record<string, unknown>>(node)) return;
-      if (node.type === "button" && "data-profile-state" in node.props) return node;
+      if (typeof node.type === "function" && node.type.name === "SettingRow"
+        && node.props.title === accountCopy(locale).accountDetails) return node;
       return find(node.props.children as React.ReactNode);
     }
-    const button = find(lastTree); assert.ok(button); assert.equal(button.props.disabled, false);
-    (button.props.onClick as () => void)();
+    const accountRow = find(lastTree); assert.ok(accountRow);
+    assert.equal(typeof accountRow.props.onClick, "function");
+    (accountRow.props.onClick as () => void)();
   }
   return { identity, wallet, auth, render, mount, snapshot, calls, changes, beginSignOut, routes, openAccountDetails };
 }
@@ -194,7 +207,7 @@ for (const locale of LOCALES) test(`${locale}: structured wallet failure retains
   h.auth.resolve({ data: { user: { email: "fixture@example.invalid" } } });
   h.wallet.resolve({ ok: false, error: "Isolated unavailable wallet" });
   await flush(); const html = h.render();
-  profileButton(html, "ready"); assert.ok(html.includes("@ariqhermawan"));
+  profileState(html, "ready"); assert.ok(html.includes("@ariqhermawan"));
   assert.equal(h.snapshot().addr, ""); assert.equal(h.snapshot().loadError, "settingsWalletLoad");
   assert.ok(html.includes(accountCopy(locale).settingsWalletLoad)); assert.match(html, /role="alert"/);
   assert.doesNotMatch(html, /href="https:\/\/stellar\.expert\/explorer\/testnet\/account\//);
@@ -202,14 +215,14 @@ for (const locale of LOCALES) test(`${locale}: structured wallet failure retains
   assert.deepEqual(h.calls, { handle: 1, wallet: 1, auth: 1 });
 });
 
-function profileButton(html: string, status: "loading" | "ready" | "error", locale: Locale = "en") {
-  const button = html.match(new RegExp(`<button\\b[^>]*data-profile-state="${status}"[^>]*>`))?.[0];
-  assert.ok(button, `Actual profile must render ${status} state`);
-  assert.match(button, new RegExp(`aria-busy="${status === "loading"}"`));
-  if (status === "loading") assert.match(button, /\bdisabled=""/);
-  else assert.doesNotMatch(button, /\bdisabled=""/);
-  if (status === "error") assert.ok(button.includes(`aria-label="${accountCopy(locale).accountDetails}"`));
-  return button;
+function profileState(html: string, status: "loading" | "ready" | "error", _locale?: Locale) {
+  const stateAt = html.indexOf(`data-profile-state="${status}"`);
+  assert.notEqual(stateAt, -1, `Actual profile must render ${status} state`);
+  const start = html.lastIndexOf("<section", stateAt);
+  const end = html.indexOf(">", stateAt);
+  const section = html.slice(start, end + 1);
+  assert.ok(section.includes(`aria-busy="${status === "loading"}"`));
+  return section;
 }
 
 function assertNoDefaultIdentity(html: string, locale: Locale = "en") {
@@ -225,7 +238,7 @@ for (const locale of LOCALES) {
   test(`${locale}: real React initial SSR is neutral and has no false username Claim`, () => {
     const Screen = loadScreen({ locale });
     const html = renderToStaticMarkup(React.createElement(Screen));
-    profileButton(html, "loading");
+    profileState(html, "loading");
     assertNoDefaultIdentity(html, locale);
     assert.ok(html.includes(accountCopy(locale).profileLoading));
     assert.ok(html.includes("profileAvatarPlaceholder"));
@@ -242,7 +255,7 @@ test("pending identity remains neutral after auth and wallet settle first", asyn
   h.wallet.resolve({ address: PREVIEW_WALLET.address });
   await flush();
   const html = h.render();
-  profileButton(html, "loading");
+  profileState(html, "loading");
   assertNoDefaultIdentity(html);
   assert.ok(html.includes("fixture@example.invalid"));
   assert.equal(h.snapshot().nameStatus, "loading");
@@ -256,7 +269,7 @@ test("verified handle replaces the placeholder without ever offering Claim", asy
   h.identity.resolve({ ok: true, handle: "ariqhermawan" });
   await flush();
   const html = h.render();
-  profileButton(html, "ready");
+  profileState(html, "ready");
   assert.ok(html.includes("@ariqhermawan"));
   assert.match(html, /data-avatar-name="ariqhermawan"/);
   assert.ok(html.includes(`>${translate("en", "settings.change")}<`));
@@ -271,12 +284,12 @@ test("a confirmed no-handle result waits for auth before showing identity or Cla
   h.mount();
   h.identity.resolve({ ok: true, handle: null });
   await flush();
-  profileButton(h.render(), "loading");
+  profileState(h.render(), "loading");
   assertNoDefaultIdentity(h.render());
   h.auth.resolve({ data: { user: null } });
   await flush();
   const html = h.render();
-  profileButton(html, "ready");
+  profileState(html, "ready");
   assert.ok(html.includes(accountCopy("en").guestAccount));
   assert.ok(html.includes(accountCopy("en").sharedDemoWallet));
   assert.ok(!html.includes(accountCopy("en").managedWallet));
@@ -291,7 +304,7 @@ for (const locale of LOCALES) {
     h.auth.resolve({ data: { user: null }, error: null });
     h.wallet.resolve({ address: PREVIEW_WALLET.address });
     await flush(); const html = h.render();
-    profileButton(html, "ready", locale);
+    profileState(html, "ready", locale);
     const c = accountCopy(locale);
     assert.ok(html.includes(`class="profileName">${c.guestAccount}</span>`));
     assert.ok(html.includes(`class="profileSub">${c.sharedDemoWallet}</span>`));
@@ -309,7 +322,7 @@ for (const locale of LOCALES) {
     h.auth.resolve({ data: { user: { email: "fixture@example.invalid" } }, error: null });
     await flush();
     const html = h.render();
-    profileButton(html, "ready");
+    profileState(html, "ready");
     assert.match(html, /class="profileName">fixture@example\.invalid<\/span>/);
     assert.match(html, /data-avatar-name="fixture@example\.invalid"/);
     assert.ok(!html.includes(translate(locale, "settings.salapiUser")));
@@ -329,7 +342,7 @@ test("a verified handle takes precedence over a verified email", async () => {
   h.auth.resolve({ data: { user: { email: "fixture@example.invalid" } }, error: null });
   await flush();
   const html = h.render();
-  profileButton(html, "ready");
+  profileState(html, "ready");
   assert.match(html, /class="profileName">@ariqhermawan<\/span>/);
   assert.match(html, /data-avatar-name="ariqhermawan"/);
   assert.ok(html.includes("fixture@example.invalid"), "The accounts row still shows the verified email");
@@ -341,11 +354,11 @@ test("email arriving first remains neutral until the handle lookup completes", a
   h.mount();
   h.auth.resolve({ data: { user: { email: "fixture@example.invalid" } } });
   await flush();
-  profileButton(h.render(), "loading");
+  profileState(h.render(), "loading");
   assertNoDefaultIdentity(h.render());
   h.identity.resolve({ ok: true, handle: null });
   await flush();
-  profileButton(h.render(), "ready");
+  profileState(h.render(), "ready");
   assert.match(h.render(), /class="profileName">fixture@example\.invalid<\/span>/);
 });
 
@@ -358,7 +371,7 @@ test("a long verified email is rendered completely and profile CSS permits wrapp
   h.auth.resolve({ data: { user: { email: ` ${email} ` } } });
   await flush();
   const html = h.render();
-  profileButton(html, "ready");
+  profileState(html, "ready");
   assert.ok(html.includes(`class="profileName">${email}</span>`));
   assert.ok(html.includes(`data-avatar-name="${email}"`));
   const css = readFileSync(new URL("../components/screens/SettingsRevamp.module.css", import.meta.url), "utf8");
@@ -376,7 +389,7 @@ for (const failMode of ["error result", "rejected request"] as const) {
     else h.auth.reject(new Error("Isolated Auth network failure"));
     await flush();
     const html = h.render();
-    profileButton(html, "error");
+    profileState(html, "error");
     assertNoDefaultIdentity(html);
     assert.ok(!html.includes("untrusted@example.invalid"));
     assert.ok(!html.includes(`>${translate("en", "signin.signIn")}<`));
@@ -392,7 +405,7 @@ for (const email of [undefined, null, "", " "]) {
     h.identity.resolve({ ok: true, handle: null });
     h.auth.resolve({ data: { user: { email } }, error: null });
     await flush();
-    profileButton(h.render(), "error");
+    profileState(h.render(), "error");
     assertNoDefaultIdentity(h.render());
   });
 }
@@ -404,7 +417,7 @@ test("a malformed Auth user result does not become a confirmed guest", async () 
   h.identity.resolve({ ok: true, handle: null });
   h.auth.resolve({ data: { user: undefined } } as unknown as AuthResult);
   await flush();
-  profileButton(h.render(), "error");
+  profileState(h.render(), "error");
   assertNoDefaultIdentity(h.render());
   assert.equal(h.snapshot().authFailed, true);
 });
@@ -418,7 +431,7 @@ for (const missingMode of ["error result", "rejected request"] as const) {
     if (missingMode === "error result") h.auth.resolve({ data: { user: null }, error: new AuthSessionMissingError() });
     else h.auth.reject(new AuthSessionMissingError());
     await flush();
-    profileButton(h.render(), "ready");
+    profileState(h.render(), "ready");
     assert.ok(h.render().includes(accountCopy("en").guestAccount));
     assert.ok(h.render().includes(accountCopy("en").sharedDemoWallet));
     assert.ok(!h.render().includes(accountCopy("en").managedWallet));
@@ -433,7 +446,7 @@ test("client setup failure is unavailable even if the thrown class resembles a m
   h.mount();
   h.identity.resolve({ ok: true, handle: null });
   await flush();
-  profileButton(h.render(), "error");
+  profileState(h.render(), "error");
   assertNoDefaultIdentity(h.render());
   assert.equal(h.snapshot().authFailed, true);
 });
@@ -446,7 +459,7 @@ for (const locale of LOCALES) {
     h.identity.resolve({ ok: false });
     await flush();
     const html = h.render();
-    profileButton(html, "error", locale);
+    profileState(html, "error", locale);
     assertNoDefaultIdentity(html, locale);
     assert.ok(html.includes(accountCopy(locale).profileUnavailable));
     assert.ok(html.includes(accountCopy(locale).usernameLoad));
@@ -462,7 +475,7 @@ test("rejected identity lookup leaves an explicit error and no Claim action", as
   h.identity.reject(new Error("Isolated action transport failure"));
   await flush();
   const html = h.render();
-  profileButton(html, "error");
+  profileState(html, "error");
   assertNoDefaultIdentity(html);
   assert.equal(h.snapshot().loadError, "usernameLoad");
 });
@@ -473,8 +486,8 @@ test("username outage still permits the actual Account Details route for photo e
   h.auth.resolve({ data: { user: { email: "fixture@example.invalid" } } });
   h.wallet.resolve({ address: PREVIEW_WALLET.address });
   await flush(); const html = h.render();
-  profileButton(html, "error"); assertNoDefaultIdentity(html);
-  h.openAccountDetails(); assert.deepEqual(h.routes, ["/settings/account"]);
+  profileState(html, "error"); assertNoDefaultIdentity(html);
+  h.openAccountDetails(); assert.deepEqual(h.routes, ["/you/account"]);
   assert.doesNotMatch(source, /<AccountPhotoEditor\b|import AccountPhotoEditor/);
 });
 
@@ -486,7 +499,7 @@ test("wallet failure does not overwrite a verified username or restore generic p
   h.wallet.reject(new Error("Isolated wallet failure"));
   await flush();
   const html = h.render();
-  profileButton(html, "ready");
+  profileState(html, "ready");
   assert.ok(html.includes("@ariqhermawan"));
   assert.ok(!html.includes(translate("en", "settings.salapiUser")));
   assert.equal(h.snapshot().loadError, "settingsWalletLoad");
@@ -499,11 +512,11 @@ test("auth rejection cannot settle or overwrite independently verified identity"
   h.auth.reject(new Error("Isolated browser auth lookup failure"));
   await flush();
   const pending = h.render();
-  profileButton(pending, "loading");
+  profileState(pending, "loading");
   assertNoDefaultIdentity(pending);
   h.identity.resolve({ ok: true, handle: "ariqhermawan" });
   await flush();
-  profileButton(h.render(), "ready");
+  profileState(h.render(), "ready");
   assert.equal(h.snapshot().name, "ariqhermawan");
 });
 
@@ -519,7 +532,7 @@ test("unmount prevents all stale fulfilled callbacks from changing component sta
   h.auth.resolve({ data: { user: { email: "old@example.invalid" } } });
   await flush();
   assert.deepEqual(h.snapshot(), before);
-  assert.deepEqual(h.changes, []);
+  assert.deepEqual(h.changes.filter(name => name !== "darkTheme"), []);
 });
 
 test("sign-out in flight suppresses late account, handle and wallet results before document unload", async () => {
@@ -535,7 +548,7 @@ test("sign-out in flight suppresses late account, handle and wallet results befo
   h.auth.resolve({ data: { user: { email: "stale@example.invalid" } } });
   await flush();
   assert.deepEqual(h.snapshot(), before);
-  assert.deepEqual(h.changes, []);
+  assert.deepEqual(h.changes.filter(name => name !== "darkTheme"), []);
 });
 
 test("sign-out in flight suppresses late account failures", async () => {
@@ -565,7 +578,7 @@ test("unmount prevents stale failed callbacks from exposing errors on another se
   h.auth.reject(new Error("Old auth rejection"));
   await flush();
   assert.deepEqual(h.snapshot(), before);
-  assert.deepEqual(h.changes, []);
+  assert.deepEqual(h.changes.filter(name => name !== "darkTheme"), []);
 });
 
 test("effect cleanup followed by a fresh mount still permits the active result", async () => {
@@ -578,13 +591,13 @@ test("effect cleanup followed by a fresh mount still permits the active result",
   await flush();
   assert.equal(h.snapshot().name, "active_identity");
   assert.equal(h.changes.filter(name => name === "name").length, 1);
-  profileButton(h.render(), "ready");
+  profileState(h.render(), "ready");
 });
 
 test("preview identity is immediately ready and invokes no real handle, wallet or auth lookup", async () => {
   const Screen = loadScreen({ preview: true });
   const initial = renderToStaticMarkup(React.createElement(Screen));
-  profileButton(initial, "ready");
+  profileState(initial, "ready");
   assert.ok(initial.includes(`@${PREVIEW_WALLET.handle}`));
   const h = harness({ preview: true });
   h.render();

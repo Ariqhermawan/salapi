@@ -26,9 +26,12 @@ import { supabaseConfigured } from "@/lib/supabase/env";
 import { useT } from "@/components/I18nProvider";
 import { LOCALE_META } from "@/lib/i18n/config";
 import { accountCopy, accountCurrencyName, type AccountCopyKey } from "@/lib/i18n/revamp-account";
+import { accountPhotoCopy } from "@/lib/i18n/account-photo";
 import { campaignDiscoveryCopy } from "@/lib/i18n/revamp-campaign-discovery";
 import { CURRENCY } from "@/lib/ui/currency";
 import { isLocalPreview, PREVIEW_WALLET } from "@/lib/local-preview";
+import AccountAvatar from "@/components/AccountAvatar";
+import { useAccountPhoto } from "@/components/useAccountPhoto";
 import {
   T,
   Ico,
@@ -99,6 +102,7 @@ export default function SettingsScreen() {
   const [darkTheme, setDarkTheme] = useState(false);
   const [updateMessage, setUpdateMessage] = useState("");
   const signOutInFlight = useRef(false);
+  const photo = useAccountPhoto(() => signOutInFlight.current);
 
   useEffect(() => {
     let active = true;
@@ -200,8 +204,13 @@ export default function SettingsScreen() {
   // verified account email instead of briefly presenting a generic identity.
   const profileStatus = nameStatus !== "ready" || name
     ? nameStatus : !authChecked ? "loading" : authFailed ? "error" : "ready";
-  const signedIn = isLocalPreview || Boolean(supaEmail);
-  const display = name ? `@${name}` : signedIn ? c.yourAccount : c.guestAccount;
+  const signedIn = isLocalPreview || Boolean(supaEmail) || Boolean(name);
+  const display = profileStatus === "loading" ? c.profileLoading
+    : profileStatus === "error" ? c.profileUnavailable
+      : name ? `@${name}` : signedIn ? supaEmail ?? c.profileUnavailable : c.guestAccount;
+  const avatarName = name ?? supaEmail ?? c.guestAccount;
+  const avatarPhoto = signedIn && supaEmail && photo.status === "ready" && photo.profile?.email === supaEmail
+    ? photo.profile.photoUrl : null;
   const shortAddr = addr ? `${addr.slice(0, 4)}…${addr.slice(-4)}` : "-";
   async function copyAddress() {
     if (!addr) return;
@@ -227,18 +236,21 @@ export default function SettingsScreen() {
       </header>
       {loadError ? <p role="alert" className={styles.loadError}>{c[loadError]}</p> : null}
 
-      <section className={styles.profile} aria-label={c.accountDetails}>
-        <span className={styles.accountMark} aria-hidden="true">{isLocalPreview && name ? name[0].toUpperCase() : Ico.user({ size: 21, c: T.action })}</span>
+      <section className={styles.profile} data-profile-state={profileStatus} aria-busy={profileStatus === "loading"} aria-label={c.accountDetails}>
+        {profileStatus === "loading" || profileStatus === "error"
+          ? <span className={styles.profileAvatarPlaceholder} aria-hidden="true" />
+          : <AccountAvatar name={avatarName} photoUrl={avatarPhoto} size={44} alt={accountPhotoCopy(locale).alt} />}
         <span className={styles.profileCopy}>
-          <span className={styles.profileName}>{profileStatus === "loading" ? c.loading : display}</span>
-          {signedIn ? (
+          <span className={`${styles.profileName}${profileStatus === "loading" ? ` ${styles.profileNamePlaceholder}` : ""}`}>{display}</span>
+          {profileStatus !== "ready" ? null : signedIn ? <>
+            <span className={styles.profileSub}>{c.managedWallet}</span>
             <button type="button" className={styles.walletCopy} onClick={copyAddress} disabled={!addr || signOutPending} aria-label={copiedAddress ? c.walletAddressCopied : c.copyWalletAddress}>
               <span>{copiedAddress ? c.copied : shortAddr}</span>
               {copiedAddress ? Ico.check({ size: 14, c: T.action }) : <CopySimple size={14} aria-hidden="true" />}
             </button>
-          ) : <span className={styles.profileSub}>{c.guestAccountDetails}</span>}
+          </> : <span className={styles.profileSub}>{c.sharedDemoWallet}</span>}
         </span>
-        {!signedIn ? <Btn kind="secondary" size="sm" full={false} onClick={() => router.push("/signin")}>{t("signin.signIn")}</Btn> : null}
+        {profileStatus === "ready" && !signedIn ? <Btn kind="secondary" size="sm" full={false} onClick={() => router.push("/signin")}>{t("signin.signIn")}</Btn> : null}
       </section>
 
       <SectionLabel id="account-title">{c.accountDetails}</SectionLabel>
@@ -248,13 +260,14 @@ export default function SettingsScreen() {
             icon={isLocalPreview ? <At size={21} aria-hidden="true" /> : Ico.user({ size: 21, c: T.action })}
             title={t("settings.username")}
             sub={!isLocalPreview && name ? `@${name}` : undefined}
-            onClick={isLocalPreview && name ? undefined : () => router.push("/username")}
-            trailing={isLocalPreview && name ? <span className={styles.muted}>@{name}</span> : !isLocalPreview && name ? Ico.chev({ size: 15, c: T.slate }) : <span className={styles.textAction}>{t("settings.claim")}</span>}
+            onClick={profileStatus !== "ready" || (isLocalPreview && name) ? undefined : () => router.push("/username")}
+            trailing={isLocalPreview && name ? <span className={styles.muted}>@{name}</span> : !isLocalPreview && name ? <span className={styles.textAction}>{t("settings.change")}</span> : profileStatus === "ready" ? <span className={styles.textAction}>{t("settings.claim")}</span> : undefined}
           />
           {signedIn ? <>
             <SettingRow
               icon={Ico.user({ size: 21, c: T.action })}
               title={c.accountDetails}
+              sub={supaEmail ?? undefined}
               onClick={() => router.push("/you/account")}
               trailing={Ico.chev({ size: 15, c: T.slate })}
             />
