@@ -44,6 +44,12 @@ function setup(options: { preview?: boolean; identity?: SignupIdentityState; res
   const component = {} as { default(): Element };
   const icons = new Proxy({}, { get: () => () => null });
   const jsx = (type: unknown, props: Record<string, unknown>) => typeof type === "function" ? type(props) : ({ type: String(type), props });
+  const parseCircleDraft = (value: unknown) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+    const draft = value as Record<string, unknown>;
+    const gallery = draftGallery.readDraftGallery(draft.category as keyof typeof CATEGORY_LABEL, draft.cover, draft.gallery);
+    return gallery ? { ...draft, gallery } : null;
+  };
   const signupEmail = {} as { default(props: unknown): Element };
   runInNewContext(ts.transpileModule(readFileSync(new URL("../components/CirclesSignupEmail.tsx", import.meta.url), "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
@@ -88,6 +94,11 @@ function setup(options: { preview?: boolean; identity?: SignupIdentityState; res
       if (name === "@/lib/i18n/revamp-circles") return revampCircles;
       if (name === "@/components/CirclesSignupEmail") return signupEmail;
       if (name === "@/lib/ui/useCirclesSignupIdentity") return { useCirclesSignupIdentity: () => ({ identity: options.identity ?? { status: "guest" }, refresh: () => {}, captureOwnerRevision: () => 0, isCurrentOwner: () => true }) };
+      if (name === "@/lib/circles/drafts") return { parseCircleDraft };
+      if (name === "@/app/circles-draft-actions") return {
+        async savePrivateCircleDraft(draft: unknown) { return { ok: true, draft, persisted: true }; },
+        async readPrivateCircleDraft() { return { ok: true, draft: null }; },
+      };
       if (name === "@/lib/ui/circle-draft-gallery") return draftGallery;
       if (name === "@/lib/ui/currency") return { CURRENCY, formatLocalAmount, localAmount, pesoFromLocal };
       if (name === "@/lib/i18n/config") return { isLocale };

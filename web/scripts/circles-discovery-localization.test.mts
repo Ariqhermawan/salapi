@@ -135,6 +135,13 @@ function setup(name: ScreenName, locale: Locale = "en", preview = true, circleId
       if (module === "@/lib/i18n/circles-content") return content;
       if (module === "@/components/CirclesSignupEmail") return signupEmail;
       if (module === "@/lib/ui/useCirclesSignupIdentity") return { useCirclesSignupIdentity: () => ({ identity: { status: "guest" }, refresh: () => {}, captureOwnerRevision: () => 0, isCurrentOwner: () => true }) };
+      if (module === "@/lib/circles/drafts") return { parseCircleDraft(value: unknown) {
+        if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+        const draft = value as Record<string, unknown>;
+        const gallery = draftGallery.readDraftGallery(draft.category as CircleCategory, draft.cover, draft.gallery);
+        return gallery ? { ...draft, gallery } : null;
+      } };
+      if (module === "@/app/circles-draft-actions") return { savePrivateCircleDraft: forbidden("action"), readPrivateCircleDraft: forbidden("action") };
       if (module === "@/lib/ui/useCircleTestnet") return { useCircleTestnet: () => ({ result: qaState === "loading" ? null : qaState === "ready" ? { ok: true, circleId, mapping: { campaignId: "6" } } : { ok: false, code: qaState, circleId }, loading: qaState === "loading", refresh: forbidden("action") }) };
       if (["@/components/CircleTestnetSummary", "@/components/CampaignDonorActivity", "@/components/CampaignUpdateSubscription", "@/components/CampaignOrganizerUpdates", "@/components/CircleTestnetDonate"].includes(module)) return { default: module };
       if (module === "@/lib/i18n/revamp-campaign-discovery") return discoveryCopy;

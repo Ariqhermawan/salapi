@@ -3,6 +3,7 @@
 import { useRef, useState, useSyncExternalStore, useTransition } from "react";
 import Link from "next/link";
 import { joinCirclesWaitlist } from "@/app/actions";
+import { readPrivateCircleDraft, savePrivateCircleDraft } from "@/app/circles-draft-actions";
 import { Ico, T, Btn, PoweredByStellar } from "@/components/ui/kit";
 import {
   CURRENCY,
@@ -11,8 +12,9 @@ import {
   pesoFromLocal,
 } from "@/lib/ui/currency";
 import { useT } from "@/components/I18nProvider";
-import { isLocale, type Locale } from "@/lib/i18n/config";
+import type { Locale } from "@/lib/i18n/config";
 import { CATEGORY_LABEL, type CircleCategory } from "@/lib/circles/types";
+import { parseCircleDraft, type CircleDraft } from "@/lib/circles/drafts";
 import { isLocalPreview } from "@/lib/local-preview";
 import { useGoBack } from "@/lib/ui/useGoBack";
 import styles from "./CirclesPreview.module.css";
@@ -23,20 +25,7 @@ import CirclesSignupEmail from "@/components/CirclesSignupEmail";
 import { useCirclesSignupIdentity } from "@/lib/ui/useCirclesSignupIdentity";
 
 type Step = 0 | 1 | 2 | 3;
-type Draft = {
-  version: 1;
-  savedAt: string;
-  title: string;
-  story: string;
-  category: CircleCategory;
-  target: { localValue: string; currency: Locale; pesoEquivalent: number };
-  durationDays: number;
-  cover: string;
-  gallery?: DraftGalleryPhoto[];
-  allowance: { percentage: number; conceptAcknowledged: boolean };
-  organizerVerification: "not-performed";
-  publication: "browser-draft-only";
-};
+type Draft = CircleDraft;
 const DRAFT_KEY = "salapi.circles.draft.v1";
 const stepLabels = ["The cause", "The goal", "The details", "Review"] as const;
 const categories = Object.keys(CATEGORY_LABEL) as CircleCategory[];
@@ -46,27 +35,7 @@ function subscribeHydration() { return () => {}; }
 function clientHydrationSnapshot() { return true; }
 function serverHydrationSnapshot() { return false; }
 function readDraft(value: unknown): Draft | null {
-  if (!value || typeof value !== "object") return null;
-  const draft = value as Partial<Draft>;
-  if (
-    draft.version !== 1 ||
-    typeof draft.title !== "string" ||
-    typeof draft.story !== "string" ||
-    !categories.includes(draft.category as CircleCategory) ||
-    !draft.target ||
-    typeof draft.target.localValue !== "string" ||
-    !isLocale(draft.target.currency) ||
-    !Number.isFinite(Number(draft.target.localValue)) ||
-    Number(draft.target.localValue) <= 0 ||
-    ![14, 30, 60, 90].includes(draft.durationDays as number) ||
-    !draft.allowance ||
-    !Number.isFinite(draft.allowance.percentage) ||
-    draft.allowance.percentage < 0 ||
-    draft.allowance.percentage > 10
-  )
-    return null;
-  const gallery = readDraftGallery(draft.category as CircleCategory, draft.cover, draft.gallery);
-  return gallery ? { ...draft, gallery } as Draft : null;
+  return parseCircleDraft(value);
 }
 
 export default function CirclesCreateScreen() {
@@ -92,6 +61,9 @@ export default function CirclesCreateScreen() {
   const [note, setNote] = useState("");
   const [savedDraft, setSavedDraft] = useState<Draft | null>(null);
   const [draftPersisted, setDraftPersisted] = useState(false);
+  const [draftSavedTo, setDraftSavedTo] = useState<"account" | "device" | null>(null);
+  const [draftPending, startDraftSave] = useTransition();
+  const [accountDraftPending, setAccountDraftPending] = useState(false);
   const [email, setEmail] = useState("");
   const [waitlistAck, setWaitlistAck] = useState(false);
   const [waitlisted, setWaitlisted] = useState(false);
@@ -100,7 +72,12 @@ export default function CirclesCreateScreen() {
   const waitlistSubmitting = useRef(false);
   const { identity, refresh: refreshIdentity, captureOwnerRevision, isCurrentOwner } = useCirclesSignupIdentity(() => {
     setEmail(""); setWaitlistAck(false); setWaitlisted(false); setWaitlistError("");
+    setSavedDraft(null); setDraftPersisted(false); setDraftSavedTo(null);
+    setTitle(""); setStory(""); setStep(0); setDraftAck(false);
+    setError(""); setNote("");
   });
+  const draftStorageKey = !isLocalPreview && identity.status === "verified"
+    ? `${DRAFT_KEY}:${identity.ownerId}` : DRAFT_KEY;
 
   const displayTarget =
     target.currency === currency
@@ -204,7 +181,7 @@ export default function CirclesCreateScreen() {
         return;
       }
     if (!draftAck) {
-      setError(c("Confirm that this is a browser-only concept draft."));
+      setError(c("Confirm that this is a private, unpublished concept draft."));
       return;
     }
     const draft: Draft = {
@@ -228,45 +205,94 @@ export default function CirclesCreateScreen() {
       organizerVerification: "not-performed",
       publication: "browser-draft-only",
     };
-    // Preparation is independent of optional browser persistence. A blocked
-    // storage permission must not remove the draft or its explicit signup path.
     setSavedDraft(draft);
     setDraftPersisted(false);
+    setDraftSavedTo(null);
     setWaitlisted(false);
     setWaitlistAck(false);
     setWaitlistError("");
     let previous: string | null = null;
     let writeAttempted = false;
+    let localSaved = false;
     try {
-      // Unlike the old waitlist payload, this explicitly saves every creation
-      // field. It is a local draft, not a published or on-chain campaign.
-      previous = localStorage.getItem(DRAFT_KEY);
+      // Keep a local recovery copy alongside the private account copy.
+      previous = localStorage.getItem(draftStorageKey);
       const serialized = JSON.stringify(draft);
       writeAttempted = true;
-      localStorage.setItem(DRAFT_KEY, serialized);
-      if (localStorage.getItem(DRAFT_KEY) !== serialized) {
+      localStorage.setItem(draftStorageKey, serialized);
+      if (localStorage.getItem(draftStorageKey) !== serialized) {
         throw new Error("Draft read-back failed");
       }
-      setDraftPersisted(true);
+      localSaved = true;
     } catch {
       // A failed write or read-back must not intentionally erase the previous
       // draft. Roll back only this key; permission denial may also deny rollback.
       if (writeAttempted) {
         try {
-          if (previous !== null) localStorage.setItem(DRAFT_KEY, previous);
-          else localStorage.removeItem(DRAFT_KEY);
+          if (previous !== null) localStorage.setItem(draftStorageKey, previous);
+          else localStorage.removeItem(draftStorageKey);
         } catch { /* Keep the in-memory draft and truthful unsaved status. */ }
       }
-      setError(
-        c("Browser storage could not confirm a save. Your complete draft is only in this screen. Download it or keep this page open; optional signup is still available."),
-      );
+      setDraftPersisted(false);
     }
+
+    if (!isLocalPreview && identity.status === "verified") {
+      setDraftPersisted(localSaved);
+      setDraftSavedTo(localSaved ? "device" : null);
+      const ownerRevision = captureOwnerRevision();
+      startDraftSave(async () => {
+        try {
+          const result = await savePrivateCircleDraft(draft, identity.ownerId);
+          if (!isCurrentOwner(ownerRevision)) return;
+          if (result.ok) {
+            setSavedDraft(result.draft);
+            setDraftPersisted(true);
+            setDraftSavedTo("account");
+            setError("");
+          } else {
+            setDraftPersisted(localSaved);
+            setDraftSavedTo(localSaved ? "device" : null);
+            setError(circlesSignupError(locale, result.error));
+          }
+        } catch {
+          if (!isCurrentOwner(ownerRevision)) return;
+          setDraftPersisted(localSaved);
+          setDraftSavedTo(localSaved ? "device" : null);
+          setError(c("The private draft could not be confirmed. Your local copy is unchanged."));
+        }
+      });
+    } else {
+      setDraftPersisted(localSaved);
+      setDraftSavedTo(localSaved ? "device" : null);
+      if (!localSaved) setError(c("Browser storage could not confirm a save. Your complete draft is only in this screen. Download it or keep this page open; optional signup is still available."));
+    }
+  }
+
+  async function restoreAccountDraft() {
+    if (identity.status !== "verified" || accountDraftPending) return;
+    setError(""); setNote(""); setAccountDraftPending(true);
+    const ownerRevision = captureOwnerRevision();
+    try {
+      const result = await readPrivateCircleDraft(identity.ownerId);
+      if (!isCurrentOwner(ownerRevision)) return;
+      if (!result.ok) { setError(circlesSignupError(locale, result.error)); return; }
+      if (!result.draft) { setNote(c("No private account draft was found.")); return; }
+      const draft = result.draft;
+      setTitle(draft.title); setStory(draft.story); setCategory(draft.category);
+      setTarget({ value: draft.target.localValue, currency: draft.target.currency });
+      setDurationDays(draft.durationDays); setGallery(draft.gallery); setFailedPhotos([]);
+      setAllowancePct(draft.allowance.percentage); setAllowanceAck(draft.allowance.conceptAcknowledged);
+      setStep(0); setDraftAck(false);
+      setNote(c("Your private account draft is restored. Review it before saving changes."));
+    } catch {
+      if (isCurrentOwner(ownerRevision)) setError(c("Your private draft could not be loaded. Try again."));
+    } finally { setAccountDraftPending(false); }
   }
   function restoreDraft() {
     setError("");
     setNote("");
     try {
-      const raw = localStorage.getItem(DRAFT_KEY);
+      const raw = localStorage.getItem(draftStorageKey);
       const draft = raw ? readDraft(JSON.parse(raw)) : null;
       if (!draft) {
         setNote(c("No compatible saved draft was found in this browser."));
@@ -356,7 +382,7 @@ export default function CirclesCreateScreen() {
       <div className={styles.top}>
         <button type="button" className={styles.back} disabled={!hydrated} onClick={goBack}>
           {Ico.back({ size: 14, c: T.action })}{c("Back")}</button>
-        <span className={styles.badge}>{c("Prototype · browser draft")}</span>
+        <span className={styles.badge}>{c("Private draft · not published")}</span>
       </div>
       <header className={styles.hero}>
         <div>
@@ -366,7 +392,7 @@ export default function CirclesCreateScreen() {
           </h1>
           <p>
             {savedDraft
-              ? draftPersisted ? c("Your complete draft is saved on this device.") : c("Your complete draft is ready in this screen, but not saved.")
+              ? draftPending ? c("Saving your private draft…") : draftPersisted ? draftSavedTo === "account" ? c("Your complete draft is saved to your account.") : c("Your complete draft is saved on this device.") : c("Your complete draft is ready in this screen, but not saved.")
               : c("Sketch the story. Nothing is published or charged.")}
           </p>
         </div>
@@ -438,6 +464,7 @@ export default function CirclesCreateScreen() {
                   </select>
                 </label>
                 <Btn kind="quiet" size="md" onClick={restoreDraft}>{c("Restore last browser draft")}</Btn>
+                {!isLocalPreview && identity.status === "verified" ? <Btn kind="quiet" size="md" disabled={accountDraftPending} loading={accountDraftPending} onClick={restoreAccountDraft}>{c("Restore private account draft")}</Btn> : null}
               </div>
             )}
             {step === 1 && (
@@ -521,7 +548,7 @@ export default function CirclesCreateScreen() {
             )}
             {step === 3 && (
               <>
-                <span className={styles.eyebrow}>{c("Review your browser draft")}</span>
+                <span className={styles.eyebrow}>{c("Review your private draft")}</span>
                 {renderGallery(gallery)}
                 <h2 style={{ marginTop: 15 }}>{title}</h2>
                 <p style={{ whiteSpace: "pre-wrap" }}>{story}</p>
@@ -547,7 +574,7 @@ export default function CirclesCreateScreen() {
                     type="checkbox"
                     checked={draftAck}
                     onChange={(event) => setDraftAck(event.target.checked)}
-                  />{c("Save this concept on this device only. It is not a live campaign and will replace the last Circles browser draft.")}</label>
+                  />{identity.status === "verified" && !isLocalPreview ? c("Save this private draft to your account. It remains unpublished and will replace your previous private Circles draft.") : c("Save this concept on this device only. It is not a live campaign and will replace the last Circles browser draft.")}</label>
               </>
             )}
             {error && (
@@ -577,9 +604,10 @@ export default function CirclesCreateScreen() {
               )}
               <Btn
                 onClick={step === 3 ? saveDraft : next}
-                disabled={step === 3 && !draftAck}
+                disabled={draftPending || (step === 3 && !draftAck)}
+                loading={step === 3 && draftPending}
               >
-                {step === 3 ? c("Save complete browser draft") : c("Continue")}
+                {step === 3 ? identity.status === "verified" && !isLocalPreview ? c("Save complete private draft") : c("Save complete browser draft") : c("Continue")}
               </Btn>
             </div>
             </fieldset>
@@ -587,14 +615,14 @@ export default function CirclesCreateScreen() {
           <p
             className={styles.hint}
             style={{ marginTop: 16, textAlign: "center" }}
-          >{c("No campaign URL is generated. Your text is not sent to Salapi.")}</p>
+          >{c("Your draft stays private in your account or on this device. It is not published, reviewed or connected to a Testnet campaign.")}</p>
         </>
       ) : (
         <>
           <section className={styles.success} role="status">
-            <strong>{draftPersisted ? c("Complete draft saved in this browser.") : c("Complete draft prepared, not saved.")}</strong>
+            <strong>{draftPersisted ? draftSavedTo === "account" ? c("Private draft saved to your account.") : c("Complete draft saved in this browser.") : c("Complete draft prepared, not saved.")}</strong>
             <p style={{ marginTop: 8 }}>
-              {draftPersisted ? c("Title, story, category, target, currency, duration, three-photo gallery, cover and allowance preferences are included. Clearing browser data will remove it. It has not been published or uploaded.") : c("All draft fields are ready in memory. Leaving this page will lose the unsaved draft. Download a copy before leaving. It has not been published or uploaded.")}
+              {draftPersisted ? draftSavedTo === "account" ? c("Your title, story, target, currency, gallery and preferences are saved privately and can be restored after signing in on another device. It has not been published or uploaded.") : c("Title, story, category, target, currency, duration, three-photo gallery, cover and allowance preferences are included. Clearing browser data will remove it. It has not been published or uploaded.") : c("All draft fields are ready in memory. Leaving this page will lose the unsaved draft. Download a copy before leaving. It has not been published or uploaded.")}
             </p>
           </section>
           {error && <div className={styles.error} role="alert">{error}</div>}
@@ -618,7 +646,8 @@ export default function CirclesCreateScreen() {
                 disabled={waitlistPending}
                 onClick={() => {
                   setSavedDraft(null);
-                  setDraftPersisted(false);
+      setDraftPersisted(false);
+                  setDraftSavedTo(null);
                   setError("");
                 }}
               >{c("Edit draft")}</Btn>
