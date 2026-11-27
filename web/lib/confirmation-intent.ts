@@ -4,6 +4,7 @@ export const CONFIRMATION_INTENT_TTL_SECONDS = 120;
 
 export type ConfirmationIntentAction =
   | "username_send"
+  | "wallet_withdrawal"
   | "campaign_create"
   | "campaign_donate"
   | "campaign_submit_proof"
