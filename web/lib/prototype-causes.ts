@@ -3,6 +3,7 @@
 export type PrototypeCause = {
   id: string;
   title: string;
+  shortTitle?: string;
   category: string;
   alsoIn?: string[];
   image?: string;
@@ -18,6 +19,14 @@ export type PrototypeCause = {
   target: number;
   donors: number;
   organizerFeeBps: number;
+  recurring?: boolean;
+  closedOn?: string;
+  proofOn?: string;
+  proofNote?: string;
+  reviews?: { by: string; stars: number; text: string }[];
+  escrowCents?: number;
+  releasedCents?: number;
+  stages?: { title: string; amountCents: number; dueDate: string; status: "Waiting" | "In review" | "Paid"; paidCents?: number; paidOn?: string; proofNote?: string }[];
   daysLeft?: number;
   status: "Funding" | "Paused" | "Awaiting proof" | "In review" | "Released";
 };
@@ -57,10 +66,15 @@ export const PROTOTYPE_CAUSES: PrototypeCause[] = [
     raised: 85_000, target: 250_000, donors: 22, daysLeft: 24, organizerFeeBps: 400, status: "Funding",
   },
   {
-    id: "tita-ana", title: "Help Tita Ana keep her three kids in school this term", category: "Family",
+    id: "tita-ana", title: "Help Tita Ana keep her three kids in school this term", shortTitle: "Tita Ana's school term", category: "Family",
     image: asset("cause-tita-ana.jpg"), organizer: "@ana_d", place: "Tarlac, PH",
     story: "Tita Ana lost her stall in June. Her three children need fees, uniforms and notebooks for the term that starts this month.",
-    raised: 6_000, target: 50_000, donors: 4, daysLeft: 27, organizerFeeBps: 1200, status: "Funding",
+    raised: 6_000, target: 50_000, donors: 4, daysLeft: 27, organizerFeeBps: 0, recurring: true, status: "Funding",
+    stages: [
+      { title: "School fees", amountCents: 30_000, dueDate: "2027-01-08", status: "Waiting" },
+      { title: "Uniforms", amountCents: 12_000, dueDate: "2027-01-22", status: "Waiting" },
+      { title: "Notebooks and bags", amountCents: 8_000, dueDate: "2027-02-05", status: "Waiting" },
+    ],
   },
   {
     id: "baybayin-zines", title: "Print 1,000 free Baybayin learning zines", category: "Creator support",
@@ -103,31 +117,40 @@ export const PROTOTYPE_CAUSES: PrototypeCause[] = [
     id: "tino", title: "Tino survivors, Cebu - rebuild a fishing barangay", category: "Disaster relief",
     image: asset("cause-tino.jpg"), organizer: "@maria_s", place: "Cebu, PH",
     avatar: asset("avatar-maria.png"), story: "Typhoon Tino broke nineteen boats in our barangay. The money repairs hulls and nets so the families can fish again.",
-    raised: 88_007, target: 90_000, donors: 52, organizerFeeBps: 0, status: "Awaiting proof",
+    raised: 88_007, target: 90_000, donors: 52, organizerFeeBps: 0, closedOn: "6 Nov", status: "Awaiting proof",
   },
   {
-    id: "reading-zines", title: "Reading zines made with Bohol teachers", category: "Creator support",
+    id: "reading-zines", title: "Reading zines made with Bohol teachers", shortTitle: "Reading zines, Bohol", category: "Creator support",
     alsoIn: ["Education"], image: asset("cause-reading-zines.jpg"), organizer: "@teachers_circle", place: "Bohol, PH",
-    verified: true, story: "Our teachers write and draw short reading zines in Cebuano. This run prints as many as the money allows.",
-    raised: 22_800, target: 60_000, donors: 14, organizerFeeBps: 500, status: "Awaiting proof",
+    verified: true, story: "Our teachers write and draw short reading zines in Cebuano. Three issues, one a month, each printed for 300 children.",
+    raised: 60_000, target: 60_000, donors: 38, organizerFeeBps: 500, recurring: true, closedOn: "9 Nov", proofOn: "26 Nov", proofNote: "Print shop receipt for 300 copies of issue 2, and photos of the hand-out in Tubigon.", escrowCents: 40_000, releasedCents: 20_000, status: "In review",
+    stages: [
+      { title: "Issue 1, 300 copies", amountCents: 20_000, dueDate: "2026-11-14", status: "Paid", paidCents: 20_000, paidOn: "16 Nov", proofNote: "Print shop receipt for 300 copies of issue 1, and photos from two schools." },
+      { title: "Issue 2, 300 copies", amountCents: 20_000, dueDate: "2026-11-28", status: "In review", proofNote: "Print shop receipt for 300 copies of issue 2, and photos of the hand-out in Tubigon." },
+      { title: "Issue 3, 300 copies", amountCents: 20_000, dueDate: "2026-12-12", status: "Waiting" },
+    ],
   },
   {
     id: "santos-roof", title: "A dry roof for the Santos family", category: "Family",
-    image: asset("cause-santos-roof.jpg"), organizer: "@meis_family", place: "Quezon City, PH",
+    image: asset("cause-santos-roof.jpg"), photos: [asset("cause-santos-roof.jpg"), asset("bantayan-panels.jpg"), asset("bantayan-materials.jpg")], organizer: "@meis_family", place: "Quezon City, PH",
     avatar: asset("avatar-mei.png"), verified: true, story: "The Santos family has lived under a tarp since August. New roof panels keep the rain out.",
-    raised: 48_000, target: 48_000, donors: 31, organizerFeeBps: 300, status: "In review",
+    raised: 48_000, target: 48_000, donors: 31, organizerFeeBps: 300, closedOn: "2 Nov", proofNote: "Hardware store receipt for 24 roof panels, and photos of the finished roof.",
+    reviews: [
+      { by: "@jamal_r", stars: 5, text: "The receipts match what was promised." },
+      { by: "@ana.reyes", stars: 5, text: "Photos every week. Clear." },
+    ], status: "In review",
   },
   {
     id: "health-screening", title: "A community health-screening day in Bohol", category: "Medical",
     image: asset("cause-health-screening.jpg"), organizer: "@teachers_circle", place: "Bohol, PH",
     verified: true, story: "One day, two nurses and a doctor: blood pressure, blood sugar and referrals for anyone in the barangay.",
-    raised: 125_400, target: 120_000, donors: 77, organizerFeeBps: 200, status: "Released",
+    raised: 125_400, target: 120_000, donors: 77, organizerFeeBps: 200, closedOn: "20 Oct", proofNote: "Receipts for test strips and supplies, the clinic invoice, and the sign-in sheet: 212 people screened, 31 referred.", status: "Released",
   },
   {
     id: "learning-kits", title: "After-class learning kits in Quezon City", category: "Education",
     image: asset("cause-learning-kits.jpg"), organizer: "@meis_family", place: "Quezon City, PH",
     avatar: asset("avatar-mei.png"), verified: true, story: "Twenty children meet after class on our street. Each kit has two books, a notebook and pencils.",
-    raised: 34_080, target: 48_000, donors: 26, organizerFeeBps: 500, status: "Released",
+    raised: 34_080, target: 48_000, donors: 26, organizerFeeBps: 500, closedOn: "12 Oct", proofNote: "Bookstore receipt for 14 kits, and a photo of the kits handed out.", status: "Released",
   },
 ];
 

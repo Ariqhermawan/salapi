@@ -38,6 +38,7 @@ export default function BottomNav() {
     path === "/topup" ||
     path === "/withdraw" ||
     /^\/manage\/[^/]+\/updates\/new$/.test(path) ||
+    /^\/manage\/[^/]+\/(edit|goal|settings|release|proof|updates\/[^/]+)$/.test(path) ||
     path.startsWith("/cause/") ||
     path.startsWith("/donate/") ||
     (path === "/campaigns" && (params.has("id") || params.get("create") === "1")) ||

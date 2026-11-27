@@ -27,9 +27,9 @@ const REVIEWS = [
 ];
 const completedMoney = (cents: number) => `$${(cents / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-export default function PrototypeOrganizerScreen({ totalOpen = false }: { totalOpen?: boolean }) {
+export default function PrototypeOrganizerScreen({ totalOpen = false, initialTab = "Running" }: { totalOpen?: boolean; initialTab?: "Running" | "Trust" }) {
   const back = useGoBack("/causes");
-  const [tab, setTab] = useState<"Running" | "Completed">("Running");
+  const [tab, setTab] = useState<"Running" | "Completed" | "Trust">(initialTab);
   const [following, setFollowing] = useState(false);
   const [saved, setSaved] = useState<string[]>([]);
   const [reportOpen, setReportOpen] = useState(false);
@@ -71,10 +71,13 @@ export default function PrototypeOrganizerScreen({ totalOpen = false }: { totalO
     </section>
 
 
-    <div className={styles.tabs} role="tablist" aria-label="Causes">
-      {(["Running", "Completed"] as const).map(item => <button key={item} type="button" role="tab" aria-selected={tab === item} onClick={() => setTab(item)}>{item} · {item === "Running" ? running.length : 4}</button>)}
+    <div className={styles.tabs} role="tablist" aria-label="Organizer">
+      {(["Running", "Completed", "Trust"] as const).map(item => <button key={item} type="button" role="tab" aria-selected={tab === item} onClick={() => setTab(item)}>{item}{item === "Trust" ? "" : ` · ${item === "Running" ? running.length : 4}`}</button>)}
     </div>
-    {tab === "Running" ? <>
+    {tab === "Trust" ? <section className={styles.trust}>
+      <h2>Why this profile can be trusted</h2>
+      {[ ["Identity and payout account reviewed", "The identity check passed before any payout."], ["4 proofs documented", "Receipts and photos are reviewed before money is released."], ["Rated 4.9 by 133 donors", "Only people who gave to a finished cause can rate it."], ["No open disputes", "Reports on a cause or an organizer are counted here."] ].map(([title, sub]) => <article key={title}><span>✓</span><div><strong>{title}</strong><small>{sub}</small></div><ArrowRight size={16} /></article>)}
+    </section> : tab === "Running" ? <>
       <header className={styles.sectionHeader}><h2>Work being supported now</h2><p>Funds, the organizer benefit, proof and donor comments can be read before you give.</p></header>
       <div className={styles.runningRail}>
         {running.map((cause, index) => <article className={styles.causeWrap} key={cause.id}>
@@ -90,10 +93,6 @@ export default function PrototypeOrganizerScreen({ totalOpen = false }: { totalO
       {COMPLETED.map(item => <article key={item.title}><span className={styles.completedImage}>{item.category}</span><strong>{item.title}</strong><b>Raised {completedMoney(item.raised)}</b><small>Completed {item.when}</small></article>)}
     </section>}
 
-    <section className={styles.trust}>
-      <h2>Why this profile can be trusted</h2>
-      {[["Identity and payout account reviewed", "The identity check passed before any payout."], ["4 proofs documented", "Receipts and photos are reviewed before money is released."], ["Rated 4.9 by 133 donors", "Only people who gave to a finished cause can rate it."], ["No open disputes", "Reports on a cause or an organizer are counted here."]].map(([title, sub]) => <article key={title}><span>✓</span><div><strong>{title}</strong><small>{sub}</small></div><ArrowRight size={16} /></article>)}
-    </section>
     <h2 className={styles.reviewsTitle}>Reviews · 8</h2>
     <section className={styles.reviews}>{REVIEWS.map(([by, stars, text, cause]) => <article key={`${by}-${cause}`}><strong>{by}<span>★ {stars}</span></strong><p>{text}</p><small>{cause}</small></article>)}</section>
     <div className={styles.powered}><PoweredByStellar /></div>

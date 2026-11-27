@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import ArisanRoomScreen from "@/components/screens/ArisanRoomScreen";
 import PrototypeArisanListScreen from "@/components/screens/PrototypeArisanListScreen";
 import PrototypeArisanRoomScreen from "@/components/screens/PrototypeArisanRoomScreen";
+import PrototypeArisanStateScreen from "@/components/screens/PrototypeArisanStateScreen";
 import { isLocalPreview } from "@/lib/local-preview";
 
 const scenarios = new Set(["countdown", "draw-member", "draw-master", "master-away"]);
@@ -12,8 +13,7 @@ export default async function ArisanSampleAliasPage({ params }: { params: Promis
   if (parts.length === 0) redirect("/vaults");
   const scenario = parts[0] === "state" ? parts[1] : undefined;
   if (scenario && scenarios.has(scenario) && isLocalPreview) {
-    const roomId = scenario === "countdown" ? 1 : 2;
-    return <ArisanRoomScreen roomId={roomId} previewScenario={scenario as "countdown" | "draw-member" | "draw-master" | "master-away"} />;
+    return <PrototypeArisanStateScreen scenario={scenario as "countdown" | "draw-member" | "draw-master" | "master-away"} />;
   }
   const roomKey = parts[0] === "rooms" ? parts[1] : undefined;
   if ((roomKey === "r_1" || roomKey === "r_4") && isLocalPreview) {

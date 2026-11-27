@@ -13,7 +13,7 @@ import { CURRENCY, formatLocalAmount, pesoFromLocal } from "@/lib/ui/currency";
 import { localToStroops, marketUsdToStroops, nativeBalanceToStroops, pesosToStroopsExact, STROOPS_PER_XLM, type MoneyInput } from "@/lib/money";
 import { useMarketPrices } from "@/components/MarketPricesProvider";
 import { formatMarketValue, validateMarketPrices, type AvailableMarketPrices } from "@/lib/market-prices";
-import { isLocalPreview, localPreviewUsername, PREVIEW_WALLET } from "@/lib/local-preview";
+import { isLocalPreview, localPreviewUsername, PREVIEW_WALLET, previewUsdcBalanceCents } from "@/lib/local-preview";
 import { recordPreviewTransfer } from "@/lib/local-preview-history";
 import type { Locale } from "@/lib/i18n/config";
 import styles from "./SendRevamp.module.css";
@@ -50,6 +50,7 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
   const router = useRouter();
   const goBack = useGoBack("/");
   const [mine, setMine] = useState<string | null>(isLocalPreview ? PREVIEW_WALLET.handle : null);
+  const [previewBalanceCents, setPreviewBalanceCents] = useState(241_226);
   const [claim, setClaim] = useState("");
   const [to, setTo] = useState(initialTo ?? "");
   const [amount, setAmount] = useState("");
@@ -105,6 +106,7 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
     if (isLocalPreview) {
       const username = localPreviewUsername();
       if (username) setMine(username);
+      setPreviewBalanceCents(previewUsdcBalanceCents());
       return;
     }
     const saved = storedUnresolvedSend();
@@ -393,7 +395,7 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
                 <span aria-hidden="true">{CURRENCY[currency].symbol}</span>
                 <input className={styles.amountInput} id="send-amount" aria-describedby="send-unit" value={amount} maxLength={64} onChange={(e) => editAmount(e.target.value)} inputMode="decimal" placeholder="0" style={{ width: `${Math.max(1, amount.length)}ch` }} />
               </div>
-              <p className={styles.prototypeAvailable}>Available $2,412.26</p>
+              <p className={styles.prototypeAvailable}>Available ${(previewBalanceCents / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
               <div className={styles.presets} aria-label={m("Quick amounts")}>
                 {QUICK[currency].map(q => <button className={styles.preset} key={q} type="button" aria-pressed={amount === q} onClick={() => editAmount(q)}>{formatLocalAmount(Number(q), currency)}</button>)}
               </div>

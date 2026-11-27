@@ -4,6 +4,8 @@ import type { Campaign } from "./campaign";
 export const isLocalPreview = process.env.NEXT_PUBLIC_LOCAL_PREVIEW === "1";
 export const PREVIEW_USERNAME_KEY = "salapi:local-preview:username:v1";
 export const PREVIEW_CAUSES_KEY = "salapi:local-preview:causes:v1";
+const PREVIEW_REFERRAL_REWARD_KEY = "salapi:local-preview:referral-reward:v1";
+const PREVIEW_REFERRAL_NOTICE_SEEN_KEY = "salapi:local-preview:referral-notice-seen:v1";
 export const PREVIEW_USERNAME_PATTERN = /^[a-z0-9_]{3,32}$/;
 
 export type LocalPreviewCause = {
@@ -17,10 +19,19 @@ export type LocalPreviewCause = {
   organizerFeePercent: number;
   endDate: string;
   recurring?: boolean;
+  stages?: { title: string; amountCents: number; dueDate: string }[];
   coverDataUrl?: string;
   photoNames: string[];
   createdAt: number;
 };
+
+function validPreviewStages(value: unknown): value is NonNullable<LocalPreviewCause["stages"]> {
+  return Array.isArray(value) && value.every((item: unknown) => {
+    if (!item || typeof item !== "object") return false;
+    const stage = item as Record<string, unknown>;
+    return typeof stage.title === "string" && Number.isFinite(stage.amountCents) && typeof stage.dueDate === "string";
+  });
+}
 
 export function localPreviewCauses(): LocalPreviewCause[] {
   if (!isLocalPreview || typeof window === "undefined") return [];
@@ -32,6 +43,7 @@ export function localPreviewCauses(): LocalPreviewCause[] {
       && typeof cause.story === "string" && typeof cause.beneficiaryName === "string"
       && typeof cause.location === "string" && Number.isFinite(cause.targetCents)
       && Number.isFinite(cause.organizerFeePercent) && typeof cause.endDate === "string"
+      && (cause.stages === undefined || validPreviewStages(cause.stages))
       && (cause.coverDataUrl === undefined || typeof cause.coverDataUrl === "string" && /^data:image\/(?:jpeg|png|webp);base64,/.test(cause.coverDataUrl))
       && Array.isArray(cause.photoNames) && typeof cause.createdAt === "number") : [];
   } catch { return []; }
@@ -44,6 +56,38 @@ export function saveLocalPreviewCause(cause: LocalPreviewCause): boolean {
     window.localStorage.setItem(PREVIEW_CAUSES_KEY, JSON.stringify(next));
     return true;
   } catch { return false; }
+}
+
+export function previewReferralRewardEarned(): boolean {
+  if (!isLocalPreview || typeof window === "undefined") return false;
+  try { return window.localStorage.getItem(PREVIEW_REFERRAL_REWARD_KEY) === "1"; }
+  catch { return false; }
+}
+
+/** The prototype's earned-referral route settles a simulated reward once in this browser. */
+export function earnPreviewReferralReward(): boolean {
+  if (!isLocalPreview || typeof window === "undefined") return false;
+  try {
+    window.localStorage.setItem(PREVIEW_REFERRAL_REWARD_KEY, "1");
+    return true;
+  } catch { return false; }
+}
+
+export function previewReferralNoticeIsNew(): boolean {
+  if (!previewReferralRewardEarned()) return false;
+  try { return window.localStorage.getItem(PREVIEW_REFERRAL_NOTICE_SEEN_KEY) !== "1"; }
+  catch { return false; }
+}
+
+export function markPreviewReferralNoticeSeen(): void {
+  if (!isLocalPreview || typeof window === "undefined" || !previewReferralRewardEarned()) return;
+  try { window.localStorage.setItem(PREVIEW_REFERRAL_NOTICE_SEEN_KEY, "1"); }
+  catch { /* The preview notice remains available for this visit. */ }
+}
+
+/** Balance shown by the local prototype fixtures, including a simulated referral reward. */
+export function previewUsdcBalanceCents(): number {
+  return 241_226 + (previewReferralRewardEarned() ? 2_000 : 0);
 }
 
 export function localPreviewUsername(): string | null {

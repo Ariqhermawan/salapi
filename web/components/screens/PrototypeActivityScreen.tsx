@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowDownLeft, ArrowUpRight, HandHeart, PaperPlaneTilt, Receipt, ArrowsLeftRight } from "@phosphor-icons/react";
 import { listPreviewTransfers, type PreviewTransfer } from "@/lib/local-preview-history";
+import { previewReferralRewardEarned } from "@/lib/local-preview";
 import { useT } from "@/components/I18nProvider";
 import { formatLocal } from "@/lib/ui/currency";
 import styles from "./PrototypeActivityScreen.module.css";
@@ -19,6 +20,7 @@ const SAMPLE: Sample[] = [
   { id: "a4", title: "@jamal_r", detail: "Received · 11:05", amount: "+$12.00", kind: "received", day: "Yesterday" },
   { id: "a5", title: "Withdraw", detail: "GCash · 14:32", amount: "−$439.94", kind: "withdraw", day: "12 Nov" },
 ];
+const REFERRAL_REWARD: Sample = { id: "referral-reward", title: "Referral reward", detail: "Received · Just now", amount: "+$20.00", kind: "received", day: "Today" };
 const FILTERS: { id: Kind | "all"; label: string }[] = [
   { id: "all", label: "All" }, { id: "donated", label: "Donated" }, { id: "sent", label: "Sent" },
   { id: "received", label: "Received" }, { id: "topup", label: "Top up" }, { id: "withdraw", label: "Withdraw" },
@@ -41,9 +43,14 @@ export default function PrototypeActivityScreen() {
   const [tab, setTab] = useState<"personal" | "proof">("personal");
   const [filter, setFilter] = useState<Kind | "all">("all");
   const [transfers, setTransfers] = useState<PreviewTransfer[]>([]);
-  useEffect(() => { setTransfers(listPreviewTransfers()); }, []);
+  const [rewardEarned, setRewardEarned] = useState(false);
+  useEffect(() => {
+    setTransfers(listPreviewTransfers());
+    setRewardEarned(previewReferralRewardEarned());
+  }, []);
 
-  const visible = useMemo(() => SAMPLE.filter(item => filter === "all" || item.kind === filter), [filter]);
+  const activity = useMemo(() => rewardEarned ? [REFERRAL_REWARD, ...SAMPLE] : SAMPLE, [rewardEarned]);
+  const visible = useMemo(() => activity.filter(item => filter === "all" || item.kind === filter), [activity, filter]);
   const days = ["Today", "Yesterday", "12 Nov"];
 
   return <div className={styles.screen}>

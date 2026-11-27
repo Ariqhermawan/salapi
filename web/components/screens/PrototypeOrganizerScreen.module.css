@@ -32,7 +32,7 @@
 .figuresC { grid-column:1 / -1; display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:13px; }
 .figuresC > div { display:grid; gap:3px; padding:9px; border-radius:12px; background:var(--sl-surface-alt); }
 .figuresC > div > span { color:#737985; font-size:9px; }
-.tabs { display:grid; grid-template-columns:1fr 1fr; gap:3px; margin:3px 14px 0; padding:3px; border-radius:12px; background:#eff0f3; }
+.tabs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:3px; margin:3px 14px 0; padding:3px; border-radius:12px; background:#eff0f3; }
 .tabs button { min-height:35px; border:0; border-radius:9px; background:transparent; color:#737985; font-size:11px; font-weight:550; }
 .tabs button[aria-selected="true"] { background:#fff; color:var(--sl-ink); box-shadow:0 1px 4px #10182818; }
 .sectionHeader { display:grid; gap:4px; padding:0 16px; }

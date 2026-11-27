@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppBar, Btn, Ico, IconButton } from "@/components/ui/kit";
+import { previewUsdcBalanceCents } from "@/lib/local-preview";
 import { useGoBack } from "@/lib/ui/useGoBack";
 import PrototypeDoodle from "./PrototypeDoodle";
 import styles from "./PrototypeWithdrawScreen.module.css";
@@ -71,7 +72,9 @@ export default function PrototypeWithdrawScreen({ initialCurrency }: { initialCu
   const [amountText, setAmountText] = useState("");
   const [review, setReview] = useState(false);
   const [done, setDone] = useState(false);
-  const balance = 2412.26;
+  const [balanceCents, setBalanceCents] = useState(241_226);
+  useEffect(() => { setBalanceCents(previewUsdcBalanceCents()); }, []);
+  const balance = balanceCents / 100;
   const digits = number.replace(/\D/g, "");
   const numberOk = digits.length >= 6;
   const wallet = address.trim().toUpperCase();
@@ -80,8 +83,8 @@ export default function PrototypeWithdrawScreen({ initialCurrency }: { initialCu
   const accountOk = destinationOk;
   const amount = Number(amountText);
   const amountCents = Number.isFinite(amount) ? Math.round(amount * 100) : null;
-  const amountError = amountText !== "" && (amountCents === null || amountCents < 100 || amountCents > 241226);
-  const valid = amountCents !== null && amountCents >= 100 && amountCents <= 241226;
+  const amountError = amountText !== "" && (amountCents === null || amountCents < 100 || amountCents > balanceCents);
+  const valid = amountCents !== null && amountCents >= 100 && amountCents <= balanceCents;
   const country = COUNTRIES.find(entry => entry.id === countryId) ?? COUNTRIES[0];
   const presets = [["25%", .25], ["50%", .5], ["75%", .75], ["Max", 1]] as const;
   const back = () => review ? setReview(false) : goBack();

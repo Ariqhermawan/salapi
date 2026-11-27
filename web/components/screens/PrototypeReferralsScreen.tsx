@@ -2,9 +2,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AppBar, Btn, Ico, IconButton } from "@/components/ui/kit";
-import { isLocalPreview } from "@/lib/local-preview";
+import { earnPreviewReferralReward, isLocalPreview, previewReferralRewardEarned } from "@/lib/local-preview";
 import { useGoBack } from "@/lib/ui/useGoBack";
 import type { readOwnReferral } from "@/lib/server/referrals";
 import styles from "./PrototypeReferralsScreen.module.css";
@@ -18,6 +19,20 @@ const SAMPLE: Friend[] = [
   { username: "mika_t", joined: "21 Nov 2026", donated: 0 },
   { username: "ana.reyes", joined: "24 Nov 2026", donated: 0 },
 ];
+const EARNED_SAMPLE: Friend[] = [
+  ...SAMPLE.slice(0, 3),
+  { username: "mika_t", joined: "21 Nov 2026", donated: 1000 },
+  { username: "ana.reyes", joined: "24 Nov 2026", donated: 500 },
+  { username: "jamamam", joined: "24 Nov 2026", donated: 2000 },
+  { username: "lito_r", joined: "25 Nov 2026", donated: 500 },
+  { username: "ana_d", joined: "25 Nov 2026", donated: 1500 },
+  { username: "kapatid_tinta", joined: "26 Nov 2026", donated: 500 },
+  { username: "budi.s", joined: "26 Nov 2026", donated: 5000 },
+  { username: "rina_w", joined: "27 Nov 2026", donated: 0 },
+  { username: "paolo_c", joined: "27 Nov 2026", donated: 0 },
+];
+const REFERRAL_TERMS = "You get $20 USDC once 10 friends you invited have each donated $5 or more.";
+const EARNED_TERMS = "You earned $20 USDC: 10 friends you invited have each donated $5 or more. It was added to your balance.";
 const dollars = (cents: number) => `$${(cents / 100).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 
 function initials(username: string) {
@@ -28,8 +43,14 @@ function initials(username: string) {
 export default function PrototypeReferralsScreen({ referral }: { referral: ReferralState }) {
   const params = useSearchParams();
   const back = useGoBack("/you/invite");
+  const earnedRoute = params.get("state") === "earned";
+  const [earned, setEarned] = useState(false);
+  useEffect(() => {
+    if (isLocalPreview && earnedRoute) earnPreviewReferralReward();
+    setEarned(isLocalPreview && previewReferralRewardEarned());
+  }, [earnedRoute]);
   const empty = params.get("state") === "empty" || (!isLocalPreview && referral.status === "ready" && referral.invitedCount === 0);
-  const friends = isLocalPreview && params.get("state") !== "empty" ? SAMPLE : [];
+  const friends = isLocalPreview && params.get("state") !== "empty" ? earned ? EARNED_SAMPLE : SAMPLE : [];
   const donated = friends.filter(friend => friend.donated >= 500);
   const waiting = friends.filter(friend => friend.donated < 500);
   const count = isLocalPreview ? donated.length : 0;
@@ -47,12 +68,12 @@ export default function PrototypeReferralsScreen({ referral }: { referral: Refer
         : referral.status === "unavailable" ? <section className={styles.panel} role="status"><p>Referrals could not be loaded. Try again later.</p></section>
           : <>
             <section className={styles.summary}>
-              <div className={styles.summaryHead}><span>Invite 10 users</span><span>{isLocalPreview ? "7 to go" : `${Math.max(0, 10 - realCount)} to go`}</span></div>
-              <strong>{isLocalPreview ? "3 of 10" : `${Math.min(realCount, 10)} of 10`}</strong>
-              <span className={styles.progress} role="img" aria-label={`${count} of 10`}><i style={{ width: `${isLocalPreview ? 30 : Math.min(realCount * 10, 100)}%` }} /></span>
-              <div className={styles.terms}><span>Minimum donation <b>$5</b></span><span>Reward <b>$20 USDC</b></span></div>
+              <div className={styles.summaryHead}><span>Referral reward</span><span>{earned ? "Earned" : `${Math.max(0, 10 - (isLocalPreview ? count : realCount))} to go`}</span></div>
+              <strong>{isLocalPreview ? `${count} of 10` : `${Math.min(realCount, 10)} of 10`}</strong>
+              <span className={styles.progress} role="img" aria-label={`${count} of 10`}><i style={{ width: `${isLocalPreview ? Math.min(count * 10, 100) : Math.min(realCount * 10, 100)}%` }} /></span>
+              <p className={styles.terms}>{earned ? EARNED_TERMS : REFERRAL_TERMS}</p>
               {!isLocalPreview && <p className={styles.backendNote}>Referral sign-ups are tracked. Donation progress is not available yet.</p>}
-              <Link className={styles.inviteButton} href="/you/invite">Invite friends</Link>
+              <Link className={styles.inviteButton} href={earned ? "/activity/referral-reward" : "/you/invite"}>{earned ? "View receipt" : "Invite friends"}</Link>
             </section>
             {isLocalPreview ? <>
               <h2 className={styles.groupTitle}>Donated · {donated.length}</h2>

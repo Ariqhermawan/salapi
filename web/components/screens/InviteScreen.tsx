@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { AppBar, Btn, Ico, IconButton } from "@/components/ui/kit";
 import { useT } from "@/components/I18nProvider";
 import { accountCopy } from "@/lib/i18n/revamp-account";
 import { useGoBack } from "@/lib/ui/useGoBack";
-import { isLocalPreview } from "@/lib/local-preview";
+import { earnPreviewReferralReward, isLocalPreview, previewReferralRewardEarned } from "@/lib/local-preview";
 import type { readOwnReferral } from "@/lib/server/referrals";
 import styles from "./InviteScreen.module.css";
 
@@ -20,6 +21,10 @@ export default function InviteScreen({ referral }: { referral: Awaited<ReturnTyp
   const c = accountCopy(locale);
   const back = useGoBack("/settings");
   const origin = useSyncExternalStore(subscribe, browserOrigin, serverOrigin);
+  const params = useSearchParams();
+  const rewardState = params.get("state");
+  const earnedRoute = rewardState === "earned";
+  const [rewardEarned, setRewardEarned] = useState(false);
   const [feedback, setFeedback] = useState<"link" | "code" | "failed" | null>(null);
   const preview = isLocalPreview && referral.status === "preview";
   const previewCode = "K7M2Q9XD";
@@ -28,6 +33,11 @@ export default function InviteScreen({ referral }: { referral: Awaited<ReturnTyp
   const code = preview ? previewCode : referral.status === "ready" ? referral.code : "";
   const link = preview ? `https://salapi.app/r/${previewCode}` : ready ? `${origin}/r/${code}` : "";
   const shownLink = preview ? `salapi.app/r/${previewCode}` : link;
+
+  useEffect(() => {
+    if (preview && earnedRoute) earnPreviewReferralReward();
+    setRewardEarned(preview && previewReferralRewardEarned());
+  }, [earnedRoute, preview]);
 
   async function copy(what: "link" | "code") {
     if (!ready || !origin) return;
@@ -74,11 +84,11 @@ export default function InviteScreen({ referral }: { referral: Awaited<ReturnTyp
             </div>
             {!preview && <p className={styles.count}>{c.referralCount} <strong>{referral.status === "ready" ? referral.invitedCount : 0}</strong></p>}
           </section>
-          {preview && <Link className={styles.campaign} href="/you/referrals">
-            <span className={styles.campaignHead}><strong>Invite 10 users</strong><strong>3 of 10</strong></span>
-            <span className={styles.campaignProgress} role="img" aria-label="3 of 10"><i /></span>
-            <span className={styles.campaignTerms}>Minimum donation $5 · Reward $20 USDC</span>
-            <span className={styles.campaignLink}>View your referrals <span aria-hidden="true">→</span></span>
+          {preview && <Link className={styles.campaign} href={rewardEarned ? "/you/referrals?state=earned" : "/you/referrals"}>
+            <span className={styles.campaignHead}><strong>Referral reward</strong><strong>{rewardEarned ? "Earned" : "3 of 10"}</strong></span>
+            <span className={styles.campaignProgress} role="img" aria-label={rewardEarned ? "10 of 10" : "3 of 10"}><i style={{ width: rewardEarned ? "100%" : undefined }} /></span>
+            <span className={styles.campaignTerms}>{rewardEarned ? "You earned $20 USDC: 10 friends you invited have each donated $5 or more. It was added to your balance." : "You get $20 USDC once 10 friends you invited have each donated $5 or more."}</span>
+            <span className={styles.campaignLink}>{rewardEarned ? "View your referrals" : "View your referrals"} <span aria-hidden="true">→</span></span>
           </Link>}
           {feedback === "failed" && <p role="alert" className={styles.note}>{c.referralCopyError}</p>}
           {feedback && feedback !== "failed" && <p role="status" className="sr-only">{c.referralCopied}</p>}

@@ -25,6 +25,17 @@
 .band dd { overflow:hidden; margin:0; color:#fff; font-size:18px; font-weight:600; line-height:24px; text-overflow:ellipsis; white-space:nowrap; }
 .band > div > span { overflow:hidden; color:#ffffff99; font-size:12px; line-height:16px; text-overflow:ellipsis; white-space:nowrap; }
 .stage,.invite { display:grid; gap:8px; margin-top:4px; padding:16px; border:1px solid #e6e8ed; border-radius:20px; background:#fff; }
+.stageTitle,.signatureTitle { margin:0; color:#171717; font-size:18px; font-weight:600; line-height:24px; }
+.clock { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; }
+.clock > span { display:grid; justify-items:center; gap:2px; padding:8px 4px; border-radius:12px; background:#f3f4f6; }
+.clock b { color:#171717; font-size:24px; font-weight:600; line-height:28px; font-variant-numeric:tabular-nums; }
+.clock i { color:#737985; font-size:12px; font-style:normal; line-height:16px; }
+.signatures { display:flex; gap:8px; }
+.signatures > span { display:flex; min-width:0; min-height:34px; flex:1; align-items:center; justify-content:center; gap:5px; padding:4px 6px; border:1px solid #e6e8ed; border-radius:999px; color:#777e88; font-size:12px; line-height:16px; text-align:center; }
+.signatures > span[data-signed="true"] { border-color:#bee7ca; background:#edf9f0; color:#328352; }
+.awayNotice { padding:8px 10px; border-radius:10px; background:#f8f4e8; }
+.stage button { min-height:44px; border:0; border-radius:12px; background:#3155dc; color:#fff; font:500 16px/24px var(--font-geist-sans),system-ui,sans-serif; }
+.stage button:disabled { cursor:not-allowed; opacity:.45; }
 .winner { display:flex; align-items:center; gap:9px; min-width:0; }
 .winnerAvatar { width:36px; height:36px; }
 .winnerInfo { display:grid; flex:1; min-width:0; gap:2px; }
@@ -75,6 +86,10 @@
 [data-theme="dark"] .header h1,[data-theme="dark"] .overview h2,[data-theme="dark"] .memberCount strong,[data-theme="dark"] .winnerInfo strong,[data-theme="dark"] .inviteText strong,[data-theme="dark"] .memberInfo strong,[data-theme="dark"] .deposit > div > strong,[data-theme="dark"] .detail > strong { color:#f4f4f5; }
 [data-theme="dark"] .header > a,[data-theme="dark"] .overview,[data-theme="dark"] .stage,[data-theme="dark"] .invite,[data-theme="dark"] .memberList,[data-theme="dark"] .deposit,[data-theme="dark"] .details { border-color:#34373d; background:#1c1c1c; }
 [data-theme="dark"] .band { background:#16224a; }
+[data-theme="dark"] .stageTitle,[data-theme="dark"] .signatureTitle,[data-theme="dark"] .clock b { color:#f4f4f5; }
+[data-theme="dark"] .clock > span { background:#292b30; }
+[data-theme="dark"] .signatures > span { border-color:#34373d; color:#b3b5bc; }
+[data-theme="dark"] .signatures > span[data-signed="true"] { border-color:#2b6040; background:#1e3526; color:#9ad0a6; }
 [data-theme="dark"] .tabs,[data-theme="dark"] .chips > span { background:#292b30; }
 [data-theme="dark"] .tabs button[aria-selected="true"] { background:#3b3d44; color:#fff; }
 [data-theme="dark"] .detail + .detail,[data-theme="dark"] .member + .member,[data-theme="dark"] .deposit > div { border-color:#33363d; }

@@ -56,7 +56,7 @@ export default function PrototypeKycScreen({ state }: { state?: string }) {
     <section className={styles.outcome} data-tone={selectedOutcome.tone}>
       <span className={styles.outcomeIcon}>{Ico[selectedOutcome.icon]({ size: 22, c: "currentColor" })}</span>
       <h2>{selectedOutcome.title}</h2>
-      <p>{selectedOutcome.note}</p>
+      <p>{selectedOutcome.label} · {selectedOutcome.note}</p>
     </section>
     <button type="button" className={styles.tierLink} onClick={() => router.push(`/you/verify/preview/levels?status=${state}`)}>
       <span className={styles.tierIcon}>{Ico.vault({ size: 20, c: T.action })}</span><span><strong>Tier ladder</strong><small>What each tier would unlock</small></span>{Ico.chev({ size: 16, c: T.slate })}

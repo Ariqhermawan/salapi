@@ -6,6 +6,8 @@
 .greeting h1 { flex:1; min-width:0; overflow:hidden; margin:0; font-size:20px; font-weight:500; line-height:28px; letter-spacing:-.015em; text-overflow:ellipsis; white-space:nowrap; }
 .round { display:grid; flex:none; width:40px; height:40px; place-items:center; border:0; border-radius:10px; background:transparent; color:#171717; }
 .round:hover { background:#f2f4f8; }
+.hasNotification { position:relative; }
+.notificationDot { position:absolute; top:7px; right:7px; width:8px; height:8px; border:1.5px solid #fff; border-radius:50%; background:#ef4444; }
 .balance { flex:none; min-height:136px; padding:16px 20px; overflow:hidden; border-radius:24px; color:#fff; background:url('/illustrations/home-card-pattern.png') center top / 100% auto no-repeat, radial-gradient(110% 80% at 0% 0%,#ffffff29,transparent 62%),linear-gradient(180deg,#2547d0,#4d82ff); }
 .balanceHeader { display:flex; align-items:center; justify-content:space-between; min-height:24px; gap:8px; font-size:16px; line-height:24px; }
 .balanceHeader > span { display:flex; align-items:center; gap:8px; white-space:nowrap; }

@@ -18,8 +18,9 @@ const FLOW: Feature[][] = [
     ] },
     { href: "/causes", label: "Causes", children: [
       { href: "/cause/mei", label: "Cause" }, { href: "/cause/baybayin-zines", label: "Cause · Less than 1 day" }, { href: "/cause/santos-roof/feedback", label: "Cause feedback" }, { href: "/cause/bantayan/report", label: "Report cause" },
-      { href: "/organizer/meis_family", label: "Organizer profile" }, { href: "/organizer/meis_family?total=open", label: "Organizer · Total raised" }, { href: "/donate/mei", label: "Donate" },
-      { href: "/create", label: "Create cause" }, { href: "/manage", label: "Your causes" }, { href: "/manage/mei", label: "Manage cause" }, { href: "/manage/mei/payout", label: "Payout" },
+      { href: "/organizer/meis_family", label: "Organizer profile" }, { href: "/organizer/meis_family?total=open", label: "Organizer · Total raised" }, { href: "/organizer/meis_family?tab=trust", label: "Organizer · Trust" }, { href: "/donate/mei", label: "Donate" },
+      { href: "/cause/reading-zines", label: "Cause · Recurring, in stages" }, { href: "/cause/tita-ana?tab=proof", label: "Cause · Recurring, still funding" },
+      { href: "/create", label: "Create cause" }, { href: "/create?kind=recurring&stages=empty", label: "Create cause · Recurring, stages empty" }, { href: "/create?kind=recurring", label: "Create cause · Recurring stages" }, { href: "/create?kind=recurring&stages=over", label: "Create cause · Recurring, over the goal" }, { href: "/create?kind=recurring&step=review", label: "Create cause · Recurring review" }, { href: "/manage", label: "Your causes" }, { href: "/manage/mei", label: "Manage cause" }, { href: "/manage/mei/payout", label: "Payout" }, { href: "/manage/reading-zines/payout", label: "Payout · Stages" }, { href: "/manage/tita-ana/payout", label: "Payout · Stages, still funding" }, { href: "/manage/reading-zines/edit", label: "Edit cause · Recurring" },
     ] },
     { href: "/activity", label: "Activity", children: [{ href: "/notifications", label: "Notifications" }] },
   ],
@@ -39,7 +40,7 @@ const FLOW: Feature[][] = [
       { href: "/vault?tab=activity&filter=in", label: "Vault activity · Contributions" }, { href: "/vault?tab=activity&filter=out", label: "Vault activity · NGO payouts" }, { href: "/ngo/tulong-cebu", label: "NGO profile" }, { href: "/vault/contribute", label: "Contribute" },
     ] },
     { href: "/you", label: "You", children: [
-      { href: "/you/feedback", label: "Send feedback" }, { href: "/you/invite", label: "Invite friends" }, { href: "/you/referrals", label: "Referrals" }, { href: "/you/referrals?state=empty", label: "Referrals · None yet" }, { href: "/learn", label: "How Salapi works" },
+      { href: "/you/feedback", label: "Send feedback" }, { href: "/you/invite", label: "Invite friends" }, { href: "/you/referrals", label: "Referrals" }, { href: "/you/referrals?state=empty", label: "Referrals · None yet" }, { href: "/you/referrals?state=earned", label: "Referrals · Reward earned" }, { href: "/you/invite?state=earned", label: "Invite friends · Reward earned" }, { href: "/learn", label: "How Salapi works" },
     ] },
   ],
 ];
@@ -61,8 +62,19 @@ export default function PrototypePreviewAside() {
   const activeRoute = useMemo(() => {
     if (pathname === "/" && params.get("causes") && ["a", "b", "c"].includes(params.get("causes") ?? "")) return `/?causes=${params.get("causes")}`;
     if (pathname.startsWith("/organizer/") && params.get("total") === "open") return `${pathname}?total=open`;
+    if (pathname.startsWith("/organizer/") && params.get("tab") === "trust") return `${pathname}?tab=trust`;
+    if (pathname === "/cause/tita-ana" && params.get("tab") === "proof") return `${pathname}?tab=proof`;
+    if (pathname === "/manage/reading-zines/payout" || pathname === "/manage/tita-ana/payout" || pathname === "/manage/reading-zines/edit") return pathname;
+    if (pathname === "/create" && params.get("kind") === "recurring") {
+      if (params.get("stages") === "empty") return "/create?kind=recurring&stages=empty";
+      if (params.get("stages") === "over") return "/create?kind=recurring&stages=over";
+      if (params.get("step") === "review") return "/create?kind=recurring&step=review";
+      return "/create?kind=recurring";
+    }
     if ((pathname === "/topup" || pathname === "/withdraw") && params.has("cur")) return `${pathname}?cur=${params.get("cur")?.toLowerCase()}`;
     if (pathname === "/you/referrals" && params.get("state") === "empty") return "/you/referrals?state=empty";
+    if (pathname === "/you/referrals" && params.get("state") === "earned") return "/you/referrals?state=earned";
+    if (pathname === "/you/invite" && params.get("state") === "earned") return "/you/invite?state=earned";
     if (pathname === "/vault" && params.get("tab") === "activity") {
       if (params.get("filter") === "in" || params.get("filter") === "out") return `/vault?tab=activity&filter=${params.get("filter")}`;
       return "/vault?tab=activity";

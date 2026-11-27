@@ -58,6 +58,9 @@ export default function PrototypeRoomFill() {
       fill.hidden = true;
       if (screen.scrollHeight > screen.clientHeight + 1) return;
       if (route.querySelector('[class*="roomDoodle"], [class*="shortDoodle"], [class*="successDoodle"]')
+        || pathname === "/learn"
+        || pathname === "/vaults/join"
+        || pathname === "/manage/reading-zines/edit"
         || pathname === "/signin"
         || /^\/donate\/[^/]+\/review$/.test(pathname)) return;
 

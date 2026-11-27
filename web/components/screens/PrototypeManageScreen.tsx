@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { ArrowDownLeft, ArrowRight, DotsThree, HandHeart, Megaphone, PencilSimple, Plus, ShieldCheck, SlidersHorizontal } from "@phosphor-icons/react";
+import { ArrowDownLeft, ArrowRight, DotsThree, HandHeart, Megaphone, PencilSimple, Plus, ShieldCheck, SlidersHorizontal, X } from "@phosphor-icons/react";
 import { AppBar, Btn, Ico, IconButton, PoweredByStellar } from "@/components/ui/kit";
 import { localPreviewCauses, type LocalPreviewCause } from "@/lib/local-preview";
 import { PROTOTYPE_CAUSES } from "@/lib/prototype-causes";
@@ -14,7 +14,7 @@ type Mode = "list" | "hub" | "payout" | "sub";
 
 export default function PrototypeManageScreen({ mode = "list", id = "mei", section = "" }: { mode?: Mode; id?: string; section?: string }) {
   const router = useRouter();
-  const back = useGoBack(mode === "list" ? "/you" : "/manage");
+  const back = useGoBack(mode === "list" ? "/you" : mode === "sub" ? `/manage/${id}` : "/manage");
   const cause = PROTOTYPE_CAUSES.find(item => item.id === id) ?? PROTOTYPE_CAUSES.find(item => item.id === "mei")!;
   const [createdCauses, setCreatedCauses] = useState<LocalPreviewCause[]>([]);
   const [copied, setCopied] = useState(false);
@@ -30,13 +30,22 @@ export default function PrototypeManageScreen({ mode = "list", id = "mei", secti
   const [openUpdateMenu, setOpenUpdateMenu] = useState<string | null>(null);
   const [removedUpdates, setRemovedUpdates] = useState<string[]>([]);
   const [proofName, setProofName] = useState("");
+  const [proofOpen, setProofOpen] = useState(false);
   useEffect(() => setCreatedCauses(localPreviewCauses()), []);
   const createdCause = createdCauses.find(item => item.id === id);
   const raised = createdCause ? 0 : cause.raised;
   const goal = createdCause ? createdCause.targetCents : cause.target;
+  const escrow = createdCause ? 0 : cause.escrowCents ?? (cause.status === "Released" ? 0 : raised);
   const title = createdCause?.title ?? (cause.id === "mei" ? "Ate Mei needs dialysis" : cause.title);
-  const feePercent = createdCause?.organizerFeePercent ?? 5;
+  const feePercent = createdCause?.organizerFeePercent ?? cause.organizerFeeBps / 100;
   const progress = goal > 0 ? Math.min(100, raised / goal * 100) : 0;
+  const payoutStages = createdCause?.stages?.map(stage => ({ ...stage, status: "Waiting" as const, proofNote: undefined as string | undefined })) ?? cause.stages ?? [];
+  const stageTurn = payoutStages.findIndex(stage => stage.status !== "Paid");
+  const currentStage = stageTurn >= 0 ? payoutStages[stageTurn] : undefined;
+  const currentStagePayout = currentStage ? stageTurn === payoutStages.length - 1 ? escrow : Math.min(currentStage.amountCents, escrow) : escrow;
+  const stageRatings = cause.status === "In review" ? 2 : cause.status === "Released" ? 3 : 0;
+  const stagedCause = payoutStages.length > 0;
+  const stageDate = (value: string) => new Date(`${value}T12:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short", ...(Number(value.slice(0, 4)) !== new Date().getFullYear() ? { year: "numeric" } : {}) });
   const shortMoney = (cents: number) => (cents / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const sectionTitle: Record<string, string> = { edit: "Edit cause", goal: "Edit goal", updates: "Updates", "updates/new": "Post an update", donations: "Donations", settings: "Settings", proof: "Upload proof", release: "Claim benefit" };
 
@@ -54,7 +63,25 @@ export default function PrototypeManageScreen({ mode = "list", id = "mei", secti
   </div>;
 
   if (mode === "sub") return <div className={styles.screen}>
-    <AppBar leading={<IconButton ariaLabel="Back" onClick={back}>{Ico.back({})}</IconButton>} title={sectionTitle[section] ?? "Manage cause"} />
+    <AppBar leading={<IconButton ariaLabel="Back" onClick={back}>{Ico.back({})}</IconButton>} title={id === "reading-zines" && (section === "edit" || section === "settings") ? "Edit cause" : sectionTitle[section] ?? "Manage cause"} />
+    {id === "reading-zines" && section === "edit" ? <>
+      <section className={styles.card}>
+        <div className={styles.segmented}><button type="button" aria-current="page">Details</button><button type="button" onClick={() => router.push(`/manage/${id}/settings`)}>Settings</button></div>
+        <p className={styles.endedMessage}>This cause has ended, so it can no longer be edited.</p>
+        <div className={styles.endedRows}>
+          <ReadonlyRow label="Title" value={cause.title} />
+          <ReadonlyRow label="Story" value={cause.story ?? ""} />
+          <ReadonlyRow label="Cover" value="1 photo" />
+        </div>
+      </section>
+      <section className={styles.card}><h2>Terms</h2><div className={styles.endedRows}>
+        <ReadonlyRow label="Target" value="$600.00" />
+        <ReadonlyRow label="Payout" value="3 stages" />
+        <ReadonlyRow label="Receives" value="@teachers_circle" />
+        <ReadonlyRow label="Organizer fee" value="5%" />
+        <ReadonlyRow label="Release" value="In stages, after each proof" />
+      </div></section>
+    </> : null}
     {section === "updates" ? <>
       <div className={styles.updatesIntro}><p>Updates show on your cause page and reach your donors as a notification.</p><Btn size="md" leading={<Plus size={17} />} onClick={() => router.push(`/manage/${id}/updates/new`)}>New update</Btn></div>
       {[{ heading: "Session 4 is done", text: "Mei is home and resting. Eight sessions to go.", time: "2 days ago" }, { heading: "First week of care", text: "Thank you to everyone who gave. The clinic has the schedule.", time: "1 week ago" }, { heading: "Clinic visit booked", text: "The first session is set for Monday.", time: "2 weeks ago" }].filter(item => !removedUpdates.includes(item.heading)).map(item => <section className={styles.updateCard} key={item.heading}>
@@ -79,34 +106,59 @@ export default function PrototypeManageScreen({ mode = "list", id = "mei", secti
         <h2>{group.day}</h2><div className={styles.donationRows}>{group.donors.map(([name, time, amount]) => <article key={name}><span className={styles.donationIcon}><ArrowDownLeft size={17} /></span><span><strong>{name}</strong><small>{time}</small></span><b>{amount}</b></article>)}</div>
       </section>)}
     </> : null}
-    {section === "edit" ? <section className={styles.card}><div className={styles.segmented}><button type="button" aria-current="page">Details</button><button type="button" onClick={() => router.push(`/manage/${id}/settings`)}>Settings</button></div><h1>What donors see</h1><label htmlFor="manage-title">Cause title</label><input id="manage-title" maxLength={90} value={draftTitle || title} onChange={event => setDraftTitle(event.target.value)} /><label htmlFor="manage-story">The story</label><textarea id="manage-story" maxLength={1500} value={draftStory || cause.story || ""} onChange={event => setDraftStory(event.target.value)} /><p className={styles.reason}>Local preview only. Changes are not published.</p><Btn onClick={() => setSaved(true)}>{saved ? "Saved locally" : "Save changes"}</Btn></section> : null}
-    {section === "goal" ? <section className={styles.card}><h1>Goal & funding date</h1><label htmlFor="manage-goal">Goal amount · USD</label><input id="manage-goal" inputMode="decimal" value={draftGoal || shortMoney(goal)} onChange={event => setDraftGoal(event.target.value.replace(/[^0-9.]/g, ""))} /><small>You can change the goal after launch.</small><label htmlFor="manage-end-date">Funding ends on</label><input id="manage-end-date" type="date" defaultValue={createdCause?.endDate} /><p className={styles.reason}>Local preview only. The Testnet campaign goal is not changed.</p><Btn onClick={() => setSaved(true)}>{saved ? "Saved locally" : "Save changes"}</Btn></section> : null}
-    {section === "settings" ? <section className={styles.card}><div className={styles.segmented}><button type="button" onClick={() => router.push(`/manage/${id}/edit`)}>Details</button><button type="button" aria-current="page">Settings</button></div><h1>Cause settings</h1><button className={styles.settingRow} type="button" aria-pressed={paused} onClick={() => setPaused(value => !value)}><span><strong>{paused ? "Resume donations" : "Pause donations"}</strong><small>{paused ? "Donors cannot give while paused." : "Temporarily stop new donations."}</small></span><span className={styles.toggle} data-on={paused || undefined} /></button><button className={styles.settingRow} type="button" onClick={() => setSaved(true)}><span><strong>End this cause</strong><small>Close donations and keep the payout steps.</small></span><ArrowRight size={18} /></button><p className={styles.reason}>{saved ? "This change is only saved in the local preview." : "Settings in this preview do not change a Testnet campaign."}</p></section> : null}
-    {section === "proof" ? <section className={styles.card}><h1>Show what the funds did.</h1><p>Upload proof after the goal is reached or the deadline passes.</p><label htmlFor="proof-note">What did you deliver?</label><textarea id="proof-note" placeholder="Describe how the funds helped" /><label htmlFor="proof-file">Receipt or photo</label><input id="proof-file" type="file" accept="image/*,.pdf" onChange={event => setProofName(event.target.files?.[0]?.name ?? "")} />{proofName && <small>{proofName}</small>}<p className={styles.reason}>This local preview does not upload proof or open a contract transaction.</p><Btn disabled={!proofName}>Save proof locally</Btn></section> : null}
-    {section === "release" ? <section className={styles.card}><h1>Claim your benefit</h1><p>Funds stay in escrow until the proof is reviewed and the identity check is complete.</p><div className={styles.stats}><article><span>Your benefit</span><strong>${shortMoney(Math.round(raised * feePercent / 100))}</strong></article><article><span>In escrow</span><strong>${shortMoney(raised)}</strong></article></div><p className={styles.reason}>Complete the proof and donor review steps before claiming.</p><Btn disabled>Claim your benefit</Btn></section> : null}
-    {section !== "updates" && section !== "updates/new" && <div className={styles.powered}><PoweredByStellar /></div>}
+    {section === "edit" && id !== "reading-zines" ? <section className={styles.card}><div className={styles.segmented}><button type="button" aria-current="page">Details</button><button type="button" onClick={() => router.push(`/manage/${id}/settings`)}>Settings</button></div><h1>What donors see</h1><label htmlFor="manage-title">Cause title</label><input id="manage-title" maxLength={90} value={draftTitle || title} onChange={event => setDraftTitle(event.target.value)} /><label htmlFor="manage-story">The story</label><textarea id="manage-story" maxLength={1500} value={draftStory || cause.story || ""} onChange={event => setDraftStory(event.target.value)} />{stagedCause && <div className={styles.stageTerms}><strong>Cause terms</strong><span>Target <b>${shortMoney(goal)}</b></span><span>Payout <b>{payoutStages.length} stages</b></span><span>Release <b>In stages, after each proof</b></span></div>}<p className={styles.reason}>Local preview only. Changes are not published.</p><Btn onClick={() => setSaved(true)}>{saved ? "Saved locally" : "Save changes"}</Btn></section> : null}
+    {section === "goal" ? stagedCause ? <section className={styles.card}><h1>Goal is fixed</h1><p>The payout stages add up to this goal, so it cannot change after launch.</p><div className={styles.stageTerms}><span>Target <b>${shortMoney(goal)}</b></span><span>Payout <b>{payoutStages.length} stages</b></span></div><Btn kind="secondary" onClick={() => router.push(`/manage/${id}/edit`)}>View cause terms</Btn></section> : <section className={styles.card}><h1>Goal & funding date</h1><label htmlFor="manage-goal">Goal amount · USD</label><input id="manage-goal" inputMode="decimal" value={draftGoal || shortMoney(goal)} onChange={event => setDraftGoal(event.target.value.replace(/[^0-9.]/g, ""))} /><small>You can change the goal after launch.</small><label htmlFor="manage-end-date">Funding ends on</label><input id="manage-end-date" type="date" defaultValue={createdCause?.endDate} /><p className={styles.reason}>Local preview only. The Testnet campaign goal is not changed.</p><Btn onClick={() => setSaved(true)}>{saved ? "Saved locally" : "Save changes"}</Btn></section> : null}
+    {section === "settings" ? id === "reading-zines" ? <>
+      <section className={styles.card}>
+        <div className={styles.segmented}><button type="button" onClick={() => router.push(`/manage/${id}/edit`)}>Details</button><button type="button" aria-current="page">Settings</button></div>
+        <div className={styles.endedSettings}>
+          <div><span><strong>Accept donations</strong><small>Donors can give to this cause.</small></span><span className={styles.endedToggle} aria-hidden="true" /></div>
+          <div><span><strong>Appear in search</strong><small>The cause appears in lists and search.</small></span><span className={styles.endedToggle} aria-hidden="true" /></div>
+        </div>
+      </section>
+      <section className={styles.endedNotice}><h2>End this cause</h2><p>This cause has ended. Money in escrow still follows the payout steps.</p></section>
+      <div className={styles.endedDoodle} aria-hidden="true"><Image src="/prototype-causes/doodle-people.png" alt="" width={240} height={240} /></div>
+    </> : <section className={styles.card}><div className={styles.segmented}><button type="button" onClick={() => router.push(`/manage/${id}/edit`)}>Details</button><button type="button" aria-current="page">Settings</button></div><h1>Cause settings</h1><button className={styles.settingRow} type="button" aria-pressed={paused} onClick={() => setPaused(value => !value)}><span><strong>{paused ? "Resume donations" : "Pause donations"}</strong><small>{paused ? "Donors cannot give while paused." : "Temporarily stop new donations."}</small></span><span className={styles.toggle} data-on={paused || undefined} /></button><button className={styles.settingRow} type="button" onClick={() => setSaved(true)}><span><strong>End this cause</strong><small>Close donations and keep the payout steps.</small></span><ArrowRight size={18} /></button><p className={styles.reason}>{saved ? "This change is only saved in the local preview." : "Settings in this preview do not change a Testnet campaign."}</p></section> : null}
+    {section === "proof" ? <section className={styles.card}><h1>{stagedCause && currentStage ? `Proof for stage ${stageTurn + 1}` : "Show what the funds did."}</h1>{stagedCause && currentStage ? <div className={styles.stageTerms}><strong>{currentStage.title}</strong><span>This stage <b>${shortMoney(currentStage.amountCents)}</b></span><span>Due <b>{stageDate(currentStage.dueDate)}</b></span></div> : null}<p>Upload proof after the goal is reached or the deadline passes.</p><label htmlFor="proof-note">What did you deliver?</label><textarea id="proof-note" placeholder="Describe how the funds helped" /><label htmlFor="proof-file">Receipt or photo</label><input id="proof-file" type="file" accept="image/*,.pdf" onChange={event => setProofName(event.target.files?.[0]?.name ?? "")} />{proofName && <small>{proofName}</small>}<p className={styles.reason}>This local preview does not upload proof or open a contract transaction.</p><Btn disabled={!proofName}>Save proof locally</Btn></section> : null}
+    {section === "release" ? <section className={styles.card}><h1>{stagedCause && currentStage ? `Claim stage ${stageTurn + 1}` : "Claim your benefit"}</h1><p>Funds stay in escrow until the proof is reviewed and the identity check is complete.</p>{stagedCause && currentStage ? <div className={styles.stageTerms}><span>{`Stage ${stageTurn + 1} of ${payoutStages.length}`} <b>{currentStage.title}</b></span><span>This claim <b>${shortMoney(Math.min(currentStage.amountCents, escrow))}</b></span></div> : null}<div className={styles.stats}><article><span>Your benefit</span><strong>${shortMoney(Math.round(raised * feePercent / 100))}</strong></article><article><span>In escrow</span><strong>${shortMoney(escrow)}</strong></article></div><p className={styles.reason}>Complete the proof and donor review steps before claiming.</p><Btn disabled>{stagedCause && currentStage ? `Claim $${shortMoney(Math.min(currentStage.amountCents, escrow))}` : "Claim your benefit"}</Btn></section> : null}
+    {section !== "updates" && section !== "updates/new" && !(id === "reading-zines" && (section === "edit" || section === "settings")) && <div className={styles.powered}><PoweredByStellar /></div>}
   </div>;
 
   if (mode === "payout") return <div className={styles.screen}>
     <AppBar leading={<IconButton ariaLabel="Back" onClick={back}>{Ico.back({})}</IconButton>} title="Payout" />
     <section className={styles.card}>
-      <h1>{title}</h1>
+      <h1>{cause.shortTitle ?? title}</h1>
       <div className={styles.stats}>
         <article><span>Raised</span><strong>${shortMoney(raised)}</strong></article>
-        <article><span>Your benefit</span><strong>${shortMoney(Math.round(raised * feePercent / 100))}</strong><small>{feePercent}% of what is raised</small></article>
+        <article><span>Your benefit</span><strong>${shortMoney(Math.round(raised * feePercent / 100))}</strong><small>{feePercent === 0 ? "You take no fee on this cause" : `${feePercent}% of what is raised`}</small></article>
       </div>
+      {(cause.releasedCents ?? 0) > 0 && <p className={styles.releasedSummary}>${shortMoney(cause.releasedCents ?? 0)} released so far · ${shortMoney(escrow)} in escrow</p>}
     </section>
+    {stagedCause && <section className={styles.card}>
+      <h2>Payout stages</h2><p>Funds leave escrow one stage at a time, each after donors rate its proof.</p>
+      <ol className={styles.stageList}>{payoutStages.map((stage, index) => <li className={`${stage.status === "Paid" ? styles.stagePaid : stage.status === "In review" ? styles.stageReview : ""}`} key={stage.title}>
+        <span className={styles.stageIndex}>{index + 1}</span><span><strong>{stage.title}</strong><small>{stage.status === "Paid" ? `$${shortMoney(stage.paidCents ?? stage.amountCents)} · Paid ${stage.paidOn ?? "today"}` : `$${shortMoney(stage.amountCents)} · Due ${stageDate(stage.dueDate)}`}</small>{stage.status === "In review" && <small>Donors are rating the proof: {stageRatings} of 3.</small>}</span>
+        <em>{stage.status}</em>
+      </li>)}</ol>
+    </section>}
     <section className={styles.card}>
-      <h2>Payout steps</h2><p>Funds stay in escrow until every step is done.</p>
+      <h2>{stagedCause && currentStage ? `Stage ${stageTurn + 1} of ${payoutStages.length} · ${currentStage.title}` : "Payout steps"}</h2>
+      <p>{stagedCause ? cause.status === "Funding" ? "The first stage opens after the goal is reached or the deadline passes." : `$${shortMoney(currentStagePayout)} stays in escrow until these steps are done.${stageTurn < payoutStages.length - 1 ? " Then the next stage opens." : ""}` : "Funds stay in escrow until every step is done."}</p>
       <ol className={styles.steps}>
-        {["Proof uploaded", "Donor ratings", "Benefit claimed"].map((name, index) => <li key={name}><span className={styles.stepNumber}>{index + 1}</span><span className={styles.stepInfo}><strong>{name}</strong>{index === 0 ? <small>After the goal is reached or the deadline passes.</small> : index === 1 ? <small>3 ratings minimum, from donors.</small> : null}</span><em>Waiting</em></li>)}
+        {["Proof uploaded", "Donor ratings", "Benefit claimed"].map((name, index) => {
+          const stageStep = stagedCause && currentStage?.status === "In review"
+            ? index === 0 ? "Done" : index === 1 ? `${stageRatings} of 3` : "Waiting"
+            : "Waiting";
+          return <li key={name}><span className={styles.stepNumber}>{index + 1}</span><span className={styles.stepInfo}><strong>{name}</strong>{index === 0 ? <small>{stagedCause && stageTurn > 0 ? `After stage ${stageTurn} is paid.` : "After the goal is reached or the deadline passes."}</small> : index === 1 ? <small>3 ratings minimum, from donors.</small> : null}</span><em>{stagedCause ? stageStep : "Waiting"}</em></li>;
+        })}
       </ol>
       <div className={styles.note}><div className={styles.noteHeading}><strong>Identity check (KYC)</strong><em>Not verified</em></div><small>Needed before the first payout. It takes a few minutes.</small><button type="button" onClick={() => router.push("/you/verify/preview")}>Verify</button></div>
-      <Btn kind="secondary" disabled>Upload proof</Btn>
-      <Btn kind="secondary" disabled>Claim your benefit</Btn>
-      <small className={styles.reason}>Proof opens after the goal is reached or the deadline passes.</small>
+      {cause.status === "In review" ? <Btn kind="secondary" onClick={() => setProofOpen(true)}>View proof</Btn> : <Btn kind="secondary" disabled={cause.status === "Funding" || !currentStage}>Upload proof</Btn>}
+      <Btn kind="secondary" disabled>{stagedCause && currentStage ? `Claim stage ${stageTurn + 1}` : "Claim your benefit"}</Btn>
+      <small className={styles.reason}>{stagedCause && cause.status === "In review" ? `Waiting for donor ratings: ${stageRatings} of 3.` : "Proof opens after the goal is reached or the deadline passes."}</small>
     </section>
     <div className={styles.powered}><PoweredByStellar /></div>
+    {proofOpen && <div className={styles.proofBackdrop} role="presentation" onClick={event => { if (event.target === event.currentTarget) setProofOpen(false); }}><section className={styles.proofSheet} role="dialog" aria-modal="true" aria-labelledby="manage-proof-title"><div className={styles.proofHandle} /><header><h2 id="manage-proof-title">Proof of delivery</h2><button type="button" aria-label="Close" onClick={() => setProofOpen(false)}><X size={18} /></button></header>{currentStage?.proofNote && <p>{currentStage.proofNote}</p>}<dl><div><dt>Uploaded</dt><dd>Today</dd></div><div><dt>Rated by</dt><dd>{stageRatings} of 3 donors</dd></div><div><dt>Status</dt><dd>Waiting for ratings</dd></div></dl><button className={styles.proofClose} type="button" onClick={() => setProofOpen(false)}>Close</button></section></div>}
   </div>;
 
   const share = async () => {
@@ -137,4 +189,8 @@ export default function PrototypeManageScreen({ mode = "list", id = "mei", secti
     </section>
     <div className={styles.powered}><PoweredByStellar /></div>
   </div>;
+}
+
+function ReadonlyRow({ label, value }: { label: string; value: string }) {
+  return <div className={styles.endedRow}><span>{label}</span><strong>{value}</strong></div>;
 }

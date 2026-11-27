@@ -13,6 +13,7 @@ const SAMPLE: Record<string, Receipt> = {
   a3: { title:"Top up", amount:"+$5.00", person:"QRIS", status:"Credited", rows:[["Method","QRIS"],["Date","Yesterday, 16:20"],["Paid","Rp 82,500"],["Rate","Rp 16,500 per $1"]] },
   a4: { title:"Transfer", amount:"+$12.00", person:"@jamal_r", status:"Confirmed", rows:[["From","@jamal_r"],["Date","Yesterday, 11:05"],["Amount","$12.00"]], about:{label:"Send to @jamal_r",href:"/send?to=jamal_r"} },
   a5: { title:"Withdrawal", amount:"−$439.94", person:"Withdrawal arrived", status:"Completed", rows:[["Date","12 Nov, 14:32"],["Amount","$439.94"],["To","GCash · •••• 4567"],["Fee","Free"]] },
+  "referral-reward": { title:"Referral reward", amount:"+$20.00", person:"Salapi", status:"Confirmed", rows:[["From","Salapi"],["Reward for","10 friends who each donated $5 or more"],["Date","Today"],["Amount","$20.00 USDC"],["Status","Added to your balance"]], about:{label:"View referrals",href:"/you/referrals?state=earned"} },
 };
 
 function sampleHash(id: string) {

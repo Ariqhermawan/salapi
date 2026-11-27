@@ -48,6 +48,8 @@
 .payoutBlock { display:grid; gap:0; margin:0 16px 12px; padding:0 16px 4px; border:1px solid #cdd6ff; border-radius:20px; background:#f5f6ff; box-shadow:0 2px 5px #1118270d,0 5px 10px -8px #11182722; }
 .groupHeader { display:flex; align-items:center; justify-content:space-between; gap:10px; min-height:52px; padding:6px 0; border-bottom:1px solid #dfe4fb; }
 .groupHeader > span { display:grid; gap:2px; }
+.payoutMark { display:grid !important; width:36px; height:36px; flex:none; place-items:center; border-radius:999px; background:#3155dc; color:#fff; }
+.groupHeader > .payoutTitle { flex:1; min-width:0; }
 .groupHeader strong { font-size:13px; font-weight:600; }
 .groupHeader small { color:#737985; font-size:10px; }
 .groupHeader > b { color:#3155dc; font-size:12px; font-weight:600; text-align:right; }
@@ -56,6 +58,8 @@
 .payoutBlock .ledgerRow strong { font-size:13px; }
 .payoutBlock .ledgerRow small { font-size:11px; }
 .payoutBlock .ledgerRow b { color:#3155dc; font-size:13px; }
+.payoutValue { display:grid !important; flex:none !important; gap:2px; text-align:right; }
+.payoutValue small { color:#737985; font-size:10px !important; }
 .rowArrow { display:grid; flex:none; color:#8e95a3; }
 .contributionHeading { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin:4px 18px 8px; }
 .contributionHeading h3 { margin:0; font-size:14px; font-weight:600; line-height:20px; }

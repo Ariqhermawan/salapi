@@ -39,12 +39,11 @@ export default function DisasterPartnersPreview({ view }: { view: string | null 
           : null;
       const nextAssigned = team || unassigned
         ? storedAssigned?.length ? [] : storedAssigned ?? []
-        : storedAssigned ?? ["tulong-cebu", "bangon-marikina"];
+        : storedAssigned?.length ? storedAssigned : ["tulong-cebu", "bangon-marikina"];
       const nextRecommendation = (team || unassigned) && storedAssigned?.length ? null : storedRecommendation;
       setAssigned(nextAssigned);
       setRecommended(nextRecommendation);
       setRecommendNote(nextRecommendation?.note ?? "");
-      if (team || unassigned) localStorage.setItem(KEY, JSON.stringify({ assigned: nextAssigned, recommendation: nextRecommendation }));
     } catch { /* Corrupt demo state is ignored; this is only a local sample. */ }
   }, [team, unassigned]);
 

@@ -5,13 +5,13 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppBar, Btn, Card, Ico, IconButton, PoweredByStellar } from "@/components/ui/kit";
-import { PREVIEW_WALLET } from "@/lib/local-preview";
-import { Info } from "@phosphor-icons/react";
+import { PREVIEW_WALLET, previewUsdcBalanceCents } from "@/lib/local-preview";
+import { Bank, Info } from "@phosphor-icons/react";
 import { useGoBack } from "@/lib/ui/useGoBack";
 import DisasterPartnersPreview from "@/components/screens/DisasterPartnersPreview";
 import styles from "./PrototypeDisasterVaultScreen.module.css";
 
-type LedgerRow = { id: string; dir: "in" | "out"; label: string; cents: number; by?: string; ngo?: string; group?: string; causeId?: string; donationCents?: number; when?: string; mine?: boolean };
+type LedgerRow = { id: string; dir: "in" | "out"; label: string; cents: number; by?: string; ngo?: string; group?: string; causeId?: string; cause?: string; donationCents?: number; when?: string; mine?: boolean };
 type VaultState = { balanceCents: number; vaultCents: number; ledger: LedgerRow[] };
 type ContributionReceipt = { id: string; amountCents: number; vaultCents: number };
 
@@ -21,9 +21,9 @@ const INITIAL_STATE: VaultState = {
   balanceCents: 241_226,
   vaultCents: 128_420,
   ledger: [
-    { id: "l1", dir: "in", label: "Donated $5.00 to Ate Mei needs dialysis", cents: 5, donationCents: 500, by: "maria_s", causeId: "mei" },
-    { id: "l2", dir: "in", label: "Donated $25.00 to Bantayan Island school roofs", cents: 25, donationCents: 2500, by: "jamamam", causeId: "bantayan" },
-    { id: "l3", dir: "in", label: "Donated $12.00 to A dry roof for the Santos family", cents: 12, donationCents: 1200, by: "jamal_r", causeId: "santos-roof" },
+    { id: "l1", dir: "in", label: "1% of a $5.00 donation", cents: 5, donationCents: 500, by: "maria_s", causeId: "mei", cause: "Ate Mei needs dialysis" },
+    { id: "l2", dir: "in", label: "1% of a $25.00 donation", cents: 25, donationCents: 2500, by: "jamamam", causeId: "bantayan", cause: "Bantayan Island school roofs" },
+    { id: "l3", dir: "in", label: "1% of a $12.00 donation", cents: 12, donationCents: 1200, by: "jamal_r", causeId: "santos-roof", cause: "Santos family roof" },
     { id: "l4", dir: "out", label: "NGO payout", cents: 50_000, ngo: "tulong-cebu", group: "Typhoon relief, Cebu", when: "12 Oct 2026" },
   ],
 };
@@ -47,7 +47,7 @@ function readLocalState(): VaultState {
       return { balanceCents: value.balanceCents!, vaultCents: value.vaultCents!, ledger: value.ledger as LedgerRow[] };
     }
   } catch { /* Local sample data can be reset by clearing browser storage. */ }
-  return INITIAL_STATE;
+  return { ...INITIAL_STATE, balanceCents: previewUsdcBalanceCents() };
 }
 
 function writeLocalState(value: VaultState) {
@@ -149,11 +149,11 @@ export function PrototypeDisasterVaultScreen() {
         {[ ["all", "All"], ["in", "Contributions"], ["out", "NGO payouts"] ].map(([value, label]) => <button key={value} type="button" role="tab" aria-selected={filter === value} onClick={() => setActivityFilter(value)}>{label}</button>)}
       </div>
       {(filter === "all" || filter === "out") && <section className={styles.payoutBlock} aria-label="NGO payouts">
-        <div className={styles.groupHeader}><span><strong>NGO payouts</strong><small>{payouts.length} {payouts.length === 1 ? "payout" : "payouts"}</small></span><b>{usd(payoutTotal)} total paid out</b></div>
+        <div className={styles.groupHeader}><span className={styles.payoutMark}><Bank size={18} aria-hidden="true" /></span><span className={styles.payoutTitle}><strong>NGO payouts</strong><small>Money the vault sent to relief groups on the ground</small></span>{payouts.length > 0 && <b>{usd(payoutTotal)}</b>}</div>
         {payouts.length === 0 ? <p className={styles.noActivity}>No payouts yet</p> : payouts.map(row => {
           const ngo = NGOS.find(item => item.id === row.ngo);
           return <Link href={`/ngo/${ngo?.id ?? "tulong-cebu"}`} className={styles.ledgerRow} key={row.id}>
-            <span><strong>{ngo?.name ?? "Disaster response NGO"}</strong><small><em>NGO</em>{row.group ?? row.label}{row.when ? ` · ${row.when}` : ""}</small></span><b>−{usd(row.cents)}</b><span className={styles.rowArrow}>{Ico.chev({ size: 15 })}</span>
+            <span><strong>{row.group ?? row.label}</strong><small><em>NGO</em>{ngo ? `To ${ngo.name}` : "To an NGO"}</small></span><span className={styles.payoutValue}><b>−{usd(row.cents)}</b>{row.when && <small>{row.when}</small>}</span>{ngo ? <span className={styles.rowArrow}>{Ico.chev({ size: 15 })}</span> : null}
           </Link>;
         })}
       </section>}
@@ -161,7 +161,7 @@ export function PrototypeDisasterVaultScreen() {
         <div className={styles.contributionHeading}><h3>Contributions</h3><span>1% of every donation</span></div>
         <section className={styles.ledger} aria-label="Contributions">
           {contributions.length === 0 ? <p className={styles.noActivity}>No contributions yet</p> : contributions.map(row => {
-            const content = <><span><strong>@{row.by ?? "salapi_user"}</strong><small>{row.causeId && row.donationCents ? `Donated ${usd(row.donationCents)} to ${row.label.replace(/^Donated [^ ]+ to /, "")}` : row.label}</small></span><b>+{usd(row.cents)}</b></>;
+            const content = <><span><strong>@{row.by ?? "salapi_user"}</strong><small>{row.causeId && row.donationCents ? `Donated ${usd(row.donationCents)} to ${row.cause ?? row.label.replace(/^Donated [^ ]+ to /, "")}` : row.label}</small></span><b>+{usd(row.cents)}</b></>;
             return row.causeId ? <Link href={`/cause/${row.causeId}`} className={styles.ledgerRow} key={row.id}>{content}</Link> : <div className={styles.ledgerRow} key={row.id}>{content}</div>;
           })}
         </section>

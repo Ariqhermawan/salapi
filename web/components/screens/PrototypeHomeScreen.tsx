@@ -19,7 +19,7 @@ import {
 } from "@phosphor-icons/react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { PROTOTYPE_CAUSES, type PrototypeCause } from "@/lib/prototype-causes";
-import { PREVIEW_WALLET } from "@/lib/local-preview";
+import { previewReferralNoticeIsNew, previewUsdcBalanceCents } from "@/lib/local-preview";
 import styles from "./PrototypeHomeScreen.module.css";
 
 const BALANCE_KEY = "salapi.prototype-home.hide-balance.v1";
@@ -29,10 +29,13 @@ const DONORS = [
 ];
 const CAMPAIGN_ORDER = ["bantayan", "mei", "jakarta-kitchen", "bohol-library", "tita-ana", "baybayin-zines", "water-point", "river-cleanup"];
 const USD = (cents: number) => (cents / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const XLM_PER_USD = 8.92307692;
 
 export default function PrototypeHomeScreen() {
   const greetingRef = useRef<HTMLHeadingElement>(null);
   const [currency, setCurrency] = useState<"USDC" | "XLM">("USDC");
+  const [balanceCents, setBalanceCents] = useState(241_226);
+  const [newNotification, setNewNotification] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [currencyOpen, setCurrencyOpen] = useState(false);
   const [pricesOpen, setPricesOpen] = useState(false);
@@ -69,6 +72,11 @@ export default function PrototypeHomeScreen() {
   }, []);
 
   useEffect(() => {
+    setBalanceCents(previewUsdcBalanceCents());
+    setNewNotification(previewReferralNoticeIsNew());
+  }, []);
+
+  useEffect(() => {
     if (!currencyOpen && !pricesOpen) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") { setCurrencyOpen(false); setPricesOpen(false); }
@@ -78,6 +86,8 @@ export default function PrototypeHomeScreen() {
   }, [currencyOpen, pricesOpen]);
 
   const updateReady = pathname === "/" && search.get("update") === "ready";
+  const balanceUsd = USD(balanceCents);
+  const balanceXlm = ((balanceCents / 100) * XLM_PER_USD).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const toggleHidden = () => setHidden(current => {
     const next = !current;
     try { window.localStorage.setItem(BALANCE_KEY, next ? "1" : "0"); }
@@ -91,9 +101,11 @@ export default function PrototypeHomeScreen() {
       <Link href="/you" className={styles.mark} aria-label="Your account">
         <Image src="/salapi-mark-prototype.svg" alt="Salapi" width={28} height={28} priority />
       </Link>
-      <h1 ref={greetingRef}>Welcome to Salapi, @{PREVIEW_WALLET.handle}</h1>
+      <h1 ref={greetingRef}>Welcome to Salapi</h1>
       <Link href="/learn" className={styles.round} aria-label="Help"><Question size={24} aria-hidden="true" /></Link>
-      <Link href="/notifications" className={styles.round} aria-label="Notifications"><Bell size={24} aria-hidden="true" /></Link>
+      <Link href="/notifications" className={`${styles.round} ${newNotification ? styles.hasNotification : ""}`} aria-label={newNotification ? "Notifications, 1 new" : "Notifications"}>
+        <Bell size={24} aria-hidden="true" />{newNotification && <span className={styles.notificationDot} aria-hidden="true" />}
+      </Link>
     </header>
 
     <section className={styles.balance} aria-label="Total balance">
@@ -102,14 +114,14 @@ export default function PrototypeHomeScreen() {
         <Image src="/stellar-white.png" alt="Powered by Stellar" width={68} height={17} />
       </div>
       <div className={styles.balanceAmount}>
-        <strong>{hidden ? "••••••" : currency === "USDC" ? "2,412.26" : "21,524.78"}</strong>
+          <strong>{hidden ? "••••••" : currency === "USDC" ? balanceUsd : balanceXlm}</strong>
         {!hidden && <button type="button" className={styles.currency} aria-label={`Balance shown in ${currency}. Change`} onClick={() => setCurrencyOpen(true)}>
           {currency}<CaretDown size={16} aria-hidden="true" />
         </button>}
       </div>
       {hidden ? <button type="button" className={styles.priceLine} onClick={toggleHidden}>Hidden. Show it in Security</button> :
         <button type="button" className={styles.priceLine} aria-label="Price details" onClick={() => setPricesOpen(true)}>
-          <span>≈ {currency === "USDC" ? "21,524.78 XLM" : "$2,412.26 USDC"}</span><Info size={15} aria-hidden="true" />
+          <span>≈ {currency === "USDC" ? balanceXlm + " XLM" : "$" + balanceUsd + " USDC"}</span><Info size={15} aria-hidden="true" />
         </button>}
     </section>
 

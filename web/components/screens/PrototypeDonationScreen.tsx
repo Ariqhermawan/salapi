@@ -7,10 +7,10 @@ import { createPortal } from "react-dom";
 import { ArrowLeft, CheckCircle, HandHeart, Info, Wallet } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { PROTOTYPE_CAUSES } from "@/lib/prototype-causes";
+import { previewUsdcBalanceCents } from "@/lib/local-preview";
 import PrototypeFeeStory, { donorFeeStory, donorStoryStart, type DonorStoryKey } from "./PrototypeFeeStory";
 import styles from "./PrototypeDonationScreen.module.css";
 
-const BALANCE_CENTS = 241_226;
 const money = (cents: number) => `$${(cents / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const shortMoney = (cents: number) => `$${(cents / 100).toLocaleString("en-US", { minimumFractionDigits: cents % 100 ? 2 : 0, maximumFractionDigits: 2 })}`;
 const amountToCents = (value: string) => /^\d{1,6}(?:\.\d{0,2})?$/.test(value) ? Math.round(Number(value) * 100) : null;
@@ -41,13 +41,15 @@ export default function PrototypeDonationScreen({ id, step, amount: initialAmoun
   const [copied, setCopied] = useState(false);
   const [layer, setLayer] = useState<HTMLElement | null>(null);
   const [portalHost, setPortalHost] = useState<HTMLElement | null>(null);
+  const [balanceCents, setBalanceCents] = useState(241_226);
   const cents = amountToCents(amount);
-  const error = cents === null || cents < 100 ? "Enter $1 or more." : cents > BALANCE_CENTS ? `That is more than your Salapi balance of ${money(BALANCE_CENTS)}.` : "";
+  const error = cents === null || cents < 100 ? "Enter $1 or more." : cents > balanceCents ? `That is more than your Salapi balance of ${money(balanceCents)}.` : "";
   const split = useMemo(() => splitDonation(cents ?? 0, cause?.organizerFeeBps ?? 0), [cents, cause?.organizerFeeBps]);
   const donorSlides = useMemo(() => donorFeeStory(false), []);
 
   useEffect(() => setLayer(document.querySelector<HTMLElement>(".sl-app-frame")), []);
   useEffect(() => setPortalHost(document.getElementById("phone-layer") ?? document.body), []);
+  useEffect(() => setBalanceCents(previewUsdcBalanceCents()), []);
   useEffect(() => {
     if (!help && !story && !vaultInfo) return;
     const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") { setHelp(null); setStory(null); setVaultInfo(false); } };
@@ -104,13 +106,13 @@ export default function PrototypeDonationScreen({ id, step, amount: initialAmoun
           {error && amount && <small className={styles.error} role="status">{error}</small>}
           <div className={styles.presets}>{[200, 500, 1000, 2000].map(value => <button type="button" key={value} aria-pressed={cents === value} onClick={() => setAmount((value / 100).toFixed(0))}>{shortMoney(value)}</button>)}</div>
         </section>
-        <section className={styles.payFrom}><span>Pay from</span><strong>Salapi balance · {money(BALANCE_CENTS)}</strong></section>
+        <section className={styles.payFrom}><span>Pay from</span><strong>Salapi balance · {money(balanceCents)}</strong></section>
       </>}
 
       {step === "review" && <>
         <div className={styles.total}><strong>{money(split.donation)}</strong><span>You pay</span></div>
         <h2 className={styles.groupLabel}>From</h2>
-        <section className={styles.breakdown}><div className={styles.row}><span className={styles.rowIcon}><Wallet size={20} /></span><span className={styles.rowMain}><strong>Salapi balance</strong><small>{money(BALANCE_CENTS)} available</small></span></div></section>
+        <section className={styles.breakdown}><div className={styles.row}><span className={styles.rowIcon}><Wallet size={20} /></span><span className={styles.rowMain}><strong>Salapi balance</strong><small>{money(balanceCents)} available</small></span></div></section>
         <h2 className={styles.groupLabel}>To</h2>
         <section className={styles.breakdown}>
           <div className={styles.row}><span className={styles.person}>{cause.avatar ? <Image src={cause.avatar} width={40} height={40} alt="" /> : cause.organizer.slice(1, 2).toUpperCase()}</span><span className={styles.rowMain}><span className={styles.rowName}><strong>{cause.organizer}</strong>{cause.verified ? <span className={styles.verified}>Verified</span> : null}</span><small>Organizer fee</small></span><strong className={styles.value}>{money(split.organizer)}<small>{(cause.organizerFeeBps / 100).toFixed(0)}%</small></strong><button type="button" aria-label="What is the organizer fee?" aria-haspopup="dialog" onClick={() => setStory("organizer")}><Info size={18} /></button></div>

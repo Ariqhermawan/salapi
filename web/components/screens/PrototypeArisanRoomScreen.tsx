@@ -8,8 +8,10 @@ import { PoweredByStellar } from "@/components/ui/kit";
 import styles from "./PrototypeArisanRoomScreen.module.css";
 
 type RoomKey = "r_1" | "r_4";
+type JoinedRoom = { code: string; name: string; members: number; joined: number; share: number; cadence: string; closes: string; firstDraw: string; place: string };
 type CreatedRoom = { name: string; members: number; share: number; interval: string; zone: string; closes: string; firstDraw: string; place: string; code: string };
 const CREATED_ROOM_KEY = "salapi.prototype-arisan-created.v1";
+const JOINED_ROOM_KEY = "salapi.prototype-arisan-joined.v1";
 const MEMBER_ROWS = [
   { name: "@maria_s", initials: "MS", detail: "Room Master · Deposit locked", status: "Paid" },
   { name: "@jamamam", initials: "JA", detail: "Deposit locked", status: "Paid" },
@@ -20,7 +22,17 @@ const MEMBER_ROWS = [
 
 export default function PrototypeArisanRoomScreen({ roomKey }: { roomKey: string }) {
   const [created, setCreated] = useState<CreatedRoom | null>(null);
+  const [joinedRoom, setJoinedRoom] = useState<JoinedRoom | null>(null);
+  const [released, setReleased] = useState(false);
+  const isActive = roomKey === "r_4";
   useEffect(() => {
+    if (roomKey === "joined") {
+      try {
+        const value = JSON.parse(window.localStorage.getItem(JOINED_ROOM_KEY) ?? "null") as Partial<JoinedRoom> | null;
+        if (value && typeof value.code === "string" && typeof value.name === "string" && Number.isInteger(value.members) && Number.isInteger(value.joined) && typeof value.share === "number") setJoinedRoom(value as JoinedRoom);
+      } catch { /* The room keeps its sample view if this local example is unavailable. */ }
+      return;
+    }
     if (roomKey !== "preview-created") return;
     try {
       const value = JSON.parse(window.localStorage.getItem(CREATED_ROOM_KEY) ?? "null") as Partial<CreatedRoom> | null;
@@ -29,12 +41,18 @@ export default function PrototypeArisanRoomScreen({ roomKey }: { roomKey: string
       }
     } catch { /* A missing local example falls back to the sample room view. */ }
   }, [roomKey]);
-  const isActive = roomKey === "r_4";
-  const sampleRoom = isActive
+  useEffect(() => {
+    if (!isActive) return;
+    const timer = window.setTimeout(() => setReleased(true), 3200);
+    return () => window.clearTimeout(timer);
+  }, [isActive]);
+  const usd = (amount: number) => `$${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const sampleRoom = roomKey === "joined" && joinedRoom
+    ? { name: joinedRoom.name, status: joinedRoom.joined >= joinedRoom.members ? "Active" : "Open", cadence: joinedRoom.cadence.split(",")[0], zone: "UTC", joined: joinedRoom.joined, members: joinedRoom.members, share: usd(joinedRoom.share), pot: usd(joinedRoom.share * joinedRoom.members), xlm: `${(joinedRoom.share * joinedRoom.members * 8.92307692).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} XLM`, deadline: joinedRoom.closes.split(",")[0].replace(/ \d{4}$/, ""), deadlineDetail: `${joinedRoom.closes.split(", ").slice(1).join(", ")} UTC`, code: joinedRoom.code }
+    : isActive
     ? { name: "Kapitbahay Circle", status: "Active", cadence: "Monthly", zone: "Asia/Manila", joined: 5, members: 5, share: "$25.00", pot: "$125.00", xlm: "1,115.38 XLM", deadline: "27 Nov", deadlineDetail: "23:00 Asia/Manila", code: "DRW789" }
     : { name: "Family Circle", status: "Open", cadence: "Weekly", zone: "UTC", joined: 2, members: 4, share: "$10.00", pot: "$40.00", xlm: "356.92 XLM", deadline: "30 Nov", deadlineDetail: "19:00 UTC", code: "FAM234" };
   const isCreated = roomKey === "preview-created" && created !== null;
-  const usd = (amount: number) => `$${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const placeName = (place: string) => {
     if (!/^https?:\/\//.test(place)) return place;
     const match = place.match(/[?&]q=([^&]+)/) ?? place.match(/\/place\/([^/]+)/);
@@ -56,7 +74,7 @@ export default function PrototypeArisanRoomScreen({ roomKey }: { roomKey: string
   } : sampleRoom;
   const [tab, setTab] = useState<"Schedule" | "History">("Schedule");
   const [copied, setCopied] = useState(false);
-  const memberRows = isCreated ? [{ name: "You", initials: "YO", detail: "Room Master · Deposit locked", status: "Paid" }] : isActive ? MEMBER_ROWS : [MEMBER_ROWS[0], MEMBER_ROWS[4]];
+  const memberRows = isCreated ? [{ name: "You", initials: "YO", detail: "Room Master · Deposit locked", status: "Paid" }] : isActive ? MEMBER_ROWS : joinedRoom && roomKey === "joined" ? [MEMBER_ROWS[0], { name: "You", initials: "YO", detail: "Joined just now · local example", status: "Preview" }, ...Array.from({ length: Math.max(0, room.joined - 2) }, (_, index) => ({ name: `Member ${index + 3}`, initials: `M${index + 3}`, detail: "Deposit locked", status: "Paid" }))] : [MEMBER_ROWS[0], MEMBER_ROWS[4]];
 
   async function copyCode() {
     try {
@@ -107,9 +125,9 @@ export default function PrototypeArisanRoomScreen({ roomKey }: { roomKey: string
       <div className={styles.winner}>
         <span className={styles.winnerAvatar}>MS</span>
         <span className={styles.winnerInfo}><strong>@maria_s won this round</strong><small>{room.pot} · ≈ {room.xlm}</small></span>
-        <span className={styles.released}>Released</span>
+      <span className={styles.released}>{released ? "Released" : "Held"}</span>
       </div>
-      <p>The pot is with @maria_s. Next draw: 27 Dec 2026.</p>
+      <p>{released ? "The pot is with @maria_s. Next draw: 27 Dec 2026." : "Waiting for @maria_s to release the pot."}</p>
     </section> : <section className={styles.invite}>
       <span className={styles.qr} aria-hidden="true">▦</span>
       <div className={styles.inviteText}><small>Invite code</small><strong>{room.code}</strong><p>Share it with friends or family. Only people with this code can join the room.</p></div>
@@ -169,6 +187,7 @@ export default function PrototypeArisanRoomScreen({ roomKey }: { roomKey: string
     </section>}
 
     {!isActive ? <p className={styles.fillingNote}>The room starts once all {room.members} members have joined, at the join deadline. Until then the person who opened it can cancel it, and your deposit comes back.</p> : null}
+    {roomKey === "joined" && joinedRoom ? <p className={styles.fillingNote}>Local example · no Testnet transaction or deposit was made.</p> : null}
     <footer className={styles.footer}><PoweredByStellar /></footer>
   </div>;
 }
