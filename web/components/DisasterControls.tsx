@@ -210,7 +210,7 @@ export default function DisasterControls({
     return (
       <section aria-label="Disaster Vault controls">
         <SubmissionStatusPanel guard={submission} onRefresh={onRefresh} />
-        <div role="tabpanel" id="disaster-panel-activity" aria-labelledby="disaster-tab-activity" className={styles.panel}>
+        <div role="tabpanel" id="disaster-panel-activity" aria-labelledby="disaster-tab-activity" className={`${styles.panel} ${styles.activityPanel}`}>
           <section className={styles.vaultBank} aria-label="Shared pool balance">
             <div className={styles.vaultScene} aria-hidden="true">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -723,7 +723,7 @@ export default function DisasterControls({
           role="tabpanel"
           id="disaster-panel-activity"
           aria-labelledby="disaster-tab-activity"
-          className={styles.panel}
+          className={`${styles.panel} ${styles.activityPanel}`}
         >
           <section className={styles.vaultBank} aria-label="Shared pool balance">
             <div className={styles.vaultScene} aria-hidden="true">
@@ -780,7 +780,7 @@ export default function DisasterControls({
                   <p>{state.paused ? "Payouts are paused. " : "Payouts are active. "}Two of three configured signers approve. Payouts wait 20 ledgers and stay within a {pool.config.cap_bps / 100}% rolling 24-hour cap. Any displayed fiat value is a market estimate; Testnet XLM has no cash value.</p>
                 </details>
               </div>
-              <p className={styles.vaultMarketValue} aria-live="polite">
+              <p className={marketEstimate ? styles.vaultMarketValue : `${styles.vaultMarketValue} ${styles.vaultMarketUnavailable}`} aria-live="polite">
                 {marketEstimate ? `≈ ${marketEstimate}` : "Market estimate unavailable"}
               </p>
               <p className={styles.vaultNativeValue}>≈ {formatStroops(state.balance)} XLM</p>
