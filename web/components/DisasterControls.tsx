@@ -216,6 +216,8 @@ export default function DisasterControls({
             <div className={styles.vaultScene} aria-hidden="true">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img className={styles.vaultArt} src="/illustrations/disaster-vault-empty.webp" alt="" width={720} height={480} />
+              <div className={styles.vaultGlassShimmer} />
+              <div className={styles.vaultTwinkles}><i /><i /><i /></div>
             </div>
             <div className={styles.vaultSummary}>
               <div className={styles.activitySummaryHeading}>
@@ -759,6 +761,12 @@ export default function DisasterControls({
                 height={480}
                 onLoad={() => setLoadedVaultPoster(vaultPoster)}
               />
+              {!funded && (
+                <>
+                  <div className={styles.vaultGlassShimmer} />
+                  <div className={styles.vaultTwinkles}><i /><i /><i /></div>
+                </>
+              )}
               {funded && (
                 <>
                   <div className={styles.vaultCashHighlights} style={{ backgroundImage: `url("${vaultPoster}")` }} />
