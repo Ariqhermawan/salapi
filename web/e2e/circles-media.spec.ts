@@ -117,6 +117,6 @@ test("Home shows its current featured cause photos rather than the retired Circl
   await expect(cards).toHaveCount(8);
   await expect.poll(() => cards.first().locator("img").first().evaluate(image => (image as HTMLImageElement).complete && (image as HTMLImageElement).naturalWidth > 0)).toBe(true);
   await expect(cards.first()).toHaveAttribute("href", "/cause/bantayan");
-  await expect(causes.getByRole("link", { name: "See all", exact: true })).toHaveAttribute("href", "/campaigns?mode=testnet");
+  await expect(causes.getByRole("link", { name: "See all", exact: true })).toHaveAttribute("href", "/causes");
   await noHorizontalOverflow(page);
 });

@@ -41,7 +41,7 @@ export default function HomeCauseShelf({
   return <section className={styles.shelf} aria-labelledby="home-causes-title">
     <div className={styles.heading}>
       <h2 id="home-causes-title">{homeCopy(locale, "Causes")}</h2>
-      <Link href="/campaigns?mode=testnet" className={styles.seeAll}>
+      <Link href="/causes" className={styles.seeAll}>
         {homeCopy(locale, "See all")} <ArrowRight size={17} aria-hidden="true" />
       </Link>
     </div>

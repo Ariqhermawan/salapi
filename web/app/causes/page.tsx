@@ -1,5 +1,10 @@
-import { redirect } from "next/navigation";
+import CampaignCausesScreen from "@/components/screens/CampaignCausesScreen";
 
-export default function CausesAliasPage() {
-  redirect("/campaigns?mode=testnet");
+export const metadata = {
+  title: "Causes · Salapi",
+  description: "Browse donation causes and their campaign status.",
+};
+
+export default function CausesPage() {
+  return <CampaignCausesScreen />;
 }
