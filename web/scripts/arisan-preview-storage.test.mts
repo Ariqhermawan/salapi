@@ -6,6 +6,7 @@ import ts from "typescript";
 import { CURRENCY, formatLocal, formatLocalAmount, pesoFromLocal } from "../lib/ui/currency.ts";
 import { PREVIEW_WALLET } from "../lib/local-preview.ts";
 import { moneyInputToStroops, pesosToStroopsExact } from "../lib/money.ts";
+import { formatStroops } from "../lib/format-stroops.ts";
 import * as accountCopy from "../lib/i18n/revamp-account.ts";
 import * as arisanRoomGuidance from "../lib/arisan-room-guidance.ts";
 import * as memberIdentity from "../lib/arisan-member-identity.ts";
@@ -19,7 +20,7 @@ const codes = Object.fromEntries(screens.map(name => [name, compile(`../componen
 function nodes(value: unknown): Element[] { if (Array.isArray(value)) return value.flatMap(nodes); if (!value || typeof value !== "object" || !("props" in value)) return []; const node = value as Element; return [node, ...nodes(node.props.children)]; }
 function text(value: unknown): string { if (typeof value === "string" || typeof value === "number") return String(value); if (Array.isArray(value)) return value.map(text).join(""); return value && typeof value === "object" && "props" in value ? text((value as Element).props.children) : ""; }
 
-function setup(screen: typeof screens[number], options: { roomId?: number; mode?: "get" | "set" | "drop"; data?: Map<string, string>; failKey?: string; preview?: boolean; serverRoom?: Record<string, unknown> } = {}) {
+function setup(screen: typeof screens[number], options: { roomId?: number; mode?: "get" | "set" | "drop"; data?: Map<string, string>; failKey?: string; preview?: boolean; previewScenario?: "countdown" | "draw-member" | "draw-master" | "master-away"; serverRoom?: Record<string, unknown> } = {}) {
   const preview = options.preview ?? true;
   let serverRoom = options.serverRoom;
   const data = options.data ?? new Map<string, string>(); let mode = options.mode; let failKey = options.failKey;
@@ -40,7 +41,7 @@ function setup(screen: typeof screens[number], options: { roomId?: number; mode?
     throw Error(`Unexpected preview helper import ${name}`);
   } });
   const jsx = (type: unknown, props: Record<string, unknown>): Element => typeof type === "function" ? type(props) : { type: String(type), props };
-  const component = { exports: {} as { default(props: { roomId: number }): Element } };
+  const component = { exports: {} as { default(props: { roomId: number; previewScenario?: "countdown" | "draw-member" | "draw-master" | "master-away" }): Element } };
   const forbidden = (kind: "network" | "action") => () => { calls[kind]++; throw new Error(`Unexpected ${kind}`); };
   const react = {
     useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) => snapshot(),
@@ -80,7 +81,7 @@ function setup(screen: typeof screens[number], options: { roomId?: number; mode?
       throw new Error(`Unexpected dependency ${name}`);
     },
   });
-  const render = () => { cursor = 0; const next = component.exports.default({ roomId: options.roomId ?? 1 }); while (scheduled.length) { const { index, effect, deps } = scheduled.shift()!; effects.get(index)?.cleanup?.(); effects.set(index, { deps, cleanup: effect() || undefined }); } return next; };
+  const render = () => { cursor = 0; const next = component.exports.default({ roomId: options.roomId ?? 1, previewScenario: options.previewScenario }); while (scheduled.length) { const { index, effect, deps } = scheduled.shift()!; effects.get(index)?.cleanup?.(); effects.set(index, { deps, cleanup: effect() || undefined }); } return next; };
   let tree = render(); while (timers.length) timers.shift()!(); tree = render();
   const settle = async () => { while (transitions.length) await Promise.all(transitions.splice(0)); for (let turn = 0; turn < 12; turn++) await Promise.resolve(); tree = render(); };
   const find = (predicate: (node: Element) => boolean) => { const node = nodes(tree).find(predicate); assert.ok(node, `Missing control in ${screen}: ${text(tree)}`); return node; };
@@ -102,7 +103,7 @@ for (const mode of ["get", "set", "drop"] as const) {
     const ui = setup("ArisanJoinScreen", { mode }); ui.code("FAM234"); await ui.click("Review invitation"); await ui.click("Join local example"); errorOnly(ui);
   });
   test(`room ${mode}: initial restore is tolerant, mutation is checked and has no success motion`, async () => {
-    const ui = setup("ArisanRoomScreen", { mode }); assert.ok(nodes(ui.tree).some(node => node.type === "AppBar" && node.props.title === "Family arisan")); await ui.click("arisan.room.startCta"); errorOnly(ui); assert.match(text(ui.tree), /Everyone is funded/);
+    const ui = setup("ArisanRoomScreen", { mode, previewScenario: "countdown" }); assert.ok(nodes(ui.tree).some(node => node.type === "AppBar" && node.props.title === "Family Circle")); await ui.click("arisan.room.startCta"); errorOnly(ui); assert.match(text(ui.tree), /Everyone is funded/);
   });
 }
 
@@ -123,14 +124,14 @@ test("a partial transaction failure restores already written values and untouche
 });
 
 test("actual room cancel partial marker failure rolls back prior snapshot and membership", async () => {
-  const ui = setup("ArisanRoomScreen"); await ui.click("arisan.room.startCta"); const activeSnapshot = ui.data.get("salapi.preview.arisan-room.1")!;
+  const ui = setup("ArisanRoomScreen", { previewScenario: "countdown" }); await ui.click("arisan.room.startCta"); const activeSnapshot = ui.data.get("salapi.preview.arisan-room.1")!;
   const room = JSON.parse(activeSnapshot).room; room.status = "Open"; room.drawPhase = null; room.readyToStart = true;
   ui.data.set("salapi.preview.arisan-room.1", JSON.stringify({ version: 1, room })); ui.data.set("salapi.preview.arisan-joined", "1");
   const data = new Map(ui.data); const before = new Map(data); const cancel = setup("ArisanRoomScreen", { data, failKey: "salapi.preview.arisan-cancelled.1" }); await cancel.click("arisan.room.cancelCta"); assert.deepEqual(data, before); errorOnly(cancel); assert.match(text(cancel.tree), /Everyone is funded/);
 });
 
 test("actual room leave and join partial failures preserve the exact prior snapshot", async () => {
-  const base = setup("ArisanRoomScreen"); await base.click("arisan.room.startCta"); const snapshot = JSON.parse(base.data.get("salapi.preview.arisan-room.1")!); snapshot.room.status = "Open"; snapshot.room.drawPhase = null; snapshot.room.isHost = false; snapshot.room.readyToStart = false;
+  const base = setup("ArisanRoomScreen", { previewScenario: "countdown" }); await base.click("arisan.room.startCta"); const snapshot = JSON.parse(base.data.get("salapi.preview.arisan-room.1")!); snapshot.room.status = "Open"; snapshot.room.drawPhase = null; snapshot.room.isHost = false; snapshot.room.readyToStart = false;
   const data = new Map([["salapi.preview.arisan-room.1", JSON.stringify(snapshot)], ["salapi.preview.arisan-joined", "1"]]); const before = new Map(data);
   const leave = setup("ArisanRoomScreen", { data, failKey: "salapi.preview.arisan-left" }); await leave.click("arisan.room.leaveCta"); assert.deepEqual(data, before); errorOnly(leave);
   snapshot.room.seats = snapshot.room.seats.filter((seat: { isYou: boolean }) => !seat.isYou).slice(0, 2); snapshot.room.memberCount = 2; snapshot.room.isMember = false; snapshot.room.code = null;
@@ -151,13 +152,13 @@ test("oversized digit-only shares and sub-stroop values cannot create a local ro
 });
 
 for (const mode of ["get", "set", "drop"] as const) test(`finalize ${mode}: storage failure never claims an example payout saved`, async () => {
-  const base = setup("ArisanRoomScreen"); await base.click("arisan.room.startCta");
+  const base = setup("ArisanRoomScreen", { previewScenario: "countdown" }); await base.click("arisan.room.startCta");
   const snapshot = JSON.parse(base.data.get("salapi.preview.arisan-room.1")!); snapshot.room.drawPhase = "Finalizable"; snapshot.room.canFinalize = true; snapshot.room.canCommit = false; snapshot.room.commitCount = 5; snapshot.room.revealCount = 5; snapshot.room.seats = snapshot.room.seats.map((seat: object) => ({ ...seat, committed: true, revealed: true }));
   const data = new Map([["salapi.preview.arisan-room.1", JSON.stringify(snapshot)]]); const before = new Map(data); const ui = setup("ArisanRoomScreen", { data }); ui.mode(mode); await ui.click(`${arisanRoomGuidance.arisanRoomCopy("en").drawWinner} · ${formatLocal(snapshot.room.potPesos, "en")}`); assert.deepEqual(data, before); errorOnly(ui); assert.doesNotMatch(text(ui.tree), /Example payout saved locally/);
 });
 
 async function exampleRoom() {
-  const host = setup("ArisanRoomScreen"); await host.click("arisan.room.startCta");
+  const host = setup("ArisanRoomScreen", { previewScenario: "countdown" }); await host.click("arisan.room.startCta");
   return JSON.parse(host.data.get("salapi.preview.arisan-room.1")!).room as Record<string, unknown>;
 }
 
@@ -214,7 +215,7 @@ test("a host with a server capability can dispatch only the rendered phase's fri
   ] as const) {
     const ui = setup("ArisanRoomScreen", { preview: false, serverRoom: { ...phaseRoom(base, phase), isHost: true, canUseDemoFriends: true } }); await ui.settle();
     assert.match(text(ui.tree), /Testnet demo controls/); assert.match(text(ui.tree), /60 seconds between rounds/);
-    assert.match(text(ui.tree), /38\.4615385 Testnet XLM/); assert.match(text(ui.tree), /192\.3076925 Testnet XLM/);
+    assert.ok(text(ui.tree).includes(`${formatStroops(String(base.shareStroops))} Testnet XLM`)); assert.ok(text(ui.tree).includes(`${formatStroops(String(base.depositStroops))} Testnet XLM`));
     await ui.click(label); assert.deepEqual(ui.calls.operations, [action]); assert.equal(ui.calls.network, 0);
   }
 });
@@ -244,7 +245,7 @@ test("old version1 snapshots migrate exact local terms in memory and cannot leak
     delete legacy.shareStroops; delete legacy.depositStroops; delete legacy.viewer;
     const raw = JSON.stringify({ version: 1, room: legacy }); const data = new Map([["salapi.preview.arisan-room.1", raw]]);
     const ui = setup("ArisanJoinScreen", { data }); const restored = ui.api.readPreviewArisanRoom(1) as Record<string, unknown>;
-    assert.ok(restored); assert.equal(restored.viewer, PREVIEW_WALLET.address); assert.equal(restored.shareStroops, "384615385"); assert.equal(restored.depositStroops, "1923076925"); assert.equal(restored.canUseDemoFriends, host);
+    assert.ok(restored); assert.equal(restored.viewer, PREVIEW_WALLET.address); assert.equal(restored.shareStroops, base.shareStroops); assert.equal(restored.depositStroops, base.depositStroops); assert.equal(restored.canUseDemoFriends, host);
     assert.equal(ui.data.get("salapi.preview.arisan-room.1"), raw); noExternal(ui);
     const live = setup("ArisanJoinScreen", { data, preview: false }); assert.equal(live.api.readPreviewArisanRoom(1), null); assert.equal(live.api.savePreviewArisanRoom(restored), false); assert.equal(live.api.commitPreviewArisanSession([{ key: "salapi.preview.arisan-joined", value: "1" }]), false);
     assert.equal(live.data.get("salapi.preview.arisan-room.1"), raw); assert.equal(live.data.has("salapi.preview.arisan-joined"), false);
