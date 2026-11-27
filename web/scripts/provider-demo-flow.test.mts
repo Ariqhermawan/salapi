@@ -80,6 +80,7 @@ function setup(options: { payout?: boolean; currency?: Locale; locale?: Locale; 
         return channelModule;
       }
       if (name === "./XlmDepositPanel") return { default: "DepositPanel" };
+      if (["./PrototypeTopUpScreen", "./PrototypeTopUpFlowScreen", "./PrototypeWithdrawScreen", "./TestnetWithdrawScreen"].includes(name)) return { default: (props: Record<string, unknown>) => jsx(name.slice(2), props) };
       if (name === "@/components/ui/kit") return { T: {}, Ico: icons, AppBar: "AppBar", IconButton: "IconButton", Card: "Card", Row: "Row", Btn: "Btn", Chip: "Chip", Money: "Money", PoweredByStellar: "PoweredByStellar" };
       if (name === "@/components/ui/SuccessMotion") return { default: (props: Record<string, unknown>) => jsx("SuccessMotion", { ...props, children: [props.title, props.children] }) };
       if (name === "@/components/MarketValue") return { default: "MarketValue" };
@@ -107,7 +108,7 @@ function setup(options: { payout?: boolean; currency?: Locale; locale?: Locale; 
     async click(label: string) { (button(label).props.onClick as () => void)(); await settle(); },
     changeProvider(provider: string) { const node = find(node => node.type === "input" && node.props.name === "provider" && node.props.value === provider); (node.props.onChange as () => void)(); tree = render(); },
     changeChannel(channel: string) { const node = find(node => node.props["data-payment-channel"] === channel); (node.props.onClick as () => void)(); tree = render(); },
-    async faucet() { const node = find(node => node.type === "ProviderDemo"); (node.props.onFaucet as () => void)(); await settle(); },
+    async faucet() { const node = find(node => node.type === "PrototypeTopUpScreen" || node.type === "ProviderDemo"); (node.props.onFaucet as () => void)(); await settle(); },
   };
 }
 
@@ -310,9 +311,9 @@ test("display currency changes never reinterpret a reviewed GCash PHP amount", a
   noWrites(ui);
 });
 
-test("TopUp local provider branch and separate faucet rehearsal never call server actions", async () => {
+test("TopUp local prototype links to a separate faucet rehearsal without server writes", async () => {
   const ui = setup({ screen: "TopUpScreen" });
-  assert.ok(nodes(ui.tree).some(node => node.type === "ProviderDemo"));
+  assert.ok(nodes(ui.tree).some(node => node.type === "PrototypeTopUpScreen"));
   await ui.faucet();
   await ui.click("Try local funding demo");
   assert.match(text(ui.tree), /No network request was made/);
@@ -321,40 +322,17 @@ test("TopUp local provider branch and separate faucet rehearsal never call serve
   noWrites(ui);
 });
 
-test("Withdraw local integration selects the provider demo without loading or mutating wallet", () => {
+test("Withdraw local integration selects the prototype without loading or mutating wallet", () => {
   const ui = setup({ screen: "WithdrawScreen" });
-  assert.equal(ui.find(node => node.type === "ProviderDemo").props.payout, true);
+  assert.equal(ui.find(node => node.type === "PrototypeWithdrawScreen").props.initialCurrency, undefined);
   noWrites(ui);
 });
 
-for (const locale of ["en", "tl", "id", "vi"] as const) test(`${locale}: withdrawal market estimate does not alter the separate fixed sandbox limit`, async () => {
-  const c = accountCopy(locale);
-  const ui = setup({ screen: "WithdrawScreen", preview: false, locale, currency: "tl", walletState: async () => ({ address: PREVIEW_WALLET.address, pesos: 65, nativeStroops: "100000000" }) });
-  await ui.settle();
-  assert.equal(ui.find(node => node.type === "MarketValue").props.nativeStroops, "100000000");
-  assert.equal(ui.find(node => node.type === "Money").props.value, 65);
-  assert.ok(text(ui.tree).includes(c.demoFormLimit));
-  assert.ok(text(ui.tree).includes(c.demoConversion));
-  await ui.click(c.max);
-  assert.equal(ui.find(node => node.props.id === "withdraw-amount").props.value, "65.00");
-  assert.equal(ui.button(c.reviewSandbox).props.disabled, false);
-  const input = ui.find(node => node.props.id === "withdraw-amount");
-  (input.props.onChange as (event: unknown) => void)({ target: { value: "66" } });
-  await ui.settle();
-  assert.equal(ui.button(c.reviewSandbox).props.disabled, true);
-  assert.deepEqual(ui.calls, { action: 0, network: 0, storage: 0, navigation: 0, walletReads: 1 });
-});
-
-for (const locale of ["en", "tl", "id", "vi"] as const) test(`${locale}: non-preview withdrawal returned wallet failure leaves review and balance chips disabled`, async () => {
-  const c = accountCopy(locale);
-  const ui = setup({ screen: "WithdrawScreen", preview: false, locale, walletState: async () => ({ ok: false, error: "Isolated unavailable wallet" }) });
-  await ui.settle();
-  assert.ok(nodes(ui.tree).some(node => node.props.role === "alert" && text(node) === c.balanceLoad));
-  assert.equal(text(ui.tree).includes(c.loading), false);
-  assert.equal(nodes(ui.tree).some(node => node.type === "Money" || node.type === "SuccessMotion" || node.type === "ProviderDemo"), false);
-  assert.equal(ui.button(c.reviewSandbox).props.disabled, true);
-  for (const label of ["25%", "50%", "75%", c.max]) assert.equal(ui.button(label).props.disabled, true);
-  assert.deepEqual(ui.calls, { action: 0, network: 0, storage: 0, navigation: 0, walletReads: 1 });
+for (const locale of ["en", "tl", "id", "vi"] as const) test(`${locale}: non-preview withdrawal routes to the Testnet XLM screen without a payment simulation`, () => {
+  const ui = setup({ screen: "WithdrawScreen", preview: false, locale });
+  const screen = ui.find(node => node.type === "TestnetWithdrawScreen");
+  assert.equal(screen.props.initialCurrency, undefined);
+  assert.deepEqual(ui.calls, { action: 0, network: 0, storage: 0, navigation: 0, walletReads: 0 });
   assert.deepEqual(ui.wallet, PREVIEW_WALLET);
 });
 
