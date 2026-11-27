@@ -15,9 +15,14 @@ export default function MarketingAside() {
       <span className="sl-marketing-badge"><span />Built on Stellar Testnet</span>
       <div>
         <h1>
-          Money for everyone.
+          Money for
           <br />
-          <span>Technology, invisible.</span>
+          everyone.
+          <br />
+          <span>Technology,
+            <br />
+            invisible.
+          </span>
         </h1>
       </div>
       <div className="sl-marketing-story">
@@ -31,7 +36,7 @@ export default function MarketingAside() {
         <Link href="/send">Send by @ <span>↗</span></Link>
       </div>
       <footer className="sl-marketing-footer">
-        <div className="sl-marketing-powered"><PoweredByStellar c="#171717" /></div>
+        <div className="sl-marketing-powered"><PoweredByStellar c="#fff" /></div>
         <Link href="/docs">Public documentation <span aria-hidden="true">↗</span></Link>
         <small>Testnet only. No real-money donations or cash-out.</small>
       </footer>

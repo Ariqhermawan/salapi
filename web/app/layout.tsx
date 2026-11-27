@@ -9,7 +9,6 @@ import PwaRegister from "@/components/PwaRegister";
 import { I18nProvider } from "@/components/I18nProvider";
 import InstallBanner from "@/components/InstallBanner";
 import MarketingAside from "@/components/MarketingAside";
-import PrototypePreviewAside from "@/components/PrototypePreviewAside";
 import { StatusBarIcons, StatusBarTime } from "@/components/PrototypeStatusBar";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -124,7 +123,7 @@ export default async function RootLayout({
               <SuccessFeedback />
               <BottomNav />
             </div>}
-            {isLocalPreview ? <PrototypePreviewAside /> : <MarketingAside />}
+            <MarketingAside />
           </div>
           </MarketPricesProvider>
         </I18nProvider>

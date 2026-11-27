@@ -14,6 +14,7 @@ import { HandHeart } from "@phosphor-icons/react/dist/csr/HandHeart";
 import { Question } from "@phosphor-icons/react/dist/csr/Question";
 import { ChatCircle } from "@phosphor-icons/react/dist/csr/ChatCircle";
 import { FileText } from "@phosphor-icons/react/dist/csr/FileText";
+import { Moon } from "@phosphor-icons/react/dist/csr/Moon";
 import type { ReactNode } from "react";
 import { isAuthSessionMissingError } from "@supabase/supabase-js";
 import {
@@ -42,12 +43,16 @@ function SettingRow({
   sub,
   trailing,
   onClick,
+  switchOn,
+  ariaLabel,
 }: {
   icon: ReactNode;
   title: ReactNode;
   sub?: ReactNode;
   trailing?: ReactNode;
   onClick?: () => void;
+  switchOn?: boolean;
+  ariaLabel?: string;
 }) {
   const content = (
     <>
@@ -61,7 +66,7 @@ function SettingRow({
   );
   return (
     onClick
-      ? <button type="button" className={styles.row} onClick={onClick}>{content}</button>
+      ? <button type="button" className={styles.row} onClick={onClick} role={switchOn === undefined ? undefined : "switch"} aria-checked={switchOn} aria-label={switchOn === undefined ? undefined : ariaLabel}>{content}</button>
       : <div className={styles.row}>{content}</div>
   );
 }
@@ -87,6 +92,7 @@ export default function SettingsScreen() {
   const [signOutPending, setSignOutPending] = useState(false);
   const [signOutError, setSignOutError] = useState(false);
   const [copiedAddress, setCopiedAddress] = useState(false);
+  const [darkTheme, setDarkTheme] = useState(false);
   const [updateMessage, setUpdateMessage] = useState("");
   const signOutInFlight = useRef(false);
 
@@ -144,6 +150,19 @@ export default function SettingsScreen() {
     }
     return () => { active = false; };
   }, [configured]);
+
+  useEffect(() => {
+    setDarkTheme(document.documentElement.dataset.theme === "dark");
+  }, []);
+
+  function toggleTheme() {
+    const nextDark = document.documentElement.dataset.theme !== "dark";
+    const value = nextDark ? "dark" : "light";
+    document.documentElement.dataset.theme = value;
+    const secure = window.location.protocol === "https:" ? "; Secure" : "";
+    document.cookie = `salapi-theme=${value}; Path=/; Max-Age=31536000; SameSite=Lax${secure}`;
+    setDarkTheme(nextDark);
+  }
 
   async function signOut() {
     if (isLocalPreview) { router.push("/signin"); return; }
@@ -289,6 +308,15 @@ export default function SettingsScreen() {
             title={t("settings.security")}
             onClick={() => router.push("/you/security")}
             trailing={Ico.chev({ size: 15, c: T.slate })}
+          />
+          <SettingRow
+            icon={<Moon size={21} aria-hidden="true" />}
+            title={locale === "id" ? "Mode gelap" : locale === "tl" ? "Dark mode" : locale === "vi" ? "Chế độ tối" : "Dark mode"}
+            sub={darkTheme ? (locale === "id" ? "Aktif" : locale === "vi" ? "Đang bật" : "On") : (locale === "id" ? "Nonaktif" : locale === "vi" ? "Đang tắt" : "Off")}
+            onClick={toggleTheme}
+            switchOn={darkTheme}
+            ariaLabel={locale === "id" ? "Mode gelap" : locale === "vi" ? "Chế độ tối" : "Dark mode"}
+            trailing={<span className={styles.switch} aria-hidden="true"><span className={darkTheme ? styles.switchOn : styles.switchOff}><span /></span></span>}
           />
         </div>
       </section>
