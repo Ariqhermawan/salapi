@@ -458,7 +458,7 @@ test("four-locale creator wizard prepares the complete draft with explicit save 
     screen.click(c("Continue")); assert.ok(text(screen.tree).includes(c("Give the idea a goal.")));
     screen.input("circle-draft-goal", "10.00"); screen.click(c("Continue"));
     assert.ok(text(screen.tree).includes(c("Make the concept yours."))); screen.click(c("Continue"));
-    assert.ok(text(screen.tree).includes(c("Review your browser draft")));
+    assert.ok(text(screen.tree).includes(c("Review your private draft")));
     screen.check(c("Save this concept on this device only. It is not a live campaign and will replace the last Circles browser draft."));
     screen.click(c("Save complete browser draft"));
     assert.ok(text(screen.tree).includes(c("Complete draft saved in this browser.")));

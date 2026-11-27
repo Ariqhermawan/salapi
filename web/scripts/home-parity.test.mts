@@ -16,29 +16,32 @@ test("home copy covers four languages and keeps currency separate from language"
   }
   assert.equal(homeCopy("id", "TESTNET BALANCE"), "SALDO TESTNET");
   const home = readFileSync(new URL("../app/page.tsx", import.meta.url), "utf8");
-  assert.match(home, /homeCopy\(locale, phrase\)/);
-  assert.doesNotMatch(home, /homeCopy\(currency/);
+  const screen = readFileSync(new URL("../components/screens/PrototypeHomeScreen.tsx", import.meta.url), "utf8");
+  assert.match(home, /PrototypeHomeScreen/);
+  assert.match(screen, /homeCopy\(locale, phrase\)/);
+  assert.doesNotMatch(screen, /homeCopy\(currency/);
 });
 test("Smart Savings uses the Testnet contract for signed-in wallets and keeps preview funds local", () => {
   const home = readFileSync(new URL("../app/page.tsx", import.meta.url), "utf8");
   const vaults = readFileSync(new URL("../components/screens/VaultsScreen.tsx", import.meta.url), "utf8");
   assert.doesNotMatch(home, /href="\/savings"/);
-  assert.match(home, /<button[^>]*disabled[^>]*data-testid="social-feed-coming-soon"/);
+  const homeScreen = readFileSync(new URL("../components/screens/PrototypeHomeScreen.tsx", import.meta.url), "utf8");
+  assert.match(homeScreen, /data-testid=\{liveData \? "social-feed-coming-soon" : undefined\}[^>]*disabled=\{Boolean\(liveData\)\}/);
   assert.match(vaults, /<Link href="\/savings"/);
   assert.doesNotMatch(vaults, /aria-disabled="true" data-testid="vault-savings-coming-soon"/);
   const route = readFileSync(new URL("../app/savings/page.tsx", import.meta.url), "utf8");
   assert.match(route, /import SavingsScreen/);
   assert.match(route, /return <SavingsScreen \/>/);
-  const screen = readFileSync(new URL("../components/screens/SavingsScreen.tsx", import.meta.url), "utf8");
-  assert.match(screen, /return isLocalPreview \? <PreviewSavingsScreen \/> : <LiveSavingsScreen \/>/);
-  assert.match(screen, /Experimental Testnet savings/);
+  const savingsScreen = readFileSync(new URL("../components/screens/SavingsScreen.tsx", import.meta.url), "utf8");
+  assert.match(savingsScreen, /return isLocalPreview \? <PreviewSavingsScreen \/> : <LiveSavingsScreen \/>/);
+  assert.match(savingsScreen, /Experimental Testnet savings/);
   const actions = readFileSync(new URL("../app/actions.ts", import.meta.url), "utf8");
   assert.match(actions, /authenticatedSavingsSigner/);
 });
 
-test("Home shortcuts use the prototype's clipped horizontal row and readable labels", () => {
-  const home = readFileSync(new URL("../app/page.tsx", import.meta.url), "utf8");
-  const css = readFileSync(new URL("../app/home.module.css", import.meta.url), "utf8");
+test("Home actions and cause tiles retain the prototype's mobile layout", () => {
+  const home = readFileSync(new URL("../components/screens/PrototypeHomeScreen.tsx", import.meta.url), "utf8");
+  const css = readFileSync(new URL("../components/screens/PrototypeHomeScreen.module.css", import.meta.url), "utf8");
   const sheet = parse(css);
   const declarations = (selector: string, property: string) => {
     const values: string[] = [];
@@ -47,17 +50,12 @@ test("Home shortcuts use the prototype's clipped horizontal row and readable lab
     });
     return values;
   };
-  assert.deepEqual(declarations(".quickGrid", "display"), ["flex"]);
-  assert.deepEqual(declarations(".quickGrid", "overflow-x"), ["auto"]);
-  assert.deepEqual(declarations(".quickGrid", "scroll-snap-type"), ["x mandatory"]);
-  assert.deepEqual(declarations(".tile", "flex"), ["0 0 43%"]);
-  assert.deepEqual(declarations(".tile", "scroll-snap-align"), ["start"]);
-  assert.ok(declarations(".tile", "min-height").every(value => Number.parseFloat(value) >= 44));
-  assert.deepEqual(declarations(".tile strong", "font-size"), ["clamp(12px, 4cqw, 16px)"]);
-  assert.match(css, /\.tile:focus-visible[^}]*outline:\s*2px/);
-  assert.equal(declarations(".home", "height").length, 0);
-  assert.equal(declarations(".home", "overflow").length, 0);
+  assert.deepEqual(declarations(".actions", "display"), ["grid"]);
+  assert.deepEqual(declarations(".actions", "grid-template-columns"), ["repeat(4,minmax(0,1fr))"]);
+  assert.deepEqual(declarations(".tiles", "grid-template-columns"), ["repeat(3,minmax(0,1fr))"]);
+  assert.ok(declarations(".action", "min-height").every(value => Number.parseFloat(value) >= 44));
+  assert.ok(declarations(".tile", "min-height").some(value => Number.parseFloat(value) >= 44));
   assert.doesNotMatch(css, /transform:\s*scale\(\s*0\./);
-  for (const target of ["/vaults", "/transparency"]) assert.ok(home.includes(`href="${target}"`));
+  for (const target of ["/vaults", "/vault"]) assert.ok(home.includes(`href="${target}"`));
   assert.match(home, /<strong>\{copy\("Social feed"\)\}<\/strong>/);
 });

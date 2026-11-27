@@ -18,6 +18,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { isLocalPreview } from "@/lib/local-preview";
 import styles from "./CampaignArisan.module.css";
+import prototypeStyles from "./PrototypeArisanListScreen.module.css";
 import { readPreviewArisanRoom } from "./arisan-preview";
 
 type State = Awaited<ReturnType<typeof arisanList>>;
@@ -38,6 +39,7 @@ const scheduledRoomCopy = {
   tl: "Mag-iskedyul ng room · magkasundo sa petsa at pondohan ang buong cycle →",
   vi: "Tạo phòng theo lịch · thống nhất ngày và nạp đủ cả chu kỳ →",
 } as const;
+const scheduledRoomsEnabled = process.env.NEXT_PUBLIC_ARISAN_SCHEDULED === "1";
 
 export default function ArisanListScreen({ emptyPreview = false }: { emptyPreview?: boolean }) {
   const { t, currency, locale } = useT();
@@ -104,6 +106,27 @@ export default function ArisanListScreen({ emptyPreview = false }: { emptyPrevie
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [emptyPreview]);
 
+  if ((st?.ready && st.mine.length === 0 && st.nextCursor === null) || contractUnavailable) {
+    return (
+      <div className={`${prototypeStyles.page} ${prototypeStyles.emptyPage}`} data-testid="arisan-empty">
+        <header className={prototypeStyles.heading}><h1>Arisan</h1></header>
+        <section className={prototypeStyles.emptyState} aria-labelledby="arisan-empty-title">
+          <Image src="/illustrations/empty-rooms.png" width={240} height={240} alt="" priority />
+          <h2 id="arisan-empty-title">No rooms yet</h2>
+          <p>Start a room or join one with a code.</p>
+          {contractUnavailable ? <p className="sr-only" role="status">Arisan rooms are not deployed to this Testnet environment yet.</p> : null}
+          {loadError && !contractUnavailable ? <p role="alert" className={prototypeStyles.unavailable}>{loadError}</p> : null}
+          <nav className={`${prototypeStyles.ways} ${prototypeStyles.emptyWays}`} aria-label="Create or join an Arisan room">
+            <Link className={prototypeStyles.create} href="/arisan/new">Create a room</Link>
+            <Link className={prototypeStyles.join} href="/arisan/join">Join with a code</Link>
+          </nav>
+          {scheduledRoomsEnabled ? <Link href="/arisan/scheduled" className={styles.textButton}>{scheduledRoomCopy[locale]}</Link> : null}
+        </section>
+        <footer className={prototypeStyles.emptyFooter}><PoweredByStellar /></footer>
+      </div>
+    );
+  }
+
   const shell: React.CSSProperties = {
     fontFamily: T.fontSans,
     color: T.ink,
@@ -135,9 +158,9 @@ export default function ArisanListScreen({ emptyPreview = false }: { emptyPrevie
           Join with a code
         </Btn>
       </div>
-      <Link href="/arisan/scheduled" className={styles.textButton} style={{ display: "block", margin: "-8px 20px 12px", textAlign: "center" }}>
+      {scheduledRoomsEnabled ? <Link href="/arisan/scheduled" className={styles.textButton} style={{ display: "block", margin: "-8px 20px 12px", textAlign: "center" }}>
         {scheduledRoomCopy[locale]}
-      </Link>
+      </Link> : null}
 
       <div className={styles.arisanContent}>
         {st?.ready && st.mine.length > 0 && <nav className={styles.arisanFilters} aria-label="Filter rooms">{["All", "Open", "Active", "Done"].map(label => <button key={label} className={`${styles.filter} ${filter === label ? styles.filterActive : ""}`} aria-pressed={filter === label} onClick={() => setFilter(label)}>{label}</button>)}</nav>}
@@ -209,6 +232,7 @@ export default function ArisanListScreen({ emptyPreview = false }: { emptyPrevie
           </div>
         )}
         {loadError && !contractUnavailable ? <p className={styles.error} role="alert">{loadError}</p> : null}
+        {st?.ready ? <button type="button" className={styles.textButton} onClick={refresh} disabled={loading}>Refresh</button> : null}
         {st?.ready && st.nextCursor !== null ? <div style={{ marginTop: 16 }}>
           <Btn kind="secondary" disabled={loading} loading={loading} onClick={loadOlder}>Load older rooms</Btn>
           <p className={styles.muted} role="status" style={{ marginTop: 8 }}>Each request checks up to 50 older rooms. Only your memberships are listed.</p>

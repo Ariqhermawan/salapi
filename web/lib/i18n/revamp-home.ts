@@ -72,6 +72,12 @@ export const HOME_COPY = {
   "Smart Savings is not available yet. No savings deposits can be made here.": ["Hindi pa available ang Smart Savings. Hindi maaaring magdeposito ng ipon dito.", "Smart Savings belum tersedia. Setoran tabungan belum dapat dilakukan di sini.", "Smart Savings chưa khả dụng. Chưa thể gửi tiền tiết kiệm tại đây."],
   "Public proof on Stellar Testnet": ["Pampublikong patunay sa Stellar Testnet", "Bukti publik di Stellar Testnet", "Bằng chứng công khai trên Stellar Testnet"],
   "How Salapi works": ["Paano gumagana ang Salapi", "Cara kerja Salapi", "Cách Salapi hoạt động"],
+  "Help": ["Tulong", "Bantuan", "Trợ giúp"],
+  "Show balance": ["Ipakita ang balanse", "Tampilkan saldo", "Hiện số dư"],
+  "Hidden. Show it in Security": ["Nakatago. Ipakita ito sa Security", "Tersembunyi. Tampilkan di Security", "Đã ẩn. Hiện trong Bảo mật"],
+  "Price details": ["Detalye ng presyo", "Detail harga", "Chi tiết giá"],
+  "EXAMPLES": ["MGA HALIMBAWA", "CONTOH", "VÍ DỤ"],
+  "View vault": ["Tingnan ang vault", "Lihat vault", "Xem vault"],
 } as const;
 export function homeCopy(locale: Locale | undefined, phrase: string): string {
   const row = HOME_COPY[phrase as keyof typeof HOME_COPY];

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
 import { Info } from "@phosphor-icons/react/dist/csr/Info";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -16,6 +16,8 @@ import { formatStroops } from "@/lib/format-stroops";
 import { parseDisasterAction } from "@/lib/disaster";
 import { useT } from "@/components/I18nProvider";
 import { CURRENCY } from "@/lib/ui/currency";
+import { useMarketPrices } from "@/components/MarketPricesProvider";
+import { formatMarketValue } from "@/lib/market-prices";
 import { Btn, Ico, T } from "@/components/ui/kit";
 import styles from "./screens/VaultsRevamp.module.css";
 import { useUnresolvedSubmission } from "@/lib/ui/useUnresolvedSubmission";
@@ -28,7 +30,7 @@ type Review =
   | { method: "propose"; input: unknown; summary: string }
   | { method: "approve" | "execute"; id: string; summary: string };
 type Tab = "vault" | "activity";
-type ActivityFilter = "all" | "contributions" | "payouts";
+type ActivityFilter = "all" | "in" | "out";
 const PREVIEW = process.env.NEXT_PUBLIC_LOCAL_PREVIEW === "1";
 const REPORT =
   "https://github.com/Ariqhermawan/salapi/blob/98a4a701b3fbd6d71a55c346c06d76c0001bc37e/docs/instawards/week-3-d3.md";
@@ -40,6 +42,11 @@ const PREVIEW_EVENT_COPY: Record<string, { title: string; detail: string; amount
   "sample-contribution-3": { title: "Contribution", detail: "From a sample donor", amount: "+0.12 XLM" },
   "sample-payout-1": { title: "Typhoon relief, Cebu", detail: "NGO · To Tulong Cebu Relief", amount: "−0.50 XLM" },
 };
+const VAULT_NOTES = [45, 50, 42, 52, 47, 40, 49, 44, 53, 46, 41, 51, 43, 48, 52, 45];
+
+function shortAddress(address: string | null) {
+  return address ? `${address.slice(0, 8)}…${address.slice(-5)}` : null;
+}
 
 export default function DisasterControls({
   pool,
@@ -56,14 +63,17 @@ export default function DisasterControls({
 }) {
   const submission = useUnresolvedSubmission("disaster:d3");
   const { currency } = useT();
+  const { prices } = useMarketPrices();
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
   const tab: Tab = searchParams.get("tab") === "activity" ? "activity" : "vault";
   const requestedFilter = searchParams.get("filter");
-  const activityFilter: ActivityFilter = requestedFilter === "contributions" || requestedFilter === "payouts"
-    ? requestedFilter
-    : "all";
+  const activityFilter: ActivityFilter = requestedFilter === "in" || requestedFilter === "contributions"
+    ? "in"
+    : requestedFilter === "out" || requestedFilter === "payouts"
+      ? "out"
+      : "all";
   const [list, setList] = useState<Proposals | null>(null);
   const [feed, setFeed] = useState<EventFeed | null>(null);
   const [before, setBefore] = useState("0");
@@ -71,6 +81,7 @@ export default function DisasterControls({
   const [amount, setAmount] = useState("");
   const [review, setReview] = useState<Review | null>(null);
   const [submittingBusy, setBusy] = useState(false);
+  const [loadedVaultPoster, setLoadedVaultPoster] = useState("");
   const busy = submittingBusy || submission.locked;
   const [error, setError] = useState("");
   const [receipt, setReceipt] = useState<string | null>(null);
@@ -195,6 +206,61 @@ export default function DisasterControls({
     }
   }
 
+  if ((!pool || !pool.ok) && tab === "activity") {
+    const unavailableReason = pool ? pool.error : "Reading the configured Testnet contract…";
+    return (
+      <section aria-label="Disaster Vault controls">
+        <SubmissionStatusPanel guard={submission} onRefresh={onRefresh} />
+        <div role="tabpanel" id="disaster-panel-activity" aria-labelledby="disaster-tab-activity" className={styles.panel}>
+          <section className={styles.vaultBank} aria-label="Shared pool balance">
+            <div className={styles.vaultScene} aria-hidden="true">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img className={styles.vaultArt} src="/illustrations/disaster-vault-empty.webp" alt="" width={720} height={480} />
+            </div>
+            <div className={styles.vaultSummary}>
+              <div className={styles.activitySummaryHeading}>
+                <span className={styles.eyebrow}>Shared pool balance</span>
+                <details className={styles.inlinePayoutInfo}>
+                  <summary aria-label="Why the pool balance is unavailable"><Info size={16} aria-hidden="true" /></summary>
+                  <p>The D3 Testnet pool has not been verified in this environment yet. Its balance and activity will appear here when the contract configuration is available.</p>
+                </details>
+              </div>
+              <p className={styles.vaultMarketValue}>—</p>
+              <p className={styles.vaultNativeValue}>Testnet balance unavailable</p>
+              <p className={styles.activityContributionMeta}>Waiting for verified pool activity</p>
+              <button type="button" className={styles.activityContribute} disabled={!onContribute} onClick={onContribute}>Contribute</button>
+            </div>
+          </section>
+          <div className={styles.vaultActivityHeading}><h2 id="vault-activity-heading">Activity</h2></div>
+          <div className={styles.vaultActivityFilters} role="tablist" aria-label="Filter activity">
+            {([ ["all", "All"], ["in", "Contributions"], ["out", "NGO payouts"] ] as const).map(([value, label]) => (
+              <button key={value} type="button" role="tab" aria-selected={activityFilter === value} onClick={() => setView("activity", value)}>{label}</button>
+            ))}
+          </div>
+          {(activityFilter === "all" || activityFilter === "out") && (
+            <section className={styles.vaultPayouts} aria-label="NGO payouts">
+              <header><span className={styles.vaultPayoutsMark} aria-hidden="true">↗</span><span className={styles.vaultPayoutsTitle}><strong>NGO payouts</strong><small>Money the vault sent to relief groups on the ground</small></span></header>
+              <p className={styles.activityEmpty}>Payout history is unavailable until the Testnet pool is verified.</p>
+            </section>
+          )}
+          {(activityFilter === "all" || activityFilter === "in") && (
+            <>
+              <div className={styles.vaultContributionHeading}><h3>Contributions</h3><span>1% of every donation</span></div>
+              <section className={styles.vaultContributions} aria-label="Contributions">
+                <p className={styles.activityEmpty}>Contribution history is unavailable until the Testnet pool is verified.</p>
+              </section>
+            </>
+          )}
+          <details className={styles.technicalDetails}>
+            <summary>On-chain records and technical documentation</summary>
+            <p role="status" className={styles.activityFeedback}>{unavailableReason}</p>
+            <Link className={styles.receiptLink} href="/docs">Read the public technical documentation {Ico.link({ size: 17, c: T.action })}</Link>
+          </details>
+        </div>
+      </section>
+    );
+  }
+
   if (!pool || !pool.ok)
     return (
       <section
@@ -222,6 +288,11 @@ export default function DisasterControls({
   const member =
     !PREVIEW && viewer !== null && pool.config.signers.includes(viewer);
   const state = pool.status;
+  const funded = state.balance !== "0";
+  const vaultPoster = funded ? "/illustrations/disaster-vault-funded.webp" : "/illustrations/disaster-vault-empty.webp";
+  const marketEstimate = formatMarketValue(state.balance, prices, currency);
+  const contributionEvents = feed?.ok ? feed.events.filter(event => event.kind === "contribution") : [];
+  const payoutEvents = feed?.ok ? feed.events.filter(event => event.kind === "payout") : [];
   const tabs: { id: Tab; label: string }[] = [
     { id: "vault", label: "Vault" },
     { id: "activity", label: "Activity" },
@@ -654,93 +725,120 @@ export default function DisasterControls({
           className={styles.panel}
         >
           <section className={styles.vaultBank} aria-label="Shared pool balance">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              className={styles.vaultArt}
-              src={state.balance !== "0" ? "/illustrations/disaster-vault-funded.webp" : "/illustrations/disaster-vault-empty.webp"}
-              alt=""
-              width={720}
-              height={480}
-            />
+            <div className={styles.vaultScene} aria-hidden="true">
+              <svg width="0" height="0" className={styles.vaultOptics} aria-hidden="true">
+                <filter id="disaster-vault-rim" colorInterpolationFilters="sRGB">
+                  <feColorMatrix values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -3 0 3 0 0" result="cool" />
+                  <feFlood style={{ floodColor: "var(--sl-primary, #3155dc)" }} />
+                  <feComposite in2="cool" operator="in" />
+                  <feComposite in2="SourceGraphic" operator="atop" />
+                </filter>
+              </svg>
+              {funded && loadedVaultPoster === vaultPoster && (
+                <div className={styles.vaultNotes}>
+                  {VAULT_NOTES.map((left, index) => (
+                    <span
+                      key={index}
+                      className={styles.vaultBanknote}
+                      style={{
+                        left: `${left}%`,
+                        "--delay": `${-index * 210}ms`,
+                        "--drift": `${(left - 46) * 13}%`,
+                        "--tilt": `${(index % 5 - 2) * 8}deg`,
+                      } as CSSProperties}
+                    />
+                  ))}
+                </div>
+              )}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                className={styles.vaultArt}
+                src={vaultPoster}
+                alt=""
+                width={720}
+                height={480}
+                onLoad={() => setLoadedVaultPoster(vaultPoster)}
+              />
+              {funded && (
+                <>
+                  <div className={styles.vaultCashHighlights} style={{ backgroundImage: `url("${vaultPoster}")` }} />
+                  <div className={styles.vaultTwinkles}><i /><i /><i /></div>
+                </>
+              )}
+            </div>
             <div className={styles.vaultSummary}>
               <div className={styles.activitySummaryHeading}>
                 <span className={styles.eyebrow}>Shared pool balance</span>
                 <details className={styles.inlinePayoutInfo}>
                   <summary aria-label="How the vault pays out"><Info size={16} aria-hidden="true" /></summary>
-                  <p>{state.paused ? "Payouts are paused. " : "Payouts are active. "}Two of three configured signers approve. Payouts wait 20 ledgers and stay within a {pool.config.cap_bps / 100}% rolling 24-hour cap.</p>
+                  <p>{state.paused ? "Payouts are paused. " : "Payouts are active. "}Two of three configured signers approve. Payouts wait 20 ledgers and stay within a {pool.config.cap_bps / 100}% rolling 24-hour cap. Any displayed fiat value is a market estimate; Testnet XLM has no cash value.</p>
                 </details>
               </div>
-              <div className={styles.poolAmount}>{formatStroops(state.balance)}<small>XLM</small></div>
+              <p className={styles.vaultMarketValue} aria-live="polite">
+                {marketEstimate ? `≈ ${marketEstimate}` : "Market estimate unavailable"}
+              </p>
+              <p className={styles.vaultNativeValue}>≈ {formatStroops(state.balance)} XLM</p>
               <p className={styles.activityContributionMeta}>
-                {feed?.ok ? `From ${feed.events.filter(event => event.kind === "contribution").length} ${PREVIEW ? "" : "recent "}contributions` : "Recent activity is unavailable"}
+                {feed?.ok ? `From ${contributionEvents.length}${PREVIEW ? "" : " recent"} contributions` : "Contribution history unavailable"}
               </p>
-              <button type="button" className={styles.activityContribute} disabled={!onContribute} onClick={onContribute}>＋ <span>Contribute</span></button>
+              <button type="button" className={styles.activityContribute} disabled={!onContribute} onClick={onContribute}>Contribute</button>
             </div>
           </section>
-          <section className={styles.activityCard} aria-labelledby="vault-activity-heading">
-            <div className={styles.activitySectionHeading}>
-              <h2 id="vault-activity-heading">Activity</h2>
-              <label className={styles.activitySelectLabel}>
-                <select
-                  aria-label="Show activity"
-                  value={activityFilter}
-                  onChange={(event) => setView("activity", event.target.value as ActivityFilter)}
-                >
-                  <option value="all">All activity</option>
-                  <option value="contributions">Contributions</option>
-                  <option value="payouts">Payouts</option>
-                </select>
-              </label>
-            </div>
-            {!feed ? (
-              <p role="status">Loading events…</p>
-            ) : !feed.ok ? (
-              <div role="alert" className={styles.errorText}>
-                {feed.error}
-              </div>
-            ) : !feed.events.some((event) => activityFilter === "all"
-              || (activityFilter === "contributions" && event.kind === "contribution")
-              || (activityFilter === "payouts" && event.kind === "payout")) ? (
-              <p>
-                {activityFilter === "contributions"
-                  ? "No contributions in this window."
-                  : activityFilter === "payouts"
-                    ? "No completed payouts in this window."
-                    : "No events in this window."} This does not mean the pool
-                has no historical transactions.
-              </p>
-            ) : (
-              feed.events
-                .filter((event) => activityFilter === "all"
-                  || (activityFilter === "contributions" && event.kind === "contribution")
-                  || (activityFilter === "payouts" && event.kind === "payout"))
-                .map((event) => {
-                  const sampleCopy = PREVIEW ? PREVIEW_EVENT_COPY[event.id] : undefined;
-                  const party = PREVIEW
-                    ? sampleCopy?.detail ?? "Sample contribution"
-                    : event.counterparty
-                    ? `${event.kind === "contribution" ? "From" : "To"} ${event.counterparty.slice(0, 8)}…${event.counterparty.slice(-5)}`
-                    : `Ledger ${event.ledger}`;
-                  const amount = sampleCopy?.amount ?? (event.amount === null
-                    ? null
-                    : `${event.kind === "contribution" ? "+" : "−"}${formatStroops(event.amount)} XLM`);
-                  return (
-                    <a
-                      key={event.id}
-                      className={`${styles.activityEvent} ${PREVIEW ? styles.sampleActivityEvent : ""}`}
-                      {...(PREVIEW ? {} : { href: event.link, target: "_blank", rel: "noopener noreferrer" })}
-                      aria-label={`${event.action}. ${party}. ${amount ?? `Ledger ${event.ledger}`}.`}
-                    >
-                      <span className={styles.eventCopy}>
-                        <strong>{sampleCopy?.title ?? event.action}</strong>
-                        <span>{sampleCopy?.detail ?? party}</span>
-                      </span>
-                      <span className={styles.eventAmount}>{amount ?? `${event.hash.slice(0, 9)}… ↗`}</span>
-                    </a>
-                  );
-                })
-            )}
-          </section>
+          <div className={styles.vaultActivityHeading}><h2 id="vault-activity-heading">Activity</h2></div>
+          <div className={styles.vaultActivityFilters} role="tablist" aria-label="Filter activity">
+            {([ ["all", "All"], ["in", "Contributions"], ["out", "NGO payouts"] ] as const).map(([value, label]) => (
+              <button key={value} type="button" role="tab" aria-selected={activityFilter === value} onClick={() => setView("activity", value)}>
+                {label}
+              </button>
+            ))}
+          </div>
+          {!feed ? <p role="status" className={styles.activityFeedback}>Loading activity…</p> : !feed.ok ? (
+            <p role="alert" className={styles.activityFeedback}>{feed.error}</p>
+          ) : (
+            <>
+              {(activityFilter === "all" || activityFilter === "out") && (
+                <section className={styles.vaultPayouts} aria-label="NGO payouts">
+                  <header>
+                    <span className={styles.vaultPayoutsMark} aria-hidden="true">↗</span>
+                    <span className={styles.vaultPayoutsTitle}>
+                      <strong>NGO payouts</strong>
+                      <small>Money the vault sent to relief groups on the ground</small>
+                    </span>
+                    {payoutEvents.length > 0 && <b>{payoutEvents.length}</b>}
+                  </header>
+                  {payoutEvents.length === 0 ? <p className={styles.activityEmpty}>No payouts yet</p> : payoutEvents.map(event => {
+                    const sampleCopy = PREVIEW ? PREVIEW_EVENT_COPY[event.id] : undefined;
+                    const recipient = shortAddress(event.counterparty);
+                    const detail = sampleCopy?.detail ?? (recipient ? `To ${recipient}` : `Ledger ${event.ledger}`);
+                    const amount = sampleCopy?.amount ?? (event.amount === null ? `${event.hash.slice(0, 9)}…` : `−${formatStroops(event.amount)} XLM`);
+                    const content = <><span><strong>{sampleCopy?.title ?? "Payout"}</strong><small>{detail}</small></span><b>{amount}</b></>;
+                    return event.link
+                      ? <a key={event.id} className={styles.vaultActivityRow} href={event.link} target="_blank" rel="noopener noreferrer" aria-label={`Payout. ${detail}. ${amount}.`}>{content}</a>
+                      : <div key={event.id} className={styles.vaultActivityRow} aria-label={`Payout. ${detail}. ${amount}.`}>{content}</div>;
+                  })}
+                </section>
+              )}
+              {(activityFilter === "all" || activityFilter === "in") && (
+                <>
+                  <div className={styles.vaultContributionHeading}>
+                    <h3>Contributions</h3><span>1% of every donation</span>
+                  </div>
+                  <section className={styles.vaultContributions} aria-label="Contributions">
+                    {contributionEvents.length === 0 ? <p className={styles.activityEmpty}>No contributions yet</p> : contributionEvents.map(event => {
+                      const sampleCopy = PREVIEW ? PREVIEW_EVENT_COPY[event.id] : undefined;
+                      const donor = shortAddress(event.counterparty) ?? `Ledger ${event.ledger}`;
+                      const detail = sampleCopy?.detail ?? "Contributed to the Disaster Vault";
+                      const amount = sampleCopy?.amount ?? (event.amount === null ? `${event.hash.slice(0, 9)}…` : `+${formatStroops(event.amount)} XLM`);
+                      const content = <><span><strong>{sampleCopy?.title ?? donor}</strong><small>{detail}</small></span><b>{amount}</b></>;
+                      return event.link
+                        ? <a key={event.id} className={styles.vaultActivityRow} href={event.link} target="_blank" rel="noopener noreferrer" aria-label={`Contribution from ${donor}. ${detail}. ${amount}.`}>{content}</a>
+                        : <div key={event.id} className={styles.vaultActivityRow} aria-label={`Contribution from ${donor}. ${detail}. ${amount}.`}>{content}</div>;
+                    })}
+                  </section>
+                </>
+              )}
+            </>
+          )}
           <details className={styles.technicalDetails}>
             <summary>On-chain records and technical documentation</summary>
           <a

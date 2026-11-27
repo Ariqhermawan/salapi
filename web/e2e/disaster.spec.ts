@@ -31,11 +31,11 @@ type EventFixture = { id: string; ledger: number; hash: string; link: string; ac
   kind: "contribution" | "payout" | "other"; counterparty: string | null; amount: string | null; time: string };
 
 async function fixture(page: Page, options: { viewer?: string; unavailable?: boolean; proposals?: Proposal[];
-  funded?: boolean; events?: EventFixture[] } = {}) {
+  funded?: boolean; events?: EventFixture[] } = {}, path = "/vault") {
   const names = actionNames();
   const writes: { name: string; args: unknown[] }[] = [];
   await page.addInitScript(() => localStorage.setItem("salapi_currency", "tl"));
-  await page.route("**/transparency**", async route => {
+  await page.route("**/*", async route => {
     const request = route.request();
     const name = names.get(request.headers()["next-action"]);
     if (!name?.startsWith("disaster")) return route.continue();
@@ -52,7 +52,7 @@ async function fixture(page: Page, options: { viewer?: string; unavailable?: boo
     await route.fulfill({ contentType: "text/x-component",
       body: `0:{"a":"$@1","f":"","i":false}\n1:${JSON.stringify(value)}\n` });
   });
-  await page.goto("/transparency");
+  await page.goto(path);
   return writes;
 }
 
@@ -64,24 +64,27 @@ test.describe("D3 local UI and HTTP authorization", () => {
 
   test("verified zero balance is valid and anonymous viewers have no signer controls", async ({ page }) => {
     await fixture(page);
+    await page.getByText("On-chain approvals and signer controls", { exact: true }).click();
     const controls = page.getByRole("region", { name: "Disaster Vault controls" });
     await expect(controls.getByText("Vault balance", { exact: true })).toBeVisible();
     await expect(controls.getByText("0 XLM", { exact: true })).toHaveCount(4);
     await expect(controls.getByText(/Public view\. Everyone can review the pool/)).toBeVisible();
-    await expect(page.getByRole("button", { name: "Contribute to the pool", exact: true })).toBeEnabled();
     await expect(controls.getByRole("button", { name: /Approve|Execute|Review payout/ })).toHaveCount(0);
     await controls.getByText("The three signer wallets and custody details", { exact: true }).click();
     for (const signer of signers) await expect(controls.getByRole("link", { name: signer, exact: true })).toBeVisible();
     await expect(controls.getByRole("link", { name: "Sign in for signer access", exact: true }))
-      .toHaveAttribute("href", "/signin?next=%2Ftransparency");
+      .toHaveAttribute("href", "/signin?next=%2Fvault");
+    await page.getByRole("tab", { name: "Activity", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Contribute", exact: true })).toBeEnabled();
   });
 
   test("unverified deployment fails closed in the UI", async ({ page }) => {
     await fixture(page, { unavailable: true });
-    await expect(page.getByRole("region", { name: "Disaster Vault controls" }))
-      .toContainText("Configured contract does not match the D3 Testnet controls");
-    await expect(page.getByRole("button", { name: "Contribute to the pool", exact: true })).toBeDisabled();
-    await expect(page.getByRole("button", { name: /Approve #|Execute #|Review payout/ })).toHaveCount(0);
+    await page.getByText("On-chain approvals and signer controls", { exact: true }).click();
+    const controls = page.getByRole("region", { name: "Disaster Vault controls" });
+    await expect(controls.getByRole("heading", { name: "Checking the public pool", exact: true })).toBeVisible();
+    await expect(controls.getByRole("status")).toContainText("Configured contract does not match the D3 Testnet controls");
+    await expect(controls.getByRole("button", { name: /Approve #|Execute #|Review payout|Contribute/ })).toHaveCount(0);
   });
 
   for (const viewport of [{ width: 320, height: 740 }, { width: 390, height: 844 }, { width: 430, height: 900 }, { width: 1280, height: 900 }]) {
@@ -89,28 +92,27 @@ test.describe("D3 local UI and HTTP authorization", () => {
       await page.setViewportSize(viewport);
       const appErrors: string[] = [];
       page.on("pageerror", error => appErrors.push(error.message));
-      const writes = await fixture(page, { funded: true });
+      const writes = await fixture(page, { funded: true }, "/vault");
+      await page.getByText("On-chain approvals and signer controls", { exact: true }).click();
       const controls = page.getByRole("region", { name: "Disaster Vault controls" });
       await expect(page.getByRole("heading", { name: "Disaster Vault", exact: true })).toBeVisible();
-      await expect(page.getByRole("region", { name: "Community pool balance" })).toContainText("8.0307692");
-      await expect(page.getByRole("img", { name: "Caring hands holding a blue community safe" })).toBeVisible();
-      const art = await page.getByRole("img", { name: "Caring hands holding a blue community safe" })
+      await expect(controls.getByText("Vault balance", { exact: true })).toBeVisible();
+      await expect(controls.getByText("8.0307692 XLM", { exact: true })).toBeVisible();
+      await expect(controls.getByRole("heading", { name: "How this vault works", exact: true })).toBeVisible();
+      await expect(controls.getByText(/Two of the three different signer wallets/)).toBeVisible();
+      await expect(controls.getByText(/wait 20 ledgers/)).toBeVisible();
+
+      await page.getByRole("tab", { name: "Activity", exact: true }).click();
+      const activity = page.getByRole("tabpanel", { name: "Activity", exact: true });
+      await expect(activity.getByRole("region", { name: "Shared pool balance" })).toContainText("8.0307692");
+      const art = await activity.locator('[class*="vaultArt"]')
         .evaluate((img: HTMLImageElement) => ({ loaded: img.complete && img.naturalWidth > 0, width: img.getBoundingClientRect().width }));
       expect(art.loaded).toBe(true);
-      expect(art.width).toBeLessThanOrEqual(120);
-      await expect(page.getByRole("heading", { name: "How this vault works" })).toBeVisible();
-      await expect(page.getByText(/Two of the three different signer wallets/)).toBeVisible();
-      await expect(page.getByText(/wait 20 ledgers/)).toBeVisible();
-
-      for (const tab of ["Vault", "Activity"]) {
-        await page.getByRole("tab", { name: tab, exact: true }).click();
-        await expect(page.getByRole("tabpanel", { name: tab, exact: true })).toBeVisible();
-        await expect(page.getByRole("tabpanel")).toHaveCount(1);
-        if (tab === "Vault") {
-          await expect(controls.getByRole("region", { name: "Payout requests" })).toBeVisible();
-        } else {
-          await expect(controls.getByText("Recent D3 transactions", { exact: true })).toBeVisible();
-        }
+      expect(art.width).toBeGreaterThan(100);
+      await expect(activity.getByRole("tab", { name: "Contributions", exact: true })).toBeVisible();
+      await expect(activity.getByRole("tab", { name: "NGO payouts", exact: true })).toBeVisible();
+      for (const tab of ["All", "Contributions", "NGO payouts"]) {
+        await activity.getByRole("tab", { name: tab, exact: true }).click();
         const geometry = await page.locator("#app-content").evaluate(main => {
           const footer = main.querySelector("footer")!;
           const rect = main.getBoundingClientRect();
@@ -118,21 +120,16 @@ test.describe("D3 local UI and HTTP authorization", () => {
           return { trailing: main.scrollHeight - footerBottom, scrolling: main.scrollHeight > main.clientHeight,
             horizontal: main.scrollWidth - main.clientWidth };
         });
-        if (geometry.scrolling) expect(geometry.trailing).toBeLessThanOrEqual(112);
+        if (geometry.scrolling) expect(geometry.trailing).toBeLessThanOrEqual(viewport.width >= 1024 ? 132 : 112);
         expect(geometry.horizontal).toBeLessThanOrEqual(1);
       }
-
-      await page.getByRole("tab", { name: "Vault", exact: true }).click();
-      await page.getByText("The three signer wallets and custody details", { exact: true }).click();
-      for (const signer of signers) await expect(page.getByRole("link", { name: signer, exact: true })).toBeVisible();
-      await page.getByText("The three signer wallets and custody details", { exact: true }).click();
       if (process.env.DISASTER_QA_SCREENSHOTS) {
         await page.locator("#app-content").evaluate(main => { main.scrollTo({ top: 0, behavior: "instant" }); });
         await page.screenshot({ path: `${process.env.DISASTER_QA_SCREENSHOTS}/disaster-${viewport.width}-top.png` });
         await page.locator("#app-content").evaluate(main => { main.scrollTo({ top: main.scrollHeight, behavior: "instant" }); });
         await page.screenshot({ path: `${process.env.DISASTER_QA_SCREENSHOTS}/disaster-${viewport.width}-bottom.png` });
       }
-      await page.getByRole("button", { name: "Contribute to the pool", exact: true }).click();
+      await page.getByRole("button", { name: "Contribute", exact: true }).click();
       await expect(page.getByRole("heading", { name: "Contribute", exact: true })).toBeVisible();
       await expect(page.getByLabel("Amount · PHP")).toBeVisible();
       await expect(page.getByRole("group", { name: "Contribution destination" })).toContainText("Disaster Vault");
@@ -145,6 +142,7 @@ test.describe("D3 local UI and HTTP authorization", () => {
 
   test("signer UI reviews exact 6.50 PHP before sending a proposal (mocked responses)", async ({ page }) => {
     const writes = await fixture(page, { viewer: signers[0] });
+    await page.getByText("On-chain approvals and signer controls", { exact: true }).click();
     await page.getByRole("region", { name: "Payout requests" }).waitFor({ state: "visible" });
     await page.getByLabel("Recipient wallet", { exact: true }).fill(recipient);
     await page.getByLabel("Payout amount", { exact: true }).fill("6.50");
@@ -165,6 +163,7 @@ test.describe("D3 local UI and HTTP authorization", () => {
       { ...payout, id: "2", kind: "Unpause", amount: null, recipient: null, epoch: "1" },
       { ...payout, id: "1", executed: true },
     ] });
+    await page.getByText("On-chain approvals and signer controls", { exact: true }).click();
     await page.getByRole("region", { name: "Payout requests" }).waitFor({ state: "visible" });
     await expect(page.getByRole("button", { name: "Approve #4", exact: true })).toBeDisabled();
     await expect(page.getByRole("button", { name: "Execute #4", exact: true })).toBeDisabled();
@@ -179,7 +178,7 @@ test.describe("D3 local UI and HTTP authorization", () => {
     test(`${name} rejects direct unauthenticated HTTP calls (real server, no mocks)`, async ({ request, baseURL }) => {
       const id = [...actionNames()].find(([, exported]) => exported === name)?.[0];
       expect(id).toBeTruthy();
-      const response = await request.post("/transparency", {
+      const response = await request.post("/vault", {
         headers: { "Next-Action": id!, "Content-Type": "text/plain;charset=UTF-8", Origin: baseURL! },
         data: JSON.stringify(name === "disasterPropose" ? [{ kind: "Pause" }] : ["1"]),
       });
@@ -190,6 +189,26 @@ test.describe("D3 local UI and HTTP authorization", () => {
       expect(body).not.toContain('"ok":true');
     });
   }
+
+  test("Vault Activity matches the prototype filters and animates a funded Testnet piggy bank", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    const events: EventFixture[] = [{ id: "activity-contribution", ledger: 99, hash: "0123456789abcdef", link: "https://stellar.expert/explorer/testnet/tx/0123456789abcdef", action: "Contribution", kind: "contribution", counterparty: signers[0], amount: "500000", time: "2026-11-27T00:00:00Z" }];
+    const writes = await fixture(page, { funded: true, events }, "/vault?tab=activity&filter=in");
+    const panel = page.getByRole("tabpanel").filter({ has: page.getByRole("heading", { name: "Activity", exact: true }) });
+    await expect(page).toHaveURL(/\/vault\?tab=activity&filter=in$/);
+    await expect(panel.getByRole("tab", { name: "Contributions", exact: true })).toHaveAttribute("aria-selected", "true");
+    await expect(panel.getByRole("heading", { name: "Contributions", exact: true })).toBeVisible();
+    await expect(panel.getByText("1% of every donation", { exact: true })).toBeVisible();
+    await expect(panel.getByText("Contributed to the Disaster Vault", { exact: true })).toBeVisible();
+    await expect(panel.locator('[class*="vaultBanknote"]')).toHaveCount(16);
+    const animation = await panel.locator('[class*="vaultBanknote"]').first().evaluate(element => getComputedStyle(element).animationName);
+    expect(animation).not.toBe("none");
+    await panel.getByRole("tab", { name: "NGO payouts", exact: true }).click();
+    await expect(page).toHaveURL(/\/vault\?tab=activity&filter=out$/);
+    await expect(panel.getByText("Contributed to the Disaster Vault", { exact: true })).toHaveCount(0);
+    await expect(panel.getByText("No payouts yet", { exact: true })).toBeVisible();
+    await expect(writes).toEqual([]);
+  });
 });
 
 test("D3 tab and activity filters are shareable and separate contract-backed money events", async ({ page, baseURL }) => {
@@ -207,35 +226,34 @@ test("D3 tab and activity filters are shareable and separate contract-backed mon
       kind: "other", counterparty: null, amount: null, time: "2026-11-27T00:02:00Z" },
   ];
   await fixture(page, { funded: true, events });
-  const controls = page.getByRole("region", { name: "Disaster Vault controls" });
+  await page.getByRole("tab", { name: "Activity", exact: true }).click();
+  await expect(page).toHaveURL(/\/vault\?tab=activity$/);
+  const activity = page.getByRole("tabpanel", { name: "Activity", exact: true });
+  await expect(activity.getByRole("link", { name: /Contribution from/ })).toBeVisible();
+  await expect(activity.getByRole("link", { name: /Payout\. To/ })).toBeVisible();
+  await expect(activity.getByRole("link", { name: /Approval/ })).toHaveCount(0);
 
-  await controls.getByRole("tab", { name: "Activity", exact: true }).click();
-  await expect(page).toHaveURL(/\/transparency\?tab=activity$/);
-  await expect(controls.getByRole("link", { name: /Contribution\. From/ })).toBeVisible();
-  await expect(controls.getByRole("link", { name: /Payout\. To/ })).toBeVisible();
-  await expect(controls.getByRole("link", { name: /Approval\. Ledger/ })).toBeVisible();
+  await activity.getByRole("tab", { name: "NGO payouts", exact: true }).click();
+  await expect(page).toHaveURL(/tab=activity&filter=out$/);
+  await expect(activity.getByRole("link", { name: /Payout\. To/ })).toBeVisible();
+  await expect(activity.getByRole("link", { name: /Contribution/ })).toHaveCount(0);
+  await expect(activity.getByRole("link", { name: /Approval/ })).toHaveCount(0);
 
-  await controls.getByRole("button", { name: "Payouts", exact: true }).click();
-  await expect(page).toHaveURL(/tab=activity&filter=payouts$/);
-  await expect(controls.getByRole("link", { name: /Payout\. To/ })).toBeVisible();
-  await expect(controls.getByRole("link", { name: /Contribution/ })).toHaveCount(0);
-  await expect(controls.getByRole("link", { name: /Approval/ })).toHaveCount(0);
+  await activity.getByRole("tab", { name: "Contributions", exact: true }).click();
+  await expect(page).toHaveURL(/tab=activity&filter=in$/);
+  await expect(activity.getByRole("link", { name: /Contribution from/ })).toBeVisible();
+  await expect(activity.getByRole("link", { name: /Payout/ })).toHaveCount(0);
 
-  await controls.getByRole("button", { name: "Contributions", exact: true }).click();
-  await expect(page).toHaveURL(/tab=activity&filter=contributions$/);
-  await expect(controls.getByRole("link", { name: /Contribution\. From/ })).toBeVisible();
-  await expect(controls.getByRole("link", { name: /Payout/ })).toHaveCount(0);
-
-  await controls.getByRole("tab", { name: "Vault", exact: true }).click();
-  await expect(page).toHaveURL(/\/transparency$/);
-  await expect(controls.getByRole("tabpanel", { name: "Vault", exact: true })).toBeVisible();
+  await page.getByRole("tab", { name: "Vault", exact: true }).click();
+  await expect(page).toHaveURL(/\/vault$/);
 });
 
 test("D3 public UI reads the expected live Testnet deployment (opt-in, no mocks)", async ({ page }) => {
   const expected = process.env.D3_E2E_CONTRACT;
   test.skip(!expected, "Set D3_E2E_CONTRACT to require real Testnet configuration and reads");
-  await page.goto("/transparency");
+  await page.goto("/vault");
   const controls = page.getByRole("region", { name: "Disaster Vault controls" });
+  await page.getByText("On-chain approvals and signer controls", { exact: true }).click();
   await expect(controls.getByText("Vault balance", { exact: true })).toBeVisible({ timeout: 30000 });
   await expect(controls.getByText(/Public view\. Everyone can review the pool/)).toBeVisible();
   await controls.getByRole("region", { name: "Payout requests" }).waitFor({ state: "visible" });

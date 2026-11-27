@@ -197,7 +197,7 @@ export default function SettingsScreen() {
   const profileStatus = nameStatus !== "ready" || name
     ? nameStatus : !authChecked ? "loading" : authFailed ? "error" : "ready";
   const signedIn = isLocalPreview || Boolean(supaEmail);
-  const display = name ? `@${name}` : signedIn ? "Your account" : "Guest account";
+  const display = name ? `@${name}` : signedIn ? c.yourAccount : c.guestAccount;
   const shortAddr = addr ? `${addr.slice(0, 4)}…${addr.slice(-4)}` : "-";
   async function copyAddress() {
     if (!addr) return;
@@ -228,16 +228,16 @@ export default function SettingsScreen() {
         <span className={styles.profileCopy}>
           <span className={styles.profileName}>{profileStatus === "loading" ? c.loading : display}</span>
           {signedIn ? (
-            <button type="button" className={styles.walletCopy} onClick={copyAddress} disabled={!addr || signOutPending} aria-label={copiedAddress ? "Wallet address copied" : "Copy wallet address"}>
-              <span>{copiedAddress ? "Copied" : shortAddr}</span>
+            <button type="button" className={styles.walletCopy} onClick={copyAddress} disabled={!addr || signOutPending} aria-label={copiedAddress ? c.walletAddressCopied : c.copyWalletAddress}>
+              <span>{copiedAddress ? c.copied : shortAddr}</span>
               {copiedAddress ? Ico.check({ size: 14, c: T.action }) : <CopySimple size={14} aria-hidden="true" />}
             </button>
-          ) : <span className={styles.profileSub}>Sign in to see your wallet address and account details.</span>}
+          ) : <span className={styles.profileSub}>{c.guestAccountDetails}</span>}
         </span>
         {!signedIn ? <Btn kind="secondary" size="sm" full={false} onClick={() => router.push("/signin")}>{t("signin.signIn")}</Btn> : null}
       </section>
 
-      <SectionLabel id="account-title">Account</SectionLabel>
+      <SectionLabel id="account-title">{c.accountDetails}</SectionLabel>
       <section className={styles.sheet} aria-labelledby="account-title">
         <div className={styles.rows}>
           <SettingRow
@@ -264,20 +264,20 @@ export default function SettingsScreen() {
         </div>
       </section>
 
-      <SectionLabel id="fundraising-title">Fundraising</SectionLabel>
+      <SectionLabel id="fundraising-title">{c.fundraising}</SectionLabel>
       <section className={styles.sheet} aria-labelledby="fundraising-title">
         <div className={styles.rows}>
           <SettingRow
             icon={<HandHeart size={21} aria-hidden="true" />}
-            title="Your causes"
+            title={c.yourCauses}
             onClick={() => router.push("/manage")}
-            trailing={isLocalPreview ? value("None yet") : Ico.chev({ size: 15, c: T.slate })}
+            trailing={isLocalPreview ? value(c.noneYet) : Ico.chev({ size: 15, c: T.slate })}
           />
           <SettingRow
             icon={<BookmarkSimple size={21} aria-hidden="true" />}
             title={campaignDiscoveryCopy(locale)("Saved causes")}
             onClick={() => router.push("/you/saved")}
-            trailing={isLocalPreview ? value("None yet") : Ico.chev({ size: 15, c: T.slate })}
+            trailing={isLocalPreview ? value(c.noneYet) : Ico.chev({ size: 15, c: T.slate })}
           />
         </div>
       </section>
@@ -310,12 +310,12 @@ export default function SettingsScreen() {
             trailing={Ico.chev({ size: 15, c: T.slate })}
           />
           <SettingRow
-            icon={<Moon size={21} aria-hidden="true" />}
-            title={locale === "id" ? "Mode gelap" : locale === "tl" ? "Dark mode" : locale === "vi" ? "Chế độ tối" : "Dark mode"}
-            sub={darkTheme ? (locale === "id" ? "Aktif" : locale === "vi" ? "Đang bật" : "On") : (locale === "id" ? "Nonaktif" : locale === "vi" ? "Đang tắt" : "Off")}
+            icon={darkTheme ? <Moon size={21} aria-hidden="true" /> : <Moon size={21} aria-hidden="true" />}
+            title={c.darkMode}
+            sub={darkTheme ? c.on : c.off}
             onClick={toggleTheme}
             switchOn={darkTheme}
-            ariaLabel={locale === "id" ? "Mode gelap" : locale === "vi" ? "Chế độ tối" : "Dark mode"}
+            ariaLabel={c.darkMode}
             trailing={<span className={styles.switch} aria-hidden="true"><span className={darkTheme ? styles.switchOn : styles.switchOff}><span /></span></span>}
           />
         </div>
@@ -324,34 +324,34 @@ export default function SettingsScreen() {
       <section className={styles.support} aria-label={c.featuresSupport}>
         <SettingRow
           icon={<Question size={21} aria-hidden="true" />}
-          title="Help center"
+          title={c.helpCenter}
           onClick={() => router.push("/learn")}
           trailing={Ico.chev({ size: 16, c: T.slate })}
         />
         <SettingRow
           icon={<ChatCircle size={21} aria-hidden="true" />}
-          title={locale === "id" ? "Kirim masukan" : locale === "tl" ? "Magpadala ng feedback" : locale === "vi" ? "Gửi phản hồi" : "Send feedback"}
-          sub="Report a bug, suggest an idea, rate Salapi"
+          title={c.sendFeedback}
+          sub={c.feedbackDescription}
           onClick={() => router.push("/you/feedback")}
           trailing={Ico.chev({ size: 16, c: T.slate })}
         />
         <SettingRow
           icon={Ico.lock({ size: 21, c: T.action })}
-          title="Privacy"
+          title={c.privacy}
           onClick={() => router.push("/you/privacy")}
           trailing={Ico.chev({ size: 16, c: T.slate })}
         />
         <SettingRow
           icon={<FileText size={21} aria-hidden="true" />}
-          title="Terms"
+          title={c.terms}
           onClick={() => router.push("/you/terms")}
           trailing={Ico.chev({ size: 16, c: T.slate })}
         />
         <SettingRow
           icon={Ico.refresh({ size: 21, c: T.action })}
-          title="Check for updates"
-          sub={updateMessage || "Version 4.2.0 · Up to date"}
-          onClick={() => setUpdateMessage("Salapi is up to date")}
+          title={c.checkForUpdates}
+          sub={updateMessage || `${c.version} 4.2.0 · ${c.upToDate}`}
+          onClick={() => setUpdateMessage(c.salapiUpToDate)}
         />
       </section>
 
@@ -367,7 +367,7 @@ export default function SettingsScreen() {
         {signOutError ? <p role="alert" className={styles.loadError}>{c.signOutError}</p> : null}
       </section> : null}
 
-      <footer className={styles.footer}><span className={styles.version}>Salapi 4.2.0</span></footer>
+      <footer className={styles.footer}><span className={styles.version}>{`Salapi ${c.version} 4.2.0`}</span></footer>
     </div>
   );
 }

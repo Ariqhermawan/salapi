@@ -137,7 +137,9 @@ function setup(options: { preview?: boolean; identity?: SignupIdentityState; res
     input("circle-draft-title", "Our barangay library");
     input("circle-draft-story", "A fictional local library idea with books and shelves, not a published cause.");
     click("Continue"); input("circle-draft-goal", "10.00"); click("Continue"); click("Continue");
-    check("Save this concept on this device only"); click("Save complete browser draft");
+    const privateDraft = options.identity?.status === "verified" && !options.preview;
+    check(privateDraft ? "Save this private draft to your account" : "Save this concept on this device only");
+    click(privateDraft ? "Save complete private draft" : "Save complete browser draft");
   }
   return { input, check, click, submit, save, memory, payloads, downloads, setPhase(next: typeof phase) { phase = next; tree = render(); }, get tree() { return tree; } };
 }

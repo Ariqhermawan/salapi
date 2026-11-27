@@ -82,11 +82,12 @@ test("Activity starts empty without invented or network receipts", () => {
   assert.equal(memory.size, 0);
 });
 
-test("Activity keeps its history-aware Back control alongside the revamp tabs", () => {
+test("Activity exposes its personal history and public proof views", () => {
   const source = readFileSync(new URL("../components/screens/ActivityScreen.tsx", import.meta.url), "utf8");
-  assert.match(source, /const goBack = useGoBack\("\/"\)/);
-  assert.match(source, /<IconButton ariaLabel=\{m\("Back"\)\} onClick=\{goBack\}/);
   assert.match(source, /role="tablist" aria-label=\{m\("Activity source"\)\}/);
+  assert.match(source, /id: "personal", label: "My activity"/);
+  assert.match(source, /id: "proof", label: "Public proof"/);
+  assert.doesNotMatch(source, /useGoBack/);
 });
 test("only an explicit local confirmation creates one versioned wallet-scoped receipt", () => {
   const { api, memory } = setup();

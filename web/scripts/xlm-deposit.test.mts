@@ -126,7 +126,7 @@ const topUpCode = compile("../components/screens/TopUpScreen.tsx");
 
 // Actual JSX and effect callbacks with deterministic isolated React hooks.
 // Network, storage, provisioning, navigation and funding are forbidden.
-function componentSetup(options: { preview?: boolean; locale?: Locale; screen?: boolean; read?: () => Promise<XlmDepositDetails | null>; walletState?: () => Promise<{ address: string; pesos: number } | { ok: false; error: string }>; clipboard?: (value: string) => Promise<void> } = {}) {
+function componentSetup(options: { preview?: boolean; locale?: Locale; screen?: boolean; initialMethod?: "topup" | "xlm" | "provider"; read?: () => Promise<XlmDepositDetails | null>; walletState?: () => Promise<{ address: string; pesos: number } | { ok: false; error: string }>; clipboard?: (value: string) => Promise<void> } = {}) {
   const preview = options.preview ?? false, locale = options.locale ?? "en";
   const calls = { read: 0, walletRead: 0, clipboard: [] as string[], network: 0, storage: 0, writes: 0, navigation: 0, stateWrites: 0 };
   const forbidden = (key: "network" | "storage" | "writes" | "navigation") => () => { calls[key]++; throw Error(`Forbidden ${key} in deposit render`); };
@@ -148,7 +148,7 @@ function componentSetup(options: { preview?: boolean; locale?: Locale; screen?: 
   };
   const icon = new Proxy({}, { get: (_target, name) => (props: Record<string, unknown>) => jsx("svg", { ...props, "data-icon": String(name) }) });
   const storage = { getItem: forbidden("storage"), setItem: forbidden("storage"), removeItem: forbidden("storage") };
-  const api = moduleFrom<{ default(): Element }>(options.screen ? topUpCode : panelCode, {
+  const api = moduleFrom<{ default(props?: { initialMethod?: "topup" | "xlm" | "provider" }): Element }>(options.screen ? topUpCode : panelCode, {
     "react": react, "react/jsx-runtime": { jsx, jsxs: jsx, Fragment: "Fragment" },
     "next/link": { default: "Link" }, "qrcode.react": { QRCodeSVG: "QRCodeSVG" },
     "next/navigation": { useRouter: () => ({ push: forbidden("navigation") }) },
@@ -163,6 +163,8 @@ function componentSetup(options: { preview?: boolean; locale?: Locale; screen?: 
     "./XlmDepositPanel.module.css": { default: new Proxy({}, { get: (_target, name) => String(name) }) },
     "./XlmDepositPanel": { default: "XlmDepositPanel" }, "./PaymentProviderDemo": { default: "PaymentProviderDemo" },
     "./PaymentChannelOptions": { default: "PaymentChannelOptions" },
+    "./PrototypeTopUpScreen": { default: "PrototypeTopUpScreen" },
+    "./PrototypeTopUpFlowScreen": { default: "PrototypeTopUpFlowScreen" },
     "@/app/actions": {
       walletDepositAddress: () => { calls.read++; return options.read ? options.read() : Promise.resolve(details); },
       walletState: async () => { calls.walletRead++; return options.walletState ? options.walletState() : { address, pesos: 0 }; }, topUpSandbox: forbidden("writes"),
@@ -171,7 +173,7 @@ function componentSetup(options: { preview?: boolean; locale?: Locale; screen?: 
     fetch: forbidden("network"), XMLHttpRequest: forbidden("network"), localStorage: storage, sessionStorage: storage,
     navigator: { clipboard: { writeText: (value: string) => { calls.clipboard.push(value); return options.clipboard ? options.clipboard(value) : Promise.resolve(); } } },
   });
-  function render() { cursor = 0; pendingEffects = []; const tree = api.default(); return tree; }
+  function render() { cursor = 0; pendingEffects = []; const tree = api.default(options.screen ? { initialMethod: options.initialMethod } : undefined); return tree; }
   function flushEffects() {
     for (const item of pendingEffects) { effects.get(item.index)?.cleanup?.(); const cleanup = item.effect(); effects.set(item.index, { deps: [...item.deps], cleanup: cleanup || undefined }); }
     pendingEffects = [];
@@ -284,61 +286,43 @@ test("late copy completion for a replaced address never marks the new address co
   assert.ok(button(tree, c.copy)); assert.equal(text(tree).includes(c.copied), false); noMutations(ui.calls);
 });
 
-test("actual non-preview TopUp defaults to deposit and never calls walletState, a signer or funding on entry", () => {
+test("actual non-preview TopUp exposes the prototype surface without financial reads on entry", () => {
   for (const locale of LOCALES) {
-    const ui = componentSetup({ screen: true, locale }), tree = ui.update(), c = xlmDepositCopy(locale);
-    assert.ok(nodes(tree).some(node => node.type === "XlmDepositPanel"));
-    assert.equal(nodes(tree).some(node => node.type === "PaymentProviderDemo"), false);
-    assert.equal(button(tree, c.deposit).props["aria-pressed"], true);
-    assert.equal(button(tree, c.faucet).props["aria-pressed"], false);
+    const ui = componentSetup({ screen: true, locale }), tree = ui.update();
+    assert.equal(tree.type, "PrototypeTopUpScreen");
+    assert.equal(tree.props.localPreview, undefined);
+    assert.equal(typeof tree.props.onFaucet, "function");
     assert.equal(ui.calls.walletRead, 0); assert.equal(ui.calls.read, 0); noMutations(ui.calls);
   }
 });
 
-test("actual preview TopUp preserves provider/faucet navigation and deposit mode without any financial calls", () => {
+test("actual preview TopUp delegates to the prototype and keeps its local faucet entry explicit", () => {
   for (const locale of LOCALES) {
-    const ui = componentSetup({ screen: true, preview: true, locale }), provider = ui.update(), c = xlmDepositCopy(locale);
-    assert.equal(provider.type, "PaymentProviderDemo");
-    const navigation = provider.props.topupNavigation as Element;
-    assert.equal(navigation.props["aria-label"], c.methods);
-    assert.equal(button(navigation, c.provider).props["aria-pressed"], true);
-    click(button(navigation, c.deposit)); const panel = ui.update();
+    const ui = componentSetup({ screen: true, preview: true, locale }), prototype = ui.update(), c = xlmDepositCopy(locale);
+    assert.equal(prototype.type, "PrototypeTopUpScreen");
+    (prototype.props.onFaucet as () => void)(); const faucet = ui.update();
+    const navigation = nodes(faucet).find(node => node.props["aria-label"] === c.methods); assert.ok(navigation);
+    click(button(faucet, c.deposit)); const panel = ui.update();
     assert.ok(nodes(panel).some(node => node.type === "XlmDepositPanel"));
     assert.equal(button(panel, c.deposit).props["aria-pressed"], true);
-    click(button(panel, c.provider)); assert.equal(ui.update().type, "PaymentProviderDemo");
-    (ui.update().props.onFaucet as () => void)(); const faucet = ui.update();
-    assert.equal(nodes(faucet).some(node => node.type === "XlmDepositPanel" || node.type === "PaymentProviderDemo"), false);
-    assert.equal(button(faucet, c.faucet).props["aria-pressed"], true);
-    click(button(faucet, c.provider));
-    assert.equal(ui.update().type, "PaymentProviderDemo");
     assert.equal(ui.calls.walletRead, 0); assert.equal(ui.calls.read, 0); noMutations(ui.calls);
   }
 });
 
-test("non-preview GCash/QRIS discovery is read-only and independent of wallet or faucet reads", () => {
+test("non-preview provider route stays on the prototype surface without reading or funding a wallet", () => {
   for (const locale of LOCALES) {
-    const ui = componentSetup({ screen: true, locale }), c = accountCopy(locale);
-    click(button(ui.update(), "GCash / QRIS"));
+    const ui = componentSetup({ screen: true, locale, initialMethod: "provider" });
     const tree = ui.update();
-    assert.equal(button(tree, "GCash / QRIS").props["aria-pressed"], true);
-    assert.ok(text(tree).includes(c.providersDisconnected));
-    assert.ok(text(tree).includes(c.noProviderRequest));
-    const catalog = nodes(tree).find(node => node.type === "PaymentChannelOptions");
-    assert.ok(catalog);
-    assert.equal(catalog.props.payout, false);
-    assert.equal(catalog.props.onChange, undefined);
-    assert.equal(nodes(tree).some(node => node.type === "PaymentProviderDemo" || node.type === "XlmDepositPanel"), false);
+    assert.equal(tree.type, "PrototypeTopUpScreen");
+    assert.equal(tree.props.localPreview, false);
     assert.equal(ui.calls.walletRead, 0); assert.equal(ui.calls.read, 0); noMutations(ui.calls);
-    click(button(tree, xlmDepositCopy(locale).deposit));
-    assert.ok(nodes(ui.update()).some(node => node.type === "XlmDepositPanel"));
-    assert.equal(ui.calls.walletRead, 0); noMutations(ui.calls);
   }
 });
 
 test("non-preview faucet balance reads require an explicit method choice and are cancelled when leaving it", async () => {
   const ui = componentSetup({ screen: true }), c = xlmDepositCopy("en");
-  const entry = ui.update(); assert.equal(ui.calls.walletRead, 0);
-  click(button(entry, c.faucet)); const faucet = ui.update(); assert.equal(ui.calls.walletRead, 1);
+  const entry = ui.update(); assert.equal(entry.type, "PrototypeTopUpScreen"); assert.equal(ui.calls.walletRead, 0);
+  (entry.props.onFaucet as () => void)(); const faucet = ui.update(); assert.equal(ui.calls.walletRead, 1);
   click(button(faucet, c.deposit)); const depositTree = ui.update(), before = ui.calls.stateWrites;
   await settle(); assert.equal(ui.calls.stateWrites, before);
   assert.ok(nodes(depositTree).some(node => node.type === "XlmDepositPanel")); noMutations(ui.calls);
@@ -346,8 +330,8 @@ test("non-preview faucet balance reads require an explicit method choice and are
 
 for (const locale of LOCALES) test(`${locale}: structured faucet wallet failure displays an error with no fake balance, wallet address or funding action`, async () => {
   const ui = componentSetup({ screen: true, locale, walletState: async () => ({ ok: false, error: "Isolated unavailable wallet" }) });
-  const entry = ui.update(); assert.equal(ui.calls.walletRead, 0);
-  click(button(entry, xlmDepositCopy(locale).faucet)); ui.update(); await settle();
+  const entry = ui.update(); assert.equal(entry.type, "PrototypeTopUpScreen"); assert.equal(ui.calls.walletRead, 0);
+  (entry.props.onFaucet as () => void)(); ui.update(); await settle();
   const tree = ui.update(), c = accountCopy(locale);
   assert.ok(nodes(tree).some(node => node.props.role === "alert" && text(node) === c.walletLoad));
   assert.equal(text(tree).includes(c.loadingWallet), false);

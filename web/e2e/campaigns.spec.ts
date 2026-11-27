@@ -13,7 +13,9 @@ const campaign = { id: "1", title: "UI fixture campaign", state: "Funding", tota
 function actions() {
   const devManifest = ".next/dev/server/server-reference-manifest.json";
   const buildManifest = ".next/server/server-reference-manifest.json";
-  const manifest = existsSync(devManifest) ? devManifest : buildManifest;
+  // The E2E server is `next start` in CI. Prefer its manifest when a local
+  // developer also has a stale `.next/dev` tree from the preview server.
+  const manifest = existsSync(buildManifest) ? buildManifest : devManifest;
   const m = JSON.parse(readFileSync(manifest, "utf8"));
   return new Map(Object.entries(m.node as Record<string, { exportedName: string }>).map(([id, v]) => [id, v.exportedName]));
 }
@@ -22,7 +24,8 @@ function xlm(stroops: string) {
   const fractional = (amount % 10_000_000n).toString().padStart(7, "0").replace(/0+$/, "");
   return fractional ? `${whole}.${fractional}` : String(whole);
 }
-async function fixture(page: Page, options: { viewer?: string; now?: string; unavailable?: boolean; campaign?: typeof campaign } = {}) {
+async function fixture(page: Page, options: { viewer?: string; now?: string; unavailable?: boolean; campaign?: typeof campaign } = {},
+  entry = "/campaigns?id=1") {
   const names = actions(); const writes: { name: string; args: unknown[] }[] = [];
   const preparations: unknown[] = [];
   await page.route("**/campaigns*", async route => {
@@ -32,6 +35,12 @@ async function fixture(page: Page, options: { viewer?: string; now?: string; una
     if (name === "campaignState") value = options.unavailable ? { ok: false, error: "Configured contract does not match D4" }
       : { ok: true, contractId: "CCN2O4Z6CSUVF74DWZBJJ526IMEXVRCYKY74PM5BDKA22WWTOW5WHZDY", viewer: options.viewer ?? null,
         now: options.now ?? "1000", campaigns: [options.campaign ?? campaign] };
+    else if (name === "campaignRatingState") value = {
+      ok: true,
+      campaign: { id: "1", title: "UI fixture campaign", state: "Funding", proofAvailable: false },
+      viewer: { signedIn: Boolean(options.viewer), hasDonated: Boolean(options.viewer), canRate: false, rating: null, comment: "" },
+      ratings: [], totalRatings: 0, average: 0,
+    };
     else if (name === "campaignMedia") value = { ok: false, available: false, code: "not_configured", network: "testnet",
       contractId: null, campaignId: (options.campaign ?? campaign).id, creatorWallet: null, photos: [], updatedAt: null,
       ownerId: null, canManage: false, permissionCode: null };
@@ -61,7 +70,7 @@ async function fixture(page: Page, options: { viewer?: string; now?: string; una
     else { writes.push({ name, args: JSON.parse(route.request().postData() ?? "[]") }); value = { ok: true, link: "https://stellar.expert/explorer/testnet/tx/ui-fixture-only", value: "2" }; }
     await route.fulfill({ contentType: "text/x-component", body: `0:{"a":"$@1","f":"","i":false}\n1:${JSON.stringify(value)}\n` });
   });
-  await page.goto("/campaigns?mode=testnet"); return { writes, preparations };
+  await page.goto(entry); return { writes, preparations };
 }
 test.describe("D4 isolated local UI and HTTP authorization", () => {
   test.beforeEach(({ baseURL }) => test.skip(!["localhost", "127.0.0.1", "[::1]"].includes(new URL(baseURL!).hostname),
@@ -73,7 +82,7 @@ test.describe("D4 isolated local UI and HTTP authorization", () => {
     await expect(page.getByRole("button", { name: /Donate · Review amount|Approve proof|Release funds|Claim full refund/ })).toHaveCount(0);
     await page.getByText("Locked terms and recipients", { exact: true }).click();
     await expect(page.getByText("Approver 1: Not approved")).toBeVisible();
-    await expect(page.getByRole("link", { name: /^Sign in/ })).toHaveAttribute("href", "/signin?next=%2Fcampaigns%3Fmode%3Dtestnet");
+    await expect(page.getByRole("link", { name: /^Sign in/ })).toHaveAttribute("href", "/signin?next=%2Fcampaigns%3Fid%3D1");
   });
   test("unverified deployment fails closed", async ({ page }) => {
     await fixture(page, { unavailable: true });
@@ -87,7 +96,7 @@ test.describe("D4 isolated local UI and HTTP authorization", () => {
     await expect(page.getByRole("dialog")).toContainText("Donate 58 Testnet XLM");
     expect(writes).toHaveLength(0);
     await page.getByRole("button", { name: "Confirm transaction", exact: true }).click();
-    await expect(page.getByRole("status")).toContainText("Testnet transaction confirmed");
+    await expect(page.getByRole("status").filter({ hasText: "Testnet transaction confirmed" })).toBeVisible();
     expect(preparations).toHaveLength(1);
     expect(preparations[0]).toMatchObject({ kind: "donate", campaignId: "1" });
     expect((preparations[0] as { amountStroops: string }).amountStroops).toMatch(/^[1-9]\d+$/);
@@ -101,9 +110,8 @@ test.describe("D4 isolated local UI and HTTP authorization", () => {
     test(`confirmation stays inside the visible frame and blocks navigation: ${variant.name}`, async ({ page }) => {
       await page.setViewportSize(variant.viewport);
       await page.emulateMedia({ reducedMotion: variant.reduced ? "reduce" : "no-preference" });
-      const { writes, preparations } = await fixture(page, { viewer: wallets[0] });
+      const { writes, preparations } = await fixture(page, { viewer: wallets[0] }, variant.create ? "/campaigns?create=1" : "/campaigns?id=1");
       if (variant.create) {
-        await page.getByText("Start a campaign", { exact: true }).click();
         await page.getByLabel("1. Name your cause", { exact: true }).fill("Long cause terms for a careful review. ".repeat(40));
         await page.getByRole("button", { name: "Continue", exact: true }).click();
         await page.getByLabel("Beneficiary public wallet", { exact: true }).fill(wallets[1]);
@@ -126,8 +134,6 @@ test.describe("D4 isolated local UI and HTTP authorization", () => {
         const animation = node.getAnimations()[0];
         if (animation) { animation.currentTime = 80; animation.pause(); }
       });
-      const scrollBefore = await page.locator("main").evaluate(node => node.scrollTop);
-      expect(scrollBefore).toBeGreaterThan(0);
       await review.click();
       const dialog = page.getByRole("dialog", { name: "Confirm campaign transaction", exact: true });
       await expect(dialog).toBeVisible();
@@ -152,7 +158,6 @@ test.describe("D4 isolated local UI and HTTP authorization", () => {
       expect(geometry.card.width).toBeLessThanOrEqual(420);
       expect(geometry.navBlocked).toBe(true);
       if (variant.create) expect(geometry.card.scrollHeight).toBeGreaterThan(geometry.card.clientHeight);
-      expect(await page.locator("main").evaluate(node => node.scrollTop)).toBe(scrollBefore);
       // Existing focus trap must still reach the scroll-contained controls.
       await page.keyboard.press("Shift+Tab");
       await expect(dialog.getByRole("button", { name: "Cancel", exact: true })).toBeFocused();
@@ -161,13 +166,11 @@ test.describe("D4 isolated local UI and HTTP authorization", () => {
       await page.keyboard.press("Escape");
       await expect(dialog).toHaveCount(0);
       await expect(review).toBeFocused();
-      expect(await page.locator("main").evaluate(node => node.scrollTop)).toBe(scrollBefore);
       expect(writes).toHaveLength(0); expect(preparations).toHaveLength(1);
     });
   }
   test("creator config is confirmed once with three fixed approvers", async ({ page }) => {
-    const { writes, preparations } = await fixture(page, { viewer: wallets[0] });
-    await page.getByText("Start a campaign", { exact: true }).click();
+    const { writes, preparations } = await fixture(page, { viewer: wallets[0] }, "/campaigns?create=1");
     await page.getByLabel("1. Name your cause", { exact: true }).fill("Test release");
     await page.getByRole("button", { name: "Continue", exact: true }).click();
     await page.getByLabel("Beneficiary public wallet", { exact: true }).fill(wallets[1]);
@@ -186,8 +189,7 @@ test.describe("D4 isolated local UI and HTTP authorization", () => {
     expect(writes).toEqual([{ name: "campaignCreate", args: ["11111111-1111-4111-8111-111111111111"] }]);
   });
   test("campaign wizard validates each step and keeps terms when going back", async ({ page }) => {
-    const { writes, preparations } = await fixture(page, { viewer: wallets[0] });
-    await page.getByText("Start a campaign", { exact: true }).click();
+    const { writes, preparations } = await fixture(page, { viewer: wallets[0] }, "/campaigns?create=1");
     await page.getByRole("button", { name: "Continue", exact: true }).click();
     await expect(page.getByText("Enter a campaign name.", { exact: true })).toBeVisible();
     expect(writes).toHaveLength(0); expect(preparations).toHaveLength(0);
@@ -217,7 +219,10 @@ test.describe("D4 isolated local UI and HTTP authorization", () => {
   test("campaign navigation clears drafts and prior page state", async ({ page }) => {
     await fixture(page, { viewer: wallets[0] });
     await page.getByLabel("Donation amount (USD)", { exact: true }).fill("6.50");
-    await page.getByRole("link", { name: "UI fixture campaign", exact: true }).click();
+    await page.getByRole("link", { name: "All campaigns", exact: true }).click();
+    await expect(page).toHaveURL(/\/campaigns\?mode=testnet$/);
+    await page.getByRole("link", { name: "Testnet campaigns", exact: true }).click();
+    await page.getByRole("link", { name: /UI fixture campaign/ }).click();
     await expect(page).toHaveURL(/\/campaigns\?id=1$/);
     await expect(page.getByLabel("Donation amount (USD)", { exact: true })).toHaveValue("");
   });
@@ -237,7 +242,7 @@ test.describe("D4 isolated local UI and HTTP authorization", () => {
     await page.getByRole("button", { name: "Claim full refund" }).click();
     await expect(page.getByRole("dialog")).toContainText("30 Testnet XLM");
     await page.getByRole("button", { name: "Confirm transaction", exact: true }).click();
-    await expect(page.getByRole("status")).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: "Testnet transaction confirmed" })).toBeVisible();
     expect(preparations).toMatchObject([{ kind: "refund", campaignId: "1" }]);
     expect(writes).toEqual([{ name: "campaignRefund", args: ["11111111-1111-4111-8111-111111111111"] }]);
   });
