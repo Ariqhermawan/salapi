@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppBar, Btn, Ico, IconButton } from "@/components/ui/kit";
-import { previewUsdcBalanceCents } from "@/lib/local-preview";
+import { isLocalPreview, previewUsdcBalanceCents } from "@/lib/local-preview";
 import { useGoBack } from "@/lib/ui/useGoBack";
 import PrototypeDoodle from "./PrototypeDoodle";
 import styles from "./PrototypeWithdrawScreen.module.css";
@@ -72,8 +72,10 @@ export default function PrototypeWithdrawScreen({ initialCurrency }: { initialCu
   const [amountText, setAmountText] = useState("");
   const [review, setReview] = useState(false);
   const [done, setDone] = useState(false);
-  const [balanceCents, setBalanceCents] = useState(241_226);
-  useEffect(() => { setBalanceCents(previewUsdcBalanceCents()); }, []);
+  const [balanceCents, setBalanceCents] = useState(isLocalPreview ? 241_226 : 0);
+  useEffect(() => {
+    if (isLocalPreview) setBalanceCents(previewUsdcBalanceCents());
+  }, []);
   const balance = balanceCents / 100;
   const digits = number.replace(/\D/g, "");
   const numberOk = digits.length >= 6;
@@ -88,7 +90,7 @@ export default function PrototypeWithdrawScreen({ initialCurrency }: { initialCu
   const country = COUNTRIES.find(entry => entry.id === countryId) ?? COUNTRIES[0];
   const presets = [["25%", .25], ["50%", .5], ["75%", .75], ["Max", 1]] as const;
   const back = () => review ? setReview(false) : goBack();
-  const fee = 0.25;
+  const fee = isLocalPreview ? 0.25 : 0;
   const destination = crypto ? `Stellar wallet · ${wallet.slice(0, 4)}…${wallet.slice(-4)}` : `${bank} · •••• ${digits.slice(-4)}`;
   const selectCurrency = (next: "IDR" | "PHP" | "USDC") => router.replace(`/withdraw?cur=${next.toLowerCase()}`);
 
@@ -115,7 +117,7 @@ export default function PrototypeWithdrawScreen({ initialCurrency }: { initialCu
       <section className={styles.done} aria-label="Withdrawal preview">
         <span className={styles.badge} aria-hidden="true">✓</span>
         <h1>Withdrawal request saved</h1>
-        <p>This is a local preview. No money moved and no bank details were sent.</p>
+        <p>Preview only. No money moved and no bank details were sent.</p>
         <div className={styles.row}><span>To</span><strong>{destination}</strong></div>
         <div className={styles.row}><span>Amount</span><strong>${amount.toFixed(2)}</strong></div>
         <div className={styles.row}><span>{crypto ? "Network fee" : "Fee"}</span><strong>${fee.toFixed(2)}</strong></div>
@@ -128,10 +130,10 @@ export default function PrototypeWithdrawScreen({ initialCurrency }: { initialCu
     </> : <>
       {!crypto ? <div className={styles.method}>
         <span className={styles.badge}><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m2.5 7 7.5-4 7.5 4M4 8.5h12M5.5 8.5v7m4.5-7v7m4.5-7v7M3 16.5h14M2.5 18h15" /></svg></span>
-        <span className={styles.methodCopy}><span className={styles.methodName}>Bank account</span><span className={styles.methodNote}>{currency === "PHP" ? "Same day · $0.25 fee" : "Same day · $0.25 fee"}</span></span>
+        <span className={styles.methodCopy}><span className={styles.methodName}>Bank account</span><span className={styles.methodNote}>{isLocalPreview ? "Same day · $0.25 fee" : "Payout not connected"}</span></span>
       </div> : <div className={styles.method}>
         <span className={styles.badge}><img width="30" height="30" src="/prototype-money/xlm.svg" alt="" /></span>
-        <span className={styles.methodCopy}><span className={styles.methodName}>Stellar wallet</span><span className={styles.methodNote}>Stellar network only · $0.25 network fee</span></span>
+        <span className={styles.methodCopy}><span className={styles.methodName}>Stellar wallet</span><span className={styles.methodNote}>{isLocalPreview ? "Stellar network only · $0.25 network fee" : "Testnet withdrawal not enabled"}</span></span>
       </div>}
       {!crypto ? <section className={styles.form} aria-label="Bank account details">
         <div className={styles.field}><label htmlFor="prototype-withdraw-bank">Bank name</label><PickerField id="prototype-withdraw-bank" value={bank} placeholder="Search for a bank" options={country.banks} searchable onChange={setBank} /></div>
@@ -144,6 +146,7 @@ export default function PrototypeWithdrawScreen({ initialCurrency }: { initialCu
         <div className={styles.field}><label htmlFor="prototype-withdraw-memo">Memo</label><input id="prototype-withdraw-memo" autoComplete="off" placeholder="Only if the receiving wallet asks for one" maxLength={28} value={memo} onChange={event => setMemo(event.target.value)} /></div>
         <p className={styles.hint}><span aria-hidden="true">ⓘ</span>Check the address and the memo. A withdrawal can&apos;t be reversed.</p>
       </section>}
+      {!isLocalPreview ? <p className={styles.hint} role="status">Withdrawals are not connected on Testnet yet. Details stay in this screen and are never sent.</p> : null}
       <section className={styles.amount} data-disabled={!destinationOk} aria-label="Withdrawal amount">
         <label htmlFor="prototype-withdraw-amount" className={styles.amountLabel}>Amount · USD · ${balance.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} available</label>
         <input id="prototype-withdraw-amount" className={styles.amountInput} inputMode="decimal" value={amountText} onChange={event => setAmountText(event.target.value)} placeholder="$0" disabled={!destinationOk} aria-invalid={!!amountError} />

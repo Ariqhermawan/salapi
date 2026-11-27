@@ -30,14 +30,14 @@ export default function TopUpScreen({ initialMethod, initialChannel, initialCurr
   const [error, setError] = useState<AccountCopyKey | "">("");
   const submitting = useRef(false);
   const [faucet,setFaucet]=useState(false);
-  const [method,setMethod]=useState<"topup"|"xlm"|"provider">(initialMethod ?? (isLocalPreview ? "topup" : "xlm"));
+  const [method,setMethod]=useState<"topup"|"xlm"|"provider">(initialMethod ?? "topup");
   const depositCopy = xlmDepositCopy(locale);
   useEffect(() => {
-    if (isLocalPreview || method !== "topup") return;
+    if (isLocalPreview || method !== "topup" || !faucet) return;
     let cancelled = false;
     walletState().then(requireWalletState).then(value => { if (!cancelled) setWallet(value); }).catch(() => { if (!cancelled) setError("walletLoad"); });
     return () => { cancelled = true; };
-  }, [method]);
+  }, [faucet, method]);
   function fund() {
     if (submitting.current) return;
     submitting.current = true;
@@ -57,7 +57,8 @@ export default function TopUpScreen({ initialMethod, initialChannel, initialCurr
     <button type="button" aria-pressed={method === "xlm"} onClick={()=>setMethod("xlm")}>{Ico.qr({size:17})}{depositCopy.deposit}</button>
     {isLocalPreview ? <button type="button" aria-pressed={method === "topup" && faucet} onClick={()=>{setMethod("topup");setFaucet(true);}}>{depositCopy.faucet}</button> : <button type="button" aria-pressed={method === "provider"} onClick={()=>setMethod("provider")}>{depositCopy.paymentMethods}</button>}
   </nav>;
-  if (isLocalPreview && method === "topup" && !faucet) return <PrototypeTopUpScreen initialCurrency={initialCurrency} onFaucet={() => setFaucet(true)} />;
+  if (!isLocalPreview && method === "provider") return <PrototypeTopUpScreen initialCurrency={initialCurrency} localPreview={false} onFaucet={() => { setMethod("topup"); setFaucet(true); }} />;
+  if (method === "topup" && !faucet) return <PrototypeTopUpScreen initialCurrency={initialCurrency} onFaucet={() => setFaucet(true)} />;
   if (isLocalPreview && method === "provider" && initialCurrency && initialCurrency !== "USDC" && initialVia) return <PrototypeTopUpFlowScreen currency={initialCurrency} via={initialVia} step={initialStep} initialAmount={initialAmount} />;
   if (method === "provider" && isLocalPreview) return <PaymentProviderDemo initialChannel={initialChannel} topupNavigation={navigation} />;
   // Payment-channel discovery must not load, fund or provision a wallet.
