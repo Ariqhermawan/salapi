@@ -107,7 +107,7 @@ for (const feature of ["disaster", "campaign"] as const) {
 test("actual CampaignScreen anonymous sign-in href preserves create intent and only local next targets", () => {
   type Element = { type: string; props: Record<string, unknown> };
   const code = compile("../components/screens/CampaignScreen.tsx", true);
-  for (const [id, initialCreate, expected] of [["", true, "/campaigns?create=1"], ["101", true, "/campaigns?create=1"], ["101", false, "/campaigns?id=101"], ["", false, "/campaigns?mode=testnet"]] as const) {
+  for (const [id, initialCreate, expected] of [["", true, "/create"], ["101", true, "/create"], ["101", false, "/campaigns?id=101"], ["", false, "/campaigns?mode=testnet"]] as const) {
     let cursor = 0; const sandboxModule = { exports: {} as { default(props: { id: string; initialCreate: boolean }): Element } };
     const jsx = (type: unknown, props: Record<string, unknown>): Element => ({ type: String(type), props });
     runInNewContext(code, { module: sandboxModule, exports: sandboxModule.exports, require(name: string) {

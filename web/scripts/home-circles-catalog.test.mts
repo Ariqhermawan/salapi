@@ -520,7 +520,7 @@ for (const preview of [true, false]) for (const locale of LOCALES) test(`${local
   for (const option of options.slice(1)) assert.equal(option.props["aria-label"], circlesCopy.circlesCategory(locale, option.props["data-category"] as CircleCategory));
   assert.equal(nodes(ui.catalog).find(node => node.props.id === "home-cause-category")?.props["aria-disabled"], false);
   const start = nodes(ui.catalog).find(node => hasClass(node, "startCampaign")); assert.ok(start);
-  assert.equal(start.props.href, preview ? "/circles/create" : "/campaigns?create=1");
+  assert.equal(start.props.href, "/create");
   assert.ok(text(start).includes(catalogCopy.homeCatalogCopy(locale, "Start a campaign")));
   assert.equal(ui.calls.wallet, preview ? 0 : 1); assert.equal(ui.calls.handle, preview ? 0 : 1);
   assert.deepEqual(ui.calls.campaigns, preview ? [] : ["0", "809"]);
@@ -629,7 +629,7 @@ test("flag0 Home appends paginated standalone D4 after stories in one catalog wi
     assert.equal(nodes(card).some(node => String(node.props.src ?? "").startsWith("/circles/generated/")), false);
   }
   assert.ok(nodes(ui.catalog).some(node => node.props.id === "home-cause-category"));
-  assert.ok(nodes(ui.tree).some(node => node.props.href === "/campaigns?create=1"));
+  assert.ok(nodes(ui.tree).some(node => node.props.href === "/create"));
   assert.ok(text(ui.tree).includes(homeCopy("en", "test XLM · no real money")));
   ui.select("animals"); await ui.flush(); assert.equal(ui.cards.length, 3); assert.equal(ui.d4Cards.length, 0); assert.equal(ui.orderedCards.length, 3);
   ui.select("all"); await ui.flush(); assert.equal(ui.cards.length, 27); assert.equal(ui.d4Cards.length, 12);
@@ -784,7 +784,7 @@ test("examples render before wallet/D4 readers settle and remain present when th
   assert.equal(ui.cards.length, 27); assert.equal(ui.d4Cards.length, 0);
   assert.doesNotMatch(text(ui.tree), /No campaigns yet\. Start one and invite your community\./, "The available story catalog must not look empty");
   assert.equal(ui.orderedCards.length, 27); assert.match(text(ui.catalog), /01 \/ 27/);
-  assert.ok(nodes(ui.tree).some(node => node.props.href === "/campaigns?create=1"));
+  assert.ok(nodes(ui.tree).some(node => node.props.href === "/create"));
 });
 
 test("closed D4 campaigns remain honest read-only cards, never fictional pledge links", async () => {
@@ -823,7 +823,7 @@ test("secondary campaign destinations remain in a closed native disclosure in al
     assert.equal(text(label), catalogCopy.homeCatalogCopy(locale, "Campaign tools"));
     assert.equal(summary.props.title, catalogCopy.homeCatalogCopy(locale, "Campaign tools"));
     assert.ok(nodes(summary).some(node => node.props["aria-hidden"] === "true" && text(node) === "···"), "The compact menu decoration must not enter its accessible name");
-    assert.deepEqual(nodes(disclosure).filter(node => node.type === "Link").map(node => node.props.href), ["/circles/create", "/campaigns?mode=testnet", "/campaigns?create=1"]);
+    assert.deepEqual(nodes(disclosure).filter(node => node.type === "Link").map(node => node.props.href), ["/circles/create", "/campaigns?mode=testnet", "/create"]);
     ui.cleanup();
   }
   const css = source("../components/HomeCirclesCatalog.module.css");

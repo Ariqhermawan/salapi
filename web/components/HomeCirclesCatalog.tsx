@@ -119,13 +119,13 @@ export default function HomeCirclesCatalog({ campaigns = [], circleLinks = {}, l
         <h2 id="home-circles-title">{homeCopy(locale, "Causes")}</h2>
       </div>
       <Link href="/campaigns?mode=examples" prefetch={false} className={styles.seeAll} aria-label={copy("Browse all example causes")}>{homeCopy(locale, "See all")}<ArrowRight size={16} aria-hidden="true" /></Link>
-      <Link href={isLocalPreview ? "/circles/create" : "/campaigns?create=1"} prefetch={false} className={styles.startCampaign}>{Ico.plus({ size: 17 })}<span>{copy("Start a campaign")}</span></Link>
+      <Link href="/create" prefetch={false} className={styles.startCampaign}>{Ico.plus({ size: 17 })}<span>{copy("Start a campaign")}</span></Link>
       <details className={styles.campaignTools}>
         <summary title={copy("Campaign tools")}><span className={styles.srOnly}>{copy("Campaign tools")}</span><span aria-hidden="true">···</span></summary>
         <nav className={styles.otherActions} aria-label={copy("Campaign tools")}>
           <Link href="/circles/create" prefetch={false} className={styles.explore}>{c("Sketch your own cause")}{Ico.chev({ size: 15 })}</Link>
           <Link href="/campaigns?mode=testnet" prefetch={false}>{copy("D4 Testnet campaigns")}{Ico.chev({ size: 12 })}</Link>
-          {!isLocalPreview ? <Link href="/campaigns?create=1" prefetch={false}>{copy("Start a campaign")}</Link> : null}
+          <Link href="/create" prefetch={false}>{copy("Start a campaign")}</Link>
         </nav>
       </details>
     </header>

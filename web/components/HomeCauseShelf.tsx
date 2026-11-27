@@ -57,7 +57,7 @@ export default function HomeCauseShelf({
     </div> : <div className={styles.empty}>
       <ImageSquare size={36} aria-hidden="true" />
       <strong>{homeCopy(locale, "No causes yet")}</strong>
-      <Link href="/campaigns?create=1">{homeCopy(locale, "Start a campaign")} <ArrowRight size={16} aria-hidden="true" /></Link>
+      <Link href="/create">{homeCopy(locale, "Start a campaign")} <ArrowRight size={16} aria-hidden="true" /></Link>
     </div>}
   </section>;
 }

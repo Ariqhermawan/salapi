@@ -340,7 +340,7 @@ function LiveCampaignCausesScreen({ initialSavedOnly = false }: { initialSavedOn
         <p>{savedOnly ? copy("Tap the bookmark on a cause to keep it here.") : mineOnly ? "Create a campaign with fixed recipients, deadlines, and reviewers." : copy("Try all causes, another category, or load older causes.")}</p>
         {savedOnly
           ? <Link href="/campaigns?mode=testnet" className={styles.browse}>{copy("Browse causes")}</Link>
-          : mineOnly ? <Link href="/campaigns?create=1" className={styles.browse}>{copy("Create a cause")}</Link>
+          : mineOnly ? <Link href="/create" className={styles.browse}>{copy("Create a cause")}</Link>
             : (query || validCategory !== ALL || validStatus !== ALL) && <button type="button" onClick={() => updateParams({ q: null, c: null, s: null, saved: null })}>{copy("Clear filters")}</button>}
       </div>}
       {nextCursor !== "0" && <button type="button" className={styles.loadOlder} disabled={olderLoading} onClick={() => void loadOlder()}>
