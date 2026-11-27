@@ -1,6 +1,6 @@
 name: E2E
 
-# Run the Playwright suite against the live production app (salapi.app):
+# Run read-only Playwright smoke checks against the live production app (salapi.app):
 #   - deployment_status: fires after Vercel finishes a production deploy →
 #     re-tests prod once the new build is live behind the alias.
 #   - workflow_dispatch: run on demand from the Actions tab.
@@ -44,10 +44,10 @@ jobs:
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
 
-      - name: Run E2E against production
+      - name: Run read-only smoke against production
         env:
           E2E_BASE_URL: https://salapi.app
-        run: npm run test:e2e
+        run: npx playwright test e2e/smoke.spec.ts
 
       - name: Preserve deployed guest E2E evidence
         if: ${{ always() }}

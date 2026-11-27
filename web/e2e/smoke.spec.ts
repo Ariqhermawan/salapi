@@ -25,6 +25,7 @@ const ROUTES = [
   "/docs",
   "/privacy",
   "/terms",
+  "/learn/grow",
 ];
 
 for (const route of ROUTES) {
@@ -46,3 +47,12 @@ for (const route of ROUTES) {
     expect(csp, `CSP violations on ${route}:\n${csp.join("\n")}`).toHaveLength(0);
   });
 }
+
+test("Smart Savings Learn CTA opens the guest savings screen", async ({ page }) => {
+  await page.goto("/learn/grow", { waitUntil: "domcontentloaded" });
+  const cta = page.getByRole("link", { name: /See Smart Savings/ });
+  await expect(cta).toHaveAttribute("href", "/savings");
+  await cta.click();
+  await expect(page).toHaveURL(/\/savings$/);
+  await expect(page.locator("#app-content").getByText("Smart Savings", { exact: true }).first()).toBeVisible();
+});
