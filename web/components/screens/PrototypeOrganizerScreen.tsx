@@ -55,7 +55,7 @@ export default function PrototypeOrganizerScreen({ totalOpen = false, initialTab
       <Image className={styles.avatar} src="/prototype-causes/avatar-mei.png" width={56} height={56} alt="" priority unoptimized />
       <div className={styles.identity}>
         <span className={styles.verified}>● VERIFIED · LEVEL 2</span>
-        <h1>Mei's family</h1><p>@meis_family | Quezon City, PH</p>
+        <h1>Mei&apos;s family</h1><p>@meis_family | Quezon City, PH</p>
       </div>
       <p className={styles.bio}>We look after Ate Mei and help neighbors in Quezon City reach care. Every cause ends with receipts and photos.</p>
       <p className={styles.followers}><UsersThree size={16} />{following ? "1,205" : "1,204"} followers</p>

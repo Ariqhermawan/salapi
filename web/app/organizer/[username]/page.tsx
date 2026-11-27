@@ -10,10 +10,10 @@ export default async function OrganizerProfilePage({ params }: { params: Promise
   const { username: raw } = await params;
   const handle = raw.trim().toLowerCase();
   if (!/^[a-z0-9_]{3,32}$/.test(handle)) notFound();
+  let address: string | null = null;
   try {
-    const address = await readContract(CONTRACTS.usernameRegistry, "resolve", [sc.str(handle)]);
-    return <OrganizerProfileScreen handle={handle} address={typeof address === "string" && StrKey.isValidEd25519PublicKey(address) ? address : null} />;
-  } catch {
-    return <OrganizerProfileScreen handle={handle} address={null} />;
-  }
+    const resolved = await readContract(CONTRACTS.usernameRegistry, "resolve", [sc.str(handle)]);
+    if (typeof resolved === "string" && StrKey.isValidEd25519PublicKey(resolved)) address = resolved;
+  } catch { /* Show the same profile shell when registry reads are unavailable. */ }
+  return <OrganizerProfileScreen handle={handle} address={address} />;
 }

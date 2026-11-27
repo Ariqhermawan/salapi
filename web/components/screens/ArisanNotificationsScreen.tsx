@@ -73,6 +73,10 @@ export default function ArisanNotificationsScreen() {
     } catch { if (mounted.current) setError(copy.unknown); }
     finally { clearTimeout(timeout); inFlight.current = false; if (mounted.current) setBusy(false); }
   }
+  function markOneRead(event: React.MouseEvent<HTMLButtonElement>) {
+    const id = event.currentTarget.dataset.notificationId;
+    if (id) void markRead([id]);
+  }
   const roomHref = (notification: ArisanGatheringNotification) => arisanGatheringScope(notification) ? arisanRoomHref(notification) : null;
   const unread = state?.notifications.filter(notification => !notification.readAt).map(notification => notification.id) ?? [];
   const dateLocale = { en: "en-US", id: "id-ID", tl: "fil-PH", vi: "vi-VN" }[locale];
@@ -107,7 +111,7 @@ export default function ArisanNotificationsScreen() {
               <span className={styles.subtitle}>{notification.roomName} · {notification.body}</span>
               <span className={styles.itemActions}>
                 {roomHref(notification) ? <Link href={roomHref(notification)!}>{copy.open} →</Link> : null}
-                {!notification.readAt ? <button type="button" onClick={() => void markRead([notification.id])} disabled={loading || busy}>{copy.mark}</button> : null}
+                {!notification.readAt ? <button type="button" data-notification-id={notification.id} onClick={markOneRead} disabled={loading || busy}>{copy.mark}</button> : null}
               </span>
             </span>
             <span className={styles.time}><time dateTime={notification.createdAt}>{formatNotificationTime(notification.createdAt)}</time>{!notification.readAt ? <b>{copy.unread}</b> : null}</span>

@@ -81,6 +81,13 @@ export default function PrototypeCauseDetailScreen({ id, initialTab = "Story", i
     } catch { setSaved(false); }
   }, [id]);
 
+  const canRate = id === "santos-roof" && !!cause && (cause.status !== "Funding" && cause.status !== "Paused" || cause.raised >= cause.target);
+  useEffect(() => {
+    if (!canRate || initialReport) return;
+    const timer = window.setTimeout(() => setRatingOpen(true), 600);
+    return () => window.clearTimeout(timer);
+  }, [canRate, initialReport]);
+
   const sampleDonors = useMemo(() => [
     { name: "@jamal_r", time: "Today · 9:41", amount: 25, note: "Stay strong. We are with you." },
     { name: "@ana.reyes", time: "Today · 8:12", amount: 5 },
@@ -104,12 +111,6 @@ export default function PrototypeCauseDetailScreen({ id, initialTab = "Story", i
   ] : []);
   const ratings = reviews.map(review => review.stars);
   const ratingAverage = reviews.length ? (reviews.reduce((sum, review) => sum + review.stars, 0) / reviews.length).toFixed(1) : "";
-  const canRate = id === "santos-roof" && finished;
-  useEffect(() => {
-    if (!canRate || initialReport) return;
-    const timer = window.setTimeout(() => setRatingOpen(true), 600);
-    return () => window.clearTimeout(timer);
-  }, [canRate, initialReport]);
   const proofDay = cause.proofOn ?? cause.closedOn ?? "Today";
   const proofSteps = cause.stages?.length ? [
     ...cause.stages.flatMap((stage, index) => stage.status === "Paid" ? [{
