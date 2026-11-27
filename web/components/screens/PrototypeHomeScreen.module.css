@@ -1,4 +1,4 @@
-:global(.sl-main:has([data-testid="prototype-home"])) { container:prototype-home-viewport / size; padding-bottom:calc(env(safe-area-inset-bottom,0px) + 90px); }
+:global(.sl-main:has([data-testid="prototype-home"])),:global(.sl-main:has([data-testid="home-dashboard"])) { container:prototype-home-viewport / size; padding-bottom:calc(env(safe-area-inset-bottom,0px) + 90px); }
 .home { position:relative; display:flex; height:calc(100cqh - 8px); min-height:0; flex-direction:column; padding:0 16px 3px; color:#171717; }
 .greeting { display:flex; align-items:center; gap:8px; min-height:44px; margin:0 0 6px; }
 .mark { display:grid; flex:none; width:28px; height:28px; place-items:center; overflow:hidden; border-radius:8px; }
@@ -15,6 +15,19 @@
 .testnet { padding:2px 8px; border-radius:999px; background:#ffffff29; font-size:12px; line-height:20px; }
 .balanceAmount { display:flex; align-items:center; gap:9px; min-height:44px; margin-top:12px; }
 .balanceAmount strong { font-size:36px; font-weight:600; line-height:44px; letter-spacing:-.025em; font-variant-numeric:tabular-nums; }
+.liveBalance { min-height:74px; margin-top:7px; overflow:hidden; }
+.liveBalance :global([data-market-layout="dashboard"]) { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:0 8px; }
+.liveBalance :global([data-market-layout="dashboard"] [data-market-estimate]) { grid-column:1; grid-row:1; font-size:30px !important; line-height:1.05; }
+.liveBalance :global([data-market-layout="dashboard"] [data-market-estimate] strong) { font-size:inherit; }
+.liveBalance :global([data-market-layout="dashboard"] > div:has([data-wallet-context])) { grid-column:1; grid-row:2; }
+.liveBalance :global([data-market-layout="dashboard"] > div[data-price-attribution]) { grid-column:2; grid-row:1; align-self:center; }
+.liveBalance :global([data-market-layout="dashboard"] details) { grid-column:2; grid-row:2; justify-self:end; margin-top:0; }
+.liveBalance :global([data-market-layout="dashboard"] [data-price-status]) { display:none; }
+.liveGuest { display:grid; justify-items:start; gap:4px; min-height:68px; align-content:center; margin-top:6px; }
+.liveGuest strong { font-size:24px; font-weight:600; line-height:30px; }
+.liveGuest a,.walletRetry { display:inline-flex; min-height:36px; align-items:center; color:#fff; font-size:13px; text-decoration:underline; }
+.walletRetry { padding:0; text-align:left; }
+.exampleLabel { margin-left:auto; color:#7b8492; font-size:9px; font-weight:650; letter-spacing:.06em; }
 .currency { display:inline-flex; align-items:center; gap:2px; min-height:30px; padding:0 7px; border:1px solid #ffffff56; border-radius:999px; background:#ffffff19; color:#fff; font:500 14px/20px var(--font-geist-sans), Outfit, system-ui, sans-serif; }
 .priceLine { display:inline-flex; align-items:center; gap:5px; min-height:24px; margin-top:2px; padding:0; border:0; background:transparent; color:#ffffffd4; font:400 14px/20px var(--font-geist-sans), Outfit, system-ui, sans-serif; text-align:left; }
 .actions { flex:none; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); margin-top:6px; padding:12.5px 0; border:1px solid #e4e6e9; border-radius:16px; background:#fff; box-shadow:0 3px 6px #0000000a,0 8px 16px -8px #0000001a; }
