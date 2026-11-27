@@ -32,6 +32,12 @@ const STATUS_TONE = {
   Done: "neutral" as const,
   Dissolved: "warn" as const,
 };
+const scheduledRoomCopy = {
+  en: "Create a scheduled room · agree on dates and fund the full cycle →",
+  id: "Buat room terjadwal · sepakati tanggal dan danai seluruh siklus →",
+  tl: "Mag-iskedyul ng room · magkasundo sa petsa at pondohan ang buong cycle →",
+  vi: "Tạo phòng theo lịch · thống nhất ngày và nạp đủ cả chu kỳ →",
+} as const;
 
 export default function ArisanListScreen({ emptyPreview = false }: { emptyPreview?: boolean }) {
   const { t, currency, locale } = useT();
@@ -129,6 +135,9 @@ export default function ArisanListScreen({ emptyPreview = false }: { emptyPrevie
           Join with a code
         </Btn>
       </div>
+      <Link href="/arisan/scheduled" className={styles.textButton} style={{ display: "block", margin: "-8px 20px 12px", textAlign: "center" }}>
+        {scheduledRoomCopy[locale]}
+      </Link>
 
       <div className={styles.arisanContent}>
         {st?.ready && st.mine.length > 0 && <nav className={styles.arisanFilters} aria-label="Filter rooms">{["All", "Open", "Active", "Done"].map(label => <button key={label} className={`${styles.filter} ${filter === label ? styles.filterActive : ""}`} aria-pressed={filter === label} onClick={() => setFilter(label)}>{label}</button>)}</nav>}

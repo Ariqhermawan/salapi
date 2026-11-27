@@ -22,10 +22,12 @@ const UNAVAILABLE = "Installment Arisan is unavailable. No new operation was con
 const REVIEW_CHANGED = "The room, account or payment changed. Reload and review the exact terms again.";
 const CODE_ALPHA = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
 
-/** No fallback to the legacy deployment, even if the candidate is unset. */
+/** Scheduled rooms use only the verified isolated deployment, never legacy. */
 function contractId(kind: FundingContractKind = "installments"): string | null {
   if (kind !== "installments" && kind !== "scheduled") return null;
-  const id = (kind === "scheduled" ? process.env.ARISAN_SCHEDULED_CONTRACT : process.env.ARISAN_INSTALLMENTS_CONTRACT)?.trim();
+  const id = kind === "scheduled"
+    ? process.env.ARISAN_SCHEDULED_CONTRACT?.trim() || CONTRACTS.scheduledArisan
+    : process.env.ARISAN_INSTALLMENTS_CONTRACT?.trim();
   return id && StrKey.isValidContract(id) && id !== arisanRoomsId()?.trim()
     && (kind !== "scheduled" || id !== process.env.ARISAN_INSTALLMENTS_CONTRACT?.trim()) ? id : null;
 }

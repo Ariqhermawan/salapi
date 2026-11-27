@@ -1,8 +1,11 @@
 # Scheduled, fully prefunded Arisan candidate
 
-This adds a separate days-based Testnet contract candidate. It neither upgrades
-nor migrates the deployed legacy and installment contracts. Configure its ID as
-`ARISAN_SCHEDULED_CONTRACT`; leave `ARISAN_ROOMS_CONTRACT` and
+This is a separate days-based Testnet contract. It neither upgrades nor
+migrates the deployed legacy and installment contracts. The application defaults
+to the validated deployment
+`CC6FH4DNOCXAZM5Z6BTZ7G6IJKPLACXUZRW4I5QCZEHRNRYRNLYYEMAL`; set
+`ARISAN_SCHEDULED_CONTRACT` only to override it with another validated
+scheduled-only contract. Leave `ARISAN_ROOMS_CONTRACT` and
 `ARISAN_INSTALLMENTS_CONTRACT` unchanged. Testnet tokens have no monetary value.
 
 ## Agreement and funding
@@ -178,10 +181,11 @@ stellar contract build --locked --package arisan-rooms \
 Soroban specification entries for independent web-encoder verification. The
 older `INSTALLMENT_SPEC_HEX` export remains unchanged.
 
-Deploy a new contract only, call `initialize_scheduled` with the native Testnet
-XLM asset, then verify `scheduled_only() == true`, the on-chain WASM hash and
-both capability DTOs before enabling
-creation. No invocation may replace the IDs used by existing rooms. Check the
+For a new deployment, call `initialize_scheduled` with the native Testnet XLM
+asset, then verify `scheduled_only() == true`, the on-chain WASM hash and both
+capability DTOs before configuring it as an override. The application's
+validated default was initialized and checked before it was added here. No
+invocation may replace the IDs used by existing rooms. Check the
 signed creation receipt against all eight scheduled arguments, then verify
 three independent wallets through free join, partial contributions, blocked
 Start, full Start, normal commit/reveal/payouts and exact cancellation refunds.
