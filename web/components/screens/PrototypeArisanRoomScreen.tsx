@@ -2,12 +2,14 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, Check, Copy, ShareNetwork } from "@phosphor-icons/react";
 import { PoweredByStellar } from "@/components/ui/kit";
 import styles from "./PrototypeArisanRoomScreen.module.css";
 
 type RoomKey = "r_1" | "r_4";
+type CreatedRoom = { name: string; members: number; share: number; interval: string; zone: string; closes: string; firstDraw: string; place: string; code: string };
+const CREATED_ROOM_KEY = "salapi.prototype-arisan-created.v1";
 const MEMBER_ROWS = [
   { name: "@maria_s", initials: "MS", detail: "Room Master · Deposit locked", status: "Paid" },
   { name: "@jamamam", initials: "JA", detail: "Deposit locked", status: "Paid" },
@@ -17,13 +19,44 @@ const MEMBER_ROWS = [
 ];
 
 export default function PrototypeArisanRoomScreen({ roomKey }: { roomKey: string }) {
+  const [created, setCreated] = useState<CreatedRoom | null>(null);
+  useEffect(() => {
+    if (roomKey !== "preview-created") return;
+    try {
+      const value = JSON.parse(window.localStorage.getItem(CREATED_ROOM_KEY) ?? "null") as Partial<CreatedRoom> | null;
+      if (value && typeof value.name === "string" && Number.isInteger(value.members) && typeof value.share === "number" && typeof value.code === "string") {
+        setCreated(value as CreatedRoom);
+      }
+    } catch { /* A missing local example falls back to the sample room view. */ }
+  }, [roomKey]);
   const isActive = roomKey === "r_4";
-  const room = isActive
+  const sampleRoom = isActive
     ? { name: "Kapitbahay Circle", status: "Active", cadence: "Monthly", zone: "Asia/Manila", joined: 5, members: 5, share: "$25.00", pot: "$125.00", xlm: "1,115.38 XLM", deadline: "27 Nov", deadlineDetail: "23:00 Asia/Manila", code: "DRW789" }
     : { name: "Family Circle", status: "Open", cadence: "Weekly", zone: "UTC", joined: 2, members: 4, share: "$10.00", pot: "$40.00", xlm: "356.92 XLM", deadline: "30 Nov", deadlineDetail: "19:00 UTC", code: "FAM234" };
+  const isCreated = roomKey === "preview-created" && created !== null;
+  const usd = (amount: number) => `$${amount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const placeName = (place: string) => {
+    if (!/^https?:\/\//.test(place)) return place;
+    const match = place.match(/[?&]q=([^&]+)/) ?? place.match(/\/place\/([^/]+)/);
+    return match ? decodeURIComponent(match[1].replace(/\+/g, " ")) : "Pinned place";
+  };
+  const room = isCreated && created ? {
+    name: created.name,
+    status: "Open",
+    cadence: created.interval.split(",")[0],
+    zone: created.zone,
+    joined: 1,
+    members: created.members,
+    share: usd(created.share),
+    pot: usd(created.share * created.members),
+    xlm: `${(created.share * created.members * 8.92307692).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} XLM`,
+    deadline: created.closes.split(",")[0].replace(/ \d{4}$/, ""),
+    deadlineDetail: `${created.closes.split(", ").slice(1).join(", ")} ${created.zone}`,
+    code: created.code,
+  } : sampleRoom;
   const [tab, setTab] = useState<"Schedule" | "History">("Schedule");
   const [copied, setCopied] = useState(false);
-  const memberRows = isActive ? MEMBER_ROWS : [MEMBER_ROWS[0], MEMBER_ROWS[4]];
+  const memberRows = isCreated ? [{ name: "You", initials: "YO", detail: "Room Master · Deposit locked", status: "Paid" }] : isActive ? MEMBER_ROWS : [MEMBER_ROWS[0], MEMBER_ROWS[4]];
 
   async function copyCode() {
     try {
@@ -94,7 +127,7 @@ export default function PrototypeArisanRoomScreen({ roomKey }: { roomKey: string
         {memberRows.map(member => <div key={member.name} className={styles.member}>
           <span className={styles.avatar}>{member.initials}</span><span className={styles.memberInfo}><strong>{member.name}</strong><small>{member.detail}</small></span><span className={styles.paid}>{member.status}</span>
         </div>)}
-        {!isActive ? [3, 4].map(seat => <div key={seat} className={styles.member}>
+        {!isActive ? Array.from({ length: Math.max(0, room.members - room.joined) }, (_, index) => room.joined + index + 1).map(seat => <div key={seat} className={styles.member}>
           <span className={styles.emptySeat}>{seat}</span><span className={styles.memberInfo}><strong>Seat {seat}</strong><small>No one has joined yet</small></span><span className={styles.waiting}>Waiting</span>
         </div>) : null}
       </div>
@@ -116,11 +149,11 @@ export default function PrototypeArisanRoomScreen({ roomKey }: { roomKey: string
         <Detail label="Timezone" value="Asia/Manila" />
         <Detail label="Location" value="Barangay San Roque Hall" />
       </> : <>
-        <Detail label="First draw" value="7 Dec 2026, 19:00" />
-        <Detail label="How often" value="Weekly, every 7 days" />
-        <Detail label="Join deadline" value="30 Nov 2026, 19:00" />
-        <Detail label="Timezone" value="UTC" />
-        <Detail label="Location" value="Remote" />
+        <Detail label="First draw" value={isCreated && created ? created.firstDraw : "7 Dec 2026, 19:00"} />
+        <Detail label="How often" value={isCreated && created ? created.interval : "Weekly, every 7 days"} />
+        <Detail label="Join deadline" value={isCreated && created ? created.closes : "30 Nov 2026, 19:00"} />
+        <Detail label="Timezone" value={room.zone} />
+        <Detail label="Location" value={isCreated && created ? placeName(created.place) : "Remote"} />
       </>}
     </section> : <section className={styles.details} aria-label="Room history">
       {isActive ? <>
@@ -135,7 +168,7 @@ export default function PrototypeArisanRoomScreen({ roomKey }: { roomKey: string
       </>}
     </section>}
 
-    {!isActive ? <p className={styles.fillingNote}>The room starts once all 4 members have joined, at the join deadline. Until then the person who opened it can cancel it, and your deposit comes back.</p> : null}
+    {!isActive ? <p className={styles.fillingNote}>The room starts once all {room.members} members have joined, at the join deadline. Until then the person who opened it can cancel it, and your deposit comes back.</p> : null}
     <footer className={styles.footer}><PoweredByStellar /></footer>
   </div>;
 }

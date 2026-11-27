@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDown,
   ArrowRight,
@@ -31,6 +31,7 @@ const CAMPAIGN_ORDER = ["bantayan", "mei", "jakarta-kitchen", "bohol-library", "
 const USD = (cents: number) => (cents / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export default function PrototypeHomeScreen() {
+  const greetingRef = useRef<HTMLHeadingElement>(null);
   const [currency, setCurrency] = useState<"USDC" | "XLM">("USDC");
   const [hidden, setHidden] = useState(false);
   const [currencyOpen, setCurrencyOpen] = useState(false);
@@ -41,6 +42,26 @@ export default function PrototypeHomeScreen() {
   const causes = useMemo(() => CAMPAIGN_ORDER
     .map(id => PROTOTYPE_CAUSES.find(cause => cause.id === id))
     .filter((cause): cause is PrototypeCause => cause !== undefined), []);
+  const causesLayout = search.get("causes") === "b" || search.get("causes") === "c" ? search.get("causes") : "a";
+
+  useLayoutEffect(() => {
+    const heading = greetingRef.current;
+    if (!heading) return;
+    const fit = () => {
+      for (const size of [20, 18, 16, 14]) {
+        heading.style.fontSize = `${size}px`;
+        if (heading.scrollWidth <= heading.clientWidth) break;
+      }
+    };
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(heading);
+    document.fonts.addEventListener("loadingdone", fit);
+    return () => {
+      observer.disconnect();
+      document.fonts.removeEventListener("loadingdone", fit);
+    };
+  }, []);
 
   useEffect(() => {
     try { setHidden(window.localStorage.getItem(BALANCE_KEY) === "1"); }
@@ -70,7 +91,7 @@ export default function PrototypeHomeScreen() {
       <Link href="/you" className={styles.mark} aria-label="Your account">
         <Image src="/salapi-mark-prototype.svg" alt="Salapi" width={28} height={28} priority />
       </Link>
-      <h1>Welcome to Salapi, @{PREVIEW_WALLET.handle}</h1>
+      <h1 ref={greetingRef}>Welcome to Salapi, @{PREVIEW_WALLET.handle}</h1>
       <Link href="/learn" className={styles.round} aria-label="Help"><Question size={24} aria-hidden="true" /></Link>
       <Link href="/notifications" className={styles.round} aria-label="Notifications"><Bell size={24} aria-hidden="true" /></Link>
     </header>
@@ -118,9 +139,25 @@ export default function PrototypeHomeScreen() {
         <h2 id="prototype-home-causes">Causes</h2>
         <Link href="/campaigns?mode=testnet">See all</Link>
       </div>
-      <div className={styles.causeRow} aria-label="Featured causes">
+      {causesLayout === "b" ? <div className={styles.causeLayoutB} aria-label="Featured cause and more causes">
+        {causes.slice(0, 3).map((cause, index) => index === 0 ? <Link key={cause.id} href={`/cause/${cause.id}`} className={styles.featuredCause}>
+          <span className={styles.featuredPhoto}>{cause.image ? <Image src={cause.image} alt="" fill sizes="150px" /> : <span className={styles.coverFallback}>♡</span>}{index === 0 && <span className={styles.ribbon}>FEATURED</span>}</span>
+          <span className={styles.featuredBody}><strong>{cause.title}</strong><span className={styles.featuredProgress}><i style={{ width: `${Math.min(100, Math.round(cause.raised / cause.target * 100))}%` }} /></span><span className={styles.featuredMoney}>≈ {USD(cause.raised)} USDC</span><small>raised of {USD(cause.target)}</small></span>
+        </Link> : null)}
+        <div className={styles.featuredList}>{causes.slice(1, 3).map(cause => <Link key={cause.id} href={`/cause/${cause.id}`} className={styles.featuredRow}>
+          {cause.image ? <Image src={cause.image} alt="" width={32} height={32} /> : <span className={styles.rowFallback}>♡</span>}
+          <span><strong>{cause.title}</strong><i><b style={{ width: `${Math.min(100, Math.round(cause.raised / cause.target * 100))}%` }} /></i></span>
+          <small>{Math.round(cause.raised / cause.target * 100)}%</small>
+        </Link>)}</div>
+      </div> : causesLayout === "c" ? <div className={styles.causeLayoutC} aria-label="Causes grid">
+        {causes.slice(0, 4).map((cause, index) => <Link key={cause.id} href={`/cause/${cause.id}`} className={styles.causeTile} data-featured={index === 0 || undefined}>
+          {cause.image ? <Image src={cause.image} alt="" fill sizes="156px" /> : <span className={styles.coverFallback}>♡</span>}
+          <span className={styles.causeTileShade} />{index === 0 ? <span className={styles.ribbon}>FEATURED</span> : null}
+          <span className={styles.causeTileCopy}><strong>{cause.title}</strong><span><i><b style={{ width: `${Math.min(100, Math.round(cause.raised / cause.target * 100))}%` }} /></i><small>{Math.round(cause.raised / cause.target * 100)}%</small></span></span>
+        </Link>)}
+      </div> : <div className={styles.causeRow} aria-label="Featured causes">
         {causes.map((cause, index) => <CauseCard key={cause.id} cause={cause} featured={index === 0} />)}
-      </div>
+      </div>}
     </section>
 
     <section className={styles.tiles} aria-label="More from Salapi">
@@ -129,7 +166,7 @@ export default function PrototypeHomeScreen() {
         <strong>Arisan</strong>
       </Link>
       <Link href="/vault" className={styles.tile}>
-        <Image src="/illustrations/tile-vault.png" alt="" width={44} height={32} />
+        <span className={styles.vaultPig} aria-hidden="true"><img src="/prototype-ui/disaster-vault-funded.webp" alt="" /></span>
         <strong>Disaster Vault</strong><span>$1,284.20</span>
       </Link>
       <button type="button" className={styles.tile} data-coming-soon onClick={showComingSoon}>

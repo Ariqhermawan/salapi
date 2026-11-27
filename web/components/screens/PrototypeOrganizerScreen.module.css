@@ -23,6 +23,8 @@
 .figuresB { grid-column:1 / -1; display:grid; grid-template-columns:1fr 1fr; gap:0; margin:14px -16px -16px; border-top:1px solid #eceef2; }
 .leadFigure { grid-column:1 / -1; display:grid; gap:4px; padding:13px 15px; border-bottom:1px solid #eceef2; }
 .leadFigure > span,.leadFigure small,.figuresB > div > span { color:#737985; font-size:9px; line-height:13px; }
+.leadFigure > span { display:flex; align-items:center; gap:5px; }
+.leadFigure > span button { display:grid; width:20px; height:20px; place-items:center; padding:0; border:0; border-radius:50%; background:transparent; color:#737985; }
 .leadFigure strong { font-size:22px; font-variant-numeric:tabular-nums; }
 .figuresB > div:not(.leadFigure) { display:grid; gap:4px; padding:12px 15px; border-right:1px solid #eceef2; }
 .figuresB > div:nth-child(odd) { border-right:0; }
@@ -84,6 +86,17 @@
 .sheet h2 { margin:0; font-size:17px; }
 .sheet p { margin:0; color:#737985; font-size:12px; line-height:18px; }
 .handle { width:38px; height:4px; margin:0 auto 3px; border-radius:99px; background:#d6d9df; }
+.sheet > header { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.sheet > header button { display:grid; width:34px; height:34px; place-items:center; border:0; border-radius:50%; background:#f2f3f6; color:#737985; }
+.totalRows { max-height:min(48vh,380px); overflow:auto; border-top:1px solid #eceef2; }
+.totalRows > div { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 0; border-bottom:1px solid #eceef2; }
+.totalRows > div > span { display:grid; min-width:0; gap:3px; }
+.totalRows strong,.totalRows b { font-size:11px; font-weight:600; }
+.totalRows > div > span strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.totalRows small { color:#737985; font-size:10px; }
+.totalRows b { flex:none; font-variant-numeric:tabular-nums; }
+.totalRows .totalSum { border-bottom:0; }
+.totalRows .totalSum strong,.totalRows .totalSum b { font-size:12px; }
 .sheet > button:last-child { min-height:40px; border:0; background:transparent; color:#335cff; font-size:12px; }
 [data-theme="dark"] .profile,[data-theme="dark"] .causeWrap,[data-theme="dark"] .trust,[data-theme="dark"] .reviews,[data-theme="dark"] .completedGrid article { border-color:#333; }
 [data-theme="dark"] .tabs { background:#262626; }

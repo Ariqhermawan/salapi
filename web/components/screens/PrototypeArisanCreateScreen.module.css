@@ -1,0 +1,157 @@
+.screen {
+  position: relative;
+  min-height: 100%;
+  padding: 0 16px 108px;
+  color: #171717;
+  font-family: var(--font-outfit), Outfit, system-ui, sans-serif;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 56px;
+  margin: 0 -16px 15px;
+  padding: 8px 16px 0 20px;
+}
+
+.header > button {
+  display: grid;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid #e6e7eb;
+  border-radius: 50%;
+  background: #ffffffb8;
+  color: #626975;
+  box-shadow: 0 1px 3px #10182812;
+}
+
+.header h1 {
+  min-width: 0;
+  margin: 0;
+  color: #171717;
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 28px;
+  letter-spacing: -0.015em;
+}
+
+.stepBar { padding: 2px 4px 0; }
+.stepMeta { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.stepMeta > span:first-child { color: #3155dc; font-size: 12px; font-weight: 500; line-height: 16px; }
+.stepMeta > span:last-child { color: #727984; font-size: 12px; line-height: 16px; }
+.stepTrack { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 8px 0 12px; }
+.stepTrack > span { position: relative; height: 6px; overflow: hidden; border-radius: 99px; background: #e7e9ee; }
+.stepTrack > span[data-on="true"] { background: #3155dc; }
+
+.intro { display: flex; align-items: flex-start; gap: 12px; margin: 12px 4px 23px; }
+.intro > div { min-width: 0; flex: 1; }
+.intro h2 { margin: 0; color: #171717; font-size: 28px; font-weight: 500; line-height: 36px; letter-spacing: -0.02em; }
+.intro p { margin: 8px 0 0; color: #606873; font-size: 14px; line-height: 20px; letter-spacing: -0.011em; }
+.intro img { flex: none; width: 96px; height: 66px; margin-top: 3px; object-fit: contain; }
+
+.formCard,.reviewCard {
+  display: block;
+  margin: 0;
+  padding: 14px 16px 18px;
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 2px 8px #1024480c;
+}
+.formCard { padding: 20px; }
+
+.label { display: block; margin: 0 0 8px; color: #25272b; font-size: 14px; font-weight: 500; line-height: 20px; letter-spacing: -0.006em; }
+.textInput { display: block; width: 100%; height: 44px; padding: 0 12px; border: 1px solid #e5e7eb; border-radius: 12px; background: #f7f8fa; color: #171717; font: 400 16px/24px var(--font-outfit), Outfit, system-ui, sans-serif; letter-spacing: -0.011em; }
+.textInput::placeholder { color: #a0a4aa; opacity: 1; }
+.textInput:focus { border-color: #6c82eb; outline: 2px solid #3155dc20; }
+.membersLabel { margin-top: 24px; }
+
+.stepper { display: grid; grid-template-columns: 48px 72px 48px minmax(0, 1fr); align-items: center; gap: 8px; }
+.stepper > button { display: grid; width: 48px; height: 48px; place-items: center; border: 0; border-radius: 12px; background: #edf0ff; color: #3155dc; }
+.stepper > button:disabled { opacity: .4; }
+.stepper > input { width: 72px; height: 48px; padding: 0; border: 1px solid #e5e7eb; border-radius: 12px; background: #fff; color: #171717; font: 600 26px/32px var(--font-outfit), Outfit, system-ui, sans-serif; font-variant-numeric: tabular-nums; text-align: center; }
+.stepper > span { color: #727984; font-size: 12px; line-height: 16px; text-align: right; }
+.shareLabel { margin-top: 18px; }
+.moneyInput { position: relative; }
+.moneyInput > span { position: absolute; top: 50%; left: 14px; translate: 0 -50%; color: #737985; font-size: 16px; line-height: 24px; pointer-events: none; }
+.moneyInput > input { padding-left: 28px; font-variant-numeric: tabular-nums; }
+.presets { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
+.presets > button { min-width: 0; height: 36px; padding: 0 4px; border: 1px solid #dce1f6; border-radius: 10px; background: #f7f8ff; color: #3155dc; font: 500 14px/20px var(--font-outfit), Outfit, system-ui, sans-serif; }
+.presets > button[aria-pressed="true"] { border-color: #7288e8; background: #eef1ff; }
+.xlmHint { margin: 12px 0 0; color: #727984; font-size: 12px; line-height: 16px; font-variant-numeric: tabular-nums; }
+.errorHint { margin: 8px 0 0; color: #b42318; font-size: 12px; line-height: 16px; }
+
+.lockCard { display: flex; align-items: flex-start; gap: 12px; margin-top: 12px; padding: 16px; border-radius: 20px; background: #edf0ff; color: #171717; }
+.lockCard > svg { flex: none; margin-top: 2px; color: #3155dc; }
+.lockCard > div { min-width: 0; }
+.eyebrow { margin: 0; color: #3155dc; font-size: 12px; font-weight: 500; line-height: 16px; letter-spacing: .08em; text-transform: uppercase; }
+.lockAmount { display: flex; align-items: baseline; gap: 6px; margin: 2px 0 0; font-variant-numeric: tabular-nums; }
+.lockAmount strong { font-size: 20px; font-weight: 600; line-height: 26px; }
+.lockAmount span { color: #727984; font-size: 12px; line-height: 16px; }
+.lockCopy { margin: 8px 0 0; color: #606873; font-size: 12px; line-height: 16px; }
+
+.dateGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.pickerWrap { position: relative; display: block; }
+.pickerField { display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%; min-width: 0; height: 44px; padding: 0 10px; border: 1px solid #e5e7eb; border-radius: 10px; background: #fff; color: #25272b; font: 400 13px/20px var(--font-outfit), Outfit, system-ui, sans-serif; text-align: left; white-space: nowrap; }
+.pickerField > span { overflow: hidden; text-overflow: ellipsis; }
+.pickerField > svg { flex: none; color: #727984; }
+.hiddenPicker { position: absolute; top: 50%; left: 50%; width: 1px; height: 1px; padding: 0; border: 0; opacity: 0; pointer-events: none; }
+.fieldGroupLabel { margin-top: 16px; }
+.cadences { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.cadences > button { min-width: 0; height: 36px; padding: 0 2px; border: 0; border-radius: 10px; background: #f2f4ff; color: #3155dc; font: 500 12px/16px var(--font-outfit), Outfit, system-ui, sans-serif; white-space: nowrap; }
+.cadences > button[aria-pressed="true"] { background: #eef1ff; box-shadow: inset 0 0 0 1px #3155dc; }
+.meetingOptions { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; padding: 4px; border-radius: 10px; background: #ebebeb; }
+.meetingOptions > button { height: 28px; border: 0; border-radius: 6px; background: transparent; color: #5c5c5c; font: 500 14px/20px var(--font-outfit), Outfit, system-ui, sans-serif; }
+.meetingOptions > button[aria-selected="true"] { background: #fff; color: #171717; box-shadow: 0 6px 10px #0e121b0f, 0 2px 4px #0e121b08; }
+.scheduleHint { margin: 8px 0 0; color: #727984; font-size: 12px; line-height: 16px; }
+.deadlineGrid { margin-top: 22px; }
+.fieldHint { display: flex; gap: 7px; margin: 4px 0 0; color: #727984; font-size: 12px; line-height: 16px; }
+.fieldHint > svg { flex: none; margin-top: 1px; color: #949aa5; }
+.zoneLabel { margin-top: 32px; }
+.zoneSelect { background: #fff; }
+.checkboxRow { display: flex; align-items: flex-start; gap: 10px; margin-top: 16px; padding-top: 14px; border-top: 1px solid #eff0f2; }
+.checkboxRow > input { flex: none; width: 18px; height: 18px; margin: 1px 0 0; accent-color: #3155dc; }
+.checkboxRow > span { display: grid; gap: 2px; }
+.checkboxRow strong { color: #25272b; font-size: 14px; font-weight: 500; line-height: 20px; }
+.checkboxRow small { color: #727984; font-size: 12px; line-height: 16px; }
+
+.reviewCard { padding: 4px 16px; }
+.reviewCard h3 { margin: 12px 0 8px; color: #171717; font-size: 18px; font-weight: 600; line-height: 24px; }
+.reviewCard dl { margin: 0; }
+.reviewCard dl > div { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 48px; padding: 12px 0; border-top: 1px solid #eff0f2; }
+.reviewCard dt { color: #727984; font-size: 14px; line-height: 20px; }
+.reviewCard dd { display: grid; margin: 0; color: #171717; font-size: 14px; font-weight: 500; line-height: 20px; text-align: right; }
+.reviewCard dd small { color: #727984; font-size: 12px; font-weight: 400; }
+.reviewCard .total dt,.reviewCard .total dd { color: #171717; font-weight: 600; }
+.powered { display: flex; justify-content: center; margin-top: 18px; }
+.cta { position: absolute; right: 24px; bottom: 28px; left: 24px; z-index: 1; display: grid; grid-template-columns: 1fr; gap: 8px; pointer-events: auto; }
+.cta > button { min-height: 52px !important; }
+.ctaDouble { grid-template-columns: 1fr 1fr; }
+
+[data-theme="dark"] .screen { color: #f4f4f5; }
+[data-theme="dark"] .header h1,[data-theme="dark"] .intro h2,[data-theme="dark"] .label,[data-theme="dark"] .lockAmount strong,[data-theme="dark"] .reviewCard h3,[data-theme="dark"] .reviewCard dd,[data-theme="dark"] .checkboxRow strong { color: #f4f4f5; }
+[data-theme="dark"] .header > button,[data-theme="dark"] .formCard,[data-theme="dark"] .reviewCard { border-color: #34373d; background: #1c1c1c; }
+[data-theme="dark"] .textInput,[data-theme="dark"] .stepper > input { border-color: #34373d; background: #25262b; color: #f4f4f5; }
+[data-theme="dark"] .presets > button,[data-theme="dark"] .cadences > button { border-color: #34373d; background: #25262b; color: #f4f4f5; }
+[data-theme="dark"] .presets > button[aria-pressed="true"],[data-theme="dark"] .cadences > button[aria-pressed="true"] { border-color: #8194ff; background: #3155dc; color: #fff; }
+[data-theme="dark"] .meetingOptions { background: #333; }
+[data-theme="dark"] .meetingOptions > button { color: #a3a3a3; }
+[data-theme="dark"] .meetingOptions > button[aria-selected="true"] { background: #171717; color: #fff; }
+[data-theme="dark"] .pickerField { border-color: #34373d; background: #25262b; color: #f4f4f5; }
+[data-theme="dark"] .stepper > button,[data-theme="dark"] .lockCard { background: #222b50; }
+[data-theme="dark"] .intro p,[data-theme="dark"] .stepMeta > span:last-child,[data-theme="dark"] .lockAmount span,[data-theme="dark"] .lockCopy,[data-theme="dark"] .scheduleHint,[data-theme="dark"] .fieldHint,[data-theme="dark"] .checkboxRow small,[data-theme="dark"] .reviewCard dt,[data-theme="dark"] .xlmHint { color: #afb4c0; }
+[data-theme="dark"] .reviewCard dl > div,[data-theme="dark"] .checkboxRow { border-color: #34373d; }
+
+@media (max-width: 360px) {
+  .screen { padding-inline: 12px; }
+  .header { margin-inline: -12px; }
+  .intro h2 { font-size: 25px; line-height: 32px; }
+  .intro img { width: 72px; }
+  .formCard,.reviewCard { padding: 14px; }
+  .stepper { grid-template-columns: 42px 64px 42px minmax(0, 1fr); gap: 6px; }
+  .stepper > button { width: 42px; height: 44px; }
+  .stepper > input { width: 64px; height: 44px; }
+}

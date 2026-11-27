@@ -31,6 +31,9 @@ export default function BottomNav() {
     path === "/offline" ||
     path.startsWith("/docs") ||
     path === "/send" ||
+    (path === "/vaults/room" && process.env.NEXT_PUBLIC_LOCAL_PREVIEW === "1") ||
+    (path === "/vaults/join" && process.env.NEXT_PUBLIC_LOCAL_PREVIEW === "1") ||
+    (path.startsWith("/vaults/rooms/") && process.env.NEXT_PUBLIC_LOCAL_PREVIEW === "1") ||
     /^\/activity\/[^/]+$/.test(path) ||
     path === "/topup" ||
     path === "/withdraw" ||
@@ -61,6 +64,7 @@ export default function BottomNav() {
   const active =
     path === "/"
       ? "/"
+      : path === "/causes" ? "/"
       : path === "/vault" ? "/"
       : path === "/campaigns" ? "/campaigns?create=1"
       : /^\/(vaults|arisan|paluwagan|savings)(\/|$)/.test(path)

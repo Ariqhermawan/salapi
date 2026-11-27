@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { connection } from "next/server";
 import { Outfit, Geist_Mono } from "next/font/google";
+import "@fontsource-variable/outfit";
 import { cookies } from "next/headers";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
@@ -19,6 +20,7 @@ import RouteMotion from "@/components/RouteMotion";
 import SuccessFeedback from "@/components/SuccessFeedback";
 import { MarketPricesProvider } from "@/components/MarketPricesProvider";
 import UsernameOnboarding from "@/components/UsernameOnboarding";
+import PrototypeRoomFill from "@/components/PrototypeRoomFill";
 
 const outfit = Outfit({ variable: "--font-geist-sans", preload: false });
 const geistMono = Geist_Mono({
@@ -100,9 +102,11 @@ export default async function RootLayout({
                   <div className="sl-preview-status-spacer" />
                   <main id="app-content" tabIndex={-1} className="sl-main flex-1 overflow-y-auto pb-[calc(env(safe-area-inset-bottom,0px)+90px)]">
                     <RouteMotion>{children}</RouteMotion>
+                    <PrototypeRoomFill />
                   </main>
                   <SuccessFeedback />
                   <BottomNav />
+                  <div id="phone-layer" className="pointer-events-none absolute inset-0 z-[100]" />
                   <div className="sl-preview-home-indicator" aria-hidden="true" />
                 </div>
                 <span className="sl-preview-island" aria-hidden="true" />
@@ -115,6 +119,7 @@ export default async function RootLayout({
               <InstallBanner />
               <main id="app-content" tabIndex={-1} className="sl-main flex-1 overflow-y-auto pb-[calc(env(safe-area-inset-bottom,0px)+90px)]">
                 <RouteMotion>{children}</RouteMotion>
+                {isLocalPreview ? <PrototypeRoomFill /> : null}
               </main>
               <SuccessFeedback />
               <BottomNav />

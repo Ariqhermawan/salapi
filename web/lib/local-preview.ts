@@ -70,7 +70,7 @@ export const PREVIEW_WALLET = {
   address: "GAKZLTZFGSSM372XUKW2ZIJ5GSHVVIW5BYZIKIXRW2BW4MM6TUI5536Y",
   pesos: 50964.03,
   pesoLabel: "₱50,964.03",
-  handle: "ariqhermawan",
+  handle: "sampleuser",
   xlm: "7840.62",
 };
 export const PREVIEW_RECIPIENT = "GAVWJIZ45MHV2KWBHNBBB7YHU5CPTIDD3YONC4ZNP7IGE6Z3C777OV4H";

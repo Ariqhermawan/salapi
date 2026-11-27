@@ -1,14 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppBar, Btn, Card, Ico, IconButton, PoweredByStellar } from "@/components/ui/kit";
+import { PREVIEW_WALLET } from "@/lib/local-preview";
+import { Info } from "@phosphor-icons/react";
 import { useGoBack } from "@/lib/ui/useGoBack";
 import DisasterPartnersPreview from "@/components/screens/DisasterPartnersPreview";
 import styles from "./PrototypeDisasterVaultScreen.module.css";
 
-type LedgerRow = { id: string; dir: "in" | "out"; label: string; cents: number; by?: string; ngo?: string; when?: string; mine?: boolean };
+type LedgerRow = { id: string; dir: "in" | "out"; label: string; cents: number; by?: string; ngo?: string; group?: string; causeId?: string; donationCents?: number; when?: string; mine?: boolean };
 type VaultState = { balanceCents: number; vaultCents: number; ledger: LedgerRow[] };
 type ContributionReceipt = { id: string; amountCents: number; vaultCents: number };
 
@@ -18,10 +21,10 @@ const INITIAL_STATE: VaultState = {
   balanceCents: 241_226,
   vaultCents: 128_420,
   ledger: [
-    { id: "l1", dir: "in", label: "1% of a $5.00 donation", cents: 5, by: "maria_s" },
-    { id: "l2", dir: "in", label: "1% of a $25.00 donation", cents: 25, by: "jamamam" },
-    { id: "l3", dir: "in", label: "1% of a $12.00 donation", cents: 12, by: "jamal_r" },
-    { id: "l4", dir: "out", label: "Typhoon relief, Cebu", cents: 50_000, ngo: "tulong-cebu", when: "12 Oct 2026" },
+    { id: "l1", dir: "in", label: "Donated $5.00 to Ate Mei needs dialysis", cents: 5, donationCents: 500, by: "maria_s", causeId: "mei" },
+    { id: "l2", dir: "in", label: "Donated $25.00 to Bantayan Island school roofs", cents: 25, donationCents: 2500, by: "jamamam", causeId: "bantayan" },
+    { id: "l3", dir: "in", label: "Donated $12.00 to A dry roof for the Santos family", cents: 12, donationCents: 1200, by: "jamal_r", causeId: "santos-roof" },
+    { id: "l4", dir: "out", label: "NGO payout", cents: 50_000, ngo: "tulong-cebu", group: "Typhoon relief, Cebu", when: "12 Oct 2026" },
   ],
 };
 const NGOS = [
@@ -79,12 +82,14 @@ export function PrototypeDisasterVaultScreen() {
   const back = useGoBack("/");
   const activity = params.get("tab") === "activity";
   const [state, setState] = useState<VaultState>(INITIAL_STATE);
-  const [filter, setFilter] = useState(params.get("filter") ?? "all");
+  const [filter, setFilter] = useState(params.get("filter") === "in" || params.get("filter") === "out" ? params.get("filter")! : "all");
   const release = Math.round(state.vaultCents * 0.25);
-  const rows = useMemo(() => state.ledger.filter(row => filter === "all" || (filter === "in" ? row.dir === "in" : filter === "out" ? row.dir === "out" : row.ngo === filter)), [filter, state.ledger]);
+  const contributions = useMemo(() => state.ledger.filter(row => row.dir === "in"), [state.ledger]);
+  const payouts = useMemo(() => state.ledger.filter(row => row.dir === "out"), [state.ledger]);
+  const payoutTotal = payouts.reduce((sum, row) => sum + row.cents, 0);
 
   useEffect(() => { setState(readLocalState()); }, []);
-  useEffect(() => { setFilter(params.get("filter") ?? "all"); }, [params]);
+  useEffect(() => { const value = params.get("filter"); setFilter(value === "in" || value === "out" ? value : "all"); }, [params]);
 
   function setTab(nextActivity: boolean) {
     const query = new URLSearchParams(params.toString());
@@ -131,7 +136,7 @@ export function PrototypeDisasterVaultScreen() {
       <Card p={0} className={styles.bankCard}>
         <img className={styles.bankArt} src={state.vaultCents > 0 ? "/prototype-ui/disaster-vault-funded.webp" : "/prototype-ui/disaster-vault-empty.webp"} alt="" />
         <div className={styles.bankSummary}>
-          <div className={styles.balanceCaption}>Shared pool balance <button type="button" aria-label="How the vault pays out" onClick={() => (document.getElementById("vault-payout-info") as HTMLDialogElement | null)?.showModal()}>ⓘ</button></div>
+          <div className={styles.balanceCaption}>Shared pool balance <button type="button" aria-label="How the vault pays out" onClick={() => (document.getElementById("vault-payout-info") as HTMLDialogElement | null)?.showModal()}><Info size={16} weight="fill" aria-hidden="true" /></button></div>
           <strong className={styles.balance}>{usd(state.vaultCents)}</strong>
           <span className={styles.balanceSub}>≈ {xlm(state.vaultCents)} XLM</span>
           <span className={styles.balanceSub}>{state.ledger.filter(row => row.dir === "in").length === 0 ? "Nothing has come in yet" : `From ${state.ledger.filter(row => row.dir === "in").length} contributions`}</span>
@@ -139,20 +144,28 @@ export function PrototypeDisasterVaultScreen() {
           <Btn onClick={() => router.push("/vault/contribute")}>Contribute</Btn>
         </div>
       </Card>
-      <div className={styles.activityHeading}><h2>Activity</h2><label>Show<select aria-label="Show" value={filter} onChange={event => setActivityFilter(event.target.value)}>
-        <option value="all">All activity</option><option value="in">Contributions</option><option value="out">NGO payouts</option>{NGOS.map(ngo => <option value={ngo.id} key={ngo.id}>{ngo.name}</option>)}
-      </select></label></div>
-      <section className={styles.ledger} aria-label="Disaster Vault activity">
-        {rows.length === 0 ? <p className={styles.noActivity}>{NGOS.some(ngo => ngo.id === filter) ? "No payouts to this NGO yet" : "No activity yet"}</p> : rows.map(row => {
+      <div className={styles.activityHeading}><h2>Activity</h2></div>
+      <div className={styles.activityFilters} role="tablist" aria-label="Filter activity">
+        {[ ["all", "All"], ["in", "Contributions"], ["out", "NGO payouts"] ].map(([value, label]) => <button key={value} type="button" role="tab" aria-selected={filter === value} onClick={() => setActivityFilter(value)}>{label}</button>)}
+      </div>
+      {(filter === "all" || filter === "out") && <section className={styles.payoutBlock} aria-label="NGO payouts">
+        <div className={styles.groupHeader}><span><strong>NGO payouts</strong><small>{payouts.length} {payouts.length === 1 ? "payout" : "payouts"}</small></span><b>{usd(payoutTotal)} total paid out</b></div>
+        {payouts.length === 0 ? <p className={styles.noActivity}>No payouts yet</p> : payouts.map(row => {
           const ngo = NGOS.find(item => item.id === row.ngo);
-          return ngo ? <Link href={`/ngo/${ngo.id}`} className={styles.ledgerRow} key={row.id}>
-            <span><strong>{row.label}</strong><small><em>NGO</em>To {ngo.name}{row.when ? ` · ${row.when}` : ""}</small></span><b>{row.dir === "in" ? "+" : "−"}{usd(row.cents)}</b>
-          </Link> : <div className={styles.ledgerRow} key={row.id}>
-            <span><strong>{row.by ? `@${row.by}` : row.label}</strong>{row.by ? <small>{row.label}</small> : null}</span><b>+{usd(row.cents)}</b>
-          </div>;
+          return <Link href={`/ngo/${ngo?.id ?? "tulong-cebu"}`} className={styles.ledgerRow} key={row.id}>
+            <span><strong>{ngo?.name ?? "Disaster response NGO"}</strong><small><em>NGO</em>{row.group ?? row.label}{row.when ? ` · ${row.when}` : ""}</small></span><b>−{usd(row.cents)}</b><span className={styles.rowArrow}>{Ico.chev({ size: 15 })}</span>
+          </Link>;
         })}
-      </section>
-      {NGOS.some(ngo => ngo.id === filter) ? <Link className={styles.viewNgo} href={`/ngo/${filter}`}>View NGO profile {Ico.chev({ size: 15 })}</Link> : null}
+      </section>}
+      {(filter === "all" || filter === "in") && <>
+        <div className={styles.contributionHeading}><h3>Contributions</h3><span>1% of every donation</span></div>
+        <section className={styles.ledger} aria-label="Contributions">
+          {contributions.length === 0 ? <p className={styles.noActivity}>No contributions yet</p> : contributions.map(row => {
+            const content = <><span><strong>@{row.by ?? "salapi_user"}</strong><small>{row.causeId && row.donationCents ? `Donated ${usd(row.donationCents)} to ${row.label.replace(/^Donated [^ ]+ to /, "")}` : row.label}</small></span><b>+{usd(row.cents)}</b></>;
+            return row.causeId ? <Link href={`/cause/${row.causeId}`} className={styles.ledgerRow} key={row.id}>{content}</Link> : <div className={styles.ledgerRow} key={row.id}>{content}</div>;
+          })}
+        </section>
+      </>}
     </>}
 
     <div className={styles.powered}><PoweredByStellar /></div>
@@ -165,10 +178,12 @@ export function PrototypeDisasterVaultContributeScreen() {
   const back = useGoBack("/vault");
   const [state, setState] = useState<VaultState>(INITIAL_STATE);
   const [amount, setAmount] = useState("");
-  const [error, setError] = useState("");
+  const [portalHost, setPortalHost] = useState<HTMLElement | null>(null);
   useEffect(() => { setState(readLocalState()); }, []);
+  useEffect(() => { setPortalHost(document.getElementById("phone-layer")); }, []);
   const cents = /^\d{1,6}(?:\.\d{0,2})?$/.test(amount) ? Math.round(Number(amount) * 100) : null;
   const valid = cents !== null && cents >= 100 && cents <= state.balanceCents;
+  const validationError = amount === "" ? "" : cents === null || cents < 100 ? "Enter $1 or more." : cents > state.balanceCents ? `That is more than your Salapi balance of ${usd(state.balanceCents)}.` : "";
 
   function contribute() {
     if (!valid || cents === null) return;
@@ -176,7 +191,7 @@ export function PrototypeDisasterVaultContributeScreen() {
     const next: VaultState = {
       balanceCents: state.balanceCents - cents,
       vaultCents: state.vaultCents + cents,
-      ledger: [{ id, dir: "in", label: "Your contribution", cents, mine: true, by: "ariqhermawan", when: "Just now" }, ...state.ledger],
+      ledger: [{ id, dir: "in", label: "Your contribution", cents, mine: true, by: PREVIEW_WALLET.handle, when: "Just now" }, ...state.ledger],
     };
     const receipt: ContributionReceipt = { id, amountCents: cents, vaultCents: next.vaultCents };
     setState(next);
@@ -187,23 +202,23 @@ export function PrototypeDisasterVaultContributeScreen() {
 
   return <div className={`${styles.screen} ${styles.flowScreen}`}>
     <PrototypeHeader title="Contribute" onBack={back} />
-    <section className={styles.amountCard} aria-label="Contribution amount">
-      <label htmlFor="vault-amount">Amount · USD</label>
-      <div className={styles.amountInputWrap}><span>$</span><input id="vault-amount" inputMode="decimal" placeholder="0" value={amount} onChange={event => { setAmount(event.target.value); setError(""); }} /></div>
-      <div className={styles.presets}>{[200, 500, 1000, 2000].map(value => <button key={value} type="button" onClick={() => { setAmount(String(value / 100)); setError(""); }}>{usd(value).replace(".00", "")}</button>)}</div>
-      {cents && cents > 0 ? <p className={styles.equivalent}>≈ {xlm(cents, 2)} XLM</p> : <p className={styles.equivalent}>Available balance {usd(state.balanceCents)}</p>}
-      {error ? <p role="alert" className={styles.amountError}>{error}</p> : null}
-    </section>
-    <section className={styles.amountInfo}>
-      <div><span>From your balance</span><strong>{usd(state.balanceCents)}</strong></div>
-      <div><span>To</span><strong>Disaster Vault</strong></div>
-    </section>
-    <img className={styles.doodle} src="/prototype-ui/doodle-vault.png" alt="" />
-    <div className={styles.cta}><Btn onClick={() => {
-      if (cents === null || cents < 100) { setError("Enter $1 or more."); return; }
-      if (cents > state.balanceCents) { setError(`That is more than your Salapi balance of ${usd(state.balanceCents)}.`); return; }
-      contribute();
-    }}>Contribute</Btn><p>Local preview only. This will not send a transaction.</p></div>
+    <div className={styles.shortBody}>
+      <section className={styles.amountCard} aria-label="Contribution amount">
+        <label htmlFor="vault-amount">Amount · USD</label>
+        <div className={styles.amountInputWrap}>
+          <span>$</span>
+          <input id="vault-amount" inputMode="decimal" autoComplete="off" placeholder="0" value={amount} style={{ width: `${Math.max(1, amount.length)}ch` }} onChange={event => { if (/^\d{0,6}(?:\.\d{0,2})?$/.test(event.target.value)) setAmount(event.target.value); }} />
+        </div>
+        <p className={styles.equivalent}>{cents !== null && cents > 0 ? <>≈ {xlm(cents, 2)} XLM</> : null}{validationError ? <span role="alert" className={styles.amountError}>{validationError}</span> : null}</p>
+        <div className={styles.presets}>{[200, 500, 1000, 2000].map(value => <button key={value} type="button" aria-pressed={amount === String(value / 100)} disabled={value > state.balanceCents} onClick={() => setAmount(String(value / 100))}>{usd(value).replace(".00", "")}</button>)}</div>
+      </section>
+      <section className={styles.amountInfo}>
+        <div><span>From your balance</span><strong>{usd(state.balanceCents)}</strong></div>
+        <div><span>To</span><strong>Disaster Vault</strong></div>
+      </section>
+      <div className={styles.shortDoodle} aria-hidden="true"><div><img src="/prototype-ui/doodle-vault.png" alt="" /></div></div>
+    </div>
+    {portalHost ? createPortal(<div className={styles.cta}><Btn disabled={!valid} onClick={contribute}>Contribute</Btn></div>, portalHost) : null}
   </div>;
 }
 

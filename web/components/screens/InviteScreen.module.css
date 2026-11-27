@@ -12,6 +12,13 @@
 .row .code { font-family: var(--font-geist-mono), monospace; font-size: 18px; letter-spacing: .06em; }
 .count { display: flex; align-items: center; justify-content: space-between; padding: 9px 0 3px; font-size: 13px; color: var(--sl-sub); }
 .count strong { color: var(--sl-ink); }
+.campaign { display:grid; gap:8px; margin-top:12px; padding:15px 16px; border:1px solid var(--sl-line); border-radius:20px; background:var(--sl-surface); color:var(--sl-ink); text-decoration:none; box-shadow:0 2px 5px #1118270d,0 5px 10px -8px #11182722; }
+.campaignHead { display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:14px; line-height:20px; }
+.campaignHead strong { font-weight:600; }
+.campaignProgress { display:block; height:6px; overflow:hidden; border-radius:99px; background:#e8eaf0; }
+.campaignProgress i { display:block; width:30%; height:100%; border-radius:inherit; background:#335cff; }
+.campaignTerms { color:var(--sl-sub); font-size:12px; line-height:18px; }
+.campaignLink { display:flex; align-items:center; justify-content:space-between; margin-top:2px; color:var(--sl-primary); font-size:14px; font-weight:600; }
 .art { display: block; width: min(70%, 200px); height: auto; margin: 16px auto 12px; }
 .actions { position: sticky; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); display: grid; grid-template-columns: 1fr 2fr; gap: 6px; margin: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); padding: 5px; border: 1px solid var(--sl-glass-line); border-radius: 32px; backdrop-filter: blur(20px) saturate(1.6); box-shadow: var(--sl-glass-shadow); }
 .actions button { border-radius: 28px !important; }
@@ -22,7 +29,7 @@
 .invitePreview .note { margin: 0 4px 12px; }
 .invitePreview .card { padding-block:4px; }
 .invitePreview .row { padding-block:6px; }
-.invitePreview .art { width: min(230px, 80%); margin: 32px auto 8px; opacity: .68; }
+.invitePreview .art { width: min(155px, 58%); margin: 18px auto 8px; opacity: .68; }
 .invitePreview .actions { position: fixed; right: 0; bottom: 0; left: 0; grid-template-columns: 1fr 2fr; margin: 0; padding: 12px 16px max(18px, env(safe-area-inset-bottom)); border: 0; border-radius: 0; background: linear-gradient(180deg, #f7f7f700 0%, #f7f7f7 20%); backdrop-filter: none; box-shadow: none; }
 .invitePreview .actions button { width: 100%; min-height: 52px; border-radius: 999px !important; }
 .question { margin: 0 4px 16px; font-size: 24px; font-weight: 500; line-height: 1.2; }

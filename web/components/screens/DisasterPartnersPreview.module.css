@@ -1,29 +1,37 @@
-.panel { margin-top: 14px; padding: 13px 0 0; border-top: 1px solid #eceef2; color: #171a21; }
-.panel h2 { margin: 0; font-size: 14px; font-weight: 650; line-height: 1.35; }
-.eyebrow { margin: 0 0 7px; color: #6a5bb5; font-size: 9px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
-.subheading { margin: 12px 0 5px; font-size: 12px; font-weight: 650; }
-.note { margin: 7px 0 0; color: #646b77; font-size: 11px; line-height: 1.5; }
-.list { margin-top: 8px; }
-.row { display: flex; width: 100%; min-height: 54px; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; border: 0; border-top: 1px solid #eceef2; background: transparent; color: inherit; text-align: left; text-decoration: none; }
-.row span { min-width: 0; }
-.row strong, .row small { display: block; }
-.row strong { font-size: 11px; font-weight: 650; line-height: 1.35; }
-.row small { margin-top: 2px; color: #717783; font-size: 9px; line-height: 1.35; }
-.row > svg { flex: 0 0 auto; color: #717783; }
-.fieldset { min-width: 0; margin: 10px 0; padding: 0; border: 0; }
-.fieldset legend, .recommendForm > label { margin-bottom: 4px; color: #646b77; font-size: 10px; font-weight: 600; }
-.fieldset .row { cursor: pointer; }
-.fieldset input { width: 17px; height: 17px; flex: 0 0 17px; accent-color: #5266e8; }
-.primary, .secondary { display: inline-flex; min-height: 42px; align-items: center; justify-content: center; gap: 7px; padding: 9px 14px; border: 0; border-radius: 12px; font: inherit; font-size: 11px; font-weight: 650; cursor: pointer; }
-.primary { width: 100%; background: linear-gradient(180deg,#304ddb,#5b79f2); color: #fff; }
-.primary:disabled { opacity: .45; cursor: not-allowed; }
-.secondary { margin-top: 8px; border: 1px solid #e4e7ec; background: #fff; color: #29303a; }
-.recommendForm { display: grid; gap: 7px; margin-top: 10px; padding: 12px; border: 1px solid #e5e7eb; border-radius: 13px; background: #fff; }
-.recommendForm select, .recommendForm textarea { width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid #dce1e9; border-radius: 9px; background: #fff; color: inherit; font: inherit; font-size: 11px; }
-.recommendForm textarea { min-height: 66px; resize: vertical; }
-.saved { display: flex; align-items: center; gap: 5px; margin: 8px 0 0; color: #478d61; font-size: 10px; }
-[data-theme="dark"] .panel { color: #fff; border-color: #333; }
-[data-theme="dark"] .note, [data-theme="dark"] .row small { color: #aaa; }
-[data-theme="dark"] .row { border-color: #333; }
-[data-theme="dark"] .secondary, [data-theme="dark"] .recommendForm { border-color: #393939; background: #222; color: #fff; }
-[data-theme="dark"] .recommendForm select, [data-theme="dark"] .recommendForm textarea { border-color: #444; background: #191919; color: #fff; }
+.panel { display:grid; gap:8px; margin-top:16px; border-top:1px solid var(--sl-line); padding-top:16px; color:var(--sl-ink); }
+.panel h2 { margin:0; font-size:18px; font-weight:500; letter-spacing:-.015em; line-height:24px; }
+.eyebrow { margin:0; color:var(--sl-ink); font-size:14px; font-weight:500; letter-spacing:.04em; line-height:20px; text-transform:uppercase; }
+.subheading { margin:0; font-size:16px; font-weight:500; letter-spacing:-.011em; line-height:24px; }
+.note { margin:0; color:var(--sl-sub); font-size:16px; font-weight:400; letter-spacing:-.011em; line-height:24px; }
+.list { min-width:0; }
+.row { display:flex; width:100%; min-width:0; align-items:center; justify-content:space-between; gap:12px; padding:10px 0; border:0; background:transparent; color:inherit; text-align:left; text-decoration:none; }
+.row + .row { border-top:1px solid var(--sl-line); }
+.row > span { min-width:0; }
+.row strong,.row small { display:block; }
+.row strong { font-size:16px; font-weight:500; letter-spacing:-.011em; line-height:24px; }
+.row small { color:var(--sl-sub); font-size:14px; font-weight:400; letter-spacing:-.006em; line-height:20px; }
+.row > svg { flex:none; color:var(--sl-sub); }
+.fieldset,.sheetFieldset { min-width:0; margin:0; padding:0; border:0; }
+.fieldset legend,.sheetFieldset legend,.reasonLabel { margin:0 0 5px; color:var(--sl-ink); font-size:16px; font-weight:500; letter-spacing:-.011em; line-height:24px; }
+.fieldset .row,.sheetFieldset .row { cursor:pointer; }
+.fieldset input,.sheetFieldset input { flex:none; accent-color:#335cff; }
+.primary,.secondary { display:inline-flex; width:100%; min-height:52px; align-items:center; justify-content:center; padding:0 14px; border:1px solid transparent; border-radius:999px; font:500 16px/24px var(--font-geist-sans),system-ui,sans-serif; letter-spacing:-.011em; cursor:pointer; }
+.primary { color:#fff; background:linear-gradient(180deg,#2547d0,#4d82ff); }
+.primary:disabled { opacity:.45; cursor:not-allowed; }
+.secondary { color:var(--sl-sub); background:var(--sl-surface); border-color:var(--sl-line); }
+.sheetBackdrop { position:absolute; z-index:1; inset:0; display:flex; align-items:flex-end; justify-content:center; background:#0009; pointer-events:auto; }
+.sheet { position:relative; width:100%; max-height:90%; overflow-y:auto; box-sizing:border-box; padding:8px 20px calc(24px + env(safe-area-inset-bottom)); border-top:1px solid var(--sl-line); border-radius:24px 24px 0 0; background:var(--sl-surface); color:var(--sl-ink); box-shadow:0 -12px 32px #0005; }
+.sheet h2 { margin:0 0 12px; font-size:22px; font-weight:500; letter-spacing:-.01em; line-height:28px; }
+.handle { width:36px; height:4px; display:block; margin:0 auto 16px; border-radius:99px; background:#c6c9d0; }
+.sheetFieldset { min-width:0; padding:0; border:0; }
+.sheetFieldset legend { width:100%; }
+.sheetFieldset .row { min-height:44px; padding-block:12px; }
+.reasonLabel { display:block; margin:18px 0 0; }
+.sheet textarea { display:block; width:100%; height:132px; box-sizing:border-box; padding:10px 12px; border:1px solid var(--sl-line); border-radius:12px; background:var(--sl-surface); color:var(--sl-ink); font:400 16px/24px var(--font-geist-sans),system-ui,sans-serif; letter-spacing:-.011em; resize:vertical; }
+.sheet > .primary { margin-top:12px; }
+[data-theme="dark"] .panel { border-color:#333; }
+[data-theme="dark"] .row + .row { border-color:#333; }
+[data-theme="dark"] .secondary { border-color:#444; background:#171717; }
+[data-theme="dark"] .sheet { border-color:#333; }
+[data-theme="dark"] .handle { background:#5c5c5c; }
+[data-theme="dark"] .sheet textarea { border-color:#444; }

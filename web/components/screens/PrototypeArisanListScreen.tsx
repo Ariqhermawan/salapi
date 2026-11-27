@@ -78,6 +78,7 @@ export default function PrototypeArisanListScreen({ mode = "default" }: { mode?:
       </section>
       <Ways className={styles.listWays} />
       <footer className={styles.listFooter}><PoweredByStellar /></footer>
+      <div className={styles.roomDoodle} aria-hidden="true"><Image src="/prototype-causes/doodle-people.png" alt="" width={280} height={280} /></div>
     </> : <>
       <section className={styles.emptyState}>
         <Image src="/illustrations/empty-rooms.png" alt="" width={200} height={200} priority />

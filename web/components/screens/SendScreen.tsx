@@ -379,7 +379,7 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
               <span className={styles.recentLabel}>RECENT</span>
               <div className={styles.recentList}>
                 {[["maria_s", "/prototype-causes/avatar-maria.png"], ["jamamam", ""], ["meis_family", "/prototype-causes/avatar-mei.png"]].map(([username, photo]) => <button key={username} type="button" onClick={() => { setTo(username); setLookupError(""); }}>
-                  <AccountAvatar name={username} photoUrl={photo || null} size={36} alt="" />
+                  {photo ? <AccountAvatar name={username} photoUrl={photo} size={40} alt="" /> : <span className={styles.prototypeInitials} aria-hidden="true">JA</span>}
                   <span>@{username}</span>
                 </button>)}
               </div>
@@ -388,8 +388,11 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
               {self ? <p role="alert" className={styles.inlineError}>{m("Choose a different recipient. You cannot send to yourself.")}</p> : null}
             </section>
             <section className={`${styles.composer} ${styles.prototypeAmount}`} aria-label="Amount">
-              <div className={styles.amountHeader}><label className={styles.fieldLabel} htmlFor="send-amount">{m("Amount ·")} {CURRENCY[currency].code} {CURRENCY[currency].symbol}</label></div>
-              <input className={styles.amountInput} id="send-amount" aria-describedby="send-unit" value={amount} maxLength={64} onChange={(e) => editAmount(e.target.value)} inputMode="decimal" placeholder={`${CURRENCY[currency].symbol}0`} />
+              <div className={styles.amountHeader}><label className={styles.fieldLabel} htmlFor="send-amount">{m("Amount ·")} {CURRENCY[currency].code}</label></div>
+              <div className={styles.prototypeAmountValue}>
+                <span aria-hidden="true">{CURRENCY[currency].symbol}</span>
+                <input className={styles.amountInput} id="send-amount" aria-describedby="send-unit" value={amount} maxLength={64} onChange={(e) => editAmount(e.target.value)} inputMode="decimal" placeholder="0" style={{ width: `${Math.max(1, amount.length)}ch` }} />
+              </div>
               <p className={styles.prototypeAvailable}>Available $2,412.26</p>
               <div className={styles.presets} aria-label={m("Quick amounts")}>
                 {QUICK[currency].map(q => <button className={styles.preset} key={q} type="button" aria-pressed={amount === q} onClick={() => editAmount(q)}>{formatLocalAmount(Number(q), currency)}</button>)}

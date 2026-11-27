@@ -11,6 +11,7 @@
 html[data-local-preview="true"] .sl-appbar-row{justify-content:flex-start!important;gap:8px}
 html[data-local-preview="true"] .sl-appbar-title{flex:1;text-align:left}
 html[data-local-preview="true"] .sl-appbar-trailing{margin-left:auto}
+.sl-shell-preview{--font-geist-sans:"Outfit Variable";font-family:"Outfit Variable",system-ui,sans-serif}
 @media(prefers-reduced-motion:reduce){.sl-state-enter{animation:none}}
 
 /* ── Invisible Rails — design tokens ─────────────────────────────── */

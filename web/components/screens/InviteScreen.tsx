@@ -74,6 +74,12 @@ export default function InviteScreen({ referral }: { referral: Awaited<ReturnTyp
             </div>
             {!preview && <p className={styles.count}>{c.referralCount} <strong>{referral.status === "ready" ? referral.invitedCount : 0}</strong></p>}
           </section>
+          {preview && <Link className={styles.campaign} href="/you/referrals">
+            <span className={styles.campaignHead}><strong>Invite 10 users</strong><strong>3 of 10</strong></span>
+            <span className={styles.campaignProgress} role="img" aria-label="3 of 10"><i /></span>
+            <span className={styles.campaignTerms}>Minimum donation $5 · Reward $20 USDC</span>
+            <span className={styles.campaignLink}>View your referrals <span aria-hidden="true">→</span></span>
+          </Link>}
           {feedback === "failed" && <p role="alert" className={styles.note}>{c.referralCopyError}</p>}
           {feedback && feedback !== "failed" && <p role="status" className="sr-only">{c.referralCopied}</p>}
         </> : (

@@ -1,0 +1,7 @@
+:global(html[data-local-preview="true"] .sl-main) { position: relative; }
+:global(html[data-local-preview="true"] .sl-state-enter) { position: relative; z-index: 1; }
+.fill { position: absolute; z-index: 0; display: block; overflow: hidden; pointer-events: none; }
+.fill[hidden] { display: none; }
+.fill > img { display: block; width: var(--side, 280px); height: var(--side, 280px); opacity: .32; }
+.dark, :global([data-theme="dark"]) .light { display: none !important; }
+:global([data-theme="dark"]) .dark { display: block !important; }

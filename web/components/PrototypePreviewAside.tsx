@@ -11,11 +11,14 @@ type Feature = FlowLink & { children: FlowLink[] };
 const FLOW: Feature[][] = [
   [
     { href: "/", label: "Home", children: [
-      { href: "/?update=ready", label: "Update ready" }, { href: "/send", label: "Send" }, { href: "/receive", label: "Receive" }, { href: "/topup", label: "Top up" }, { href: "/withdraw", label: "Withdraw" },
+      { href: "/?causes=a", label: "Home · Causes A · Row" }, { href: "/?causes=b", label: "Home · Causes B · Featured and list" }, { href: "/?causes=c", label: "Home · Causes C · Grid" },
+      { href: "/?update=ready", label: "Update ready" }, { href: "/send", label: "Send" }, { href: "/receive", label: "Receive" },
+      { href: "/topup", label: "Top up · Choose currency" }, { href: "/topup?cur=idr", label: "Top up · IDR" }, { href: "/topup?cur=php", label: "Top up · PHP" }, { href: "/topup?cur=usdc", label: "Top up · USDC" },
+      { href: "/withdraw", label: "Withdraw · Choose currency" }, { href: "/withdraw?cur=idr", label: "Withdraw · IDR" }, { href: "/withdraw?cur=php", label: "Withdraw · PHP" }, { href: "/withdraw?cur=usdc", label: "Withdraw · USDC" },
     ] },
     { href: "/causes", label: "Causes", children: [
       { href: "/cause/mei", label: "Cause" }, { href: "/cause/baybayin-zines", label: "Cause · Less than 1 day" }, { href: "/cause/santos-roof/feedback", label: "Cause feedback" }, { href: "/cause/bantayan/report", label: "Report cause" },
-      { href: "/organizer/meis_family", label: "Organizer profile A" }, { href: "/organizer/meis_family?figs=b", label: "Organizer profile B" }, { href: "/organizer/meis_family?figs=c", label: "Organizer profile C" }, { href: "/donate/mei", label: "Donate" },
+      { href: "/organizer/meis_family", label: "Organizer profile" }, { href: "/organizer/meis_family?total=open", label: "Organizer · Total raised" }, { href: "/donate/mei", label: "Donate" },
       { href: "/create", label: "Create cause" }, { href: "/manage", label: "Your causes" }, { href: "/manage/mei", label: "Manage cause" }, { href: "/manage/mei/payout", label: "Payout" },
     ] },
     { href: "/activity", label: "Activity", children: [{ href: "/notifications", label: "Notifications" }] },
@@ -32,10 +35,11 @@ const FLOW: Feature[][] = [
       { href: "/vaults/sample/state/countdown", label: "Full room · Countdown" }, { href: "/vaults/sample/state/draw-member", label: "Draw day · Member" }, { href: "/vaults/sample/state/draw-master", label: "Draw day · Room Master" }, { href: "/vaults/sample/state/master-away", label: "Room Master away" },
     ] },
     { href: "/vault", label: "Disaster Vault", children: [
-      { href: "/vault?ngo=unassigned", label: "No NGOs assigned" }, { href: "/vault?ngo=team", label: "Salapi team · NGO review" }, { href: "/vault?ngo=partner", label: "NGO · Assignment" }, { href: "/vault?tab=activity", label: "Vault activity" }, { href: "/ngo/tulong-cebu", label: "NGO profile" }, { href: "/vault/contribute", label: "Contribute" },
+      { href: "/vault?ngo=unassigned", label: "No NGOs assigned" }, { href: "/vault?ngo=team", label: "Salapi team · NGO review" }, { href: "/vault?ngo=partner", label: "NGO · Assignment" }, { href: "/vault?tab=activity", label: "Vault activity" },
+      { href: "/vault?tab=activity&filter=in", label: "Vault activity · Contributions" }, { href: "/vault?tab=activity&filter=out", label: "Vault activity · NGO payouts" }, { href: "/ngo/tulong-cebu", label: "NGO profile" }, { href: "/vault/contribute", label: "Contribute" },
     ] },
     { href: "/you", label: "You", children: [
-      { href: "/you/feedback", label: "Send feedback" }, { href: "/you/invite", label: "Invite friends" }, { href: "/learn", label: "How Salapi works" },
+      { href: "/you/feedback", label: "Send feedback" }, { href: "/you/invite", label: "Invite friends" }, { href: "/you/referrals", label: "Referrals" }, { href: "/you/referrals?state=empty", label: "Referrals · None yet" }, { href: "/learn", label: "How Salapi works" },
     ] },
   ],
 ];
@@ -55,8 +59,14 @@ export default function PrototypePreviewAside() {
   const [dark, setDark] = useState(false);
   const [empty, setEmpty] = useState(false);
   const activeRoute = useMemo(() => {
-    if (pathname === "/organizer/" + pathname.split("/")[2] && (params.get("figs") === "b" || params.get("figs") === "c")) return `${pathname}?figs=${params.get("figs")}`;
-    if (pathname === "/vault" && params.get("tab") === "activity") return "/vault?tab=activity";
+    if (pathname === "/" && params.get("causes") && ["a", "b", "c"].includes(params.get("causes") ?? "")) return `/?causes=${params.get("causes")}`;
+    if (pathname.startsWith("/organizer/") && params.get("total") === "open") return `${pathname}?total=open`;
+    if ((pathname === "/topup" || pathname === "/withdraw") && params.has("cur")) return `${pathname}?cur=${params.get("cur")?.toLowerCase()}`;
+    if (pathname === "/you/referrals" && params.get("state") === "empty") return "/you/referrals?state=empty";
+    if (pathname === "/vault" && params.get("tab") === "activity") {
+      if (params.get("filter") === "in" || params.get("filter") === "out") return `/vault?tab=activity&filter=${params.get("filter")}`;
+      return "/vault?tab=activity";
+    }
     if (pathname === "/vault" && params.has("ngo")) return `/vault?ngo=${params.get("ngo")}`;
     return pathname;
   }, [params, pathname]);

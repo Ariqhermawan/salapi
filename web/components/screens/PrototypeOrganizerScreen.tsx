@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, BookmarkSimple, Flag, UsersThree } from "@phosphor-icons/react";
+import { ArrowRight, BookmarkSimple, Flag, Info, UsersThree, X } from "@phosphor-icons/react";
 import { AppBar, Btn, Ico, IconButton, PoweredByStellar } from "@/components/ui/kit";
 import { PROTOTYPE_CAUSES } from "@/lib/prototype-causes";
 import { useGoBack } from "@/lib/ui/useGoBack";
@@ -27,7 +27,7 @@ const REVIEWS = [
 ];
 const completedMoney = (cents: number) => `$${(cents / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-export default function PrototypeOrganizerScreen({ layout = "a" }: { layout?: string }) {
+export default function PrototypeOrganizerScreen({ totalOpen = false }: { totalOpen?: boolean }) {
   const back = useGoBack("/causes");
   const [tab, setTab] = useState<"Running" | "Completed">("Running");
   const [following, setFollowing] = useState(false);
@@ -35,14 +35,19 @@ export default function PrototypeOrganizerScreen({ layout = "a" }: { layout?: st
   const [reportOpen, setReportOpen] = useState(false);
   const [reportSent, setReportSent] = useState(false);
   const [causeIndex, setCauseIndex] = useState(0);
+  const [totalInfo, setTotalInfo] = useState(totalOpen);
   const running = PROTOTYPE_CAUSES.filter(cause => cause.organizer === "@meis_family" && ["Funding", "Awaiting proof", "In review"].includes(cause.status));
+  const raisedCents = running.reduce((sum, cause) => sum + cause.raised, 0) + COMPLETED.reduce((sum, cause) => sum + cause.raised, 0);
   const figures = [
     { label: "Causes finished", value: "4", short: "4", sub: "Each one is listed below" },
-    { label: "Total raised", value: "$3,872.53", short: "$3.9k", sub: "Across every cause on this page" },
+    { label: "Total raised", value: completedMoney(raisedCents), short: completedMoney(raisedCents), sub: "Across every cause on this page" },
     { label: "Proofs documented", value: "4", short: "4", sub: "Receipts and photos, reviewed" },
     { label: "Rating", value: "4.9", short: "4.9", sub: "From 133 donor ratings" },
   ];
-  const active = running[Math.min(causeIndex, running.length - 1)] ?? running[0];
+  const totalRows = [
+    ...running.map(cause => ({ title: cause.title, state: "Running", cents: cause.raised })),
+    ...COMPLETED.map(cause => ({ title: cause.title, state: `Completed · ${cause.when}`, cents: cause.raised })),
+  ];
 
   return <div className={styles.screen}>
     <AppBar leading={<IconButton ariaLabel="Back" onClick={back}>{Ico.back({})}</IconButton>} title="Organizer" />
@@ -59,11 +64,12 @@ export default function PrototypeOrganizerScreen({ layout = "a" }: { layout?: st
         <Link href="/donate/mei" className={styles.donate}>Donate</Link>
         <button type="button" aria-label="Report this organizer" onClick={() => { setReportSent(false); setReportOpen(true); }}><Flag size={17} /></button>
       </div>
-      {layout === "b" ? <div className={styles.figuresB}>
-        <div className={styles.leadFigure}><span>{figures[1].label}</span><strong>{figures[1].value}</strong><small>{figures[1].sub}</small></div>
+      <div className={styles.figuresB}>
+        <div className={styles.leadFigure}><span>{figures[1].label}<button type="button" aria-label="How Total raised adds up" onClick={() => setTotalInfo(true)}><Info size={16} weight="fill" aria-hidden="true" /></button></span><strong>{figures[1].value}</strong><small>{figures[1].sub}</small></div>
         {figures.filter((_, index) => index !== 1).map(item => <div key={item.label}><strong>{item.label === "Rating" && <span className={styles.star}>★</span>}{item.value}</strong><span>{item.label}</span></div>)}
-      </div> : layout === "c" ? <div className={styles.figuresC}>{figures.map(item => <div key={item.label}><strong>{item.label === "Rating" && <span className={styles.star}>★</span>}{item.short}</strong><span>{item.label}</span></div>)}</div> : <div className={styles.figuresA}>{figures.map(item => <div key={item.label}><span>{item.label}</span><strong>{item.label === "Rating" && <span className={styles.star}>★</span>}{item.value}</strong><small>{item.sub}</small></div>)}</div>}
+      </div>
     </section>
+
 
     <div className={styles.tabs} role="tablist" aria-label="Causes">
       {(["Running", "Completed"] as const).map(item => <button key={item} type="button" role="tab" aria-selected={tab === item} onClick={() => setTab(item)}>{item} · {item === "Running" ? running.length : 4}</button>)}
@@ -91,6 +97,15 @@ export default function PrototypeOrganizerScreen({ layout = "a" }: { layout?: st
     <h2 className={styles.reviewsTitle}>Reviews · 8</h2>
     <section className={styles.reviews}>{REVIEWS.map(([by, stars, text, cause]) => <article key={`${by}-${cause}`}><strong>{by}<span>★ {stars}</span></strong><p>{text}</p><small>{cause}</small></article>)}</section>
     <div className={styles.powered}><PoweredByStellar /></div>
+
+    {totalInfo && <div className={styles.backdrop} role="presentation" onClick={event => { if (event.target === event.currentTarget) setTotalInfo(false); }}>
+      <section className={styles.sheet} role="dialog" aria-modal="true" aria-labelledby="total-raised-title">
+        <div className={styles.handle} /><header><h2 id="total-raised-title">Total raised</h2><button type="button" aria-label="Close" onClick={() => setTotalInfo(false)}><X size={20} /></button></header>
+        <p>What each cause on this page has raised, and the sum.</p>
+        <div className={styles.totalRows}>{totalRows.map((row, index) => <div key={`${row.title}-${index}`}><span><strong>{row.title}</strong><small>{row.state}</small></span><b>{completedMoney(row.cents)}</b></div>)}<div className={styles.totalSum}><strong>Total · {totalRows.length} causes</strong><b>{completedMoney(raisedCents)}</b></div></div>
+        <Btn onClick={() => setTotalInfo(false)}>Got it</Btn>
+      </section>
+    </div>}
 
     {reportOpen && <div className={styles.backdrop} role="presentation" onClick={event => { if (event.target === event.currentTarget) setReportOpen(false); }}><section className={styles.sheet} role="dialog" aria-modal="true" aria-labelledby="organizer-report-title"><div className={styles.handle} /><h2 id="organizer-report-title">{reportSent ? "Report sent" : "Report this organizer"}</h2><p>{reportSent ? "We review every report. You can follow what happens to it in Notifications." : "This local preview does not send your report."}</p><Btn onClick={() => reportSent ? setReportOpen(false) : setReportSent(true)}>{reportSent ? "Done" : "Send report"}</Btn><button type="button" onClick={() => setReportOpen(false)}>Cancel</button></section></div>}
   </div>;
