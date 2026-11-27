@@ -44,7 +44,7 @@ function setup({ preview = false, state = initial, locale = "en" }: { preview?: 
       if (name === "react") return react;
       if (name === "react/jsx-runtime") return { jsx, jsxs: jsx, Fragment: "Fragment" };
       if (name === "next/link") return { default: (props: Record<string, unknown>) => jsx("a", props) };
-      if (name === "@/components/ui/kit") return { AppBar: ({ title, leading }: Record<string, unknown>) => jsx("header", { children: [title, leading] }), IconButton: ({ ariaLabel, ...props }: Record<string, unknown>) => jsx("button", { ...props, "aria-label": ariaLabel }), Ico: { back: () => null } };
+      if (name === "@/components/ui/kit") return { AppBar: ({ title, leading }: Record<string, unknown>) => jsx("header", { children: [title, leading] }), IconButton: ({ ariaLabel, ...props }: Record<string, unknown>) => jsx("button", { ...props, "aria-label": ariaLabel }), Ico: { back: () => null, bell: () => null } };
       if (name === "@/components/I18nProvider") return { useT: () => ({ locale }) };
       if (name === "@/lib/ui/useGoBack") return { useGoBack: () => () => {} };
       if (name === "@/lib/local-preview") return { isLocalPreview: preview };
@@ -59,7 +59,7 @@ function setup({ preview = false, state = initial, locale = "en" }: { preview?: 
   return { calls, settle, get tree() { return tree; }, get text() { return text(tree); },
     read(value: typeof read) { read = value; }, post(value: typeof post) { post = value; },
     button(label: string) { const found = nodes(tree).find(node => node.type === "button" && text(node) === label); assert.ok(found, label); return found; },
-    async click(label: string) { const found = this.button(label); assert.ok(!found.props.disabled, label); (found.props.onClick as () => void)(); await settle(); },
+    async click(label: string) { const found = this.button(label); assert.ok(!found.props.disabled, label); (found.props.onClick as (event: unknown) => void)({ currentTarget: { dataset: { notificationId: found.props["data-notification-id"] } } }); await settle(); },
     unmount() { for (const effect of effects.values()) effect.cleanup?.(); },
   };
 }
@@ -78,7 +78,9 @@ test("notification room links derive the allowlisted scope and ignore arbitrary 
 });
 test("single mark read posts only the loaded UUID and does not update optimistically", async () => {
   const ui = setup(); await ui.settle(); const pending = deferred<{ ok: boolean; marked: number }>(); ui.post(() => pending.promise);
-  const handler = ui.button("Mark read").props.onClick as () => void; handler(); handler(); await ui.settle();
+  const markButton = ui.button("Mark read"); const handler = markButton.props.onClick as (event: unknown) => void;
+  const event = { currentTarget: { dataset: { notificationId: markButton.props["data-notification-id"] } } };
+  handler(event); handler(event); await ui.settle();
   assert.equal(ui.calls.filter(call => call.method === "POST").length, 1); assert.deepEqual(ui.calls.find(call => call.body)!.body, { ids: [notification.id] });
   assert.match(ui.text, /Unread/); assert.doesNotMatch(ui.text, /Read status saved/);
   ui.read(async () => ({ ok: true, notifications: [{ ...notification, readAt: "2026-10-11T08:10:00.000Z" }], unreadCount: 0, delivery: "in_app" }));
@@ -102,7 +104,7 @@ test("late initial read after unmount cannot populate the private inbox", async 
   pending.resolve(initial); await ui.settle(); assert.doesNotMatch(ui.text, /Community Hall/);
 });
 test("all four locales have real labels without changing stored notification content", async () => {
-  for (const [locale, heading] of [["en", "Stay in the circle"], ["id", "Tetap terhubung"], ["tl", "Manatiling konektado"], ["vi", "Luôn kết nối"]] as const) {
+  for (const [locale, heading] of [["en", "Earlier"], ["id", "Sebelumnya"], ["tl", "Mas maaga"], ["vi", "Trước đó"]] as const) {
     const ui = setup({ locale }); await ui.settle(); assert.ok(ui.text.includes(heading)); assert.match(ui.text, /Friday at Community Hall/); ui.unmount();
   }
 });
