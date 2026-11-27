@@ -1,0 +1,25 @@
+.notice {
+  margin: 8px 16px 0;
+  padding: 9px 11px;
+  border: 1px solid #d8e2f3;
+  border-radius: 12px;
+  background: #f2f6fd;
+  color: #4d5d78;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.notice strong {
+  color: #263956;
+  font-weight: 700;
+}
+
+:global([data-theme="dark"]) .notice {
+  border-color: #35445f;
+  background: #202b40;
+  color: #bac8df;
+}
+
+:global([data-theme="dark"]) .notice strong {
+  color: #edf3ff;
+}
