@@ -93,6 +93,7 @@ function setup(options: { locale?: Locale; configured?: boolean; share?: Share; 
       if (name === "@/lib/i18n/xlm-deposit") return { xlmDepositCopy };
       if (name === "@/lib/i18n/revamp-money") return { moneyCopy, moneyMessage };
       if (name === "@/components/I18nProvider") return { useT: () => ({ locale, t: translated }) };
+      if (name === "./PrototypeDoodle") return { __esModule: true, default: () => null };
       if (name === "@/lib/ui/useGoBack") return { useGoBack: () => () => {} };
       if (name === "@/lib/local-preview") return { isLocalPreview: false };
       if (name === "@/components/ui/kit") return {

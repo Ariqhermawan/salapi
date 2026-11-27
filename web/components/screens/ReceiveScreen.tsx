@@ -1,6 +1,6 @@
 "use client";
 
-// The QR shows the saved Stellar Testnet address. Salapi links use @username.
+// Live receives use the wallet address; local preview QR codes open the example username flow.
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -22,7 +22,7 @@ import {
   Btn,
 } from "@/components/ui/kit";
 import { useGoBack } from "@/lib/ui/useGoBack";
-import { isLocalPreview, localPreviewUsername } from "@/lib/local-preview";
+import { isLocalPreview, localPreviewUsername, PREVIEW_WALLET } from "@/lib/local-preview";
 import styles from "./ReceiveScreen.module.css";
 import PrototypeDoodle from "./PrototypeDoodle";
 
@@ -56,9 +56,6 @@ function CopyGlyph({ size = 16 }: { size?: number }) {
   </svg>;
 }
 
-const PREVIEW_RECEIVE_ADDRESS = "GCUBZ4SAR4LELX2YPLHN4IYU5L4VGVQNGVVZCHYSQECPBPBK6AB7GHY7";
-const PREVIEW_RECEIVE_MEMO = "7302418659";
-
 export default function ReceiveScreen({ previewUsername }: { previewUsername?: string } = {}) {
   const { t, locale } = useT();
   const m = moneyCopy(locale);
@@ -66,10 +63,9 @@ export default function ReceiveScreen({ previewUsername }: { previewUsername?: s
   const deposit = xlmDepositCopy(locale);
   const goBack = useGoBack("/");
   const [identity, setIdentity] = useState<{ address: string | null; username: string | null }>(isLocalPreview
-    ? { address: PREVIEW_RECEIVE_ADDRESS, username: previewUsername ?? null } : { address: null, username: null });
+    ? { address: PREVIEW_WALLET.address, username: previewUsername ?? PREVIEW_WALLET.handle } : { address: null, username: null });
   const [status, setStatus] = useState<"loading" | "ready" | "guest" | "error">(isLocalPreview ? "ready" : "loading");
   const [copied, setCopied] = useState(false);
-  const [copiedMemo, setCopiedMemo] = useState(false);
   const [guidanceOpen, setGuidanceOpen] = useState(false);
   const [posterOpen, setPosterOpen] = useState(false);
   const [base, setBase] = useState(SITE);
@@ -81,9 +77,9 @@ export default function ReceiveScreen({ previewUsername }: { previewUsername?: s
 
   useEffect(() => {
     if (!isLocalPreview) return;
-    const username = localPreviewUsername();
-    if (username) setIdentity(current => ({ ...current, username }));
-  }, []);
+    const username = localPreviewUsername() ?? previewUsername ?? PREVIEW_WALLET.handle;
+    setIdentity(current => ({ ...current, username }));
+  }, [previewUsername]);
 
   useEffect(() => {
     active.current = true;
@@ -153,7 +149,7 @@ export default function ReceiveScreen({ previewUsername }: { previewUsername?: s
   const usernameLink = status === "ready" && identity.username
     ? receiveDestination(identity.address, identity.username, base)
     : null;
-  const destination = isLocalPreview ? receiveDestination(identity.address, null, base)
+  const destination = isLocalPreview ? usernameLink
     : status === "ready" ? receiveDestination(identity.address, null, base) : null;
   const qrLabel = isLocalPreview && identity.username ? `QR code for @${identity.username}` : c.addressScan;
 
@@ -184,14 +180,6 @@ export default function ReceiveScreen({ previewUsername }: { previewUsername?: s
     }
   }
 
-  async function copyPreviewMemo() {
-    try {
-      await navigator.clipboard.writeText(PREVIEW_RECEIVE_MEMO);
-      setCopiedMemo(true);
-      setTimeout(() => setCopiedMemo(false), 1800);
-    } catch { setShareError(c.shareUnavailable); }
-  }
-
   return (
     <div className={styles.screen}>
       <AppBar
@@ -212,24 +200,14 @@ export default function ReceiveScreen({ previewUsername }: { previewUsername?: s
             />
           </div>
           {usernameLink?.kind === "username" && <h2>{usernameLink.display}</h2>}
-          {destination.kind === "address" && isLocalPreview ? <div className={styles.receiveRows}>
-            <div className={styles.receiveRow}>
-              <span className={styles.receiveValue}><span className={styles.receiveLabel}>Stellar address</span><span className={styles.fullAddress} aria-label={destination.value}><span>{destination.value.slice(0, 28)}</span><span>{destination.value.slice(28)}</span></span></span>
-              <button className={styles.rowCopy} type="button" aria-label="Copy address" onClick={() => shareDestination(destination, true)}>{copied ? Ico.check({ size: 16 }) : <CopyGlyph />}</button>
-            </div>
-            <div className={styles.receiveRow}>
-              <span className={styles.receiveValue}><span className={styles.receiveLabel}>Memo · <strong>Required</strong></span><span className={styles.memoValue}>{PREVIEW_RECEIVE_MEMO}</span></span>
-              <button className={styles.rowCopy} type="button" aria-label="Copy memo" onClick={() => void copyPreviewMemo()}>{copiedMemo ? Ico.check({ size: 16 }) : <CopyGlyph />}</button>
-            </div>
-            <span className="sr-only" aria-live="polite">{copied ? "Address copied" : copiedMemo ? "Memo copied" : ""}</span>
-          </div> : destination.kind === "address" && <button className={styles.copy} type="button" title={destination.value}
+          {destination.kind === "address" && <button className={styles.copy} type="button" title={destination.value}
             aria-label={deposit.copy} aria-describedby="receive-address" data-copy-error={Boolean(shareError) || undefined}
             onClick={() => shareDestination(destination, true)}>
             <span id="receive-address">{isLocalPreview ? `${destination.value.slice(0, 4).toLowerCase()}…${destination.value.slice(-4).toLowerCase()}` : destination.value}</span>
             {copied ? Ico.check({ size: 16 }) : isLocalPreview ? <CopyGlyph /> : Ico.link({ size: 16 })}
             <span className="sr-only" aria-live="polite">{copied ? t("receive.copied") : ""}</span>
           </button>}
-          <p className={styles.note}>{isLocalPreview ? "Send only XLM or USDC on the Stellar network to this address, with the memo." : deposit.warning}</p>
+          <p className={styles.note}>{isLocalPreview ? m("Try receiving with your example username in this local preview.") : deposit.warning}</p>
           {!identity.username && !isLocalPreview && <p className={styles.note}>{c.addressHint}</p>}
           <button className={styles.link} type="button" aria-haspopup="dialog"
             onClick={() => setGuidanceOpen(true)}>{deposit.stepsTitle}</button>
@@ -254,9 +232,10 @@ export default function ReceiveScreen({ previewUsername }: { previewUsername?: s
       {guidanceOpen && <ReceiveGuidanceSheet copy={deposit} closeLabel={c.close} onClose={() => setGuidanceOpen(false)} />}
       {posterOpen && destination && identity.address && <ReceivePosterSheet
         address={identity.address}
+        qrValue={destination.value}
         username={usernameLink?.kind === "username" ? identity.username : null}
         preview={isLocalPreview}
-        memo={isLocalPreview ? PREVIEW_RECEIVE_MEMO : null}
+        memo={null}
         copy={c}
         copiedLabel={t("receive.copied")}
         closeLabel={c.close}
@@ -330,8 +309,9 @@ function ReceiveGuidanceSheet({ copy, closeLabel, onClose }: {
   </dialog>;
 }
 
-function ReceivePosterSheet({ address, username, preview, memo, copy, copiedLabel, closeLabel, onClose }: {
+function ReceivePosterSheet({ address, qrValue, username, preview, memo, copy, copiedLabel, closeLabel, onClose }: {
   address: string;
+  qrValue: string;
   username: string | null;
   preview: boolean;
   memo: string | null;
@@ -468,7 +448,7 @@ function ReceivePosterSheet({ address, username, preview, memo, copy, copiedLabe
         </div>
       </div>
       <div className={styles.qrSource} aria-hidden="true">
-        <QRCodeCanvas ref={qr} value={address} size={680} level="M" marginSize={4} />
+        <QRCodeCanvas ref={qr} value={qrValue} size={680} level="M" marginSize={4} />
       </div>
     </div>
   </dialog>;

@@ -570,7 +570,7 @@ function sendSetup(options: { storage?: Map<string, string>; unavailable?: boole
     "@/components/ui/SuccessMotion": { default: "SuccessMotion" }, "./SendRevamp.module.css": { default: {} },
     "@/components/ui/TransferMotion": { default: "TransferMotion" },
     "@/lib/ui/useGoBack": { useGoBack: () => () => {} }, "@/lib/ui/currency": { CURRENCY, formatLocalAmount, pesoFromLocal }, "@/lib/money": money,
-    "@/lib/local-preview": { isLocalPreview: preview, PREVIEW_WALLET: { handle: "ariqhermawan", address: "preview-public" }, localPreviewUsername: () => "ariqhermawan" },
+    "@/lib/local-preview": { isLocalPreview: preview, PREVIEW_WALLET: { handle: "ariqhermawan", address: "preview-public" }, localPreviewUsername: () => "ariqhermawan", previewUsdcBalanceCents: () => 241_226 },
     "@/lib/local-preview-history": { recordPreviewTransfer: () => { calls.localRecords++; return {}; } },
     "@/app/actions": { myHandle: async () => "sender", registerUsername: async () => { throw Error("Unexpected registration"); },
       lookupRecipient: async (username: string) => ({ ok: true, username, address: "recipient-public" }),

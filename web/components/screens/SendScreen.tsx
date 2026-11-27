@@ -315,7 +315,7 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
 
   return (
     <div className={styles.screen}>
-      <AppBar leading={transferPhase ? undefined : <IconButton ariaLabel={m("Back")} onClick={goBack}>{Ico.back({})}</IconButton>} title={transferPhase ? m("Waiting for network confirmation") : done ? m("Transfer receipt") : unresolved ? m("Check submitted transaction") : t("send.title")} trailing={transferPhase || isLocalPreview ? undefined : <IconButton ariaLabel={m("Receive")} onClick={() => router.push("/receive")}>{Ico.qr({})}</IconButton>} />
+      <AppBar leading={transferPhase ? undefined : <IconButton ariaLabel={m("Back")} onClick={goBack}>{Ico.back({})}</IconButton>} title={transferPhase ? m("Waiting for network confirmation") : done ? m("Transfer receipt") : unresolved ? m("Check submitted transaction") : t("send.title")} trailing={transferPhase ? undefined : <IconButton ariaLabel={m("Receive")} onClick={() => router.push("/receive")}>{Ico.qr({})}</IconButton>} />
       <div className={styles.content}>
         {!isLocalPreview ? <section className={styles.intro} aria-labelledby="send-heading">
           <div>
@@ -369,14 +369,14 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
           </div>
           <p className={styles.notice}>{m("Only a confirmed failure unlocks another attempt. This session stores an unresolved hash or status marker, never payment or identity credentials.")}</p>
         </> : <>
-          {isLocalPreview ? <div className={styles.prototypeComposer}>
+          {isLocalPreview ? <section className={styles.prototypeComposer} aria-label={m("Transfer details")}>
             <section className={`${styles.composer} ${styles.prototypeRecipient}`} aria-label="Recipient">
               <label className={styles.fieldLabel} htmlFor="send-recipient">{m("To")}</label>
               <div className={styles.usernameInput}>
                 <span aria-hidden="true">@</span>
                 <input id="send-recipient" value={to} maxLength={33} aria-invalid={!!clean && !validUsername || !!lookupError}
                   onChange={e => { lookupVersion.current++; setTo(e.target.value); setLookupError(""); }}
-                  placeholder="username" autoCapitalize="none" autoComplete="off" spellCheck={false} />
+                  placeholder={m("e.g. jamamam")} autoCapitalize="none" autoComplete="off" spellCheck={false} />
               </div>
               <span className={styles.recentLabel}>RECENT</span>
               <div className={styles.recentList}>
@@ -401,7 +401,7 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
               </div>
               {invalidNative || !withinAmountLimit ? <p role="alert" className={styles.inlineError}>{invalidNative ? m("Enter XLM with up to 7 decimal places.") : m("The amount exceeds the supported safety limit.")}</p> : null}
             </section>
-          </div> : <section className={styles.composer} aria-label={m("Transfer details")}>
+          </section> : <section className={styles.composer} aria-label={m("Transfer details")}>
             <div className={styles.recipientField}>
               <label className={styles.fieldLabel} htmlFor="send-recipient">{m("Recipient @username")}</label>
               <div className={styles.usernameInput}>
