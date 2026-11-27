@@ -21,6 +21,8 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { PROTOTYPE_CAUSES, type PrototypeCause } from "@/lib/prototype-causes";
 import { previewReferralNoticeIsNew, previewUsdcBalanceCents } from "@/lib/local-preview";
 import MarketValue from "@/components/MarketValue";
+import HomeDonationTicker from "@/components/HomeDonationTicker";
+import type { Campaign } from "@/lib/campaign";
 import styles from "./PrototypeHomeScreen.module.css";
 
 const BALANCE_KEY = "salapi.prototype-home.hide-balance.v1";
@@ -39,6 +41,8 @@ export type PrototypeHomeLiveData = {
   wallet: { address: string; pesos: number; nativeStroops?: string } | null;
   walletLoading: boolean;
   walletError: string;
+  campaigns: Omit<Campaign, "contribution">[];
+  campaignsLoading: boolean;
   onRetryWallet: () => void;
 };
 
@@ -158,19 +162,20 @@ export default function PrototypeHomeScreen({ liveData }: { liveData?: Prototype
       <Action href={walletHref("/receive")} label="Receive"><QrCode size={20} aria-hidden="true" /></Action>
     </nav>
 
-    <section className={styles.ticker} aria-label={liveData ? "Sample donation activity" : "Live donations"}>
-      <span className={styles.live}><i />{liveData ? "SAMPLE" : "LIVE"}</span>
-      <div className={styles.tickerWindow}>
-        <div className={styles.tickerTrack}>
-          {[...causes, ...causes].flatMap((cause, index) => DONORS.map((donor, donorIndex) => {
-            const copy = index >= causes.length;
-            return <Link key={`${index}-${cause.id}-${donorIndex}`} href={`/cause/${cause.id}`} className={styles.tickerItem} aria-hidden={copy || undefined} tabIndex={copy ? -1 : undefined}>
-              <strong>{donor.handle}</strong><span>gave</span><strong>{donor.amount}</strong><span>to</span><span>{cause.id === "bantayan" ? "Bantayan Island school roofs" : cause.id === "mei" ? "Ate Mei needs dialysis" : cause.id === "jakarta-kitchen" ? "North Jakarta community kitchen" : cause.id === "bohol-library" ? "Barangay library in Bohol" : cause.title}</span>
-            </Link>;
-          }))}
+    {liveData ? <HomeDonationTicker campaigns={liveData.campaigns} loading={liveData.campaignsLoading} localPreview={false} /> :
+      <section className={styles.ticker} aria-label="Sample donation activity">
+        <span className={styles.live}><i />SAMPLE</span>
+        <div className={styles.tickerWindow}>
+          <div className={styles.tickerTrack}>
+            {[...causes, ...causes].flatMap((cause, index) => DONORS.map((donor, donorIndex) => {
+              const copy = index >= causes.length;
+              return <Link key={`${index}-${cause.id}-${donorIndex}`} href={`/cause/${cause.id}`} className={styles.tickerItem} aria-hidden={copy || undefined} tabIndex={copy ? -1 : undefined}>
+                <strong>{donor.handle}</strong><span>gave</span><strong>{donor.amount}</strong><span>to</span><span>{cause.id === "bantayan" ? "Bantayan Island school roofs" : cause.id === "mei" ? "Ate Mei needs dialysis" : cause.id === "jakarta-kitchen" ? "North Jakarta community kitchen" : cause.id === "bohol-library" ? "Barangay library in Bohol" : cause.title}</span>
+              </Link>;
+            }))}
+          </div>
         </div>
-      </div>
-    </section>
+      </section>}
 
     <section className={styles.causes} aria-labelledby="prototype-home-causes">
       <div className={styles.sectionHeading}>
