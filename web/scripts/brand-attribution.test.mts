@@ -55,7 +55,7 @@ test("desktop marketing footer reuses shared Stellar attribution instead of enla
   const tree = exports.default();
   const footer = nodes(tree).find(element => element.type === "footer")!;
   const brand = nodes(footer).find(element => element.type === "PoweredByStellar")!;
-  assert.equal(brand.props.c, "#fff");
+  assert.equal(brand.props.c, "#171717");
   assert.equal(nodes(footer).some(element => element.type === "Image"), false);
   assert.doesNotMatch(source("../app/globals.css"), /\.sl-marketing-footer\s+img\s*\{/);
   assert.equal((source("../components/MarketingAside.tsx").match(/Powered by/g) ?? []).length, 0);
