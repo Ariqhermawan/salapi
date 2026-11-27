@@ -4,7 +4,7 @@
   font-family: var(--font-geist-sans), sans-serif;
   min-width: 0;
 }
-.disasterScreen.prototypeVault { padding: 23px 16px 120px; }
+.disasterScreen.prototypeVault { padding: 23px 16px 16px; }
 .prototypeVault .vaultPageHeader { position: sticky; top: -1px; z-index: 5; display: flex; align-items: center; gap: 16px; min-height: 48px; margin: -8px -16px 8px; padding: 0 16px; background: color-mix(in srgb, var(--sl-canvas) 88%, transparent); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); }
 .prototypeVault .vaultPageHeader h1 { flex: 1; margin: 0; color: var(--sl-ink); font-size: 20px; font-weight: 650; line-height: 26px; letter-spacing: -.02em; text-align: left; }
 .prototypeVault .backLink { display: grid; width: 40px; height: 40px; padding: 0; place-items: center; border: 1px solid var(--sl-glass-line); border-radius: 999px; background: var(--sl-surface); color: var(--sl-ink); }
