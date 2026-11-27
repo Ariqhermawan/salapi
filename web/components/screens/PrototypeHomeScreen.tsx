@@ -20,9 +20,11 @@ import {
 import { usePathname, useSearchParams } from "next/navigation";
 import { PROTOTYPE_CAUSES, type PrototypeCause } from "@/lib/prototype-causes";
 import { previewReferralNoticeIsNew, previewUsdcBalanceCents } from "@/lib/local-preview";
+import MarketValue from "@/components/MarketValue";
 import styles from "./PrototypeHomeScreen.module.css";
 
 const BALANCE_KEY = "salapi.prototype-home.hide-balance.v1";
+const LIVE_BALANCE_KEY = "salapi.security.hide-home-balance.v1";
 const DONORS = [
   { handle: "@jamal_r", amount: "$25" },
   { handle: "@ana.reyes", amount: "$5" },
@@ -31,7 +33,16 @@ const CAMPAIGN_ORDER = ["bantayan", "mei", "jakarta-kitchen", "bohol-library", "
 const USD = (cents: number) => (cents / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const XLM_PER_USD = 8.92307692;
 
-export default function PrototypeHomeScreen() {
+export type PrototypeHomeLiveData = {
+  guest: boolean;
+  handle: string | null;
+  wallet: { address: string; pesos: number; nativeStroops?: string } | null;
+  walletLoading: boolean;
+  walletError: string;
+  onRetryWallet: () => void;
+};
+
+export default function PrototypeHomeScreen({ liveData }: { liveData?: PrototypeHomeLiveData }) {
   const greetingRef = useRef<HTMLHeadingElement>(null);
   const [currency, setCurrency] = useState<"USDC" | "XLM">("USDC");
   const [balanceCents, setBalanceCents] = useState(241_226);
@@ -66,15 +77,18 @@ export default function PrototypeHomeScreen() {
     };
   }, []);
 
-  useEffect(() => {
-    try { setHidden(window.localStorage.getItem(BALANCE_KEY) === "1"); }
-    catch { setHidden(false); }
-  }, []);
+  const isLive = Boolean(liveData);
 
   useEffect(() => {
+    try { setHidden(window.localStorage.getItem(isLive ? LIVE_BALANCE_KEY : BALANCE_KEY) === "1"); }
+    catch { setHidden(false); }
+  }, [isLive]);
+
+  useEffect(() => {
+    if (isLive) return;
     setBalanceCents(previewUsdcBalanceCents());
     setNewNotification(previewReferralNoticeIsNew());
-  }, []);
+  }, [isLive]);
 
   useEffect(() => {
     if (!currencyOpen && !pricesOpen) return;
@@ -90,50 +104,62 @@ export default function PrototypeHomeScreen() {
   const balanceXlm = ((balanceCents / 100) * XLM_PER_USD).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const toggleHidden = () => setHidden(current => {
     const next = !current;
-    try { window.localStorage.setItem(BALANCE_KEY, next ? "1" : "0"); }
+    try { window.localStorage.setItem(isLive ? LIVE_BALANCE_KEY : BALANCE_KEY, next ? "1" : "0"); }
     catch { /* The visibility control still works for this visit. */ }
     return next;
   });
   const showComingSoon = () => window.dispatchEvent(new CustomEvent("salapi:success-motion", { detail: "Social feed is coming soon" }));
+  const walletHref = (href: string) => liveData?.guest ? `/signin?next=${encodeURIComponent(href)}` : href;
 
   return <div className={styles.home} data-testid="prototype-home">
     <header className={styles.greeting}>
       <Link href="/you" className={styles.mark} aria-label="Your account">
         <Image src="/salapi-mark-prototype.svg" alt="Salapi" width={28} height={28} priority />
       </Link>
-      <h1 ref={greetingRef}>Welcome to Salapi</h1>
+      <h1 ref={greetingRef}>Welcome to Salapi{liveData?.handle ? `, @${liveData.handle}` : ""}</h1>
       <Link href="/learn" className={styles.round} aria-label="Help"><Question size={24} aria-hidden="true" /></Link>
       <Link href="/notifications" className={`${styles.round} ${newNotification ? styles.hasNotification : ""}`} aria-label={newNotification ? "Notifications, 1 new" : "Notifications"}>
         <Bell size={24} aria-hidden="true" />{newNotification && <span className={styles.notificationDot} aria-hidden="true" />}
       </Link>
     </header>
 
-    <section className={styles.balance} aria-label="Total balance">
+    <section className={styles.balance} aria-label={liveData?.guest ? "Your Testnet wallet" : "Total balance"}>
       <div className={styles.balanceHeader}>
         <span>Total balance <span className={styles.testnet}>Testnet</span></span>
         <Image src="/stellar-white.png" alt="Powered by Stellar" width={68} height={17} />
       </div>
-      <div className={styles.balanceAmount}>
+      {liveData ? liveData.guest ? <div className={styles.liveGuest}>
+        <strong>Guest account</strong><Link href="/signin">Sign in to see your balance</Link>
+      </div> : hidden ? <div className={styles.hiddenBalance}>
+        <strong aria-label="Balance hidden">••••••</strong><button type="button" onClick={toggleHidden}>Show balance</button>
+      </div> : <div className={styles.liveBalance}>
+        <MarketValue nativeStroops={liveData.wallet?.nativeStroops} size={40} color="#fff" compact showNative dashboard
+          balanceLoading={liveData.walletLoading}
+          dashboardBalanceError={liveData.walletError ? <button type="button" className={styles.walletRetry} onClick={liveData.onRetryWallet}>{liveData.walletError} Retry</button> : undefined}
+          dashboardCaption="" />
+      </div> : <>
+        <div className={styles.balanceAmount}>
           <strong>{hidden ? "••••••" : currency === "USDC" ? balanceUsd : balanceXlm}</strong>
-        {!hidden && <button type="button" className={styles.currency} aria-label={`Balance shown in ${currency}. Change`} onClick={() => setCurrencyOpen(true)}>
-          {currency}<CaretDown size={16} aria-hidden="true" />
-        </button>}
-      </div>
-      {hidden ? <button type="button" className={styles.priceLine} onClick={toggleHidden}>Hidden. Show it in Security</button> :
-        <button type="button" className={styles.priceLine} aria-label="Price details" onClick={() => setPricesOpen(true)}>
-          <span>≈ {currency === "USDC" ? balanceXlm + " XLM" : "$" + balanceUsd + " USDC"}</span><Info size={15} aria-hidden="true" />
-        </button>}
+          {!hidden && <button type="button" className={styles.currency} aria-label={`Balance shown in ${currency}. Change`} onClick={() => setCurrencyOpen(true)}>
+            {currency}<CaretDown size={16} aria-hidden="true" />
+          </button>}
+        </div>
+        {hidden ? <button type="button" className={styles.priceLine} onClick={toggleHidden}>Hidden. Show it in Security</button> :
+          <button type="button" className={styles.priceLine} aria-label="Price details" onClick={() => setPricesOpen(true)}>
+            <span>≈ {currency === "USDC" ? balanceXlm + " XLM" : "$" + balanceUsd + " USDC"}</span><Info size={15} aria-hidden="true" />
+          </button>}
+      </>}
     </section>
 
     <nav className={styles.actions} aria-label="Wallet actions">
-      <Action href="/topup" label="Top up"><ArrowDown size={20} aria-hidden="true" /></Action>
-      <Action href="/withdraw" label="Withdraw"><ArrowUp size={20} aria-hidden="true" /></Action>
-      <Action href="/send" label="Send"><PaperPlaneTilt size={20} aria-hidden="true" /></Action>
-      <Action href="/receive" label="Receive"><QrCode size={20} aria-hidden="true" /></Action>
+      <Action href={walletHref("/topup")} label="Top up"><ArrowDown size={20} aria-hidden="true" /></Action>
+      <Action href={walletHref("/withdraw")} label="Withdraw"><ArrowUp size={20} aria-hidden="true" /></Action>
+      <Action href={walletHref("/send")} label="Send"><PaperPlaneTilt size={20} aria-hidden="true" /></Action>
+      <Action href={walletHref("/receive")} label="Receive"><QrCode size={20} aria-hidden="true" /></Action>
     </nav>
 
-    <section className={styles.ticker} aria-label="Live donations">
-      <span className={styles.live}><i />LIVE</span>
+    <section className={styles.ticker} aria-label={liveData ? "Sample donation activity" : "Live donations"}>
+      <span className={styles.live}><i />{liveData ? "SAMPLE" : "LIVE"}</span>
       <div className={styles.tickerWindow}>
         <div className={styles.tickerTrack}>
           {[...causes, ...causes].flatMap((cause, index) => DONORS.map((donor, donorIndex) => {
@@ -149,6 +175,7 @@ export default function PrototypeHomeScreen() {
     <section className={styles.causes} aria-labelledby="prototype-home-causes">
       <div className={styles.sectionHeading}>
         <h2 id="prototype-home-causes">Causes</h2>
+        {liveData ? <span className={styles.exampleLabel}>EXAMPLES</span> : null}
         <Link href="/campaigns?mode=testnet">See all</Link>
       </div>
       {causesLayout === "b" ? <div className={styles.causeLayoutB} aria-label="Featured cause and more causes">
@@ -179,7 +206,7 @@ export default function PrototypeHomeScreen() {
       </Link>
       <Link href="/vault" className={styles.tile}>
         <span className={styles.vaultPig} aria-hidden="true"><img src="/prototype-ui/disaster-vault-funded.webp" alt="" /></span>
-        <strong>Disaster Vault</strong><span>$1,284.20</span>
+        <strong>Disaster Vault</strong><span>{liveData ? "View vault" : "$1,284.20"}</span>
       </Link>
       <button type="button" className={styles.tile} data-coming-soon onClick={showComingSoon}>
         <Image src="/illustrations/tile-feed.png" alt="" width={44} height={32} />
@@ -193,7 +220,7 @@ export default function PrototypeHomeScreen() {
       <button type="button" aria-label="Dismiss update notice" onClick={() => window.history.replaceState(null, "", "/")}>×</button>
     </div> : null}
 
-    {currencyOpen ? <BottomSheet title="Show balance in" onClose={() => setCurrencyOpen(false)}>
+    {!liveData && currencyOpen ? <BottomSheet title="Show balance in" onClose={() => setCurrencyOpen(false)}>
       <div className={styles.currencyOptions} role="radiogroup" aria-label="Balance currency">
         {(["USDC", "XLM"] as const).map(option => <button key={option} type="button" role="radio" aria-checked={currency === option} onClick={() => { setCurrency(option); setCurrencyOpen(false); }}>
           <span><i className={option === "USDC" ? styles.usdcIcon : styles.xlmIcon}>{option === "USDC" ? "$" : "✦"}</i>{option} · {option === "USDC" ? "USD Coin" : "Stellar Lumens"}</span><i className={styles.radio} />
@@ -201,7 +228,7 @@ export default function PrototypeHomeScreen() {
       </div>
     </BottomSheet> : null}
 
-    {pricesOpen ? <BottomSheet title="Prices" onClose={() => setPricesOpen(false)}>
+    {!liveData && pricesOpen ? <BottomSheet title="Prices" onClose={() => setPricesOpen(false)}>
       <dl className={styles.priceRows}>
         <div><dt><i className={styles.xlmIcon}>✦</i>XLM</dt><dd>$0.1120489</dd></div>
         <div><dt><i className={styles.usdcIcon}>$</i>USDC</dt><dd>$0.999532</dd></div>
