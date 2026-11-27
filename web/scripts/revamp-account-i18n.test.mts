@@ -133,7 +133,9 @@ for (const locale of LOCALES) {
     assert.ok(settings.includes(`@${PREVIEW_WALLET.handle}`));
     for (const key of ["accountDetails", "fundraising", "yourCauses", "darkMode", "off", "helpCenter", "sendFeedback", "feedbackDescription", "privacy", "terms", "checkForUpdates"] as const) assert.ok(settings.includes(c[key]), key);
     const signedOutSettings = render("SettingsScreen", locale, false);
-    assert.ok(signedOutSettings.includes(c.guestAccountDetails));
+    assert.ok(signedOutSettings.includes(c.profileLoading));
+    assert.ok(signedOutSettings.includes('data-profile-state="loading"'));
+    assert.ok(!signedOutSettings.includes(c.guestAccountDetails));
     assert.ok(settings.includes("USD"));
     assert.ok(signedOutSettings.includes(accountCurrencyName(locale, "en")));
     const languages = render("LanguagePickerScreen", locale);

@@ -167,11 +167,11 @@ function screenSetup(fetchPage: (cursor?: number) => Promise<Page>, preview = fa
   };
 }
 function roomLinks(tree: Element) { return nodes(tree).filter(node => node.type === "Link" && /^\/arisan\/\d+$/.test(String(node.props.href))); }
-test("scheduled rooms are discoverable from the arisan list only with the separate feature enabled", async () => {
+test("empty Arisan screen keeps the prototype actions without a separate scheduled-room CTA", async () => {
   for (const enabled of [false, true]) {
     const ui = screenSetup(async () => ({ ready: true, mine: [], total: 0, nextCursor: null }), false, enabled); await ui.settle();
-    const links = nodes(ui.tree).filter(node => node.type === "Link" && node.props.href === "/arisan/scheduled"); assert.equal(links.length, enabled ? 1 : 0);
-    if (enabled) assert.match(text(links[0]), /Create a scheduled room/);
+    const links = nodes(ui.tree).filter(node => node.type === "Link");
+    assert.deepEqual(links.map(node => node.props.href), ["/arisan/new", "/arisan/join"]);
   }
 });
 test("the real list UI continues through empty membership pages until an older member is reachable", async () => {
