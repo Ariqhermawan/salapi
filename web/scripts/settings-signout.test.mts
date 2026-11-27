@@ -10,9 +10,11 @@ const source = readFileSync(new URL("../components/screens/SettingsScreen.tsx", 
 const ast = ts.createSourceFile("SettingsScreen.tsx", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 const functions: ts.FunctionDeclaration[] = [];
 const buttons: ts.JsxElement[] = [];
+const settingRows: ts.JsxSelfClosingElement[] = [];
 const alerts: ts.JsxElement[] = [];
 function visit(node: ts.Node) {
   if (ts.isFunctionDeclaration(node) && node.name?.text === "signOut") functions.push(node);
+  if (ts.isJsxSelfClosingElement(node) && node.tagName.getText(ast) === "SettingRow") settingRows.push(node);
   if (ts.isJsxElement(node)) {
     if (node.openingElement.tagName.getText(ast) === "button") buttons.push(node);
     if (node.openingElement.attributes.properties.some(attribute =>
@@ -151,8 +153,9 @@ test("a blocked navigation does not leave the button permanently busy", async ()
 });
 
 test("the account button is wired to this handler, busy state and localized retry alert", () => {
-  function attribute(element: ts.JsxElement, name: string) {
-    return element.openingElement.attributes.properties.find(item => ts.isJsxAttribute(item) && item.name.getText(ast) === name) as ts.JsxAttribute | undefined;
+  function attribute(element: ts.JsxElement | ts.JsxSelfClosingElement, name: string) {
+    const attributes = ts.isJsxElement(element) ? element.openingElement.attributes.properties : element.attributes.properties;
+    return attributes.find(item => ts.isJsxAttribute(item) && item.name.getText(ast) === name) as ts.JsxAttribute | undefined;
   }
   const logout = buttons.filter(button => attribute(button, "onClick")?.initializer?.getText(ast) === "{signOut}");
   assert.equal(logout.length, 1);
@@ -161,6 +164,10 @@ test("the account button is wired to this handler, busy state and localized retr
   assert.equal(attribute(logout[0], "aria-busy")?.initializer?.getText(ast), "{signOutPending}");
   assert.ok(logout[0].children.some(child => ts.isJsxExpression(child)
     && child.expression?.getText(ast) === 'signOutPending ? c.signingOut : t("settings.signOut")'));
+  const accountRow = settingRows.find(row => attribute(row, "onClick")?.initializer?.getText(ast) === "{signOut}");
+  assert.ok(accountRow, "Production Settings sign out uses the shared accessible SettingRow button");
+  assert.equal(attribute(accountRow!, "disabled")?.initializer?.getText(ast), "{signOutPending}");
+  assert.equal(attribute(accountRow!, "busy")?.initializer?.getText(ast), "{signOutPending}");
   const failure = alerts.find(alert => alert.children.some(child => ts.isJsxExpression(child) && child.expression?.getText(ast) === "c.signOutError"));
   assert.ok(failure, "Expose the localized failure in an accessible inline alert");
   assert.equal(failure.parent.getText(ast), 'signOutError ? <p role="alert" className={styles.loadError}>{c.signOutError}</p> : null');

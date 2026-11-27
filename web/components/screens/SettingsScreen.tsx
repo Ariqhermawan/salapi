@@ -43,6 +43,8 @@ function SettingRow({
   sub,
   trailing,
   onClick,
+  disabled,
+  busy,
   switchOn,
   ariaLabel,
 }: {
@@ -51,6 +53,8 @@ function SettingRow({
   sub?: ReactNode;
   trailing?: ReactNode;
   onClick?: () => void;
+  disabled?: boolean;
+  busy?: boolean;
   switchOn?: boolean;
   ariaLabel?: string;
 }) {
@@ -66,7 +70,7 @@ function SettingRow({
   );
   return (
     onClick
-      ? <button type="button" className={styles.row} onClick={onClick} role={switchOn === undefined ? undefined : "switch"} aria-checked={switchOn} aria-label={switchOn === undefined ? undefined : ariaLabel}>{content}</button>
+      ? <button type="button" className={styles.row} onClick={onClick} disabled={disabled} aria-busy={busy} role={switchOn === undefined ? undefined : "switch"} aria-checked={switchOn} aria-label={switchOn === undefined ? undefined : ariaLabel}>{content}</button>
       : <div className={styles.row}>{content}</div>
   );
 }
@@ -357,11 +361,13 @@ export default function SettingsScreen() {
 
       {signedIn ? <section className={styles.support} aria-label={t("settings.signOut")}>
         {isLocalPreview ? (
-          <button type="button" className={styles.signOutPreview} onClick={signOut}>{signOutPending ? c.signingOut : t("settings.signOut")}</button>
+          <button type="button" className={styles.signOutPreview} onClick={signOut} disabled={signOutPending} aria-busy={signOutPending}>{signOutPending ? c.signingOut : t("settings.signOut")}</button>
         ) : <SettingRow
           icon={Ico.back({ size: 21, c: T.action })}
           title={signOutPending ? c.signingOut : t("settings.signOut")}
           onClick={signOut}
+          disabled={signOutPending}
+          busy={signOutPending}
           trailing={Ico.chev({ size: 16, c: T.slate })}
         />}
         {signOutError ? <p role="alert" className={styles.loadError}>{c.signOutError}</p> : null}
