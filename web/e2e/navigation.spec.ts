@@ -70,6 +70,14 @@ test("Main tabs navigate to Home, Arisan, Cause creation, Activity and You", asy
   await expect(page.locator(homeSelector)).toHaveCount(1);
 });
 
+test("legacy NGO directory alias opens the canonical public directory", async ({ page }) => {
+  await page.goto("/profiles?type=ngo", { waitUntil: "domcontentloaded", timeout: 45000 });
+  await ready(page);
+  await expect(page).toHaveURL(/\/transparency$/);
+  await expect(page.getByRole("region", { name: "All NGOs" })).toBeVisible();
+  await expect(page.getByRole("group", { name: "NGO category" })).toBeVisible();
+});
+
 test("Arisan create flow returns to its room list", async ({ page }) => {
   await page.goto("/vaults", { waitUntil: "domcontentloaded", timeout: 45000 });
   await ready(page);
