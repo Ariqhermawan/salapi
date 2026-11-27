@@ -99,7 +99,7 @@ for (const viewport of [{ width: 320, height: 740 }, { width: 390, height: 844 }
       expect(fixture.calls.blockedActions).toEqual([]);
       await page.getByRole("region", { name: "Your next action", exact: true }).getByRole("link", { name: copy.allRooms, exact: true }).click();
       await expect(page).toHaveURL(/\/arisan$/);
-      await expect(page.getByRole("heading", { name: "Save together.", exact: true })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Arisan", exact: true })).toBeVisible();
       expect(fixture.calls.blockedActions).toEqual([]);
     });
   }

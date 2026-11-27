@@ -38,8 +38,9 @@ for (const route of ROUTES) {
     } else if (route === "/privacy" || route === "/terms") {
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible({ timeout: 12000 });
     } else {
-      // Global BottomNav renders on every app route → shell mounted.
-      await expect(page.getByText("Vaults").first()).toBeVisible({ timeout: 12000 });
+      // The app shell may hide navigation on focused transaction routes.
+      // The main landmark is the stable signal that the route mounted.
+      await expect(page.locator("#app-content")).toBeVisible({ timeout: 12000 });
     }
     await page.waitForTimeout(600);
     expect(csp, `CSP violations on ${route}:\n${csp.join("\n")}`).toHaveLength(0);
