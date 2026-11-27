@@ -105,10 +105,10 @@ test.describe("D3 local UI and HTTP authorization", () => {
       await page.getByRole("tab", { name: "Activity", exact: true }).click();
       const activity = page.getByRole("tabpanel", { name: "Activity", exact: true });
       await expect(activity.getByRole("region", { name: "Shared pool balance" })).toContainText("8.0307692");
-      const art = await activity.locator('[class*="vaultArt"]')
-        .evaluate((img: HTMLImageElement) => ({ loaded: img.complete && img.naturalWidth > 0, width: img.getBoundingClientRect().width }));
-      expect(art.loaded).toBe(true);
-      expect(art.width).toBeGreaterThan(100);
+      const art = activity.locator('[class*="vaultArt"]');
+      await expect.poll(() => art.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
+      const artWidth = await art.evaluate((img: HTMLImageElement) => img.getBoundingClientRect().width);
+      expect(artWidth).toBeGreaterThan(100);
       await expect(activity.getByRole("tab", { name: "Contributions", exact: true })).toBeVisible();
       await expect(activity.getByRole("tab", { name: "NGO payouts", exact: true })).toBeVisible();
       for (const tab of ["All", "Contributions", "NGO payouts"]) {

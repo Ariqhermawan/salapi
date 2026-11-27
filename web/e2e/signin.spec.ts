@@ -10,7 +10,7 @@ test.describe("sign-in safety", () => {
     await page.goto("/signin?next=%2Ftransparency");
     const email = page.getByRole("button", { name: "Use email instead", exact: true });
     await expect(email).toBeDisabled();
-    await expect(page.getByText(/Sandbox sign-in seam/)).toBeVisible();
+    await expect(page.locator("#app-content").getByText(/Sandbox sign-in seam/)).toBeVisible();
   });
 
   test("callback falls back to home for an external next URL", async ({ request, baseURL }) => {

@@ -71,6 +71,8 @@ test("Settings keeps the dark-mode switch in Preferences and persists the select
   const preferences = page.getByRole("region", { name: "Preferences", exact: true });
   const theme = preferences.getByRole("switch", { name: "Dark mode", exact: true });
   await expect(theme).toBeVisible();
+  const currentTheme = await page.locator("html").getAttribute("data-theme");
+  await expect(theme).toHaveAttribute("aria-checked", currentTheme === "dark" ? "true" : "false");
   const initial = await theme.getAttribute("aria-checked");
   await theme.click();
   await expect(theme).toHaveAttribute("aria-checked", initial === "true" ? "false" : "true");
