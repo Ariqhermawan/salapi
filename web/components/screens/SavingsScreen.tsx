@@ -254,6 +254,7 @@ function LiveSavingsScreen() {
   const goBack = useGoBack("/vaults");
   const [st, setSt] = useState<State | null>(null);
   const [goals, setGoals] = useState<SavingsGoal[]>([]);
+  const accountAddress = st?.ready ? st.address : undefined;
   const [transitionPending, start] = useTransition();
   const pending = transitionPending || submission.locked;
   const submitting = useRef(false);
@@ -286,13 +287,13 @@ function LiveSavingsScreen() {
     let s: State;
     try { s = await smartSavingsState(); }
     catch {
-      setSt({ ready: false });
+      setSt({ ready: false, error: "The Testnet savings vault could not be loaded. Reload this page to try again." });
       setMsg({ tone: "err", text: "The experimental savings vault could not be loaded. Reload this page to try again." });
       return;
     }
     setSt(s);
     if (s.ready && s.hasGoal) {
-      let g = loadGoals();
+      let g = loadGoals(s.address);
       if (g.length === 0) {
         // No stored envelopes (storage cleared, or a goal opened before
         // multi-goal shipped) — reconstruct one default envelope from the
@@ -308,7 +309,7 @@ function LiveSavingsScreen() {
         ];
       }
       g = reconcile(g, s.savedPesos);
-      saveGoals(g);
+      saveGoals(g, s.address);
       setGoals(g);
     } else {
       setGoals([]);
@@ -336,6 +337,10 @@ function LiveSavingsScreen() {
 
   function create() {
     if (isLocalPreview) return;
+    if (!accountAddress) {
+      setMsg({ tone: "err", text: m("Your account wallet changed. Reload savings and review the action again.") });
+      return;
+    }
     const targetPhp = pesoFromLocal(Number(cTarget) || 0, currency);
     const name = cName.trim();
     if (!name) {
@@ -350,11 +355,12 @@ function LiveSavingsScreen() {
       setMsg(null);
       const r = await submission.run(() => smartSavingsOpen(
         { amount: cTarget, currency },
+        accountAddress,
         cMode
       ));
       if (!r) return;
       if (r.ok) {
-        saveGoals([{ id: newId(), name, target: targetPhp, weight: 100, saved: 0 }]);
+        if (accountAddress) saveGoals([{ id: newId(), name, target: targetPhp, weight: 100, saved: 0 }], accountAddress);
         setMsg({
           tone: "ok",
           text: t("savings.goalOpenedOk", {
@@ -371,6 +377,10 @@ function LiveSavingsScreen() {
 
   function deposit() {
     if (isLocalPreview) return;
+    if (!accountAddress) {
+      setMsg({ tone: "err", text: m("Your account wallet changed. Reload savings and review the action again.") });
+      return;
+    }
     const display = Number(depAmt) || 0;
     const amtPhp = pesoFromLocal(display, currency);
     if (!(amtPhp > 0)) {
@@ -381,7 +391,7 @@ function LiveSavingsScreen() {
     const single = goals.find((g) => g.id === depGoal) ?? goals[0];
     execute(async () => {
       setMsg(null);
-      const r = await submission.run(() => smartSavingsDeposit({ amount: depAmt, currency }));
+      const r = await submission.run(() => smartSavingsDeposit({ amount: depAmt, currency }, accountAddress));
       if (!r) return;
       if (r.ok) {
         let g: SavingsGoal[];
@@ -406,7 +416,7 @@ function LiveSavingsScreen() {
             amount: formatLocalAmount(display, currency),
           });
         }
-        saveGoals(g);
+        if (accountAddress) saveGoals(g, accountAddress);
         setDepAmt("");
         setMsg({ tone: "ok", text, link: r.link });
       } else {
@@ -418,12 +428,16 @@ function LiveSavingsScreen() {
 
   function withdraw() {
     if (isLocalPreview) return;
+    if (!accountAddress) {
+      setMsg({ tone: "err", text: m("Your account wallet changed. Reload savings and review the action again.") });
+      return;
+    }
     execute(async () => {
       setMsg(null);
-      const r = await submission.run(() => smartSavingsWithdraw());
+      const r = await submission.run(() => smartSavingsWithdraw(accountAddress));
       if (!r) return;
       if (r.ok) {
-        clearGoals();
+        if (accountAddress) clearGoals(accountAddress);
         setMsg({ tone: "ok", text: t("savings.releasedOk"), link: r.link });
       } else {
         setMsg({ tone: "err", text: r.error || t("savings.somethingWrong") });
@@ -453,7 +467,7 @@ function LiveSavingsScreen() {
         saved: 0,
       },
     ];
-    saveGoals(g);
+    if (accountAddress) saveGoals(g, accountAddress);
     setGoals(g);
     setAdding(false);
     setAName("");
@@ -469,7 +483,7 @@ function LiveSavingsScreen() {
       setMsg({ tone: "err", text: m("Keep at least one goal allocation above zero.") });
       return;
     }
-    saveGoals(g);
+    if (accountAddress) saveGoals(g, accountAddress);
     setGoals(g);
   }
 
@@ -552,7 +566,7 @@ function LiveSavingsScreen() {
           </div>
           <div style={{ marginTop: 18, fontSize: 20, fontWeight: 600 }}>{t("savings.title")}</div>
           <div style={{ marginTop: 8, fontSize: 14, color: T.slate, lineHeight: 1.5 }}>
-            {t("savings.notConfigured")}
+            {st.error ?? t("savings.notConfigured")}
           </div>
         </div>
         {toast}

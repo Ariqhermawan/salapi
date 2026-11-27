@@ -487,15 +487,21 @@ const LOCKED_UNLOCK = 4_000_000_000;
 const MODE_SPLIT = 1_000_000_000;
 
 export async function smartSavingsState() {
+  if (isLocalPreview) return { ready: false as const, error: "Local preview does not read the Testnet savings vault." };
   const id = smartSavingsId();
-  if (!id) return { ready: false as const };
+  if (!id) return { ready: false as const, error: "The Smart Savings Testnet contract is not configured." };
   try {
-    const { publicKey } = await getSigner();
-    const g = (await readContract(id, "goal_of", [sc.addr(publicKey)])) as {
-      target: number | bigint;
-      unlock: number | bigint;
-      saved: number | bigint;
-    };
+    const wallet = await getConfirmationWallet();
+    let g: { target: number | bigint; unlock: number | bigint; saved: number | bigint };
+    try {
+      g = await readContract(id, "goal_of", [sc.addr(wallet.address)]) as typeof g;
+    } catch (error) {
+      // Contract Error #5 is this contract's NoGoal result. Other errors are
+      // provider/configuration failures and must not look like a new goal.
+      if (error instanceof Error && /Error\(Contract,\s*#?5\)/i.test(error.message))
+        return { ready: true as const, hasGoal: false as const, address: wallet.address };
+      return { ready: false as const, error: "The Testnet savings vault could not be read. Try again later." };
+    }
     const target = BigInt(g.target);
     const saved = BigInt(g.saved);
     const pct =
@@ -506,6 +512,7 @@ export async function smartSavingsState() {
     return {
       ready: true as const,
       hasGoal: true as const,
+      address: wallet.address,
       targetPeso: fmtPeso(stroopsToPesos(target)),
       savedPeso: fmtPeso(stroopsToPesos(saved)),
       targetPesos: stroopsToPesos(target),
@@ -516,21 +523,36 @@ export async function smartSavingsState() {
       unlocked: reached,
       withdrawable: mode === "flexible" || reached,
     };
-  } catch {
-    return { ready: true as const, hasGoal: false as const };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (/sign in|wallet/i.test(message)) return { ready: false as const, error: message };
+    return { ready: false as const, error: "The Testnet savings vault could not be read. Try again later." };
   }
+}
+
+async function authenticatedSavingsSigner(expectedAddress: string) {
+  const wallet = await getConfirmationWallet();
+  if (!StrKey.isValidEd25519PublicKey(expectedAddress) || wallet.address !== expectedAddress)
+    throw new Error("Your account wallet changed. Reload savings and review the action again.");
+  const signer = await getAuthenticatedSigner(wallet.ownerId);
+  if (signer.demo || signer.publicKey !== wallet.address)
+    throw new Error("Your personal wallet changed. Review the savings action again.");
+  return signer;
 }
 
 export async function smartSavingsOpen(
   input: MoneyInput,
+  expectedAddress: string,
   mode: "flexible" | "disciplined" = "disciplined"
 ) {
+  if (isLocalPreview) return { ok: false as const, error: "Local preview cannot submit savings transactions." };
   const id = smartSavingsId();
   if (!id) return { ok: false as const, error: "Vault not set up" };
+  if (mode !== "flexible" && mode !== "disciplined") return { ok: false as const, error: "Choose a valid savings rule." };
   const target = amountStroops(input);
   if (target == null)
     return { ok: false as const, error: "Enter a target amount" };
-  const s = await getSigner();
+  const s = await authenticatedSavingsSigner(expectedAddress);
   // Disciplined → far-future unlock (contract releases only at target).
   // Flexible → unlock already passed (contract permits withdraw anytime).
   const r = await invokeAs(s.secret, id, "open_goal", [
@@ -543,13 +565,14 @@ export async function smartSavingsOpen(
     : failedTransaction(r);
 }
 
-export async function smartSavingsDeposit(input: MoneyInput) {
+export async function smartSavingsDeposit(input: MoneyInput, expectedAddress: string) {
+  if (isLocalPreview) return { ok: false as const, error: "Local preview cannot submit savings transactions." };
   const id = smartSavingsId();
   if (!id) return { ok: false as const, error: "Vault not set up" };
   const amount = amountStroops(input);
   if (amount == null)
     return { ok: false as const, error: "Enter a valid amount" };
-  const s = await getSigner();
+  const s = await authenticatedSavingsSigner(expectedAddress);
   const r = await invokeAs(s.secret, id, "deposit", [
     sc.addr(s.publicKey),
     sc.i128(amount),
@@ -559,10 +582,11 @@ export async function smartSavingsDeposit(input: MoneyInput) {
     : failedTransaction(r);
 }
 
-export async function smartSavingsWithdraw() {
+export async function smartSavingsWithdraw(expectedAddress: string) {
+  if (isLocalPreview) return { ok: false as const, error: "Local preview cannot submit savings transactions." };
   const id = smartSavingsId();
   if (!id) return { ok: false as const, error: "Vault not set up" };
-  const s = await getSigner();
+  const s = await authenticatedSavingsSigner(expectedAddress);
   const r = await invokeAs(s.secret, id, "withdraw", [sc.addr(s.publicKey)]);
   return r.ok
     ? { ok: true as const, link: txLink(r.hash) }

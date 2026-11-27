@@ -19,19 +19,21 @@ test("home copy covers four languages and keeps currency separate from language"
   assert.match(home, /homeCopy\(locale, phrase\)/);
   assert.doesNotMatch(home, /homeCopy\(currency/);
 });
-test("Savings stays coming soon in Vaults and the direct route without mounting money controls", () => {
+test("Smart Savings uses the Testnet contract for signed-in wallets and keeps preview funds local", () => {
   const home = readFileSync(new URL("../app/page.tsx", import.meta.url), "utf8");
   const vaults = readFileSync(new URL("../components/screens/VaultsScreen.tsx", import.meta.url), "utf8");
   assert.doesNotMatch(home, /href="\/savings"/);
   assert.match(home, /<button[^>]*disabled[^>]*data-testid="social-feed-coming-soon"/);
-  assert.doesNotMatch(vaults, /<Link href="\/savings"/);
-  assert.match(vaults, /aria-disabled="true" data-testid="vault-savings-coming-soon"/);
+  assert.match(vaults, /<Link href="\/savings"/);
+  assert.doesNotMatch(vaults, /aria-disabled="true" data-testid="vault-savings-coming-soon"/);
   const route = readFileSync(new URL("../app/savings/page.tsx", import.meta.url), "utf8");
-  assert.match(route, /return <SavingsComingSoonScreen \/>/);
-  assert.doesNotMatch(route, /import SavingsScreen|isLocalPreview/);
-  const placeholder = readFileSync(new URL("../components/screens/SavingsComingSoonScreen.tsx", import.meta.url), "utf8");
-  assert.match(placeholder, /copy\("Coming soon"\)/);
-  assert.doesNotMatch(placeholder, /@\/app\/actions|SavingsScreen|useEffect|smartSavings|localStorage|sessionStorage/);
+  assert.match(route, /import SavingsScreen/);
+  assert.match(route, /return <SavingsScreen \/>/);
+  const screen = readFileSync(new URL("../components/screens/SavingsScreen.tsx", import.meta.url), "utf8");
+  assert.match(screen, /return isLocalPreview \? <PreviewSavingsScreen \/> : <LiveSavingsScreen \/>/);
+  assert.match(screen, /Experimental Testnet savings/);
+  const actions = readFileSync(new URL("../app/actions.ts", import.meta.url), "utf8");
+  assert.match(actions, /authenticatedSavingsSigner/);
 });
 
 test("Home shortcuts use the prototype's clipped horizontal row and readable labels", () => {

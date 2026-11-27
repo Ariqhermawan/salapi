@@ -421,7 +421,8 @@ export function paluwaganId(): string | null {
   return process.env.PALUWAGAN_CONTRACT ?? null;
 }
 export function smartSavingsId(): string | null {
-  return process.env.SMARTSAVINGS_CONTRACT ?? null;
+  const id = process.env.SMARTSAVINGS_CONTRACT?.trim();
+  return id && StrKey.isValidContract(id) ? id : null;
 }
 export function arisanRoomsId(): string | null {
   return process.env.ARISAN_ROOMS_CONTRACT ?? null;

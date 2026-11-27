@@ -2,6 +2,8 @@ import type { Locale } from "./config";
 
 // Tagalog, Indonesian, Vietnamese. Brands and user-provided cause names stay intact.
 export const HOME_COPY = {
+  "Smart Savings": ["Matalinong Ipon", "Tabungan Pintar", "Tiết kiệm thông minh"],
+  "Open Testnet savings": ["Buksan ang ipon sa Testnet", "Buka tabungan Testnet", "Mở tiết kiệm Testnet"],
   "Cause": ["Kampanya", "Campaign", "Chiến dịch"],
   "Causes": ["Mga kampanya", "Daftar campaign", "Các chiến dịch"],
   "Send": ["Ipadala", "Kirim", "Gửi"],

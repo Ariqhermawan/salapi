@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-for (const width of [375, 390, 1280]) test(`Savings is coming soon at ${width}px without opening a savings flow`, async ({ page }, testInfo) => {
+for (const width of [375, 390, 1280]) test(`Smart Savings is available on Testnet at ${width}px`, async ({ page }, testInfo) => {
   await page.setViewportSize({ width, height: 900 });
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
@@ -34,22 +34,20 @@ for (const width of [375, 390, 1280]) test(`Savings is coming soon at ${width}px
   }
   const tiles = home.locator('section[aria-label="QUICK ACTIONS"]');
   await expect(tiles.getByRole("link")).toHaveCount(2);
-  await tiles.screenshot({ path: testInfo.outputPath(`savings-coming-soon-${width}.png`) });
+  await tiles.screenshot({ path: testInfo.outputPath(`smart-savings-${width}.png`) });
   // An ordinary neighboring tile still navigates, rather than disabling the row.
   await tiles.getByRole("link", { name: /Arisan/ }).click();
   await expect(page).toHaveURL(/\/vaults$/);
   await expect(page.locator("#app-content").getByRole("heading", { level: 1 })).toBeVisible();
   await page.goto("/vaults", { waitUntil: "domcontentloaded" });
-  await expect(page.getByTestId("vault-savings-coming-soon")).toContainText("Coming soon");
-  await expect(page.locator('#app-content a[href="/savings"]')).toHaveCount(0);
+  const savings = page.locator('#app-content a[href="/savings"]');
+  await expect(savings).toBeVisible();
+  await expect(savings).toContainText("Smart Savings");
+  await expect(savings).toContainText(/Testnet/i);
   await page.goto("/savings", { waitUntil: "domcontentloaded" });
   const main = page.locator("#app-content");
   await expect(page).toHaveTitle("Smart Savings · Salapi");
-  await expect(main.getByRole("heading", { name: "Smart Savings", exact: true })).toBeVisible();
-  await expect(main.getByText("Coming soon", { exact: true })).toBeVisible();
-  await expect(main.locator("input, form")).toHaveCount(0);
-  await expect(main.getByRole("button", { name: /deposit|withdraw|confirm|open.*goal/i })).toHaveCount(0);
-  await main.getByRole("link", { name: "Back to Vaults", exact: true }).click();
-  await expect(page).toHaveURL(/\/vaults$/);
+  await expect(main.locator("h1, h2, [role=heading]").first()).toBeVisible();
+  await expect(main).toContainText(/Smart Savings|Testnet|goal|wallet/i);
   expect(errors).toEqual([]);
 });

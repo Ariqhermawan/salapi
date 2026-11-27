@@ -307,10 +307,11 @@ test("Arisan and Crowdfund keep their own cards, empty states, actions and legac
   assert.equal(nodes(crowdfunding).some(node => String(node.props.className).includes("arisanVault")), false);
   for (const href of ["/arisan/new", "/arisan/join", "/paluwagan"]) assert.ok(nodes(arisan).some(node => node.props.href === href));
   for (const href of ["/campaigns?mode=examples", "/campaigns?create=1", "/campaigns?id=101", "/transparency", "/circles"]) assert.ok(nodes(crowdfunding).some(node => node.props.href === href));
-  assert.equal(nodes(tree).some(node => node.props.href === "/savings"), false);
-  const savings = nodes(tree).find(node => node.props["data-testid"] === "vault-savings-coming-soon")!;
-  assert.equal(savings.props["aria-disabled"], "true");
-  assert.match(text(savings), /Smart SavingsComing soon/);
+  const savings = nodes(tree).find(node => node.props.href === "/savings")!;
+  assert.ok(savings, "Smart Savings is reachable from Vaults");
+  assert.equal(nodes(arisan).some(node => node.props.href === "/savings"), false);
+  assert.equal(nodes(crowdfunding).some(node => node.props.href === "/savings"), false);
+  assert.match(text(savings), /Smart SavingsOpen Testnet savings/);
   assert.match(text(arisan), /Your rooms could not be loaded/);
   assert.doesNotMatch(text(crowdfunding), /Your rooms could not be loaded/);
   const before = JSON.stringify(ui.states.slice(0, 4));

@@ -132,9 +132,10 @@ test("an existing goal's denied save keeps its exact prior snapshot and no succe
 test("switching display currency during review changes only the illustrative display, not stored exact units",()=>{
   const env=setup(); const ui=env.mount(); ui.change("Local goal name","Currency"); ui.change("Local goal target","10.25"); ui.click("Review local goal"); env.currency("id"); ui.render(); ui.click("Confirm local savings demo"); assert.equal(current(env).goals[0].target,money.moneyInputToStroops({amount:"10.25",currency:"en"})!.toString()); noExternal(env);
 });
-test("Vaults marks savings coming soon while retaining isolated development code",()=>{
+test("Vaults opens guarded Testnet Savings while retaining an isolated local demo",()=>{
   const home=readFileSync(new URL("../app/page.tsx",import.meta.url),"utf8");
   assert.doesNotMatch(home, /href="\/savings"/);
-  const vaults=readFileSync(new URL("../components/screens/VaultsScreen.tsx",import.meta.url),"utf8"); assert.doesNotMatch(vaults,/<Link href="\/savings"/); assert.match(vaults,/vault-savings-coming-soon/);
-  const savings=readFileSync(new URL("../components/screens/SavingsScreen.tsx",import.meta.url),"utf8"); assert.match(savings,/return isLocalPreview \? <PreviewSavingsScreen \/> : <LiveSavingsScreen \/>/); assert.match(savings,/useUnresolvedSubmission\("savings:experimental"\)/); assert.match(savings,/submission\.run\(\(\) => smartSavingsDeposit/);
+  const vaults=readFileSync(new URL("../components/screens/VaultsScreen.tsx",import.meta.url),"utf8"); assert.match(vaults,/<Link href="\/savings"/);
+  const savings=readFileSync(new URL("../components/screens/SavingsScreen.tsx",import.meta.url),"utf8"); assert.match(savings,/return isLocalPreview \? <PreviewSavingsScreen \/> : <LiveSavingsScreen \/>/); assert.match(savings,/useUnresolvedSubmission\("savings:experimental"\)/); assert.match(savings,/submission\.run\(\(\) => smartSavingsDeposit/); assert.match(savings,/Experimental Testnet savings/);
+  const actions=readFileSync(new URL("../app/actions.ts",import.meta.url),"utf8"); assert.match(actions,/authenticatedSavingsSigner/);
 });
