@@ -4,7 +4,7 @@ import { isLocalPreview } from "@/lib/local-preview";
 import type { ArisanMemberIdentityResult, ArisanRoomKind } from "@/lib/arisan-member-identity";
 import { authenticatedArisanWallet } from "./arisanAuthorization";
 import { readArisanWalletIdentities } from "./walletActivityIdentity";
-import { arisanRoomsId, RPC_URL, sc } from "./stellar";
+import { arisanRoomsId, CONTRACTS, RPC_URL, sc } from "./stellar";
 
 const MAX_MEMBERS = 20;
 const TIMEOUT_MS = 4_000;
@@ -33,7 +33,7 @@ export async function readArisanMemberIdentities(kind: ArisanRoomKind, roomId: n
   if (isLocalPreview || !["upfront", "installments", "scheduled"].includes(kind) || !Number.isSafeInteger(roomId) || roomId < 1 || roomId > 0xffff_ffff) return failed;
   const legacy = arisanRoomsId()?.trim();
   const installment = process.env.ARISAN_INSTALLMENTS_CONTRACT?.trim();
-  const scheduled = process.env.ARISAN_SCHEDULED_CONTRACT?.trim();
+  const scheduled = process.env.ARISAN_SCHEDULED_CONTRACT?.trim() || CONTRACTS.scheduledArisan;
   const contractId = kind === "upfront" ? legacy : kind === "installments" ? installment : scheduled;
   if (!contractId || !StrKey.isValidContract(contractId)
     || kind === "installments" && contractId === legacy

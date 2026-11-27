@@ -5,7 +5,7 @@ import { isLocalPreview } from "@/lib/local-preview";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseAdminConfigured } from "@/lib/supabase/env";
 import { authenticatedArisanWallet } from "./arisanAuthorization";
-import { arisanRoomsId, RPC_URL, sc } from "./stellar";
+import { arisanRoomsId, CONTRACTS, RPC_URL, sc } from "./stellar";
 import { ARISAN_GATHERING_UUID, arisanGatheringScope, arisanRoomHref, validateArisanGatheringSave,
   type ArisanGathering, type ArisanGatheringFailure, type ArisanGatheringInboxResult, type ArisanGatheringKind,
   type ArisanGatheringNotification, type ArisanGatheringResult, type ArisanGatheringSaveResult, type ArisanGatheringScope,
@@ -21,7 +21,8 @@ const unavailable = (): ArisanGatheringFailure => ({ ok: false, code: "unavailab
 const forbidden = (): ArisanGatheringFailure => ({ ok: false, code: "forbidden", error: "Only verified saved-wallet room members can view these details; only the host can edit them." });
 
 export function arisanGatheringContract(kind: ArisanGatheringKind): string | null {
-  const legacy = arisanRoomsId()?.trim(), installment = process.env.ARISAN_INSTALLMENTS_CONTRACT?.trim(), scheduled = process.env.ARISAN_SCHEDULED_CONTRACT?.trim();
+  const legacy = arisanRoomsId()?.trim(), installment = process.env.ARISAN_INSTALLMENTS_CONTRACT?.trim();
+  const scheduled = process.env.ARISAN_SCHEDULED_CONTRACT?.trim() || CONTRACTS.scheduledArisan;
   const id = kind === "upfront" ? legacy : kind === "installments" ? installment : kind === "scheduled" ? scheduled : undefined;
   if (!id || !StrKey.isValidContract(id) || kind !== "upfront" && id === legacy || kind === "scheduled" && id === installment) return null;
   return id;
