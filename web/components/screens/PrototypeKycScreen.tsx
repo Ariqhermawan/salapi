@@ -87,7 +87,7 @@ export default function PrototypeKycScreen({ state }: { state?: string }) {
       </section>
       <div className={styles.buttonArea}><Btn onClick={() => setPhotoTaken(true)}>{photoTaken ? "Retake sample" : "Take sample photo"}</Btn><Btn kind="secondary" onClick={() => photoTaken ? setStep(3) : setNotice("Take the sample photo to continue.")}>{photoTaken ? "Continue" : "Continue"}</Btn>{notice ? <p role="status">{notice}</p> : null}</div>
     </> : <>
-      <section className={styles.checkCard}><h2>Sumsub handoff</h2><span className={styles.notConnected}>Not connected</span><p>Live verification needs a server-issued session. This local flow sends no documents or request to Sumsub.</p></section>
+      <section className={styles.checkCard}><h2>Sumsub handoff</h2><span className={styles.notConnected}>Not connected</span><p>Live verification needs a server-issued session. This sample flow sends no documents or request to Sumsub.</p></section>
       <div className={styles.buttonArea}><Btn onClick={() => router.push("/you/verify/preview/pending")}>Submit for review</Btn><Btn kind="secondary" onClick={() => setStep(2)}>Back</Btn></div>
     </>}
   </main>;

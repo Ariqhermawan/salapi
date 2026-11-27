@@ -1,5 +1,6 @@
-import { redirect } from "next/navigation";
+import PrototypeSampleNotice from "@/components/PrototypeSampleNotice";
+import PrototypeArisanListScreen from "@/components/screens/PrototypeArisanListScreen";
 
 export default function ArisanEmptyAliasPage() {
-  redirect("/vaults");
+  return <><PrototypeSampleNotice kind="arisan-empty" /><PrototypeArisanListScreen mode="empty" /></>;
 }
