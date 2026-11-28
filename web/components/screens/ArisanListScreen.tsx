@@ -7,7 +7,6 @@ import { useT } from "@/components/I18nProvider";
 import {
   T,
   Ico,
-  AppBar,
   Card,
   Btn,
   Chip,
@@ -128,10 +127,35 @@ export default function ArisanListScreen({ emptyPreview = false }: { emptyPrevie
     minHeight: "100%",
     paddingBottom: 130,
   };
+  const listedRooms = st?.ready ? st.mine : [];
+  const visibleRooms = filter === "All" ? listedRooms : listedRooms.filter(room => room.status === filter);
+  const allRoomGroups = [
+    { key: "in-progress", title: `${t("arisan.status.Open")} / ${t("arisan.status.Active")}`, rooms: listedRooms.filter(room => room.status === "Open" || room.status === "Active") },
+    { key: "done", title: t("arisan.status.Done"), rooms: listedRooms.filter(room => room.status === "Done") },
+    { key: "dissolved", title: t("arisan.status.Dissolved"), rooms: listedRooms.filter(room => room.status === "Dissolved") },
+  ].filter(group => group.rooms.length > 0);
+  const roomCard = (r: typeof listedRooms[number]) => <Link key={r.id} className={styles.roomLink} href={`/arisan/${r.id}`}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+      <div style={{ minWidth: 0 }}>
+        <h2>{r.name}</h2>
+        <div style={{ marginTop: 4, fontSize: 12, color: T.slate, display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <span>{r.memberCount}/{r.memberTarget} {t("arisan.members")}</span>
+          <span>·</span>
+          <span>{t("arisan.cadence." + r.cadence)}</span>
+          {r.isHost && <><span>·</span><span style={{ color: T.action, fontWeight: 600 }}>{t("arisan.youHost")}</span></>}
+        </div>
+      </div>
+      <div style={{ flexShrink: 0, textAlign: "right" }}>
+        <Chip kind={STATUS_TONE[r.status]}>{t("arisan.status." + r.status)}</Chip>
+      </div>
+    </div>
+    <div className={styles.progress}><span style={{ width: `${Math.min(100,r.memberCount/r.memberTarget*100)}%` }} /></div>
+    <div className={styles.roomFooter}><span>Per draw <strong>{formatLocal(r.potPesos, currency)}</strong></span><span style={{ color: T.action }}>View room →</span></div>
+  </Link>;
 
   return (
     <div className={styles.arisanScreen} style={shell}>
-      <AppBar title="Arisan" />
+      <h1 className={styles.srOnly}>Arisan</h1>
 
       <div className={styles.arisanActions}>
         <Btn
@@ -190,36 +214,12 @@ export default function ArisanListScreen({ emptyPreview = false }: { emptyPrevie
 
         {st && st.ready && st.mine.length > 0 && (
           <div className={styles.roomList} style={{ marginTop: 15 }}>
-            {st.mine.filter(r => filter === "All" || r.status === filter).map((r) => (
-              <Link key={r.id} className={styles.roomLink} href={`/arisan/${r.id}`}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-                  <div style={{ minWidth: 0 }}>
-                    <h2>
-                      {r.name}
-                    </h2>
-                    <div style={{ marginTop: 4, fontSize: 12, color: T.slate, display: "flex", gap: 6, flexWrap: "wrap" }}>
-                      <span>{r.memberCount}/{r.memberTarget} {t("arisan.members")}</span>
-                      <span>·</span>
-                      <span>{t("arisan.cadence." + r.cadence)}</span>
-                      {r.isHost && (
-                        <>
-                          <span>·</span>
-                          <span style={{ color: T.action, fontWeight: 600 }}>{t("arisan.youHost")}</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                  <div style={{ flexShrink: 0, textAlign: "right" }}>
-                    <Chip kind={STATUS_TONE[r.status]}>
-                      {t("arisan.status." + r.status)}
-                    </Chip>
-                  </div>
-                </div>
-                <div className={styles.progress}><span style={{ width: `${Math.min(100,r.memberCount/r.memberTarget*100)}%` }} /></div>
-                <div className={styles.roomFooter}><span>Per draw <strong>{formatLocal(r.potPesos, currency)}</strong></span><span style={{ color: T.action }}>View room →</span></div>
-              </Link>
-            ))}
-            {!st.mine.some(r => filter === "All" || r.status === filter) && <div className={styles.empty}><h2>No {filter.toLowerCase()} rooms</h2><p className={styles.muted}>Choose another status to see your rooms.</p></div>}
+            {filter === "All" ? allRoomGroups.map(group => <section key={group.key} className={styles.roomGroup}
+              aria-labelledby={`arisan-room-group-${group.key}`} data-room-group={group.key}>
+              <h2 id={`arisan-room-group-${group.key}`} className={styles.roomGroupTitle}>{group.title}</h2>
+              <div className={styles.roomGroupCards}>{group.rooms.map(roomCard)}</div>
+            </section>) : visibleRooms.map(roomCard)}
+            {visibleRooms.length === 0 && <div className={styles.empty}><h2>No {filter.toLowerCase()} rooms</h2><p className={styles.muted}>Choose another status to see your rooms.</p></div>}
           </div>
         )}
         {loadError && !contractUnavailable ? <p className={styles.error} role="alert">{loadError}</p> : null}

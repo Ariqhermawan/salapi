@@ -57,7 +57,7 @@
 .empty { background: #f2efe7; padding: 25px; border-radius: 23px; text-align: center; }
 .empty h2 { font-size: 20px; letter-spacing: -.03em; margin: 8px 0; }
 .skeleton { height: 170px; border-radius: 24px; background: linear-gradient(90deg,#edf1f7,#f8faff,#edf1f7); background-size: 200% 100%; animation: loading 1.8s ease-in-out infinite; }
-.roomList { display: grid; gap: 11px; }
+.roomList { display: grid; gap: 18px; }
 .roomLink { display: block; color: inherit; text-decoration: none; border: 1px solid #e1e7f0; background: white; border-radius: 23px; padding: 19px; transition: border-color .2s,transform .2s; }
 .roomLink:hover { border-color: #9fbcf7; transform: translateY(-1px); }
 .roomLink h2 { font-size: 20px; line-height: 1.3; font-weight: 700; letter-spacing: -.035em; margin: 9px 0; }
@@ -81,10 +81,14 @@
 .phaseRail span { flex: 1; text-align: center; font-size: 10px; font-weight: 650; padding: 7px 4px; background: #fff; border-radius: 8px; color: #61708a; }
 .phaseRail .currentPhase { background: #2563eb; color: white; }
 .arisanScreen { padding-bottom: 120px; }
+.srOnly { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 .arisanActions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 14px 16px 18px; }
 .arisanContent { padding: 0 16px; }
 .arisanFilters { display: flex; gap: 7px; overflow-x: auto; margin: 0 -16px 12px; padding: 4px 16px; scrollbar-width: none; }
 .arisanFilters::-webkit-scrollbar { display: none; }
+.roomGroup { display: grid; gap: 9px; }
+.roomGroupTitle { margin: 0 2px; color: #687386; font-size: 13px; font-weight: 650; line-height: 18px; }
+.roomGroupCards { display: grid; gap: 11px; }
 .arisanEmpty { display: grid; justify-items: center; gap: 8px; min-height: 270px; align-content: center; padding: 20px; text-align: center; }
 .arisanEmpty img { width: 120px; height: 120px; object-fit: contain; margin-bottom: 2px; }
 .arisanEmpty h2 { margin: 0; color: #171717; font-size: 18px; font-weight: 650; line-height: 24px; }
