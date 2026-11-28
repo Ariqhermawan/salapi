@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, BookmarkSimple, Check, DotsThree, Flag, Info, Plus, ShareNetwork, Star, UserCircle, X } from "@phosphor-icons/react";
-import { localPreviewCauses, type LocalPreviewCause } from "@/lib/local-preview";
+import { isLocalPreview, localPreviewCauses, type LocalPreviewCause } from "@/lib/local-preview";
 import { useGoBack } from "@/lib/ui/useGoBack";
 import { PROTOTYPE_CAUSES, type PrototypeCause } from "@/lib/prototype-causes";
 import styles from "./PrototypeCauseDetailScreen.module.css";
@@ -49,6 +49,7 @@ export default function PrototypeCauseDetailScreen({ id, initialTab = "Story", i
     daysLeft: Math.max(0, Math.ceil((new Date(`${createdCause.endDate}T00:00:00`).getTime() - new Date().setHours(0, 0, 0, 0)) / 86_400_000)),
     status: "Funding" as const,
   } : undefined);
+  const isExample = Boolean(sampleCause || createdCause);
   const router = useRouter();
   const back = useGoBack("/causes");
   const [tab, setTab] = useState<"Story" | "Activity" | "Proof" | "Reviews">(initialTab);
@@ -186,6 +187,13 @@ export default function PrototypeCauseDetailScreen({ id, initialTab = "Story", i
 
       <h1 className={styles.title}>{cause.title}</h1>
 
+      {isExample && <aside className={styles.exampleNotice} role="note" aria-label="Example campaign disclosure" data-testid="cause-example-disclosure">
+        <strong>Example cause</strong>
+        <span>{isLocalPreview
+          ? "Amounts, donor activity, organizer details, and photos are illustrative. Preview actions stay in this browser; no funds move."
+          : "Amounts, donor activity, organizer details, and photos are illustrative. No donation is collected on this page."}</span>
+      </aside>}
+
       <Link href={`/organizer/${cause.organizer.replace(/^@/, "")}`} className={styles.organizer}>
         {cause.avatar ? <Image src={cause.avatar} width={40} height={40} alt="" /> : <UserCircle size={40} weight="light" aria-hidden="true" />}
         <span><strong>{cause.organizer}</strong><small>{cause.place}</small></span>
@@ -277,7 +285,7 @@ export default function PrototypeCauseDetailScreen({ id, initialTab = "Story", i
     {layer ? createPortal(<div className={styles.actionBar}>
       <button type="button" className={styles.saveButton} aria-label={saved ? "Remove from saved causes" : "Save this cause"} aria-pressed={saved} onClick={toggleSaved}><BookmarkSimple size={20} weight={saved ? "fill" : "regular"} /></button>
       <button type="button" className={styles.shareButton} onClick={() => void share()}>{copied ? "Copied" : "Share"}</button>
-      {!finished && <Link href={`/donate/${id}`} className={styles.donateButton} aria-disabled={cause.status === "Paused" || undefined} onClick={cause.status === "Paused" ? event => event.preventDefault() : undefined}>Donate <span>›</span></Link>}
+      {isExample && (!isLocalPreview || !finished) && <Link href={isLocalPreview ? `/donate/${id}` : "/campaigns?mode=testnet"} className={styles.donateButton} aria-disabled={(isLocalPreview && cause.status === "Paused") || undefined} onClick={isLocalPreview && cause.status === "Paused" ? event => event.preventDefault() : undefined}>{isLocalPreview ? "Preview donation" : "See Testnet causes"} <span>›</span></Link>}
       {cause.status === "Paused" && <p>Donations are paused.</p>}
     </div>, layer) : null}
 

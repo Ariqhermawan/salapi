@@ -2,7 +2,7 @@
 const MARKER = "__salapiNavigation";
 const STORAGE_KEY = "salapi-navigation-v1";
 const MAX_ENTRIES = 60;
-const VIEW_KEYS = new Set(["home-circles", "circles-discovery"]);
+const VIEW_KEYS = new Set(["home-circles", "circles-discovery", "testnet-campaigns"]);
 const ID = /^[a-zA-Z0-9-]{16,64}$/;
 type Views = Record<string, string>;
 type Entry = { id: string; previous: string | null; pathname: string; scroll: number; views: Views };
@@ -29,10 +29,11 @@ export function safeAppFallback(value: string): string {
 
 function viewSnapshot(viewKey: string, value: unknown): string {
   if (!value || typeof value !== "object" || Array.isArray(value)) return "";
-  const allowedFields = viewKey === "home-circles" ? ["category", "index"] : ["category", "sort"];
+  const allowedFields = viewKey === "home-circles" ? ["category", "index"]
+    : viewKey === "circles-discovery" ? ["category", "sort"] : ["pages"];
   const fields = Object.entries(value);
   if (fields.length > 2 || fields.some(([key, item]) => !allowedFields.includes(key) ||
-    (key === "index" ? !(typeof item === "number" && Number.isInteger(item) && item >= 0 && item <= 10000) :
+    (key === "index" || key === "pages" ? !(typeof item === "number" && Number.isInteger(item) && item >= 0 && item <= (key === "pages" ? 100 : 10000)) :
       !(typeof item === "string" && /^[a-zA-Z0-9 _-]{0,48}$/.test(item))))) return "";
   const snapshot = JSON.stringify(Object.fromEntries(fields));
   return snapshot.length <= 512 ? snapshot : "";

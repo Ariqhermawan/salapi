@@ -21,6 +21,11 @@ const MAX_RECEIPTS = 50;
 const ADDRESS = /^G[A-Z2-7]{55}$/;
 const HANDLE = /^[a-z0-9_]{3,32}$/;
 const AMOUNT = /^\d{1,39}$/;
+const LOCAL_SEND_ID = /^local-send-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+export function isPreviewTransferId(value: string): boolean {
+  return LOCAL_SEND_ID.test(value);
+}
 
 function validInput(value: unknown): value is PreviewTransferInput {
   if (!value || typeof value !== "object") return false;
@@ -57,7 +62,15 @@ function validReceipt(value: unknown): value is PreviewTransfer {
 export function listPreviewTransfers(): PreviewTransfer[] {
   if (!isLocalPreview || typeof window === "undefined") return [];
   try {
-    const raw = sessionStorage.getItem(KEY);
+    // Local demos belong to this browser profile, not to a single page visit.
+    // Migrate any earlier session-only receipts so existing previews survive.
+    let raw = window.localStorage.getItem(KEY);
+    if (!raw) {
+      raw = window.sessionStorage.getItem(KEY);
+      if (raw) {
+        try { window.localStorage.setItem(KEY, raw); } catch { /* Keep the session copy available. */ }
+      }
+    }
     if (!raw) return [];
     const data = JSON.parse(raw);
     if (data?.version !== 1 || !Array.isArray(data.transfers)) return [];
@@ -96,14 +109,14 @@ export function recordPreviewTransfer(
       pesos: input.pesos,
       amountStroops: input.amountStroops,
       senderAddress: PREVIEW_WALLET.address,
-      id: `local-send-${crypto.randomUUID()}`,
+      id: `local-send-${window.crypto.randomUUID()}`,
       createdAt: new Date().toISOString(),
     };
     const transfers = [receipt, ...listPreviewTransfers()].slice(
       0,
       MAX_RECEIPTS,
     );
-    sessionStorage.setItem(KEY, JSON.stringify({ version: 1, transfers }));
+    window.localStorage.setItem(KEY, JSON.stringify({ version: 1, transfers }));
     return receipt;
   } catch {
     return null;

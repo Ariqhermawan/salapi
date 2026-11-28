@@ -19,7 +19,7 @@ import type { PaymentChannelId } from "@/lib/payment-channels";
 import PrototypeTopUpScreen from "./PrototypeTopUpScreen";
 import PrototypeTopUpFlowScreen from "./PrototypeTopUpFlowScreen";
 
-export default function TopUpScreen({ initialMethod, initialChannel, initialCurrency, initialVia, initialStep, initialAmount }: { initialMethod?: "topup" | "xlm" | "provider"; initialChannel?: PaymentChannelId; initialCurrency?: "IDR" | "PHP" | "USDC"; initialVia?: "qris" | "card" | "va"; initialStep?: "amount" | "pay"; initialAmount?: string } = {}) {
+export default function TopUpScreen({ initialMethod, initialChannel, initialCurrency, initialVia, initialStep, initialAmount, invalidInitialAmount }: { initialMethod?: "topup" | "xlm" | "provider"; initialChannel?: PaymentChannelId; initialCurrency?: "IDR" | "PHP" | "USDC"; initialVia?: "qris" | "card" | "va"; initialStep?: "amount" | "pay"; initialAmount?: string; invalidInitialAmount?: boolean } = {}) {
   const { t, locale } = useT();
   const c = accountCopy(locale);
   const router = useRouter();
@@ -59,7 +59,7 @@ export default function TopUpScreen({ initialMethod, initialChannel, initialCurr
   </nav>;
   if (!isLocalPreview && method === "provider") return <PrototypeTopUpScreen initialCurrency={initialCurrency} localPreview={false} onFaucet={() => { setMethod("topup"); setFaucet(true); }} />;
   if (method === "topup" && !faucet) return <PrototypeTopUpScreen initialCurrency={initialCurrency} onFaucet={() => setFaucet(true)} />;
-  if (isLocalPreview && method === "provider" && initialCurrency && initialCurrency !== "USDC" && initialVia) return <PrototypeTopUpFlowScreen currency={initialCurrency} via={initialVia} step={initialStep} initialAmount={initialAmount} />;
+  if (isLocalPreview && method === "provider" && initialCurrency && initialCurrency !== "USDC" && initialVia) return <PrototypeTopUpFlowScreen currency={initialCurrency} via={initialVia} step={initialStep} initialAmount={initialAmount} invalidInitialAmount={invalidInitialAmount} />;
   if (method === "provider" && isLocalPreview) return <PaymentProviderDemo initialChannel={initialChannel} topupNavigation={navigation} />;
   // Payment-channel discovery must not load, fund or provision a wallet.
   // Real checkout remains unavailable until an authenticated provider flow exists.

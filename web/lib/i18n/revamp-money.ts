@@ -100,6 +100,7 @@ export const REVAMP_MONEY_COPY = {
   "View transaction on Stellar ↗": ["Tingnan ang transaksyon sa Stellar ↗", "Lihat transaksi di Stellar ↗", "Xem giao dịch trên Stellar ↗"],
   "Send again": ["Magpadala muli", "Kirim lagi", "Gửi lại"],
   "View local Activity": ["Tingnan ang lokal na aktibidad", "Lihat Aktivitas lokal", "Xem hoạt động cục bộ"],
+  "View local receipt": ["Tingnan ang lokal na resibo", "Lihat resi lokal", "Xem biên nhận cục bộ"],
   "Back to Home": ["Bumalik sa Home", "Kembali ke Beranda", "Về trang chủ"],
   "This signed transaction may already have been accepted. Check only this hash; do not send it again.": ["Maaaring tinanggap na ang pirmadong transaksyon. Suriin lamang ang hash na ito; huwag ipadala muli.", "Transaksi bertanda tangan ini mungkin sudah diterima. Periksa hash ini saja; jangan kirim ulang.", "Giao dịch đã ký này có thể đã được nhận. Chỉ kiểm tra mã hash này; không gửi lại."],
   "This browser did not receive a transaction hash. Do not send again until the original attempt has been verified in your wallet history.": ["Walang hash na natanggap ang browser. Huwag magpadala muli hangga't hindi nasusuri ang unang pagtatangka sa wallet history.", "Browser tidak menerima hash transaksi. Jangan kirim ulang sampai upaya awal diperiksa di riwayat wallet.", "Trình duyệt chưa nhận mã hash. Không gửi lại trước khi kiểm tra lần gửi ban đầu trong lịch sử ví."],

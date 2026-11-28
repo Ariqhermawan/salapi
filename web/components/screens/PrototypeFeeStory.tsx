@@ -9,27 +9,32 @@ const art = (name: string) => `/prototype-fee-story/story-${name}.png`;
 
 const ORGANIZER_STORY: FeeStorySlide[] = [
   { title: "Helping is real work", body: "Shopping, packing, riding, delivering, posting proof. Running a cause takes your time, your energy and your money.", art: art("work") },
-  { title: "Where every donation goes", body: "At least 93% goes to the people you help. Up to 5% is your share, 1% keeps Salapi going and 1% goes to the Disaster Vault.", art: art("split") },
-  { title: "Your share covers your work", body: "Set up to 5% for fuel, phone data and your days of work. Donors see it before they give, and you receive it after your proof is confirmed.", art: art("share") },
+  { title: "How a D4 contribution is used", body: "The full contribution enters that campaign's own escrow. Its creator share (0–10%) and beneficiary are fixed before funding opens.", art: art("split") },
+  { title: "Your share is fixed up front", body: "The creator share is released only after two of the three configured wallets approve the submitted proof before the deadline. Donor ratings are not part of D4.", art: art("share") },
   { title: "Or make it 0%", body: "If your costs are covered, or you'd like to give your time as a gift, set it to 0%. Both choices are welcome.", art: art("gift") },
-  { title: "1% keeps Salapi going", body: "It pays for the servers that keep your cause online and the salaries of the Salapi team, so they can look after their own families too.", art: art("salapi") },
-  { title: "1% for the Disaster Vault", body: "Every donation adds 1% to a shared emergency fund. When a disaster strikes, 20% of the fund goes to two NGOs working on that disaster.", art: art("vault") },
+  { title: "No platform fee in D4", body: "The D4 campaign contract does not deduct a Salapi platform fee from campaign contributions.", art: art("salapi") },
+  { title: "Disaster Vault is separate", body: "The Vault uses its own D3 contract and safety rules. A D4 campaign contribution does not automatically add to it; people can contribute to the Vault separately.", art: art("vault") },
   { title: "One helper inspires the next", body: "When helping pays fairly, more people can make it their work, and more families get help.", art: art("helpers") },
 ];
 
-const DONOR_START = { organizer: 0, platform: 2, cause: 4 } as const;
+const DONOR_START = { organizer: 0, platform: 3, cause: 5 } as const;
 export type DonorStoryKey = keyof typeof DONOR_START;
-export const donorFeeStory = (inStages: boolean): FeeStorySlide[] => [
-  { art: art("work"), title: "Helping takes real work", body: "The organizer shops, travels, delivers the help and posts proof, often over many days." },
-  { art: art("share"), title: "So they set a small share", body: "Up to 5%, set before the cause opens and never raised later. It covers their fuel, phone data and time. Some organizers choose 0%." },
-  { art: art("split"), title: "Where your $10 goes", body: "At least $9.30 reaches the people in need. Up to $0.50 goes to the organizer, $0.10 keeps Salapi going and $0.10 goes to the Disaster Vault." },
-  { art: art("vault"), title: "What's the Disaster Vault?", body: "A shared emergency fund. Every donation adds 1%, and when a flood, typhoon or earthquake strikes, 20% of the fund goes to two NGOs working on that disaster." },
-  inStages
-    ? { art: art("stages"), title: "Paid in stages", body: "The need is checked before the cause opens. The organizer gets the family's part in stages, each unlocked by receipts for the last. Their own share waits for proof of delivery and your rating." }
-    : { art: art("two-steps"), title: "Paid in two steps", body: "The need is checked before the cause opens, and the family's part goes straight to them. The organizer's share waits until they prove delivery and donors like you rate it." },
-  { art: art("refund"), title: "Or your money comes back", body: "If the organizer can't prove delivery in time, whatever is still held, including their share, comes back to you." },
-  { art: art("helpers"), title: "Fair pay keeps helpers going", body: "For many organizers, helping is their daily work. A small, visible share lets them support their own families while they help others, and inspires more people to start." },
-];
+const usd = (cents: number) => `$${(cents / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+export const donorFeeStory = (amountCents: number, creatorShareBps: number): FeeStorySlide[] => {
+  const creatorShare = Math.round(amountCents * creatorShareBps / 10_000);
+  const beneficiaryShare = amountCents - creatorShare;
+  const percent = (creatorShareBps / 100).toLocaleString("en-US", { maximumFractionDigits: 2 });
+  return [
+    { art: art("work"), title: "Helping takes real work", body: "The organizer shops, travels, delivers the help and posts proof, often over many days." },
+    { art: art("share"), title: "The creator share is set first", body: "Each D4 campaign fixes its creator share from 0–10% before funding opens. The share cannot be raised later." },
+    { art: art("split"), title: `Where your ${usd(amountCents)} goes`, body: `${usd(amountCents)} is held in this campaign's D4 escrow. These example terms set a ${percent}% creator share (${usd(creatorShare)}). If proof is approved, ${usd(beneficiaryShare)} goes to the fixed beneficiary and ${usd(creatorShare)} to the creator.` },
+    { art: art("salapi"), title: "No platform fee in D4", body: "The D4 campaign contract does not deduct a Salapi platform fee. This preview does not add one either." },
+    { art: art("vault"), title: "Disaster Vault is separate", body: "D3 has a separate shared pool and approval process. D4 campaign donations do not automatically fund it; a Vault contribution is a separate action." },
+    { art: art("two-steps"), title: "Two of three wallets approve proof", body: "After funding closes, the organizer submits proof. Two of the three wallets fixed at campaign creation must approve the same proof before the deadline. This is not a donor rating." },
+    { art: art("refund"), title: "You can claim a refund", body: "If two timely approvals are not recorded, each donor can claim their full contribution after the review deadline. Refunds are not automatic and network fees are not returned." },
+    { art: art("helpers"), title: "Fair pay keeps helpers going", body: "For many organizers, helping is their daily work. A small, visible share lets them support their own families while they help others, and inspires more people to start." },
+  ];
+};
 
 export default function PrototypeFeeStory({ onDone, slides = ORGANIZER_STORY, start = 0, ariaLabel = "Organizer fee story" }: {
   onDone: () => void;

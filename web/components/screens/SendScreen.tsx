@@ -64,7 +64,7 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
   const [pending, start] = useTransition();
   const [transferPhase, setTransferPhase] = useState<"send" | "check" | null>(null);
   const submitting = useRef(false);
-  const [done, setDone] = useState<{ link?: string; address?: string; hash?: string; statusOnly?: boolean; localReceiptSaved?: boolean; amount?: ReviewedAmount } | null>(null);
+  const [done, setDone] = useState<{ link?: string; address?: string; hash?: string; statusOnly?: boolean; localReceiptSaved?: boolean; localReceiptId?: string; amount?: ReviewedAmount } | null>(null);
   const [err, setErr] = useState("");
   const [unresolved, setUnresolved] = useState<UnresolvedSend | null>(null);
   const unresolvedRef = useRef<UnresolvedSend | null>(null);
@@ -272,7 +272,7 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
         if (isLocalPreview && recipient.input) {
           const receipt = recordPreviewTransfer({ recipientHandle: recipient.username, recipientAddress: recipient.address,
             pesos: pesoFromLocal(Number(recipient.input.amount), recipient.input.currency), amountStroops: recipient.amountStroops });
-          setDone({ address: recipient.address, localReceiptSaved: receipt !== null, amount: recipient });
+          setDone({ address: recipient.address, localReceiptSaved: receipt !== null, localReceiptId: receipt?.id, amount: recipient });
           if (!receipt) setErr(m("This demo did not move tokens. Browser storage could not save its receipt, so it will not appear in Activity."));
           return;
         }
@@ -351,6 +351,7 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
           </article>
           <div className={styles.actions}>
             <Btn kind="primary" onClick={() => { setDone(null); setRecipient(null); setAmount(""); setTo(""); setErr(""); }}>{m("Send again")}</Btn>
+            {isLocalPreview && done.localReceiptId ? <Btn kind="ghost" size="md" onClick={() => router.push(`/send/success/${encodeURIComponent(done.localReceiptId!)}`)}>{m("View local receipt")}</Btn> : null}
             {isLocalPreview && done.localReceiptSaved ? <Btn kind="ghost" size="md" onClick={() => router.push("/activity")}>{m("View local Activity")}</Btn> : null}
             {!isLocalPreview ? <Btn kind="ghost" size="md" onClick={() => router.push("/activity")}>{m("View Activity")}</Btn> : null}
             <Btn kind="ghost" size="md" onClick={() => router.push("/")}>{m("Back to Home")}</Btn>

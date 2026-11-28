@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BookmarkSimple, CaretDown, GridFour, ImageSquare, ListBullets, MagnifyingGlass, X } from "@phosphor-icons/react";
 import { campaignState } from "@/app/campaign-actions";
 import { useSearchParams, usePathname, useRouter } from "next/navigation";
@@ -19,6 +19,8 @@ import { d4CampaignStatus, filterD4Campaigns, type D4CampaignLayout } from "@/li
 import { formatStroops } from "@/lib/format-stroops";
 import { formatIllustrativeUsd } from "@/lib/money";
 import { useGoBack } from "@/lib/ui/useGoBack";
+import { useNavigationViewState } from "@/lib/ui/useNavigationViewState";
+import { writeNavigationViewState } from "@/lib/ui/app-navigation";
 import { vaultCampaignMedia } from "@/lib/vault-campaign-media";
 import CauseCategoryDoodle from "@/components/ui/CauseCategoryDoodle";
 import PrototypeCausesScreen from "@/components/screens/PrototypeCausesScreen";
@@ -36,6 +38,25 @@ const PREVIEW_CIRCLE_LINKS: Record<string, string> = {
   "102": "ate-mei-dialysis",
   "103": "barangay-library",
 };
+const TESTNET_CAMPAIGNS_VIEW = "testnet-campaigns" as const;
+const MAX_RESTORABLE_CAMPAIGN_PAGES = 100;
+
+function parseLoadedCampaignPages(snapshot: string): number {
+  try {
+    const value: unknown = JSON.parse(snapshot);
+    if (!value || typeof value !== "object" || Array.isArray(value)) return 0;
+    const pages = (value as { pages?: unknown }).pages;
+    return typeof pages === "number" && Number.isInteger(pages) && pages >= 0 && pages <= MAX_RESTORABLE_CAMPAIGN_PAGES ? pages : 0;
+  } catch { return 0; }
+}
+
+type LoadedCampaignState = Extract<State, { ok: true }>;
+function appendCampaignPage(previous: LoadedCampaignState, next: LoadedCampaignState): LoadedCampaignState {
+  const ids = new Set(previous.campaigns.map(campaign => campaign.id));
+  const campaigns = [...previous.campaigns, ...next.campaigns.filter(campaign => !ids.has(campaign.id))];
+  const circleLinks = { ...(previous.circleLinks ?? {}), ...(next.circleLinks ?? {}) };
+  return { ...next, campaigns, ...(Object.keys(circleLinks).length ? { circleLinks } : {}) };
+}
 
 function categoryFor(campaign: Campaign, circleLinks: Record<string, string> | undefined): string {
   const circleId = circleLinks?.[campaign.id];
@@ -113,6 +134,8 @@ function LiveCampaignCausesScreen({ initialSavedOnly = false }: { initialSavedOn
   const backHome = useGoBack("/");
   const backToYou = useGoBack("/settings");
   const query = params.get("q") ?? "";
+  const campaignPageSnapshot = useNavigationViewState(TESTNET_CAMPAIGNS_VIEW);
+  const loadedCampaignPages = useRef(parseLoadedCampaignPages(campaignPageSnapshot));
   const selectedCategory = params.get("c") ?? ALL;
   const selectedStatus = params.get("s") ?? ALL;
   const layout: D4CampaignLayout = params.get("view") === "list" ? "list" : "grid";
@@ -146,10 +169,29 @@ function LiveCampaignCausesScreen({ initialSavedOnly = false }: { initialSavedOn
   const refresh = useCallback(async () => {
     if (isLocalPreview) return;
     setLoading(true);
+    setOlderError(false);
     try {
       const first = await campaignState("", "0");
+      if (!first.ok) throw new Error(first.error);
+      let accumulated = first;
+      let cursor = first.campaigns.length === 10 ? first.campaigns.at(-1)!.id : "0";
+      const pagesToRestore = loadedCampaignPages.current;
+      loadedCampaignPages.current = 0;
       setState(first);
-      setNextCursor(first.ok && first.campaigns.length === 10 ? first.campaigns.at(-1)!.id : "0");
+      setNextCursor(cursor);
+      writeNavigationViewState(TESTNET_CAMPAIGNS_VIEW, { pages: 0 });
+
+      for (let page = 0; page < pagesToRestore && cursor !== "0"; page++) {
+        const older = await campaignState("", cursor);
+        if (!older.ok) { setOlderError(true); break; }
+        accumulated = appendCampaignPage(accumulated, older);
+        cursor = older.campaigns.length === 10 ? older.campaigns.at(-1)!.id : "0";
+        loadedCampaignPages.current = page + 1;
+        setState(accumulated);
+        setNextCursor(cursor);
+        writeNavigationViewState(TESTNET_CAMPAIGNS_VIEW, { pages: page + 1 });
+      }
+      setNextCursor(cursor);
     } catch { setState({ ok: false, error: copy("Campaigns could not load. Refresh to retry.") }); }
     finally { setLoading(false); }
   }, []);
@@ -206,14 +248,12 @@ function LiveCampaignCausesScreen({ initialSavedOnly = false }: { initialSavedOn
     try {
       const next = await campaignState("", nextCursor);
       if (!next.ok) throw new Error(next.error);
-      setState(previous => {
-        if (!previous?.ok) return next;
-        const ids = new Set(previous.campaigns.map(campaign => campaign.id));
-        const campaigns = [...previous.campaigns, ...next.campaigns.filter(campaign => !ids.has(campaign.id))];
-        const circleLinks = { ...("circleLinks" in previous ? previous.circleLinks : {}), ...(next.circleLinks ?? {}) };
-        return { ...next, campaigns, ...(Object.keys(circleLinks).length ? { circleLinks } : {}) };
-      });
-      setNextCursor(next.campaigns.length === 10 ? next.campaigns.at(-1)!.id : "0");
+      setState(previous => previous?.ok ? appendCampaignPage(previous, next) : next);
+      const cursor = next.campaigns.length === 10 ? next.campaigns.at(-1)!.id : "0";
+      setNextCursor(cursor);
+      const pages = Math.min(MAX_RESTORABLE_CAMPAIGN_PAGES, loadedCampaignPages.current + 1);
+      loadedCampaignPages.current = pages;
+      writeNavigationViewState(TESTNET_CAMPAIGNS_VIEW, { pages });
     } catch { setOlderError(true); }
     finally { setOlderLoading(false); }
   };
