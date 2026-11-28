@@ -7,6 +7,11 @@
 .steps { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px; margin-top:18px; }
 .steps span { padding:10px 2px; border-top:3px solid #a8c3fb; font-size:11px; text-align:center; font-weight:700; color:#365a9e; }
 .card { background:#fff; padding:21px; border:1px solid #e1e7f0; border-radius:23px; display:grid; gap:14px; min-width:0; }
+.roomTypes { gap:10px; }
+.roomTypes h2 { font-size:16px; }
+.roomTypes nav { display:flex; flex-wrap:wrap; gap:8px; }
+.roomTypeLink { display:inline-flex; align-items:center; min-height:38px; padding:8px 12px; border:1px solid #dce4ef; border-radius:999px; color:#2563eb; text-decoration:none; font-size:11px; font-weight:700; line-height:1.35; }
+.roomTypeLink[aria-current="page"] { color:#fff; background:#315be8; border-color:#315be8; }
 .card h2 { margin:0; font-size:22px; font-weight:750; letter-spacing:-.03em; line-height:1.25; }
 .card h3 { margin:0; font-size:17px; font-weight:700; }
 .card p { margin:0; }

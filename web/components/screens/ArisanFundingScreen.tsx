@@ -34,11 +34,18 @@ const scheduleLabels = {
   tl: { title: "Pagkasunduan ang iskedyul", cadence: "Pagitan ng bunutan", weekly: "Lingguhan, bawat 7 araw", monthly: "Buwanan, bawat 30 araw", custom: "Sariling pagitan", days: "Araw sa pagitan (1-365)", firstDate: "Petsa ng unang bunutan", firstTime: "Oras ng unang bunutan", zone: "Napagkasunduang timezone", fundingDate: "Huling petsa ng pagpondo", fundingTime: "Huling oras ng pagpondo", help: "Ang buwanan ay eksaktong 30 araw, hindi calendar month. Tatanggapin ng lahat ang iskedyul bago sumali. Kontrata ang kumokontrol sa aktuwal na phase.", missing: "Pumili ng valid na petsa, oras at timezone. Hindi tinatanggap ang ambiguous daylight-saving time.", unavailable: "Hindi pa available ang scheduled creation habang hindi beripikado ang timing limits.", invalid: "Dapat nasa hinaharap ang deadline at may sapat na entry at reveal window bago ang unang bunutan.", closed: "Pagsasara ng pagpondo", first: "Bukas ang unang bunutan", countdown: "Natitirang oras sa deadline ng kontrata", start: "Makakapagsimula lang kapag kumpleto ang roster at buong pondong kailangan ng lahat." },
   vi: { title: "Thống nhất lịch quay", cadence: "Khoảng cách lượt quay", weekly: "Hàng tuần, mỗi 7 ngày", monthly: "Hàng tháng, mỗi 30 ngày", custom: "Khoảng cách tùy chọn", days: "Số ngày giữa các lượt (1-365)", firstDate: "Ngày quay đầu tiên", firstTime: "Giờ quay đầu tiên", zone: "Múi giờ đã thống nhất", fundingDate: "Ngày hết hạn góp", fundingTime: "Giờ hết hạn góp", help: "Hàng tháng là khoảng cách cố định 30 ngày, không phải tháng lịch. Mọi thành viên đồng ý trước khi tham gia. Hợp đồng quyết định giai đoạn thực tế.", missing: "Chọn ngày, giờ và múi giờ hợp lệ. Không chấp nhận giờ DST mơ hồ.", unavailable: "Chưa thể tạo lịch cho đến khi xác minh giới hạn thời gian của triển khai.", invalid: "Hạn góp phải ở tương lai và chừa đủ thời gian tham gia, công bố trước lượt quay đầu.", closed: "Đóng góp kết thúc", first: "Mở lượt quay đầu", countdown: "Thời gian đến hạn hợp đồng hiện tại", start: "Chỉ bắt đầu khi đủ thành viên và mọi người góp đủ cả chu kỳ." },
 } as const;
+const roomTypeLabels = {
+  en: { heading: "Choose a room type", upfront: "Upfront · full deposit", installments: "Installments · pay in parts", scheduled: "Scheduled · agree dates", note: "Each mode has different join and funding rules. Review the terms before continuing." },
+  id: { heading: "Pilih jenis room", upfront: "Di muka · setoran penuh", installments: "Cicilan · bayar bertahap", scheduled: "Terjadwal · sepakati tanggal", note: "Tiap mode punya aturan bergabung dan pendanaan berbeda. Tinjau syarat sebelum lanjut." },
+  tl: { heading: "Pumili ng uri ng room", upfront: "Upfront · buong deposito", installments: "Installment · hulog paunti-unti", scheduled: "Scheduled · napagkasunduang petsa", note: "Magkakaiba ang patakaran sa pagsali at pagpondo. Suriin muna ang mga tuntunin." },
+  vi: { heading: "Chọn loại room", upfront: "Trả trước · nạp đủ", installments: "Trả góp · nạp từng phần", scheduled: "Theo lịch · thống nhất ngày", note: "Mỗi loại có quy tắc tham gia và nạp tiền khác nhau. Hãy xem điều khoản trước." },
+} as const;
 
 export default function ArisanFundingScreen({ roomId, scheduled = false }: { roomId?: number; scheduled?: boolean }) {
   const router = useRouter();
   const { locale } = useT();
   const copy = scheduleLabels[locale];
+  const roomTypes = roomTypeLabels[locale];
   const kind = scheduled ? "scheduled" : "installments";
   const basePath = scheduled ? "/arisan/scheduled" : "/arisan/funding";
   const goBack = useGoBack(roomId ? basePath : "/arisan");
@@ -239,12 +246,21 @@ export default function ArisanFundingScreen({ roomId, scheduled = false }: { roo
   }
 
   return <div className={styles.screen} style={{ fontFamily: T.fontSans }}>
-    <AppBar title={room ? room.name : "Arisan · Pay in steps"} leading={<IconButton ariaLabel="Back to arisan" onClick={goBack}>{Ico.back({})}</IconButton>} trailing={<ArisanInboxLink locale={locale} />} />
+    <AppBar title={room ? room.name : scheduled ? "Arisan · Scheduled" : "Arisan · Pay in steps"} leading={<IconButton ariaLabel="Back to arisan" onClick={goBack}>{Ico.back({})}</IconButton>} trailing={<ArisanInboxLink locale={locale} />} />
     <div className={styles.body}>
+      {!roomId && <section className={`${styles.card} ${styles.roomTypes}`} aria-labelledby="arisan-room-types-title">
+        <h2 id="arisan-room-types-title">{roomTypes.heading}</h2>
+        <p>{roomTypes.note}</p>
+        <nav aria-label={roomTypes.heading}>
+          <Link href="/arisan/upfront" className={styles.roomTypeLink}>{roomTypes.upfront}</Link>
+          <Link href="/arisan/funding" aria-current={!scheduled ? "page" : undefined} className={styles.roomTypeLink}>{roomTypes.installments}</Link>
+          <Link href="/arisan/scheduled" aria-current={scheduled ? "page" : undefined} className={styles.roomTypeLink}>{roomTypes.scheduled}</Link>
+        </nav>
+      </section>}
       <SubmissionStatusPanel guard={submission} onRefresh={() => load()} />
       <SubmissionStatusPanel guard={createSubmission} onRefresh={recoverCreatedRoom} />
       {isLocalPreview && <section className={styles.demo}><strong>Local interaction test only</strong><p>These three wallets are test doubles, not Gmail sessions. No balance or blockchain transaction changes.</p><label className={styles.field}>Try as member<select value={actor} onChange={event => changeActor(Number(event.target.value))} disabled={busy}>{FUNDING_PREVIEW_ACTORS.map((address, index) => <option key={address} value={index}>QA member {index+1} · {short(address)}</option>)}</select></label></section>}
-      <header className={styles.hero}><span className={styles.eyebrow}>STELLAR TESTNET · INSTALLMENT PREFUNDING</span><h1>{roomId ? !room ? "Verify this circle first." : room.status === "Open" ? "Join first. Fund at your pace." : room.status === "Dissolved" ? "Circle cancelled. Contributions returned." : room.status === "Done" ? "Your circle, completed." : "Your circle, fully funded." : "A seat today. A little at a time."}</h1><p>Join does not charge a deposit. Pay in smaller amounts before the funding deadline. Start is available only after every member is fully funded.</p><div className={styles.steps}><span>1. Join</span><span>2. Add funds</span><span>3. All paid</span><span>4. Start</span></div></header>
+      <header className={styles.hero}><span className={styles.eyebrow}>STELLAR TESTNET · {scheduled ? "SCHEDULED PREFUNDING" : "INSTALLMENT PREFUNDING"}</span><h1>{roomId ? !room ? "Verify this circle first." : room.status === "Open" ? "Join first. Fund at your pace." : room.status === "Dissolved" ? "Circle cancelled. Contributions returned." : room.status === "Done" ? "Your circle, completed." : "Your circle, fully funded." : scheduled ? "Agree on dates before the first draw." : "A seat today. A little at a time."}</h1><p>{scheduled ? "Agree on draw dates and intervals first. Everyone must fund the full cycle before Start is available." : "Joining does not charge a deposit. Pay in voluntary parts before the funding deadline. Start is available only after every member is fully funded."}</p><div className={styles.steps}><span>1. Join</span><span>2. Add funds</span><span>3. All paid</span><span>4. Start</span></div></header>
       <p className={styles.disclosure}>Testnet XLM only, no monetary value. Each member owes exactly N × the agreed share. No automatic debit, interest or yield. Existing full-deposit rooms remain separate.</p>
       <aside className={styles.card} aria-label="Testnet transaction fee limit"><h2>Network fee: at most {MAX_FUNDING_FEE_XLM} Testnet XLM per transaction</h2><p>On live Testnet, create, join, contribute, Start, refund and draw actions each need a separate network transaction. The server refuses to sign if its total fee exceeds this limit.</p><p>This is a maximum, not a fixed charge. A refundable resource allowance is included within the limit; unused allowance is returned by Stellar. Actual charged fees are separate from your contribution and are not refunded when you leave or cancel.</p></aside>
       {error && <p className={styles.error} role="alert">{error}</p>}

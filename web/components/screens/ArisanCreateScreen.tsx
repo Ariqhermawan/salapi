@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Image from "next/image";
 import { arisanCreate, type ArisanCadence } from "@/app/actions";
 import { useT } from "@/components/I18nProvider";
@@ -110,6 +111,13 @@ export default function ArisanCreateScreen() {
         title={t("arisan.create.title")}
       />
       <header className={styles.formIntro}><div><span className={styles.eyebrow}>{reviewing ? "Step 2 of 2 · Review" : "Step 1 of 2 · Set the terms"}</span><h1>{reviewing ? "Check your circle." : "Start something together."}</h1><p>{isLocalPreview ? "Example data. Creating a room here only changes this local preview." : "Create a Testnet room, then invite people you know."}</p></div><Image className={styles.doodle} width={112} height={112} src="/illustrations/arisan.png" alt="People pooling funds together" /></header>
+      {!reviewing ? <div style={{ padding: "0 16px" }}><details style={{ border: `1px solid ${T.hairline}`, borderRadius: 14, background: T.surface, padding: "10px 13px", color: T.ink }}>
+        <summary style={{ minHeight: 28, display: "flex", alignItems: "center", cursor: "pointer", fontSize: 12, fontWeight: 650 }}>Other room types · installments and scheduled draws</summary>
+        <div style={{ display: "grid", gap: 8, paddingTop: 8 }}>
+          <Link href="/arisan/funding" style={{ display: "block", padding: 10, borderRadius: 10, background: T.canvas, color: T.ink, textDecoration: "none", fontSize: 12, lineHeight: 1.5 }}><strong>Installment room</strong><br />Join without a deposit, pay in voluntary parts, then Start only after everyone funds the full cycle.</Link>
+          <Link href="/arisan/scheduled" style={{ display: "block", padding: 10, borderRadius: 10, background: T.canvas, color: T.ink, textDecoration: "none", fontSize: 12, lineHeight: 1.5 }}><strong>Scheduled room</strong><br />Agree on draw dates and intervals first. Everyone still funds the full cycle before Start.</Link>
+        </div>
+      </details></div> : null}
       {reviewing ? <div className={styles.body}><section className={styles.review}><h2>{name.trim() || t("arisan.defaultName")}</h2><dl><dt>Members</dt><dd>{members}</dd><dt>Share per round</dt><dd>{formatLocalAmount(shareLocalNum,currency)}</dd><dt>Payout per draw</dt><dd>{formatLocalAmount(lockedLocal,currency)}</dd><dt>Your upfront deposit</dt><dd>{formatLocalAmount(lockedLocal,currency)}</dd><dt>Schedule</dt><dd>{t("arisan.cadence." + cadence)}</dd></dl><p className={styles.muted}>Each member deposits {members} × their share before the first draw. This is a rotating pool, with no interest or yield. Display currency is illustrative; live Testnet rooms move valueless XLM.</p></section>{error && <div role="alert" className={styles.error}>{error}</div>}<Btn disabled={pending} loading={pending} onClick={submit}>{isLocalPreview ? "Create local example room" : "Create Testnet room"}</Btn><Btn kind="secondary" disabled={pending} onClick={() => setReviewing(false)}>Edit terms</Btn></div> : <>
       <div style={{ padding: "8px 16px 0" }}>
         <Card p={16}>
