@@ -86,6 +86,7 @@ export default async function RootLayout({
       data-theme="light"
       data-local-preview={isLocalPreview ? "true" : undefined}
       className={`${outfit.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
       <body className="min-h-dvh">
         <script nonce={nonce} dangerouslySetInnerHTML={{ __html: `(()=>{const query=window.matchMedia("(min-width: 1024px)");const apply=()=>{document.documentElement.dataset.theme=query.matches?"dark":"light"};apply();if(query.addEventListener)query.addEventListener("change",apply);else query.addListener(apply)})()` }} />
