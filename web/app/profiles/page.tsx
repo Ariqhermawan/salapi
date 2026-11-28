@@ -2,5 +2,5 @@ import { redirect } from "next/navigation";
 
 export default async function ProfilesAliasPage({ searchParams }: { searchParams: Promise<{ type?: string }> }) {
   const { type } = await searchParams;
-  redirect(type === "ngo" ? "/transparency" : "/causes");
+  redirect(type === "ngo" ? "/vault?cat=all" : "/causes");
 }

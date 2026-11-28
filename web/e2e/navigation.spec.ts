@@ -42,7 +42,7 @@ test("Home See all opens Causes and the separate campaign catalogs remain availa
   await page.locator(`${homeSelector} section[aria-labelledby="prototype-home-causes"]`).getByRole("link", { name: "See all", exact: true }).click();
   await expect(page).toHaveURL(/\/causes$/);
   await expect(page.getByRole("heading", { name: "Causes", exact: true })).toBeVisible();
-  await expect(page.getByRole("searchbox", { name: "Search campaigns", exact: true })).toBeVisible();
+  await expect(page.getByRole("searchbox", { name: /Search (?:campaigns|causes)/ })).toBeVisible();
 
   await page.goto("/campaigns?mode=testnet");
   await expect(page.getByRole("link", { name: "Testnet campaigns", exact: true })).toHaveAttribute("aria-current", "page");
@@ -73,11 +73,13 @@ test("Main tabs navigate to Home, Arisan, Cause creation, Activity and You", asy
   await expect(page.locator(homeSelector)).toHaveCount(1);
 });
 
-test("legacy NGO directory alias opens the canonical public directory", async ({ page }) => {
+test("legacy NGO directory alias opens the Disaster Vault NGO directory", async ({ page }) => {
   await page.goto("/profiles?type=ngo", { waitUntil: "domcontentloaded", timeout: 45000 });
   await ready(page);
-  await expect(page).toHaveURL(/\/transparency$/);
-  await expect(page.getByRole("region", { name: "All NGOs" })).toBeVisible();
+  await expect(page).toHaveURL(/\/vault\?cat=all$/);
+  const directory = page.getByRole("region", { name: "All NGOs" });
+  await expect(directory).toBeVisible();
+  await expect(directory).toBeInViewport();
   await expect(page.getByRole("group", { name: "NGO category" })).toBeVisible();
 });
 
@@ -107,6 +109,7 @@ test("Circles detail and organizer routes keep their actual parent on Back", asy
 
 test("A direct cause detail falls back to the Circles index without trusted history", async ({ page }) => {
   await page.goto("/circles/tino-relief", { waitUntil: "domcontentloaded", timeout: 45000 });
+  await ready(page);
   await expect(page.locator("h1#circle-title")).toBeVisible();
   await back(page);
   await expect(page).toHaveURL(/\/circles$/);
@@ -116,6 +119,7 @@ test("A direct cause detail falls back to the Circles index without trusted hist
 test("App Back does not traverse an untrusted external predecessor", async ({ page }) => {
   await page.goto("about:blank#qa-other-origin");
   await page.goto("/circles/tino-relief/organizer", { waitUntil: "domcontentloaded", timeout: 45000 });
+  await ready(page);
   await back(page);
   await expect(page).toHaveURL(/\/circles\/tino-relief$/);
   await page.goBack();
