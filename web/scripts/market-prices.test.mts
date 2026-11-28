@@ -40,7 +40,7 @@ function service(options: { responses?: ResponseFixture[]; key?: string; preview
   const deadlines: number[] = [];
   let cleared = 0;
   let expire: (() => void) | undefined;
-  const sandboxModule = { exports: {} as { getMarketPrices(): Promise<MarketPriceResult> } };
+  const sandboxModule = { exports: {} as { getMarketPrices(options?: { forceRefresh?: boolean }): Promise<MarketPriceResult> } };
   runInNewContext(compile("../lib/server/marketPrices.ts"), {
     module: sandboxModule, exports: sandboxModule.exports, process: { env }, AbortController, TextDecoder,
     Date: class extends Date { static now() { return now; } },
@@ -180,6 +180,25 @@ test("provider statuses, network errors, malformed/oversized bodies fail neutral
   }
 });
 
+test("manual quote retry bypasses automatic cooldown but is limited to one request per 10 seconds", async () => {
+  const fixture = service({ responses: [json({}, 503), json(providerBody()), json(providerBody(baseTime + 20_000))] });
+  assert.equal((await fixture.api.getMarketPrices()).status, "unavailable");
+  fixture.advance(1_000);
+  assert.equal((await fixture.api.getMarketPrices()).status, "unavailable");
+  assert.equal(fixture.calls.length, 1, "Automatic requests honor the 60-second backoff");
+
+  assert.equal((await fixture.api.getMarketPrices({ forceRefresh: true })).status, "fresh");
+  assert.equal(fixture.calls.length, 2, "A user-requested retry bypasses the automatic backoff");
+  assert.equal(fixture.calls[1].options.cache, "no-store", "A manual retry bypasses the framework's HTTP quote cache too");
+  assert.equal(fixture.calls[1].options.next, undefined);
+  fixture.advance(1_000);
+  assert.equal((await fixture.api.getMarketPrices({ forceRefresh: true })).status, "fresh");
+  assert.equal(fixture.calls.length, 2, "Repeated clicks cannot trigger another provider request during cooldown");
+  fixture.advance(9_000);
+  assert.equal((await fixture.api.getMarketPrices({ forceRefresh: true })).status, "fresh");
+  assert.equal(fixture.calls.length, 3);
+});
+
 test("an expired successful Next cache body recovers with one bounded no-store request, shared by callers", async () => {
   const fixture = service({ responses: [json(providerBody(baseTime - QUOTE_MAX_AGE_MS - 1000)), json(providerBody())] });
   const results = await Promise.all(Array.from({ length: 12 }, () => fixture.api.getMarketPrices()));
@@ -249,15 +268,18 @@ test("both stalled headers and body are bounded by the same4s deadline", async (
 
 test("price route returns only safe quote JSON with browser cache disabled and exposesGET only", async () => {
   const code = compile("../app/api/market-prices/route.ts");
-  const sandboxModule = { exports: {} as { GET(): Promise<Response> } };
-  runInNewContext(code, { module: sandboxModule, exports: sandboxModule.exports, Response,
+  const sandboxModule = { exports: {} as { GET(request: Request): Promise<Response> } };
+  const calls: { forceRefresh?: boolean }[] = [];
+  runInNewContext(code, { module: sandboxModule, exports: sandboxModule.exports, Response, URL,
     require: (name: string) => {
       assert.equal(name, "@/lib/server/marketPrices");
-      return { getMarketPrices: async () => ({ status: "unavailable", source: "CoinGecko", reason: "not-configured" }) };
+      return { getMarketPrices: async (options: { forceRefresh?: boolean }) => { calls.push(options); return { status: "unavailable", source: "CoinGecko", reason: "not-configured" }; } };
     } });
-  const response = await sandboxModule.exports.GET();
+  const response = await sandboxModule.exports.GET(new Request("https://salapi.app/api/market-prices"));
   assert.equal(response.status, 200); assert.equal(response.headers.get("cache-control"), "no-store");
   assert.equal(response.headers.get("x-content-type-options"), "nosniff");
   assert.deepEqual(Object.keys(sandboxModule.exports), ["GET"]);
   assert.deepEqual(await response.json(), { status: "unavailable", source: "CoinGecko", reason: "not-configured" });
+  await sandboxModule.exports.GET(new Request("https://salapi.app/api/market-prices?refresh=1"));
+  assert.deepEqual(calls.map(call => call.forceRefresh), [false, true]);
 });

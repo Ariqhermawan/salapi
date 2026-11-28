@@ -67,7 +67,7 @@ export default function MarketValue({ nativeStroops, size = 32, color = "current
         {!showNative && quantity !== null && <span>{quantity} {c.balance}</span>}
         {quote && <><span>{c.fresh}: XLM {usdPrice(quote.assets.xlm.prices.usd)} · USDC {usdPrice(quote.assets.usdc.prices.usd)}</span><time dateTime={new Date(updated!).toISOString()}>{c.updated}: {new Intl.DateTimeFormat(TIME_LOCALES[locale], { dateStyle: "medium", timeStyle: "medium" }).format(updated!)}</time></>}
         <span>{c.reference}</span><span>{c.testnet}</span><span>{c.cadence}</span>
-        <button type="button" disabled={loading} onClick={() => { void refresh(); }} className={dashboard ? styles.refresh : undefined} style={dashboard ? undefined : { cursor: loading ? "wait" : "pointer", textDecoration: "underline", fontWeight: 650, color: "inherit", textAlign: "inherit", padding: "6px 0" }}>{loading ? c.refreshWait : c.refresh}</button>
+        <button type="button" disabled={loading} onClick={() => { void refresh(true); }} className={dashboard ? styles.refresh : undefined} style={dashboard ? undefined : { cursor: loading ? "wait" : "pointer", textDecoration: "underline", fontWeight: 650, color: "inherit", textAlign: "inherit", padding: "6px 0" }}>{loading ? c.refreshWait : c.refresh}</button>
       </div>
     </details>
   </div>;

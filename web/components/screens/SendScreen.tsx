@@ -220,7 +220,7 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
     if (!valid || units === null || pending || unresolvedRef.current || storedUnresolvedSend()) return;
     const checkedQuote = validateMarketPrices(prices);
     if (usesMarketInput && checkedQuote.status !== "fresh") {
-      void refresh();
+      void refresh(true);
       return;
     }
     const marketQuote = usesMarketInput && checkedQuote.status === "fresh" ? checkedQuote : null;
@@ -262,7 +262,7 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
     if (recipient.marketQuote && validateMarketPrices(recipient.marketQuote).status !== "fresh") {
       discardRecipient();
       setErr(m("The CoinGecko quote expired. Review the updated XLM amount before sending."));
-      void refresh();
+      void refresh(true);
       return;
     }
     const saved = storedUnresolvedSend();
@@ -457,7 +457,7 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
                   <p>{priceLoading ? m("Loading the CoinGecko quote…") : quote.status === "stale"
                     ? m("The CoinGecko quote is stale. Refresh it before reviewing a USD amount.")
                     : m("A fresh CoinGecko quote is unavailable. Refresh before reviewing a USD amount.")}</p>
-                  {!priceLoading ? <button className={styles.refreshQuote} type="button" aria-describedby="send-unit" disabled={priceLoading} onClick={() => void refresh()}>{m("Refresh quote")}</button> : null}
+                  {!priceLoading ? <button className={styles.refreshQuote} type="button" aria-describedby="send-unit" disabled={priceLoading} onClick={() => void refresh(true)}>{m("Refresh quote")}</button> : null}
                   {!priceLoading ? <small>{m("Or switch to XLM and enter an exact amount. Switching units clears this USD amount.")}</small> : null}
                 </div> : null}
               </> : !nativeInput && <p className={styles.nativeUnit}>{m("Testnet XLM · illustrative rate")}</p>}

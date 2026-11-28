@@ -39,7 +39,7 @@ function mountProvider(preview = false) {
     setTimeout(callback: () => void, delay: number) { const id = ++nextTimer; timeouts.set(id, { callback, delay }); return id; }, clearTimeout(id: number) { timeouts.delete(id); },
     setInterval(callback: () => void, delay: number) { const id = ++nextTimer; intervals.set(id, { callback, delay }); return id; }, clearInterval(id: number) { intervals.delete(id); },
     document: { get hidden() { return hidden; }, addEventListener(name: string, fn: () => void) { assert.equal(name, "visibilitychange"); listeners.add(fn); }, removeEventListener(_name: string, fn: () => void) { listeners.delete(fn); } },
-    fetch(url: string, options: RequestInit) { assert.equal(url, "/api/market-prices"); return new Promise((resolve, reject) => requests.push({ url, options, resolve, reject })); },
+    fetch(url: string, options: RequestInit) { assert.ok(url === "/api/market-prices" || url === "/api/market-prices?refresh=1"); return new Promise((resolve, reject) => requests.push({ url, options, resolve, reject })); },
     require(name: string) {
       if (name === "react/jsx-runtime") return { jsx, jsxs: jsx };
       if (name === "@/lib/local-preview") return { isLocalPreview: preview };
@@ -56,7 +56,7 @@ function mountProvider(preview = false) {
   });
   let tree: Element;
   function render() { cursor = 0; tree = exported.MarketPricesProvider({ children: "children" }); }
-  function value() { return tree.props.value as { prices: MarketPriceResult; loading: boolean; refresh: () => Promise<void> }; }
+  function value() { return tree.props.value as { prices: MarketPriceResult; loading: boolean; refresh: (forceRefresh?: boolean) => Promise<void> }; }
   async function flush() { for (let i = 0; i < 10; i++) await Promise.resolve(); render(); }
   render(); for (const effect of effects.splice(0)) { const clean = effect(); if (clean) cleanups.push(clean); }
   return { value, requests, timeouts, intervals, listeners, flush,
@@ -85,6 +85,16 @@ test("one provider deduplicates concurrent consumer refreshes and publishes fres
   h.resolve(0, quote(h.now())); await h.flush();
   assert.equal(h.value().prices.status, "fresh"); assert.equal(h.value().loading, false);
   assert.equal(h.listeners.size, 1); h.unmount(); assert.equal(h.listeners.size, 0); assert.equal(h.intervals.size, 0);
+});
+
+test("explicit refresh asks the server to bypass its automatic price cooldown", async () => {
+  const h = mountProvider(); h.start();
+  h.reject(0); await h.flush();
+  const retry = h.value().refresh(true);
+  assert.equal(h.requests[1].url, "/api/market-prices?refresh=1");
+  h.resolve(1, quote(h.now())); await retry; await h.flush();
+  assert.equal(h.value().prices.status, "fresh");
+  h.unmount();
 });
 
 test("same-origin quote request retains Preview access cookies without sending provider credentials", async () => {
