@@ -103,7 +103,7 @@ function harness(options: Options = {}) {
       throw new Error(`Unexpected dependency ${dependency}`);
     },
   });
-  return { ...exports, calls, mediaFetch: () => { assert.ok(configuredFetch); return configuredFetch; } };
+  return { ...exports, calls, currentPaths: () => savedRow?.photos.map(photo => photo.path) ?? [], mediaFetch: () => { assert.ok(configuredFetch); return configuredFetch; } };
 }
 
 async function form({ count = 3, duplicate = false, ack = true, mime = "image/png", bytes = 0, corrupt = false, width = 40, name = "local-photo.png" } = {}) {
@@ -243,10 +243,14 @@ test("the maximum valid multipart envelope stays below the default Next 1MiB req
   const bytes = (await request.arrayBuffer()).byteLength;
   assert.ok(bytes > media.CAMPAIGN_MEDIA_MAX_TOTAL_BYTES); assert.ok(bytes < 1024 * 1024);
 });
-test("same-owner concurrent publications use disjoint immutable paths and clean only old snapshot", async () => {
+test("same-owner concurrent publications use disjoint immutable paths and never remove the final publication", async () => {
   const h = harness({ row: row() }); const [first, second] = await Promise.all([h.publishCampaignMedia("1", owner, await form()), h.publishCampaignMedia("1", owner, await form())]);
   assert.equal(first.ok, true); assert.equal(second.ok, true); assert.equal(new Set(h.calls.uploads.map(upload => upload.path)).size, 6);
-  assert.equal(h.calls.removes.length, 2); assert.ok(h.calls.removes.every(paths => paths.every(path => storedPhotos().some(photo => photo.path === path))));
+  assert.equal(h.calls.removes.length, 2);
+  const knownPaths = new Set([...storedPhotos().map(photo => photo.path), ...h.calls.uploads.map(upload => upload.path)]);
+  const removed = h.calls.removes.flat();
+  assert.ok(removed.every(path => knownPaths.has(path)));
+  assert.ok(removed.every(path => !h.currentPaths().includes(path)));
 });
 test("upload failure cleans only this attempted batch, never prior gallery or another campaign", async () => {
   const h = harness({ row: row(), uploadFailureAt: 1 }); const result = await h.publishCampaignMedia("1", owner, await form());
