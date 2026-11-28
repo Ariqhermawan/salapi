@@ -20,7 +20,7 @@ import { formatStroops } from "@/lib/format-stroops";
 import { formatIllustrativeUsd } from "@/lib/money";
 import { useGoBack } from "@/lib/ui/useGoBack";
 import { useNavigationViewState } from "@/lib/ui/useNavigationViewState";
-import { writeNavigationViewState } from "@/lib/ui/app-navigation";
+import { getNavigationViewStateSnapshot, writeNavigationViewState } from "@/lib/ui/app-navigation";
 import { vaultCampaignMedia } from "@/lib/vault-campaign-media";
 import CauseCategoryDoodle from "@/components/ui/CauseCategoryDoodle";
 import PrototypeCausesScreen from "@/components/screens/PrototypeCausesScreen";
@@ -171,11 +171,13 @@ function LiveCampaignCausesScreen({ initialSavedOnly = false }: { initialSavedOn
     setLoading(true);
     setOlderError(false);
     try {
+      // Read from the active history entry before the first await or reset.
+      // On Back, this component can mount before its snapshot hook rerenders.
+      const pagesToRestore = parseLoadedCampaignPages(getNavigationViewStateSnapshot(TESTNET_CAMPAIGNS_VIEW));
       const first = await campaignState("", "0");
       if (!first.ok) throw new Error(first.error);
       let accumulated = first;
       let cursor = first.campaigns.length === 10 ? first.campaigns.at(-1)!.id : "0";
-      const pagesToRestore = loadedCampaignPages.current;
       loadedCampaignPages.current = 0;
       setState(first);
       setNextCursor(cursor);
