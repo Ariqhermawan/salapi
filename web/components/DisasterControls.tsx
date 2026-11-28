@@ -36,11 +36,11 @@ const REPORT =
   "https://github.com/Ariqhermawan/salapi/blob/98a4a701b3fbd6d71a55c346c06d76c0001bc37e/docs/instawards/week-3-d3.md";
 const ARCHIVED_PAYOUT =
   "https://stellar.expert/explorer/testnet/tx/4559f41883fdc0a0e4fefa7e5bb16c19c26683768cbffaaf10edf9019d7eb0ac";
-const PREVIEW_EVENT_COPY: Record<string, { title: string; detail: string; amount: string }> = {
-  "sample-contribution-1": { title: "Contribution", detail: "From a sample donor", amount: "+0.05 XLM" },
-  "sample-contribution-2": { title: "Contribution", detail: "From a sample donor", amount: "+0.25 XLM" },
-  "sample-contribution-3": { title: "Contribution", detail: "From a sample donor", amount: "+0.12 XLM" },
-  "sample-payout-1": { title: "Typhoon relief, Cebu", detail: "NGO · To Tulong Cebu Relief", amount: "−0.50 XLM" },
+const PREVIEW_EVENT_COPY: Record<string, { title: string; detail: string }> = {
+  "sample-contribution-1": { title: "@maria_s", detail: "Direct contribution to the Disaster Vault" },
+  "sample-contribution-2": { title: "@jamamam", detail: "Direct contribution to the Disaster Vault" },
+  "sample-contribution-3": { title: "@jamal_r", detail: "Direct contribution to the Disaster Vault" },
+  "sample-payout-1": { title: "Typhoon relief, Cebu", detail: "NGO · To Tulong Cebu Relief" },
 };
 const VAULT_NOTES = [45, 50, 42, 52, 47, 40, 49, 44, 53, 46, 41, 51, 43, 48, 52, 45];
 
@@ -128,9 +128,9 @@ export default function DisasterControls({
         ],
       });
       setFeed({ ok: true, events: [
-        { id: "sample-contribution-1", ledger: 19, hash: "", link: "", action: "Contribution", kind: "contribution", counterparty: null, amount: "500000", time: "" },
-        { id: "sample-contribution-2", ledger: 20, hash: "", link: "", action: "Contribution", kind: "contribution", counterparty: null, amount: "2500000", time: "" },
-        { id: "sample-contribution-3", ledger: 21, hash: "", link: "", action: "Contribution", kind: "contribution", counterparty: null, amount: "1200000", time: "" },
+        { id: "sample-contribution-1", ledger: 19, hash: "", link: "", action: "Contribution", kind: "contribution", counterparty: null, amount: "30000000", time: "" },
+        { id: "sample-contribution-2", ledger: 20, hash: "", link: "", action: "Contribution", kind: "contribution", counterparty: null, amount: "30000000", time: "" },
+        { id: "sample-contribution-3", ledger: 21, hash: "", link: "", action: "Contribution", kind: "contribution", counterparty: null, amount: "25307692", time: "" },
         { id: "sample-payout-1", ledger: 21, hash: "", link: "", action: "Payout", kind: "payout", counterparty: null, amount: "5000000", time: "" },
       ] });
       return;
@@ -816,7 +816,7 @@ export default function DisasterControls({
                     const sampleCopy = PREVIEW ? PREVIEW_EVENT_COPY[event.id] : undefined;
                     const recipient = shortAddress(event.counterparty);
                     const detail = sampleCopy?.detail ?? (recipient ? `To ${recipient}` : `Ledger ${event.ledger}`);
-                    const amount = sampleCopy?.amount ?? (event.amount === null ? `${event.hash.slice(0, 9)}…` : `−${formatStroops(event.amount)} XLM`);
+                    const amount = event.amount === null ? `${event.hash.slice(0, 9)}…` : `−${formatStroops(event.amount)} XLM`;
                     const content = <><span><strong>{sampleCopy?.title ?? "Payout"}</strong><small>{detail}</small></span><b>{amount}</b></>;
                     return event.link
                       ? <a key={event.id} className={styles.vaultActivityRow} href={event.link} target="_blank" rel="noopener noreferrer" aria-label={`Payout. ${detail}. ${amount}.`}>{content}</a>
@@ -827,15 +827,15 @@ export default function DisasterControls({
               {(activityFilter === "all" || activityFilter === "in") && (
                 <>
                   <div className={styles.vaultContributionHeading}>
-                    <h3>Contributions</h3><span>Separate Testnet deposits</span>
+                    <h3>Contributions</h3><span>{PREVIEW ? "Sample data · direct deposits" : "Separate Testnet deposits"}</span>
                   </div>
                   <section className={styles.vaultContributions} aria-label="Contributions">
                     {contributionEvents.length === 0 ? <p className={styles.activityEmpty}>No contributions yet</p> : contributionEvents.map(event => {
                       const sampleCopy = PREVIEW ? PREVIEW_EVENT_COPY[event.id] : undefined;
-                      const donor = shortAddress(event.counterparty) ?? `Ledger ${event.ledger}`;
+                      const donor = sampleCopy?.title ?? shortAddress(event.counterparty) ?? `Ledger ${event.ledger}`;
                       const detail = sampleCopy?.detail ?? "Contributed to the Disaster Vault";
-                      const amount = sampleCopy?.amount ?? (event.amount === null ? `${event.hash.slice(0, 9)}…` : `+${formatStroops(event.amount)} XLM`);
-                      const content = <><span><strong>{sampleCopy?.title ?? donor}</strong><small>{detail}</small></span><b>{amount}</b></>;
+                      const amount = event.amount === null ? `${event.hash.slice(0, 9)}…` : `+${formatStroops(event.amount)} XLM`;
+                      const content = <><span><strong>{donor}</strong><small>{detail}</small></span><b>{amount}</b></>;
                       return event.link
                         ? <a key={event.id} className={styles.vaultActivityRow} href={event.link} target="_blank" rel="noopener noreferrer" aria-label={`Contribution from ${donor}. ${detail}. ${amount}.`}>{content}</a>
                         : <div key={event.id} className={styles.vaultActivityRow} aria-label={`Contribution from ${donor}. ${detail}. ${amount}.`}>{content}</div>;
