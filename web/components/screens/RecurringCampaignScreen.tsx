@@ -9,6 +9,7 @@ import { useUnresolvedSubmission } from "@/lib/ui/useUnresolvedSubmission";
 import { useGoBack } from "@/lib/ui/useGoBack";
 import { PREVIEW_RECIPIENT, PREVIEW_WALLET } from "@/lib/local-preview";
 import { isLocalPreview } from "@/lib/local-preview";
+import { RECURRING_CAMPAIGN_TEXT } from "@/lib/i18n/recurring-campaign";
 import { formatStroops } from "@/lib/format-stroops";
 import { parseXlmStroops, recurringProofFileHash, recurringStageRefundable, type RecurringCampaign } from "@/lib/recurring-campaign";
 import {
@@ -81,6 +82,7 @@ function timestamp(value: string, locale: string) {
 export default function RecurringCampaignScreen({ id = "", standaloneCreate = false }: { id?: string; standaloneCreate?: boolean }) {
   const { locale } = useT();
   const copy = WORDS[locale] ?? WORDS.en;
+  const text = RECURRING_CAMPAIGN_TEXT[locale] ?? RECURRING_CAMPAIGN_TEXT.en;
   const goBack = useGoBack(id || standaloneCreate ? "/campaigns?mode=recurring" : "/create");
   const submission = useUnresolvedSubmission("campaign:recurring-v5");
   const [view, setView] = useState<ViewState | null>(isLocalPreview ? previewState(id) : null);
@@ -110,8 +112,8 @@ export default function RecurringCampaignScreen({ id = "", standaloneCreate = fa
   const refresh = useCallback(async () => {
     if (isLocalPreview) { setView(previewState(id)); return; }
     try { setView(await recurringCampaignState(id, "0")); }
-    catch { setView({ ok: false, error: "Could not read recurring campaign state. Refresh to retry." }); }
-  }, [id]);
+    catch { setView({ ok: false, error: text.readFailed }); }
+  }, [id, text]);
   useEffect(() => {
     if (isLocalPreview) return;
     const first = setTimeout(() => void refresh(), 0);
@@ -142,7 +144,7 @@ export default function RecurringCampaignScreen({ id = "", standaloneCreate = fa
       const result = await prepareRecurringCampaignConfirmation(request);
       if (!result.ok) { setError(result.error); return; }
       setDialog({ label: result.summary, action, intentId: result.intentId, kind: result.action, fee: result.feeStroops });
-    } catch { setError("Recurring campaign confirmation could not be prepared. No transaction was submitted."); }
+    } catch { setError(text.prepareFailed); }
     finally { setBusy(false); }
   }
   async function hashProofFile(file?: File) {
@@ -174,14 +176,14 @@ export default function RecurringCampaignScreen({ id = "", standaloneCreate = fa
         setDone({ link: result.link, value: result.value }); setDialog(null);
         await refresh();
       }
-    } catch { setDialog(null); setError("Confirmation was interrupted. Refresh and check the transaction before retrying."); }
+    } catch { setDialog(null); setError(text.confirmInterrupted); }
     finally { setBusy(false); }
   }
   function create() {
     try {
       const epoch = (value: string) => {
         const time = new Date(value).getTime();
-        if (!Number.isFinite(time)) throw new Error("Choose a valid date and time.");
+        if (!Number.isFinite(time)) throw new Error(text.invalidDate);
         return String(Math.floor(time / 1000));
       };
       const input = { title, beneficiary, creatorCut: creatorShare, fundingDeadline: epoch(fundingClose),
@@ -189,7 +191,7 @@ export default function RecurringCampaignScreen({ id = "", standaloneCreate = fa
         stages: stages.map(stage => ({ amountStroops: parseXlmStroops(stage.amount).toString(), dueDate: epoch(stage.dueDate) })) };
       const action = recurringCampaignCreate;
       void prepare({ kind: "create", input }, action);
-    } catch (e) { setError(e instanceof Error ? e.message : "Enter valid recurring campaign terms."); }
+    } catch { setError(text.invalidTerms); }
   }
 
   const campaigns = view?.ok ? view.campaigns : [];
@@ -231,13 +233,13 @@ export default function RecurringCampaignScreen({ id = "", standaloneCreate = fa
 
     {standaloneCreate && <Card style={panel}>
       <h2 style={{ margin: 0, fontSize: 20 }}>{copy.create}</h2>
-      {!viewer && !isLocalPreview ? <><p style={small}>{copy.guest}</p><Link href={`/signin?next=${encodeURIComponent("/create?kind=recurring")}`} style={{ color: T.action }}>Sign in →</Link></> : <>
+      {!viewer && !isLocalPreview ? <><p style={small}>{copy.guest}</p><Link href={`/signin?next=${encodeURIComponent("/create?kind=recurring")}`} style={{ color: T.action }}>{text.signIn}</Link></> : <>
         <label style={field}>{copy.title}<input style={input} maxLength={120} value={title} onChange={e => setTitle(e.target.value)} disabled={locked} /></label>
         <div style={grid}>
           <label style={field}>{copy.beneficiary}<input style={input} value={beneficiary} onChange={e => setBeneficiary(e.target.value)} disabled={locked} autoCapitalize="characters" /></label>
           <label style={field}>{copy.creatorShare}<input style={input} inputMode="decimal" value={creatorShare} onChange={e => setCreatorShare(e.target.value)} disabled={locked} /></label>
         </div>
-        <p style={{ ...small, margin: 0 }}>The creator share is fixed at creation. It is paid from each released stage; it is not a platform fee.</p>
+        <p style={{ ...small, margin: 0 }}>{text.creatorShareNote}</p>
         <div style={grid}>
           <label style={field}>{copy.fundingClose}<input style={input} type="datetime-local" value={fundingClose} onChange={e => setFundingClose(e.target.value)} disabled={locked} /></label>
           <label style={field}>{copy.finalReview}<input style={input} type="datetime-local" value={finalReview} onChange={e => setFinalReview(e.target.value)} disabled={locked} /></label>
@@ -255,31 +257,31 @@ export default function RecurringCampaignScreen({ id = "", standaloneCreate = fa
           {stages.length < 6 && <button type="button" disabled={locked} onClick={() => setStages(values => [...values, { amount: "", dueDate: "" }])} style={{ justifySelf: "start", color: T.action, background: "transparent", border: 0 }}>{copy.addStage}</button>}
         </fieldset>
         <fieldset style={{ ...panel, padding: 12 }}><legend style={{ padding: "0 6px", fontWeight: 700 }}>{copy.reviewers}</legend>
-          <div style={grid}>{reviewers.map((address, index) => <label key={index} style={field}>Reviewer {index + 1}<input style={input} value={address} onChange={e => setReviewers(values => values.map((item, i) => i === index ? e.target.value : item))} disabled={locked} autoCapitalize="characters" /></label>)}</div>
+          <div style={grid}>{reviewers.map((address, index) => <label key={index} style={field}>{text.reviewerNumber.replace("{number}", String(index + 1))}<input style={input} value={address} onChange={e => setReviewers(values => values.map((item, i) => i === index ? e.target.value : item))} disabled={locked} autoCapitalize="characters" /></label>)}</div>
         </fieldset>
         {error && <p role="alert" style={{ color: "#b42318", margin: 0 }}>{error}</p>}
-        {isLocalPreview ? <p style={small}>Use the production Testnet build to submit this form. Local preview does not create campaigns.</p>
+        {isLocalPreview ? <p style={small}>{text.localSubmitNotice}</p>
           : <Btn disabled={locked} loading={busy} onClick={create}>{copy.review}</Btn>}
       </>}
     </Card>}
 
-    {!standaloneCreate && view && !view.ok && <Card style={panel}><h2>Recurring campaigns unavailable</h2><p role="alert" style={small}>{view.error}</p></Card>}
+    {!standaloneCreate && view && !view.ok && <Card style={panel}><h2>{text.unavailable}</h2><p role="alert" style={small}>{view.error}</p></Card>}
     {!standaloneCreate && view?.ok && !id && campaigns.length === 0 && <Card style={panel}><p style={{ margin: 0 }}>{copy.noCampaigns}</p>{viewer ? <Link href="/create?kind=recurring" style={{ color: T.action }}>{copy.create}</Link>
-      : !isLocalPreview && <Link href={`/signin?next=${encodeURIComponent("/create?kind=recurring")}`} style={{ color: T.action }}>Sign in to create →</Link>}</Card>}
+      : !isLocalPreview && <Link href={`/signin?next=${encodeURIComponent("/create?kind=recurring")}`} style={{ color: T.action }}>{text.signInToCreate}</Link>}</Card>}
     {!standaloneCreate && view?.ok && !id && campaigns.map(item => {
       const status = item.state === "Funding" ? copy.funding : item.state === "Scheduled" ? copy.scheduled
         : item.state === "PendingProof" ? copy.proofReview : item.state === "Refundable" ? copy.refundable
           : item.state === "Released" ? copy.complete : copy.closed;
       return <Link key={item.id} href={`/campaigns?id=r${item.id}`} style={{ ...panel, marginTop: 12, color: T.ink, textDecoration: "none" }}>
-        <span style={{ color: T.ink60, fontSize: 12 }}>Recurring campaign #{item.id}</span><strong style={{ fontSize: 18 }}>{item.title}</strong>
-        <span>{status} · {item.current_stage < item.stages.length ? `${copy.stage} ${item.current_stage + 1} of ${item.stages.length}` : copy.complete}</span>
-        <span style={small}>{item.stages.length} {copy.stages.toLowerCase()} · {formatStroops(item.total)} Testnet XLM contributed</span>
+        <span style={{ color: T.ink60, fontSize: 12 }}>{text.campaignNumber.replace("{id}", item.id)}</span><strong style={{ fontSize: 18 }}>{item.title}</strong>
+        <span>{status} · {item.current_stage < item.stages.length ? text.stagePosition.replace("{stage}", copy.stage).replace("{current}", String(item.current_stage + 1)).replace("{total}", String(item.stages.length)) : copy.complete}</span>
+        <span style={small}>{text.stageSummary.replace("{count}", String(item.stages.length)).replace("{stages}", copy.stages.toLowerCase()).replace("{amount}", `${formatStroops(item.total)} Testnet XLM`)}</span>
       </Link>;
     })}
-    {!standaloneCreate && view?.ok && id && !campaign && <Card style={panel}><p style={{ margin: 0 }}>Recurring campaign not found.</p><Link href="/campaigns?mode=recurring" style={{ color: T.action }}>{copy.heading}</Link></Card>}
+    {!standaloneCreate && view?.ok && id && !campaign && <Card style={panel}><p style={{ margin: 0 }}>{text.notFound}</p><Link href="/campaigns?mode=recurring" style={{ color: T.action }}>{copy.heading}</Link></Card>}
     {!standaloneCreate && campaign && <Card style={{ ...panel, marginTop: 12 }}>
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "start", justifyContent: "space-between" }}>
-        <div><span style={{ color: T.ink60, fontSize: 12 }}>Recurring campaign #{campaign.id}</span><h2 style={{ margin: "4px 0 0", fontSize: 22 }}>{campaign.title}</h2></div>
+        <div><span style={{ color: T.ink60, fontSize: 12 }}>{text.campaignNumber.replace("{id}", campaign.id)}</span><h2 style={{ margin: "4px 0 0", fontSize: 22 }}>{campaign.title}</h2></div>
         <strong aria-label={copy.state}>{stateLabel}</strong>
       </div>
       <p style={{ ...small, margin: 0 }}>{copy.fundingClose}: {timestamp(campaign.config.funding_deadline, locale)} · {copy.finalReview}: {timestamp(campaign.config.review_deadline, locale)}</p>
@@ -296,16 +298,16 @@ export default function RecurringCampaignScreen({ id = "", standaloneCreate = fa
           </div>;
         })}
       </div>
-      <div style={grid}><div><strong>Total contributed</strong><p style={small}>{formatStroops(campaign.total)} Testnet XLM</p></div><div><strong>Current escrow</strong><p style={small}>{formatStroops(campaign.escrow)} Testnet XLM</p></div></div>
+      <div style={grid}><div><strong>{text.totalContributed}</strong><p style={small}>{formatStroops(campaign.total)} Testnet XLM</p></div><div><strong>{text.currentEscrow}</strong><p style={small}>{formatStroops(campaign.escrow)} Testnet XLM</p></div></div>
       <p style={{ ...small, margin: 0 }}>{copy.reviewersList}: {campaign.config.approvers.join(" · ")}</p>
       {campaign.proofHash && <div style={panel}><strong>{copy.proof} · {copy.stage} {campaign.current_stage + 1}</strong><code style={{ overflowWrap: "anywhere" }}>{campaign.proofHash}</code><a href={campaign.proofUrl} target="_blank" rel="noreferrer">{campaign.proofUrl}</a><p style={{ ...small, margin: 0 }}>{copy.approvals}: {campaign.approvals.length} / 2</p></div>}
 
       {viewer && <div style={{ display: "grid", gap: 12 }}>
         {fundingOpen && <div style={panel}><label style={field}>{copy.amount}<input style={input} inputMode="decimal" placeholder="1.0000000" value={contribution} onChange={e => setContribution(e.target.value)} disabled={locked} /></label>
-          <p style={{ ...small, margin: 0 }}>Donations fill each stage target in order and stop at the campaign goal.</p>
+          <p style={{ ...small, margin: 0 }}>{text.donationAllocation}</p>
           {isLocalPreview ? <p style={small}>{copy.local}</p> : <Btn disabled={locked || !contribution.trim()} onClick={() => {
             try { const amountStroops = parseXlmStroops(contribution).toString(); void prepare({ kind: "donate", campaignId: `r${campaign.id}`, amountStroops }, recurringCampaignDonate); }
-            catch (e) { setError(e instanceof Error ? e.message : "Enter a valid Testnet XLM amount"); }
+            catch { setError(text.invalidContribution); }
           }}>{copy.contribute}</Btn>}
         </div>}
         {creatorCanProve && <div style={panel}><label style={field}>{PROOF_COPY[locale].file}<input style={input} type="file" accept="image/*,.pdf" onChange={event => void hashProofFile(event.currentTarget.files?.[0])} disabled={locked} /></label>
@@ -323,17 +325,17 @@ export default function RecurringCampaignScreen({ id = "", standaloneCreate = fa
           {!isLocalPreview && <Btn disabled={locked} onClick={() => void prepare({ kind: "refund", campaignId: `r${campaign.id}` }, recurringCampaignRefund)}>{copy.refund}</Btn>}</div>}
         {canCloseEmpty && !isLocalPreview && <Btn kind="secondary" disabled={locked} onClick={() => void prepare({ kind: "close_empty", campaignId: `r${campaign.id}` }, recurringCampaignCloseEmpty)}>{copy.close}</Btn>}
       </div>}
-      {!viewer && !isLocalPreview && <p style={small}>{copy.guest} <Link href={`/signin?next=${encodeURIComponent(`/campaigns?id=r${campaign.id}`)}`} style={{ color: T.action }}>Sign in →</Link></p>}
+      {!viewer && !isLocalPreview && <p style={small}>{copy.guest} <Link href={`/signin?next=${encodeURIComponent(`/campaigns?id=r${campaign.id}`)}`} style={{ color: T.action }}>{text.signIn}</Link></p>}
       {error && <p role="alert" style={{ color: "#b42318", margin: 0 }}>{error}</p>}
     </Card>}
 
-    {done && <Card style={{ ...panel, marginTop: 12 }}><strong>Testnet transaction confirmed</strong><a href={done.link} target="_blank" rel="noreferrer">View transaction</a>
-      {done.value && <Link href={`/campaigns?id=r${done.value}`} style={{ color: T.action }}>Open recurring campaign #{done.value}</Link>}</Card>}
+    {done && <Card style={{ ...panel, marginTop: 12 }}><strong>{text.transactionConfirmed}</strong><a href={done.link} target="_blank" rel="noreferrer">{text.viewTransaction}</a>
+      {done.value && <Link href={`/campaigns?id=r${done.value}`} style={{ color: T.action }}>{text.openCampaign.replace("{id}", done.value)}</Link>}</Card>}
     <footer style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, paddingTop: 24, color: T.ink60 }}><PoweredByStellar /><small>Stellar Testnet XLM</small></footer>
 
     {dialog && <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={copy.confirm} style={{ position: "fixed", inset: 0, zIndex: 100, display: "grid", placeItems: "center", background: "rgba(11,18,32,.55)", padding: 20 }}>
       <Card style={{ ...panel, width: "min(100%, 430px)", maxHeight: "calc(100dvh - 40px)", overflow: "auto" }}><span style={{ color: T.ink60, fontSize: 12 }}>{copy.testnet}</span><h2 style={{ margin: 0 }}>{copy.confirm}</h2><p style={{ ...small, overflowWrap: "anywhere", margin: 0 }}>{dialog.label}</p>
-        <p style={{ ...small, margin: 0 }}>{copy.fee}: {formatStroops(dialog.fee)} Testnet XLM</p><p style={{ ...small, margin: 0 }}>This review expires in two minutes.</p>
+        <p style={{ ...small, margin: 0 }}>{copy.fee}: {formatStroops(dialog.fee)} Testnet XLM</p><p style={{ ...small, margin: 0 }}>{text.reviewExpiry}</p>
         {error && <p role="alert" style={{ color: "#b42318" }}>{error}</p>}
         <Btn disabled={locked} loading={busy} onClick={() => void confirm()}>{copy.confirmButton}</Btn><Btn kind="secondary" disabled={locked} onClick={cancel}>{copy.cancel}</Btn>
       </Card>

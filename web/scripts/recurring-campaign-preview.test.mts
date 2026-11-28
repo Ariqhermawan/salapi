@@ -7,6 +7,7 @@ import {
   RECURRING_CAMPAIGN_PREVIEW_NOTICE,
   recurringCampaignPreviewSetup,
 } from "../lib/prototype-recurring-preview.ts";
+import { RECURRING_CAMPAIGN_TEXT } from "../lib/i18n/recurring-campaign.ts";
 
 const today = new Date(2026, 9, 6, 12);
 
@@ -38,6 +39,33 @@ test("recurring preview URL can open empty, over-goal and review states", () => 
   assert.ok(review);
   assert.equal(review.step, 5);
   assert.equal(recurringCampaignPreviewSetup("?kind=one-time", today), null);
+});
+
+test("the recurring Testnet flow keeps production and preview copy localized", () => {
+  const source = readFileSync(new URL("../components/screens/RecurringCampaignScreen.tsx", import.meta.url), "utf8");
+  const locales = ["en", "id", "tl", "vi"] as const;
+  const keys = Object.keys(RECURRING_CAMPAIGN_TEXT.en) as (keyof typeof RECURRING_CAMPAIGN_TEXT.en)[];
+
+  for (const locale of locales) {
+    for (const key of keys) {
+      const value = RECURRING_CAMPAIGN_TEXT[locale][key];
+      assert.ok(value.length > 0, `${locale}.${key} must have copy`);
+      if (locale !== "en") assert.notEqual(value, RECURRING_CAMPAIGN_TEXT.en[key], `${locale}.${key} must be translated`);
+    }
+  }
+
+  for (const englishLeak of [
+    "The creator share is fixed at creation.",
+    "Use the production Testnet build to submit this form.",
+    "Recurring campaigns unavailable",
+    "Total contributed",
+    "Current escrow",
+    "Donations fill each stage target in order",
+    "${copy.stage} ${item.current_stage + 1} of",
+    "Testnet XLM contributed",
+    "Testnet transaction confirmed",
+    "This review expires in two minutes.",
+  ]) assert.equal(source.includes(englishLeak), false, `raw copy leaked into the screen: ${englishLeak}`);
 });
 
 type PreviewCause = {
