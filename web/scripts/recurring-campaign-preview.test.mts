@@ -131,6 +131,9 @@ test("recurring preview states the D4 limit while production gets a separate rec
   assert.match(manageScreen, /Stage claims and escrow releases are not available/);
 
   const createRoute = readFileSync(new URL("../app/create/page.tsx", import.meta.url), "utf8");
+  const localPreviewRoute = createRoute.indexOf("if (isLocalPreview) return <Suspense fallback={null}><PrototypeCreateCauseScreen />");
+  const recurringTestnetRoute = createRoute.indexOf('if (kind === "recurring") return <RecurringCampaignScreen standaloneCreate />');
+  assert.ok(localPreviewRoute >= 0 && localPreviewRoute < recurringTestnetRoute, "local fixture states must be dispatched before the live Testnet wizard");
   assert.match(createRoute, /if \(kind === "recurring"\) return <RecurringCampaignScreen standaloneCreate \/>/);
   assert.match(createRoute, /<CampaignScreen id="" initialCreate standaloneCreate \/>/);
   assert.match(createRoute, /href="\/create\?kind=recurring">Recurring stages/);

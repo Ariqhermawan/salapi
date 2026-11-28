@@ -9,10 +9,9 @@ export const metadata = { title: "Create a cause · Salapi", description: "Creat
 
 export default async function CreateCausePage({ searchParams }: { searchParams: Promise<{ kind?: string }> }) {
   const { kind } = await searchParams;
+  if (isLocalPreview) return <Suspense fallback={null}><PrototypeCreateCauseScreen /></Suspense>;
   if (kind === "recurring") return <RecurringCampaignScreen standaloneCreate />;
-  return isLocalPreview
-    ? <Suspense fallback={null}><PrototypeCreateCauseScreen /></Suspense>
-    : <><nav aria-label="Campaign type" style={{ display: "flex", justifyContent: "center", gap: 16, padding: 12 }}>
-        <Link href="/create">One-time campaign</Link><Link href="/create?kind=recurring">Recurring stages</Link>
-      </nav><CampaignScreen id="" initialCreate standaloneCreate /></>;
+  return <><nav aria-label="Campaign type" style={{ display: "flex", justifyContent: "center", gap: 16, padding: 12 }}>
+      <Link href="/create">One-time campaign</Link><Link href="/create?kind=recurring">Recurring stages</Link>
+    </nav><CampaignScreen id="" initialCreate standaloneCreate /></>;
 }
