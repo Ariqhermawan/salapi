@@ -206,6 +206,9 @@ test("Send accepts exact XLM without a market quote and clears the amount when u
   await ui.flush();
   ui.change("send-amount", "5");
   assert.equal(reviewButton().props.disabled, true);
+  ui.find("A fresh CoinGecko quote is unavailable. Refresh before reviewing a USD amount.");
+  ui.find("Refresh quote");
+  ui.find("Or switch to XLM and enter an exact amount. Switching units clears this USD amount.");
   ui.click("Enter XLM");
   assert.equal(nodes(ui.tree).find(node => node.props.id === "send-amount")?.props.value, "");
   ui.change("send-amount", "0.00000019");

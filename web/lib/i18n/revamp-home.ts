@@ -28,6 +28,9 @@ export const HOME_COPY = {
   "Native Testnet XLM · indicative value · no real money": ["Testnet XLM · halagang halimbawa · walang tunay na pera", "XLM Testnet · nilai indikatif · bukan uang nyata", "XLM Testnet · giá trị minh họa · không phải tiền thật"],
   "Your wallet balance is unavailable.": ["Hindi makuha ang balanse ng wallet mo.", "Saldo wallet kamu belum dapat dimuat.", "Không thể tải số dư ví của bạn."],
   "Campaigns could not be loaded. Please try again.": ["Hindi ma-load ang mga campaign. Subukan muli.", "Campaign belum dapat dimuat. Coba lagi.", "Không thể tải chiến dịch. Hãy thử lại."],
+  "No open Testnet campaigns right now.": ["Wala pang bukas na campaign sa Testnet.", "Belum ada campaign Testnet yang terbuka saat ini.", "Hiện chưa có chiến dịch Testnet nào đang mở."],
+  "No campaign photo shared": ["Wala pang ibinahaging larawan ng campaign", "Belum ada foto campaign yang dibagikan", "Chưa có ảnh chiến dịch được chia sẻ"],
+  "In D4 escrow": ["Nasa D4 escrow", "Dalam escrow D4", "Đang ký quỹ D4"],
   "Retry": ["Subukan muli", "Coba lagi", "Thử lại"],
   "Wallet actions": ["Mga aksyon sa wallet", "Aksi saldo", "Thao tác ví"],
   "Top up": ["Mag-top up", "Isi saldo", "Nạp tiền"],
@@ -77,6 +80,7 @@ export const HOME_COPY = {
   "Hidden. Show it in Security": ["Nakatago. Ipakita ito sa Security", "Tersembunyi. Tampilkan di Security", "Đã ẩn. Hiện trong Bảo mật"],
   "Price details": ["Detalye ng presyo", "Detail harga", "Chi tiết giá"],
   "EXAMPLES": ["MGA HALIMBAWA", "CONTOH", "VÍ DỤ"],
+  "TESTNET": ["TESTNET", "TESTNET", "TESTNET"],
   "View vault": ["Tingnan ang vault", "Lihat vault", "Xem vault"],
 } as const;
 export function homeCopy(locale: Locale | undefined, phrase: string): string {

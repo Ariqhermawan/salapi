@@ -443,7 +443,7 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
             </div>
             <div className={styles.amountHeader}>
               <label className={styles.fieldLabel} htmlFor="send-amount">{m("Amount ·")} {nativeInput ? "XLM" : CURRENCY[currency].code}</label>
-              {!isLocalPreview && <button type="button" className={styles.unitSwitch} disabled={pending} onClick={() => {
+              {!isLocalPreview && <button type="button" className={styles.unitSwitch} aria-describedby={usesMarketInput ? "send-unit" : undefined} disabled={pending} onClick={() => {
                 editAmount("");
                 setNativeInput(!nativeInput);
               }}>{nativeInput ? m("Enter {currency}", { currency: CURRENCY[currency].code }) : m("Enter XLM")}</button>}
@@ -453,9 +453,13 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
               {units !== null && units > 0n && withinAmountLimit ? <p className={styles.draftAmount}>{exactXlm(units.toString())} <small>Testnet XLM</small></p> : null}
               {usesMarketInput ? <>
                 {draftUsdEstimate ? <p className={styles.nativeUnit}>≈ {draftUsdEstimate} · {m("USD estimate")} · CoinGecko</p> : null}
-                {!freshQuote ? <p className={styles.nativeUnit} role="status">{priceLoading ? m("Loading the CoinGecko quote…") : m("A fresh CoinGecko quote is unavailable.")}{" "}
-                  {!priceLoading ? <button className={styles.refreshQuote} type="button" onClick={() => void refresh()}>{m("Refresh quote")}</button> : null}
-                </p> : null}
+                {!freshQuote ? <div className={styles.quoteRecovery} role="status">
+                  <p>{priceLoading ? m("Loading the CoinGecko quote…") : quote.status === "stale"
+                    ? m("The CoinGecko quote is stale. Refresh it before reviewing a USD amount.")
+                    : m("A fresh CoinGecko quote is unavailable. Refresh before reviewing a USD amount.")}</p>
+                  {!priceLoading ? <button className={styles.refreshQuote} type="button" aria-describedby="send-unit" disabled={priceLoading} onClick={() => void refresh()}>{m("Refresh quote")}</button> : null}
+                  {!priceLoading ? <small>{m("Or switch to XLM and enter an exact amount. Switching units clears this USD amount.")}</small> : null}
+                </div> : null}
               </> : !nativeInput && <p className={styles.nativeUnit}>{m("Testnet XLM · illustrative rate")}</p>}
               {invalidNative && <p className={styles.inlineError} role="alert">{m("Enter XLM with up to 7 decimal places.")}</p>}
             </div>

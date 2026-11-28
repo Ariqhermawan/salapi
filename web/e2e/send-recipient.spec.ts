@@ -142,6 +142,9 @@ test("an unavailable market rate prevents USD review without a demo fallback", a
   await f.main.getByLabel("Recipient @username", { exact: true }).fill("imam");
   await expect.poll(() => f.quoteRequests).toEqual([null]);
   await expect(f.main.getByRole("button", { name: "Review transfer", exact: true })).toBeDisabled();
+  await expect(f.main).toContainText("A fresh CoinGecko quote is unavailable. Refresh before reviewing a USD amount.");
+  await expect(f.main).toContainText("Or switch to XLM and enter an exact amount.");
+  await expect(f.main.getByRole("button", { name: "Enter XLM", exact: true })).toBeEnabled();
   await expect(f.main.getByRole("article", { name: "Transfer review details" })).toHaveCount(0);
   await expect(f.main).not.toContainText("446.1538462");
   expect(f.calls.lookups).toBe(0);

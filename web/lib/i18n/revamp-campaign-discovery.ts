@@ -54,6 +54,7 @@ export const CAMPAIGN_DISCOVERY_COPY = {
   "Donation discovery": ["Pagtuklas ng donasyon", "Jelajahi donasi", "Khám phá quyên góp"],
   "Browse examples": ["Tuklasin ang mga halimbawa", "Jelajahi contoh", "Khám phá ví dụ"],
   "Testnet campaigns": ["Mga kampanya sa Testnet", "Campaign Testnet", "Chiến dịch Testnet"],
+  "Loading Testnet campaigns": ["Nilo-load ang mga kampanya sa Testnet", "Memuat campaign Testnet", "Đang tải chiến dịch Testnet"],
   "Recurring campaigns": ["Mga paulit-ulit na campaign", "Campaign berulang", "Chiến dịch định kỳ"],
   "Examples": ["Mga halimbawa", "Contoh", "Ví dụ"],
   "Home": ["Home", "Beranda", "Trang chủ"],

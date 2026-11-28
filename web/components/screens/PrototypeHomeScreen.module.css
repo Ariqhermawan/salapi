@@ -53,6 +53,12 @@
 .causeCard:active { scale:.96; }
 .cover { position:relative; display:block; height:112px; flex:1 1 0; min-height:0; overflow:hidden; background:var(--sl-surface-alt); }
 .cover > img { object-fit:cover; }
+.liveCampaignCover { background:radial-gradient(70% 80% at 50% 20%,#dce6ff 0%,#eef2fb 62%,#e3e9f5 100%); }
+.liveCampaignArtwork { position:absolute; inset:0; display:grid; place-items:center; color:#7188c5; font-size:34px; }
+.liveCampaignArtwork::before { position:absolute; width:68px; height:68px; border:1px solid #7188c533; border-radius:50%; content:""; }
+.liveCampaignNoPhoto { position:absolute; z-index:1; top:calc(50% + 25px); left:8px; right:8px; color:#53627f; font-size:9px; line-height:13px; text-align:center; }
+.campaignState { display:grid; flex:1 1 0; min-height:132px; place-items:center; gap:8px; padding:16px; border:1px solid var(--sl-line); border-radius:16px; background:var(--sl-surface); color:var(--sl-sub); font-size:13px; line-height:19px; text-align:center; }
+.campaignState button { min-height:38px; padding:0 13px; border:1px solid var(--sl-line); border-radius:999px; background:var(--sl-surface); color:var(--sl-primary); font:inherit; font-weight:600; }
 .category,.extra,.status { position:absolute; z-index:1; top:8px; left:8px; max-width:92px; overflow:hidden; padding:2px 8px; border-radius:999px; background:#f87525; color:#fff; font-size:10px; font-weight:600; line-height:17px; text-overflow:ellipsis; white-space:nowrap; }
 .extra { left:auto; right:8px; background:#13233de0; }
 .status { top:auto; bottom:8px; max-width:calc(100% - 16px); background:#13233de0; }
