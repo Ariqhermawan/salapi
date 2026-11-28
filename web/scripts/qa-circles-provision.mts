@@ -47,6 +47,8 @@ export type QaProvisionInput = {
   network: "testnet"; contractId: string; tokenId: string;
   creatorWallet: string; beneficiaryWallet: string; approverWallets: string[];
   fundingDeadline: string; reviewDeadline: string;
+  /** Optional subset of canonical active Circle IDs, e.g. one organizer's causes. Omitted = whole catalog. */
+  circleSlugs?: string[];
 };
 export type QaProvisionCircle = { circleSlug: string; title: string; creatorCutBps: number };
 export type QaProvisionPlan = QaProvisionInput & {
@@ -66,18 +68,23 @@ export function buildQaProvisionPlan(input: unknown, now = BigInt(Math.floor(Dat
   assert(input && typeof input === "object" && !Array.isArray(input), "Expected a public QA manifest");
   const value = input as Record<string, unknown>;
   const fields = ["network", "contractId", "tokenId", "creatorWallet", "beneficiaryWallet", "approverWallets", "fundingDeadline", "reviewDeadline"];
-  assert.deepEqual(Object.keys(value).sort(), fields.sort(), "Manifest must contain only the eight public configuration fields");
+  assert.deepEqual(Object.keys(value).filter(key => key !== "circleSlugs").sort(), fields.sort(), "Manifest must contain only the eight public configuration fields and optional circleSlugs");
   assert(value.network === "testnet" && value.contractId === QA_D4_CONTRACT && value.tokenId === QA_XLM_SAC, "Only the pinned D4 Testnet/native-XLM deployment is allowed");
   const funding = positiveU64(value.fundingDeadline), review = positiveU64(value.reviewDeadline);
   assert(now > 0n && BigInt(funding) > now && BigInt(review) > BigInt(funding), "Funding must be future and review must follow funding");
   const wallets = [value.creatorWallet, value.beneficiaryWallet, ...(Array.isArray(value.approverWallets) ? value.approverWallets : [])];
   assert(Array.isArray(value.approverWallets) && value.approverWallets.length === 3 && wallets.length === 5 && new Set(wallets).size === 5 &&
     wallets.every(wallet => typeof wallet === "string" && Stellar.StrKey.isValidEd25519PublicKey(wallet)), "Five distinct QA public wallets are required");
-  assert(catalog.length === 27 && new Set(catalog.map(circle => circle.id)).size === 27, "Expected exactly 27 canonical active Circles");
+  assert(catalog.length >= 27 && new Set(catalog.map(circle => circle.id)).size === catalog.length, "Expected distinct canonical active Circles");
+  const slugs = value.circleSlugs;
+  assert(slugs === undefined || Array.isArray(slugs) && slugs.length > 0 && new Set(slugs).size === slugs.length &&
+    slugs.every(slug => catalog.some(circle => circle.id === slug)), "circleSlugs must list distinct canonical active Circles");
   const config = { network: "testnet" as const, contractId: QA_D4_CONTRACT, tokenId: QA_XLM_SAC,
     creatorWallet: value.creatorWallet as string, beneficiaryWallet: value.beneficiaryWallet as string,
-    approverWallets: [...value.approverWallets] as string[], fundingDeadline: funding, reviewDeadline: review };
-  const circles = Array.from(catalog, circle => {
+    approverWallets: [...value.approverWallets] as string[], fundingDeadline: funding, reviewDeadline: review,
+    ...(slugs ? { circleSlugs: [...slugs] as string[] } : {}) };
+  const selected = slugs ? catalog.filter(circle => (slugs as string[]).includes(circle.id)) : catalog;
+  const circles = Array.from(selected, circle => {
     const creatorCutBps = (circle.allowance?.percentage ?? 0) * 100;
     const title = validators.circleTestnetCampaignTitle(circle.id);
     assert(title && Number.isInteger(creatorCutBps), "Invalid canonical QA title or fixture cut");
@@ -165,7 +172,7 @@ export function emptyJournal(plan: QaProvisionPlan): QaProvisionJournal {
 }
 function validateJournal(plan: QaProvisionPlan, journal: QaProvisionJournal) {
   assert(journal.schemaVersion === 1 && journal.network === "testnet" && journal.contractId === plan.contractId && journal.fingerprint === planFingerprint(plan), "Journal belongs to a different reviewed QA plan");
-  assert(Array.isArray(journal.entries) && journal.entries.length <= 27 && new Set(journal.entries.map(entry => entry.circleSlug)).size === journal.entries.length, "Invalid or duplicate journal entry");
+  assert(Array.isArray(journal.entries) && journal.entries.length <= plan.circles.length && new Set(journal.entries.map(entry => entry.circleSlug)).size === journal.entries.length, "Invalid or duplicate journal entry");
   for (const entry of journal.entries) {
     const circle = plan.circles.find(value => value.circleSlug === entry.circleSlug);
     assert(circle && ["prepared", "submitted", "confirmed"].includes(entry.state) && Number.isSafeInteger(entry.simulationLedger) && entry.simulationLedger > 0, "Invalid journal state");
@@ -201,8 +208,8 @@ export async function preflightQaProvision(plan: QaProvisionPlan, runtime: Pick<
 }
 export async function executeQaProvision(plan: QaProvisionPlan, runtime: QaProvisionRuntime, journal = emptyJournal(plan)) {
   // Rebuild canonical terms before any effect, including programmatic callers.
-  const { network, contractId, tokenId, creatorWallet, beneficiaryWallet, approverWallets, fundingDeadline, reviewDeadline } = plan;
-  assert.deepEqual(plan, buildQaProvisionPlan({ network, contractId, tokenId, creatorWallet, beneficiaryWallet, approverWallets, fundingDeadline, reviewDeadline }), "Plan was modified after review");
+  const { network, contractId, tokenId, creatorWallet, beneficiaryWallet, approverWallets, fundingDeadline, reviewDeadline, circleSlugs } = plan;
+  assert.deepEqual(plan, buildQaProvisionPlan({ network, contractId, tokenId, creatorWallet, beneficiaryWallet, approverWallets, fundingDeadline, reviewDeadline, ...(circleSlugs ? { circleSlugs } : {}) }), "Plan was modified after review");
   validateJournal(plan, journal);
   const existing = await preflightQaProvision(plan, runtime);
   const bySlug = new Map<string, string>();
@@ -257,11 +264,11 @@ export async function executeQaProvision(plan: QaProvisionPlan, runtime: QaProvi
     }
     rows.push(mappingRow(plan, circle, bySlug.get(circle.circleSlug)!));
   }
-  assert(rows.length === 27 && new Set(rows.map(row => row.campaign_id)).size === 27, "QA campaign IDs must be distinct");
+  assert(rows.length === plan.circles.length && new Set(rows.map(row => row.campaign_id)).size === rows.length, "QA campaign IDs must be distinct");
   return { journal, rows };
 }
 export function mappingInsertSql(rows: ReturnType<typeof mappingRow>[]): string {
-  assert(rows.length === 27 && new Set(rows.map(row => row.circle_slug)).size === 27 && new Set(rows.map(row => row.campaign_id)).size === 27, "Exactly 27 distinct verified rows are required");
+  assert(rows.length > 0 && new Set(rows.map(row => row.circle_slug)).size === rows.length && new Set(rows.map(row => row.campaign_id)).size === rows.length, "Distinct verified rows are required");
   for (const row of rows) assert(validators.validatedCircleTestnetMapping(row, QA_D4_CONTRACT, QA_XLM_SAC), "SQL row failed application validation");
   const quote = (value: string) => "'" + value.replaceAll("'", "''") + "'";
   const columns = "network,contract_id,circle_slug,campaign_id,campaign_title,creator_wallet,beneficiary_wallet,token_id,approver_wallets,creator_cut_bps,funding_deadline,review_deadline,purpose,archived_at".split(",");

@@ -130,8 +130,8 @@ test("real picker counts actual causes, not donors, money or selected result len
     const c = copy.circlesCopy(locale);
     for (const selected of categories) {
       const tree = picker.default({ circles: changedMetrics, selected, locale, onSelect: forbidden("action") });
-      assert.equal(countText(tile(tree, "all")), c("{count} examples", { count: 27 }));
-      for (const category of categories.filter(category => category !== "all")) assert.equal(countText(tile(tree, category)), c("{count} examples", { count: 3 }));
+      assert.equal(countText(tile(tree, "all")), c("{count} examples", { count: 29 }));
+      for (const category of categories.filter(category => category !== "all")) assert.equal(countText(tile(tree, category)), c("{count} examples", { count: SEED_CIRCLES.filter(circle => circle.category === category).length }));
     }
     for (const circles of [[], [SEED_CIRCLES[0]], SEED_CIRCLES.slice(0, 2)]) {
       const tree = picker.default({ circles, selected: "all", locale, onSelect: forbidden("action") });
@@ -208,7 +208,7 @@ test("integrated Discover preserves all category/sort combinations, full counts 
       assert.deepEqual(articleTitles(screen.tree), Array.from(expected, circle => contentCopy.circleDisplayContent(circle, locale).title));
       assert.equal(tile(screen.tree, category).props["aria-pressed"], true);
       assert.equal(tiles(screen.tree).filter(node => node.props["aria-pressed"] === true).length, 1);
-      assert.equal(countText(tile(screen.tree, "all")), c("{count} examples", { count: 27 }));
+      assert.equal(countText(tile(screen.tree, "all")), c("{count} examples", { count: 29 }));
       const resultCount = nodes(screen.tree).find(node => node.props.role === "status");
       assert.equal(text(resultCount), c("{count} examples", { count: expected.length }));
       assert.equal(nodes(screen.tree).find(node => node.props.id === "circles-sort")?.props.value, sort);

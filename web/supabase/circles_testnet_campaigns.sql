@@ -14,7 +14,8 @@ create table if not exists public.circles_testnet_campaigns (
     'bohol-health-screening', 'bohol-reading-zine', 'tarlac-storm-packs', 'tarlac-school-kits',
     'manila-medical-transport', 'manila-community-makerspace', 'cats-recovery', 'dogs-rescue-care',
     'shared-animal-shelter', 'orphanage-learning-room', 'elder-home-meals', 'community-free-kitchen',
-    'river-volunteer-kit', 'flood-volunteer-logistics', 'forest-fire-volunteer-safety'
+    'river-volunteer-kit', 'flood-volunteer-logistics', 'forest-fire-volunteer-safety',
+    'road-rescue-monthly', 'nek-ijah-monthly'
   )),
   campaign_id text not null check (campaign_id ~ '^[1-9][0-9]{0,19}$'
     and campaign_id::numeric <= 18446744073709551615),
