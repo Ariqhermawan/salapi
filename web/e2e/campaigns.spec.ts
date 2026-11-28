@@ -94,6 +94,34 @@ test.describe("D4 isolated local UI and HTTP authorization", () => {
     await expect(page.getByRole("heading", { name: "No causes match", exact: true })).toBeVisible();
   });
 
+  test("open campaign cards and details show the contribution deadline explicitly", async ({ page }) => {
+    await fixture(page, { viewer: wallets[2], now: "1000" }, "/campaigns?mode=testnet");
+    const cardStatus = page.getByTestId("campaign-lifecycle-status").first();
+    await expect(cardStatus).toContainText("Open for contributions");
+    await expect(cardStatus).toContainText("Funding closes");
+    await expect(cardStatus).toContainText("UTC");
+    await page.getByRole("link", { name: /UI fixture campaign/ }).click();
+    await expect(page).toHaveURL(/\/campaigns\?id=1$/);
+    const detailStatus = page.getByTestId("campaign-lifecycle-status");
+    await expect(detailStatus).toContainText("Open for contributions");
+    await expect(detailStatus).toContainText("Funding closes");
+    await expect(page.getByRole("button", { name: "Donate · Review amount", exact: true })).toBeVisible();
+  });
+
+  test("released campaigns read closed with funds released and cannot accept donations", async ({ page }) => {
+    const released = { ...campaign, state: "Released", escrow: "0", proofHash: "a".repeat(64), approvals: wallets.slice(0, 2) };
+    await fixture(page, { viewer: wallets[2], now: "1300", campaign: released }, "/campaigns?id=1");
+    await expect(page.getByTestId("campaign-lifecycle-status")).toHaveText("Closed · funds released");
+    await expect(page.getByRole("button", { name: "Donate · Review amount", exact: true })).toHaveCount(0);
+  });
+
+  test("expired review shows refund availability and replaces the donation action", async ({ page }) => {
+    await fixture(page, { viewer: wallets[2], now: "1200" }, "/campaigns?id=1");
+    await expect(page.getByTestId("campaign-lifecycle-status")).toHaveText("Closed · refund available");
+    await expect(page.getByRole("button", { name: "Donate · Review amount", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Claim full refund", exact: true })).toBeVisible();
+  });
+
   test("public read-only view exposes terms but no write controls", async ({ page }) => {
     await fixture(page);
     await expect(page.getByText(/Explore campaign terms and proof publicly/)).toBeVisible();

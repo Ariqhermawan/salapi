@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, ImageSquare } from "@phosphor-icons/react";
 import type { Campaign } from "@/lib/campaign";
-import { d4CampaignStatus } from "@/lib/campaign-discovery";
+import { campaignDiscoveryCopy } from "@/lib/i18n/revamp-campaign-discovery";
 import { formatStroops } from "@/lib/format-stroops";
 import { formatIllustrativeUsd } from "@/lib/money";
 import { vaultCampaignMedia } from "@/lib/vault-campaign-media";
@@ -53,7 +53,7 @@ export default function HomeCauseShelf({
       <button type="button" onClick={onRetry}>{homeCopy(locale, "Try again")}</button>
     </div> : rows.length ? <div className={styles.row} aria-label={homeCopy(locale, "Campaign carousel")}>
       {rows.map((campaign, index) => <CauseCard key={campaign.id} campaign={campaign} featured={index === 0}
-        now={ledgerNow} localPreview={localPreview} />)}
+        localPreview={localPreview} />)}
     </div> : <div className={styles.empty}>
       <ImageSquare size={36} aria-hidden="true" />
       <strong>{homeCopy(locale, "No causes yet")}</strong>
@@ -62,15 +62,14 @@ export default function HomeCauseShelf({
   </section>;
 }
 
-function CauseCard({ campaign, featured, now, localPreview }: {
+function CauseCard({ campaign, featured, localPreview }: {
   campaign: CampaignRow;
   featured: boolean;
-  now: bigint;
   localPreview: boolean;
 }) {
   const { locale } = useT();
   const media = vaultCampaignMedia(campaign, localPreview);
-  const status = d4CampaignStatus(campaign, now);
+  const status = campaignDiscoveryCopy(locale)("Open");
   const total = formatIllustrativeUsd(campaign.total);
   const xlm = formatStroops(campaign.total);
   return <Link href={`/campaigns?id=${encodeURIComponent(campaign.id)}`} className={styles.card}

@@ -4,10 +4,11 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { readPublicCampaigns } from "@/lib/ui/public-read";
 import type { Campaign } from "@/lib/campaign";
-import { d4CampaignStatus } from "@/lib/campaign-discovery";
+import { d4CampaignStatus, d4CampaignStatusFilterLabel } from "@/lib/campaign-discovery";
 import { formatStroops } from "@/lib/format-stroops";
 import { formatIllustrativeUsd } from "@/lib/money";
 import { useGoBack } from "@/lib/ui/useGoBack";
+import { useT } from "@/components/I18nProvider";
 import { Ico } from "@/components/ui/kit";
 import styles from "./OrganizerProfileScreen.module.css";
 
@@ -16,6 +17,7 @@ type Data = Awaited<ReturnType<typeof readPublicCampaigns>>;
 
 export default function OrganizerProfileScreen({ handle, address }: { handle: string; address: string | null }) {
   const back = useGoBack("/campaigns?mode=testnet");
+  const { locale } = useT();
   const [campaigns, setCampaigns] = useState<PublicCampaign[]>([]);
   const [now, setNow] = useState("0");
   const [cursor, setCursor] = useState("0");
@@ -71,7 +73,7 @@ export default function OrganizerProfileScreen({ handle, address }: { handle: st
       {!loading && open.length === 0 && !error && <p className={styles.message}>{address ? "No active causes were found in the campaigns loaded so far." : "There are no campaigns linked to a verified wallet for this profile yet."}</p>}
       <ul className={styles.campaigns}>{open.map(c => <li key={c.id}>
         <Link href={`/campaigns?id=${encodeURIComponent(c.id)}`}>
-          <span className={styles.campaignTop}><span>Campaign #{c.id}</span><span>{d4CampaignStatus(c, BigInt(now || "0"))}</span></span>
+          <span className={styles.campaignTop}><span>Campaign #{c.id}</span><span>{d4CampaignStatusFilterLabel(d4CampaignStatus(c, BigInt(now || "0")), locale)}</span></span>
           <strong>{c.title}</strong>
           <span className={styles.raised}>≈ {formatIllustrativeUsd(c.total)} · {formatStroops(c.total)} XLM</span>
         </Link>
@@ -83,7 +85,7 @@ export default function OrganizerProfileScreen({ handle, address }: { handle: st
       {ended.length === 0 && !loading && !error && <p className={styles.message}>{address ? "No completed campaigns were found in the campaigns loaded so far." : "Public campaign history will appear here when a wallet is linked."}</p>}
       <ul className={styles.campaigns}>{ended.map(c => <li key={c.id}>
         <Link href={`/campaigns?id=${encodeURIComponent(c.id)}`}>
-          <span className={styles.campaignTop}><span>Campaign #{c.id}</span><span>{d4CampaignStatus(c, BigInt(now || "0"))}</span></span>
+          <span className={styles.campaignTop}><span>Campaign #{c.id}</span><span>{d4CampaignStatusFilterLabel(d4CampaignStatus(c, BigInt(now || "0")), locale)}</span></span>
           <strong>{c.title}</strong>
           <span className={styles.raised}>≈ {formatIllustrativeUsd(c.total)} · {formatStroops(c.total)} XLM</span>
         </Link>

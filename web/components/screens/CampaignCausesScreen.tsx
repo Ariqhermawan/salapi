@@ -15,7 +15,7 @@ import { isLocalPreview, PREVIEW_CAMPAIGNS, PREVIEW_TIME, PREVIEW_WALLET } from 
 import { campaignDiscoveryCopy } from "@/lib/i18n/revamp-campaign-discovery";
 import { readAccountSavedCampaigns, setAccountSavedCampaign } from "@/app/campaign-saved-actions";
 import { useCirclesSignupIdentity } from "@/lib/ui/useCirclesSignupIdentity";
-import { d4CampaignStatus, filterD4Campaigns, type D4CampaignLayout } from "@/lib/campaign-discovery";
+import { d4CampaignStatus, d4CampaignStatusFilterLabel, d4CampaignStatusPresentation, filterD4Campaigns, type D4CampaignLayout } from "@/lib/campaign-discovery";
 import { formatStroops } from "@/lib/format-stroops";
 import { formatIllustrativeUsd } from "@/lib/money";
 import { useGoBack } from "@/lib/ui/useGoBack";
@@ -68,19 +68,21 @@ function Cover({ category, mediaSrc }: { category: string; mediaSrc?: string }) 
   return <span className={styles.coverEmpty} data-category={category || "general"} aria-hidden="true"><ImageSquare size={28} /></span>;
 }
 
-function StatusChip({ status, overPhoto = false }: { status: string; overPhoto?: boolean }) {
-  const tone = status === "Released" ? "success" : status === "Funding" ? "info"
-    : status === "In review" || status === "PendingProof" ? "info"
-      : status === "Refund available" || status === "Ready to close" || status === "Awaiting proof" ? "warning" : "faded";
-  return <span className={`${styles.status} ${styles[`status_${tone}`]} ${overPhoto ? styles.statusPhoto : ""}`}>{status}</span>;
+function CampaignStatusSummary({ campaign, now }: { campaign: CampaignRow; now: bigint }) {
+  const { locale } = useT();
+  const lifecycle = d4CampaignStatusPresentation(campaign, now, locale);
+  return <span className={styles.lifecycleStatus} data-tone={lifecycle.tone} data-testid="campaign-lifecycle-status" aria-label={lifecycle.accessibleLabel}>
+    <strong>{lifecycle.label}</strong>
+    {lifecycle.detail && <small>{lifecycle.detail}</small>}
+  </span>;
 }
 
 function CategoryChip({ label, category }: { label: string; category: string }) {
   return <span className={styles.categoryChip} data-category={category}>{label}</span>;
 }
 
-function CauseCard({ campaign, status, category, featured, saved, onSave, localPreview, saveDisabled = false }: {
-  campaign: CampaignRow; status: string; category: string; featured?: boolean; saved: boolean;
+function CauseCard({ campaign, now, category, featured, saved, onSave, localPreview, saveDisabled = false }: {
+  campaign: CampaignRow; now: bigint; category: string; featured?: boolean; saved: boolean;
   onSave: () => void; localPreview: boolean; saveDisabled?: boolean;
 }) {
   const href = `/campaigns?id=${encodeURIComponent(campaign.id)}`;
@@ -94,7 +96,6 @@ function CauseCard({ campaign, status, category, featured, saved, onSave, localP
         <Cover category={categoryId} mediaSrc={media?.coverSrc} />
         <span className={styles.coverTags}>
           <span>{category ? <CategoryChip label={category} category={categoryId} /> : <CategoryChip label="Stellar Testnet" category="general" />}</span>
-          <StatusChip status={status} overPhoto />
         </span>
         {featured && <span className={styles.featuredRibbon}>Featured</span>}
       </span>
@@ -106,6 +107,7 @@ function CauseCard({ campaign, status, category, featured, saved, onSave, localP
           <span className={styles.causeTitleSmall}>{campaign.title}</span>
           <span className={styles.causeSub}>{category || "Stellar Testnet campaign"}</span>
         </>}
+        <CampaignStatusSummary campaign={campaign} now={now} />
         <span className={styles.amountRow}>
           <span><strong>{raised}</strong><small> raised · {amount} XLM total</small></span>
           {!featured && <span className={styles.openIcon} aria-hidden="true">↗</span>}
@@ -317,7 +319,7 @@ function LiveCampaignCausesScreen({ initialSavedOnly = false }: { initialSavedOn
   const searchLabel = copy("Search campaigns");
   const searchPlaceholder = copy("Search causes");
   const cardCampaign = (campaign: Campaign) => <CauseCard key={campaign.id} campaign={campaign}
-    status={d4CampaignStatus(campaign, now)} category={categoryFor(campaign, circleLinks) ? circlesCategory(locale, categoryFor(campaign, circleLinks) as CircleCategory) : ""}
+    now={now} category={categoryFor(campaign, circleLinks) ? circlesCategory(locale, categoryFor(campaign, circleLinks) as CircleCategory) : ""}
     featured={campaign.id === featured?.id} saved={saved.includes(campaign.id)} onSave={() => toggleSaved(campaign.id)} localPreview={isLocalPreview}
     saveDisabled={identity.status === "loading" || identity.status === "unavailable" || savedStatus === "loading" || savedMutation === campaign.id} />;
 
@@ -339,9 +341,9 @@ function LiveCampaignCausesScreen({ initialSavedOnly = false }: { initialSavedOn
       <div className={styles.chips} role="group" aria-label={copy("Campaign filters")}>
         {statusOptions.length > 1 && <label className={styles.statusPicker}>
           <span className={styles.srOnly}>{copy("Status")}</span>
-          <span className={styles.statusPickerLabel}>{validStatus === ALL ? copy("Status") : validStatus}</span>
+          <span className={styles.statusPickerLabel}>{validStatus === ALL ? copy("Status") : d4CampaignStatusFilterLabel(validStatus, locale)}</span>
           <select aria-label={copy("Status")} value={validStatus} onChange={event => updateParams({ s: event.target.value === ALL ? null : event.target.value })}>
-            {statusOptions.map(status => <option key={status} value={status}>{status === ALL ? copy("Status") : status}</option>)}
+            {statusOptions.map(status => <option key={status} value={status}>{status === ALL ? copy("Status") : d4CampaignStatusFilterLabel(status, locale)}</option>)}
           </select>
           <CaretDown size={16} aria-hidden="true" />
         </label>}
