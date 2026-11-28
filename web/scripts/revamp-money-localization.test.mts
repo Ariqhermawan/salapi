@@ -60,7 +60,12 @@ function mount(name: typeof names[number], locale: Locale, options: { preview?: 
   const calls = { auth: 0, serverWrites: 0, lookups: 0, walletReads: 0, handleReads: 0, receiveReads: 0, navigations: [] as string[], clipboard: [] as string[], cookies: 0 };
   const localPreview = { isLocalPreview: preview, PREVIEW_WALLET, PREVIEW_RECIPIENT, localPreviewUsername: () => PREVIEW_WALLET.handle, previewUsdcBalanceCents: () => 241_226 };
   let id = 0;
-  const base = { window: { location: { origin: "http://localhost:3000", assign: (value: string) => calls.navigations.push(value) }, sessionStorage: storage }, sessionStorage: storage,
+  const base = { window: {
+      location: { origin: "http://localhost:3000", assign: (value: string) => calls.navigations.push(value) },
+      localStorage: storage, sessionStorage: storage,
+      crypto: { randomUUID: () => `00000000-0000-0000-0000-${String(++id).padStart(12, "0")}` },
+      addEventListener() {}, removeEventListener() {},
+    }, sessionStorage: storage,
     crypto: { randomUUID: () => `00000000-0000-0000-0000-${String(++id).padStart(12, "0")}` },
     fetch() { throw Error("Network forbidden in localization tests"); } };
   const local: Record<string, Record<string, unknown>> = {};
@@ -82,7 +87,7 @@ function mount(name: typeof names[number], locale: Locale, options: { preview?: 
   const jsx = (type: unknown, props: Record<string, unknown>) => typeof type === "function" ? type(props) : ({ type, props });
   const icons = new Proxy({}, { get: () => () => null });
   const kit = new Proxy({ T: {}, Ico: icons }, { get(target, key: string) { return key in target ? target[key as keyof typeof target] : key; } });
-  const document = { get cookie() { return ""; }, set cookie(_value: string) { calls.cookies++; }, getElementById: () => ({ focus() {} }) };
+  const document = { visibilityState: "visible", addEventListener() {}, removeEventListener() {}, get cookie() { return ""; }, set cookie(_value: string) { calls.cookies++; }, getElementById: () => ({ focus() {} }) };
   const component = {} as { default(props?: object): Element };
   runInNewContext(screens[name], { ...base, exports: component, console, Promise, Intl, document, queueMicrotask,
     navigator: { clipboard: { async writeText(value: string) { calls.clipboard.push(value); } } },

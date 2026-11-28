@@ -25,6 +25,7 @@ const code = ts.transpileModule(source, {
   },
 }).outputText;
 type Api = {
+  isPreviewTransferId(value: string): boolean;
   listPreviewTransfers(): PreviewTransfer[];
   recordPreviewTransfer(input: PreviewTransferInput): PreviewTransfer | null;
 };
@@ -36,23 +37,26 @@ function setup(
     preview?: boolean;
     browser?: boolean;
     disabledStorage?: boolean;
+    localMemory?: Map<string, string>;
+    sessionMemory?: Map<string, string>;
   } = {},
 ) {
-  const memory = new Map<string, string>();
+  const memory = options.localMemory ?? new Map<string, string>();
+  const sessionMemory = options.sessionMemory ?? new Map<string, string>();
   const calls = { get: 0, set: 0 };
   const api = {} as Api;
-  const storage = {
+  const storage = (target: Map<string, string>) => ({
     getItem(storageKey: string) {
       calls.get++;
       if (options.disabledStorage) throw Error("disabled");
-      return memory.get(storageKey) ?? null;
+      return target.get(storageKey) ?? null;
     },
     setItem(storageKey: string, value: string) {
       calls.set++;
       if (options.disabledStorage) throw Error("disabled");
-      memory.set(storageKey, value);
+      target.set(storageKey, value);
     },
-  };
+  });
   runInNewContext(code, {
     exports: api,
     require(name: string) {
@@ -62,11 +66,13 @@ function setup(
         PREVIEW_WALLET: { address: wallet },
       };
     },
-    window: options.browser === false ? undefined : {},
-    sessionStorage: storage,
-    crypto: { randomUUID },
+    window: options.browser === false ? undefined : {
+      localStorage: storage(memory),
+      sessionStorage: storage(sessionMemory),
+      crypto: { randomUUID },
+    },
   });
-  return { api, memory, calls };
+  return { api, memory, sessionMemory, calls };
 }
 const valid: PreviewTransferInput = {
   recipientHandle: "jamamam",
@@ -98,6 +104,24 @@ test("only an explicit local confirmation creates one versioned wallet-scoped re
   assert.deepEqual(normalize(api.listPreviewTransfers()), [normalize(receipt)]);
   assert.deepEqual([...memory.keys()], [key]);
   assert.equal(JSON.parse(memory.get(key)!).version, 1);
+});
+test("a local receipt survives a new page context and has a strict local ID shape", () => {
+  const firstPage = setup();
+  const receipt = firstPage.api.recordPreviewTransfer(valid)!;
+  const nextPage = setup({ localMemory: firstPage.memory });
+  assert.deepEqual(normalize(nextPage.api.listPreviewTransfers()), [normalize(receipt)]);
+  assert.equal(nextPage.api.isPreviewTransferId(receipt.id), true);
+  assert.equal(nextPage.api.isPreviewTransferId("local-send-not-a-uuid"), false);
+  assert.equal(nextPage.api.isPreviewTransferId("local-send-" + "a".repeat(64)), false);
+});
+test("migrates prior session-only local receipts to browser storage", () => {
+  const previousPage = setup();
+  const receipt = previousPage.api.recordPreviewTransfer(valid)!;
+  const sessionMemory = new Map([[key, previousPage.memory.get(key)!]]);
+  previousPage.memory.clear();
+  const nextPage = setup({ sessionMemory });
+  assert.deepEqual(normalize(nextPage.api.listPreviewTransfers()), [normalize(receipt)]);
+  assert.equal(nextPage.memory.get(key), sessionMemory.get(key));
 });
 test("records minimal demo metadata and never a fake hash or explorer link", () => {
   const { api } = setup();

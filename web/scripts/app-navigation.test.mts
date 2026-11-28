@@ -129,6 +129,24 @@ test("Back/forward restores each entry's scroll and harmless UI selection, new p
   stop();
 });
 
+test("Testnet campaign page count is harmless per-entry state and survives Back/forward", () => {
+  const context = fakeWindow("/campaigns"); const tracker = context.tracker(); const stop = tracker.start(); commit(context, tracker);
+  tracker.writeView("testnet-campaigns", { pages: 2 });
+  assert.equal(tracker.viewSnapshot("testnet-campaigns"), '{"pages":2}');
+  navigate(context, tracker, "/campaigns?id=16");
+  assert.equal(tracker.viewSnapshot("testnet-campaigns"), "", "detail entry must not inherit list pagination");
+  context.win.history.go(-1);
+  assert.equal(commit(context, tracker)?.restore, true);
+  assert.equal(tracker.viewSnapshot("testnet-campaigns"), '{"pages":2}', "return restores the list entry's loaded-page count");
+  context.win.history.go(1);
+  assert.equal(tracker.viewSnapshot("testnet-campaigns"), "");
+
+  for (const invalid of [{ pages: -1 }, { pages: 1.5 }, { pages: 101 }, { pages: 2, balance: 1 }])
+    tracker.writeView("testnet-campaigns", invalid);
+  assert.equal(tracker.viewSnapshot("testnet-campaigns"), "");
+  stop();
+});
+
 test("replace keeps the previous entry, does not add a parent/detail back loop", () => {
   const context = fakeWindow(); const tracker = context.tracker(); const stop = tracker.start(); commit(context, tracker);
   navigate(context, tracker, "/arisan");

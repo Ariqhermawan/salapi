@@ -33,19 +33,27 @@ const historyCode = compile("../lib/local-preview-history.ts");
 function setup(options: { preview?: boolean; storageUnavailable?: boolean } = {}) {
   const preview = options.preview ?? true;
   const storage = new Map<string, string>();
-  const calls = { writes: 0, records: 0, lookups: 0, transfers: 0 };
+  const calls = { writes: 0, records: 0, lookups: 0, transfers: 0, routes: [] as string[] };
   const localPreview = { isLocalPreview: preview, PREVIEW_WALLET: { address: wallet, handle: "ariqhermawan" } };
   const history = {} as History;
   runInNewContext(historyCode, {
     exports: history,
-    window: {},
-    crypto: { randomUUID: () => "isolated-test-receipt" },
-    sessionStorage: {
+    window: {
+      crypto: { randomUUID: () => "00000000-0000-4000-8000-000000000001" },
+      localStorage: {
+        getItem: (key: string) => storage.get(key) ?? null,
+        setItem(key: string, value: string) {
+          if (options.storageUnavailable) throw new Error("Storage unavailable");
+          calls.writes++;
+          storage.set(key, value);
+        },
+      },
+      sessionStorage: {
       getItem: (key: string) => storage.get(key) ?? null,
       setItem(key: string, value: string) {
         if (options.storageUnavailable) throw new Error("Storage unavailable");
-        calls.writes++;
         storage.set(key, value);
+      },
       },
     },
     require: (name: string) => {
@@ -86,7 +94,7 @@ function setup(options: { preview?: boolean; storageUnavailable?: boolean } = {}
         useEffect() {},
         useTransition: () => [false, (action: () => Promise<unknown>) => transitions.push(action())],
       };
-      if (name === "next/navigation") return { useRouter: () => ({ push() {} }) };
+      if (name === "next/navigation") return { useRouter: () => ({ push(path: string) { calls.routes.push(path); } }) };
       if (name === "@/components/I18nProvider") return { useT: () => ({ currency: "tl", t: (key: string) => key }) };
       if (name === "@/components/ui/kit") return { ...ui, T: {}, Ico: icons };
       if (name === "@/components/ui/SuccessMotion") return { default: "SuccessMotion" };
@@ -173,10 +181,24 @@ test("editing and recipient review do not write; explicit local confirmation sav
   assert.equal(screen.calls.writes, 0);
   assert.equal(hasButton(screen.tree, "View local Activity"), false);
   await screen.click("Confirm local demo");
-  assert.deepEqual(screen.calls, { writes: 1, records: 1, lookups: 1, transfers: 0 });
+  assert.deepEqual(screen.calls, { writes: 1, records: 1, lookups: 1, transfers: 0, routes: [] });
   assert.equal(screen.storage.size, 1);
+  assert.equal(hasButton(screen.tree, "View local receipt"), true);
   assert.equal(hasButton(screen.tree, "View local Activity"), true);
   assert.equal(nodes(screen.tree).some(node => node.type === "a" && node.props.href), false);
+  await screen.click("View local receipt");
+  assert.deepEqual(screen.calls.routes, ["/send/success/local-send-00000000-0000-4000-8000-000000000001"]);
+});
+
+test("local receipt aliases and Activity resume use browser-demo records, not transaction hashes", () => {
+  const alias = readFileSync(new URL("../app/send/success/[id]/page.tsx", import.meta.url), "utf8");
+  const detail = readFileSync(new URL("../components/screens/PrototypeActivityDetailScreen.tsx", import.meta.url), "utf8");
+  const activity = readFileSync(new URL("../components/screens/ActivityScreen.tsx", import.meta.url), "utf8");
+  assert.match(alias, /isLocalPreview && id\.startsWith\("local-send-"\)[\s\S]*isPreviewTransferId\(id\)[\s\S]*redirect\(`\/activity\/\$\{encodeURIComponent\(id\)\}`\)/);
+  assert.match(detail, /Local receipt ID/);
+  assert.match(detail, /no Stellar transaction hash was generated/);
+  assert.match(activity, /addEventListener\("pageshow", syncLocalHistory\)/);
+  assert.match(activity, /addEventListener\("visibilitychange", syncLocalHistory\)/);
 });
 
 test("failed persistence explains missing Activity and Send again clears that alert", async () => {
@@ -221,7 +243,7 @@ test("real mode confirms through the server action without local receipt writes"
   screen.amount("100");
   await screen.click("Review transfer");
   await screen.click("Confirm Testnet transfer");
-  assert.deepEqual(screen.calls, { writes: 0, records: 0, lookups: 1, transfers: 1 });
+  assert.deepEqual(screen.calls, { writes: 0, records: 0, lookups: 1, transfers: 1, routes: [] });
   assert.equal(screen.storage.size, 0);
   assert.equal(hasButton(screen.tree, "View local Activity"), false);
 });

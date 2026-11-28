@@ -16,8 +16,8 @@ const localEquivalent = (cents: number, currency: Currency) => currency === "PHP
   ? `₱${((cents / 100) * 58.2).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
   : `Rp ${Math.round((cents / 100) * 16_500).toLocaleString("en-US")}`;
 
-export default function PrototypeTopUpFlowScreen({ currency, via, step = "amount", initialAmount = "5" }: {
-  currency: Currency; via: Via; step?: "amount" | "pay"; initialAmount?: string;
+export default function PrototypeTopUpFlowScreen({ currency, via, step = "amount", initialAmount = "5", invalidInitialAmount = false }: {
+  currency: Currency; via: Via; step?: "amount" | "pay"; initialAmount?: string; invalidInitialAmount?: boolean;
 }) {
   const router = useRouter();
   const goBack = useGoBack(`/topup?cur=${currency.toLowerCase()}`);
@@ -30,10 +30,15 @@ export default function PrototypeTopUpFlowScreen({ currency, via, step = "amount
   const valid = cents !== null && cents >= 100;
   const cardValid = card.number.replace(/\D/g, "").length >= 15 && /^\d{2}\s*\/\s*\d{2}$/.test(card.expiry.trim()) && /^\d{3,4}$/.test(card.cvc.trim()) && card.name.trim().length >= 2;
   const methodName = via === "qris" ? "QRIS" : via === "card" ? "Debit or credit card" : currency === "PHP" ? "Bank transfer" : "Virtual account";
-  const back = () => step === "pay" ? router.push(`/topup?method=provider&channel=${via}&cur=${currency.toLowerCase()}`) : goBack();
+  const amountPath = `/topup?method=provider&channel=${via === "card" ? "gcash" : via === "va" ? "bank-wallet" : "qris"}&via=${via}&cur=${currency.toLowerCase()}&amount=${cents ?? ""}`;
+  const back = () => step === "pay" ? router.replace(amountPath) : goBack();
   const openPay = () => {
     if (!valid) return;
-    router.push(`/topup?method=provider&channel=${via}&cur=${currency.toLowerCase()}&step=pay&amount=${cents}`);
+    // Keep the edited amount on the entry history item as well, so browser Back
+    // and the in-app Back both return to an editable version of this form.
+    const entry = `/topup?method=provider&channel=${via === "card" ? "gcash" : via === "va" ? "bank-wallet" : "qris"}&via=${via}&cur=${currency.toLowerCase()}&amount=${cents}`;
+    window.history.replaceState(window.history.state, "", entry);
+    router.push(`${entry}&step=pay`);
   };
 
   return <div className={styles.screen}>
@@ -43,9 +48,9 @@ export default function PrototypeTopUpFlowScreen({ currency, via, step = "amount
         <Card className={styles.amountCard}>
           {step === "amount" ? <>
             <label htmlFor="preview-topup-amount">Amount · USD</label>
-            <input id="preview-topup-amount" inputMode="decimal" value={amountText} onChange={event => setAmountText(event.target.value)} aria-invalid={amountText !== "" && !valid || undefined} />
+            <input id="preview-topup-amount" inputMode="decimal" maxLength={9} value={amountText} onChange={event => setAmountText(event.target.value)} aria-invalid={(amountText !== "" && !valid) || (invalidInitialAmount && !valid) || undefined} />
             {cents !== null && cents > 0 ? <p>≈ {localEquivalent(cents, currency)}</p> : null}
-            {!valid && amountText !== "" ? <small className={styles.error}>Enter $1 or more.</small> : null}
+            {!valid && (amountText !== "" || invalidInitialAmount) ? <small className={styles.error} role="alert">Enter a valid amount from $1 to $999,999.99.</small> : null}
             <div className={styles.presets}>{PRESETS.map(value => <button key={value} type="button" aria-pressed={amountText === String(value / 100)} onClick={() => setAmountText(String(value / 100))}>${value / 100}</button>)}</div>
           </> : <>
             <h1>{via === "qris" ? "Scan to pay" : via === "va" ? "Transfer this amount" : "Pay by card"}</h1>

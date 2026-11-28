@@ -60,6 +60,16 @@ function mount(options: { preview?: boolean; configured?: boolean; locale?: "en"
   const authRequests: ReturnType<typeof deferred<{ data: { user: { id: string } | null }; error?: { name: string } }>>[] = [];
   const historyRequests: { cursor: string | null; deferred: ReturnType<typeof deferred<WalletActivityResult>> }[] = [];
   const watchers: { address: string; changed: () => Promise<void>; closed: boolean }[] = [];
+  const previewTransfers: { id: string; createdAt: string; senderAddress: string; recipientHandle: string; recipientAddress: string; pesos: number; amountStroops: string }[] = [];
+  const windowListeners = new Map<string, Set<() => void>>();
+  const documentListeners = new Map<string, Set<() => void>>();
+  const listen = (target: Map<string, Set<() => void>>, event: string, listener: () => void) => {
+    const listeners = target.get(event) ?? new Set<() => void>();
+    listeners.add(listener); target.set(event, listeners);
+  };
+  const unlisten = (target: Map<string, Set<() => void>>, event: string, listener: () => void) => target.get(event)?.delete(listener);
+  const emit = (target: Map<string, Set<() => void>>, event: string) => { for (const listener of target.get(event) ?? []) listener(); };
+  const document = { visibilityState: "visible", addEventListener: (event: string, listener: () => void) => listen(documentListeners, event, listener), removeEventListener: (event: string, listener: () => void) => unlisten(documentListeners, event, listener), getElementById: () => ({ focus() {} }) };
   let cursor = 0, timerId = 0, mutations = 0, subscriptions = 0;
   let authListener: ((event: string, session: { user: { id: string } } | null) => void) | null = null;
   const sheetExports = {} as { default?(props: Record<string, unknown>): Element };
@@ -68,7 +78,8 @@ function mount(options: { preview?: boolean; configured?: boolean; locale?: "en"
   const exports = {} as { default(): Element };
   const icons = new Proxy({}, { get: () => () => null });
   const forbidden = () => { throw Error("Unexpected mutation or network boundary"); };
-  runInNewContext(compiled, { exports, Intl, Promise, AbortController, AbortSignal, queueMicrotask, document: { getElementById: () => ({ focus() {} }) },
+  runInNewContext(compiled, { exports, Intl, Promise, AbortController, AbortSignal, queueMicrotask, document,
+    window: { addEventListener: (event: string, listener: () => void) => listen(windowListeners, event, listener), removeEventListener: (event: string, listener: () => void) => unlisten(windowListeners, event, listener) },
     setTimeout(callback: () => void) { const id = ++timerId; timers.set(id, callback); return id; }, clearTimeout(id: number) { timers.delete(id); },
     require: function fixtureRequire(dependency: string) {
       if (dependency === "react/jsx-runtime") return { jsx, jsxs: jsx, Fragment: "Fragment" };
@@ -123,7 +134,7 @@ function mount(options: { preview?: boolean; configured?: boolean; locale?: "en"
       if (dependency === "@/lib/i18n/circles-content") return contentCopy;
       if (dependency === "@/lib/ui/currency") return { formatLocal };
       if (dependency === "@/lib/local-preview") return { isLocalPreview: preview, PREVIEW_WALLET, localPreviewUsername: () => PREVIEW_WALLET.handle };
-      if (dependency === "@/lib/local-preview-history") return { listPreviewTransfers: () => [] };
+      if (dependency === "@/lib/local-preview-history") return { listPreviewTransfers: () => previewTransfers };
       if (dependency.endsWith(".module.css")) return { default: new Proxy({}, { get: (_, key) => key }) };
       throw Error(`Unexpected dependency: ${dependency}`);
     },
@@ -156,7 +167,7 @@ function mount(options: { preview?: boolean; configured?: boolean; locale?: "en"
   function emitAuth(id: string | null) { assert.ok(authListener); authListener(id ? "SIGNED_IN" : "SIGNED_OUT", id ? { user: { id } } : null); render(); }
   function unmount() { for (const cleanup of cleanups.values()) cleanup(); cleanups.clear(); }
   render(); runEffects();
-  return { get tree() { return tree; }, get mutations() { return mutations; }, get subscriptions() { return subscriptions; }, authRequests, historyRequests, watchers, render, flush, click, emitAuth, unmount };
+  return { get tree() { return tree; }, get mutations() { return mutations; }, get subscriptions() { return subscriptions; }, authRequests, historyRequests, watchers, previewTransfers, render, flush, click, emitAuth, emitWindow: (event: string) => emit(windowListeners, event), emitDocument: (event: string) => emit(documentListeners, event), unmount };
 }
 function state(tree: Element) { return nodes(tree).find((node) => node.props["data-personal-history-state"])?.props["data-personal-history-state"]; }
 
@@ -344,6 +355,17 @@ test("local preview uses only local receipts without Auth or live actions", asyn
   assert.equal(h.authRequests.length, 0);
   assert.equal(h.historyRequests.length, 0);
   assert.equal(h.subscriptions, 0);
+  h.unmount();
+});
+test("local preview Activity reloads browser-demo receipts after returning from a detail page", async () => {
+  const h = mount({ preview: true }); await h.flush();
+  assert.ok(text(h.tree).includes(activityCopy("en")("empty")));
+  h.previewTransfers.push({ id: "local-send-00000000-0000-4000-8000-000000000001", createdAt: "2026-11-28T00:00:00.000Z", senderAddress: PREVIEW_WALLET.address, recipientHandle: "maria_s", recipientAddress: "GCBKRBBNTQ2YA7U7SOC2NTZCCACFIIQCLKKO2FJYL5WJP5QVYH6UNDHL", pesos: 2, amountStroops: "178461538" });
+  h.emitWindow("pageshow"); h.render();
+  assert.ok(text(h.tree).includes("Send demo to @maria_s"));
+  h.previewTransfers.splice(0);
+  h.emitDocument("visibilitychange"); h.render();
+  assert.ok(text(h.tree).includes(activityCopy("en")("empty")));
   h.unmount();
 });
 test("Indonesian incoming history and error states are localized independently of display currency", async () => {

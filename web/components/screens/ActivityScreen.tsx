@@ -300,6 +300,18 @@ export default function ActivityScreen() {
     const initialLoad = setTimeout(() => void refresh(), 0);
     return () => clearTimeout(initialLoad);
   }, [owner, refresh]);
+  useEffect(() => {
+    if (!isLocalPreview) return;
+    const syncLocalHistory = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    window.addEventListener("pageshow", syncLocalHistory);
+    document.addEventListener("visibilitychange", syncLocalHistory);
+    return () => {
+      window.removeEventListener("pageshow", syncLocalHistory);
+      document.removeEventListener("visibilitychange", syncLocalHistory);
+    };
+  }, [refresh]);
   // A render after an Auth event never exposes the previous account's rows,
   // including the frame before the new account request has started.
   const personal = owner && history.owner === owner ? history : emptyHistory;
