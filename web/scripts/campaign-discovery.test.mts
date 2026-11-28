@@ -186,7 +186,9 @@ test("actual mode navigation has explicit links, one current page, and truthful 
     } });
     const tree = exports.default({ view }), c = discoveryCopy.campaignDiscoveryCopy(locale);
     const links = nodes(tree).filter(node => node.type === "Link");
-    assert.deepEqual(links.map(node => node.props.href), ["/campaigns?mode=examples", "/campaigns?mode=testnet"]);
+    assert.deepEqual(links.map(node => node.props.href), ["/campaigns?mode=examples", "/campaigns?mode=testnet", "/campaigns?mode=recurring"]);
+    assert.ok(text(tree).includes(c("Recurring campaigns")));
+    assert.match(readFileSync(new URL("../components/CampaignDiscoveryNav.module.css", import.meta.url), "utf8"), /grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/);
     assert.equal(links.filter(node => node.props["aria-current"] === "page").length, 1);
     assert.equal(links.find(node => node.props["aria-current"] === "page")?.props.href, `/campaigns?mode=${view}`);
     assert.ok(text(tree).includes(c(view === "examples" ? "Categories, organizer profiles and updates. Fictional examples, no payments." : "Separate D4 escrow in valueless Testnet XLM. Circles example totals are not contract balances.")));

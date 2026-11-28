@@ -13,6 +13,7 @@ export default function CampaignDiscoveryNav({ view }: { view: CampaignDiscovery
     <nav aria-label={c("Donation discovery")} className={styles.modes}>
       <Link href="/campaigns?mode=examples" aria-current={view === "examples" ? "page" : undefined}>{c("Browse examples")}</Link>
       <Link href="/campaigns?mode=testnet" aria-current={view === "testnet" ? "page" : undefined}>{c("Testnet campaigns")}</Link>
+      <Link href="/campaigns?mode=recurring">{c("Recurring campaigns")}</Link>
     </nav>
     <p>{c(view === "examples" ? "Categories, organizer profiles and updates. Fictional examples, no payments." : "Separate D4 escrow in valueless Testnet XLM. Circles example totals are not contract balances.")}</p>
   </div>;
