@@ -85,7 +85,8 @@ test.describe("D4 isolated local UI and HTTP authorization", () => {
     });
     await page.goto("/causes");
     const filters = page.getByRole("group", { name: "Campaign filters", exact: true });
-    await expect(filters.getByRole("button")).toHaveCount(10);
+    await expect(filters.locator('button[aria-pressed]')).toHaveCount(10);
+    await expect(filters.getByRole("button", { name: /^Status:/ })).toBeVisible();
     for (const label of ["Disaster relief", "Medical", "Education", "Community", "Family", "Creator support", "Care & meals", "Volunteer action", "Animal care"]) {
       await expect(filters.getByRole("button", { name: label, exact: true })).toBeVisible();
     }
