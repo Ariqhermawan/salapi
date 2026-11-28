@@ -2,6 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 
 const homeLocator = (page: Page) => page.locator('[data-testid="home-dashboard"], [data-testid="prototype-home"]');
 const viewports = [
+  { width: 320, height: 568 },
   { width: 320, height: 740 },
   { width: 375, height: 812 },
   { width: 390, height: 844 },
@@ -65,6 +66,17 @@ for (const viewport of viewports) {
     await expect(controls).toHaveCount(5);
   });
 }
+
+test("short Home keeps the cause cards and More from Salapi tiles in separate rows", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.goto("/", { waitUntil: "domcontentloaded", timeout: 45000 });
+  const geometry = await page.evaluate(() => {
+    const causes = document.querySelector<HTMLElement>('section[aria-labelledby="prototype-home-causes"]')!;
+    const tiles = document.querySelector<HTMLElement>('section[aria-label="More from Salapi"]')!;
+    return { causeBottom: causes.getBoundingClientRect().bottom, tileTop: tiles.getBoundingClientRect().top };
+  });
+  expect(geometry.tileTop).toBeGreaterThanOrEqual(geometry.causeBottom);
+});
 
 test("Home stays in light mode when the saved cookie and system preference request dark", async ({ page }) => {
   await page.context().clearCookies();

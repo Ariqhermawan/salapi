@@ -132,10 +132,10 @@
 .refresh { display:flex; min-height:46px; align-items:center; justify-content:center; gap:8px; border:1px solid var(--sl-line); border-radius:13px; background:var(--sl-surface); color:var(--sl-ink); font:550 14px/20px var(--font-geist-sans), Outfit, system-ui, sans-serif; }
 
 @media (max-height:760px) {
-  .home { height:100cqh; min-height:0; padding-top:1px; }
+  .home { height:auto; min-height:100cqh; padding-top:1px; }
   .balance { padding:12px 16px; }
-  .causeRow { margin-bottom:-5px; padding-bottom:9px; }
-  .causeRow { flex:1 1 0; height:auto; min-height:150px; }
+  .causes { flex:none; }
+  .causeRow { flex:none; height:150px; min-height:150px; margin-bottom:-5px; padding-bottom:9px; }
   .cover { height:auto; }
   .cardBody { min-height:88px; padding-top:7px; padding-bottom:8px; }
   .cardBody > strong { min-height:36px; line-height:18px; }

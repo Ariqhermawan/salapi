@@ -5,7 +5,6 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { QRCodeSVG } from "qrcode.react";
 import { AppBar, Btn, Card, Ico, IconButton, PoweredByStellar } from "@/components/ui/kit";
-import { useGoBack } from "@/lib/ui/useGoBack";
 import PrototypeDoodle from "./PrototypeDoodle";
 import styles from "./PrototypeTopUpFlowScreen.module.css";
 
@@ -20,7 +19,6 @@ export default function PrototypeTopUpFlowScreen({ currency, via, step = "amount
   currency: Currency; via: Via; step?: "amount" | "pay"; initialAmount?: string; invalidInitialAmount?: boolean;
 }) {
   const router = useRouter();
-  const goBack = useGoBack(`/topup?cur=${currency.toLowerCase()}`);
   const [amountText, setAmountText] = useState(initialAmount);
   const [card, setCard] = useState({ number: "", expiry: "", cvc: "", name: "" });
   const [complete, setComplete] = useState(false);
@@ -31,7 +29,15 @@ export default function PrototypeTopUpFlowScreen({ currency, via, step = "amount
   const cardValid = card.number.replace(/\D/g, "").length >= 15 && /^\d{2}\s*\/\s*\d{2}$/.test(card.expiry.trim()) && /^\d{3,4}$/.test(card.cvc.trim()) && card.name.trim().length >= 2;
   const methodName = via === "qris" ? "QRIS" : via === "card" ? "Debit or credit card" : currency === "PHP" ? "Bank transfer" : "Virtual account";
   const amountPath = `/topup?method=provider&channel=${via === "card" ? "gcash" : via === "va" ? "bank-wallet" : "qris"}&via=${via}&cur=${currency.toLowerCase()}&amount=${cents ?? ""}`;
-  const back = () => step === "pay" ? router.replace(amountPath) : goBack();
+  const back = () => {
+    if (step === "pay") {
+      router.replace(amountPath);
+      return;
+    }
+    const query = new URLSearchParams({ cur: currency.toLowerCase() });
+    if (valid) query.set("amount", String(cents));
+    router.replace(`/topup?${query.toString()}`);
+  };
   const openPay = () => {
     if (!valid) return;
     // Keep the edited amount on the entry history item as well, so browser Back

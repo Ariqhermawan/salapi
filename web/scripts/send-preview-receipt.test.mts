@@ -6,7 +6,7 @@ import ts from "typescript";
 import * as revampMoney from "../lib/i18n/revamp-money.ts";
 import * as money from "../lib/money.ts";
 import * as market from "../lib/market-prices.ts";
-import { CURRENCY, formatLocalAmount, pesoFromLocal } from "../lib/ui/currency.ts";
+import { CURRENCY, formatLocal, formatLocalAmount, pesoFromLocal } from "../lib/ui/currency.ts";
 import * as recipientReview from "../lib/recipient-review.ts";
 import type { PreviewTransferInput } from "../lib/local-preview-history.ts";
 
@@ -196,6 +196,9 @@ test("local receipt aliases and Activity resume use browser-demo records, not tr
   const activity = readFileSync(new URL("../components/screens/ActivityScreen.tsx", import.meta.url), "utf8");
   assert.match(alias, /isLocalPreview && id\.startsWith\("local-send-"\)[\s\S]*isPreviewTransferId\(id\)[\s\S]*redirect\(`\/activity\/\$\{encodeURIComponent\(id\)\}`\)/);
   assert.match(detail, /Local receipt ID/);
+  assert.match(detail, /formatLocal\(transfer\.pesos, currency\)/);
+  assert.equal(formatLocal(290, "en"), "$5.00");
+  assert.equal(formatLocal(290, "tl"), "₱290.00");
   assert.match(detail, /no Stellar transaction hash was generated/);
   assert.match(activity, /addEventListener\("pageshow", syncLocalHistory\)/);
   assert.match(activity, /addEventListener\("visibilitychange", syncLocalHistory\)/);
