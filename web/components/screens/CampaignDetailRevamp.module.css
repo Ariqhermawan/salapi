@@ -21,6 +21,13 @@
 .card h2 { font-size:24px; font-weight:750; letter-spacing:-.04em; line-height:1.16; margin:8px 0; }
 .card h3 { font-size:15px; font-weight:700; margin:0 0 8px; }
 .card p { margin:5px 0; }
+.lifecycleStatus { display:grid; gap:3px; padding:11px 12px; border:1px solid #cdd6e4; border-radius:13px; background:#f7f9fc; color:#172033; font-size:13px; line-height:18px; overflow-wrap:anywhere; }
+.lifecycleStatus strong { font-size:14px; font-weight:750; line-height:19px; }
+.lifecycleStatus small { color:#475569; font-size:12px; line-height:17px; }
+.lifecycleStatus[data-tone="open"] { border-color:#b7d3ff; background:#eff6ff; color:#12346a; }
+.lifecycleStatus[data-tone="refund"], .lifecycleStatus[data-tone="ready"] { border-color:#e8c78e; background:#fff7e8; color:#57380a; }
+.lifecycleStatus[data-tone="released"], .lifecycleStatus[data-tone="approved"] { border-color:#add9bc; background:#eff9f2; color:#164b2d; }
+.lifecycleStatus[data-tone="review"], .lifecycleStatus[data-tone="closed"] { border-color:#cdd6e4; background:#f4f6f9; color:#273449; }
 .photoCard { padding: 0; overflow: hidden; }
 .photoCardBody { padding: 16px 18px 18px; }
 .campaignPhoto { position: relative; isolation: isolate; min-height: 176px; display: flex; align-items: flex-end; background: #132c4b; }

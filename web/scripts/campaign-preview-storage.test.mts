@@ -6,6 +6,7 @@ import ts from "typescript";
 import { saveCampaignPreview, CAMPAIGN_PREVIEW_KEY } from "../lib/campaign-preview-storage.ts";
 import { PREVIEW_CAMPAIGNS, PREVIEW_TIME, PREVIEW_WALLET } from "../lib/local-preview.ts";
 import { campaignAmount, campaignSplit } from "../lib/campaign-money.ts";
+import { d4CampaignStatusPresentation } from "../lib/campaign-discovery.ts";
 import { formatIllustrativeUsd } from "../lib/money.ts";
 import { formatStroops } from "../lib/format-stroops.ts";
 import * as discoveryCopy from "../lib/i18n/revamp-campaign-discovery.ts";
@@ -114,6 +115,7 @@ function screen(mode: Mode) {
     if (name === "@/lib/campaign-money") return { campaignAmount, campaignSplit };
     if (name === "@/lib/money") return { formatIllustrativeUsd };
     if (name === "@/lib/format-stroops") return { formatStroops };
+    if (name === "@/lib/campaign-discovery") return { d4CampaignStatusPresentation };
     if (name === "@/lib/vault-campaign-media") return media;
     if (name === "@/lib/i18n/revamp-campaign-discovery") return discoveryCopy;
     if (name.endsWith(".module.css")) return { default: {} };

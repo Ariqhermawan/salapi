@@ -30,6 +30,7 @@ import { useT } from "@/components/I18nProvider";
 import type { Locale } from "@/lib/i18n/config";
 import { vaultCampaignMedia } from "@/lib/vault-campaign-media";
 import { campaignDiscoveryCopy } from "@/lib/i18n/revamp-campaign-discovery";
+import { d4CampaignStatusPresentation } from "@/lib/campaign-discovery";
 import { accountCopy } from "@/lib/i18n/revamp-account";
 import { useGoBack } from "@/lib/ui/useGoBack";
 import { campaignDonorBadge } from "@/lib/ui/testnet-donor";
@@ -194,8 +195,7 @@ function CampaignCard({ c, circleId, viewer, now, run, busy, detail, onPreviewUp
   const split = campaignSplit(BigInt(c.total), BigInt(c.config.creator_cut_bps));
   let donationStroops: bigint | null = null;
   try { if (amount.trim()) donationStroops = campaignAmount({ amount, currency: "en" }); } catch { /* The review button reports invalid input. */ }
-  const status = refundOpen ? (c.total === "0" ? "Ready to close" : "Refund available")
-    : c.state === "Funding" && !fundingOpen ? "Awaiting proof" : c.state;
+  const lifecycle = d4CampaignStatusPresentation(c, now, locale);
   const currentStep = c.state === "Released" ? 3 : c.proofHash ? 2 : fundingOpen ? 0 : 1;
   const role = viewer === c.config.creator ? "Creator" : viewer && c.config.approvers.includes(viewer) ? "Approver" : "Supporter";
   function donate() {
@@ -218,8 +218,12 @@ function CampaignCard({ c, circleId, viewer, now, run, busy, detail, onPreviewUp
       <span><small>{photoCopy("Fictional organizer example")}</small><strong>{media.organizerName}</strong></span>{Ico.chev({size:16,c:T.action})}
     </Link> : null}
     {detail && !isLocalPreview ? <div className={styles.organizerProfile}><OrganizerProfileLink address={c.config.creator} /></div> : null}
-    <div><div className={styles.row}><span className={styles.eyebrow}>Campaign #{c.id.length > 8 ? "Local draft" : c.id}</span><span className={styles.badge}>{status}</span></div>{(!media || detail) && <Link href={`/campaigns?id=${c.id}`}><h2>{displayTitle}</h2></Link>}
-      <p className={styles.muted}>Funding closes {stamp(c.config.funding_deadline)}{viewer ? ` · ${role}` : ""}</p></div>
+    <div><div className={styles.row}><span className={styles.eyebrow}>Campaign #{c.id.length > 8 ? "Local draft" : c.id}</span></div>{(!media || detail) && <Link href={`/campaigns?id=${c.id}`}><h2>{displayTitle}</h2></Link>}
+      {viewer && <p className={styles.muted}>{role}</p>}</div>
+    <div className={styles.lifecycleStatus} data-tone={lifecycle.tone} data-testid="campaign-lifecycle-status" aria-label={lifecycle.accessibleLabel}>
+      <strong>{lifecycle.label}</strong>
+      {lifecycle.detail && <small>{lifecycle.detail}</small>}
+    </div>
     {detail && <D4CampaignGallery key={c.id} campaignId={c.id} creatorWallet={c.config.creator} viewer={viewer}
       localPreview={isLocalPreview} examplePhotos={media?.gallery} />}
     <div className={styles.metrics}>

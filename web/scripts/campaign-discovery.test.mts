@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
-import { campaignDiscoveryView } from "../lib/campaign-discovery.ts";
+import { campaignDiscoveryView, d4CampaignStatus, d4CampaignStatusFilterLabel, d4CampaignStatusPresentation, filterD4Campaigns } from "../lib/campaign-discovery.ts";
 import * as discoveryCopy from "../lib/i18n/revamp-campaign-discovery.ts";
 import * as circlesCopy from "../lib/i18n/revamp-circles.ts";
 import * as money from "../lib/campaign-money.ts";
@@ -60,6 +60,58 @@ function previewModule(preview: boolean) {
   runInNewContext(compile("../lib/local-preview.ts"), { exports, process: { env: { NEXT_PUBLIC_LOCAL_PREVIEW: preview ? "1" : "0" } } });
   return exports as { PREVIEW_CAMPAIGNS: Campaign[]; PREVIEW_TIME: number; PREVIEW_WALLET: { address: string }; isLocalPreview: boolean } & Record<string, unknown>;
 }
+
+function statusFixture(changes: Partial<Campaign> = {}): Campaign {
+  const base: Campaign = {
+    id: "1", title: "Status fixture", state: "Funding", total: "10000000", escrow: "10000000",
+    proofHash: null, proofUrl: "", approvals: [], contribution: { amount: "0", refunded: false },
+    config: { creator: "creator", beneficiary: "beneficiary", token: "XLM", creator_cut_bps: 500,
+      funding_deadline: "2000", review_deadline: "3000", approvers: ["a", "b", "c"] },
+  };
+  return { ...base, ...changes, config: { ...base.config, ...changes.config } };
+}
+
+test("D4 lifecycle copy describes existing contract states in all four locales and preserves filter keys", () => {
+  const now = 1000n;
+  const cases = [
+    { status: "Funding", campaign: statusFixture(), tone: "open", key: "Open for contributions", detail: "Funding closes" },
+    { status: "Awaiting proof", campaign: statusFixture({ config: { ...statusFixture().config, funding_deadline: "1000" } }), tone: "review", key: "Closed to contributions · awaiting proof" },
+    { status: "In review", campaign: statusFixture({ state: "PendingProof", proofHash: "a".repeat(64) }), tone: "review", key: "Closed to contributions · proof in review" },
+    { status: "Proof approved", campaign: statusFixture({ state: "PendingProof", proofHash: "a".repeat(64), approvals: ["a", "b"] }), tone: "approved", key: "Closed to contributions · proof approved, release pending" },
+    { status: "Refund available", campaign: statusFixture({ state: "Refundable", config: { ...statusFixture().config, review_deadline: "1000" } }), tone: "refund", key: "Closed · refund available" },
+    { status: "Ready to close", campaign: statusFixture({ total: "0", escrow: "0", config: { ...statusFixture().config, review_deadline: "1000" } }), tone: "ready", key: "Closed to contributions · ready to close" },
+    { status: "Released", campaign: statusFixture({ state: "Released", escrow: "0" }), tone: "released", key: "Closed · funds released" },
+    { status: "Ended", campaign: statusFixture({ state: "Closed", total: "0", escrow: "0" }), tone: "closed", key: "Closed · no contributions received" },
+    { status: "Ended", campaign: statusFixture({ state: "Closed", escrow: "0" }), tone: "closed", key: "Closed · refunds completed" },
+  ] as const;
+  for (const locale of LOCALES) {
+    const copy = discoveryCopy.campaignDiscoveryCopy(locale);
+    for (const scenario of cases) {
+      assert.equal(d4CampaignStatus(scenario.campaign, now), scenario.status);
+      const presentation = d4CampaignStatusPresentation(scenario.campaign, now, locale);
+      assert.equal(presentation.tone, scenario.tone);
+      assert.equal(presentation.label, copy(scenario.key));
+      assert.equal(presentation.accessibleLabel, presentation.detail ? presentation.label + " · " + presentation.detail : presentation.label);
+      assert.notEqual(d4CampaignStatusFilterLabel(scenario.status, locale), scenario.status);
+      if (scenario.status === "Funding") {
+        assert.ok(presentation.detail?.startsWith(copy(scenario.detail)));
+        assert.ok(presentation.detail?.endsWith("UTC"));
+      }
+      if (locale !== "en") assert.notEqual(presentation.label, scenario.status);
+    }
+    assert.equal(d4CampaignStatusFilterLabel("Released", locale), copy("Closed · funds released"));
+    assert.equal(d4CampaignStatusFilterLabel("Ended", locale), copy("Closed"));
+  }
+});
+
+test("D4 lifecycle filters keep their existing state values and still isolate open and released campaigns", () => {
+  const open = statusFixture();
+  const released = statusFixture({ id: "3", state: "Released", escrow: "0" });
+  const awaiting = statusFixture({ id: "2", config: { ...statusFixture().config, funding_deadline: "1000" } });
+  const campaigns = [open, awaiting, released] as Campaign[];
+  assert.deepEqual(filterD4Campaigns(campaigns, "Funding", "", null, 1000n).map(c => c.id), ["1"]);
+  assert.deepEqual(filterD4Campaigns(campaigns, "Released", "", null, 1000n).map(c => c.id), ["3"]);
+});
 
 test("prototype catalog is the default while explicit Testnet id and create intents stay authoritative", () => {
   for (const preview of [false, true]) {
@@ -255,6 +307,7 @@ function campaignCard(campaign: Campaign, preview: boolean, locale: Locale = "en
       if (name === "@/components/I18nProvider") return { useT: () => ({ locale }) };
       if (name === "@/components/ui/kit") return { Ico: new Proxy({}, { get: () => () => null }), T: {}, Btn: "Btn", Card: "Card", PoweredByStellar: "PoweredByStellar" };
       if (name === "@/lib/campaign-money") return money;
+      if (name === "@/lib/campaign-discovery") return { d4CampaignStatusPresentation };
       if (name === "@/lib/money") return { formatIllustrativeUsd };
       if (name === "@/lib/format-stroops") return { formatStroops };
       if (name === "@/lib/campaign") return { publicProofUrl };
