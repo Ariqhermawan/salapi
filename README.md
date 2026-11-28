@@ -39,6 +39,7 @@ or draw produces a public Stellar receipt that anyone can verify.
 | Exact integer money boundary | Shipped in Week 1 D1 |
 | Disaster 2-of-3 approvals, rolling cap, timelock, pause/unpause | D3 implementation; live cutover tracked in the D3 report |
 | Proof-gated donation campaigns with exact release/full refunds | D4 implemented and Testnet-verified; live acceptance tracked in the D4 report |
+| Recurring staged campaigns with proof-gated 2-of-3 payouts | D5 contract deployed on Testnet; web flow is on `revamp-ui` and awaits coordinated release |
 | Fiat on-ramp (GCash / QRIS / Xendit) | Roadmap |
 | Mainnet deployment | Roadmap |
 

@@ -213,3 +213,19 @@ test("recurring routes and confirmation persistence cover all seven actions", ()
     assert.match(migration, new RegExp(`'recurring_campaign_${action}'`));
   }
 });
+
+test("D5 rules and public Testnet contract are discoverable from the app", () => {
+  const screen = readFileSync(new URL("../components/screens/RecurringCampaignScreen.tsx", import.meta.url), "utf8");
+  const transparency = readFileSync(new URL("../components/screens/TransparencyScreen.tsx", import.meta.url), "utf8");
+  const docs = readFileSync(new URL("../app/docs/page.tsx", import.meta.url), "utf8");
+  const contract = "CDI6V4XTDDDAVW5GLJE6JOZ4AZO3TWCUJ54ZWYOTQFUNX4HXIJVPKK24";
+  assert.match(screen, /Verify D5 contract/);
+  assert.match(screen, /contract\/\$\{view\.contractId\}/);
+  assert.ok(transparency.includes(contract));
+  assert.match(transparency, /Recurring campaign rules, D5/);
+  assert.match(transparency, /two approvals from its three configured reviewer wallets/);
+  assert.match(transparency, /This local preview does not query or update D5/);
+  assert.match(docs, /recurringCampaignId/);
+  assert.match(docs, /Contributions fill scheduled payout stages in order/);
+  assert.match(docs, /mode=recurring/);
+});

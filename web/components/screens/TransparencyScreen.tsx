@@ -47,6 +47,14 @@ const CONTRACTS = [
     id: "CBQBUAOP3T235Q2U63XNC2NQVNAOXQL2KHWALO6FTIOJS46NTKIZJ5WI",
   },
   {
+    name: "donation-campaign (D4)",
+    id: "CC6D7P35SVCNZLOKTHKDNH4S2ZELYHBP5UO3IWADFORKEF7BCSBY37FU",
+  },
+  {
+    name: "recurring-campaign v5 (D5 default Testnet deployment)",
+    id: "CDI6V4XTDDDAVW5GLJE6JOZ4AZO3TWCUJ54ZWYOTQFUNX4HXIJVPKK24",
+  },
+  {
     name: "arisan-rooms",
     id: "CDAUA3TN4PRJFVHWBITT2DZMCY24DEZRA4NQLZLEX5CKL6AOA6RLII4S",
   },
@@ -462,6 +470,32 @@ export default function TransparencyScreen({ initialPhase = "view" }: { initialP
         </p>
         <CampaignEvidence />
       </details>
+      <details className={styles.evidenceAppendix}>
+        <summary>Recurring campaign rules, D5</summary>
+        <p className={styles.amountNote}>
+          Testnet XLM contributions fill scheduled stage targets in order. Each
+          fully funded stage can be released after its due date when public
+          proof has two approvals from its three configured reviewer wallets.
+          After final review, donors can reclaim allocations to stages that
+          have not released; released stages stay paid. The creator share is
+          fixed at creation and is not a platform fee. Testnet receipts do not
+          prove real-world delivery.
+        </p>
+        <section className={styles.detailCard}>
+          <a className={styles.eventLink}
+            href={`${EXPLORER}/contract/CDI6V4XTDDDAVW5GLJE6JOZ4AZO3TWCUJ54ZWYOTQFUNX4HXIJVPKK24`}
+            target="_blank" rel="noopener noreferrer">
+            <span>Recurring-campaign v5 · Testnet contract</span>
+            {Ico.link({ size: 13, c: T.action })}
+          </a>
+          <Link className={styles.eventLink} href="/campaigns?mode=recurring">
+            Explore recurring campaigns {Ico.link({ size: 13, c: T.action })}
+          </Link>
+          <Link className={styles.eventLink} href="/docs">
+            Read the documented D5 rules {Ico.link({ size: 13, c: T.action })}
+          </Link>
+        </section>
+      </details>
     </>
   );
   return (
@@ -563,6 +597,25 @@ export default function TransparencyScreen({ initialPhase = "view" }: { initialP
           }}
         />
       )}
+      <details className={styles.evidenceAppendix}>
+        <summary>Recurring campaign rules, D5</summary>
+        <p className={styles.amountNote}>
+          This local preview does not query or update D5. On Testnet, XLM
+          contributions fill scheduled stage targets in order. Each fully
+          funded stage needs public proof and two approvals from three
+          configured reviewer wallets before release. After final review,
+          donors can reclaim only allocations to stages that have not released.
+        </p>
+        <a className={styles.eventLink}
+          href={`${EXPLORER}/contract/CDI6V4XTDDDAVW5GLJE6JOZ4AZO3TWCUJ54ZWYOTQFUNX4HXIJVPKK24`}
+          target="_blank" rel="noopener noreferrer">
+          <span>Reference D5 Testnet contract</span>
+          {Ico.link({ size: 13, c: T.action })}
+        </a>
+        <Link className={styles.eventLink} href="/campaigns?mode=recurring">
+          Preview recurring campaign flow {Ico.link({ size: 13, c: T.action })}
+        </Link>
+      </details>
       <footer className={styles.footer}>
         <PoweredByStellar />
         <span>Public proof on Stellar Testnet.</span>

@@ -35,6 +35,13 @@ const WORDS = {
   vi: { heading: "Chiến dịch định kỳ", create: "Tạo chiến dịch định kỳ", regular: "Tạo chiến dịch một lần", back: "Quay lại", testnet: "Testnet", local: "Fixture cục bộ · không có giao dịch Testnet", intro: "Đóng góp được phân bổ lần lượt vào các mục tiêu giải ngân. Mỗi lần giải ngân cần bằng chứng công khai và sự chấp thuận của hai trong ba ví đánh giá đã cấu hình.", stages: "Các giai đoạn giải ngân", stage: "Giai đoạn", target: "Mục tiêu (Testnet XLM)", due: "Ngày đến hạn", fundingClose: "Đóng góp đóng vào", finalReview: "Hạn đánh giá cuối", title: "Tên chiến dịch", beneficiary: "Ví công khai của người thụ hưởng", creatorShare: "Phần của người tạo (0–10%)", reviewers: "Ba ví đánh giá riêng biệt", addStage: "Thêm giai đoạn giải ngân", removeStage: "Xóa giai đoạn", review: "Xem lại điều khoản định kỳ", amount: "Đóng góp (Testnet XLM)", contribute: "Xem lại khoản đóng góp", proofHash: "Mã băm SHA-256 của bằng chứng", proofUrl: "Liên kết HTTPS công khai đến bằng chứng", submitProof: "Xem lại việc gửi bằng chứng", approve: "Xem lại phê duyệt", release: "Xem lại giải ngân giai đoạn", refund: "Xem lại hoàn tiền giai đoạn chưa chi", close: "Đóng chiến dịch trống", noCampaigns: "Chưa có chiến dịch định kỳ.", guest: "Đăng nhập tài khoản Salapi để tạo, đóng góp hoặc quản lý chiến dịch Testnet định kỳ.", state: "Trạng thái giai đoạn hiện tại", funded: "Đã góp", released: "Đã giải ngân", pending: "Đang chờ xem xét bằng chứng", future: "Chưa đến", remaining: "Khoản phân bổ chưa chi có thể hoàn lại", reviewersList: "Người đánh giá đã cấu hình", proof: "Bằng chứng đã gửi", approvals: "Phê duyệt", confirm: "Xem lại trước khi xác nhận", confirmButton: "Xác nhận giao dịch Testnet", localConfirm: "Xác nhận ví dụ cục bộ", cancel: "Hủy", fee: "Phí mạng tối đa", refreshed: "Làm mới", funding: "Đang mở nhận đóng góp", scheduled: "Chờ đến ngày của giai đoạn", proofReview: "Đang xem xét bằng chứng", refundable: "Có thể hoàn các giai đoạn chưa chi sau lần đánh giá cuối", complete: "Đã giải ngân mọi giai đoạn", closed: "Đã đóng", balanceNote: "Chỉ chuyển Testnet XLM. Không có thanh toán tiền pháp định.", dueRule: "Ngày giai đoạn phải theo thứ tự, từ lúc đóng góp trở đi và trước lần đánh giá cuối.", proofRule: "Giai đoạn đã giải ngân không thể hoàn lại. Sau lần đánh giá cuối, chỉ phân bổ cho giai đoạn chưa giải ngân mới được hoàn." },
 } as const;
 
+const CONTRACT_LINK_LABEL = {
+  en: "Verify D5 contract",
+  tl: "I-verify ang D5 contract",
+  id: "Verifikasi kontrak D5",
+  vi: "Xác minh hợp đồng D5",
+} as const;
+
 const PREVIEW_NOW = 1_800_000_000n;
 const PREVIEW_BENEFICIARY = "GAXPCCZD3AKYIRCI5CCX2TRIMVGQ45XEUEZPF5RBUZHYFRRZGN64ZNO3";
 const LOCAL_CAMPAIGN: RecurringCampaign = {
@@ -193,6 +200,7 @@ export default function RecurringCampaignScreen({ id = "", standaloneCreate = fa
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
         <Link href="/campaigns?mode=recurring" style={{ color: T.action }}>{copy.heading}</Link>
         <Link href="/campaigns?mode=testnet" style={{ color: T.action }}>{copy.regular}</Link>
+        {view?.ok && view.contractId !== "Local fixture" && <a href={`https://stellar.expert/explorer/testnet/contract/${view.contractId}`} target="_blank" rel="noreferrer" style={{ color: T.action }}>{CONTRACT_LINK_LABEL[locale]}</a>}
         <button type="button" onClick={() => void refresh()} disabled={locked} style={{ color: T.action, border: 0, background: "transparent" }}>{copy.refreshed}</button>
       </div>
     </section>
