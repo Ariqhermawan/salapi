@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { createSumsubDemoState, transitionSumsubDemo, canPrepareSumsubDemo, canChooseSumsubDemoResult, SUMSUB_CHECKLIST, SUMSUB_DEMO_POLICY, type SumsubDemoState, type SumsubDemoEvent } from "../lib/verification/sumsub-demo.ts";
+import { createSumsubDemoState, transitionSumsubDemo, canPrepareSumsubDemo, canExploreSumsubDemo, canChooseSumsubDemoResult, SUMSUB_CHECKLIST, SUMSUB_DEMO_POLICY, type SumsubDemoState, type SumsubDemoEvent } from "../lib/verification/sumsub-demo.ts";
 import { accountCopy } from "../lib/i18n/revamp-account.ts";
 
 function prepare(kind: "individual" | "ngo" = "individual") {
@@ -11,7 +11,7 @@ function prepare(kind: "individual" | "ngo" = "individual") {
 }
 
 test("default state cannot grant genuine provider verification", () => {
-  assert.deepEqual(createSumsubDemoState(), { kind: "individual", phase: "checklist", acknowledged: [], attempts: 0 });
+  assert.deepEqual(createSumsubDemoState(), { kind: "individual", phase: "checklist", acknowledged: [], sampleCheckReady: false, attempts: 0 });
   assert.equal(SUMSUB_DEMO_POLICY.connection, "not-connected");
   for (const key of ["documentsCollected", "cameraOpened", "requestSubmitted", "identityVerified", "changesCreatorEntitlement"] as const) assert.equal(SUMSUB_DEMO_POLICY[key], false);
   assert.ok(Object.isFrozen(SUMSUB_DEMO_POLICY));
@@ -19,10 +19,14 @@ test("default state cannot grant genuine provider verification", () => {
 
 test("prepare and result cannot skip the checklist", () => {
   const initial = createSumsubDemoState();
-  for (const event of [{ type: "prepare" }, { type: "explore" }, { type: "choose-result", result: "approved" }] as SumsubDemoEvent[]) assert.strictEqual(transitionSumsubDemo(initial, event, true), initial);
+  for (const event of [{ type: "prepare" }, { type: "complete-sample-check" }, { type: "explore" }, { type: "submit" }, { type: "choose-result", result: "approved" }] as SumsubDemoEvent[]) assert.strictEqual(transitionSumsubDemo(initial, event, true), initial);
   const partial = transitionSumsubDemo(initial, { type: "toggle-check", id: "identity" }, true);
   assert.equal(canPrepareSumsubDemo(partial), false);
   assert.strictEqual(transitionSumsubDemo(partial, { type: "prepare" }, true), partial);
+  const prepared = prepare();
+  assert.equal(prepared.phase, "prepared");
+  assert.equal(canExploreSumsubDemo(prepared), false);
+  assert.strictEqual(transitionSumsubDemo(prepared, { type: "explore" }, true), prepared);
 });
 
 test("NGO preparation requires both extra example checks without personal fields", () => {
@@ -30,12 +34,20 @@ test("NGO preparation requires both extra example checks without personal fields
   for (const id of SUMSUB_CHECKLIST.individual) state = transitionSumsubDemo(state, { type: "toggle-check", id }, true);
   assert.equal(canPrepareSumsubDemo(state), false);
   assert.equal(prepare("ngo").phase, "prepared");
-  assert.deepEqual(Object.keys(state).sort(), ["acknowledged", "attempts", "kind", "phase"]);
+  assert.deepEqual(Object.keys(state).sort(), ["acknowledged", "attempts", "kind", "phase", "sampleCheckReady"]);
 });
 
-test("prepared demo can explore all four simulated states", () => {
-  let state = transitionSumsubDemo(prepare(), { type: "explore" }, true);
-  assert.equal(state.phase, "pending");
+test("the sample-only check gates the review handoff and all four result examples", () => {
+  let state = prepare();
+  state = transitionSumsubDemo(state, { type: "complete-sample-check" }, true);
+  assert.equal(canExploreSumsubDemo(state), true);
+  assert.equal(state.sampleCheckReady, true);
+  state = transitionSumsubDemo(state, { type: "explore" }, true);
+  assert.equal(state.phase, "handoff");
+  assert.equal(canChooseSumsubDemoResult(state), false);
+  assert.strictEqual(transitionSumsubDemo(state, { type: "choose-result", result: "approved" }, true), state);
+  state = transitionSumsubDemo(state, { type: "submit" }, true);
+  assert.equal(state.phase, "review");
   assert.equal(state.attempts, 1);
   assert.equal(canChooseSumsubDemoResult(state), true);
   for (const result of ["approved", "retry", "rejected", "pending"] as const) {
@@ -46,13 +58,36 @@ test("prepared demo can explore all four simulated states", () => {
   }
 });
 
+test("stage back keeps completed acknowledgements and sample-only state", () => {
+  let state = prepare();
+  state = transitionSumsubDemo(state, { type: "complete-sample-check" }, true);
+  state = transitionSumsubDemo(state, { type: "explore" }, true);
+  state = transitionSumsubDemo(state, { type: "back" }, true);
+  assert.equal(state.phase, "prepared");
+  assert.equal(state.sampleCheckReady, true);
+  state = transitionSumsubDemo(state, { type: "back" }, true);
+  assert.equal(state.phase, "checklist");
+  assert.deepEqual(state.acknowledged, [...SUMSUB_CHECKLIST.individual]);
+  assert.equal(state.sampleCheckReady, false);
+  state = transitionSumsubDemo(state, { type: "prepare" }, true);
+  state = transitionSumsubDemo(state, { type: "complete-sample-check" }, true);
+  state = transitionSumsubDemo(state, { type: "explore" }, true);
+  state = transitionSumsubDemo(state, { type: "submit" }, true);
+  state = transitionSumsubDemo(state, { type: "choose-result", result: "pending" }, true);
+  state = transitionSumsubDemo(state, { type: "back" }, true);
+  assert.equal(state.phase, "review");
+});
+
 test("retry clears acknowledgements while reset and kind switch clear progress", () => {
-  let state = transitionSumsubDemo(prepare("ngo"), { type: "explore" }, true);
+  let state = transitionSumsubDemo(prepare("ngo"), { type: "complete-sample-check" }, true);
+  state = transitionSumsubDemo(state, { type: "explore" }, true);
+  state = transitionSumsubDemo(state, { type: "submit" }, true);
   state = transitionSumsubDemo(state, { type: "choose-result", result: "retry" }, true);
   state = transitionSumsubDemo(state, { type: "retry" }, true);
   assert.equal(state.kind, "ngo");
   assert.equal(state.phase, "checklist");
   assert.deepEqual(state.acknowledged, []);
+  assert.equal(state.sampleCheckReady, false);
   assert.equal(state.attempts, 1);
   assert.deepEqual(transitionSumsubDemo(state, { type: "reset" }, true), createSumsubDemoState("ngo"));
   assert.deepEqual(transitionSumsubDemo(state, { type: "select-kind", kind: "individual" }, true), createSumsubDemoState("individual"));
@@ -60,13 +95,15 @@ test("retry clears acknowledgements while reset and kind switch clear progress",
 
 test("non-local preview refuses every simulation event", () => {
   const state = prepare();
-  for (const event of [{ type: "toggle-check", id: "identity" }, { type: "prepare" }, { type: "explore" }, { type: "choose-result", result: "approved" }, { type: "select-kind", kind: "ngo" }, { type: "retry" }, { type: "reset" }] as SumsubDemoEvent[]) assert.strictEqual(transitionSumsubDemo(state, event, false), state);
+  for (const event of [{ type: "toggle-check", id: "identity" }, { type: "prepare" }, { type: "complete-sample-check" }, { type: "reset-sample-check" }, { type: "explore" }, { type: "submit" }, { type: "back" }, { type: "choose-result", result: "approved" }, { type: "select-kind", kind: "ngo" }, { type: "retry" }, { type: "reset" }] as SumsubDemoEvent[]) assert.strictEqual(transitionSumsubDemo(state, event, false), state);
 });
 
 test("unknown checks and SDK-return events cannot advance the demo", () => {
   const checklist = createSumsubDemoState();
   assert.strictEqual(transitionSumsubDemo(checklist, { type: "toggle-check", id: "upload-document" }, true), checklist);
-  const pending = transitionSumsubDemo(prepare(), { type: "explore" }, true);
+  let pending = transitionSumsubDemo(prepare(), { type: "complete-sample-check" }, true);
+  pending = transitionSumsubDemo(pending, { type: "explore" }, true);
+  pending = transitionSumsubDemo(pending, { type: "submit" }, true);
   for (const event of [{ type: "sdk-return", reviewAnswer: "GREEN" }, { type: "applicantReviewed", reviewAnswer: "GREEN" }, { type: "choose-result", result: "genuine-approved" }] as unknown as SumsubDemoEvent[]) assert.strictEqual(transitionSumsubDemo(pending, event, true), pending);
 });
 
