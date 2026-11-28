@@ -501,7 +501,9 @@ export default function ActivityScreen() {
                                 </div>
                                 <div className={styles.transferIdentity}>
                                   {context || counterparty ? <span className={styles.counterparty}>
-                                    {context ? <span className={styles.purposeIcon} aria-hidden="true">{Ico.vault({ size: 20, c: T.action })}</span>
+                                    {context ? <span className={styles.purposeIcon} aria-hidden="true">{campaignCover
+                                      ? <Image className={styles.purposeCover} src={campaignCover} alt="" width={32} height={32} />
+                                      : Ico.vault({ size: 20, c: T.action })}</span>
                                       : <AccountAvatar name={counterpartName.replace(/^@/, "")} photoUrl={counterpartIdentity?.photoUrl ?? null} size={32} alt={h("photo", { name: counterpartName })} />}
                                     <span>
                                       <strong>{context ? purposeName : h(received ? "from" : "to", { name: counterpartName })}</strong>
