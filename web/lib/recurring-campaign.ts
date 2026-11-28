@@ -16,6 +16,7 @@ export type RecurringCampaign = {
 
 const U64_MAX = (1n << 64n) - 1n;
 const I128_MAX = (1n << 127n) - 1n;
+export const RECURRING_PROOF_MAX_BYTES = 10 * 1024 * 1024;
 const STATES: RecurringState[] = ["Funding", "Scheduled", "PendingProof", "Refundable", "Released", "Closed"];
 
 export function recurringCampaignNumericId(input: unknown, zero = false): bigint {
@@ -158,6 +159,13 @@ export function recurringStageRefundable(contribution: RecurringContribution, cu
   if (!Number.isInteger(currentStage) || currentStage < 0 || currentStage > contribution.stages.length)
     throw new Error("Recurring stage state is invalid");
   return contribution.stages.slice(currentStage).reduce((total, value) => total + BigInt(value), 0n);
+}
+
+export async function recurringProofFileHash(file: Blob): Promise<string> {
+  if (file.size < 1) throw new Error("Proof file is empty");
+  if (file.size > RECURRING_PROOF_MAX_BYTES) throw new Error("Proof file exceeds 10 MB");
+  const digest = await globalThis.crypto.subtle.digest("SHA-256", await file.arrayBuffer());
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
 }
 
 export function parseXlmStroops(input: string): bigint {

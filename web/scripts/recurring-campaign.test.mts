@@ -7,7 +7,7 @@ import { Address, Keypair, nativeToScVal, StrKey, xdr } from "@stellar/stellar-s
 import { campaignStruct } from "../lib/campaign.ts";
 import { creatorCutBps } from "../lib/campaign-money.ts";
 import { parseRecurringCampaign, parseRecurringCreateInput, parseXlmStroops, recurringCampaignId,
-  recurringConfigArgs, recurringStageArgs, recurringStageRefundable } from "../lib/recurring-campaign.ts";
+  recurringConfigArgs, recurringProofFileHash, recurringStageArgs, recurringStageRefundable } from "../lib/recurring-campaign.ts";
 import { formatStroops } from "../lib/format-stroops.ts";
 
 const contractId = "CC6D7P35SVCNZLOKTHKDNH4S2ZELYHBP5UO3IWADFORKEF7BCSBY37FU";
@@ -45,6 +45,12 @@ test("recurring inputs enforce XLM precision, ordered stages, and only unspent s
     stages: [{ amountStroops: "10000000", dueDate: "3000" }, { amountStroops: "20000000", dueDate: "2500" }] }, 1000n));
   assert.equal(recurringStageRefundable({ amount: "600", stages: ["100", "200", "300"], refunded: false }, 1), 500n);
   assert.equal(recurringStageRefundable({ amount: "600", stages: ["100", "200", "300"], refunded: false }, 3), 0n);
+});
+
+test("recurring proof hashing is local, exact SHA-256, and bounded to 10 MB", async () => {
+  assert.equal(await recurringProofFileHash(new Blob(["hello"])), "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824");
+  await assert.rejects(recurringProofFileHash(new Blob([])), /Proof file is empty/);
+  await assert.rejects(recurringProofFileHash({ size: 10 * 1024 * 1024 + 1, arrayBuffer: async () => new ArrayBuffer(0) } as Blob), /exceeds 10 MB/);
 });
 
 test("recurring ledger projection rejects inconsistent stage and approval data", () => {
@@ -220,6 +226,8 @@ test("D5 rules and public Testnet contract are discoverable from the app", () =>
   const docs = readFileSync(new URL("../app/docs/page.tsx", import.meta.url), "utf8");
   const contract = "CDI6V4XTDDDAVW5GLJE6JOZ4AZO3TWCUJ54ZWYOTQFUNX4HXIJVPKK24";
   assert.match(screen, /Verify D5 contract/);
+  assert.match(screen, /file was not uploaded/);
+  assert.match(screen, /type="file" accept="image\/\*,.pdf"/);
   assert.match(screen, /contract\/\$\{view\.contractId\}/);
   assert.ok(transparency.includes(contract));
   assert.match(transparency, /Recurring campaign rules, D5/);

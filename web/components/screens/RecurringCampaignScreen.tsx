@@ -10,7 +10,7 @@ import { useGoBack } from "@/lib/ui/useGoBack";
 import { PREVIEW_RECIPIENT, PREVIEW_WALLET } from "@/lib/local-preview";
 import { isLocalPreview } from "@/lib/local-preview";
 import { formatStroops } from "@/lib/format-stroops";
-import { parseXlmStroops, recurringStageRefundable, type RecurringCampaign } from "@/lib/recurring-campaign";
+import { parseXlmStroops, recurringProofFileHash, recurringStageRefundable, type RecurringCampaign } from "@/lib/recurring-campaign";
 import {
   cancelRecurringCampaignConfirmation, prepareRecurringCampaignConfirmation, recurringCampaignState,
   recurringCampaignCreate, recurringCampaignDonate, recurringCampaignSubmitProof, recurringCampaignApprove,
@@ -40,6 +40,13 @@ const CONTRACT_LINK_LABEL = {
   tl: "I-verify ang D5 contract",
   id: "Verifikasi kontrak D5",
   vi: "Xác minh hợp đồng D5",
+} as const;
+
+const PROOF_COPY = {
+  en: { file: "Local proof file (hash only)", hashing: "Calculating SHA-256 on this device…", ready: (name: string) => `Hash calculated for ${name}. The file was not uploaded. Upload this same file to a public HTTPS location, then paste its URL below.`, failed: "Could not calculate the hash. Choose a non-empty file no larger than 10 MB.", publicUrl: "This HTTPS link is public and recorded on the Testnet contract. Do not include private information." },
+  tl: { file: "Lokal na proof file (hash lang)", hashing: "Kinakalkula ang SHA-256 sa device na ito…", ready: (name: string) => `Nakalkula ang hash para sa ${name}. Hindi in-upload ang file. I-upload ang mismong file sa pampublikong HTTPS location, saka ilagay ang URL dito.`, failed: "Hindi makalkula ang hash. Pumili ng file na may laman at hindi lalampas sa 10 MB.", publicUrl: "Pampubliko ang HTTPS link na ito at itatala sa Testnet contract. Huwag magsama ng pribadong impormasyon." },
+  id: { file: "File bukti lokal (hanya hitung hash)", hashing: "Menghitung SHA-256 di perangkat ini…", ready: (name: string) => `Hash untuk ${name} sudah dihitung. File tidak diunggah. Unggah file yang sama ke alamat HTTPS publik, lalu tempel URL-nya di bawah.`, failed: "Hash tidak bisa dihitung. Pilih file bukti yang tidak kosong dan maksimal 10 MB.", publicUrl: "Tautan HTTPS ini bersifat publik dan dicatat di kontrak Testnet. Jangan sertakan informasi pribadi." },
+  vi: { file: "Tệp bằng chứng cục bộ (chỉ tính mã băm)", hashing: "Đang tính SHA-256 trên thiết bị này…", ready: (name: string) => `Đã tính mã băm cho ${name}. Tệp chưa được tải lên. Hãy tải chính tệp này lên địa chỉ HTTPS công khai rồi dán URL bên dưới.`, failed: "Không thể tính mã băm. Hãy chọn tệp bằng chứng không rỗng và tối đa 10 MB.", publicUrl: "Liên kết HTTPS này là công khai và được ghi vào hợp đồng Testnet. Không đưa thông tin riêng tư vào đây." },
 } as const;
 
 const PREVIEW_NOW = 1_800_000_000n;
@@ -97,6 +104,8 @@ export default function RecurringCampaignScreen({ id = "", standaloneCreate = fa
   const [stages, setStages] = useState<StageInput[]>([{ amount: "", dueDate: "" }, { amount: "", dueDate: "" }]);
   const [contribution, setContribution] = useState("");
   const [proof, setProof] = useState({ hash: "", url: "" });
+  const [proofFile, setProofFile] = useState<{ name: string; status: "hashing" | "ready" | "failed" } | null>(null);
+  const proofFileRevision = useRef(0);
 
   const refresh = useCallback(async () => {
     if (isLocalPreview) { setView(previewState(id)); return; }
@@ -135,6 +144,21 @@ export default function RecurringCampaignScreen({ id = "", standaloneCreate = fa
       setDialog({ label: result.summary, action, intentId: result.intentId, kind: result.action, fee: result.feeStroops });
     } catch { setError("Recurring campaign confirmation could not be prepared. No transaction was submitted."); }
     finally { setBusy(false); }
+  }
+  async function hashProofFile(file?: File) {
+    const revision = ++proofFileRevision.current;
+    if (!file) { setProofFile(null); return; }
+    setProof(value => ({ ...value, hash: "" }));
+    setProofFile({ name: file.name, status: "hashing" });
+    try {
+      const hash = await recurringProofFileHash(file);
+      if (revision !== proofFileRevision.current) return;
+      setProof(value => ({ ...value, hash }));
+      setProofFile({ name: file.name, status: "ready" });
+    } catch {
+      if (revision !== proofFileRevision.current) return;
+      setProofFile({ name: file.name, status: "failed" });
+    }
   }
   async function confirm() {
     if (!dialog || locked) return;
@@ -284,9 +308,14 @@ export default function RecurringCampaignScreen({ id = "", standaloneCreate = fa
             catch (e) { setError(e instanceof Error ? e.message : "Enter a valid Testnet XLM amount"); }
           }}>{copy.contribute}</Btn>}
         </div>}
-        {creatorCanProve && <div style={panel}><label style={field}>{copy.proofHash}<input style={input} value={proof.hash} onChange={e => setProof(value => ({ ...value, hash: e.target.value }))} disabled={locked} /></label>
+        {creatorCanProve && <div style={panel}><label style={field}>{PROOF_COPY[locale].file}<input style={input} type="file" accept="image/*,.pdf" onChange={event => void hashProofFile(event.currentTarget.files?.[0])} disabled={locked} /></label>
+          {proofFile?.status === "hashing" && <p role="status" style={small}>{PROOF_COPY[locale].hashing}</p>}
+          {proofFile?.status === "ready" && <p role="status" style={small}>{PROOF_COPY[locale].ready(proofFile.name)}</p>}
+          {proofFile?.status === "failed" && <p role="alert" style={{ ...small, color: "#b42318" }}>{PROOF_COPY[locale].failed}</p>}
+          <label style={field}>{copy.proofHash}<input style={input} value={proof.hash} onChange={e => { proofFileRevision.current++; setProofFile(null); setProof(value => ({ ...value, hash: e.target.value })); }} disabled={locked} /></label>
           <label style={field}>{copy.proofUrl}<input style={input} type="url" value={proof.url} onChange={e => setProof(value => ({ ...value, url: e.target.value }))} disabled={locked} /></label>
-          {isLocalPreview ? <p style={small}>{copy.local}</p> : <Btn disabled={locked} onClick={() => void prepare({ kind: "submit_proof", campaignId: `r${campaign.id}`, ...proof }, recurringCampaignSubmitProof)}>{copy.submitProof}</Btn>}
+          <p style={{ ...small, margin: 0 }}>{PROOF_COPY[locale].publicUrl}</p>
+          {isLocalPreview ? <p style={small}>{copy.local}</p> : <Btn disabled={locked || proofFile?.status === "hashing"} onClick={() => void prepare({ kind: "submit_proof", campaignId: `r${campaign.id}`, ...proof }, recurringCampaignSubmitProof)}>{copy.submitProof}</Btn>}
         </div>}
         {canApprove && <Btn disabled={locked || isLocalPreview} onClick={() => void prepare({ kind: "approve", campaignId: `r${campaign.id}` }, recurringCampaignApprove)}>{copy.approve}</Btn>}
         {canRelease && <Btn disabled={locked || isLocalPreview} onClick={() => void prepare({ kind: "release", campaignId: `r${campaign.id}` }, recurringCampaignRelease)}>{copy.release}</Btn>}
