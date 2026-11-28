@@ -212,7 +212,7 @@ export default function PrototypeHomeScreen({ liveData }: { liveData?: Prototype
         <Image src="/illustrations/tile-arisan.png" alt="" width={44} height={32} />
         <strong>{copy("Arisan")}</strong>
       </Link>
-      <Link href="/vault" className={styles.tile}>
+      <Link href="/vault?tab=activity" className={styles.tile}>
         <span className={styles.vaultPig} aria-hidden="true"><img src="/prototype-ui/disaster-vault-funded.webp" alt="" /></span>
         <strong>{copy("Disaster Vault")}</strong><span>{liveData ? copy("View vault") : "$1,284.20"}</span>
       </Link>

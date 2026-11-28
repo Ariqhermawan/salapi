@@ -42,6 +42,8 @@ test("Smart Savings uses the Testnet contract for signed-in wallets and keeps pr
 test("Home actions and cause tiles retain the prototype's mobile layout", () => {
   const home = readFileSync(new URL("../components/screens/PrototypeHomeScreen.tsx", import.meta.url), "utf8");
   const css = readFileSync(new URL("../components/screens/PrototypeHomeScreen.module.css", import.meta.url), "utf8");
+  const vaultRoute = readFileSync(new URL("../app/vault/page.tsx", import.meta.url), "utf8");
+  const vaultScreen = readFileSync(new URL("../components/screens/TransparencyScreen.tsx", import.meta.url), "utf8");
   const sheet = parse(css);
   const declarations = (selector: string, property: string) => {
     const values: string[] = [];
@@ -56,6 +58,11 @@ test("Home actions and cause tiles retain the prototype's mobile layout", () => 
   assert.ok(declarations(".action", "min-height").every(value => Number.parseFloat(value) >= 44));
   assert.ok(declarations(".tile", "min-height").some(value => Number.parseFloat(value) >= 44));
   assert.doesNotMatch(css, /transform:\s*scale\(\s*0\./);
-  for (const target of ["/vaults", "/vault"]) assert.ok(home.includes(`href="${target}"`));
+  assert.ok(home.includes('href="/vaults"'));
+  assert.ok(home.includes('href="/vault?tab=activity"'));
+  assert.match(vaultRoute, /return <TransparencyScreen \/>/);
+  assert.match(vaultScreen, /searchParams\.get\("tab"\) === "activity"/);
+  assert.match(vaultScreen, /aria-selected=\{activityView === \(tab === "activity"\)\}/);
+  assert.match(vaultScreen, /if \(tab === "activity"\) params\.set\("tab", "activity"\)/);
   assert.match(home, /<strong>\{copy\("Social feed"\)\}<\/strong>/);
 });
