@@ -14,7 +14,6 @@ import { HandHeart } from "@phosphor-icons/react/dist/csr/HandHeart";
 import { Question } from "@phosphor-icons/react/dist/csr/Question";
 import { ChatCircle } from "@phosphor-icons/react/dist/csr/ChatCircle";
 import { FileText } from "@phosphor-icons/react/dist/csr/FileText";
-import { Moon } from "@phosphor-icons/react/dist/csr/Moon";
 import type { ReactNode } from "react";
 import { isAuthSessionMissingError } from "@supabase/supabase-js";
 import {
@@ -99,7 +98,6 @@ export default function SettingsScreen() {
   const [signOutPending, setSignOutPending] = useState(false);
   const [signOutError, setSignOutError] = useState(false);
   const [copiedAddress, setCopiedAddress] = useState(false);
-  const [darkTheme, setDarkTheme] = useState(false);
   const [updateMessage, setUpdateMessage] = useState("");
   const signOutInFlight = useRef(false);
   const photo = useAccountPhoto(() => signOutInFlight.current);
@@ -158,20 +156,6 @@ export default function SettingsScreen() {
     }
     return () => { active = false; };
   }, [configured]);
-
-  useEffect(() => {
-    setDarkTheme(document.documentElement.dataset.theme === "dark");
-  }, []);
-
-  function toggleTheme() {
-    const nextDark = document.documentElement.dataset.theme !== "dark";
-    const value = nextDark ? "dark" : "light";
-    document.documentElement.dataset.theme = value;
-    const secure = window.location.protocol === "https:" ? "; Secure" : "";
-    document.cookie = `salapi-theme=${value}; Path=/; Max-Age=31536000; SameSite=Lax${secure}`;
-    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", value === "dark" ? "#171717" : "#f7f7f7");
-    setDarkTheme(nextDark);
-  }
 
   async function signOut() {
     if (isLocalPreview) { router.push("/signin"); return; }
@@ -326,15 +310,6 @@ export default function SettingsScreen() {
             title={t("settings.security")}
             onClick={() => router.push("/you/security")}
             trailing={Ico.chev({ size: 15, c: T.slate })}
-          />
-          <SettingRow
-            icon={darkTheme ? <Moon size={21} aria-hidden="true" /> : <Moon size={21} aria-hidden="true" />}
-            title={c.darkMode}
-            sub={darkTheme ? c.on : c.off}
-            onClick={toggleTheme}
-            switchOn={darkTheme}
-            ariaLabel={c.darkMode}
-            trailing={<span className={styles.switch} aria-hidden="true"><span className={darkTheme ? styles.switchOn : styles.switchOff}><span /></span></span>}
           />
         </div>
       </section>

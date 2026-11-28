@@ -175,6 +175,10 @@
 :global([data-theme="dark"]) .sectionHeading h2,
 :global([data-theme="dark"]) .cardBody > strong,
 :global([data-theme="dark"]) .featuredRow { color:var(--sl-ink); }
+:global([data-theme="dark"]) .sectionHeading a { color:#a9baff; }
+:global([data-theme="dark"]) .exampleLabel { color:#b3b9c8; }
+:global([data-theme="dark"]) .live { color:#ffb4bb; }
+:global([data-theme="dark"]) .tile[data-coming-soon] { opacity:1; background:#262626; }
 :global([data-theme="dark"]) .raised,
 :global([data-theme="dark"]) .featuredMoney { color:#d8e0ff; }
 

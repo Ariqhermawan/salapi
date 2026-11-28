@@ -66,27 +66,92 @@ for (const viewport of viewports) {
   });
 }
 
-test("A fresh visit uses the prototype's dark theme and matching browser chrome", async ({ page }) => {
+test("Home stays in light mode when the saved cookie and system preference request dark", async ({ page }) => {
   await page.context().clearCookies();
+  await page.emulateMedia({ colorScheme: "dark" });
   await page.goto("/", { waitUntil: "domcontentloaded", timeout: 45000 });
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#171717");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#f7f7f7");
+  await expect(page.locator('meta[name="color-scheme"]')).toHaveAttribute("content", "light");
+  await page.context().addCookies([{ name: "salapi-theme", value: "dark", url: page.url() }]);
+  await page.evaluate(() => localStorage.setItem("salapi-theme", "dark"));
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#f7f7f7");
+  await expect(page.locator('meta[name="color-scheme"]')).toHaveAttribute("content", "light");
 });
 
-test("Settings keeps the dark-mode switch in Preferences and persists the selection", async ({ page }) => {
-  await page.goto("/you", { waitUntil: "domcontentloaded", timeout: 45000 });
-  const preferences = page.getByRole("region", { name: "Preferences", exact: true });
-  const theme = preferences.getByRole("switch", { name: "Dark mode", exact: true });
-  await expect(theme).toBeVisible();
-  const currentTheme = await page.locator("html").getAttribute("data-theme");
-  await expect(theme).toHaveAttribute("aria-checked", currentTheme === "dark" ? "true" : "false");
-  const initial = await theme.getAttribute("aria-checked");
-  await theme.click();
-  await expect(theme).toHaveAttribute("aria-checked", initial === "true" ? "false" : "true");
-  const expected = initial === "true" ? "light" : "dark";
-  await expect(page.locator("html")).toHaveAttribute("data-theme", expected);
-  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", expected === "dark" ? "#171717" : "#f7f7f7");
-  await page.reload({ waitUntil: "domcontentloaded" });
-  await expect(page.locator("html")).toHaveAttribute("data-theme", expected);
-  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", expected === "dark" ? "#171717" : "#f7f7f7");
+for (const viewport of [
+  { width: 320, height: 740 },
+  { width: 375, height: 812 },
+  { width: 390, height: 844 },
+  { width: 1280, height: 800 },
+]) {
+  test(`You/Preferences stays light without a dark-mode control at ${viewport.width}px`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await page.emulateMedia({ colorScheme: "dark" });
+    await page.goto("/you", { waitUntil: "domcontentloaded", timeout: 45000 });
+    await page.context().addCookies([{ name: "salapi-theme", value: "dark", url: new URL(page.url()).origin }]);
+    await page.evaluate(() => localStorage.setItem("salapi-theme", "dark"));
+    await page.reload({ waitUntil: "domcontentloaded" });
+    const preferences = page.getByRole("region", { name: "Preferences", exact: true });
+    await expect(preferences).toBeVisible();
+    await expect(preferences.getByRole("switch", { name: "Dark mode", exact: true })).toHaveCount(0);
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+    await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#f7f7f7");
+    await expect(page.locator('meta[name="color-scheme"]')).toHaveAttribute("content", "light");
+    const geometry = await page.evaluate(() => ({
+      width: document.documentElement.scrollWidth,
+      frame: document.querySelector(".sl-app-frame")!.getBoundingClientRect().toJSON(),
+    }));
+    expect(geometry.width).toBeLessThanOrEqual(viewport.width + 1);
+    expect(geometry.frame.left).toBeGreaterThanOrEqual(-1);
+    expect(geometry.frame.right).toBeLessThanOrEqual(viewport.width + 1);
+  });
+}
+
+test("Home's dark theme styling gives normal secondary copy 4.5:1 contrast", async ({ page }) => {
+  await page.goto("/", { waitUntil: "domcontentloaded", timeout: 45000 });
+  const contrast = await page.evaluate(() => {
+    document.documentElement.dataset.theme = "dark";
+    const rgb = (color: string) => (color.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number);
+    const luminance = (color: string) => {
+      const [r, g, b] = rgb(color).map(channel => {
+        const value = channel / 255;
+        return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    const ratio = (foreground: string, background: string) => {
+      const [light, dark] = [luminance(foreground), luminance(background)].sort((a, b) => b - a);
+      return (light + 0.05) / (dark + 0.05);
+    };
+    const backgroundFor = (element: Element) => {
+      const chain: Element[] = [];
+      for (let node: Element | null = element; node; node = node.parentElement) chain.unshift(node);
+      let background = [23, 23, 23];
+      for (const node of chain) {
+        const color = getComputedStyle(node).backgroundColor;
+        const [r, g, b] = rgb(color);
+        const alpha = color.startsWith("rgba") ? Number(color.match(/,\s*([\d.]+)\s*\)$/)?.[1] ?? 1) : 1;
+        background = [r, g, b].map((channel, index) => channel * alpha + background[index] * (1 - alpha));
+      }
+      return `rgb(${background.map(Math.round).join(", ")})`;
+    };
+    const elements = [
+      document.querySelector('a[href="/causes"]'),
+      document.querySelector('[data-testid="home-example-label"]'),
+      document.querySelector('section[aria-label="Sample donation activity"] > span:first-child'),
+      document.querySelector('section[aria-label="Recent confirmed donations"] > span:first-child'),
+      document.querySelector('section[aria-label="More from Salapi"] button[data-coming-soon] > span:last-child'),
+    ].filter((element): element is Element => Boolean(element));
+    return elements.filter(element => element.getClientRects().length).map(element => {
+      const style = getComputedStyle(element);
+      const background = backgroundFor(element);
+      return { text: element.textContent?.trim(), contrast: ratio(style.color, background), color: style.color, background };
+    });
+  });
+  expect(contrast.some(item => item.text === "See all")).toBe(true);
+  expect(contrast.some(item => item.text === "Coming soon")).toBe(true);
+  for (const item of contrast) expect(item.contrast, `${item.text}: ${item.color} on ${item.background}`).toBeGreaterThanOrEqual(4.5);
 });
