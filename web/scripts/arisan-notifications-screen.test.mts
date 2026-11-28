@@ -4,6 +4,8 @@ import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import * as gathering from "../lib/arisan-gatherings.ts";
+import { activityStroopsToXlm, USDC_ACTIVITY_ASSET, XLM_ACTIVITY_ASSET, type WalletActivityResult } from "../lib/wallet-activity.ts";
+import { activityCopy } from "../lib/i18n/wallet-activity.ts";
 
 // Execute the actual client component with deterministic hook and transport
 // boundaries. No live session, network, database or wallet signer is accessed.
@@ -11,15 +13,21 @@ type Node = { type: string; props: Record<string, unknown> };
 const code = ts.transpileModule(readFileSync(new URL("../components/screens/ArisanNotificationsScreen.tsx", import.meta.url), "utf8"), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText;
 const notification: gathering.ArisanGatheringNotification = { id: "11111111-1111-4111-8111-111111111111", kind: "scheduled", roomId: 9, contractId: "C" + "A".repeat(55), type: "meeting_updated", title: "Meeting updated", body: "Friday at Community Hall", roomName: "Neighbourhood circle", createdAt: "2026-10-11T08:00:00.000Z", readAt: null, gatheringRevision: 1, startsAt: "2026-10-15T12:00:00.000Z", href: "https://evil.example" };
 const initial: gathering.ArisanGatheringInboxResult = { ok: true, notifications: [notification], unreadCount: 1, delivery: "in_app" };
+const activity: Extract<WalletActivityResult, { ok: true }> = {
+  ok: true, ownerId: "00000000-0000-4000-8000-000000000001", address: null,
+  items: [{ id: "20:payment", hash: "a".repeat(64), createdAt: new Date().toISOString(), direction: "sent", amountStroops: "25000000", counterparty: null, kind: "soroban-transfer", asset: XLM_ACTIVITY_ASSET, fee: { status: "unavailable" }, context: { type: "campaign-donation", contractId: "C" + "A".repeat(55), referenceId: "9", title: "Neighborhood clinic" } }],
+  nextCursor: null,
+};
 const nodes = (value: unknown): Node[] => Array.isArray(value) ? value.flatMap(nodes) : value && typeof value === "object" && "props" in value ? [value as Node, ...nodes((value as Node).props.children)] : [];
 const text = (value: unknown): string => typeof value === "string" || typeof value === "number" ? String(value) : Array.isArray(value) ? value.map(text).join("") : value && typeof value === "object" && "props" in value ? text((value as Node).props.children) : "";
 function deferred<T>() { let resolve!: (value: T) => void, reject!: (error: unknown) => void; const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; }); return { resolve, reject, promise }; }
 
-function setup({ preview = false, state = initial, locale = "en" }: { preview?: boolean; state?: gathering.ArisanGatheringInboxResult; locale?: "en" | "id" | "tl" | "vi" } = {}) {
+function setup({ preview = false, state = initial, locale = "en", activityState = { ...activity, items: [] }, activityStatus = "ready" }: { preview?: boolean; state?: gathering.ArisanGatheringInboxResult; locale?: "en" | "id" | "tl" | "vi"; activityState?: unknown; activityStatus?: "ready" | "loading" | "unavailable" | "guest" } = {}) {
   const cells: unknown[] = []; let cursor = 0, dirty = true, tree: unknown;
   const effects = new Map<number, { deps: readonly unknown[]; cleanup?: () => void }>();
   const scheduled: { index: number; callback: () => void | (() => void); deps: readonly unknown[] }[] = [];
   const timers = new Map<number, { callback: () => void; delay: number }>(); let timer = 0;
+  const refreshActivity = () => {};
   let read = async () => state;
   let post: (body: Record<string, unknown>) => Promise<{ ok: boolean; marked?: number; error?: string }> = async () => ({ ok: true, marked: 1 });
   const calls: { method: string; body?: Record<string, unknown> }[] = [];
@@ -44,11 +52,14 @@ function setup({ preview = false, state = initial, locale = "en" }: { preview?: 
       if (name === "react") return react;
       if (name === "react/jsx-runtime") return { jsx, jsxs: jsx, Fragment: "Fragment" };
       if (name === "next/link") return { default: (props: Record<string, unknown>) => jsx("a", props) };
-      if (name === "@/components/ui/kit") return { AppBar: ({ title, leading }: Record<string, unknown>) => jsx("header", { children: [title, leading] }), IconButton: ({ ariaLabel, ...props }: Record<string, unknown>) => jsx("button", { ...props, "aria-label": ariaLabel }), Ico: { back: () => null, bell: () => null } };
+      if (name === "@/components/ui/kit") return { AppBar: ({ title, leading }: Record<string, unknown>) => jsx("header", { children: [title, leading] }), IconButton: ({ ariaLabel, ...props }: Record<string, unknown>) => jsx("button", { ...props, "aria-label": ariaLabel }), Ico: { back: () => null, bell: () => null, send: () => null, arrowDown: () => null } };
       if (name === "@/components/I18nProvider") return { useT: () => ({ locale }) };
       if (name === "@/lib/ui/useGoBack") return { useGoBack: () => () => {} };
+      if (name === "@/lib/ui/useOwnedAccountRead") return { useOwnedAccountRead(_path: string, validate: (value: unknown) => boolean) { return { status: activityStatus === "ready" && !validate(activityState) ? "unavailable" : activityStatus, value: activityStatus === "ready" && validate(activityState) ? activityState : null, refresh: refreshActivity }; } };
       if (name === "@/lib/local-preview") return { isLocalPreview: preview };
       if (name === "@/lib/arisan-gatherings") return gathering;
+      if (name === "@/lib/wallet-activity") return { activityStroopsToXlm, USDC_TESTNET_ISSUER: "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5", USDC_TESTNET_SAC: "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA" };
+      if (name === "@/lib/i18n/wallet-activity") return { activityCopy };
       if (name.endsWith(".module.css")) return { default: {} };
       throw Error(`Unexpected inbox dependency ${name}`);
     },
@@ -74,7 +85,7 @@ test("unauthorized inbox shows a return-to-inbox sign in link without private co
 test("notification room links derive the allowlisted scope and ignore arbitrary stored hrefs", async () => {
   const ui = setup(); await ui.settle();
   const links = nodes(ui.tree).filter(node => node.type === "a").map(node => node.props.href);
-  assert.ok(links.includes("/arisan/scheduled/9")); assert.ok(!links.includes(notification.href)); assert.match(ui.text, /not proof of email, SMS or push/); ui.unmount();
+  assert.ok(links.includes("/arisan/scheduled/9")); assert.ok(!links.includes(notification.href)); assert.match(ui.text, /do not prove email, SMS or push delivery/); ui.unmount();
 });
 test("single mark read posts only the loaded UUID and does not update optimistically", async () => {
   const ui = setup(); await ui.settle(); const pending = deferred<{ ok: boolean; marked: number }>(); ui.post(() => pending.promise);
@@ -96,7 +107,7 @@ test("lost mark-read response remains unknown and never claims success", async (
   assert.match(ui.text, /Read status could not be confirmed/); assert.doesNotMatch(ui.text, /Read status saved/); ui.unmount();
 });
 test("failed refresh clears previously loaded private notification content", async () => {
-  const ui = setup(); await ui.settle(); assert.match(ui.text, /Community Hall/); ui.read(async () => { throw Error("Expired session"); }); await ui.click("Refresh inbox");
+  const ui = setup(); await ui.settle(); assert.match(ui.text, /Community Hall/); ui.read(async () => { throw Error("Expired session"); }); await ui.click("Refresh");
   assert.doesNotMatch(ui.text, /Community Hall/); assert.match(ui.text, /could not be verified/); ui.unmount();
 });
 test("late initial read after unmount cannot populate the private inbox", async () => {
@@ -106,6 +117,68 @@ test("late initial read after unmount cannot populate the private inbox", async 
 test("all four locales have real labels without changing stored notification content", async () => {
   for (const [locale, heading] of [["en", "Earlier"], ["id", "Sebelumnya"], ["tl", "Mas maaga"], ["vi", "Trước đó"]] as const) {
     const ui = setup({ locale }); await ui.settle(); assert.ok(ui.text.includes(heading)); assert.match(ui.text, /Friday at Community Hall/); ui.unmount();
+  }
+});
+
+test("confirmed Testnet receipts join room updates in newest-first order and open their transaction receipt", async () => {
+  const ui = setup({ activityState: activity }); await ui.settle();
+  assert.match(ui.text, /Your 2\.5 XLM donation was confirmed/);
+  assert.match(ui.text, /Neighborhood clinic/);
+  assert.ok(ui.text.indexOf("Your 2.5 XLM donation was confirmed") < ui.text.indexOf("Meeting updated"));
+  const links = nodes(ui.tree).filter(node => node.type === "a").map(node => node.props.href);
+  assert.ok(links.includes(`/tx/${"a".repeat(64)}`));
+  assert.ok(links.includes("/arisan/scheduled/9"));
+  assert.ok(links.includes("/activity"));
+  ui.unmount();
+});
+
+test("Circle USDC receipts retain their exact Testnet token amount", async () => {
+  const item = { ...activity.items[0], id: "21:payment", hash: "b".repeat(64), direction: "received" as const, amountStroops: "12345678", asset: USDC_ACTIVITY_ASSET, context: undefined };
+  const ui = setup({ state: { ok: true, notifications: [], unreadCount: 0, delivery: "in_app" }, activityState: { ...activity, items: [item] } }); await ui.settle();
+  assert.match(ui.text, /You received 1\.2345678 USDC/);
+  assert.ok(nodes(ui.tree).some(node => node.type === "a" && node.props.href === `/tx/${"b".repeat(64)}`));
+  ui.unmount();
+});
+
+test("activity outage keeps independently verified room updates visible", async () => {
+  const ui = setup({ activityStatus: "unavailable" }); await ui.settle();
+  assert.match(ui.text, /Wallet activity is temporarily unavailable/);
+  assert.match(ui.text, /Friday at Community Hall/);
+  assert.doesNotMatch(ui.text, /No notifications yet/);
+  ui.unmount();
+});
+
+test("malformed receipt asset data is not displayed as a Testnet notification", async () => {
+  const bad = { ...activity, items: [{ ...activity.items[0], asset: { code: "USDC", issuer: "G" + "A".repeat(55), contractId: "C" + "A".repeat(55), decimals: 7, network: "testnet" } }] };
+  const ui = setup({ state: { ok: true, notifications: [], unreadCount: 0, delivery: "in_app" }, activityState: bad }); await ui.settle();
+  assert.match(ui.text, /Wallet activity is temporarily unavailable/);
+  assert.doesNotMatch(ui.text, /donation was confirmed/);
+  assert.doesNotMatch(ui.text, /No notifications yet/);
+  ui.unmount();
+});
+
+test("malformed receipt context is rejected before it can reach the notification UI", async () => {
+  const malformed = { ...activity, items: [{ ...activity.items[0], context: { type: "campaign-donation", referenceId: { id: "9" }, title: { html: "<script>" } } }] } as unknown;
+  const ui = setup({ state: { ok: true, notifications: [], unreadCount: 0, delivery: "in_app" }, activityState: malformed }); await ui.settle();
+  assert.match(ui.text, /Wallet activity is temporarily unavailable/);
+  assert.doesNotMatch(ui.text, /\[object Object\]|script/);
+  ui.unmount();
+});
+
+test("notification route keeps the reference prototype in local preview and the live inbox elsewhere", () => {
+  const source = ts.transpileModule(readFileSync(new URL("../app/notifications/page.tsx", import.meta.url), "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText;
+  for (const [preview, expected] of [[true, "prototype"], [false, "live"]] as const) {
+    const route = { exports: {} as { default(): Node } };
+    runInNewContext(source, { module: route, exports: route.exports,
+      require(name: string) {
+        if (name === "@/components/screens/PrototypeNotificationsScreen") return { default: "prototype" };
+        if (name === "@/components/screens/ArisanNotificationsScreen") return { default: "live" };
+        if (name === "@/lib/local-preview") return { isLocalPreview: preview };
+        if (name === "react/jsx-runtime") return { jsx: (type: unknown, props: Record<string, unknown>) => ({ type, props }), jsxs: (type: unknown, props: Record<string, unknown>) => ({ type, props }) };
+        throw Error(`Unexpected route dependency ${name}`);
+      },
+    });
+    assert.equal(route.exports.default().type, expected);
   }
 });
 

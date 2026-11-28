@@ -58,12 +58,14 @@ test("activity filters use confirmed direction and verified donation contexts", 
   const disaster: WalletActivityItem = { ...sent, id: "disaster", context: { type: "disaster-contribution", contractId: contract, referenceId: null, title: null } };
   const received = activity.normalizeWalletActivity([record({ from: other, to: address })], address)[0];
   const topup = activity.normalizeWalletActivity([record({ type: "create_account", funder: other, account: address, starting_balance: "10.0000000" })], address)[0];
-  const items = [sent, donated, disaster, received, topup];
+  const withdrawal: WalletActivityItem = { ...sent, id: "withdrawal", context: { type: "wallet-withdrawal", referenceId: null, title: null } };
+  const items = [sent, donated, disaster, received, topup, withdrawal];
   assert.deepEqual(activity.filterWalletActivity(items, "all").map(item => item.id), items.map(item => item.id));
   assert.deepEqual(activity.filterWalletActivity(items, "donated").map(item => item.id), ["donation", "disaster"]);
   assert.deepEqual(activity.filterWalletActivity(items, "sent").map(item => item.id), [sent.id]);
   assert.deepEqual(activity.filterWalletActivity(items, "received").map(item => item.id), [received.id]);
   assert.deepEqual(activity.filterWalletActivity(items, "topup").map(item => item.id), [topup.id]);
+  assert.deepEqual(activity.filterWalletActivity(items, "withdraw").map(item => item.id), [withdrawal.id]);
 });
 
 test("actual SAC-style native balance events, not classic-only payment fields, support sender and recipient", () => {
@@ -126,6 +128,7 @@ function setup(options: Options = {}) {
     "server-only": {}, "@stellar/stellar-sdk": { StrKey }, "@supabase/supabase-js": { isAuthSessionMissingError }, "../wallet-activity": activity,
     "./walletActivityIdentity": { readActivityIdentities: async () => [] },
     "./walletActivityContext": { attachActivityContexts: (items: unknown) => items, readActivityContextTitles: async (items: unknown) => items },
+    "./walletActivityWithdrawal": { attachConfirmedWalletWithdrawals: async (_owner: string, _wallet: string, items: unknown) => items },
     "@/lib/local-preview": { isLocalPreview: options.preview ?? false },
     "@/lib/supabase/env": { supabaseConfigured: () => options.configured ?? true, supabaseAdminConfigured: () => options.adminConfigured ?? true },
     "@/lib/supabase/server": { async createSupabaseServer() { if ("clientThrow" in options) throw options.clientThrow;

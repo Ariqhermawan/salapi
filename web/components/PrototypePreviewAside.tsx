@@ -57,7 +57,6 @@ export default function PrototypePreviewAside() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
-  const [dark, setDark] = useState(false);
   const [empty, setEmpty] = useState(false);
   const activeRoute = useMemo(() => {
     if (pathname === "/" && params.get("causes") && ["a", "b", "c"].includes(params.get("causes") ?? "")) return `/?causes=${params.get("causes")}`;
@@ -85,18 +84,10 @@ export default function PrototypePreviewAside() {
 
   useEffect(() => {
     try {
-      setDark(document.documentElement.dataset.theme === "dark");
       const stored = JSON.parse(localStorage.getItem(VAULT_DATA_KEY) ?? "null") as { balanceCents?: number; vaultCents?: number; ledger?: unknown[] } | null;
       setEmpty(!!stored && stored.balanceCents === 0 && stored.vaultCents === 0 && stored.ledger?.length === 0);
     } catch { /* The navigation panel remains available when browser storage is disabled. */ }
   }, []);
-
-  function toggleTheme() {
-    const nextDark = !dark;
-    setDark(nextDark);
-    document.documentElement.dataset.theme = nextDark ? "dark" : "light";
-    try { localStorage.setItem("salapi-theme", nextDark ? "dark" : "light"); } catch { /* Theme still changes for this visit. */ }
-  }
 
   function resetPreview() {
     for (const key of Object.keys(localStorage)) if (LOCAL_DATA_PREFIXES.some(prefix => key.startsWith(prefix))) localStorage.removeItem(key);
@@ -124,7 +115,6 @@ export default function PrototypePreviewAside() {
       </li>)}</ul>)}
     </nav>
     <div className={styles.controls}>
-      <button type="button" onClick={toggleTheme}><span aria-hidden="true">{dark ? "☼" : "☾"}</span>{dark ? "Light" : "Dark"}</button>
       <button type="button" onClick={resetPreview}><span aria-hidden="true">↻</span>Reset</button>
       <button className={styles.wide} type="button" aria-pressed={empty} onClick={toggleEmpty}><span aria-hidden="true">▣</span>{empty ? "Sample data" : "Empty state"}</button>
       <button className={styles.wide} type="button" onClick={() => router.push("/notifications")}><span aria-hidden="true">♧</span>Test notification</button>

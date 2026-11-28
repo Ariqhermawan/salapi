@@ -7,6 +7,7 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { readActivityIdentities } from "./walletActivityIdentity";
 import { attachActivityContexts, readActivityContextTitles } from "./walletActivityContext";
+import { attachConfirmedWalletWithdrawals } from "./walletActivityWithdrawal";
 import { isWalletActivityCursor, normalizeWalletActivity, normalizeWalletActivityFee, WALLET_ACTIVITY_PAGE_SIZE, type WalletActivityItem, type WalletActivityPageResult, type WalletActivityResult } from "../wallet-activity";
 
 const HORIZON_ACTIVITY = "https://horizon-testnet.stellar.org";
@@ -121,9 +122,10 @@ export async function currentWalletActivity(cursor: unknown = null): Promise<Wal
     if (typeof data?.public_key !== "string" || !StrKey.isValidEd25519PublicKey(data.public_key)) return { ok: false, ownerId: userId, address: null, code: "invalid-wallet", error: "Your saved wallet address is invalid." };
     const page = await readWalletActivityPage(data.public_key, cursor as string | null ?? null);
     if (!page.ok) return { ...page, ownerId: userId };
+    const annotated = await attachConfirmedWalletWithdrawals(userId, page.address, page.items);
     const [identities, items] = await Promise.all([
-      readActivityIdentities(page.address, page.items).catch(() => []),
-      readActivityContextTitles(page.items, page.address).catch(() => page.items),
+      readActivityIdentities(page.address, annotated).catch(() => []),
+      readActivityContextTitles(annotated, page.address).catch(() => annotated),
     ]);
     return { ...page, items, ownerId: userId, identities };
   } catch { return sessionUnavailable(userId); }

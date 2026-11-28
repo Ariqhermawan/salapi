@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { connection } from "next/server";
 import { Outfit, Geist_Mono } from "next/font/google";
 import "@fontsource-variable/outfit";
-import { cookies } from "next/headers";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
 import PwaRegister from "@/components/PwaRegister";
@@ -48,22 +47,20 @@ export const metadata: Metadata = {
   },
 };
 
-export async function generateViewport(): Promise<Viewport> {
-  const savedTheme = (await cookies()).get("salapi-theme")?.value;
-  return {
-    themeColor: savedTheme === "light" ? "#f7f7f7" : "#171717",
-    width: "device-width",
-    initialScale: 1,
-    // viewport-fit=cover is required for env(safe-area-inset-bottom) to
-    // return non-zero on devices with system bars (iPhone home indicator,
-    // Android 3-button nav). Without it, the bottom nav labels get clipped
-    // by the system bar on Android.
-    viewportFit: "cover",
-    // Intentionally do NOT lock max-scale or user-scalable=false:
-    // both fail Lighthouse a11y because they disable pinch-zoom for low-vision
-    // users. The PWA shell still feels app-like without zoom locked.
-  };
-}
+export const viewport: Viewport = {
+  themeColor: "#f7f7f7",
+  colorScheme: "light",
+  width: "device-width",
+  initialScale: 1,
+  // viewport-fit=cover is required for env(safe-area-inset-bottom) to
+  // return non-zero on devices with system bars (iPhone home indicator,
+  // Android 3-button nav). Without it, the bottom nav labels get clipped
+  // by the system bar on Android.
+  viewportFit: "cover",
+  // Intentionally do NOT lock max-scale or user-scalable=false:
+  // both fail Lighthouse a11y because they disable pinch-zoom for low-vision
+  // users. The PWA shell still feels app-like without zoom locked.
+};
 
 export default async function RootLayout({
   children,
@@ -73,8 +70,6 @@ export default async function RootLayout({
   // prerendered page would ship those scripts with no nonce, and the CSP would
   // block them (blank screen). See proxy.ts.
   await connection();
-  const savedTheme = (await cookies()).get("salapi-theme")?.value;
-  const theme = savedTheme === "light" ? "light" : "dark";
   // Vercel serves these same-origin endpoints only after observability is
   // enabled for the project. Keep them explicitly opt-in so local builds and
   // deployments made before dashboard setup do not request a missing
@@ -85,7 +80,7 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
-      data-theme={theme}
+      data-theme="light"
       data-local-preview={isLocalPreview ? "true" : undefined}
       className={`${outfit.variable} ${geistMono.variable} h-full antialiased`}
     >

@@ -21,7 +21,7 @@ import { xlmToStroopsExact } from "../lib/money.ts";
 import { demoAmountMinor, nextDemoPaymentStatus } from "../lib/provider-demo.ts";
 import * as paymentChannels from "../lib/payment-channels.ts";
 import { paymentChannelText } from "../lib/i18n/payment-channels.ts";
-import { createSumsubDemoState, canPrepareSumsubDemo, canChooseSumsubDemoResult, transitionSumsubDemo, SUMSUB_CHECKLIST } from "../lib/verification/sumsub-demo.ts";
+import { createSumsubDemoState, canPrepareSumsubDemo, canExploreSumsubDemo, canChooseSumsubDemoResult, transitionSumsubDemo, SUMSUB_CHECKLIST, SUMSUB_SAMPLE_DOCUMENTS } from "../lib/verification/sumsub-demo.ts";
 import { requireWalletState } from "../lib/wallet-state.ts";
 
 const files = ["PaymentProviderDemo", "TopUpScreen", "WithdrawScreen", "KycTierScreen", "SettingsScreen", "LanguagePickerScreen", "CurrencyPickerScreen"] as const;
@@ -86,7 +86,7 @@ function render(name: ScreenName, locale: Locale, preview = true, props: Record<
       if (dependency === "@/lib/provider-demo") return { demoAmountMinor, nextDemoPaymentStatus };
       if (dependency === "@/lib/payment-channels") return paymentChannels;
       if (dependency === "@/lib/i18n/payment-channels") return { paymentChannelText };
-      if (dependency === "@/lib/verification/sumsub-demo") return { createSumsubDemoState, canPrepareSumsubDemo, canChooseSumsubDemoResult, transitionSumsubDemo, SUMSUB_CHECKLIST };
+      if (dependency === "@/lib/verification/sumsub-demo") return { createSumsubDemoState, canPrepareSumsubDemo, canExploreSumsubDemo, canChooseSumsubDemoResult, transitionSumsubDemo, SUMSUB_CHECKLIST, SUMSUB_SAMPLE_DOCUMENTS };
       if (dependency === "@/lib/circles/allowance") return { KYC_TIER_CEILING };
       if (dependency === "@/components/ui/OperationalAllowanceExplainer") return { Stage2Pill: () => null, WhyExistsLink: box };
       if (dependency === "@/components/ui/OrganizerVerification") return { default: () => null };
@@ -131,7 +131,9 @@ for (const locale of LOCALES) {
   test(`${locale}: actual account and preference screens localize warnings and option descriptions`, () => {
     const settings = render("SettingsScreen", locale);
     assert.ok(settings.includes(`@${PREVIEW_WALLET.handle}`));
-    for (const key of ["accountDetails", "fundraising", "yourCauses", "darkMode", "off", "helpCenter", "sendFeedback", "feedbackDescription", "privacy", "terms", "checkForUpdates"] as const) assert.ok(settings.includes(c[key]), key);
+    for (const key of ["accountDetails", "fundraising", "yourCauses", "helpCenter", "sendFeedback", "feedbackDescription", "privacy", "terms", "checkForUpdates"] as const) assert.ok(settings.includes(c[key]), key);
+    assert.ok(!settings.includes(c.darkMode), "the dark-mode control stays hidden during the contrast audit");
+    assert.ok(!settings.includes('role="switch"'), "Preferences exposes no theme switch");
     const signedOutSettings = render("SettingsScreen", locale, false);
     assert.ok(signedOutSettings.includes(c.profileLoading));
     assert.ok(signedOutSettings.includes('data-profile-state="loading"'));

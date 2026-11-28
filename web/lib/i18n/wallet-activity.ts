@@ -27,6 +27,7 @@ const copy = {
   "disaster-payout": ["Disaster Vault payout", "Payout ng Disaster Vault", "Pencairan Disaster Vault", "Chi trả Disaster Vault"],
   "savings-deposit": ["Savings deposit", "Deposito sa savings", "Setoran tabungan", "Gửi tiết kiệm"],
   "savings-withdrawal": ["Savings withdrawal", "Withdrawal sa savings", "Penarikan tabungan", "Rút tiết kiệm"],
+  "wallet-withdrawal": ["Wallet withdrawal", "Pag-withdraw sa wallet", "Penarikan dari wallet", "Rút khỏi ví"],
   campaignName: ["Campaign #{id}", "Campaign #{id}", "Campaign #{id}", "Chiến dịch #{id}"],
   arisanName: ["Room #{id} · Arisan / Paluwagan", "Room #{id} · Arisan / Paluwagan", "Room #{id} · Arisan / Paluwagan", "Phòng #{id} · Arisan / Paluwagan"],
   arisanPool: ["Arisan / Paluwagan", "Arisan / Paluwagan", "Arisan / Paluwagan", "Arisan / Paluwagan"],
@@ -86,6 +87,7 @@ const copy = {
   filterSent: ["Sent", "Ipinadala", "Terkirim", "Đã gửi"],
   filterReceived: ["Received", "Natanggap", "Diterima", "Đã nhận"],
   filterTopup: ["Top up", "Nag-top up", "Isi saldo", "Nạp tiền"],
+  filterWithdraw: ["Withdraw", "Nag-withdraw", "Penarikan", "Đã rút"],
   noFilteredActivity: ["No transfers in this category yet.", "Wala pang transfer sa kategoryang ito.", "Belum ada transfer di kategori ini.", "Chưa có giao dịch trong danh mục này."],
   showAllActivity: ["Show all activity", "Ipakita ang lahat ng activity", "Tampilkan semua aktivitas", "Hiện tất cả hoạt động"],
 } as const;

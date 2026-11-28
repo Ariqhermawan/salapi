@@ -183,7 +183,7 @@ export default function PrototypeHomeScreen({ liveData }: { liveData?: Prototype
     <section className={styles.causes} aria-labelledby="prototype-home-causes">
       <div className={styles.sectionHeading}>
         <h2 id="prototype-home-causes">{copy("Causes")}</h2>
-        {liveData ? <span className={styles.exampleLabel}>{copy("EXAMPLES")}</span> : null}
+        {liveData ? <span className={styles.exampleLabel} data-testid="home-example-label">{copy("EXAMPLES")}</span> : null}
         <Link href="/causes">{copy("See all")}</Link>
       </div>
       {causesLayout === "b" ? <div className={styles.causeLayoutB} aria-label="Featured cause and more causes">
