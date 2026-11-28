@@ -10,33 +10,33 @@ import { CAMPAIGN_UPDATE_UUID, campaignUpdateText, type CampaignUpdateDispatchRe
 import styles from "./CampaignOrganizerUpdates.module.css";
 
 const COPY = {
-  en: { title: "Organizer updates", intro: "Public updates from the verified QA campaign creator. They are not independently verified delivery proof.",
+  en: { title: "Organizer updates", intro: "Public updates from the verified campaign creator. They are not independently verified delivery proof.",
     loading: "Loading public updates…", empty: "No organizer update has been published yet.", unavailable: "Public campaign updates could not be loaded.",
-    editor: "Publish a QA update", subject: "Update title", body: "What changed?", ack: "I understand this update is public and describes a QA Testnet exercise, not a verified real-world delivery.",
+    editor: "Publish an update", subject: "Update title", body: "What changed?", ack: "I understand this update is public and describes a Testnet demo, not a verified real-world delivery.",
     publish: "Publish public update", retryPublish: "Confirm the same update request", publishing: "Confirming…", published: "Public update confirmed. Email delivery is a separate step.",
     uncertain: "Publication is not confirmed. Keep this draft and retry the same request. Do not publish a duplicate.", another: "Write another update", reload: "Refresh updates",
     emailUnavailable: "Email delivery is not configured. Public updates still work once the campaign service is available; no emails are being sent.",
     dispatch: "Dispatch opted-in emails", dispatching: "Checking dispatch…", emailNote: "Only active, verified email opt-ins are eligible. Provider acceptance is not inbox delivery or proof that someone read the email.",
     dispatchUnknown: "Dispatch could not be confirmed. Retry this same update, not a new publication.", accepted: "Provider accepted", unknown: "Uncertain", rejected: "Rejected", remaining: "Remaining", review: "Needs reconciliation", notDelivered: "Inbox delivery has not been verified." },
-  id: { title: "Update organizer", intro: "Update publik dari kreator campaign QA yang terverifikasi. Bukan bukti pengiriman yang diverifikasi independen.",
+  id: { title: "Update organizer", intro: "Update publik dari kreator campaign yang terverifikasi. Bukan bukti pengiriman yang diverifikasi independen.",
     loading: "Memuat update publik…", empty: "Belum ada update organizer yang diterbitkan.", unavailable: "Update publik campaign belum dapat dimuat.",
-    editor: "Terbitkan update QA", subject: "Judul update", body: "Apa yang berubah?", ack: "Saya memahami update ini publik dan menjelaskan uji QA Testnet, bukan pengiriman nyata yang terverifikasi.",
+    editor: "Terbitkan update", subject: "Judul update", body: "Apa yang berubah?", ack: "Saya memahami update ini publik dan menjelaskan demo Testnet, bukan pengiriman nyata yang terverifikasi.",
     publish: "Terbitkan update publik", retryPublish: "Konfirmasi permintaan update yang sama", publishing: "Mengonfirmasi…", published: "Update publik terkonfirmasi. Pengiriman email adalah langkah terpisah.",
     uncertain: "Penerbitan belum terkonfirmasi. Simpan draft ini dan ulangi permintaan yang sama. Jangan buat update duplikat.", another: "Tulis update lain", reload: "Muat ulang update",
     emailUnavailable: "Pengiriman email belum dikonfigurasi. Update publik dapat digunakan saat layanan campaign tersedia; belum ada email yang dikirim.",
     dispatch: "Kirim email ke yang memilih berlangganan", dispatching: "Memeriksa pengiriman…", emailNote: "Hanya pilihan berlangganan aktif dengan email terverifikasi. Diterima provider bukan berarti tiba di inbox atau sudah dibaca.",
     dispatchUnknown: "Status pengiriman belum terkonfirmasi. Ulangi update yang sama, bukan penerbitan baru.", accepted: "Diterima provider", unknown: "Belum pasti", rejected: "Ditolak", remaining: "Tersisa", review: "Perlu rekonsiliasi", notDelivered: "Pengiriman ke inbox belum terverifikasi." },
-  tl: { title: "Mga update ng organizer", intro: "Pampublikong update mula sa verified QA campaign creator. Hindi ito independiyenteng patunay ng paghahatid.",
+  tl: { title: "Mga update ng organizer", intro: "Pampublikong update mula sa verified campaign creator. Hindi ito independiyenteng patunay ng paghahatid.",
     loading: "Nilo-load ang mga update…", empty: "Wala pang inilathalang update ang organizer.", unavailable: "Hindi ma-load ang mga update ng campaign.",
-    editor: "Maglathala ng QA update", subject: "Pamagat ng update", body: "Ano ang nagbago?", ack: "Nauunawaan kong pampubliko ang QA Testnet update na ito at hindi patunay ng totoong paghahatid.",
+    editor: "Maglathala ng update", subject: "Pamagat ng update", body: "Ano ang nagbago?", ack: "Nauunawaan kong pampubliko ang Testnet update na ito at hindi patunay ng totoong paghahatid.",
     publish: "Ilathala ang public update", retryPublish: "Kumpirmahin ang parehong request", publishing: "Kinukumpirma…", published: "Nakumpirma ang public update. Hiwalay ang pagpapadala ng email.",
     uncertain: "Hindi pa kumpirmado ang publikasyon. Panatilihin ang draft at ulitin ang parehong request. Huwag gumawa ng duplicate.", another: "Sumulat ng bagong update", reload: "I-refresh ang mga update",
     emailUnavailable: "Hindi pa naka-configure ang email. Maaaring gamitin ang public updates kapag handa ang campaign service; walang email na ipinapadala.",
     dispatch: "Magpadala sa mga email opt-in", dispatching: "Sinusuri ang pagpapadala…", emailNote: "Aktibo at verified email opt-in lang. Ang pagtanggap ng provider ay hindi patunay na naihatid o nabasa ang email.",
     dispatchUnknown: "Hindi makumpirma ang pagpapadala. Ulitin ang parehong update, hindi bagong publikasyon.", accepted: "Tinanggap ng provider", unknown: "Hindi tiyak", rejected: "Tinanggihan", remaining: "Natitira", review: "Kailangang suriin", notDelivered: "Hindi pa verified ang inbox delivery." },
-  vi: { title: "Cập nhật của nhà tổ chức", intro: "Cập nhật công khai từ người tạo chiến dịch QA đã xác minh. Không phải bằng chứng giao nhận được xác minh độc lập.",
+  vi: { title: "Cập nhật của nhà tổ chức", intro: "Cập nhật công khai từ người tạo chiến dịch đã xác minh. Không phải bằng chứng giao nhận được xác minh độc lập.",
     loading: "Đang tải cập nhật công khai…", empty: "Chưa có cập nhật nào của nhà tổ chức.", unavailable: "Không tải được cập nhật của chiến dịch.",
-    editor: "Đăng cập nhật QA", subject: "Tiêu đề cập nhật", body: "Điều gì đã thay đổi?", ack: "Tôi hiểu cập nhật QA Testnet này là công khai, không phải bằng chứng giao nhận thực tế đã xác minh.",
+    editor: "Đăng cập nhật", subject: "Tiêu đề cập nhật", body: "Điều gì đã thay đổi?", ack: "Tôi hiểu cập nhật Testnet này là công khai, không phải bằng chứng giao nhận thực tế đã xác minh.",
     publish: "Đăng cập nhật công khai", retryPublish: "Xác nhận lại cùng yêu cầu", publishing: "Đang xác nhận…", published: "Đã xác nhận cập nhật công khai. Gửi email là bước riêng.",
     uncertain: "Chưa xác nhận việc đăng. Giữ bản nháp và thử lại cùng yêu cầu. Không đăng bản trùng lặp.", another: "Viết cập nhật khác", reload: "Tải lại cập nhật",
     emailUnavailable: "Chưa cấu hình gửi email. Cập nhật công khai hoạt động khi dịch vụ chiến dịch sẵn sàng; chưa có email nào được gửi.",
@@ -166,7 +166,7 @@ function Updates({ campaignId }: { campaignId: string }) {
   }
   const publicUpdates = state?.updates.ok ? state.updates.updates : [];
   return <section className={styles.card} aria-labelledby={`organizer-updates-${campaignId}`} aria-busy={pending || state === null}>
-    <div className={styles.header}><div><span className={styles.badge}>QA Testnet</span><h3 id={`organizer-updates-${campaignId}`}>{c.title}</h3></div>
+    <div className={styles.header}><div><span className={styles.badge}>Stellar Testnet</span><h3 id={`organizer-updates-${campaignId}`}>{c.title}</h3></div>
       <button type="button" className={styles.refresh} disabled={pending} onClick={() => reload.current()}>{c.reload}</button></div>
     <p className={styles.intro}>{c.intro}</p>
     {state === null ? <p role="status">{c.loading}</p> : !state.updates.ok ? <p role="status" className={styles.notice}>{c.unavailable}</p>

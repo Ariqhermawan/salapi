@@ -488,7 +488,7 @@ test("verified campaign purpose follows language without changing receipts or re
   const reads = h.historyRequests.length;
   for (const locale of ["en", "id", "tl", "vi"] as const) {
     options.locale = locale; h.render();
-    assert.ok(text(h.tree).includes(`QA · ${contentCopy.circleDisplayTitle(fixture.context!.circleId!, locale)}`));
+    assert.ok(text(h.tree).includes(contentCopy.circleDisplayTitle(fixture.context!.circleId!, locale)!)); assert.doesNotMatch(text(h.tree), /QA ·/);
     assert.match(text(h.tree), /−300Testnet XLM/);
     assert.equal(h.historyRequests.length, reads);
     assert.equal(JSON.stringify(fixture), original);

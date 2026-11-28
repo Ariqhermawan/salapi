@@ -9,7 +9,7 @@ import styles from "./CampaignReviews.module.css";
 
 type State = Awaited<ReturnType<typeof campaignRatingState>>;
 
-export default function CampaignReviews({ campaignId }: { campaignId: string }) {
+export default function CampaignReviews({ campaignId, title }: { campaignId: string; title?: string }) {
   const { locale } = useT();
   const [state, setState] = useState<State | null>(null);
   const [selected, setSelected] = useState(0);
@@ -87,7 +87,7 @@ export default function CampaignReviews({ campaignId }: { campaignId: string }) 
         <section className={styles.sheet} role="dialog" aria-modal="true" aria-labelledby="rating-sheet-title">
           <span className={styles.handle} aria-hidden="true" />
           <h3 id="rating-sheet-title">{c.opening}</h3>
-          <p className={styles.causeName}>{state.campaign.title}</p>
+          <p className={styles.causeName}>{title ?? state.campaign.title}</p>
           <p className={styles.disclosure}>{c.note}</p>
           <div className={styles.starsPicker} role="group" aria-label={c.opening}>
             {[1, 2, 3, 4, 5].map(rating => <button key={rating} type="button" aria-label={`${rating} ${c.star}`} aria-pressed={selected === rating}

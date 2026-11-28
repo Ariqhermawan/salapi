@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { myHandle, walletState } from "@/app/actions";
 import { requireWalletState } from "@/lib/wallet-state";
 import { readPublicCampaigns } from "@/lib/ui/public-read";
+import { circleDisplayTitle } from "@/lib/i18n/circles-content";
 import type { Campaign } from "@/lib/campaign";
 import { isLocalPreview } from "@/lib/local-preview";
 import { useAccountPhoto } from "@/components/useAccountPhoto";
@@ -12,6 +13,15 @@ import PrototypeHomeScreen, { type PrototypeHomeLiveData } from "@/components/sc
 export default function Home() {
   if (isLocalPreview) return <PrototypeHomeScreen />;
   return <LiveHome />;
+}
+
+// Verified catalog links show the cause title instead of the on-chain "QA Circles: <slug>" title.
+function withCauseTitles(campaigns: Omit<Campaign, "contribution">[], links: Record<string, string> | undefined) {
+  return campaigns.map(campaign => {
+    const slug = links?.[campaign.id];
+    const title = slug ? circleDisplayTitle(slug, "en") : undefined;
+    return title ? { ...campaign, title } : campaign;
+  });
 }
 
 function LiveHome() {
@@ -53,7 +63,7 @@ function LiveHome() {
     try {
       const state = await readPublicCampaigns("0");
       if (request !== campaignRequest.current) return;
-      setCampaigns(state.ok ? state.campaigns : []);
+      setCampaigns(state.ok ? withCauseTitles(state.campaigns, state.circleLinks) : []);
     } catch {
       if (request === campaignRequest.current) setCampaigns([]);
     } finally {

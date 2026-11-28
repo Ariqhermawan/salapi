@@ -138,7 +138,7 @@ test("friendly fictional cause title and story link require the full reviewed ma
       assert.equal(result.context?.circleId, undefined); assert.equal(result.context?.title, mapping.campaignTitle);
       assert.equal(activityContextHref(result.context), "/campaigns?id=7");
     } else {
-      assert.equal(result.context?.title, `QA · ${seed[0].title}`); assert.equal(activityContextHref(result.context), "/circles/ate-mei-dialysis");
+      assert.equal(result.context?.title, seed[0].title); assert.equal(activityContextHref(result.context), "/circles/ate-mei-dialysis");
     }
   }
 });

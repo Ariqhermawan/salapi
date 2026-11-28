@@ -213,7 +213,7 @@ test("compact review preserves exact splits, privacy and fee while retaining ful
   assert.ok(html.includes(`${formatStroops(split.creator)} XLM`)); assert.match(html, /5%/);
   assert.match(html, /Your wallet also pays a Stellar network fee in XLM/);
   assert.match(html, /Wallet, @username and permitted photo/);
-  assert.match(html, /Test tokens go to a QA wallet/);
+  assert.match(html, /Test tokens go to a Testnet demo wallet/); assert.doesNotMatch(html, /bQAb/);
   assert.match(detailHtml, /Review comment/); assert.ok(detailHtml.includes(beneficiary));
   assert.match(detailHtml, /does not send USDC/); assert.match(detailHtml, /refund rules apply/);
   assert.doesNotMatch(html, /<h1>Test a donation/);
@@ -246,7 +246,7 @@ test("entering review resets the app scroller and focuses its heading, never con
 test("new donation defaults to a public permitted profile and discloses it before collapsed options", () => {
   const h = setup(); assert.equal(h.checkbox("Display anonymously in the donor feed").props.checked, false);
   assert.equal(h.checkbox("Also publish my available @username and permitted profile photo for this donation").props.checked, true);
-  const html = h.html(); assert.match(html, /QA wallets receive test tokens/); assert.match(html, /does not send USDC/); assert.match(html, /Donation amount in USD/);
+  const html = h.html(); assert.match(html, /Testnet demo wallets receive test tokens/); assert.match(html, /does not send USDC/); assert.match(html, /Donation amount in USD/);
   assert.match(html, /Your wallet, available @username and permitted profile photo will be public/);
   assert.ok(html.indexOf('data-testid="donor-privacy-notice"') < html.indexOf('<details class="options">'));
   const visibleNotice = h.all().find(node => node.props["data-testid"] === "donor-privacy-notice"); assert.ok(visibleNotice);
