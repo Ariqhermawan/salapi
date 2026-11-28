@@ -66,6 +66,13 @@ for (const viewport of viewports) {
   });
 }
 
+test("A fresh visit uses the prototype's dark theme and matching browser chrome", async ({ page }) => {
+  await page.context().clearCookies();
+  await page.goto("/", { waitUntil: "domcontentloaded", timeout: 45000 });
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#171717");
+});
+
 test("Settings keeps the dark-mode switch in Preferences and persists the selection", async ({ page }) => {
   await page.goto("/you", { waitUntil: "domcontentloaded", timeout: 45000 });
   const preferences = page.getByRole("region", { name: "Preferences", exact: true });
@@ -78,6 +85,8 @@ test("Settings keeps the dark-mode switch in Preferences and persists the select
   await expect(theme).toHaveAttribute("aria-checked", initial === "true" ? "false" : "true");
   const expected = initial === "true" ? "light" : "dark";
   await expect(page.locator("html")).toHaveAttribute("data-theme", expected);
+  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", expected === "dark" ? "#171717" : "#f7f7f7");
   await page.reload({ waitUntil: "domcontentloaded" });
   await expect(page.locator("html")).toHaveAttribute("data-theme", expected);
+  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", expected === "dark" ? "#171717" : "#f7f7f7");
 });
