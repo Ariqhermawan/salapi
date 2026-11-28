@@ -31,18 +31,49 @@ function daysBefore(date: string, days: number): string {
   return new Date(Date.parse(date + "T00:00:00Z") - days * 86_400_000).toISOString().slice(0, 10);
 }
 
-function galleryFor(spec: CauseSpec): CircleGalleryPhoto[] {
-  if (spec.id === "tino-relief") return [
+const COVER_CAPTION = "AI concept cover. Fictional cause, not documentary evidence.";
+
+// Causes with three photos of their own instead of related category scenes.
+// The first photo is also the cover. Captions keep the AI/fictional framing.
+const CUSTOM_GALLERIES: Record<string, readonly CircleGalleryPhoto[]> = {
+  "tino-relief": [
     { src: "/circles/generated/tino-relief.png",
       alt: "AI-generated fishing families repairing boats in a fictional Cebu coastal village, not verified evidence",
-      caption: "AI concept cover. Fictional cause, not documentary evidence." },
+      caption: COVER_CAPTION },
     { src: "/circles/generated/tino-relief-materials.png",
       alt: "AI-generated adult volunteers checking nets, timber and tools at a fictional Cebu shoreline workspace, not verified evidence",
       caption: "AI concept: repair materials and preparation. Not an actual campaign photo or receipt." },
     { src: "/circles/generated/tino-relief-shore.png",
       alt: "AI-generated volunteers testing a wooden boat near a fictional Cebu shore, not verified evidence",
       caption: "AI concept: intended coastal livelihood support. Not verified delivery evidence." },
-  ];
+  ],
+  "nek-ijah-monthly": [
+    { src: "/circles/generated/nek-ijah-monthly.png",
+      alt: "AI-generated volunteer bringing rice, cooking oil and eggs to an elderly woman outside her small Bandung home, not verified evidence",
+      caption: COVER_CAPTION },
+    { src: "/circles/generated/nek-ijah-monthly-health.png",
+      alt: "AI-generated community health worker checking an elderly woman with a stethoscope during a home visit, not verified evidence",
+      caption: "AI concept: a health check-up at home. Not an actual campaign photo or receipt." },
+    { src: "/circles/generated/nek-ijah-monthly-repair.png",
+      alt: "AI-generated volunteers replacing roof tiles and repainting the wall of an elderly woman's home, not verified evidence",
+      caption: "AI concept: intended home repairs. Not verified delivery evidence." },
+  ],
+  "road-rescue-monthly": [
+    { src: "/circles/generated/road-rescue-monthly.png",
+      alt: "AI-generated rescuers lifting an injured street dog onto a blanket at a Yogyakarta roadside, not verified evidence",
+      caption: COVER_CAPTION },
+    { src: "/circles/generated/road-rescue-monthly-vet.png",
+      alt: "AI-generated veterinarian wrapping a splint on a street cat's leg while a volunteer steadies it, not verified evidence",
+      caption: "AI concept: vet treatment after a rescue. Not an actual campaign photo or receipt." },
+    { src: "/circles/generated/road-rescue-monthly-recovery.png",
+      alt: "AI-generated rescued dog with a leg cast resting in a shelter yard as a volunteer offers food, not verified evidence",
+      caption: "AI concept: intended recovery care. Not verified delivery evidence." },
+  ],
+};
+
+function galleryFor(spec: CauseSpec): CircleGalleryPhoto[] {
+  const custom = CUSTOM_GALLERIES[spec.id];
+  if (custom) return custom.map(photo => ({ ...photo }));
   const related = galleryScenes[spec.category]
     .filter(id => id !== spec.id)
     .slice(0, 2)
@@ -51,7 +82,7 @@ function galleryFor(spec: CauseSpec): CircleGalleryPhoto[] {
     src: "/circles/generated/" + scene.id + ".png",
     alt: "Generated illustrative scene of " + scene.scene + "; fictional demo, not verified evidence",
     caption: index === 0
-      ? "AI concept cover. Fictional cause, not documentary evidence."
+      ? COVER_CAPTION
       : "Related AI concept scene. Not a photo of this campaign or proof of delivery.",
   }));
 }
@@ -125,8 +156,9 @@ function cause(spec: CauseSpec): Circle {
   };
 }
 
-// Exactly three active examples in each of nine sectors, with three distinct
-// organizers per sector. The six original IDs and PHP amounts are preserved.
+// Three base examples in each of nine sectors, with three distinct organizers
+// per sector, plus two monthly Testnet causes (care, animals) added 2026-11-28.
+// The six original IDs and PHP amounts are preserved.
 const activeSpecs: CauseSpec[] = [
   { id: "tino-relief", title: "Tino survivors, Cebu - rebuild a fishing barangay", organizerId: "maria-cebu", category: "disaster", purpose: "coastal families repairing boats and shared livelihood spaces", scene: "fishing families repairing small boats beside a coastal village", raised: 184_500, target: 250_000, pct: 0, donors: 312, days: 18 },
   { id: "ate-mei-dialysis", title: "Ate Mei needs dialysis - 12 sessions to stabilize", organizerId: "mei-family", category: "medical", purpose: "family-led support for dialysis-related care and clinic access", scene: "a caring family beside an adult patient in a dialysis clinic", raised: 62_300, target: 180_000, pct: 5, donors: 87, days: 25 },
@@ -149,9 +181,11 @@ const activeSpecs: CauseSpec[] = [
   { id: "cats-recovery", title: "Clinic recovery for injured cats", organizerId: "paws-home", category: "animals", purpose: "veterinary recovery supplies and foster care for injured cats", scene: "a veterinarian gently examining a recovering cat in a clean clinic", raised: 28_000, target: 90_000, pct: 3, donors: 63, days: 26 },
   { id: "dogs-rescue-care", title: "Rescue care and foster supplies for dogs", organizerId: "maria-cebu", category: "animals", purpose: "rescue-dog care supplies and peaceful foster spaces", scene: "a volunteer caring for rescued dogs beside a peaceful foster yard", raised: 34_000, target: 120_000, pct: 5, donors: 75, days: 30 },
   { id: "shared-animal-shelter", title: "Repairing a shared animal shelter", organizerId: "teachers-tubigon", category: "animals", purpose: "shelter repairs and shaded kennels for rescued animals", scene: "shelter volunteers repairing shaded kennels beside calm rescued animals", raised: 46_000, target: 150_000, pct: 0, donors: 96, days: 38 },
+  { id: "road-rescue-monthly", title: "Save street dogs and cats hit by traffic in Yogyakarta", organizerId: "paws-home", category: "animals", purpose: "rescue transport, vet care and recovery space for street dogs and cats hit by traffic in Yogyakarta", scene: "two rescuers lifting an injured street dog onto a blanket at a Yogyakarta roadside", raised: 9_200, target: 60_000, pct: 5, donors: 21, days: 30 },
   { id: "orphanage-learning-room", title: "A learning room for children in care", organizerId: "ruang-peduli", category: "care", purpose: "books and a welcoming learning room for children in care", scene: "care workers arranging books inside a bright children's learning room", raised: 23_000, target: 100_000, pct: 3, donors: 59, days: 33 },
   { id: "elder-home-meals", title: "Warm meals for an example elder home", organizerId: "ana-family", category: "care", purpose: "warm shared meals and practical support for older neighbors", scene: "a care volunteer serving warm meals to elders at a dining table", raised: 29_000, target: 95_000, pct: 0, donors: 68, days: 25 },
   { id: "community-free-kitchen", title: "Community free-meal kitchen supplies", organizerId: "karang-taruna-rw06", category: "care", purpose: "supplies and cooking equipment for a community free-meal kitchen", scene: "neighbors preparing free meals together in a clean community kitchen", raised: 43_000, target: 130_000, pct: 5, donors: 102, days: 28 },
+  { id: "nek-ijah-monthly", title: "Help Nek Ijah, 78, who lives alone under a leaking roof", organizerId: "ruang-peduli", category: "care", purpose: "staple food, check-ups and roof repairs for a 78-year-old woman living alone in Bandung", scene: "a volunteer bringing staple groceries to an elderly woman outside her small Bandung home", raised: 6_500, target: 45_000, pct: 3, donors: 14, days: 30 },
   { id: "river-volunteer-kit", title: "Shared safety kits for river volunteers", organizerId: "lintas-alam", category: "volunteer", purpose: "shared gloves, collection tools and safety equipment for river volunteers", scene: "volunteers sorting gloves and safety vests beside a green river", raised: 21_000, target: 75_000, pct: 3, donors: 53, days: 22 },
   { id: "flood-volunteer-logistics", title: "Flood-response volunteer logistics", organizerId: "mei-family", category: "volunteer", purpose: "relief-crate transport and organized volunteer logistics in a flood scenario", scene: "volunteers loading relief crates into a van near a shelter", raised: 32_000, target: 115_000, pct: 5, donors: 81, days: 21 },
   { id: "forest-fire-volunteer-safety", title: "Safety supplies for forest-fire volunteers", organizerId: "kapatid-tinta", category: "volunteer", purpose: "protective supplies and water-station logistics for trained forest-safety volunteers", scene: "trained volunteers checking protective supplies at a forest safety station", raised: 25_000, target: 140_000, pct: 0, donors: 66, days: 35 },

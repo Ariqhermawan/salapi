@@ -19,6 +19,7 @@ const anchor = 4_000_000_000n;
 const input = () => defaultQaProvisionInput({ creatorWallet: keys[0].publicKey(), beneficiaryWallet: keys[1].publicKey(),
   approverWallets: keys.slice(2).map(key => key.publicKey()) }, anchor);
 const plan = () => buildQaProvisionPlan(input(), anchor);
+const ALL = 29; // canonical active Circles: 27 base examples + 2 monthly causes (2026-11-28)
 function rawCampaign(value: QaProvisionPlan, circle: QaProvisionCircle, id: bigint) {
   return { id, title: circle.title, state: ["Funding"], total: 0n, escrow: 0n, proof_hash: null, proof_url: "", approvals: [],
     config: { creator: value.creatorWallet, beneficiary: value.beneficiaryWallet, token: value.tokenId,
@@ -98,9 +99,9 @@ function fakeRuntime(value: QaProvisionPlan, initial: ReturnType<typeof rawCampa
   return { runtime, counts, control, chain, pending, trace, journals };
 }
 
-test("27 exact QA titles, five independent wallets, 30-day funding and seven-day review; no fixture balances become donations", () => {
+test("Every catalog Circle gets an exact QA title, five independent wallets, 30-day funding and seven-day review; no fixture balances become donations", () => {
   const value = plan();
-  assert.equal(value.circles.length, 27); assert.equal(new Set(value.circles.map(circle => circle.circleSlug)).size, 27);
+  assert.equal(value.circles.length, ALL); assert.equal(new Set(value.circles.map(circle => circle.circleSlug)).size, ALL);
   assert(value.circles.every(circle => circle.title === "QA Circles: " + circle.circleSlug));
   assert.equal(BigInt(value.fundingDeadline) - anchor, 30n * 86_400n);
   assert.equal(BigInt(value.reviewDeadline) - BigInt(value.fundingDeadline), 7n * 86_400n);
@@ -226,11 +227,11 @@ test("all collisions are checked before mutation, including a mismatched 27th ci
 test("create ID comes from confirmed receipt, each hash is saved before send, and identical reruns create nothing", async () => {
   const value = plan(), mock = fakeRuntime(value);
   const result = await executeQaProvision(value, mock.runtime);
-  assert.equal(mock.counts.send, 27); assert.equal(mock.counts.prepare, 27); assert.equal(mock.counts.account, 5);
+  assert.equal(mock.counts.send, ALL); assert.equal(mock.counts.prepare, ALL); assert.equal(mock.counts.account, 5);
   assert.equal(result.rows[0].campaign_id, "100"); assert.equal(result.rows[1].campaign_id, "111");
-  assert.equal(result.journal.entries.length, 27); assert(result.journal.entries.every(entry => entry.state === "confirmed"));
+  assert.equal(result.journal.entries.length, ALL); assert(result.journal.entries.every(entry => entry.state === "confirmed"));
   const before = mock.counts.send; await executeQaProvision(value, mock.runtime, result.journal);
-  assert.equal(mock.counts.send, before); assert.equal(mock.counts.prepare, 27);
+  assert.equal(mock.counts.send, before); assert.equal(mock.counts.prepare, ALL);
   assert([...mock.chain.values()].every(campaign => campaign.total === 0n && campaign.escrow === 0n));
   assert(mock.trace.indexOf("save") < mock.trace.findIndex(item => item.startsWith("send:")));
 });
@@ -243,7 +244,7 @@ test("unknown submitted hash is never sent again, then successful reconciliation
   assert.equal(mock.counts.send, 1); assert.equal(mock.counts.prepare, 1);
   mock.control.outcome = "SUCCESS";
   const result = await executeQaProvision(value, mock.runtime, journal);
-  assert.equal(mock.counts.send, 27); assert.equal(mock.counts.prepare, 27); assert.equal(result.rows.length, 27);
+  assert.equal(mock.counts.send, ALL); assert.equal(mock.counts.prepare, ALL); assert.equal(result.rows.length, ALL);
   assert.equal(result.rows[0].campaign_id, "100");
 });
 
@@ -270,20 +271,36 @@ test("read-only preflight walks the second page without preparing or submitting 
   const value = plan(), initial = value.circles.map((circle, index) => rawCampaign(value, circle, BigInt(index + 1)));
   const mock = fakeRuntime(value, initial);
   const found = await preflightQaProvision(value, mock.runtime);
-  assert.equal(found.length, 27); assert.equal(mock.counts.prepare, 0); assert.equal(mock.counts.send, 0); assert.equal(mock.counts.save, 0);
+  assert.equal(found.length, ALL); assert.equal(mock.counts.prepare, 0); assert.equal(mock.counts.send, 0); assert.equal(mock.counts.save, 0);
   const result = await executeQaProvision(value, mock.runtime);
-  assert.equal(result.rows.length, 27); assert.equal(mock.counts.send, 0); assert.equal(mock.counts.prepare, 0);
+  assert.equal(result.rows.length, ALL); assert.equal(mock.counts.send, 0); assert.equal(mock.counts.prepare, 0);
 });
 
-test("verified SQL stages all 27 mappings with immutable conflict rejection and exact rerun skipping", async () => {
+test("verified SQL stages all catalog mappings with immutable conflict rejection and exact rerun skipping", async () => {
   const value = plan(), result = await executeQaProvision(value, fakeRuntime(value).runtime);
   const sql = mappingInsertSql(result.rows);
-  assert.equal((sql.match(/QA Circles:/g) ?? []).length, 27);
+  assert.equal((sql.match(/QA Circles:/g) ?? []).length, ALL);
   assert.match(sql, /begin;/); assert.match(sql, /is not distinct from/); assert.match(sql, /commit;/);
   assert.match(sql, /service_role has SELECT only/);
   assert.doesNotMatch(sql, /\b(update|delete|drop|grant)\b/i); assert.doesNotMatch(sql, /on conflict.*update/i);
   assert(!keys.some(key => sql.includes(key.secret())));
-  assert.throws(() => mappingInsertSql(result.rows.slice(0, 26)), /27 distinct/);
+  assert.throws(() => mappingInsertSql([]), /Distinct verified rows/); assert.throws(() => mappingInsertSql([result.rows[0], result.rows[0]]), /Distinct verified rows/);
+});
+
+test("circleSlugs limits a plan to one organizer's causes and still verifies every create and mapping", async () => {
+  const subset = { ...input(), circleSlugs: ["nek-ijah-monthly"] };
+  const value = buildQaProvisionPlan(subset, anchor);
+  assert.deepEqual(value.circles, [{ circleSlug: "nek-ijah-monthly", title: "QA Circles: nek-ijah-monthly", creatorCutBps: 300 }]);
+  assert.deepEqual(value.circleSlugs, ["nek-ijah-monthly"]);
+  assert.notEqual(planFingerprint(value), planFingerprint(plan()));
+  const mock = fakeRuntime(value), result = await executeQaProvision(value, mock.runtime);
+  assert.equal(mock.counts.send, 1); assert.equal(result.rows.length, 1);
+  assert.equal(result.rows[0].circle_slug, "nek-ijah-monthly"); assert.equal(result.rows[0].creator_cut_bps, 300);
+  assert.equal((mappingInsertSql(result.rows).match(/QA Circles:/g) ?? []).length, 1);
+  for (const circleSlugs of [[], ["nek-ijah-monthly", "nek-ijah-monthly"], ["not-a-circle"], "nek-ijah-monthly"]) {
+    assert.throws(() => buildQaProvisionPlan({ ...input(), circleSlugs }, anchor), /circleSlugs must list/);
+  }
+  assert.throws(() => buildQaProvisionPlan({ ...input(), extra: true }, anchor), /eight public configuration fields/);
 });
 
 test("default CLI is offline dry run and emits no secret values", () => {
@@ -293,7 +310,7 @@ test("default CLI is offline dry run and emits no secret values", () => {
     const output = execFileSync(process.execPath, ["--experimental-strip-types", fileURLToPath(new URL("./qa-circles-provision.mts", import.meta.url)), "--manifest", manifestPath], {
       encoding: "utf8", env: { ...process.env, HTTP_PROXY: "http://127.0.0.1:1", HTTPS_PROXY: "http://127.0.0.1:1" }, stdio: ["ignore", "pipe", "pipe"],
     });
-    const dry = JSON.parse(output); assert.equal(dry.mode, "dry-run"); assert.equal(dry.plan.circles.length, 27);
+    const dry = JSON.parse(output); assert.equal(dry.mode, "dry-run"); assert.equal(dry.plan.circles.length, ALL);
     assert(!keys.some(key => output.includes(key.secret())));
     const source = readFileSync(new URL("./qa-circles-provision.mts", import.meta.url), "utf8");
     assert.doesNotMatch(source, /friendbot\.stellar|sendPayment|\.from\([^)]*circles_testnet|SUPABASE_SERVICE_ROLE/);

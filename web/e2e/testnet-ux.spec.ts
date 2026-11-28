@@ -213,7 +213,7 @@ for (const code of ["not_configured", "unmapped"] as const) for (const width of 
     await expect(panel.getByText("No on-chain campaign linked", { exact: true })).toBeVisible();
     await expect(pipeline.locator("li")).toHaveCount(4);
   } else {
-    await expect(panel.getByText("On-chain linkage is not verified right now. Check the QA status above; no proof or balance is assumed.", { exact: true })).toBeVisible();
+    await expect(panel.getByText("On-chain linkage is not verified right now. Check the Testnet status above; no proof or balance is assumed.", { exact: true })).toBeVisible();
     await expect(panel.getByText("No on-chain campaign linked", { exact: true })).toHaveCount(0);
     await expect(pipeline).toHaveCount(0);
     await expect(panel.getByText("No evidence hash or confirmed transaction exists. A launch signup is not an on-chain receipt.", { exact: true })).toHaveCount(0);
@@ -249,7 +249,7 @@ test("native QA donation with missing setup neither offers payment nor the old m
   await readFixture(page, { readCircleTestnetCampaign: mappingFailure("not_configured") });
   await page.goto("/circles/tino-relief/donate", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: "Test a donation", exact: true })).toBeVisible();
-  await expect(page.getByText("Test tokens go to a QA wallet. Fictional cause, no real money.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Test tokens go to a Testnet demo wallet. Fictional cause, no real money.", { exact: true })).toBeVisible();
   await expect(page.getByTestId("circle-testnet-summary")).toContainText("Testnet donations are not configured for this cause yet.");
   await expectIdentityDenied(page);
   await expect(page.locator("#circle-testnet-amount")).toHaveCount(0);
@@ -383,7 +383,7 @@ for (const width of [320, 390, 1280]) test(`Story precedes confirmed donor amoun
   await expect(summary.getByText("100 XLM", { exact: true })).toHaveCount(2);
   await expect(summary.getByText("≈ $11.21", { exact: true })).toHaveCount(2);
   await expect(summary.getByText("Market reference: ≈ 25.00 USDC", { exact: true })).toHaveCount(2);
-  await expect(summary.getByRole("progressbar")).toHaveAttribute("aria-valuetext", "0.58% of QA goal");
+  await expect(summary.getByRole("progressbar")).toHaveAttribute("aria-valuetext", "0.58% of goal");
   await expect(donors).toContainText("50 XLM");
   await donors.getByLabel("Details", { exact: true }).click();
   await expect(donors).toContainText("≈ 12.50 USDC");
@@ -409,7 +409,7 @@ for (const width of [320, 390, 1280]) test(`Story precedes confirmed donor amoun
   await expect(summary.getByText("100 XLM", { exact: true })).toHaveCount(2);
   await expect(summary.getByText("≈ $11.21", { exact: true })).toHaveCount(2);
   await expect(summary.getByText("Market reference: ≈ 50.00 USDC", { exact: true })).toHaveCount(2);
-  await expect(summary.getByRole("progressbar")).toHaveAttribute("aria-valuetext", "1.16% of QA goal");
+  await expect(summary.getByRole("progressbar")).toHaveAttribute("aria-valuetext", "1.16% of goal");
   await expect(donors).toContainText("≈ 25.00 USDC");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
   expect(await donors.evaluate(node => node.scrollWidth <= node.clientWidth + 1)).toBe(true);

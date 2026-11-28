@@ -482,7 +482,7 @@ export default function ActivityScreen() {
                         const counterpartIdentity = receipt.counterparty ? identitiesByAddress.get(receipt.counterparty) : undefined;
                         const counterpartName = counterpartIdentity?.handle ? `@${counterpartIdentity.handle}` : receipt.counterparty === address
                           ? h("you") : receipt.counterparty?.startsWith("C") ? h("contractWallet") : h("wallet");
-                        const purposeName = context?.type === "wallet-withdrawal" ? h("to", { name: counterpartName }) : (circleTitle ? `QA · ${circleTitle}` : context?.title) ?? referenceLabel ?? (context?.type.startsWith("disaster-") ? h("disasterPool")
+                        const purposeName = context?.type === "wallet-withdrawal" ? h("to", { name: counterpartName }) : (circleTitle ?? context?.title) ?? referenceLabel ?? (context?.type.startsWith("disaster-") ? h("disasterPool")
                           : context?.type.startsWith("savings-") ? h("savingsPool") : h("arisanPool"));
                         const equivalent = activityUsdcEquivalent(receipt.amountStroops, receipt.asset, prices);
                         const amountSign = received ? "+" : "−";

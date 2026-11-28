@@ -11,7 +11,7 @@ export function validCampaignSupport(value: unknown): value is CampaignSupportRe
   const v = value as CampaignSupportResult;
   return v.ok === true && typeof v.ownerId === "string" && !!v.contributions && typeof v.contributions === "object" && !Array.isArray(v.contributions)
     && (!v.circleCampaigns || typeof v.circleCampaigns === "object" && !Array.isArray(v.circleCampaigns)
-      && Object.entries(v.circleCampaigns).length <= 27 && Object.entries(v.circleCampaigns).every(([slug, id]) => /^[a-z0-9-]{1,80}$/.test(slug) && campaignSupportIds(id) !== null))
+      && Object.entries(v.circleCampaigns).length <= 40 && Object.entries(v.circleCampaigns).every(([slug, id]) => /^[a-z0-9-]{1,80}$/.test(slug) && campaignSupportIds(id) !== null))
     && Object.entries(v.contributions).length <= 40 && Object.entries(v.contributions).every(([id, c]) =>
       campaignSupportIds(id) !== null && c && typeof c.amount === "string" && /^\d{1,39}$/.test(c.amount)
       && ["donated", "refunded", "none", "unavailable"].includes(c.status)

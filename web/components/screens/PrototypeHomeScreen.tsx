@@ -24,9 +24,6 @@ import { homeCopy } from "@/lib/i18n/revamp-home";
 import MarketValue from "@/components/MarketValue";
 import HomeDonationTicker from "@/components/HomeDonationTicker";
 import type { Campaign } from "@/lib/campaign";
-import type { Locale } from "@/lib/i18n/config";
-import { formatHomeXlm, selectHomeCampaigns } from "@/lib/home-campaigns";
-import { campaignDiscoveryCopy } from "@/lib/i18n/revamp-campaign-discovery";
 import styles from "./PrototypeHomeScreen.module.css";
 
 const BALANCE_KEY = "salapi.prototype-home.hide-balance.v1";
@@ -46,17 +43,13 @@ export type PrototypeHomeLiveData = {
   walletLoading: boolean;
   walletError: string;
   campaigns: Omit<Campaign, "contribution">[];
-  campaignsNow: string | null;
   campaignsLoading: boolean;
-  campaignsError: boolean;
   onRetryWallet: () => void;
-  onRetryCampaigns: () => void;
 };
 
 export default function PrototypeHomeScreen({ liveData }: { liveData?: PrototypeHomeLiveData }) {
   const { locale } = useT();
   const copy = (phrase: string) => homeCopy(locale, phrase);
-  const campaignCopy = campaignDiscoveryCopy(locale);
   const greetingRef = useRef<HTMLHeadingElement>(null);
   const [currency, setCurrency] = useState<"USDC" | "XLM">("USDC");
   const [balanceCents, setBalanceCents] = useState(241_226);
@@ -70,7 +63,6 @@ export default function PrototypeHomeScreen({ liveData }: { liveData?: Prototype
   const causes = useMemo(() => CAMPAIGN_ORDER
     .map(id => PROTOTYPE_CAUSES.find(cause => cause.id === id))
     .filter((cause): cause is PrototypeCause => cause !== undefined), []);
-  const liveCampaigns = liveData ? selectHomeCampaigns(liveData.campaigns, liveData.campaignsNow) : [];
   const causesLayout = search.get("causes") === "b" || search.get("causes") === "c" ? search.get("causes") : "a";
 
   useLayoutEffect(() => {
@@ -191,15 +183,10 @@ export default function PrototypeHomeScreen({ liveData }: { liveData?: Prototype
     <section className={styles.causes} aria-labelledby="prototype-home-causes">
       <div className={styles.sectionHeading}>
         <h2 id="prototype-home-causes">{copy("Causes")}</h2>
-        {liveData ? <span className={styles.exampleLabel} data-testid="home-campaign-label">{copy("TESTNET")}</span> : null}
+        {liveData ? <span className={styles.exampleLabel} data-testid="home-example-label">{copy("EXAMPLES")}</span> : null}
         <Link href="/causes">{copy("See all")}</Link>
       </div>
-      {liveData ? liveCampaigns.length ? <div className={styles.causeRow} aria-label={campaignCopy("Testnet campaigns")} data-testid="home-live-campaigns">
-        {liveCampaigns.map(campaign => <LiveCampaignCard key={campaign.id} campaign={campaign} locale={locale} />)}
-      </div> : liveData.campaignsLoading ? <div className={styles.campaignState} role="status">{campaignCopy("Loading Testnet campaigns")}</div>
-        : liveData.campaignsError ? <div className={styles.campaignState} role="alert">{copy("Campaigns could not be loaded. Please try again.")} <button type="button" onClick={liveData.onRetryCampaigns}>{copy("Retry")}</button></div>
-          : <div className={styles.campaignState}>{copy("No open Testnet campaigns right now.")}</div>
-        : causesLayout === "b" ? <div className={styles.causeLayoutB} aria-label="Featured cause and more causes">
+      {causesLayout === "b" ? <div className={styles.causeLayoutB} aria-label="Featured cause and more causes">
         {causes.slice(0, 3).map((cause, index) => index === 0 ? <Link key={cause.id} href={`/cause/${cause.id}`} className={styles.featuredCause}>
           <span className={styles.featuredPhoto}>{cause.image ? <Image src={cause.image} alt="" fill sizes="150px" /> : <span className={styles.coverFallback}>♡</span>}{index === 0 && <span className={styles.ribbon}>FEATURED</span>}</span>
           <span className={styles.featuredBody}><strong>{cause.title}</strong><span className={styles.featuredProgress}><i style={{ width: `${Math.min(100, Math.round(cause.raised / cause.target * 100))}%` }} /></span><span className={styles.featuredMoney}>≈ {USD(cause.raised)} USDC</span><small>raised of {USD(cause.target)}</small></span>
@@ -287,28 +274,6 @@ function CauseCard({ cause, featured }: { cause: PrototypeCause; featured: boole
       <span className={styles.progress} role="img" aria-label={`${progress}% of goal`}><i style={{ width: `${Math.min(100, progress)}%` }} /></span>
       <span className={styles.raised}>≈ {raised} USDC</span>
       <span className={styles.goal}>raised of {target}</span>
-    </span>
-  </Link>;
-}
-
-function LiveCampaignCard({ campaign, locale }: { campaign: Omit<Campaign, "contribution">; locale: Locale }) {
-  const copy = homeCopy(locale, "No campaign photo shared");
-  const campaignCopy = campaignDiscoveryCopy(locale);
-  const escrow = formatHomeXlm(campaign.escrow, locale);
-  if (escrow === null) return null;
-  return <Link href={`/campaigns?id=${encodeURIComponent(campaign.id)}`} className={styles.causeCard}
-    aria-label={`${campaign.title}. ${campaignCopy("Open for contributions")}. ${escrow} Testnet XLM in escrow.`}
-    data-testid="home-live-campaign" data-campaign-id={campaign.id}>
-    <span className={`${styles.cover} ${styles.liveCampaignCover}`}>
-      <span className={styles.liveCampaignArtwork} aria-hidden="true">✦</span>
-      <span className={styles.category}>{homeCopy(locale, "TESTNET")}</span>
-      <span className={styles.status}>{campaignCopy("Open for contributions")}</span>
-      <span className={styles.liveCampaignNoPhoto}>{copy}</span>
-    </span>
-    <span className={styles.cardBody}>
-      <strong>{campaign.title}</strong>
-      <span className={styles.raised}>{escrow} Testnet XLM</span>
-      <span className={styles.goal}>{homeCopy(locale, "In D4 escrow")}</span>
     </span>
   </Link>;
 }

@@ -111,8 +111,8 @@ function harness(options: Options = {}) {
   return { ...exports, calls, mappingFetch: () => { assert.ok(configuredFetch); return configuredFetch; } };
 }
 
-test("only all 27 canonical active fictional causes are eligible, not history or arbitrary IDs", () => {
-  assert.equal(allSlugs.length, 27); assert.equal(new Set(allSlugs).size, 27);
+test("only all 29 canonical active fictional causes are eligible, not history or arbitrary IDs", () => {
+  assert.equal(allSlugs.length, 29); assert.equal(new Set(allSlugs).size, 29);
   for (const slug of allSlugs) {
     assert.equal(mapping.canonicalCircleTestnetSlug(slug), slug);
     assert.equal(mapping.circleTestnetCampaignTitle(slug), `QA Circles: ${slug}`);
@@ -243,15 +243,15 @@ test("parallel single read cannot enable donations when deployment validation fa
   assert.equal(result.mapping, null); assert.equal(result.campaign, null);
 });
 
-test("batch reads 27 QA causes with one DB query, one deployment check and bounded parallel RPC", async () => {
+test("batch reads 29 QA causes with one DB query, one deployment check and bounded parallel RPC", async () => {
   const rows = allSlugs.map((slug, index) => row(slug, String(index + 1)));
   const h = harness({ rows, delay: 2 }); const batch = await h.readCirclesTestnetCampaigns();
-  assert.equal(batch.ok, true); assert.equal(Object.keys(batch.campaigns).length, 27);
+  assert.equal(batch.ok, true); assert.equal(Object.keys(batch.campaigns).length, 29);
   assert.ok(Object.values(batch.campaigns).every(result => result.ok && result.donationOpen));
   assert.equal(h.calls.table, 1); assert.equal(h.calls.rpc.filter(method => method === "version").length, 1);
   assert.equal(h.calls.rpc.filter(method => method === "token").length, 1);
   assert.equal(h.calls.rpc.filter(method => method === "clock").length, 1);
-  assert.equal(h.calls.rpc.filter(method => method === "campaign").length, 27);
+  assert.equal(h.calls.rpc.filter(method => method === "campaign").length, 29);
   assert.equal(h.calls.peak, 4);
 });
 
@@ -272,7 +272,7 @@ test("Home discovery validates all mappings in one bounded read without ledger f
   const rows = allSlugs.map((slug, index) => row(slug, String(index + 1)));
   const h = harness({ rows });
   const mappings = await h.readCircleDiscoveryMappings();
-  assert.equal(mappings.length, 27); assert.equal(h.calls.table, 1);
+  assert.equal(mappings.length, 29); assert.equal(h.calls.table, 1);
   assert.deepEqual(h.calls.rpc, []); assert.equal(h.calls.clients, 1);
   assert.deepEqual(h.calls.filters, [["eq", "network", "testnet"], ["eq", "contract_id", contract], ["is", "archived_at", null]]);
 });
@@ -309,7 +309,7 @@ test("admin fetch cannot leak service credential via untrusted URL or redirect",
   await safeFetch(`${origin}/rest/v1/circles_testnet_campaigns`);
 });
 
-test("SQL recipe covers all 27 canonical causes, denies clients and app writes, preserves immutable history", () => {
+test("SQL recipe covers all 29 canonical causes, denies clients and app writes, preserves immutable history", () => {
   const sql = readFileSync(new URL("../supabase/circles_testnet_campaigns.sql", import.meta.url), "utf8");
   for (const slug of allSlugs) assert.ok(sql.includes(`'${slug}'`), slug);
   assert.match(sql, /enable row level security/);

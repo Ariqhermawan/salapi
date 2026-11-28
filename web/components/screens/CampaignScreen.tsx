@@ -302,7 +302,7 @@ function CampaignCard({ c, circleId, viewer, now, run, busy, detail, onPreviewUp
         <CampaignUpdateSubscription campaignId={c.id} />
         <CampaignOrganizerUpdates campaignId={c.id} />
       </>}
-      <CampaignReviews campaignId={c.id} />
+      <CampaignReviews campaignId={c.id} title={displayTitle} />
     </div>}
   </div></section>;
 }

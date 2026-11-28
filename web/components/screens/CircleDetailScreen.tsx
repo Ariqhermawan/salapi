@@ -219,7 +219,7 @@ export default function CircleDetailScreen({ circle, initialTab = "story" }: {
           <span aria-hidden="true">{completed ? Ico.user({ size: 20, c: "#fff" }) : Ico.plus({ size: 20, c: "#fff" })}</span>
           {completed ? c("View organizer") : c(!isLocalPreview ? "Donate Testnet XLM" : "Preview a pledge")}
         </Link>
-        <p className={styles.actionNotice}>{completed ? c("Completed only in the fictional example. No pledge is available.") : isLocalPreview ? c("No payment. Confirm a browser-only donation demo.") : c("Fictional cause. Test-token donations require a linked, open QA campaign.")}
+        <p className={styles.actionNotice}>{completed ? c("Completed only in the fictional example. No pledge is available.") : isLocalPreview ? c("No payment. Confirm a browser-only donation demo.") : c("Fictional cause. Test-token donations require a linked, open Testnet campaign.")}
           {isLocalPreview && !completed && <span>{c("Saved only after your explicit local confirmation.")}</span>}
         </p>
       </div>
@@ -260,7 +260,7 @@ export default function CircleDetailScreen({ circle, initialTab = "story" }: {
     {tab === "proof" && <section key="proof" id="circle-panel-proof" role="tabpanel" tabIndex={0} aria-labelledby="circle-tab-proof" className={`${styles.panel} sl-state-enter`}>
       <div className={styles.proofHeading}><div><span className={styles.eyebrow}>{c("Public proof")}</span><h2>{c("Trace the evidence, step by step")}</h2></div>
         <span className={styles.proofStatus}>{c("Not verified")}</span></div>
-      {qa.result?.ok ? <p>{c("The linked QA contract status is shown separately above. The example documents and photos below remain fictional, not delivery proof.")}</p> : !knownUnlinked ? <p role="status">{c("On-chain linkage is not verified right now. Check the QA status above; no proof or balance is assumed.")}</p> : <><p>{c("This fictional cause has no on-chain receipt. Its planning, spending and delivery notes are synthetic examples.")}</p>
+      {qa.result?.ok ? <p>{c("The linked Testnet contract status is shown separately above. The example documents and photos below remain fictional, not delivery proof.")}</p> : !knownUnlinked ? <p role="status">{c("On-chain linkage is not verified right now. Check the Testnet status above; no proof or balance is assumed.")}</p> : <><p>{c("This fictional cause has no on-chain receipt. Its planning, spending and delivery notes are synthetic examples.")}</p>
       <div className={styles.proofBoundary}><strong>{c("No on-chain campaign linked")}</strong>
         <p>{c("A real D4 campaign ID, locked recipients and confirmed transactions must be linked before this cause can accept Testnet donations or award a donor badge.")}</p></div>
       <ol className={styles.proofPipeline} aria-label={c("Evidence and approval pipeline")}>
@@ -298,6 +298,6 @@ export default function CircleDetailScreen({ circle, initialTab = "story" }: {
     </details>}
     {tab !== "story" && organizerLink(true)}
     <Link href={`/circles/${circle.id}/manage`} className={styles.organizerLink}>{c("Explore organizer tools")}<span aria-hidden="true">{Ico.chev({ size: 15, c: T.action })}</span></Link>
-    <footer className={styles.footer}><PoweredByStellar /><span>{c(knownUnlinked ? "Circles prototype · No real donations." : "Fictional cause. Test-token donations require a linked, open QA campaign.")}</span></footer>
+    <footer className={styles.footer}><PoweredByStellar /><span>{c(knownUnlinked ? "Circles prototype · No real donations." : "Fictional cause. Test-token donations require a linked, open Testnet campaign.")}</span></footer>
   </div>;
 }

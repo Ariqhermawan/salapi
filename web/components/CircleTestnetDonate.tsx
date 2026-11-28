@@ -155,12 +155,12 @@ export default function CircleTestnetDonate({ circle }: { circle: Circle }) {
 
   return <div className={`${styles.screen} ${reviewing ? styles.reviewScreen : receipt ? styles.receiptScreen : styles.amountScreen}`}>
     <header className={styles.header}><button type="button" onClick={() => review && !receipt ? setReview(null) : goBack()} disabled={busy}>{text("Back")}</button>
-      <span>QA · Stellar Testnet</span></header>
+      <span>Stellar Testnet</span></header>
     {!reviewing && <><div className={styles.intro}>
       <div><h1 ref={receipt ? focusReviewHeading : undefined} tabIndex={receipt ? -1 : undefined}>{text("Test a donation")}</h1><p className={styles.steps} aria-live="polite">{receipt ? text("3 · Receipt") : text("1 · Amount")}</p></div>
       <h2>{display.title}</h2>
     </div>
-    <aside className={styles.compactBoundary}>{text("Test tokens go to a QA wallet. Fictional cause, no real money.")}</aside></>}
+    <aside className={styles.compactBoundary}>{text("Test tokens go to a Testnet demo wallet. Fictional cause, no real money.")}</aside></>}
     <SubmissionStatusPanel guard={guard} onRefresh={refreshSubmission} confirmedHash={confirmed ? receipt?.hash : undefined} />
     {guard.state.kind === "locked" && !receipt && <p className={styles.hint}>{text("After reload, a recovered donor record defaults to anonymous with no comment or profile permission. Existing saved records are not changed. Recovery never resends funds.")}</p>}
     {identity.status === "guest" ? <Link className={styles.primary} href={signIn}>{text("Sign in with Google")}</Link>
@@ -186,12 +186,12 @@ export default function CircleTestnetDonate({ circle }: { circle: Circle }) {
       <p className={styles.reviewFee}>{text("Your wallet also pays a Stellar network fee in XLM. The actual fee is on the receipt.")}</p>
       <AvailableWalletBalance amountStroops={reviewedAmount} />
       <dl className={styles.reviewPrivacy}><div><dt>{text("Public display")}</dt><dd>{review.anonymous ? text("Anonymous") : review.publicProfileOk ? text("Wallet, @username and permitted photo") : text("Wallet only")}</dd></div></dl>
-      <p className={styles.reviewBoundary}>{text("Test tokens go to a QA wallet. Fictional cause, no real money.")}</p>
+      <p className={styles.reviewBoundary}>{text("Test tokens go to a Testnet demo wallet. Fictional cause, no real money.")}</p>
       <details className={styles.options}><summary>{text("Transaction details")}</summary><div className={styles.optionFields}>
       <dl><div><dt>{text("Campaign")}</dt><dd>#{review.terms.mapping.campaignId}</dd></div>
-        <div><dt>{text("QA beneficiary")}</dt><dd className={styles.address}>{review.terms.mapping.beneficiaryWallet}</dd></div>
+        <div><dt>{text("Beneficiary wallet")}</dt><dd className={styles.address}>{review.terms.mapping.beneficiaryWallet}</dd></div>
       </dl>
-      <p>{text("QA wallets receive test tokens, not the pictured organizer or NGO. Testnet XLM has no monetary value. This D4 contract does not send USDC.")}</p>
+      <p>{text("Testnet demo wallets receive test tokens, not the pictured organizer or NGO. Testnet XLM has no monetary value. This D4 contract does not send USDC.")}</p>
       <p>{text("Native Testnet XLM moves into this campaign's escrow. Your wallet also pays the Stellar network fee in XLM; the actual fee is on the receipt.")}</p>
       <p>{text("Two configured reviewers must approve the exact proof before release. No timely approval means the contract's refund rules apply. No real-world delivery is guaranteed.")}</p>
       {review.comment && <blockquote>{review.comment}</blockquote>}
@@ -237,7 +237,7 @@ export default function CircleTestnetDonate({ circle }: { circle: Circle }) {
     {error && <p className={styles.error} role="alert">{error}</p>}
     <details className={styles.options} open={!available && !receipt && !review}><summary>{text("Campaign details")}</summary>
       <div className={styles.optionFields}><h2>{display.title}</h2><strong>{text("Fictional cause, real Testnet transaction")}</strong>
-        <p>{text("QA wallets receive test tokens, not the pictured organizer or NGO. Testnet XLM has no monetary value. This D4 contract does not send USDC.")}</p></div>
+        <p>{text("Testnet demo wallets receive test tokens, not the pictured organizer or NGO. Testnet XLM has no monetary value. This D4 contract does not send USDC.")}</p></div>
       <CircleTestnetSummary circleId={circle.id} result={mapping.result} loading={mapping.loading} onRefresh={mapping.refresh} hideDonate hideDetailsLink />
     </details>
     {receipt && mapping.result?.ok && <><CampaignDonorActivity campaignId={mapping.result.mapping.campaignId} refreshKey={feedRevision} /><CampaignUpdateSubscription campaignId={mapping.result.mapping.campaignId} /></>}

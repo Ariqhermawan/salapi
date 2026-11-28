@@ -16,10 +16,10 @@ const messages = {
   "Back": { id: "Kembali", tl: "Bumalik", vi: "Quay lại" },
   "Test a donation": { id: "Uji donasi", tl: "Subukan ang donasyon", vi: "Thử quyên góp" },
   "Fictional cause, real Testnet transaction": { id: "Tujuan fiktif, transaksi Testnet nyata", tl: "Kathang-isip na layunin, aktuwal na Testnet transaction", vi: "Mục tiêu hư cấu, giao dịch Testnet thực sự" },
-  "QA wallets receive test tokens, not the pictured organizer or NGO. Testnet XLM has no monetary value. This D4 contract does not send USDC.": {
-    id: "Wallet QA menerima token uji, bukan organizer atau NGO di gambar. XLM Testnet tidak bernilai uang. Kontrak D4 ini tidak mengirim USDC.",
-    tl: "QA wallets ang tumatanggap ng test tokens, hindi ang organizer o NGO sa larawan. Walang halagang pera ang Testnet XLM. Hindi nagpapadala ng USDC ang D4 contract na ito.",
-    vi: "Ví QA nhận token thử nghiệm, không phải người tổ chức hay NGO trong ảnh. Testnet XLM không có giá trị tiền tệ. Hợp đồng D4 này không gửi USDC." },
+  "Testnet demo wallets receive test tokens, not the pictured organizer or NGO. Testnet XLM has no monetary value. This D4 contract does not send USDC.": {
+    id: "Wallet demo Testnet menerima token uji, bukan organizer atau NGO di gambar. XLM Testnet tidak bernilai uang. Kontrak D4 ini tidak mengirim USDC.",
+    tl: "Testnet demo wallets ang tumatanggap ng test tokens, hindi ang organizer o NGO sa larawan. Walang halagang pera ang Testnet XLM. Hindi nagpapadala ng USDC ang D4 contract na ito.",
+    vi: "Ví demo Testnet nhận token thử nghiệm, không phải người tổ chức hay NGO trong ảnh. Testnet XLM không có giá trị tiền tệ. Hợp đồng D4 này không gửi USDC." },
   "Sign in with Google": { id: "Login dengan Google", tl: "Mag-sign in gamit ang Google", vi: "Đăng nhập bằng Google" },
   "Your account must be verified before donating.": { id: "Akun harus terverifikasi sebelum donasi.", tl: "Dapat ma-verify ang account bago mag-donate.", vi: "Tài khoản phải được xác minh trước khi quyên góp." },
   "Check account": { id: "Periksa akun", tl: "Suriin ang account", vi: "Kiểm tra tài khoản" },
@@ -38,16 +38,16 @@ const messages = {
     id: "Wallet Anda juga membayar biaya jaringan Stellar dalam XLM. Biaya aktual ada di bukti transaksi.",
     tl: "Magbabayad din ang wallet mo ng Stellar network fee sa XLM. Nasa receipt ang aktuwal na fee.",
     vi: "Ví của bạn cũng trả phí mạng Stellar bằng XLM. Phí thực tế có trên biên nhận." },
-  "Test tokens go to a QA wallet. Fictional cause, no real money.": {
-    id: "Token uji masuk ke wallet QA. Tujuan fiktif, bukan uang nyata.",
-    tl: "Sa QA wallet mapupunta ang test tokens. Kathang-isip ang layunin, hindi totoong pera.",
-    vi: "Token thử nghiệm chuyển vào ví QA. Mục tiêu hư cấu, không phải tiền thật." },
+  "Test tokens go to a Testnet demo wallet. Fictional cause, no real money.": {
+    id: "Token uji masuk ke wallet demo Testnet. Tujuan fiktif, bukan uang nyata.",
+    tl: "Sa Testnet demo wallet mapupunta ang test tokens. Kathang-isip ang layunin, hindi totoong pera.",
+    vi: "Token thử nghiệm chuyển vào ví demo Testnet. Mục tiêu hư cấu, không phải tiền thật." },
   "Native Testnet XLM moves into this campaign's escrow. Your wallet also pays the Stellar network fee in XLM; the actual fee is on the receipt.": {
     id: "XLM Testnet masuk ke escrow campaign ini. Wallet Anda juga membayar biaya jaringan Stellar dalam XLM; biaya aktual ada di bukti transaksi.",
     tl: "Papasok ang native Testnet XLM sa escrow ng campaign na ito. Magbabayad din ang wallet mo ng Stellar network fee sa XLM; nasa receipt ang aktuwal na fee.",
     vi: "Testnet XLM gốc chuyển vào escrow của chiến dịch này. Ví của bạn cũng trả phí mạng Stellar bằng XLM; phí thực tế có trên biên nhận." },
   "Campaign": { id: "Campaign", tl: "Campaign", vi: "Chiến dịch" },
-  "QA beneficiary": { id: "Penerima QA", tl: "QA beneficiary", vi: "Người nhận QA" },
+  "Beneficiary wallet": { id: "Wallet penerima", tl: "Beneficiary wallet", vi: "Ví người nhận" },
   "Creator share": { id: "Bagian pembuat", tl: "Bahagi ng creator", vi: "Phần của người tạo" },
   "Public display": { id: "Tampilan publik", tl: "Pampublikong pagpapakita", vi: "Hiển thị công khai" },
   "Public: wallet, @username and permitted photo. You can choose anonymous below.": {
