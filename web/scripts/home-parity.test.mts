@@ -11,7 +11,8 @@ test("home copy covers four languages and keeps currency separate from language"
     assert.equal(homeCopy(undefined, phrase), phrase);
     for (const locale of LOCALES.filter(locale => locale !== "en")) {
       assert.ok(homeCopy(locale, phrase).trim());
-      assert.notEqual(homeCopy(locale, phrase), phrase, `${locale}: ${phrase}`);
+      if (phrase === "TESTNET") assert.equal(homeCopy(locale, phrase), phrase, "network name stays unchanged across locales");
+      else assert.notEqual(homeCopy(locale, phrase), phrase, `${locale}: ${phrase}`);
     }
   }
   assert.equal(homeCopy("id", "TESTNET BALANCE"), "SALDO TESTNET");
