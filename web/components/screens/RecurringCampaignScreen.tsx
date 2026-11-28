@@ -7,9 +7,9 @@ import SubmissionStatusPanel from "@/components/ui/SubmissionStatusPanel";
 import { useT } from "@/components/I18nProvider";
 import { useUnresolvedSubmission } from "@/lib/ui/useUnresolvedSubmission";
 import { useGoBack } from "@/lib/ui/useGoBack";
-import { PREVIEW_RECIPIENT, PREVIEW_WALLET } from "@/lib/local-preview";
 import { isLocalPreview } from "@/lib/local-preview";
 import { RECURRING_CAMPAIGN_TEXT } from "@/lib/i18n/recurring-campaign";
+import { RECURRING_CAMPAIGN_PREVIEW_NOW, recurringCampaignFixture, recurringCampaignFixtureName, type RecurringCampaignFixture } from "@/lib/recurring-campaign-preview";
 import { formatStroops } from "@/lib/format-stroops";
 import { parseXlmStroops, recurringProofFileHash, recurringStageRefundable, type RecurringCampaign } from "@/lib/recurring-campaign";
 import {
@@ -50,42 +50,30 @@ const PROOF_COPY = {
   vi: { file: "Tệp bằng chứng cục bộ (chỉ tính mã băm)", hashing: "Đang tính SHA-256 trên thiết bị này…", ready: (name: string) => `Đã tính mã băm cho ${name}. Tệp chưa được tải lên. Hãy tải chính tệp này lên địa chỉ HTTPS công khai rồi dán URL bên dưới.`, failed: "Không thể tính mã băm. Hãy chọn tệp bằng chứng không rỗng và tối đa 10 MB.", publicUrl: "Liên kết HTTPS này là công khai và được ghi vào hợp đồng Testnet. Không đưa thông tin riêng tư vào đây." },
 } as const;
 
-const PREVIEW_NOW = 1_800_000_000n;
-const PREVIEW_BENEFICIARY = "GAXPCCZD3AKYIRCI5CCX2TRIMVGQ45XEUEZPF5RBUZHYFRRZGN64ZNO3";
-const LOCAL_CAMPAIGN: RecurringCampaign = {
-  id: "1", title: "Sample recurring relief campaign", state: "Funding",
-  config: { creator: PREVIEW_WALLET.address, beneficiary: PREVIEW_BENEFICIARY, token: "Testnet XLM", creator_cut_bps: 500,
-    funding_deadline: String(PREVIEW_NOW + 86_400n), review_deadline: String(PREVIEW_NOW + 500_000n),
-    approvers: [PREVIEW_WALLET.address, PREVIEW_RECIPIENT, PREVIEW_BENEFICIARY] },
-  total: "5000000", escrow: "5000000", current_stage: 0, proofHash: null, proofUrl: "", approvals: [],
-  stages: [
-    { amount: "10000000", due_date: String(PREVIEW_NOW + 86_400n), funded: "5000000", released: false },
-    { amount: "20000000", due_date: String(PREVIEW_NOW + 172_800n), funded: "0", released: false },
-  ], contribution: { amount: "0", stages: ["0", "0"], refunded: false },
-};
-
 const field: React.CSSProperties = { display: "grid", gap: 6, fontSize: 13, fontWeight: 650 };
 const input: React.CSSProperties = { width: "100%", border: `1px solid ${T.hairline}`, borderRadius: 10, padding: 11, font: "inherit", boxSizing: "border-box", background: "white" };
 const grid: React.CSSProperties = { display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 230px), 1fr))" };
 const panel: React.CSSProperties = { border: `1px solid ${T.hairline}`, borderRadius: 14, padding: 16, display: "grid", gap: 12, background: "white" };
 const small: React.CSSProperties = { color: T.ink60, fontSize: 13, lineHeight: 1.5 };
 
-function previewState(id = ""): ViewState {
-  return { ok: true, contractId: "Local fixture", viewer: PREVIEW_WALLET.address,
-    now: PREVIEW_NOW.toString(), campaigns: id ? [LOCAL_CAMPAIGN].filter(campaign => campaign.id === id.replace(/^r/, "")) : [LOCAL_CAMPAIGN] };
+function previewState(id = "", fixture: RecurringCampaignFixture = "funding"): ViewState {
+  const campaign = recurringCampaignFixture(fixture);
+  return { ok: true, contractId: "Local fixture", viewer: campaign.config.creator,
+    now: RECURRING_CAMPAIGN_PREVIEW_NOW.toString(), campaigns: id ? [campaign].filter(item => item.id === id.replace(/^r/, "")) : [campaign] };
 }
 
 function timestamp(value: string, locale: string) {
   return new Date(Number(value) * 1000).toLocaleString(locale, { timeZone: "UTC", dateStyle: "medium", timeStyle: "short" }) + " UTC";
 }
 
-export default function RecurringCampaignScreen({ id = "", standaloneCreate = false }: { id?: string; standaloneCreate?: boolean }) {
+export default function RecurringCampaignScreen({ id = "", fixture, standaloneCreate = false }: { id?: string; fixture?: string; standaloneCreate?: boolean }) {
   const { locale } = useT();
   const copy = WORDS[locale] ?? WORDS.en;
   const text = RECURRING_CAMPAIGN_TEXT[locale] ?? RECURRING_CAMPAIGN_TEXT.en;
+  const previewFixture = recurringCampaignFixtureName(fixture);
   const goBack = useGoBack(id || standaloneCreate ? "/campaigns?mode=recurring" : "/create");
   const submission = useUnresolvedSubmission("campaign:recurring-v5");
-  const [view, setView] = useState<ViewState | null>(isLocalPreview ? previewState(id) : null);
+  const [view, setView] = useState<ViewState | null>(isLocalPreview ? previewState(id, previewFixture) : null);
   const [busy, setBusy] = useState(false);
   const locked = busy || submission.locked;
   const [error, setError] = useState("");
@@ -110,10 +98,10 @@ export default function RecurringCampaignScreen({ id = "", standaloneCreate = fa
   const proofFileRevision = useRef(0);
 
   const refresh = useCallback(async () => {
-    if (isLocalPreview) { setView(previewState(id)); return; }
+    if (isLocalPreview) { setView(previewState(id, previewFixture)); return; }
     try { setView(await recurringCampaignState(id, "0")); }
     catch { setView({ ok: false, error: text.readFailed }); }
-  }, [id, text]);
+  }, [id, previewFixture, text]);
   useEffect(() => {
     if (isLocalPreview) return;
     const first = setTimeout(() => void refresh(), 0);
@@ -197,7 +185,7 @@ export default function RecurringCampaignScreen({ id = "", standaloneCreate = fa
   const campaigns = view?.ok ? view.campaigns : [];
   const campaign = id ? campaigns[0] : null;
   const viewer = view?.ok ? view.viewer : null;
-  const now = view?.ok ? BigInt(view.now) : PREVIEW_NOW;
+  const now = view?.ok ? BigInt(view.now) : RECURRING_CAMPAIGN_PREVIEW_NOW;
   const activeStage = campaign?.stages[campaign.current_stage];
   const refundable = campaign?.contribution ? recurringStageRefundable(campaign.contribution, campaign.current_stage) : 0n;
   const fundingOpen = !!campaign && campaign.state === "Funding" && now < BigInt(campaign.config.funding_deadline);
@@ -272,7 +260,7 @@ export default function RecurringCampaignScreen({ id = "", standaloneCreate = fa
       const status = item.state === "Funding" ? copy.funding : item.state === "Scheduled" ? copy.scheduled
         : item.state === "PendingProof" ? copy.proofReview : item.state === "Refundable" ? copy.refundable
           : item.state === "Released" ? copy.complete : copy.closed;
-      return <Link key={item.id} href={`/campaigns?id=r${item.id}`} style={{ ...panel, marginTop: 12, color: T.ink, textDecoration: "none" }}>
+      return <Link key={item.id} href={`/campaigns?id=r${item.id}${isLocalPreview ? `&fixture=${previewFixture}` : ""}`} style={{ ...panel, marginTop: 12, color: T.ink, textDecoration: "none" }}>
         <span style={{ color: T.ink60, fontSize: 12 }}>{text.campaignNumber.replace("{id}", item.id)}</span><strong style={{ fontSize: 18 }}>{item.title}</strong>
         <span>{status} · {item.current_stage < item.stages.length ? text.stagePosition.replace("{stage}", copy.stage).replace("{current}", String(item.current_stage + 1)).replace("{total}", String(item.stages.length)) : copy.complete}</span>
         <span style={small}>{text.stageSummary.replace("{count}", String(item.stages.length)).replace("{stages}", copy.stages.toLowerCase()).replace("{amount}", `${formatStroops(item.total)} Testnet XLM`)}</span>

@@ -8,8 +8,41 @@ import {
   recurringCampaignPreviewSetup,
 } from "../lib/prototype-recurring-preview.ts";
 import { RECURRING_CAMPAIGN_TEXT } from "../lib/i18n/recurring-campaign.ts";
+import { recurringStageRefundable } from "../lib/recurring-campaign.ts";
 
 const today = new Date(2026, 9, 6, 12);
+
+function loadRecurringPreviewFixtures() {
+  const source = readFileSync(new URL("../lib/recurring-campaign-preview.ts", import.meta.url), "utf8");
+  const code = ts.transpileModule(source, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  const transpiledModule = { exports: {} as Record<string, unknown> };
+  runInNewContext(code, {
+    exports: transpiledModule.exports,
+    module: transpiledModule,
+    require: (name: string) => {
+      if (name !== "./local-preview") throw new Error(`Unexpected recurring fixture dependency: ${name}`);
+      return {
+        PREVIEW_WALLET: { address: "GAKZLTZFGSSM372XUKW2ZIJ5GSHVVIW5BYZIKIXRW2BW4MM6TUI5536Y" },
+        PREVIEW_RECIPIENT: "GAVWJIZ45MHV2KWBHNBBB7YHU5CPTIDD3YONC4ZNP7IGE6Z3C777OV4H",
+      };
+    },
+  });
+  return transpiledModule.exports as {
+    RECURRING_CAMPAIGN_FIXTURES: readonly string[];
+    recurringCampaignFixture(value: unknown): {
+      id: string;
+      state: string;
+      total: string;
+      escrow: string;
+      current_stage: number;
+      config: { approvers: string[] };
+      stages: { amount: string; due_date: string; funded: string; released: boolean }[];
+      contribution: { amount: string; stages: string[]; refunded: boolean } | null;
+    };
+  };
+}
 
 test("recurring preview fixture has a balanced, ordered three-stage example schedule", () => {
   const setup = recurringCampaignPreviewSetup("?kind=recurring", today);
@@ -66,6 +99,33 @@ test("the recurring Testnet flow keeps production and preview copy localized", (
     "Testnet transaction confirmed",
     "This review expires in two minutes.",
   ]) assert.equal(source.includes(englishLeak), false, `raw copy leaked into the screen: ${englishLeak}`);
+});
+
+test("local D5 fixtures cover contract states without enabling Testnet actions", () => {
+  const { RECURRING_CAMPAIGN_FIXTURES, recurringCampaignFixture } = loadRecurringPreviewFixtures();
+  const expected = ["Funding", "Scheduled", "PendingProof", "PendingProof", "Refundable", "Released", "Closed"];
+  for (const [index, fixture] of RECURRING_CAMPAIGN_FIXTURES.entries()) {
+    const campaign = recurringCampaignFixture(fixture);
+    assert.equal(campaign.state, expected[index]);
+    assert.equal(campaign.id, String(index + 1));
+    assert.equal(campaign.stages.reduce((sum, stage) => sum + BigInt(stage.funded), 0n), BigInt(campaign.total));
+    assert.ok(campaign.stages.every((stage, stageIndex, stages) => stageIndex === 0 || BigInt(stage.due_date) > BigInt(stages[stageIndex - 1].due_date)));
+    assert.equal(new Set(campaign.config.approvers).size, 3);
+  }
+
+  const refundable = recurringCampaignFixture("refundable");
+  assert.equal(refundable.current_stage, 1);
+  assert.equal(recurringStageRefundable(refundable.contribution!, refundable.current_stage), 2_000_000n);
+  const released = recurringCampaignFixture("released");
+  assert.equal(released.escrow, "0");
+  assert.ok(released.stages.every(stage => stage.released));
+
+  const screen = readFileSync(new URL("../components/screens/RecurringCampaignScreen.tsx", import.meta.url), "utf8");
+  const navigator = readFileSync(new URL("../components/PrototypePreviewAside.tsx", import.meta.url), "utf8");
+  const route = readFileSync(new URL("../app/campaigns/page.tsx", import.meta.url), "utf8");
+  assert.match(screen, /if \(locked \|\| dialog \|\| isLocalPreview\) return;/);
+  assert.match(route, /fixture=\{fixture\}/);
+  for (const fixture of RECURRING_CAMPAIGN_FIXTURES) assert.ok(navigator.includes(`fixture=${fixture}`));
 });
 
 type PreviewCause = {
