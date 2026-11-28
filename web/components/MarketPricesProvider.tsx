@@ -7,7 +7,7 @@ import { QUOTE_REFRESH_MS, validateMarketPrices, type MarketPriceResult } from "
 type MarketPricesContextValue = {
   prices: MarketPriceResult;
   loading: boolean;
-  refresh: () => Promise<void>;
+  refresh: (forceRefresh?: boolean) => Promise<void>;
 };
 const MarketPricesContext = createContext<MarketPricesContextValue | null>(null);
 const unavailable = (): MarketPriceResult => ({ status: "unavailable", source: "CoinGecko", reason: isLocalPreview ? "preview" : "provider-unavailable" });
@@ -31,7 +31,7 @@ export function MarketPricesProvider({ children }: { children: React.ReactNode }
     }
   }, []);
 
-  const refresh = useCallback((): Promise<void> => {
+  const refresh = useCallback((forceRefresh = false): Promise<void> => {
     if (isLocalPreview || !mounted.current) return Promise.resolve();
     if (inFlight.current) return inFlight.current;
     const controller = new AbortController();
@@ -42,7 +42,7 @@ export function MarketPricesProvider({ children }: { children: React.ReactNode }
       try {
         // Keep Preview protection cookies on this same-origin app route. The
         // CoinGecko key and upstream provider request remain server-only.
-        const response = await fetch("/api/market-prices", { signal: controller.signal, cache: "no-store", credentials: "same-origin" });
+        const response = await fetch(forceRefresh ? "/api/market-prices?refresh=1" : "/api/market-prices", { signal: controller.signal, cache: "no-store", credentials: "same-origin" });
         if (!response.ok) throw new Error("Market quote unavailable");
         const incoming = validateMarketPrices(await response.json(), Date.now());
         if (incoming.status === "unavailable") {

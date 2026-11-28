@@ -6,11 +6,13 @@ import {
 } from "@/lib/market-prices";
 
 const REQUEST_TIMEOUT_MS = 4_000;
+const MANUAL_RETRY_MIN_INTERVAL_MS = 10_000;
 const MAX_RESPONSE_BYTES = 16_384;
 const PRICE_URL = "https://api.coingecko.com/api/v3/simple/price?ids=stellar%2Cusd-coin&vs_currencies=usd%2Cphp%2Cidr%2Cvnd&include_last_updated_at=true&precision=full";
 let configuredKey = "";
 let cached: AvailableMarketPrices | null = null;
 let refreshAfter = 0;
+let lastManualRefreshAt = 0;
 let inFlight: Promise<MarketPriceResult> | null = null;
 
 function unavailable(reason: "not-configured" | "provider-unavailable" | "preview"): MarketPriceResult {
@@ -36,18 +38,21 @@ function lastKnown(nowMs: number, failed = false): MarketPriceResult {
 }
 
 /** One server-only keyed request shared by concurrent callers in this instance. */
-export async function getMarketPrices(): Promise<MarketPriceResult> {
+export async function getMarketPrices(options: { forceRefresh?: boolean } = {}): Promise<MarketPriceResult> {
   if (isLocalPreview) return unavailable("preview");
   const key = process.env.COINGECKO_DEMO_API_KEY?.trim();
   if (!key) return unavailable("not-configured");
   // A configuration change cannot keep a previous provider credential/cache.
   if (configuredKey !== key) {
-    configuredKey = key; cached = null; refreshAfter = 0; inFlight = null;
+    configuredKey = key; cached = null; refreshAfter = 0; lastManualRefreshAt = 0; inFlight = null;
   }
   const now = Date.now();
   if (inFlight) return inFlight;
-  if (now < refreshAfter) return lastKnown(now);
-  const task = requestPrices(key);
+  if (options.forceRefresh) {
+    if (now - lastManualRefreshAt < MANUAL_RETRY_MIN_INTERVAL_MS) return lastKnown(now);
+    lastManualRefreshAt = now;
+  } else if (now < refreshAfter) return lastKnown(now);
+  const task = requestPrices(key, options.forceRefresh === true);
   inFlight = task;
   try { return await task; }
   finally { if (inFlight === task) inFlight = null; }
@@ -99,16 +104,16 @@ function normalizedProviderPrices(body: unknown, nowMs: number) {
   return { result, expired };
 }
 
-async function validatedProviderPrices(key: string, signal: AbortSignal): Promise<AvailableMarketPrices> {
-  let normalized = normalizedProviderPrices(await providerPrices(key, signal), Date.now());
-  if (normalized.result.status === "unavailable" && normalized.expired) {
+async function validatedProviderPrices(key: string, signal: AbortSignal, forceRefresh: boolean): Promise<AvailableMarketPrices> {
+  let normalized = normalizedProviderPrices(await providerPrices(key, signal, forceRefresh), Date.now());
+  if (!forceRefresh && normalized.result.status === "unavailable" && normalized.expired) {
     normalized = normalizedProviderPrices(await providerPrices(key, signal, true), Date.now());
   }
   if (normalized.result.status === "unavailable") throw new Error("Quote timestamps are unavailable");
   return normalized.result;
 }
 
-async function requestPrices(key: string): Promise<MarketPriceResult> {
+async function requestPrices(key: string, forceRefresh = false): Promise<MarketPriceResult> {
   const controller = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
   const deadline = new Promise<never>((_resolve, reject) => {
@@ -120,7 +125,7 @@ async function requestPrices(key: string): Promise<MarketPriceResult> {
   try {
     // The caller's entire read, including expired-cache recovery, is bounded.
     // Next's internal background cache revalidation has its own lifetime.
-    const result = await Promise.race([validatedProviderPrices(key, controller.signal), deadline]);
+    const result = await Promise.race([validatedProviderPrices(key, controller.signal, forceRefresh), deadline]);
     if (configuredKey === key) cached = result;
     return result;
   } catch {
