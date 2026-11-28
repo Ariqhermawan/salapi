@@ -33,11 +33,20 @@
 .search input::-webkit-search-cancel-button { display: none; }
 .search button { display: grid; flex: none; place-items: center; width: 28px; height: 28px; border: 0; background: transparent; color: #858585; }
 
-.filters { min-width: 0; margin: -1px -16px 0; overflow: hidden; }
+.filters { position: relative; z-index: 6; min-width: 0; margin: -1px -16px 0; overflow: visible; }
 .chips { display: flex; align-items: center; gap: 7px; overflow-x: auto; padding: 0 16px 2px; scrollbar-width: none; }
 .chips::-webkit-scrollbar { display: none; }
-.statusPicker { position: relative; display: inline-flex; flex: none; align-items: center; gap: 5px; height: 36px; padding: 0 9px 0 12px; border: 1px solid #dddddd; border-radius: 10px; background: #fff; color: #252525; font-size: 14px; line-height: 20px; }
-.statusPicker select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.statusPicker { display: inline-flex; flex: none; align-items: center; gap: 8px; height: 40px; max-width: 190px; padding: 0 13px; border: 1px solid #e5e7eb; border-radius: 13px; background: #fff; color: #181818; box-shadow: 0 1px 2px #1024480a; font: 500 15px/20px var(--font-geist-sans), Outfit, system-ui, sans-serif; cursor: pointer; }
+.statusPicker:hover { border-color: #cbd5e1; background: #fff; }
+.statusPicker:focus-visible, .statusMenuOption:focus-visible { outline: 3px solid #335cff55; outline-offset: 2px; }
+.statusPickerLabel { max-width: 145px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.statusPicker > svg { flex: none; transition: transform 120ms ease; }
+.statusCaretOpen { transform: rotate(180deg); }
+.statusMenu { position: absolute; z-index: 20; top: 47px; left: 16px; display: grid; width: min(292px, calc(100vw - 32px)); max-height: min(390px, calc(100dvh - 190px)); overflow-y: auto; padding: 8px 0; border: 1px solid #e8e8e8; border-radius: 20px; background: #fff; color: #171717; box-shadow: 0 12px 28px #101d3524, 0 2px 6px #101d3512; }
+.statusMenuOption { display: flex; min-height: 52px; align-items: center; justify-content: space-between; gap: 16px; padding: 0 18px 0 20px; border: 0; background: #fff; color: #171717; text-align: left; font: 500 16px/22px var(--font-geist-sans), Outfit, system-ui, sans-serif; cursor: pointer; }
+.statusMenuOption:hover { background: #f7f8fb; }
+.statusMenuOption[aria-checked="true"] { font-weight: 600; }
+.statusMenuOption > svg { flex: none; color: #5d626b; }
 .filterRule { width: 1px; height: 20px; flex: none; margin: 0 2px; background: #dedede; }
 .categoryFilter { display: inline-flex; flex: none; align-items: center; gap: 4px; height: 36px; padding: 0 12px; border: 1px solid transparent; border-radius: 10px; background: #335cff19; color: #3158d6; font: 500 16px/24px var(--font-geist-sans), Outfit, system-ui, sans-serif; white-space: nowrap; }
 .categoryFilter img { width: 24px; height: 24px; object-fit: contain; }
@@ -62,7 +71,7 @@
 .categoryPill[data-category="care-meals"] { background: #cf9200; }
 .categoryPill[data-category="volunteer-action"] { background: #1596cd; }
 .categoryPill[data-category="animal-care"] { background: #1fc16b; }
-.status { display: inline-flex; flex: none; align-items: center; min-height: 22px; padding: 0 9px; border-radius: 999px; background: #6b6b6bd9; color: #fff; box-shadow: 0 1px 4px #0003; font-size: 10px; font-weight: 600; line-height: 16px; white-space: nowrap; }
+.status { display: inline-flex; max-width: calc(100% - 16px); flex: none; align-items: center; overflow: hidden; min-height: 22px; padding: 0 9px; border-radius: 999px; background: #6b6b6bd9; color: #fff; box-shadow: 0 1px 4px #0003; font-size: 10px; font-weight: 600; line-height: 16px; text-overflow: ellipsis; white-space: nowrap; }
 .status_funding { background: #335cff; }
 .status_released { background: #1daf61; }
 .status_review { background: #335cff; }
@@ -117,6 +126,7 @@
   .header { margin-inline: -12px; padding-inline: 14px; }
   .filters { margin-inline: -12px; }
   .chips { padding-inline: 12px; }
+  .statusMenu { left: 12px; }
   .featuredTitle { font-size: 15px; }
   .smallImage { height: 88px; }
   .grid[data-layout="list"] .smallCard { grid-template-columns: minmax(105px, 35%) minmax(0, 1fr); }

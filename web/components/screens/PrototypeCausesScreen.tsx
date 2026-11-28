@@ -2,9 +2,12 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { BookmarkSimple, CaretDown, GridFour, ListBullets, MagnifyingGlass, X } from "@phosphor-icons/react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { BookmarkSimple, CaretDown, Check, GridFour, ListBullets, MagnifyingGlass, X } from "@phosphor-icons/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useT } from "@/components/I18nProvider";
+import { d4CampaignStatusFilterLabel } from "@/lib/campaign-discovery";
+import type { Locale } from "@/lib/i18n/config";
 import { useGoBack } from "@/lib/ui/useGoBack";
 import { PROTOTYPE_CAUSES, PROTOTYPE_CATEGORY_ASSETS, type PrototypeCause } from "@/lib/prototype-causes";
 import styles from "./PrototypeCausesScreen.module.css";
@@ -30,8 +33,13 @@ function Progress({ cause }: { cause: PrototypeCause }) {
   </span>;
 }
 
+function statusLabel(status: PrototypeCause["status"], locale: Locale) {
+  return status === "Paused" ? status : d4CampaignStatusFilterLabel(status, locale);
+}
+
 function Status({ cause }: { cause: PrototypeCause }) {
-  return <span className={`${styles.status} ${styles[`status_${statusTone(cause.status)}`]}`}>{cause.status}</span>;
+  const { locale } = useT();
+  return <span className={`${styles.status} ${styles[`status_${statusTone(cause.status)}`]}`}>{statusLabel(cause.status, locale)}</span>;
 }
 
 function SaveButton({ cause, saved, onClick }: { cause: PrototypeCause; saved: boolean; onClick: () => void }) {
@@ -92,6 +100,7 @@ function SmallCard({ cause, list = false }: { cause: PrototypeCause; list?: bool
 }
 
 export default function PrototypeCausesScreen({ initialSavedOnly = false }: { initialSavedOnly?: boolean }) {
+  const { locale } = useT();
   const params = useSearchParams();
   const pathname = usePathname() ?? "/campaigns";
   const router = useRouter();
@@ -104,10 +113,17 @@ export default function PrototypeCausesScreen({ initialSavedOnly = false }: { in
   const savedOnly = initialSavedOnly || params.get("saved") === "1";
   const [saved, setSaved] = useState<string[]>([]);
   const [saveError, setSaveError] = useState(false);
+  const [statusMenuOpen, setStatusMenuOpen] = useState(false);
+  const statusTriggerRef = useRef<HTMLButtonElement>(null);
+  const statusMenuRef = useRef<HTMLDivElement>(null);
+  const statusOptionRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   const updateParams = useCallback((updates: Record<string, string | null>) => {
     const next = new URLSearchParams(params.toString());
-    for (const [key, value] of Object.entries(updates)) value ? next.set(key, value) : next.delete(key);
+    for (const [key, value] of Object.entries(updates)) {
+      if (value) next.set(key, value);
+      else next.delete(key);
+    }
     const queryString = next.toString();
     router.replace(`${pathname}${queryString ? `?${queryString}` : ""}`, { scroll: false });
   }, [params, pathname, router]);
@@ -125,6 +141,9 @@ export default function PrototypeCausesScreen({ initialSavedOnly = false }: { in
   const categories = useMemo(() => [...new Set(PROTOTYPE_CAUSES.flatMap(cause => [cause.category, ...(cause.alsoIn ?? [])]))], []);
   const statuses = useMemo(() => ["Funding", "Awaiting proof", "In review", "Released"]
     .filter(status => PROTOTYPE_CAUSES.some(cause => (cause.status === "Paused" ? "Funding" : cause.status) === status)), []);
+  const statusOptions = [...new Set([ALL, ...statuses, ...(selectedStatus !== ALL ? [selectedStatus] : [])])];
+  const statusTriggerLabel = selectedStatus === ALL ? "Status" : d4CampaignStatusFilterLabel(selectedStatus, locale);
+  const statusOptionLabel = (status: string) => status === ALL ? d4CampaignStatusFilterLabel(ALL, locale) : d4CampaignStatusFilterLabel(status, locale);
   const validCategory = selectedCategory === ALL || categories.some(item => categoryId(item) === selectedCategory) ? selectedCategory : ALL;
   const matching = PROTOTYPE_CAUSES.filter(cause => {
     const searchable = `${cause.title} ${cause.organizer} ${cause.place} ${cause.category} ${(cause.alsoIn ?? []).join(" ")} ${cause.status}`.toLocaleLowerCase();
@@ -138,6 +157,46 @@ export default function PrototypeCausesScreen({ initialSavedOnly = false }: { in
   const featured = !savedOnly ? matching.find(cause => cause.id === "bantayan") : undefined;
   const cards = matching.filter(cause => cause.id !== featured?.id);
 
+  useEffect(() => {
+    if (!statusMenuOpen) return;
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (!statusTriggerRef.current?.contains(target) && !statusMenuRef.current?.contains(target)) setStatusMenuOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      setStatusMenuOpen(false);
+      statusTriggerRef.current?.focus();
+    };
+    document.addEventListener("pointerdown", closeOnOutsidePointer);
+    document.addEventListener("keydown", closeOnEscape);
+    statusOptionRefs.current.find(option => option?.getAttribute("aria-checked") === "true")?.focus();
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsidePointer);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [statusMenuOpen]);
+
+  const chooseStatus = (status: string) => {
+    updateParams({ s: status === ALL ? null : status });
+    setStatusMenuOpen(false);
+    statusTriggerRef.current?.focus();
+  };
+
+  const onStatusMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const currentIndex = statusOptions.findIndex(option => option === selectedStatus);
+    let nextIndex: number | null = null;
+    if (event.key === "ArrowDown") nextIndex = (currentIndex + 1) % statusOptions.length;
+    if (event.key === "ArrowUp") nextIndex = (currentIndex - 1 + statusOptions.length) % statusOptions.length;
+    if (event.key === "Home") nextIndex = 0;
+    if (event.key === "End") nextIndex = statusOptions.length - 1;
+    if (nextIndex !== null) {
+      event.preventDefault();
+      statusOptionRefs.current[nextIndex]?.focus();
+    }
+  };
+
   function toggleSaved(cause: PrototypeCause) {
     const next = saved.includes(cause.id) ? saved.filter(id => id !== cause.id) : [cause.id, ...saved];
     try {
@@ -148,8 +207,6 @@ export default function PrototypeCausesScreen({ initialSavedOnly = false }: { in
   }
 
   const title = savedOnly ? "Saved causes" : "Causes";
-  const selectedStatusLabel = selectedStatus === ALL ? "Status" : selectedStatus;
-
   return <div className={styles.screen}>
     <header className={styles.header}>
       <button type="button" className={styles.back} onClick={savedOnly ? backToYou : backHome} aria-label="Back">‹</button>
@@ -165,14 +222,12 @@ export default function PrototypeCausesScreen({ initialSavedOnly = false }: { in
 
     {!savedOnly && <div className={styles.filters}>
       <div className={styles.chips} role="group" aria-label="Filters">
-        <label className={styles.statusPicker}>
-          <span>{selectedStatusLabel}</span>
-          <select aria-label="Status" value={selectedStatus} onChange={event => updateParams({ s: event.target.value === ALL ? null : event.target.value })}>
-            <option value={ALL}>Status</option>
-            {statuses.map(status => <option key={status} value={status}>{status}</option>)}
-          </select>
-          <CaretDown size={16} aria-hidden="true" />
-        </label>
+        <button ref={statusTriggerRef} type="button" className={styles.statusPicker}
+          aria-label={`Status: ${statusTriggerLabel}`} aria-haspopup="menu" aria-expanded={statusMenuOpen}
+          aria-controls="prototype-cause-status-menu" onClick={() => setStatusMenuOpen(open => !open)}>
+          <span className={styles.statusPickerLabel}>{statusTriggerLabel}</span>
+          <CaretDown size={16} aria-hidden="true" className={statusMenuOpen ? styles.statusCaretOpen : undefined} />
+        </button>
         <span className={styles.filterRule} aria-hidden="true" />
         <button type="button" className={styles.categoryFilter} aria-pressed={validCategory === ALL}
           onClick={() => updateParams({ c: null })}>All</button>
@@ -181,6 +236,15 @@ export default function PrototypeCausesScreen({ initialSavedOnly = false }: { in
           {PROTOTYPE_CATEGORY_ASSETS[category] ? <Image src={PROTOTYPE_CATEGORY_ASSETS[category]} alt="" width={24} height={24} /> : null}{category}
         </button>)}
       </div>
+      {statusMenuOpen && <div ref={statusMenuRef} id="prototype-cause-status-menu" className={styles.statusMenu}
+        role="menu" aria-label="Status" onKeyDown={onStatusMenuKeyDown}>
+        {statusOptions.map((status, index) => <button key={status} ref={node => { statusOptionRefs.current[index] = node; }}
+          type="button" role="menuitemradio" aria-checked={selectedStatus === status} className={styles.statusMenuOption}
+          onClick={() => chooseStatus(status)}>
+          <span>{statusOptionLabel(status)}</span>
+          {selectedStatus === status && <Check size={20} weight="bold" aria-hidden="true" />}
+        </button>)}
+      </div>}
     </div>}
 
     {saveError && <p className={styles.error} role="status">Saved causes could not be updated in this browser.</p>}
