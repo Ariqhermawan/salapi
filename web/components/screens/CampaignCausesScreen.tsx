@@ -135,7 +135,10 @@ function LiveCampaignCausesScreen({ initialSavedOnly = false }: { initialSavedOn
   const backToYou = useGoBack("/settings");
   const query = params.get("q") ?? "";
   const campaignPageSnapshot = useNavigationViewState(TESTNET_CAMPAIGNS_VIEW);
-  const loadedCampaignPages = useRef(parseLoadedCampaignPages(campaignPageSnapshot));
+  const initialCampaignPageCount = parseLoadedCampaignPages(campaignPageSnapshot);
+  const loadedCampaignPages = useRef(initialCampaignPageCount);
+  const [loadedCampaignPageCount, setLoadedCampaignPageCount] = useState(initialCampaignPageCount);
+  const [restoreCampaignPageCount, setRestoreCampaignPageCount] = useState(0);
   const selectedCategory = params.get("c") ?? ALL;
   const selectedStatus = params.get("s") ?? ALL;
   const layout: D4CampaignLayout = params.get("view") === "list" ? "list" : "grid";
@@ -174,11 +177,13 @@ function LiveCampaignCausesScreen({ initialSavedOnly = false }: { initialSavedOn
       // Read from the active history entry before the first await or reset.
       // On Back, this component can mount before its snapshot hook rerenders.
       const pagesToRestore = parseLoadedCampaignPages(getNavigationViewStateSnapshot(TESTNET_CAMPAIGNS_VIEW));
+      setRestoreCampaignPageCount(pagesToRestore);
       const first = await campaignState("", "0");
       if (!first.ok) throw new Error(first.error);
       let accumulated = first;
       let cursor = first.campaigns.length === 10 ? first.campaigns.at(-1)!.id : "0";
       loadedCampaignPages.current = 0;
+      setLoadedCampaignPageCount(0);
       setState(first);
       setNextCursor(cursor);
       writeNavigationViewState(TESTNET_CAMPAIGNS_VIEW, { pages: 0 });
@@ -189,6 +194,7 @@ function LiveCampaignCausesScreen({ initialSavedOnly = false }: { initialSavedOn
         accumulated = appendCampaignPage(accumulated, older);
         cursor = older.campaigns.length === 10 ? older.campaigns.at(-1)!.id : "0";
         loadedCampaignPages.current = page + 1;
+        setLoadedCampaignPageCount(page + 1);
         setState(accumulated);
         setNextCursor(cursor);
         writeNavigationViewState(TESTNET_CAMPAIGNS_VIEW, { pages: page + 1 });
@@ -255,6 +261,7 @@ function LiveCampaignCausesScreen({ initialSavedOnly = false }: { initialSavedOn
       setNextCursor(cursor);
       const pages = Math.min(MAX_RESTORABLE_CAMPAIGN_PAGES, loadedCampaignPages.current + 1);
       loadedCampaignPages.current = pages;
+      setLoadedCampaignPageCount(pages);
       writeNavigationViewState(TESTNET_CAMPAIGNS_VIEW, { pages });
     } catch { setOlderError(true); }
     finally { setOlderLoading(false); }
@@ -272,6 +279,8 @@ function LiveCampaignCausesScreen({ initialSavedOnly = false }: { initialSavedOn
   const statusCampaigns = filterD4Campaigns(campaigns, statusFilter === ALL ? validStatus : statusFilter, query, state?.ok ? state.viewer : null, now);
   const visible = statusCampaigns.filter(campaign => !savedOnly || saved.includes(campaign.id))
     .filter(campaign => validCategory === ALL || categoryFor(campaign, circleLinks) === validCategory);
+  const campaignPagesResolved = loadedCampaignPageCount >= restoreCampaignPageCount || olderError
+    || state?.ok === false || !loading && nextCursor === "0";
   const featuredCampaign = campaigns.find(campaign => campaign.state === "Funding" && now < BigInt(campaign.config.funding_deadline));
   const featured = !savedOnly && featuredCampaign && visible.some(campaign => campaign.id === featuredCampaign.id) ? featuredCampaign : undefined;
   const rest = visible.filter(campaign => campaign.id !== featured?.id);
@@ -312,7 +321,8 @@ function LiveCampaignCausesScreen({ initialSavedOnly = false }: { initialSavedOn
     featured={campaign.id === featured?.id} saved={saved.includes(campaign.id)} onSave={() => toggleSaved(campaign.id)} localPreview={isLocalPreview}
     saveDisabled={identity.status === "loading" || identity.status === "unavailable" || savedStatus === "loading" || savedMutation === campaign.id} />;
 
-  return <div className={styles.screen}>
+  return <div className={styles.screen}
+    data-testnet-campaign-list-ready={!loading && campaignPagesResolved ? "true" : "false"}>
     <header className={styles.header}>
       <button type="button" className={styles.back} onClick={savedOnly ? backToYou : backHome} aria-label={copy("Back")}>‹</button>
       <h1>{savedOnly ? copy("Saved causes") : mineOnly ? copy("Your causes") : copy("Causes")}</h1>

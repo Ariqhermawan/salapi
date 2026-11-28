@@ -13,8 +13,10 @@ class Surface extends EventTarget {
   scrollHeight = 2000;
   clientHeight = 700;
   firstElementChild = {};
+  campaignListReady = true;
   positions: number[] = [];
   scrollTo({ top }: { top: number }) { this.scrollTop = Math.min(top, this.scrollHeight - this.clientHeight); this.positions.push(top); }
+  querySelector(selector: string) { return selector === '[data-testnet-campaign-list-ready="true"]' && this.campaignListReady ? {} : null; }
 }
 class FakeDocument extends EventTarget {
   main = new Surface();
@@ -440,20 +442,21 @@ test("persisted registry is sanitized, unexpected account fields never get re-pe
   assert.equal(context.storage.get("salapi-navigation-v1")?.includes("SECRET"), false); stopSecond();
 });
 
-function scrollComponent() {
-  const context = fakeWindow();
+function scrollComponent(path = "/") {
+  const context = fakeWindow(path);
   const tracker = context.tracker();
   const frames = new Map<number, () => void>(), timers = new Map<number, () => void>();
   let sequence = 0, cursor = 0;
   type Effect = { dependencies: readonly unknown[]; callback: () => (() => void) | void; cleanup?: () => void };
   const hooks: unknown[] = [], scheduled: Effect[] = [];
   const observers: { active: boolean; callback: () => void }[] = [];
+  const mutations: { active: boolean; callback: () => void }[] = [];
   const exports: Record<string, unknown> = {};
   const code = ts.transpileModule(readFileSync(new URL("../components/AppScrollReset.tsx", import.meta.url), "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
   Object.assign(context.win, { setTimeout: (callback: () => void) => { const id = ++sequence; timers.set(id, callback); return id; } });
-  runInNewContext(code, { exports, document: context.document, window: context.win,
+  runInNewContext(code, { exports, document: context.document, window: context.win, URLSearchParams,
     requestAnimationFrame: (callback: () => void) => { const id = ++sequence; frames.set(id, callback); return id; },
     cancelAnimationFrame: (id: number) => frames.delete(id), clearTimeout: (id: number) => timers.delete(id),
     ResizeObserver: class {
@@ -462,8 +465,15 @@ function scrollComponent() {
       observe() { this.observation.active = true; }
       disconnect() { this.observation.active = false; }
     },
+    MutationObserver: class {
+      observation: { active: boolean; callback: () => void };
+      constructor(callback: () => void) { this.observation = { active: false, callback }; mutations.push(this.observation); }
+      observe() { this.observation.active = true; }
+      disconnect() { this.observation.active = false; }
+    },
     require(name: string) {
       if (name === "next/navigation") return { usePathname: () => context.win.location.pathname, useSearchParams: () => new URLSearchParams(context.win.location.search) };
+      if (name === "@/lib/local-preview") return { isLocalPreview: false };
       if (name === "@/lib/ui/app-navigation") return {
         commitAppNavigation: tracker.commit, getNavigationEntrySnapshot: tracker.entrySnapshot,
         installAppNavigation: tracker.start, subscribeNavigationViewState: tracker.subscribe,
@@ -480,10 +490,11 @@ function scrollComponent() {
       throw Error(`Unexpected scroll-reset dependency ${name}`);
     },
   });
-  return { ...context, tracker, frames, timers, observers,
+  return { ...context, tracker, frames, timers, observers, mutations,
     render() { cursor = 0; (exports.default as () => void)(); for (const effect of scheduled.splice(0)) effect.cleanup = effect.callback() ?? undefined; },
     unmount() { for (const hook of hooks) (hook as Effect | undefined)?.cleanup?.(); },
-    grow(height: number) { context.document.main.scrollHeight = height; for (const observer of observers) if (observer.active) observer.callback(); },
+    grow(height: number) { context.document.main.scrollHeight = height; for (const observer of observers) if (observer.active) observer.callback(); for (const observer of mutations) if (observer.active) observer.callback(); },
+    mutate(height: number) { context.document.main.scrollHeight = height; for (const observer of mutations) if (observer.active) observer.callback(); },
   };
 }
 
@@ -492,14 +503,41 @@ test("actual AppScrollReset tops new routes but restores POP scroll once content
   component.document.scroll(820);
   component.win.history.pushState(NEXT_STATE, "", "/circles"); component.render();
   assert.equal(component.document.main.positions.at(-1), 0);
-  component.win.history.go(-1); component.document.main.scrollHeight = 800; component.render();
-  assert.equal(component.document.main.positions.at(-1), 820);
-  assert.equal(component.document.main.scrollTop, 100, "loading content temporarily clamps height");
+  component.win.history.go(-1); component.document.main.scrollHeight = 800; component.document.main.scrollTop = 100; component.render();
+  assert.equal(component.document.main.positions.at(-1), 0, "a short loading screen must not consume the saved position");
+  assert.equal(component.document.main.scrollTop, 100, "the restoration waits for enough content height");
   assert.equal(component.observers.some((observer) => observer.active), true);
   component.grow(2000);
   assert.equal(component.document.main.scrollTop, 820);
   assert.equal(component.frames.size, 0, "successful restoration cancels the queued RAF");
   assert.equal(component.timers.size, 0);
+  component.unmount();
+});
+
+test("actual AppScrollReset restores after async list DOM mutations even without a wrapper resize", () => {
+  const component = scrollComponent(); component.render(); component.render(); component.document.scroll(760);
+  component.win.history.pushState(NEXT_STATE, "", "/campaigns?id=20"); component.render();
+  component.win.history.go(-1); component.document.main.scrollHeight = 700; component.document.main.scrollTop = 0; component.render();
+  assert.equal(component.document.main.scrollTop, 0);
+  component.mutate(1800);
+  assert.equal(component.document.main.scrollTop, 760);
+  assert.equal(component.mutations.some(observer => observer.active), false);
+  component.unmount();
+});
+
+test("actual AppScrollReset waits for Testnet campaign pages before restoring over a taller detail screen", () => {
+  const component = scrollComponent("/campaigns?mode=testnet");
+  component.render(); component.render(); component.document.scroll(2091);
+  component.win.history.pushState(NEXT_STATE, "", "/campaigns?id=20"); component.render();
+  component.document.main.scrollHeight = 4000;
+  component.win.history.go(-1);
+  component.document.main.scrollTop = 0;
+  component.document.main.campaignListReady = false;
+  component.render();
+  assert.equal(component.document.main.scrollTop, 0, "old detail height must not satisfy the list restoration plan");
+  component.document.main.campaignListReady = true;
+  component.mutate(4000);
+  assert.equal(component.document.main.scrollTop, 2091, "restore once the saved Testnet list is ready");
   component.unmount();
 });
 
