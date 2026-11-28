@@ -43,10 +43,14 @@ export default function PrototypeFeeStory({ onDone, slides = ORGANIZER_STORY, st
   ariaLabel?: string;
 }) {
   const track = useRef<HTMLDivElement>(null);
+  const returnFocus = useRef<HTMLElement | null>(null);
   const [at, setAt] = useState(start);
   const last = at === slides.length - 1;
   const left = (index: number) => (track.current?.children[index] as HTMLElement | undefined)?.offsetLeft ?? 0;
   useLayoutEffect(() => { if (track.current) track.current.scrollLeft = left(start); }, [start]);
+  useLayoutEffect(() => {
+    returnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  }, []);
   const go = (index: number) => {
     const target = Math.max(0, Math.min(slides.length - 1, index));
     track.current?.scrollTo({ left: left(target), behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
@@ -57,6 +61,10 @@ export default function PrototypeFeeStory({ onDone, slides = ORGANIZER_STORY, st
     let nearest = 0;
     for (let index = 1; index < element.children.length; index++) if (Math.abs(left(index) - element.scrollLeft) < Math.abs(left(nearest) - element.scrollLeft)) nearest = index;
     if (nearest !== at) setAt(nearest);
+  };
+  const finish = () => {
+    onDone();
+    window.requestAnimationFrame(() => returnFocus.current?.focus({ preventScroll: true }));
   };
 
   return <div className={styles.slider}>
@@ -69,7 +77,7 @@ export default function PrototypeFeeStory({ onDone, slides = ORGANIZER_STORY, st
     <div className={styles.dots} role="group" aria-label={`Slide ${at + 1} of ${slides.length}`}>
       {slides.map((slide, index) => <button key={slide.title} type="button" aria-label={`Slide ${index + 1}`} aria-current={index === at || undefined} onClick={() => go(index)} />)}
     </div>
-    <Btn onClick={() => last ? onDone() : go(at + 1)}>{last ? "Got it" : "Next"}</Btn>
+    <Btn onClick={() => last ? finish() : go(at + 1)}>{last ? "Got it" : "Next"}</Btn>
   </div>;
 }
 
