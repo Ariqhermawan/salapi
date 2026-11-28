@@ -77,7 +77,9 @@ test("legacy NGO directory alias opens the Disaster Vault NGO directory", async 
   await page.goto("/profiles?type=ngo", { waitUntil: "domcontentloaded", timeout: 45000 });
   await ready(page);
   await expect(page).toHaveURL(/\/vault\?cat=all$/);
-  await expect(page.getByRole("region", { name: "All NGOs" })).toBeVisible();
+  const directory = page.getByRole("region", { name: "All NGOs" });
+  await expect(directory).toBeVisible();
+  await expect(directory).toBeInViewport();
   await expect(page.getByRole("group", { name: "NGO category" })).toBeVisible();
 });
 

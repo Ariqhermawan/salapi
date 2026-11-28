@@ -20,13 +20,24 @@ export default function DisasterNgoDirectory() {
   const router = useRouter();
   const section = useRef<HTMLElement>(null);
   const rawCategory = params.get("cat");
-  const linkedCategory = useRef(rawCategory !== null);
+  const scrolledToLinkedCategory = useRef(false);
   const category = disasterNgoCategoryFromLink(rawCategory);
   const ngos = disasterNgosIn(category);
 
   useEffect(() => {
-    if (linkedCategory.current) section.current?.scrollIntoView({ block: "start" });
-  }, []); // A category URL is a deep link to this section.
+    if (rawCategory === null || scrolledToLinkedCategory.current) return;
+    let secondFrame = 0;
+    const firstFrame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(() => {
+        section.current?.scrollIntoView({ block: "start" });
+        scrolledToLinkedCategory.current = true;
+      });
+    });
+    return () => {
+      cancelAnimationFrame(firstFrame);
+      cancelAnimationFrame(secondFrame);
+    };
+  }, [rawCategory]); // A category URL is a deep link to this section.
 
   function selectCategory(nextCategory: DisasterNgoCategoryId | null) {
     const next = new URLSearchParams(params.toString());
