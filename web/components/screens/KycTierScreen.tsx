@@ -8,7 +8,7 @@ import { Stage2Pill, WhyExistsLink } from "@/components/ui/OperationalAllowanceE
 import OrganizerVerification from "@/components/ui/OrganizerVerification";
 import { KYC_TIER_CEILING, type KycTier } from "@/lib/circles/allowance";
 import { isLocalPreview } from "@/lib/local-preview";
-import { createSumsubDemoState, canPrepareSumsubDemo, canExploreSumsubDemo, canChooseSumsubDemoResult, transitionSumsubDemo, SUMSUB_CHECKLIST, type SumsubDemoEvent, type SumsubDemoResult } from "@/lib/verification/sumsub-demo";
+import { createSumsubDemoState, canPrepareSumsubDemo, canExploreSumsubDemo, canChooseSumsubDemoResult, transitionSumsubDemo, SUMSUB_CHECKLIST, SUMSUB_SAMPLE_DOCUMENTS, type SumsubDemoEvent, type SumsubDemoResult, type SumsubDocumentType } from "@/lib/verification/sumsub-demo";
 import styles from "./KycTierRevamp.module.css";
 import { accountCopy, accountText, type AccountCopyKey } from "@/lib/i18n/revamp-account";
 import { useGoBack } from "@/lib/ui/useGoBack";
@@ -25,6 +25,10 @@ const outcomes: { value: SumsubDemoResult; title: AccountCopyKey; body: AccountC
   { value: "retry", title: "retryRequired", body: "moreInformation" },
   { value: "rejected", title: "rejectedDemo", body: "notApproved" },
 ];
+const sampleDocumentCopy: Record<SumsubDocumentType, AccountCopyKey> = {
+  "national-id": "nationalIdSample", passport: "passportSample", license: "licenseSample",
+  registration: "registrationSample", "tax-paper": "taxPaperSample", permit: "permitSample",
+};
 const tierRequirements: Record<KycTier, AccountCopyKey> = {
   0: "tier0", 1: "tier1", 2: "tier2",
 };
@@ -44,7 +48,7 @@ export default function KycTierScreen() {
   const prepared = canPrepareSumsubDemo(demo);
   const sampleReady = canExploreSumsubDemo(demo);
   const canChoose = isLocalPreview && canChooseSumsubDemoResult(demo);
-  const step = demo.phase === "checklist" ? 1 : demo.phase === "prepared" ? 2 : 3;
+  const step = ["checklist", "document", "selfie"].includes(demo.phase) ? 1 : demo.phase === "handoff" ? 2 : 3;
   const result = demo.phase === "review" || demo.phase === "handoff" ? undefined : outcomes.find((outcome) => outcome.value === demo.phase);
   const submitted = demo.phase === "review" || !!result;
   const currentTier: KycTier = 0;
@@ -54,7 +58,7 @@ export default function KycTierScreen() {
   }
 
   function back() {
-    if (isLocalPreview && ["prepared", "handoff", "pending"].includes(demo.phase)) send({ type: "back" });
+    if (isLocalPreview && ["document", "selfie", "handoff", "review", "pending"].includes(demo.phase)) send({ type: "back" });
     else goBack();
   }
 
@@ -75,17 +79,34 @@ export default function KycTierScreen() {
       </section>
       {!isLocalPreview ? <p className={styles.guard} role="status">{c.simulationGuard}</p> : <button type="button" className={styles.primary} disabled={!prepared} onClick={() => send({ type: "prepare" })}>{c.continueAction} {Ico.chev({ size: 18, c: "#fff" })}</button>}
     </> : null}
-    {demo.phase === "prepared" ? <>
+    {demo.phase === "document" ? <>
       <section className={styles.sampleCheck}>
-        <h2>{demo.sampleCheckReady ? c.samplePhotoTaken : c.sampleCheckTitle}</h2><p>{c.sampleCheckBody}</p>
-        <div className={styles.samplePreview} role="status">{demo.sampleCheckReady ? Ico.check({ size: 34, c: T.action }) : Ico.user({ size: 34, c: T.action })}<span>{demo.sampleCheckReady ? c.samplePhotoReady : c.samplePhotoNoCapture}</span></div>
+        <h2>{c.sampleDocumentTitle}</h2><p>{c.sampleCheckBody}</p>
+        <div className={styles.documentTypes} role="group" aria-label={c.sampleDocumentType}>{SUMSUB_SAMPLE_DOCUMENTS[demo.kind].map(documentType => <button type="button" key={documentType} disabled={!isLocalPreview} aria-pressed={demo.documentType === documentType} onClick={() => send({ type: "select-document", documentType })}>{c[sampleDocumentCopy[documentType]]}</button>)}</div>
+        <div className={styles.samplePreview} role="status">{demo.documentSampleReady ? Ico.check({ size: 34, c: T.action }) : Ico.user({ size: 34, c: T.action })}<span><strong>{c.frontOfDocument}</strong>{demo.documentSampleReady ? c.sampleDocumentReady : c.samplePhotoNoCapture}</span></div>
       </section>
       {isLocalPreview ? <div className={styles.stageActions}>
-        <button type="button" className={styles.secondary} onClick={() => send({ type: demo.sampleCheckReady ? "reset-sample-check" : "complete-sample-check" })}>{demo.sampleCheckReady ? c.retakeSample : c.takeSamplePhoto}</button>
+        <button type="button" className={styles.secondary} onClick={() => send({ type: demo.documentSampleReady ? "reset-document-sample" : "complete-document-sample" })}>{demo.documentSampleReady ? c.retakeSample : c.takeSamplePhoto}</button>
+        <button type="button" className={styles.primary} disabled={!demo.documentSampleReady} onClick={() => send({ type: "continue-document" })}>{c.continueAction} {Ico.chev({ size: 18, c: "#fff" })}</button>
+      </div> : <p className={styles.guard} role="status">{c.simulationGuard}</p>}
+    </> : null}
+    {demo.phase === "selfie" ? <>
+      <section className={styles.sampleCheck}>
+        <h2>{c.sampleSelfieTitle}</h2><p>{c.sampleCheckBody}</p>
+        <div className={styles.samplePreview} role="status">{demo.selfieSampleReady ? Ico.check({ size: 34, c: T.action }) : Ico.user({ size: 34, c: T.action })}<span>{demo.selfieSampleReady ? c.sampleSelfieReady : c.sampleSelfieNoCapture}</span></div>
+      </section>
+      {isLocalPreview ? <div className={styles.stageActions}>
+        <button type="button" className={styles.secondary} onClick={() => send({ type: demo.selfieSampleReady ? "reset-selfie-sample" : "complete-selfie-sample" })}>{demo.selfieSampleReady ? c.retakeSampleSelfie : c.takeSampleSelfie}</button>
         <button type="button" className={styles.primary} disabled={!sampleReady} onClick={() => send({ type: "explore" })}>{c.continueAction} {Ico.chev({ size: 18, c: "#fff" })}</button>
       </div> : <p className={styles.guard} role="status">{c.simulationGuard}</p>}
     </> : null}
-    {demo.phase === "handoff" ? <button type="button" className={styles.primary} onClick={() => send({ type: "submit" })}>{c.submitForReview} {Ico.chev({ size: 18, c: "#fff" })}</button> : null}
+    {demo.phase === "handoff" ? <>
+      <section className={styles.sampleCheck}>
+        <h2>{c.sampleReview}</h2><p>{c.sumsubNoUpload}</p>
+        <dl className={styles.sampleSummary}><div><dt>{demo.kind === "ngo" ? c.registration : c.identityDocument}</dt><dd>{c[sampleDocumentCopy[demo.documentType]]} · {c.frontPhotoSample}</dd></div><div><dt>{c.selfie}</dt><dd>{c.selfieSample}</dd></div></dl>
+      </section>
+      <button type="button" className={styles.primary} onClick={() => send({ type: "submit" })}>{c.submitForReview} {Ico.chev({ size: 18, c: "#fff" })}</button>
+    </> : null}
     {submitted ? <section className={styles.outcomeSection}><h2>{c.selectResult}</h2><p>{c.sumsubNoUpload}</p><div className={styles.outcomes}>{outcomes.map((outcome) => <button type="button" key={outcome.value} disabled={!canChoose} aria-pressed={demo.phase === outcome.value} onClick={() => send({ type: "choose-result", result: outcome.value })}><OutcomeIcon value={outcome.value} /><strong>{c[outcome.title]}</strong><small>{c[outcome.body]}</small></button>)}</div>
       {result ? <section className={`${styles.result} ${demo.phase === "approved" ? demo.kind === "ngo" ? styles.goldResult : styles.blueResult : ""}`} role="status"><OutcomeIcon value={result.value} /><div><h3>{demo.phase === "approved" ? c.kycDone : c[result.title]}</h3><p>{demo.phase === "retry" ? c.retryExample : demo.phase === "pending" ? c.reviewOnly : demo.phase === "rejected" ? c.rejectionOnly : c.noEntitlement}</p>{demo.phase === "approved" ? <OrganizerVerification kind={demo.kind} /> : null}<small>{c.simulationOnly}</small></div></section> : <p className={styles.waiting}>{c.sampleResultPrompt}</p>}
       {isLocalPreview && demo.phase === "retry" ? <button type="button" className={styles.secondary} onClick={() => send({ type: "retry" })}>{c.retryPreparation} {Ico.refresh({ size: 16, c: T.action })}</button> : null}

@@ -49,6 +49,15 @@
 .sampleCheck > p { margin-top: 6px; color: var(--sl-sub); font-size: 11px; line-height: 1.6; }
 .samplePreview { display: flex; min-height: 152px; flex-direction: column; align-items: center; justify-content: center; gap: 12px; margin-top: 12px; padding: 14px; border: 1px dashed var(--sl-line); border-radius: 14px; background: var(--sl-surface-alt); color: var(--sl-primary); text-align: center; }
 .samplePreview span { color: var(--sl-sub); font-size: 11px; line-height: 1.5; }
+.samplePreview span strong { display: block; margin-bottom: 4px; color: var(--sl-ink); font-size: 12px; }
+.documentTypes { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 6px; margin-top: 12px; }
+.documentTypes button { min-width: 0; min-height: 44px; padding: 7px 5px; border: 1px solid var(--sl-line); border-radius: 10px; background: var(--sl-surface); color: var(--sl-ink); font: inherit; font-size: 10px; font-weight: 650; line-height: 1.35; cursor: pointer; }
+.documentTypes button[aria-pressed="true"] { border-color: var(--sl-primary); background: var(--sl-surface-alt); color: var(--sl-primary); box-shadow: inset 0 0 0 1px var(--sl-primary); }
+.documentTypes button:disabled { cursor: default; }
+.sampleSummary { display: grid; gap: 10px; margin: 14px 0 0; }
+.sampleSummary div { display: grid; grid-template-columns: 88px minmax(0,1fr); gap: 8px; padding-top: 9px; border-top: 1px solid var(--sl-line); font-size: 11px; line-height: 1.5; }
+.sampleSummary dt { color: var(--sl-sub); }
+.sampleSummary dd { margin: 0; color: var(--sl-ink); font-weight: 650; }
 .stageActions { display: grid; gap: 8px; margin-top: 10px; }
 .primary { display: flex; align-items: center; justify-content: center; gap: 7px; width: 100%; min-height: 48px; padding: 10px 13px; border: 0; border-radius: 12px; background: #2563eb; color: #fff; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; line-height: 1.45; }
 .primary:hover { background: #1d4ed8; }
