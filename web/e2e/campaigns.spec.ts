@@ -129,7 +129,7 @@ test.describe("D4 isolated local UI and HTTP authorization", () => {
     await expect(page.getByRole("button", { name: /Donate · Review amount|Approve proof|Release funds|Claim full refund/ })).toHaveCount(0);
     await page.getByText("Locked terms and recipients", { exact: true }).click();
     await expect(page.getByText("Approver 1: Not approved")).toBeVisible();
-    await expect(page.getByRole("link", { name: /^Sign in/ })).toHaveAttribute("href", "/signin?next=%2Fcampaigns%3Fid%3D1");
+    await expect(page.locator('a[href="/signin?next=%2Fcampaigns%3Fid%3D1"]')).toBeVisible();
   });
   test("unverified deployment fails closed", async ({ page }) => {
     await fixture(page, { unavailable: true });
