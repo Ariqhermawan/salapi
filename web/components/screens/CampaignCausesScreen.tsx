@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BookmarkSimple, CaretDown, GridFour, ImageSquare, ListBullets, MagnifyingGlass, X } from "@phosphor-icons/react";
+import { BookmarkSimple, CaretDown, Check, GridFour, ImageSquare, ListBullets, MagnifyingGlass, X } from "@phosphor-icons/react";
 import { campaignState } from "@/app/campaign-actions";
 import { useSearchParams, usePathname, useRouter } from "next/navigation";
 import { SEED_CIRCLES } from "@/lib/circles/seed";
@@ -159,6 +159,10 @@ function LiveCampaignCausesScreen({ initialSavedOnly = false }: { initialSavedOn
   const [saveError, setSaveError] = useState<"browser" | "account" | null>(null);
   const [savedStatus, setSavedStatus] = useState<"loading" | "device" | "account" | "failed">("loading");
   const [savedMutation, setSavedMutation] = useState<string | null>(null);
+  const [statusMenuOpen, setStatusMenuOpen] = useState(false);
+  const statusTriggerRef = useRef<HTMLButtonElement>(null);
+  const statusMenuRef = useRef<HTMLDivElement>(null);
+  const statusOptionRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const { identity, captureOwnerRevision, isCurrentOwner } = useCirclesSignupIdentity(() => {
     setSaved([]);
     setSaveError(null);
@@ -316,6 +320,45 @@ function LiveCampaignCausesScreen({ initialSavedOnly = false }: { initialSavedOn
   }
 
   const statusOptions = [...new Set([ALL, ...availableStatuses, ...(selectedStatus !== ALL ? [selectedStatus] : []), ...(state?.ok && state.viewer ? ["My campaigns"] : [])])];
+  const statusLabel = (status: string) => status === ALL ? copy("Status") : d4CampaignStatusFilterLabel(status, locale);
+  const statusOptionLabel = (status: string) => status === ALL ? copy("All") : d4CampaignStatusFilterLabel(status, locale);
+  useEffect(() => {
+    if (!statusMenuOpen) return;
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (!statusTriggerRef.current?.contains(target) && !statusMenuRef.current?.contains(target)) setStatusMenuOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      setStatusMenuOpen(false);
+      statusTriggerRef.current?.focus();
+    };
+    document.addEventListener("pointerdown", closeOnOutsidePointer);
+    document.addEventListener("keydown", closeOnEscape);
+    statusOptionRefs.current.find(option => option?.getAttribute("aria-checked") === "true")?.focus();
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsidePointer);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [statusMenuOpen]);
+  const chooseStatus = (status: string) => {
+    updateParams({ s: status === ALL ? null : status });
+    setStatusMenuOpen(false);
+    statusTriggerRef.current?.focus();
+  };
+  const onStatusMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const currentIndex = statusOptions.findIndex(option => option === validStatus);
+    let nextIndex: number | null = null;
+    if (event.key === "ArrowDown") nextIndex = (currentIndex + 1) % statusOptions.length;
+    if (event.key === "ArrowUp") nextIndex = (currentIndex - 1 + statusOptions.length) % statusOptions.length;
+    if (event.key === "Home") nextIndex = 0;
+    if (event.key === "End") nextIndex = statusOptions.length - 1;
+    if (nextIndex !== null) {
+      event.preventDefault();
+      statusOptionRefs.current[nextIndex]?.focus();
+    }
+  };
   const searchLabel = copy("Search campaigns");
   const searchPlaceholder = copy("Search causes");
   const cardCampaign = (campaign: Campaign) => <CauseCard key={campaign.id} campaign={campaign}
@@ -339,14 +382,12 @@ function LiveCampaignCausesScreen({ initialSavedOnly = false }: { initialSavedOn
 
     {!savedOnly && !mineOnly && state?.ok && <div className={styles.filters}>
       <div className={styles.chips} role="group" aria-label={copy("Campaign filters")}>
-        {statusOptions.length > 1 && <label className={styles.statusPicker}>
-          <span className={styles.srOnly}>{copy("Status")}</span>
-          <span className={styles.statusPickerLabel}>{validStatus === ALL ? copy("Status") : d4CampaignStatusFilterLabel(validStatus, locale)}</span>
-          <select aria-label={copy("Status")} value={validStatus} onChange={event => updateParams({ s: event.target.value === ALL ? null : event.target.value })}>
-            {statusOptions.map(status => <option key={status} value={status}>{status === ALL ? copy("Status") : d4CampaignStatusFilterLabel(status, locale)}</option>)}
-          </select>
-          <CaretDown size={16} aria-hidden="true" />
-        </label>}
+        {statusOptions.length > 1 && <button ref={statusTriggerRef} type="button" className={styles.statusPicker}
+          aria-label={`${copy("Status")}: ${statusLabel(validStatus)}`} aria-haspopup="menu" aria-expanded={statusMenuOpen}
+          aria-controls="campaign-status-menu" onClick={() => setStatusMenuOpen(open => !open)}>
+          <span className={styles.statusPickerLabel}>{statusLabel(validStatus)}</span>
+          <CaretDown size={16} aria-hidden="true" className={statusMenuOpen ? styles.statusCaretOpen : undefined} />
+        </button>}
         {statusOptions.length > 1 && <span className={styles.filterRule} aria-hidden="true" />}
         <button type="button" className={styles.categoryFilter} aria-pressed={validCategory === ALL}
           onClick={() => updateParams({ c: null })}><span className={styles.categoryArt}><CauseCategoryDoodle category="all" /></span>{copy("All")}</button>
@@ -355,6 +396,15 @@ function LiveCampaignCausesScreen({ initialSavedOnly = false }: { initialSavedOn
           <span className={styles.categoryArt}><CauseCategoryDoodle category={category.id as CircleCategory} /></span>{category.label}
         </button>)}
       </div>
+      {statusMenuOpen && statusOptions.length > 1 && <div ref={statusMenuRef} id="campaign-status-menu" className={styles.statusMenu}
+        role="menu" aria-label={copy("Status")} onKeyDown={onStatusMenuKeyDown}>
+        {statusOptions.map((status, index) => <button key={status} ref={node => { statusOptionRefs.current[index] = node; }}
+          type="button" role="menuitemradio" aria-checked={validStatus === status} className={styles.statusMenuOption}
+          onClick={() => chooseStatus(status)}>
+          <span>{statusOptionLabel(status)}</span>
+          {validStatus === status && <Check size={20} weight="bold" aria-hidden="true" />}
+        </button>)}
+      </div>}
     </div>}
 
     {loading && <div className={styles.loading} role="status">{copy("Loading causes")}…</div>}

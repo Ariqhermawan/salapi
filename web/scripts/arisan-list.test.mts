@@ -137,7 +137,7 @@ function text(value: unknown): string {
   if (Array.isArray(value)) return value.map(text).join("");
   return value && typeof value === "object" && "props" in value ? text((value as Element).props.children) : "";
 }
-function room(id: number, name = `Room ${id}`): Room { return { id, name, status: "Open", memberCount: 1, memberTarget: 3, sharePesos: 6.5, potPesos: 19.5, cadence: "Weekly", isHost: false }; }
+function room(id: number, name = `Room ${id}`, status = "Open"): Room { return { id, name, status, memberCount: 1, memberTarget: 3, sharePesos: 6.5, potPesos: 19.5, cadence: "Weekly", isHost: false }; }
 function screenSetup(fetchPage: (cursor?: number) => Promise<Page>, preview = false, scheduled = false) {
   const state: unknown[] = []; const effects: (() => void)[] = []; const transitions: Promise<unknown>[] = []; const cursors: (number | undefined)[] = []; let index = 0;
   const jsx = (type: string, props: Record<string, unknown>) => ({ type, props });
@@ -153,7 +153,7 @@ function screenSetup(fetchPage: (cursor?: number) => Promise<Page>, preview = fa
     "@/lib/ui/useGoBack": { useGoBack: () => () => {} }, "@/components/I18nProvider": { useT: () => ({ locale: "en", currency: "tl", t: (value: string) => value }) },
     "@/components/ui/kit": { ...Object.fromEntries(["AppBar", "IconButton", "Card", "Btn", "Chip", "PoweredByStellar"].map(name => [name, name])), T: {}, Ico: new Proxy({}, { get: () => () => null }) },
     "@/lib/ui/currency": { formatLocal: (value: number) => String(value) }, "@/lib/local-preview": { isLocalPreview: preview },
-    "./CampaignArisan.module.css": { default: {} },
+    "./CampaignArisan.module.css": { default: { srOnly: "srOnly" } },
     "./PrototypeArisanListScreen.module.css": { default: { page: "page", emptyPage: "emptyPage", heading: "heading", emptyState: "emptyState", ways: "ways", emptyWays: "emptyWays", create: "create", join: "join", emptyFooter: "emptyFooter" } },
     "./arisan-preview": { readPreviewArisanRoom: () => null },
     "@/components/ArisanInboxLink": { default: "InboxLink" },
@@ -173,6 +173,23 @@ test("empty Arisan screen keeps the prototype actions without a separate schedul
     const links = nodes(ui.tree).filter(node => node.type === "Link");
     assert.deepEqual(links.map(node => node.props.href), ["/arisan/new", "/arisan/join"]);
   }
+});
+test("All separates running, done, and dissolved rooms while filters keep exact status results", async () => {
+  const rooms = [room(8, "Open room", "Open"), room(7, "Done room", "Done"), room(6, "Active room", "Active"), room(5, "Dissolved room", "Dissolved")];
+  const screen = screenSetup(async () => ({ ready: true, total: rooms.length, nextCursor: null, mine: rooms }));
+  await screen.settle();
+  const groups = nodes(screen.tree).filter(node => typeof node.props["data-room-group"] === "string");
+  assert.deepEqual(groups.map(group => group.props["data-room-group"]), ["in-progress", "done", "dissolved"]);
+  assert.deepEqual(roomLinks(screen.tree).map(node => node.props.href), ["/arisan/8", "/arisan/6", "/arisan/7", "/arisan/5"]);
+  const accessibleHeading = nodes(screen.tree).find(node => node.type === "h1");
+  assert.equal(accessibleHeading?.props.className, "srOnly");
+  await screen.click("Done");
+  assert.deepEqual(roomLinks(screen.tree).map(node => node.props.href), ["/arisan/7"]);
+  assert.equal(nodes(screen.tree).some(node => typeof node.props["data-room-group"] === "string"), false);
+  await screen.click("Active");
+  assert.deepEqual(roomLinks(screen.tree).map(node => node.props.href), ["/arisan/6"]);
+  await screen.click("Open");
+  assert.deepEqual(roomLinks(screen.tree).map(node => node.props.href), ["/arisan/8"]);
 });
 test("the real list UI continues through empty membership pages until an older member is reachable", async () => {
   const { api } = actionSetup({ count: 123, memberIds: [6] }); const screen = screenSetup(cursor => api.arisanList(cursor));
