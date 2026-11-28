@@ -11,7 +11,14 @@ export type ConfirmationIntentAction =
   | "campaign_approve"
   | "campaign_release"
   | "campaign_refund"
-  | "campaign_close_empty";
+  | "campaign_close_empty"
+  | "recurring_campaign_create"
+  | "recurring_campaign_donate"
+  | "recurring_campaign_submit_proof"
+  | "recurring_campaign_approve"
+  | "recurring_campaign_release"
+  | "recurring_campaign_refund"
+  | "recurring_campaign_close_empty";
 
 export type ConfirmationIntentDigestInput = {
   action: ConfirmationIntentAction;

@@ -136,6 +136,7 @@ test("actual server page dispatches without action calls and preserves direct D4
     runInNewContext(code, { exports, require(name: string) {
       if (name === "react/jsx-runtime") return { jsx, jsxs: jsx, Fragment: "Fragment" };
       if (name === "@/components/screens/CampaignScreen") return { default: "CampaignScreen" };
+      if (name === "@/components/screens/RecurringCampaignScreen") return { default: "RecurringCampaignScreen" };
       if (name === "@/components/screens/CampaignCausesScreen") return { default: "CampaignCausesScreen" };
       if (name === "@/components/screens/CirclesDiscoverScreen") return { default: "CirclesDiscoverScreen" };
       if (name === "@/components/CampaignDiscoveryNav") return { default: "CampaignDiscoveryNav" };
@@ -143,10 +144,20 @@ test("actual server page dispatches without action calls and preserves direct D4
       if (name === "@/lib/local-preview") return previewModule(preview);
       throw Error(`Forbidden server page dependency: ${name}`);
     } });
-    for (const params of [{}, { mode: "examples" }, { mode: "testnet" }, { mode: "unknown" }, { id: "101", mode: "examples" }, { id: "not-a-number", mode: "examples" }, { create: "1", mode: "examples" }, { id: "101", create: "1", mode: "examples" }] as Array<Record<string, string>>) {
+    for (const params of [{}, { mode: "examples" }, { mode: "testnet" }, { mode: "unknown" }, { mode: "recurring" },
+      { id: "101", mode: "examples" }, { id: "r12", mode: "examples" }, { id: "not-a-number", mode: "examples" },
+      { create: "1", mode: "examples" }, { id: "101", create: "1", mode: "examples" }] as Array<Record<string, string>>) {
       const tree = await exports.default({ searchParams: Promise.resolve(params) });
       const expected = campaignDiscoveryView(params, preview);
+      const recurring = params.mode === "recurring" || params.id?.startsWith("r");
       const direct = Boolean(params.id || params.create === "1");
+      if (recurring) {
+        const screen = nodes(tree).find(node => node.type === "RecurringCampaignScreen")!;
+        assert.ok(screen);
+        assert.equal(screen.props.id, params.id ?? "");
+        assert.equal(nodes(tree).some(node => node.type === "CampaignScreen"), false);
+        continue;
+      }
       assert.equal(nodes(tree).find(node => node.type === "CampaignDiscoveryNav")?.props.view, direct ? undefined : expected);
       if (expected === "examples") {
         assert.equal(nodes(tree).find(node => node.type === "CirclesDiscoverScreen")?.props.campaignEntry, true);

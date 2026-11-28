@@ -113,7 +113,7 @@ test("recurring fixture saves and reloads only in local preview storage", () => 
   assert.equal(disabledStorage.writes, 0);
 });
 
-test("recurring schedule disclosure states the active D4 limit and create keeps its normal route", () => {
+test("recurring preview states the D4 limit while production gets a separate recurring route", () => {
   assert.match(RECURRING_CAMPAIGN_PREVIEW_NOTICE, /one proof/);
   assert.match(RECURRING_CAMPAIGN_PREVIEW_NOTICE, /two of three configured wallets/);
   assert.match(RECURRING_CAMPAIGN_PREVIEW_NOTICE, /D4 does not support payout stages/);
@@ -131,5 +131,7 @@ test("recurring schedule disclosure states the active D4 limit and create keeps 
   assert.match(manageScreen, /Stage claims and escrow releases are not available/);
 
   const createRoute = readFileSync(new URL("../app/create/page.tsx", import.meta.url), "utf8");
-  assert.match(createRoute, /return isLocalPreview\s*\?\s*<Suspense fallback=\{null\}><PrototypeCreateCauseScreen \/><\/Suspense>\s*:\s*<CampaignScreen id="" initialCreate standaloneCreate \/>/);
+  assert.match(createRoute, /if \(kind === "recurring"\) return <RecurringCampaignScreen standaloneCreate \/>/);
+  assert.match(createRoute, /<CampaignScreen id="" initialCreate standaloneCreate \/>/);
+  assert.match(createRoute, /href="\/create\?kind=recurring">Recurring stages/);
 });

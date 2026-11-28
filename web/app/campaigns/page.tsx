@@ -1,4 +1,5 @@
 import CampaignScreen from "@/components/screens/CampaignScreen";
+import RecurringCampaignScreen from "@/components/screens/RecurringCampaignScreen";
 import CampaignCausesScreen from "@/components/screens/CampaignCausesScreen";
 import CirclesDiscoverScreen from "@/components/screens/CirclesDiscoverScreen";
 import CampaignDiscoveryNav from "@/components/CampaignDiscoveryNav";
@@ -10,6 +11,8 @@ export const metadata = { title: "Donation campaigns · Salapi", description: "B
 export default async function CampaignsPage({ searchParams }: { searchParams: Promise<{ id?: string; create?: string; mode?: string; report?: string }> }) {
   const { id, create, mode, report } = await searchParams;
   const campaignId = typeof id === "string" ? id : "";
+  if (campaignId.startsWith("r") || mode === "recurring")
+    return <RecurringCampaignScreen key={`recurring:${campaignId}`} id={campaignId} />;
   const view = campaignDiscoveryView({ id: campaignId, create, mode }, isLocalPreview);
   // A different campaign must not inherit the previous page's draft or async reads.
   if (view === "examples") return <><CampaignDiscoveryNav view={view} /><CirclesDiscoverScreen campaignEntry />
