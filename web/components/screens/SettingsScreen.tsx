@@ -169,6 +169,7 @@ export default function SettingsScreen() {
     document.documentElement.dataset.theme = value;
     const secure = window.location.protocol === "https:" ? "; Secure" : "";
     document.cookie = `salapi-theme=${value}; Path=/; Max-Age=31536000; SameSite=Lax${secure}`;
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", value === "dark" ? "#171717" : "#f7f7f7");
     setDarkTheme(nextDark);
   }
 
