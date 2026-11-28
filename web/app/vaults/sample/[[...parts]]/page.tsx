@@ -16,7 +16,7 @@ export default async function ArisanSampleAliasPage({ params }: { params: Promis
     return <><PrototypeSampleNotice kind="arisan-draw" /><PrototypeArisanStateScreen scenario={scenario as "countdown" | "draw-member" | "draw-master" | "master-away"} /></>;
   }
   const roomKey = parts[0] === "rooms" ? parts[1] : undefined;
-  if (roomKey === "r_1" || roomKey === "r_4") {
+  if (roomKey === "r_1" || roomKey === "r_4" || roomKey === "r_done") {
     return <><PrototypeSampleNotice kind="arisan-room" /><PrototypeArisanRoomScreen roomKey={roomKey} /></>;
   }
   const roomId = roomKey ? Number(roomKey) : 0;

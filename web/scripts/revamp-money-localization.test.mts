@@ -53,7 +53,7 @@ function dictionary(locale: Locale, key: string, vars?: Record<string, string | 
 }
 
 // Executes real component functions and local helpers, not browser/SDK APIs.
-function mount(name: typeof names[number], locale: Locale, options: { preview?: boolean; currency?: Locale; next?: string; hash?: string; denied?: boolean; walletState?: () => Promise<{ ok: false; error: string }>; myHandle?: () => Promise<string | null>; receiveAccount?: () => Promise<AccountDetailsResult> } = {}) {
+function mount(name: typeof names[number], locale: Locale, options: { preview?: boolean; currency?: Locale; next?: string; hash?: string; denied?: boolean; walletState?: () => Promise<{ ok: false; error: string }>; myHandle?: () => Promise<string | null>; recentRecipients?: string[]; receiveAccount?: () => Promise<AccountDetailsResult> } = {}) {
   const preview = options.preview ?? true;
   const memory = new Map<string, string>();
   const storage = { getItem(key: string) { if (options.denied) throw Error("Isolated denied storage"); return memory.get(key) ?? null; }, setItem(key: string, value: string) { if (options.denied) throw Error("Isolated denied storage"); memory.set(key, value); }, removeItem(key: string) { memory.delete(key); } };
@@ -127,6 +127,7 @@ function mount(name: typeof names[number], locale: Locale, options: { preview?: 
       if (dependency === "@/components/ui/mascot") return { SalapiMascot: "SalapiMascot" };
       if (dependency === "@/components/ui/SuccessMotion" || dependency === "@/components/ui/TransferMotion" || dependency === "@/components/ui/SubmissionStatusPanel") return { default: dependency };
       if (dependency === "@/lib/ui/useGoBack") return { useGoBack: () => () => calls.navigations.push("back") };
+      if (dependency === "@/lib/ui/recent-send-recipients") return { listRecentSendRecipients: () => options.recentRecipients ?? [], rememberRecentSendRecipient() {} };
       if (dependency === "@/components/AvailableWalletBalance") return { __esModule: true, default: () => null };
       if (dependency === "@/lib/ui/useUnresolvedSubmission") return { useUnresolvedSubmission: () => ({ locked: false, state: { kind: "clear" }, run() { throw Error("Real submission forbidden"); } }) };
       if (dependency === "@/lib/ui/currency") return { CURRENCY, formatLocal, formatLocalAmount, pesoFromLocal };
@@ -189,12 +190,25 @@ test("owned Send accessibility and example username labels cannot regress to fix
   for (const phrase of ["e.g. jamamam", "your_username"]) assert.ok(source.includes(`placeholder={m("${phrase}")}`));
 });
 
+test("Send shows real recent handles scoped to the signed-in account and fills only the username", async () => {
+  const ui = mount("SendScreen", "en", { preview: false, currency: "en", myHandle: async () => "owner_01", recentRecipients: ["maria_s", "jamal_r"] });
+  await ui.flush();
+  assert.ok(nodes(ui.tree).some(node => node.props["aria-label"] === "Recent recipients" && node.props.role === "group"));
+  assert.ok(text(ui.tree).includes("Saved on this device"));
+  ui.click("@maria_s");
+  assert.equal(nodes(ui.tree).find(node => node.props.id === "send-recipient")?.props.value, "maria_s");
+  assert.equal(ui.calls.serverWrites, 0);
+});
+
 test("Send accepts exact XLM without a market quote and clears the amount when units change", async () => {
   const ui = mount("SendScreen", "en", { preview: false, currency: "en", myHandle: async () => null });
   const reviewButton = () => nodes(ui.tree).find(node => node.type === "Btn" && text(node.props.children) === "Review transfer")!;
   await ui.flush();
   ui.change("send-amount", "5");
   assert.equal(reviewButton().props.disabled, true);
+  ui.find("A fresh CoinGecko quote is unavailable. Refresh before reviewing a USD amount.");
+  ui.find("Refresh quote");
+  ui.find("Or switch to XLM and enter an exact amount. Switching units clears this USD amount.");
   ui.click("Enter XLM");
   assert.equal(nodes(ui.tree).find(node => node.props.id === "send-amount")?.props.value, "");
   ui.change("send-amount", "0.00000019");

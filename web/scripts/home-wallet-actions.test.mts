@@ -45,8 +45,10 @@ function render(locale: Locale, liveData?: LiveData) {
       if (name === "@phosphor-icons/react") return icons;
       if (name === "@/lib/prototype-causes") return { PROTOTYPE_CAUSES: [] };
       if (name === "@/lib/local-preview") return { previewReferralNoticeIsNew: () => false, previewUsdcBalanceCents: () => 241_226 };
+      if (name === "@/lib/home-campaigns") return { formatHomeXlm: () => "0", selectHomeCampaigns: () => [] };
       if (name === "@/components/I18nProvider") return { useT: () => ({ locale }) };
       if (name === "@/lib/i18n/revamp-home") return { homeCopy };
+      if (name === "@/lib/i18n/revamp-campaign-discovery") return { campaignDiscoveryCopy: () => (phrase: string) => phrase };
       if (name === "@/components/MarketValue") return { default: () => React.createElement("div") };
       if (name === "@/components/HomeDonationTicker") return { default: () => React.createElement("div") };
       if (name === "./PrototypeHomeScreen.module.css") return { default: new Proxy({}, { get: (_target, key) => String(key) }) };

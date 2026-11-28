@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { RECURRING_CAMPAIGN_FIXTURES } from "@/lib/recurring-campaign-preview";
 import styles from "./PrototypePreviewAside.module.css";
 
 type FlowLink = { href: string; label: string };
@@ -21,6 +22,7 @@ const FLOW: Feature[][] = [
       { href: "/organizer/meis_family", label: "Organizer profile" }, { href: "/organizer/meis_family?total=open", label: "Organizer · Total raised" }, { href: "/organizer/meis_family?tab=trust", label: "Organizer · Trust" }, { href: "/donate/mei", label: "Donate" },
       { href: "/cause/reading-zines", label: "Cause · Recurring, in stages" }, { href: "/cause/tita-ana?tab=proof", label: "Cause · Recurring, still funding" },
       { href: "/create", label: "Create cause" }, { href: "/create?kind=recurring&stages=empty", label: "Create cause · Recurring, stages empty" }, { href: "/create?kind=recurring", label: "Create cause · Recurring stages" }, { href: "/create?kind=recurring&stages=over", label: "Create cause · Recurring, over the goal" }, { href: "/create?kind=recurring&step=review", label: "Create cause · Recurring review" }, { href: "/manage", label: "Your causes" }, { href: "/manage/mei", label: "Manage cause" }, { href: "/manage/mei/payout", label: "Payout" }, { href: "/manage/reading-zines/payout", label: "Payout · Stages" }, { href: "/manage/tita-ana/payout", label: "Payout · Stages, still funding" }, { href: "/manage/reading-zines/edit", label: "Edit cause · Recurring" },
+      { href: "/campaigns?mode=recurring&fixture=funding", label: "D5 Testnet · Funding" }, { href: "/campaigns?mode=recurring&fixture=scheduled", label: "D5 Testnet · Scheduled stage" }, { href: "/campaigns?mode=recurring&fixture=proof", label: "D5 Testnet · Proof review" }, { href: "/campaigns?mode=recurring&fixture=ready", label: "D5 Testnet · Two approvals" }, { href: "/campaigns?mode=recurring&fixture=refundable", label: "D5 Testnet · Unspent refund" }, { href: "/campaigns?mode=recurring&fixture=released", label: "D5 Testnet · Released" }, { href: "/campaigns?mode=recurring&fixture=closed", label: "D5 Testnet · Closed" },
     ] },
     { href: "/activity", label: "Activity", children: [{ href: "/notifications", label: "Notifications" }] },
   ],
@@ -62,6 +64,7 @@ export default function PrototypePreviewAside() {
     if (pathname === "/" && params.get("causes") && ["a", "b", "c"].includes(params.get("causes") ?? "")) return `/?causes=${params.get("causes")}`;
     if (pathname.startsWith("/organizer/") && params.get("total") === "open") return `${pathname}?total=open`;
     if (pathname.startsWith("/organizer/") && params.get("tab") === "trust") return `${pathname}?tab=trust`;
+    if (pathname === "/campaigns" && params.get("mode") === "recurring" && RECURRING_CAMPAIGN_FIXTURES.includes(params.get("fixture") as (typeof RECURRING_CAMPAIGN_FIXTURES)[number])) return `${pathname}?mode=recurring&fixture=${params.get("fixture")}`;
     if (pathname === "/cause/tita-ana" && params.get("tab") === "proof") return `${pathname}?tab=proof`;
     if (pathname === "/manage/reading-zines/payout" || pathname === "/manage/tita-ana/payout" || pathname === "/manage/reading-zines/edit") return pathname;
     if (pathname === "/create" && params.get("kind") === "recurring") {

@@ -117,6 +117,10 @@
 .draftAmount { margin: 2px 0 0; color: var(--sl-ink); font-size: clamp(27px, 7vw, 36px); font-weight: 780; font-variant-numeric: tabular-nums; letter-spacing: -.04em; line-height: 1.15; overflow-wrap: anywhere; }
 .draftAmount > small, .receiptAmount > small, .summaryAmount > small { font-size: 12px; font-weight: 650; letter-spacing: 0; white-space: nowrap; }
 .refreshQuote { border: 0; padding: 0; background: transparent; color: #1d4ed8; font: inherit; font-weight: 700; cursor: pointer; text-decoration: underline; }
+.quoteRecovery { display:grid; grid-template-columns:auto 1fr; align-items:center; gap:4px 8px; margin:2px 0 10px; padding:9px 11px; border:1px solid #dbe5f8; border-radius:11px; background:#f5f8ff; color:#415575; font-size:11px; line-height:16px; }
+.quoteRecovery p { grid-column:1/-1; margin:0; color:inherit; font:inherit; }
+.quoteRecovery button { justify-self:start; }
+.quoteRecovery small { color:#5c6d88; font-size:10px; line-height:14px; }
 
 .nativeUnit {
   margin: 2px 0 12px;

@@ -38,7 +38,7 @@ test("avatar CSP permits only Google image domains and the configured storage or
   assert.doesNotMatch(image, /https:\/\/\*\.supabase|ignored|storage\/v1|\bhttps:\s/);
   assert.match(csp, /script-src 'self' 'nonce-[^']+' 'strict-dynamic'/);
   assert.doesNotMatch(csp.split("; ").find(source => source.startsWith("script-src"))!, /unsafe-inline|unsafe-eval/);
-  assert.match(csp, /frame-ancestors 'none'/);
+  assert.match(csp, /frame-ancestors 'self'/);
 });
 
 for (const url of ["", "not a URL", "http://project.supabase.co", "http://127.0.0.1:55421", "data:text/html,test", "https://user:pass@project.supabase.co"]) {

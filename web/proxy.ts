@@ -42,7 +42,8 @@ function buildCsp(nonce: string): string {
     "default-src 'self'",
     "base-uri 'self'",
     "object-src 'none'",
-    "frame-ancestors 'none'",
+    // Allow the live app handset on our same-origin landing page only.
+    "frame-ancestors 'self'",
     "frame-src 'none'",
     "form-action 'self'",
     // 'strict-dynamic' lets the nonce'd Next bootstrap load the app bundles;

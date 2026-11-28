@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import type { ReactNode } from "react";
-import { disasterId, donationCampaignId } from "@/lib/server/stellar";
+import { disasterId, donationCampaignId, recurringCampaignId } from "@/lib/server/stellar";
 import { isLocalPreview } from "@/lib/local-preview";
 import { PoweredByStellarV2 } from "@/components/ui/brand";
 import styles from "@/components/screens/CampaignArisan.module.css";
@@ -83,9 +83,11 @@ function ExternalLink({ href, children }: { href: string; children: ReactNode })
 export default function PublicDocsPage() {
   const d3 = disasterId();
   const d4 = donationCampaignId();
+  const d5 = recurringCampaignId();
   const displayedContracts = [...contracts];
   if (d3) displayedContracts.push({ name: "disaster (D3 configured deployment)", id: d3, source: "contracts/disaster" });
   if (d4) displayedContracts.push({ name: "donation-campaign (D4)", id: d4, source: "contracts/donation-campaign" });
+  if (d5) displayedContracts.push({ name: "recurring-campaign (D5 v5)", id: d5, source: "contracts/recurring-campaign" });
   const sourceRef = process.env.VERCEL_GIT_COMMIT_SHA ?? "main";
   return (
     <div
@@ -130,6 +132,7 @@ export default function PublicDocsPage() {
           <span className={styles.eyebrow}>Different pools, different rules</span><h2 style={{ fontSize: 23, letterSpacing: "-.035em", fontWeight: 750, margin: "9px 0 20px" }}>Choose the right flow.</h2>
           <div className={styles.stack}>
             <div><h3>Donation campaigns · D4</h3><p className={styles.muted}>Each campaign has its own escrow, locked recipients, a 0 to 10% creator share, three approvers, and funding/review deadlines. After funding closes, two wallets approve the same proof before the deadline. After quorum, anyone can release to the fixed recipients. If timely approval is incomplete, each donor claims their own full contribution back.</p><Link href="/campaigns?mode=testnet" className={styles.textButton}>Explore campaigns →</Link></div>
+            <div className={styles.terms}><h3>Recurring campaigns · D5</h3><p className={styles.muted}>Contributions fill scheduled payout stages in order. A fully funded stage can be released after its due date only after public proof receives approval from two of its three configured reviewer wallets. After final review, donors can reclaim allocations to stages that have not released; released stages stay paid. The fixed 0 to 10% creator share is paid from each released stage and is not a platform fee.</p><Link href="/campaigns?mode=recurring" className={styles.textButton}>Explore recurring campaigns →</Link></div>
             <div className={styles.terms}><h3>Disaster Vault · D3</h3><p className={styles.muted}>A separate shared relief pool with three fixed signer wallets. D4 campaign donations do not automatically send a percentage into D3; contributions are separate Testnet transactions. Payouts need two approvals, then wait 20 ledgers. Execution rechecks a rolling 24-hour limit of 20% of the current balance. Pause and unpause need quorum. Contributions remain open while paused.</p><Link href="/transparency" className={styles.textButton}>View Disaster Vault and public proof →</Link></div>
             <div className={styles.terms}><h3>Arisan Rooms</h3><p className={styles.muted}>Members fund N × their share upfront for N rounds. The draw uses participant commitments and reveals, then a finalization call pays the selected eligible member. A host still starts a full room. This is a rotating pool, with no interest or yield.</p><Link href="/arisan" className={styles.textButton}>View Arisan Rooms →</Link></div>
           </div>
@@ -224,6 +227,8 @@ export default function PublicDocsPage() {
             <li><ExternalLink href={`https://github.com/Ariqhermawan/salapi/blob/${sourceRef}/docs/instawards/week-4-d4.md`}>D4 release/refund evidence and security self-review</ExternalLink></li>
             <li><ExternalLink href="https://github.com/Ariqhermawan/salapi/pull/11">D4 implementation PR #11</ExternalLink></li>
             <li><ExternalLink href="https://github.com/Ariqhermawan/salapi/pull/13">D4 browser acceptance archive PR #13</ExternalLink></li>
+            <li><Link href="/campaigns?mode=recurring" style={externalLinkStyle}>D5 recurring campaigns</Link></li>
+            <li><ExternalLink href={`https://github.com/Ariqhermawan/salapi/blob/${sourceRef}/docs/operations/deployments.md`}>D5 contract and deployment evidence</ExternalLink></li>
             <li><ExternalLink href="https://stellar.expert/explorer/testnet/tx/443a9e58e88d2758c7f74a017505c53a759c80e84692a4503037ed0011497a87">Archived campaign #5 payout: 0.05 + 0.95 Testnet XLM</ExternalLink></li>
             <li><ExternalLink href="https://stellar.expert/explorer/testnet/tx/f83d24369795458db27a033e921ce84c261840ca29019baaa151dcb1518e50cb">D2 normal round: three reveals</ExternalLink></li>
             <li><ExternalLink href="https://stellar.expert/explorer/testnet/tx/1fc95b8cbd2c5a3f54e5b44f0dad88aac55df5af30e5e1c7a0e9fb6ab5a7d0bc">D2 timeout round: one non-revealer</ExternalLink></li>
@@ -238,6 +243,7 @@ export default function PublicDocsPage() {
             <li>The milestone reports above archive D1 integer amount handling and D2 participant commit-reveal acceptance. Historical acceptance does not verify every current session.</li>
             <li>D3 implements fixed 2-of-3 approvals, a 20-ledger payout timelock, a rolling 24-hour cap, and quorum-controlled pause/unpause. Live cutover and evidence status are tracked in the D3 report.</li>
             <li>D4 escrows each campaign separately, fixes its three approvers and creator share at creation, requires two approvals of the same proof, and supports full donor-claimed refunds if review expires incomplete. The Testnet asset is fixed at deployment. D4 has no D3 spending cap or 20-ledger wait.</li>
+            <li>D5 uses the separate recurring-campaign v5 contract on Testnet XLM. Contributions fill stage targets in order; each fully funded stage requires its own proof and two of three configured reviewer approvals before release. After final review, donors can refund only their allocations to stages that have not released.</li>
             <li>Independent audit, independent signer custody, and fiat anchor integration remain outside this Testnet implementation.</li>
             <li>Current wallets are managed by Salapi. Three distinct signer wallets do not establish three independent organizations or independent key custody.</li>
             <li>Smart Savings is available on Testnet for signed-in wallet owners. One contract vault holds the on-chain balance; additional goal labels and allocation weights are saved locally per wallet in that browser. No yield or fiat withdrawal is available.</li>

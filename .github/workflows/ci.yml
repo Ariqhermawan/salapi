@@ -31,6 +31,9 @@ jobs:
       - name: D4 campaign release, refund, authorization and race guards
         run: cargo test -p donation-campaign --locked --verbose
 
+      - name: D5 recurring stage escrow, approvals and partial refunds
+        run: cargo test -p recurring-campaign --locked --verbose
+
       - name: Build contract WASM
         # Soroban rejects reference-types emitted by recent Rust's generic WASM target.
         run: cargo build --workspace --target wasm32v1-none --release --locked

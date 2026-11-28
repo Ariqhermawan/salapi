@@ -132,6 +132,17 @@ test("confirmed Testnet receipts join room updates in newest-first order and ope
   ui.unmount();
 });
 
+test("recurring campaign receipts pass validation and show their recurring detail link", async () => {
+  const recurring = { ...activity.items[0], context: { type: "campaign-donation" as const, referenceId: "r9", title: null } };
+  const ui = setup({ state: { ok: true, notifications: [], unreadCount: 0, delivery: "in_app" }, activityState: { ...activity, items: [recurring] } });
+  await ui.settle();
+  assert.match(ui.text, /Your 2\.5 XLM donation was confirmed/);
+  assert.match(ui.text, /Recurring campaign #9/);
+  assert.ok(nodes(ui.tree).some(node => node.type === "a" && node.props.href === `/tx/${"a".repeat(64)}`));
+  assert.ok(nodes(ui.tree).some(node => node.type === "a" && node.props.href === "/activity"));
+  ui.unmount();
+});
+
 test("Circle USDC receipts retain their exact Testnet token amount", async () => {
   const item = { ...activity.items[0], id: "21:payment", hash: "b".repeat(64), direction: "received" as const, amountStroops: "12345678", asset: USDC_ACTIVITY_ASSET, context: undefined };
   const ui = setup({ state: { ok: true, notifications: [], unreadCount: 0, delivery: "in_app" }, activityState: { ...activity, items: [item] } }); await ui.settle();

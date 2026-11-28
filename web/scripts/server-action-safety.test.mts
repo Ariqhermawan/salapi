@@ -572,6 +572,7 @@ function sendSetup(options: { storage?: Map<string, string>; unavailable?: boole
     "@/lib/ui/useGoBack": { useGoBack: () => () => {} }, "@/lib/ui/currency": { CURRENCY, formatLocalAmount, pesoFromLocal }, "@/lib/money": money,
     "@/lib/local-preview": { isLocalPreview: preview, PREVIEW_WALLET: { handle: "ariqhermawan", address: "preview-public" }, localPreviewUsername: () => "ariqhermawan", previewUsdcBalanceCents: () => 241_226 },
     "@/lib/local-preview-history": { recordPreviewTransfer: () => { calls.localRecords++; return {}; } },
+    "@/lib/ui/recent-send-recipients": { listRecentSendRecipients: () => [], rememberRecentSendRecipient() {} },
     "@/app/actions": { myHandle: async () => "sender", registerUsername: async () => { throw Error("Unexpected registration"); },
       lookupRecipient: async (username: string) => ({ ok: true, username, address: "recipient-public" }),
       prepareUsernameSend: async (username: string, amountStroops: string, address: string) => ({ ok: true, intentId: "11111111-1111-4111-8111-111111111111", username, recipient: address, amountStroops, feeStroops: "100", expiresAt: "2099-01-01T00:00:00.000Z" }),

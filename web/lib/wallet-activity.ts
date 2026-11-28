@@ -35,9 +35,10 @@ export type WalletActivityContext = {
 export function activityContextHref(context: WalletActivityContext | undefined): string | null {
   if (!context) return null;
   if (context.type === "wallet-withdrawal") return null;
+  const recurringId = context.referenceId && /^r[1-9]\d{0,19}$/.test(context.referenceId) ? context.referenceId : null;
   const id = context.referenceId && /^[1-9]\d{0,19}$/.test(context.referenceId) ? context.referenceId : null;
   if (context.type.startsWith("campaign-")) return context.circleId && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(context.circleId) && context.circleId.length <= 80
-    ? `/circles/${context.circleId}` : id ? `/campaigns?id=${id}` : "/campaigns";
+    ? `/circles/${context.circleId}` : recurringId ? `/campaigns?id=${recurringId}` : id ? `/campaigns?id=${id}` : "/campaigns";
   if (context.type.startsWith("arisan-")) return id ? `/arisan/${id}` : "/arisan";
   if (context.type.startsWith("disaster-")) return "/transparency";
   if (context.type.startsWith("paluwagan-")) return "/paluwagan";

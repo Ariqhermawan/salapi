@@ -8,6 +8,7 @@ members = [
     "contracts/smart-savings",
     "contracts/arisan_rooms",
     "contracts/donation-campaign",
+    "contracts/recurring-campaign",
 ]
 
 [workspace.package]

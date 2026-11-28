@@ -29,6 +29,19 @@ test("top-up providers remain visible and disabled until checkout is connected",
   expect(csp).toEqual([]);
 });
 
+test("local preview preserves a valid top-up amount after returning to methods", async ({ page }) => {
+  await page.goto("/topup?method=provider&channel=qris&via=qris&cur=idr", { waitUntil: "domcontentloaded" });
+  const amount = page.getByLabel("Amount · USD");
+  await amount.waitFor({ state: "visible", timeout: 5000 }).catch(() => undefined);
+  if (!await amount.isVisible()) test.skip(true, "This build does not enable local preview payment flows");
+
+  await amount.fill("20");
+  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await expect(page.getByRole("tab", { name: "IDR", exact: true })).toHaveAttribute("aria-selected", "true");
+  await page.getByRole("button", { name: /QRIS/ }).click();
+  await expect(page.getByLabel("Amount · USD")).toHaveValue("20");
+});
+
 test("bank withdrawal discovery does not collect bank details or claim payout support", async ({ page }) => {
   const csp = collectCspViolations(page);
   const errors: string[] = [];

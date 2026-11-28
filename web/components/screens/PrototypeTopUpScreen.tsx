@@ -55,13 +55,14 @@ function Method({ badge, title, description, tag, mark, extra, onClick, disabled
   </button>;
 }
 
-export default function PrototypeTopUpScreen({ onFaucet, initialCurrency, localPreview = isLocalPreview }: { onFaucet: () => void; initialCurrency?: Currency; localPreview?: boolean }) {
+export default function PrototypeTopUpScreen({ onFaucet, initialCurrency, initialAmount, localPreview = isLocalPreview }: { onFaucet: () => void; initialCurrency?: Currency; initialAmount?: string; localPreview?: boolean }) {
   const router = useRouter();
   const goBack = useGoBack("/");
   const currency = initialCurrency ?? null;
-  const chooseCurrency = (next: Currency) => router.replace(`/topup?cur=${next.toLowerCase()}`);
+  const amountQuery = initialAmount ? `&amount=${Math.round(Number(initialAmount) * 100)}` : "";
+  const chooseCurrency = (next: Currency) => router.replace(`/topup?cur=${next.toLowerCase()}${amountQuery}`);
   const openProvider = (via: "qris" | "card" | "va", cur: Currency) =>
-    router.push(`/topup?method=provider&channel=${via}&cur=${cur.toLowerCase()}`);
+    router.push(`/topup?method=provider&channel=${via}&cur=${cur.toLowerCase()}${amountQuery}`);
 
   return <div className={styles.screen}>
     <AppBar leading={<IconButton ariaLabel="Back" onClick={goBack}>{Ico.back({})}</IconButton>} title="Add money" />

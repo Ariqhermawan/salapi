@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Check, Copy, ShareNetwork, ArrowSquareOut } from "@phosphor-icons/react";
+import { useT } from "@/components/I18nProvider";
+import { formatLocal } from "@/lib/ui/currency";
 import { listPreviewTransfers, type PreviewTransfer } from "@/lib/local-preview-history";
 import styles from "./PrototypeActivityDetailScreen.module.css";
 
@@ -27,6 +29,7 @@ function sampleHash(id: string) {
 }
 
 export default function PrototypeActivityDetailScreen({ id }: { id: string }) {
+  const { currency } = useT();
   const [copied, setCopied] = useState(false);
   const [transfer, setTransfer] = useState<PreviewTransfer | null>(null);
   const localReceipt = id.startsWith("local-send-");
@@ -44,7 +47,7 @@ export default function PrototypeActivityDetailScreen({ id }: { id: string }) {
   const receiptId = sampleHash(id);
   const copyValue = transfer ? transfer.id : receiptId;
   const title = transfer ? "Transfer" : receipt?.title ?? "Activity";
-  const amount = transfer ? `−${new Intl.NumberFormat("en-US", { maximumFractionDigits:2 }).format(transfer.pesos)}` : receipt?.amount ?? "";
+  const amount = transfer ? `−${formatLocal(transfer.pesos, currency)}` : receipt?.amount ?? "";
   const person = transfer ? `@${transfer.recipientHandle}` : receipt?.person ?? "";
   const rows = transfer ? [["To", `@${transfer.recipientHandle}`], ["Status", "Local demo · no tokens moved"], ["Native amount", `${Number(transfer.amountStroops) / 10_000_000} Testnet XLM`], ["Recipient wallet", transfer.recipientAddress]] as [string,string][] : receipt?.rows ?? [];
 

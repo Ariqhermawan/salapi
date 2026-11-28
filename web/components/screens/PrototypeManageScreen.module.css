@@ -53,6 +53,7 @@
 .stageTerms > strong { font-size:12px; font-weight:600; }
 .stageTerms > span { display:flex; align-items:baseline; justify-content:space-between; gap:10px; color:#737985; font-size:11px; line-height:16px; }
 .stageTerms b { color:var(--sl-ink); font-weight:600; text-align:right; }
+.stagePreviewNotice { margin:10px 0 0 !important; padding:10px 11px; border:1px solid #b7d3ff; border-radius:12px; background:#eff6ff; color:#12346a !important; font-size:11px !important; line-height:16px !important; overflow-wrap:anywhere; }
 .stageList { display:grid; gap:8px; margin:12px 0 0; padding:0; list-style:none; }
 .stageList li { display:grid; grid-template-columns:20px minmax(0,1fr) auto; min-width:0; align-items:center; gap:10px; padding:10px 11px; border:1px solid #e6e8ec; border-radius:14px; }
 .stageList li > span { display:grid; min-width:0; gap:4px; }

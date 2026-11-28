@@ -43,6 +43,30 @@ The [D4 report](../instawards/week-4-d4.md) separates these receipts from live
 browser acceptance and links the public signed XDR/raw RPC archive. No D3
 vault, signer configuration, existing wallet, or wallet encryption key changed.
 
+## D5 recurring campaigns — Testnet deployment on 2026-11-28
+
+The separate D5 contract keeps the immutable D4 one-time flow unchanged. It is
+version 5 and its constructor fixes the native Testnet XLM Stellar Asset
+Contract. Donations fill ordered stage targets; each stage release needs its
+own proof and two of the three campaign reviewers. Once final review expires,
+donors can recover allocations to stages that have not released. Previously
+released stages remain paid.
+
+| Contract | Contract ID | Upload · deploy · WASM hash |
+|---|---|---|
+| recurring-campaign v5 | [`CDI6V4XTDDDAVW5GLJE6JOZ4AZO3TWCUJ54ZWYOTQFUNX4HXIJVPKK24`](https://stellar.expert/explorer/testnet/contract/CDI6V4XTDDDAVW5GLJE6JOZ4AZO3TWCUJ54ZWYOTQFUNX4HXIJVPKK24) | [`21d2bd75…7d8c`](https://stellar.expert/explorer/testnet/tx/21d2bd75f01249a07855fa6ac2e4fbf90add5c67e7dac56a301f08c943a67d8c) · [`56463f8d…6ef83`](https://stellar.expert/explorer/testnet/tx/56463f8da70d2d27562a5e8a6247c54142b4944795583aa62d285e2d4586ef83) · `7b195dcd4be1ae99ffed97bff6582d6b7e6b9fee6826d0f963e08fb5ed6f5858` |
+
+Read-only Testnet checks returned `version() = 5` and `token() =
+CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC`. The app uses the
+versioned ID in `lib/server/stellar.ts`; `RECURRING_CAMPAIGN_CONTRACT` can
+override it only with another valid v5/XLM deployment. Apply
+`20261128120000_recurring_campaign_intents.sql` before deploying the web app so
+the existing one-time confirmation table accepts the seven recurring actions.
+
+Repeat the contract deployment with
+`bash scripts/deploy-recurring-campaign-v5-testnet.sh <testnet-source-alias>`.
+The script builds the workspace-locked WASM and always deploys to Testnet.
+
 ## D3 deployment status
 
 The new Disaster Vault implementation uses fixed three-signer authorization,

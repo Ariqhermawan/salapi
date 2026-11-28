@@ -35,6 +35,7 @@ export const STELLAR_BASE_FEE_STROOPS = BASE_FEE;
 // Deployed on testnet, see docs/operations/deployments.md.
 export const CONTRACTS = {
   donationCampaign: "CC6D7P35SVCNZLOKTHKDNH4S2ZELYHBP5UO3IWADFORKEF7BCSBY37FU",
+  recurringCampaign: "CDI6V4XTDDDAVW5GLJE6JOZ4AZO3TWCUJ54ZWYOTQFUNX4HXIJVPKK24",
   usernameRegistry: "CDDINUQXTF6SHZN2ZJ36IT7P4YOJ3OZN3H6LTYHVCQ35YYO7YTAWM4G3",
   scheduledArisan: "CC6FH4DNOCXAZM5Z6BTZ7G6IJKPLACXUZRW4I5QCZEHRNRYRNLYYEMAL",
   tokenXlmSac: "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC",
@@ -440,6 +441,11 @@ export function disasterId(): string | null {
 export function donationCampaignId(): string | null {
   const id = (process.env.DONATION_CAMPAIGN_CONTRACT ?? CONTRACTS.donationCampaign).trim();
   return StrKey.isValidContract(id) ? id : null;
+}
+// Separate immutable D5 deployment; never let a D4 override double as D5.
+export function recurringCampaignId(): string | null {
+  const id = (process.env.RECURRING_CAMPAIGN_CONTRACT ?? CONTRACTS.recurringCampaign).trim();
+  return StrKey.isValidContract(id) && id !== donationCampaignId() ? id : null;
 }
 export const FRIENDS = [
   {

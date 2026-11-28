@@ -13,7 +13,7 @@ import { supabaseConfigured } from "@/lib/supabase/env";
 import { Ico, T } from "@/components/ui/kit";
 import { useT } from "@/components/I18nProvider";
 import { moneyCopy, moneyMessage } from "@/lib/i18n/revamp-money";
-import { activityCopy, activityEstimateLabel } from "@/lib/i18n/wallet-activity";
+import { activityCopy, activityDayLabel, activityEstimateLabel } from "@/lib/i18n/wallet-activity";
 import { circleDisplayTitle } from "@/lib/i18n/circles-content";
 import { vaultCircleCover } from "@/lib/vault-campaign-cover";
 import { formatLocal } from "@/lib/ui/currency";
@@ -317,6 +317,28 @@ export default function ActivityScreen() {
   // including the frame before the new account request has started.
   const personal = owner && history.owner === owner ? history : emptyHistory;
   const filteredItems = filterWalletActivity(personal.items, filter);
+  const activityGroups = (() => {
+    const groups = new Map<string, { key: string; label: string; items: WalletActivityItem[] }>();
+    for (const receipt of filteredItems) {
+      const date = new Date(receipt.createdAt);
+      const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+      const group = groups.get(key) ?? { key, label: activityDayLabel(receipt.createdAt, locale), items: [] };
+      group.items.push(receipt);
+      groups.set(key, group);
+    }
+    return [...groups.values()];
+  })();
+  const previewActivityGroups = (() => {
+    const groups = new Map<string, { key: string; label: string; items: PreviewTransfer[] }>();
+    for (const receipt of transfers) {
+      const date = new Date(receipt.createdAt);
+      const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+      const group = groups.get(key) ?? { key, label: activityDayLabel(receipt.createdAt, locale), items: [] };
+      group.items.push(receipt);
+      groups.set(key, group);
+    }
+    return [...groups.values()];
+  })();
   const address = isLocalPreview ? PREVIEW_WALLET.address : personal.address;
   useEffect(() => {
     if (isLocalPreview || !owner || !address || authError || tab !== "personal") return;
@@ -443,11 +465,15 @@ export default function ActivityScreen() {
                     </div>
                   ) : null}
                   {filteredItems.length ? (
-                    <ol className={`${styles.timeline} ${styles.personalTimeline}`} aria-label={m("Confirmed wallet transfers")}>
-                      {filteredItems.map((receipt) => {
+                    <div className={styles.activityDayGroups}>
+                      {activityGroups.map(group => <section className={styles.activityDayGroup} aria-label={group.label} data-activity-day={group.key} key={group.key}>
+                        <h3 className={styles.activityDayTitle}>{group.label}</h3>
+                        <ol className={`${styles.timeline} ${styles.personalTimeline}`} aria-label={`${m("Confirmed wallet transfers")} · ${group.label}`}>
+                      {group.items.map((receipt) => {
                         const received = receipt.direction === "received";
                         const context = receipt.context;
-                        const referenceLabel = context?.referenceId ? context.type.startsWith("campaign-") ? h("campaignName", { id: context.referenceId })
+                        const referenceLabel = context?.referenceId ? context.type.startsWith("campaign-") ? context.referenceId.startsWith("r")
+                          ? h("recurringCampaignName", { id: context.referenceId.slice(1) }) : h("campaignName", { id: context.referenceId })
                           : context.type.startsWith("arisan-") ? h("arisanName", { id: context.referenceId }) : null : null;
                         const circleId = context && context.type !== "wallet-withdrawal" && context.type.startsWith("campaign-") ? context.circleId : undefined;
                         const circleTitle = circleId ? circleDisplayTitle(circleId, locale) : undefined;
@@ -462,11 +488,7 @@ export default function ActivityScreen() {
                         const amountSign = received ? "+" : "−";
                         const selected = expanded === receipt.id;
                         return (
-                          <li key={receipt.id} className={`${styles.timelineItem} ${campaignCover ? styles.withCampaignCover : ""}`} data-activity-purpose={context?.type ?? "transfer"}>
-                            {campaignCover ? <Image src={campaignCover} alt="" fill sizes="(max-width: 460px) 100vw, 460px" className={styles.campaignCover} /> : null}
-                            <span className={`${styles.timelineIcon} ${received ? styles.incomingIcon : ""}`} aria-hidden="true">
-                              {received ? Ico.arrowDown({ size: 19, c: "#00866a" }) : Ico.arrowUp({ size: 19, c: T.action })}
-                            </span>
+                          <li key={receipt.id} className={styles.timelineItem} data-activity-purpose={context?.type ?? "transfer"}>
                             <div className={styles.receiptBody}>
                               <button type="button" className={`${styles.receiptButton} ${styles.transferButton}`} aria-haspopup="dialog" aria-controls={selected ? `activity-receipt-${receipt.id}` : undefined} data-activity-receipt-trigger={receipt.id}
                                 onClick={(event) => {
@@ -479,7 +501,9 @@ export default function ActivityScreen() {
                                 </div>
                                 <div className={styles.transferIdentity}>
                                   {context || counterparty ? <span className={styles.counterparty}>
-                                    {context ? <span className={styles.purposeIcon} aria-hidden="true">{Ico.vault({ size: 20, c: T.action })}</span>
+                                    {context ? <span className={styles.purposeIcon} aria-hidden="true">{campaignCover
+                                      ? <Image className={styles.purposeCover} src={campaignCover} alt="" width={32} height={32} />
+                                      : Ico.vault({ size: 20, c: T.action })}</span>
                                       : <AccountAvatar name={counterpartName.replace(/^@/, "")} photoUrl={counterpartIdentity?.photoUrl ?? null} size={32} alt={h("photo", { name: counterpartName })} />}
                                     <span>
                                       <strong>{context ? purposeName : h(received ? "from" : "to", { name: counterpartName })}</strong>
@@ -510,7 +534,9 @@ export default function ActivityScreen() {
                           </li>
                         );
                       })}
-                    </ol>
+                        </ol>
+                      </section>)}
+                    </div>
                   ) : null}
                   {personal.nextCursor ? (
                     <button type="button" className={styles.loadMore} disabled={loadingMore} aria-busy={loadingMore} onClick={() => void refresh(personal.nextCursor)}>
@@ -537,68 +563,57 @@ export default function ActivityScreen() {
                   {Ico.refresh({ size: 15, c: T.action })}
                 </button>
               </div>
-              <ol className={styles.timeline}>
-                {transfers.map((receipt) => (
-                  <li key={receipt.id} className={styles.timelineItem}>
-                    <span className={styles.timelineIcon}>
-                      {Ico.arrowUp({ size: 17, c: T.action })}
-                    </span>
-                    <div className={styles.receiptBody}>
-                      <button
-                        type="button"
-                        className={styles.receiptButton}
-                        aria-expanded={expanded === receipt.id}
-                        aria-controls={`activity-receipt-${receipt.id}`}
-                        onClick={() =>
-                          setExpanded((current) =>
-                            current === receipt.id ? null : receipt.id,
-                          )
-                        }
-                      >
-                        <div>
-                          <strong>
-                            {m("Send demo to @")}{receipt.recipientHandle}
-                          </strong>
-                          <span>{receiptDate(receipt.createdAt, false, locale)}</span>
+              <div className={styles.activityDayGroups}>
+                {previewActivityGroups.map(group => <section className={styles.activityDayGroup} aria-label={group.label} data-activity-day={group.key} key={group.key}>
+                  <h3 className={styles.activityDayTitle}>{group.label}</h3>
+                  <ol className={`${styles.timeline} ${styles.personalTimeline}`} aria-label={`${m("Recorded in this browser.")} · ${group.label}`}>
+                    {group.items.map((receipt) => (
+                      <li key={receipt.id} className={styles.timelineItem}>
+                        <div className={styles.receiptBody}>
+                          <button
+                            type="button"
+                            className={`${styles.receiptButton} ${styles.transferButton}`}
+                            aria-expanded={expanded === receipt.id}
+                            aria-controls={`activity-receipt-${receipt.id}`}
+                            onClick={() => setExpanded(current => current === receipt.id ? null : receipt.id)}
+                          >
+                            <div className={styles.transferHeading}>
+                              <strong>{m("Sent XLM")}</strong>
+                              <time dateTime={receipt.createdAt}>{receiptDate(receipt.createdAt, false, locale)}</time>
+                            </div>
+                            <div className={styles.transferIdentity}>
+                              <span className={styles.counterparty}>
+                                <AccountAvatar name={receipt.recipientHandle} photoUrl={null} size={32} alt="" />
+                                <span><strong>@{receipt.recipientHandle}</strong><span>{m("Local demo")}</span></span>
+                              </span>
+                            </div>
+                            <div className={styles.receiptAmount}>
+                              <strong>{formatLocal(receipt.pesos, currency)}</strong>
+                            </div>
+                            <span className={styles.receiptToggle}>{h("viewDetails")} {Ico.chev({ size: 12, c: T.action })}</span>
+                          </button>
+                          {expanded === receipt.id && (
+                            <div id={`activity-receipt-${receipt.id}`} className={styles.receiptDetails}>
+                              <p>{m("A confirmed browser demonstration, not an on-chain transfer.")}</p>
+                              <dl>
+                                <dt>{m("Native amount")}</dt>
+                                <dd>{nativeAmount(receipt.amountStroops)} Testnet XLM</dd>
+                                <dt>{m("Exact native units")}</dt>
+                                <dd>{receipt.amountStroops} stroops</dd>
+                                <dt>{m("Recorded at")}</dt>
+                                <dd>{receiptDate(receipt.createdAt, true, locale)}</dd>
+                                <dt>{m("Recipient wallet")}</dt>
+                                <dd className={styles.address}>{receipt.recipientAddress}</dd>
+                              </dl>
+                              <p>{m("No transaction hash was generated. Display currency is illustrative.")}</p>
+                            </div>
+                          )}
                         </div>
-                        <div className={styles.receiptAmount}>
-                          <strong>
-                            {formatLocal(receipt.pesos, currency)}
-                          </strong>
-                          <small>{m("Local demo")}</small>
-                        </div>
-                      </button>
-                      {expanded === receipt.id && (
-                        <div
-                          id={`activity-receipt-${receipt.id}`}
-                          className={styles.receiptDetails}
-                        >
-                          <p>
-                            {m("A confirmed browser demonstration, not an on-chain transfer.")}
-                          </p>
-                          <dl>
-                            <dt>{m("Native amount")}</dt>
-                            <dd>
-                              {nativeAmount(receipt.amountStroops)} Testnet XLM
-                            </dd>
-                            <dt>{m("Exact native units")}</dt>
-                            <dd>{receipt.amountStroops} stroops</dd>
-                            <dt>{m("Recorded at")}</dt>
-                            <dd>{receiptDate(receipt.createdAt, true, locale)}</dd>
-                            <dt>{m("Recipient wallet")}</dt>
-                            <dd className={styles.address}>
-                              {receipt.recipientAddress}
-                            </dd>
-                          </dl>
-                          <p>
-                            {m("No transaction hash was generated. Display currency is illustrative.")}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ol>
+                      </li>
+                    ))}
+                  </ol>
+                </section>)}
+              </div>
               <Link href="/send" className={styles.sendButton}>
                 {Ico.send({ size: 18, c: "#fff" })} {m("Send by @")}
               </Link>

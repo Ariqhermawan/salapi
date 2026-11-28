@@ -8,6 +8,7 @@ import PwaRegister from "@/components/PwaRegister";
 import { I18nProvider } from "@/components/I18nProvider";
 import InstallBanner from "@/components/InstallBanner";
 import MarketingAside from "@/components/MarketingAside";
+import PrototypePreviewAside from "@/components/PrototypePreviewAside";
 import { StatusBarIcons, StatusBarTime } from "@/components/PrototypeStatusBar";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -114,7 +115,7 @@ export default async function RootLayout({
                 <span className="sl-preview-device-button sl-preview-device-button-power" aria-hidden="true" />
               </div>
             </div>
-            <MarketingAside />
+            {isLocalPreview ? <PrototypePreviewAside /> : <MarketingAside />}
           </div>
           </MarketPricesProvider>
         </I18nProvider>

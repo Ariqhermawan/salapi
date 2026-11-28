@@ -23,6 +23,7 @@ import { PawPrint } from "@phosphor-icons/react/dist/csr/PawPrint";
 import { Plus } from "@phosphor-icons/react/dist/csr/Plus";
 import { AppBar, Btn, Ico, IconButton, PoweredByStellar } from "@/components/ui/kit";
 import { saveLocalPreviewCause } from "@/lib/local-preview";
+import { RECURRING_CAMPAIGN_FEE_PREVIEW_NOTICE, RECURRING_CAMPAIGN_PREVIEW_NOTICE, recurringCampaignPreviewSetup } from "@/lib/prototype-recurring-preview";
 import { useGoBack } from "@/lib/ui/useGoBack";
 import PrototypeFeeStory from "./PrototypeFeeStory";
 import styles from "./PrototypeCreateCauseScreen.module.css";
@@ -176,8 +177,9 @@ export default function PrototypeCreateCauseScreen() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const previewQuery = searchParams.toString();
+  const [recurringSetup] = useState(() => recurringCampaignPreviewSetup(previewQuery));
   const back = useGoBack("/");
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(recurringSetup?.step ?? 1);
   const [title, setTitle] = useState("A library for our barangay");
   const [story, setStory] = useState("Our barangay kids need a quiet place to read after school. Funds buy shelves, books and lights.");
   const [category, setCategory] = useState("Community");
@@ -190,11 +192,11 @@ export default function PrototypeCreateCauseScreen() {
   const [payout, setPayout] = useState("meis_family");
   const [proofFiles, setProofFiles] = useState<Photo[]>([]);
   const [photos, setPhotos] = useState<Photo[]>([]);
-  const [goal, setGoal] = useState("862.07");
+  const [goal, setGoal] = useState(recurringSetup?.goal ?? "862.07");
   const [endDate, setEndDate] = useState(() => dateInDays(30));
   const [endTime, setEndTime] = useState("18:00");
-  const [recurring, setRecurring] = useState(false);
-  const [stages, setStages] = useState<StageDraft[]>([]);
+  const [recurring, setRecurring] = useState(recurringSetup !== null);
+  const [stages, setStages] = useState<StageDraft[]>(recurringSetup?.stages ?? []);
   const [fee, setFee] = useState(5);
   const [photoIssue, setPhotoIssue] = useState("");
   const [mainPhotoUrl, setMainPhotoUrl] = useState<string | null>(null);
@@ -214,22 +216,6 @@ export default function PrototypeCreateCauseScreen() {
     setPortalHost(document.getElementById("phone-layer") ?? document.body);
     return () => { for (const url of objectUrls.current) URL.revokeObjectURL(url); };
   }, []);
-
-  useEffect(() => {
-    const params = new URLSearchParams(previewQuery);
-    if (params.get("kind") !== "recurring") return;
-    const sample = [
-      { title: "Shelves and tables", amountCents: 20000, dueDate: dateInDays(49) },
-      { title: "Books, first 600", amountCents: 20000, dueDate: dateInDays(77) },
-      { title: "Lights and fans", amountCents: 20000, dueDate: dateInDays(105) },
-    ];
-    if (params.get("stages") === "empty") setStages(blankStages());
-    else if (params.get("stages") === "over") setStages(sample.map((stage, index) => index === 2 ? { ...stage, amountCents: 25000 } : stage));
-    else setStages(sample);
-    setGoal("600");
-    setRecurring(true);
-    setStep(params.get("step") === "review" ? 5 : 4);
-  }, [previewQuery]);
 
   useEffect(() => {
     if (!categoryOpen) return;
@@ -428,8 +414,9 @@ export default function PrototypeCreateCauseScreen() {
           <button type="button" role="radio" aria-checked={recurring} className={styles.causeType} onClick={() => { setRecurring(true); setStages(current => current.length ? current : blankStages()); }}><span><strong>Recurring</strong><small>A need that comes back, like dialysis.</small></span><i /></button>
         </div>
         {recurring && <div className={styles.stages}>
-          <strong className={styles.stagesTitle}>Payout stages</strong>
-          <p className={styles.hint}>Split the goal into stages. Each stage is paid after donors rate its proof.</p>
+          <strong className={styles.stagesTitle}>Planned payout stages · local preview</strong>
+          <p className={styles.recurringNotice} role="note">{RECURRING_CAMPAIGN_PREVIEW_NOTICE}</p>
+          <p className={styles.hint}>Set example amounts and target dates. This schedule does not create payouts.</p>
           <div className={styles.stageList} role="group" aria-label="Payout stages">
             {stages.map((stage, index) => {
               const previousDue = index > 0 ? stages[index - 1].dueDate : "";
@@ -461,15 +448,16 @@ export default function PrototypeCreateCauseScreen() {
         <div className={styles.dateGrid}><div><label htmlFor="cause-end">Funding ends on</label><DatePicker id="cause-end" min={dateInDays(1)} max={dateInDays(365)} value={endDate} onChange={setEndDate} /></div><div><label htmlFor="cause-time">At</label><TimePicker id="cause-time" value={endTime} onChange={setEndTime} /></div></div>
         <small>{Math.max(1, Math.ceil((new Date(`${endDate}T00:00:00`).getTime() - new Date(`${dateInDays(0)}T00:00:00`).getTime()) / 86_400_000))} days from today.</small>
         <div className={styles.feeHeader}>
-          <label htmlFor="cause-fee">Organizer fee</label>
+          <label htmlFor="cause-fee">{recurring ? "Prototype organizer fee" : "Organizer fee"}</label>
           <button className={styles.feeInfo} type="button" aria-label="What is the organizer fee?" aria-haspopup="dialog" onClick={() => setFeeInfoOpen(true)}><Info size={16} weight="fill" aria-hidden="true" /></button>
           <strong>{fee}%</strong>
         </div>
         <input id="cause-fee" className={styles.range} type="range" min="0" max="5" step="0.5" value={fee} onChange={event => setFee(Number(event.target.value))} />
         <div className={styles.rangeLabels}><span>0%</span><span>5%</span></div>
-        <div className={styles.feeBox}><strong>If the goal is reached</strong><div><span>Donors give</span><b>{money(rawGoal)}</b></div><div><span>Your organizer fee · {fee}%</span><b>{money(organizerFee)}</b></div><div><span>Salapi 1% and Disaster Vault 1%</span><b>{money(platformAndVault)}</b></div><div className={styles.total}><span>The cause receives</span><b>{money(receives)}</b></div></div>
+        <div className={styles.feeBox}><strong>{recurring ? "Illustrative split · not D4 terms" : "If the goal is reached"}</strong><div><span>Donors give</span><b>{money(rawGoal)}</b></div><div><span>{recurring ? "Example organizer fee" : "Your organizer fee"} · {fee}%</span><b>{money(organizerFee)}</b></div><div><span>{recurring ? "Example platform and Vault amount" : "Salapi 1% and Disaster Vault 1%"}</span><b>{money(platformAndVault)}</b></div><div className={styles.total}><span>{recurring ? "Illustrative amount to the cause" : "The cause receives"}</span><b>{money(receives)}</b></div></div>
         <p className={styles.hint}>You set the fee, from 0 to 5%. It comes out of each donation and donors see it before they give.</p>
-        <p className={styles.soft}>{recurring ? "Funds stay in escrow and leave it one stage at a time, each after donors rate your proof for that stage." : "Funds stay in escrow until donors rate your proof of delivery."}</p>
+        {recurring && <p className={styles.recurringNotice} role="note">{RECURRING_CAMPAIGN_FEE_PREVIEW_NOTICE}</p>}
+        <p className={styles.soft}>{recurring ? "The schedule stays in this browser preview; no Testnet or production payout is created." : "Active D4 campaigns use one proof reviewed by two of three configured wallets, then a single release."}</p>
       </section>}
 
       {step === 5 && <>
@@ -482,12 +470,12 @@ export default function PrototypeCreateCauseScreen() {
           <h1>Check before you launch.</h1>
           {[["Title", title, 1], ["Beneficiary", beneficiaryName || "Not set", 2], ["Location", location || "Not set", 2], ["Receives", `@${payout || "Not set"}`, 2], ["Photos", `${photos.length} ${photos.length === 1 ? "file" : "files"}`, 3], ["Target", money(rawGoal), 4], ["Cause type", recurring ? `Recurring · ${stages.length} stages` : "One time", 4], ["Ends", `${new Date(`${endDate}T12:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}, ${endTime}`, 4], ["Organizer fee", `${fee}%`, 4]].map(([label, value, at]) => <div key={String(label)} className={styles.reviewRow}><span>{label}</span><strong>{value}</strong><button type="button" aria-label={`Edit ${String(label).toLowerCase()}`} onClick={() => setStep(Number(at))}>Edit</button></div>)}
         </section>
-        {recurring && <section className={styles.card}><div className={styles.stagesReviewHead}><h1>Payout stages</h1><button type="button" aria-label="Edit payout stages" onClick={() => setStep(4)}>Edit</button></div><p className={styles.hint}>Each stage is paid after donors rate its proof.</p><ol className={styles.reviewStages}>{stages.map((stage, index) => <li className={styles.reviewStage} key={index}><span><span><strong>{stage.title.trim() || `Stage ${index + 1}`}</strong><small>Due {stage.dueDate ? stageDate(stage.dueDate) : "No due date yet"}</small></span></span><b>{stage.amountCents === null ? "Not set" : moneyCents(stage.amountCents)}</b></li>)}</ol></section>}
+        {recurring && <section className={styles.card}><div className={styles.stagesReviewHead}><h1>Schedule example</h1><button type="button" aria-label="Edit payout stages" onClick={() => setStep(4)}>Edit</button></div><p className={styles.recurringNotice} role="note">{RECURRING_CAMPAIGN_PREVIEW_NOTICE}</p><p className={styles.recurringNotice} role="note">{RECURRING_CAMPAIGN_FEE_PREVIEW_NOTICE}</p><ol className={styles.reviewStages}>{stages.map((stage, index) => <li className={styles.reviewStage} key={index}><span><span><strong>{stage.title.trim() || `Stage ${index + 1}`}</strong><small>Planned · due {stage.dueDate ? stageDate(stage.dueDate) : "No date set"}</small></span></span><b>{stage.amountCents === null ? "Not set" : moneyCents(stage.amountCents)}</b></li>)}</ol></section>}
       </>}
 
       {step === 1 && <div className={styles.powered}><PoweredByStellar /></div>}
     </> : <section className={styles.finished}>
-      <span className={styles.check}>✓</span><h1>Your cause is ready to launch</h1><p>Saved in this browser&apos;s local preview. It has not been published and no transaction was sent.</p>
+      <span className={styles.check}>✓</span><h1>{recurring ? "Your schedule example is saved" : "Your cause is ready to launch"}</h1><p>Saved in this browser&apos;s local preview. It has not been published and no transaction was sent.</p>
       <div className={styles.finishCard}><strong>{title}</strong><span>{category} · Goal {money(rawGoal)}</span><p>{story}</p></div>
       <Btn onClick={() => router.push(createdId ? `/cause/${createdId}` : "/manage")}>View local cause</Btn>
       <button type="button" onClick={() => { setDone(false); setStep(1); }}>Edit cause</button>
