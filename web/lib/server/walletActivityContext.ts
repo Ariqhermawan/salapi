@@ -124,7 +124,7 @@ export async function readActivityContextTitles(items: WalletActivityItem[], vie
     const key = `${donationCampaignId()}:${mapping.campaignId}`;
     if (!validatedCircleTestnetCampaign(snapshots.get(key), mapping, CONTRACTS.tokenXlmSac)) continue;
     const circle = SEED_CIRCLES.find(circle => circle.id === mapping.circleId);
-    if (circle) linked.set(key, { name: `QA · ${circle.title}`, circleId: circle.id });
+    if (circle) linked.set(key, { name: circle.title, circleId: circle.id });
   }
   return items.map(item => {
     if (!item.context || item.context.type === "wallet-withdrawal") return item;

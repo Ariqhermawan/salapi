@@ -9,6 +9,7 @@ import { useSearchParams, usePathname, useRouter } from "next/navigation";
 import { SEED_CIRCLES } from "@/lib/circles/seed";
 import type { CircleCategory } from "@/lib/circles/types";
 import { circlesCategory } from "@/lib/i18n/revamp-circles";
+import { circleDisplayTitle } from "@/lib/i18n/circles-content";
 import { useT } from "@/components/I18nProvider";
 import type { Campaign } from "@/lib/campaign";
 import { isLocalPreview, PREVIEW_CAMPAIGNS, PREVIEW_TIME, PREVIEW_WALLET } from "@/lib/local-preview";
@@ -81,19 +82,25 @@ function CategoryChip({ label, category }: { label: string; category: string }) 
   return <span className={styles.categoryChip} data-category={category}>{label}</span>;
 }
 
-function CauseCard({ campaign, now, category, featured, saved, onSave, localPreview, saveDisabled = false }: {
-  campaign: CampaignRow; now: bigint; category: string; featured?: boolean; saved: boolean;
+function CauseCard({ campaign, circleId, now, category, featured, saved, onSave, localPreview, saveDisabled = false }: {
+  campaign: CampaignRow; circleId?: string; now: bigint; category: string; featured?: boolean; saved: boolean;
   onSave: () => void; localPreview: boolean; saveDisabled?: boolean;
 }) {
-  const href = `/campaigns?id=${encodeURIComponent(campaign.id)}`;
+  const { locale } = useT();
+  // A verified catalog link shows the cause's own title, photo and page, not the
+  // immutable on-chain QA title ("QA Circles: <slug>").
+  const circle = circleId ? SEED_CIRCLES.find(item => item.id === circleId) : undefined;
+  const title = circle ? circleDisplayTitle(circle.id, locale) ?? campaign.title : campaign.title;
+  const href = circle ? `/circles/${encodeURIComponent(circle.id)}` : `/campaigns?id=${encodeURIComponent(campaign.id)}`;
   const categoryId = category.toLowerCase().replace(/[^a-z]+/g, "-");
   const raised = formatIllustrativeUsd(campaign.total);
   const amount = formatStroops(campaign.total);
   const media = vaultCampaignMedia(campaign, localPreview);
+  const coverSrc = media?.coverSrc ?? circle?.coverImage;
   return <span className={styles.cardWrap} data-featured={featured || undefined} data-short={featured || undefined}>
     <Link href={href} className={`${styles.causeCard} ${featured ? styles.featuredCard : styles.smallCard}`} data-featured={featured || undefined}>
       <span className={styles.cover}>
-        <Cover category={categoryId} mediaSrc={media?.coverSrc} />
+        <Cover category={categoryId} mediaSrc={coverSrc} />
         <span className={styles.coverTags}>
           <span>{category ? <CategoryChip label={category} category={categoryId} /> : <CategoryChip label="Stellar Testnet" category="general" />}</span>
         </span>
@@ -101,10 +108,10 @@ function CauseCard({ campaign, now, category, featured, saved, onSave, localPrev
       </span>
       <span className={styles.cardBody}>
         {featured ? <>
-          <span className={styles.causeTitle}>{campaign.title}</span>
+          <span className={styles.causeTitle}>{title}</span>
           <span className={styles.causeSub}>{category || "Stellar Testnet campaign"}</span>
         </> : <>
-          <span className={styles.causeTitleSmall}>{campaign.title}</span>
+          <span className={styles.causeTitleSmall}>{title}</span>
           <span className={styles.causeSub}>{category || "Stellar Testnet campaign"}</span>
         </>}
         <CampaignStatusSummary campaign={campaign} now={now} />
@@ -115,7 +122,7 @@ function CauseCard({ campaign, now, category, featured, saved, onSave, localPrev
       </span>
     </Link>
     <button type="button" className={styles.saveButton} aria-pressed={saved} disabled={saveDisabled}
-      aria-label={saved ? `Remove ${campaign.title} from saved causes` : `Save ${campaign.title}`}
+      aria-label={saved ? `Remove ${title} from saved causes` : `Save ${title}`}
       title={saved ? "Remove from saved causes" : "Save this cause"} onClick={onSave}>
       <BookmarkSimple size={19} weight={saved ? "fill" : "regular"} aria-hidden="true" />
     </button>
@@ -361,7 +368,7 @@ function LiveCampaignCausesScreen({ initialSavedOnly = false }: { initialSavedOn
   };
   const searchLabel = copy("Search campaigns");
   const searchPlaceholder = copy("Search causes");
-  const cardCampaign = (campaign: Campaign) => <CauseCard key={campaign.id} campaign={campaign}
+  const cardCampaign = (campaign: Campaign) => <CauseCard key={campaign.id} campaign={campaign} circleId={circleLinks?.[campaign.id]}
     now={now} category={categoryFor(campaign, circleLinks) ? circlesCategory(locale, categoryFor(campaign, circleLinks) as CircleCategory) : ""}
     featured={campaign.id === featured?.id} saved={saved.includes(campaign.id)} onSave={() => toggleSaved(campaign.id)} localPreview={isLocalPreview}
     saveDisabled={identity.status === "loading" || identity.status === "unavailable" || savedStatus === "loading" || savedMutation === campaign.id} />;

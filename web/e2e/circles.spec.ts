@@ -15,7 +15,7 @@ async function donationScreen(page: import("@playwright/test").Page, expected: D
     await expect(main.getByText(/No payment method, authorization or/)).toBeVisible();
   } else {
     await expect(main.getByText("Fictional cause, real Testnet transaction", { exact: true })).toBeVisible();
-    await expect(main.getByText(/QA wallets receive test tokens, not the pictured organizer or NGO/)).toBeVisible();
+    await expect(main.getByText(/Testnet demo wallets receive test tokens, not the pictured organizer or NGO/)).toBeVisible();
     const signIn = main.getByRole("link", { name: "Sign in with Google", exact: true });
     const unavailableIdentity = main.getByText("Your account must be verified before donating.");
     await expect(signIn.or(unavailableIdentity)).toBeVisible({ timeout: 20000 });
