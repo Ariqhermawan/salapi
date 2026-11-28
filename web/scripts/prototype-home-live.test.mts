@@ -70,6 +70,7 @@ test("local preview renders its sample activity and prototype causes", () => {
   const html = render();
   assert.match(html, /data-testid="prototype-home"/);
   assert.match(html, /SAMPLE/);
+  assert.match(html, /href="\/vault\?tab=activity"/);
   assert.match(html, /Bantayan Island/);
   assert.doesNotMatch(html, /data-testid="home-donation-ticker"/);
 });
@@ -87,6 +88,7 @@ test("live Home uses its Testnet wallet and campaign reads instead of sample act
   });
   assert.match(html, /data-testid="home-dashboard"/);
   assert.match(html, /Welcome to Salapi, @edwin/);
+  assert.match(html, /href="\/vault\?tab=activity"/);
   assert.match(html, /data-testid="wallet-market-value"[^>]*data-native-stroops="15000000"/);
   assert.match(html, /data-testid="home-donation-ticker"[^>]*data-campaign-ids="103"[^>]*data-loading="false"/);
   assert.doesNotMatch(html, /SAMPLE/);
