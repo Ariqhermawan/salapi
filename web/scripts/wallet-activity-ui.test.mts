@@ -468,6 +468,22 @@ test("personal history names campaign donations, arisan winnings and disaster co
   h.unmount();
 });
 
+test("recurring campaign receipts have a localized purpose and open the recurring detail", async () => {
+  const options: { locale: "en" | "id" | "tl" | "vi" } = { locale: "en" };
+  const fixture: WalletActivityItem = { ...item("recurring-campaign", "sent"), context: {
+    type: "campaign-donation", referenceId: "r8", contractId: "C" + "B".repeat(55), title: null,
+  } };
+  const h = mount(options); h.emitAuth("owner-a"); await h.flush();
+  h.historyRequests[0].deferred.resolve(pageResult([fixture])); await h.flush();
+  for (const locale of ["en", "id", "tl", "vi"] as const) {
+    options.locale = locale; h.render();
+    assert.ok(text(h.tree).includes(activityCopy(locale)("recurringCampaignName", { id: "8" })));
+  }
+  openReceipt(h.tree, fixture.id); h.render();
+  assert.ok(nodes(h.tree).some(node => node.type === "Link" && node.props.href === "/campaigns?id=r8"));
+  h.unmount();
+});
+
 test("unrelated identity DTO never appears on another receipt; missing app profile uses truthful wallet fallback", async () => {
   const result = pageResult([item()]); if (!result.ok) throw Error("Fixture");
   result.identities = [{ address: "G" + "A".repeat(55), handle: "wrong_wallet", photoUrl: "https://lh3.googleusercontent.com/a/wrong" }];

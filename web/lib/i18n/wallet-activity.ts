@@ -29,6 +29,7 @@ const copy = {
   "savings-withdrawal": ["Savings withdrawal", "Withdrawal sa savings", "Penarikan tabungan", "Rút tiết kiệm"],
   "wallet-withdrawal": ["Wallet withdrawal", "Pag-withdraw sa wallet", "Penarikan dari wallet", "Rút khỏi ví"],
   campaignName: ["Campaign #{id}", "Campaign #{id}", "Campaign #{id}", "Chiến dịch #{id}"],
+  recurringCampaignName: ["Recurring campaign #{id}", "Paulit-ulit na campaign #{id}", "Campaign berulang #{id}", "Chiến dịch định kỳ #{id}"],
   arisanName: ["Room #{id} · Arisan / Paluwagan", "Room #{id} · Arisan / Paluwagan", "Room #{id} · Arisan / Paluwagan", "Phòng #{id} · Arisan / Paluwagan"],
   arisanPool: ["Arisan / Paluwagan", "Arisan / Paluwagan", "Arisan / Paluwagan", "Arisan / Paluwagan"],
   disasterPool: ["Shared disaster relief pool", "Shared pool para sa disaster relief", "Pool bersama untuk bantuan bencana", "Quỹ chung cứu trợ thiên tai"],

@@ -4,12 +4,12 @@ import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import * as sdk from "@stellar/stellar-sdk";
-import { activityContextHref, normalizeWalletActivity, type WalletActivityItem, type WalletActivityContext } from "../lib/wallet-activity.ts";
+import { activityContextHref, filterWalletActivity, normalizeWalletActivity, type WalletActivityItem, type WalletActivityContext } from "../lib/wallet-activity.ts";
 
 const wallet = sdk.StrKey.encodeEd25519PublicKey(Buffer.alloc(32, 7));
 const other = sdk.StrKey.encodeEd25519PublicKey(Buffer.alloc(32, 8));
 const contract = (n: number) => sdk.StrKey.encodeContract(Buffer.alloc(32, n));
-const configured = { campaign: contract(9), arisan: contract(10), disaster: contract(11), paluwagan: contract(12), savings: contract(13) };
+const configured = { campaign: contract(9), recurringCampaign: contract(16), arisan: contract(10), disaster: contract(11), paluwagan: contract(12), savings: contract(13) };
 const seed = [{ id: "ate-mei-dialysis", title: "Ate Mei needs dialysis - 12 sessions to stabilize" }];
 const mapping = { circleId: seed[0].id, campaignId: "7", campaignTitle: `QA Circles: ${seed[0].id}`, creatorWallet: wallet, beneficiaryWallet: other,
   approverWallets: [20, 21, 22].map(n => sdk.StrKey.encodeEd25519PublicKey(Buffer.alloc(32, n))), creatorCutBps: 500, fundingDeadline: "1800000000", reviewDeadline: "1800000100" };
@@ -49,7 +49,8 @@ function harness(options: { fail?: boolean; wrongId?: boolean; gate?: Promise<vo
     if (name === "../circles/testnet") return validators;
     if (name === "../circles/seed") return { SEED_CIRCLES: seed };
     if (name === "@stellar/stellar-sdk") return { ...sdk, rpc: { Server: ReadOnlyRpc, Api: { isSimulationSuccess: (r: { result?: unknown }) => !!r.result } } };
-    if (name === "./stellar") return { CONTRACTS: { tokenXlmSac: contract(14) }, RPC_URL: "https://soroban-testnet.stellar.org", donationCampaignId: () => configured.campaign, arisanRoomsId: () => configured.arisan,
+    if (name === "./stellar") return { CONTRACTS: { tokenXlmSac: contract(14) }, RPC_URL: "https://soroban-testnet.stellar.org", donationCampaignId: () => configured.campaign,
+      recurringCampaignId: () => configured.recurringCampaign, arisanRoomsId: () => configured.arisan,
       disasterId: () => configured.disaster, paluwaganId: () => configured.paluwagan, smartSavingsId: () => configured.savings };
     throw Error(`Unexpected context dependency: ${name}`);
   } });
@@ -74,6 +75,26 @@ test("successful D4 donation identifies its exact campaign without changing actu
   assert.equal(result.context?.type, "campaign-donation"); assert.equal(result.context?.referenceId, "7");
   assert.equal(result.amountStroops, item.amountStroops); assert.equal(result.hash, item.hash);
   assert.equal(activityContextHref(result.context), "/campaigns?id=7"); assert.deepEqual(h.calls, []);
+});
+
+test("D5 recurring donations, refunds and stage payouts keep their recurring campaign route", () => {
+  const h = harness();
+  const donation = receipt(configured.recurringCampaign, "donate", [sc(7n, "u64"), addr(), sc(100000000n, "i128")]);
+  const donated = h.attachActivityContexts([donation.item], [donation.record], wallet)[0];
+  assert.equal(donated.context?.type, "campaign-donation");
+  assert.equal(donated.context?.referenceId, "r7");
+  assert.equal(activityContextHref(donated.context), "/campaigns?id=r7");
+  assert.equal(filterWalletActivity([donated], "donated").length, 1);
+
+  const refund = receipt(configured.recurringCampaign, "refund", [sc(7n, "u64"), addr()], "received");
+  const refunded = h.attachActivityContexts([refund.item], [refund.record], wallet)[0];
+  assert.equal(refunded.context?.type, "campaign-refund");
+  assert.equal(activityContextHref(refunded.context), "/campaigns?id=r7");
+
+  const payout = receipt(configured.recurringCampaign, "release", [sc(7n, "u64")], "received", other);
+  const released = h.attachActivityContexts([payout.item], [payout.record], wallet)[0];
+  assert.equal(released.context?.type, "campaign-payout");
+  assert.equal(activityContextHref(released.context), "/campaigns?id=r7");
 });
 
 test("arisan winnings are actual received funds from finalize_draw, including another caller", () => {
@@ -125,8 +146,22 @@ test("optional title reads are parallel, unique, unsigned and bind campaign IDs;
   }
 });
 
+test("recurring campaign title reads use the numeric Soroban ID and retain the route namespace", async () => {
+  const h = harness();
+  const fixture = receipt(configured.recurringCampaign, "donate", [sc(7n, "u64"), addr(), sc(100000000n, "i128")]);
+  const contextual = h.attachActivityContexts([fixture.item], [fixture.record], wallet)[0];
+  const result = (await h.readActivityContextTitles([contextual], wallet))[0];
+  assert.equal(h.calls.length, 1);
+  assert.equal(h.calls[0].method, "campaign");
+  assert.equal(h.calls[0].id, 7n);
+  assert.equal(result.context?.title, "Dialysis - 12 sessions");
+  assert.equal(result.context?.referenceId, "r7");
+  assert.equal(activityContextHref(result.context), "/campaigns?id=r7");
+});
+
 test("internal purpose links cannot inject URLs or query parameters", () => {
-  for (const id of ["https://evil.test", "7&redirect=evil", "0", "01", "1/../../settings"]) assert.equal(activityContextHref({ type: "campaign-donation", referenceId: id, contractId: configured.campaign, title: null }), "/campaigns");
+  for (const id of ["https://evil.test", "7&redirect=evil", "0", "01", "1/../../settings", "r0", "r01", "r7&next=evil"]) assert.equal(activityContextHref({ type: "campaign-donation", referenceId: id, contractId: configured.campaign, title: null }), "/campaigns");
+  assert.equal(activityContextHref({ type: "campaign-donation", referenceId: "r7", contractId: configured.recurringCampaign, title: null }), "/campaigns?id=r7");
 });
 
 test("friendly fictional cause title and story link require the full reviewed mapping, not title inference", async () => {

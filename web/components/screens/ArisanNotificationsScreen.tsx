@@ -31,8 +31,10 @@ const isPublicAddress = (value: unknown): value is string => typeof value === "s
 function validActivityContext(value: unknown): value is NonNullable<NotificationActivityItem["context"]> {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const context = value as Partial<WalletActivityContext>;
+  const campaignId = context.type?.startsWith("campaign-") && typeof context.referenceId === "string"
+    && /^r[1-9]\d{0,19}$/.test(context.referenceId);
   return ACTIVITY_CONTEXT_TYPES.includes(context.type as WalletActivityContext["type"])
-    && (context.referenceId === null || typeof context.referenceId === "string" && /^[1-9]\d{0,19}$/.test(context.referenceId))
+    && (context.referenceId === null || campaignId || typeof context.referenceId === "string" && /^[1-9]\d{0,19}$/.test(context.referenceId))
     && (context.title === null || typeof context.title === "string" && context.title.length <= 160);
 }
 
@@ -70,7 +72,9 @@ function activityContextName(item: NotificationActivityItem, copy: ReturnType<ty
   if (!context || typeof context.type !== "string") return null;
   if (context.title) return context.title;
   if (!context.referenceId) return null;
-  if (context.type.startsWith("campaign-")) return copy("campaignName", { id: context.referenceId });
+  if (context.type.startsWith("campaign-")) return context.referenceId.startsWith("r")
+    ? copy("recurringCampaignName", { id: context.referenceId.slice(1) })
+    : copy("campaignName", { id: context.referenceId });
   if (context.type.startsWith("arisan-")) return copy("arisanName", { id: context.referenceId });
   return null;
 }

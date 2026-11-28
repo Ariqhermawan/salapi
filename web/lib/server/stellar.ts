@@ -442,6 +442,11 @@ export function donationCampaignId(): string | null {
   const id = (process.env.DONATION_CAMPAIGN_CONTRACT ?? CONTRACTS.donationCampaign).trim();
   return StrKey.isValidContract(id) ? id : null;
 }
+// Separate immutable D5 deployment; never let a D4 override double as D5.
+export function recurringCampaignId(): string | null {
+  const id = (process.env.RECURRING_CAMPAIGN_CONTRACT ?? CONTRACTS.recurringCampaign).trim();
+  return StrKey.isValidContract(id) && id !== donationCampaignId() ? id : null;
+}
 export const FRIENDS = [
   {
     label: "Teman A",

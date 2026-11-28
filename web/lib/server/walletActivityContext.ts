@@ -1,14 +1,14 @@
 import "server-only";
 import { Account, Address, BASE_FEE, Contract, FeeBumpTransaction, nativeToScVal, Networks, rpc, scValToNative, StrKey, TransactionBuilder } from "@stellar/stellar-sdk";
-import { arisanRoomsId, CONTRACTS, disasterId, donationCampaignId, paluwaganId, smartSavingsId, RPC_URL } from "./stellar";
+import { arisanRoomsId, CONTRACTS, disasterId, donationCampaignId, recurringCampaignId, paluwaganId, smartSavingsId, RPC_URL } from "./stellar";
 import { readCircleDiscoveryMappings } from "./circlesTestnet";
 import { validatedCircleTestnetCampaign } from "../circles/testnet";
 import { SEED_CIRCLES } from "../circles/seed";
 import type { WalletActivityContext, WalletActivityItem } from "../wallet-activity";
 
-type Deployments = { campaign: string | null; arisan: string | null; disaster: string | null; paluwagan: string | null; savings: string | null };
+type Deployments = { campaign: string | null; recurringCampaign: string | null; arisan: string | null; disaster: string | null; paluwagan: string | null; savings: string | null };
 type ContractActivityContextType = Exclude<WalletActivityContext["type"], "wallet-withdrawal">;
-const deployments = (): Deployments => ({ campaign: donationCampaignId(), arisan: arisanRoomsId(), disaster: disasterId(), paluwagan: paluwaganId(), savings: smartSavingsId() });
+const deployments = (): Deployments => ({ campaign: donationCampaignId(), recurringCampaign: recurringCampaignId(), arisan: arisanRoomsId(), disaster: disasterId(), paluwagan: paluwaganId(), savings: smartSavingsId() });
 const object = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object" && !Array.isArray(value);
 const title = (value: unknown): string | null => typeof value === "string" && value.trim().length > 0 && value.length <= 200 && !/[\u0000-\u001f\u007f]/.test(value) ? value.trim() : null;
 
@@ -42,6 +42,13 @@ export function activityContextFromRecord(item: WalletActivityItem, record: unkn
     const sent = item.direction === "sent" && source === viewer;
     const received = item.direction === "received";
     const context = (type: ContractActivityContextType, referenceId: string | null = null, name: string | null = null): WalletActivityContext => ({ type, contractId, referenceId, title: name });
+    if (contractId === configured.recurringCampaign) {
+      const campaign = id(0, "scvU64");
+      if (!campaign) return;
+      if (method === "donate" && sent && args.length === 3 && addr(1) === viewer && amount(2)) return context("campaign-donation", `r${campaign}`);
+      if (method === "refund" && received && args.length === 2 && addr(1) === viewer) return context("campaign-refund", `r${campaign}`);
+      if (method === "release" && received && args.length === 1) return context("campaign-payout", `r${campaign}`);
+    }
     if (contractId === configured.campaign) {
       const campaign = id(0, "scvU64");
       if (!campaign) return;
@@ -91,7 +98,8 @@ export async function readActivityContextTitles(items: WalletActivityItem[], vie
   const names = new Map<string, string>(), snapshots = new Map<string, unknown>(), deadline = Date.now() + 2_000;
   // Discovery metadata is not linkage proof. It is checked against the full
   // immutable contract config below, never inferred from a QA-looking title.
-  const mappingsRead = [...candidates.values()].some(context => context.type.startsWith("campaign-"))
+  const configured = deployments();
+  const mappingsRead = [...candidates.values()].some(context => context.type.startsWith("campaign-") && context.contractId === configured.campaign)
     ? readCircleDiscoveryMappings().catch(() => []) : Promise.resolve([]);
   let next = 0;
   const pending = [...candidates.entries()].slice(0, 8);
@@ -101,7 +109,12 @@ export async function readActivityContextTitles(items: WalletActivityItem[], vie
       let timer: ReturnType<typeof setTimeout> | undefined;
       try {
         const campaign = context.type.startsWith("campaign-");
-        const argument = campaign ? nativeToScVal(BigInt(context.referenceId!), { type: "u64" })
+        const recurring = campaign && context.contractId === configured.recurringCampaign;
+        const campaignId = recurring
+          ? context.referenceId!.match(/^r([1-9]\d{0,19})$/)?.[1] ?? null
+          : context.referenceId;
+        if (campaign && (!campaignId || ![configured.campaign, configured.recurringCampaign].includes(context.contractId))) continue;
+        const argument = campaign ? nativeToScVal(BigInt(campaignId!), { type: "u64" })
           : nativeToScVal(Number(context.referenceId), { type: "u32" });
         const transaction = new TransactionBuilder(new Account(viewer, "0"), { fee: BASE_FEE, networkPassphrase: Networks.TESTNET })
           .addOperation(new Contract(context.contractId).call(campaign ? "campaign" : "get_room", argument)).setTimeout(30).build();
@@ -112,7 +125,7 @@ export async function readActivityContextTitles(items: WalletActivityItem[], vie
         if (!rpc.Api.isSimulationSuccess(response) || !response.result || Date.now() >= deadline) continue;
         const raw = scValToNative(response.result.retval);
         snapshots.set(key, raw);
-        const matches = object(raw) && (campaign ? String(raw.id) === context.referenceId : typeof raw.host === "string" && StrKey.isValidEd25519PublicKey(raw.host));
+        const matches = object(raw) && (campaign ? String(raw.id) === campaignId : typeof raw.host === "string" && StrKey.isValidEd25519PublicKey(raw.host));
         const name = matches ? title(raw[campaign ? "title" : "name"]) : null;
         if (name) names.set(key, name);
       } catch { /* Honest campaign/room ID fallback, never a guessed cause. */ }

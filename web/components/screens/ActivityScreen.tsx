@@ -447,7 +447,8 @@ export default function ActivityScreen() {
                       {filteredItems.map((receipt) => {
                         const received = receipt.direction === "received";
                         const context = receipt.context;
-                        const referenceLabel = context?.referenceId ? context.type.startsWith("campaign-") ? h("campaignName", { id: context.referenceId })
+                        const referenceLabel = context?.referenceId ? context.type.startsWith("campaign-") ? context.referenceId.startsWith("r")
+                          ? h("recurringCampaignName", { id: context.referenceId.slice(1) }) : h("campaignName", { id: context.referenceId })
                           : context.type.startsWith("arisan-") ? h("arisanName", { id: context.referenceId }) : null : null;
                         const circleId = context && context.type !== "wallet-withdrawal" && context.type.startsWith("campaign-") ? context.circleId : undefined;
                         const circleTitle = circleId ? circleDisplayTitle(circleId, locale) : undefined;
