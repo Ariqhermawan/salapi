@@ -73,10 +73,10 @@ test("Main tabs navigate to Home, Arisan, Cause creation, Activity and You", asy
   await expect(page.locator(homeSelector)).toHaveCount(1);
 });
 
-test("legacy NGO directory alias opens the canonical public directory", async ({ page }) => {
+test("legacy NGO directory alias opens the Disaster Vault NGO directory", async ({ page }) => {
   await page.goto("/profiles?type=ngo", { waitUntil: "domcontentloaded", timeout: 45000 });
   await ready(page);
-  await expect(page).toHaveURL(/\/transparency$/);
+  await expect(page).toHaveURL(/\/vault\?cat=all$/);
   await expect(page.getByRole("region", { name: "All NGOs" })).toBeVisible();
   await expect(page.getByRole("group", { name: "NGO category" })).toBeVisible();
 });
