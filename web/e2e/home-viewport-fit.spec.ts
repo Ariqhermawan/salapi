@@ -87,7 +87,7 @@ for (const viewport of [
   { width: 390, height: 844 },
   { width: 1280, height: 800 },
 ]) {
-  test(`You/Preferences stays light without a dark-mode control at ${viewport.width}px`, async ({ page }) => {
+  test(`You/Preferences follows handset/light and desktop/dark theme without a mode control at ${viewport.width}px`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await page.emulateMedia({ colorScheme: "dark" });
     await page.goto("/you", { waitUntil: "domcontentloaded", timeout: 45000 });
@@ -97,7 +97,7 @@ for (const viewport of [
     const preferences = page.getByRole("region", { name: "Preferences", exact: true });
     await expect(preferences).toBeVisible();
     await expect(preferences.getByRole("switch", { name: "Dark mode", exact: true })).toHaveCount(0);
-    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+    await expect(page.locator("html")).toHaveAttribute("data-theme", viewport.width >= 1024 ? "dark" : "light");
     await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#f7f7f7");
     await expect(page.locator('meta[name="color-scheme"]')).toHaveAttribute("content", "light");
     const geometry = await page.evaluate(() => ({
