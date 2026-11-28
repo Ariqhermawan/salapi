@@ -115,6 +115,11 @@ const AUTHORED_CAUSES = {
     purpose: ["shelter repairs and shaded kennels for rescued animals", "pagkukumpuni ng silungan at mga kulungang may lilim para sa mga hayop na nasagip", "perbaikan penampungan dan kandang teduh untuk hewan yang diselamatkan", "sửa nơi trú ẩn và chuồng có bóng mát cho động vật được cứu"],
     scene: ["shelter volunteers repairing shaded kennels beside calm rescued animals", "mga boluntaryo sa silungan na nagkukumpuni ng mga kulungang may lilim sa tabi ng maamong hayop na nasagip", "relawan penampungan memperbaiki kandang teduh di dekat hewan selamat yang tenang", "tình nguyện viên sửa chuồng có bóng mát cạnh các động vật được cứu đang yên ổn"],
   },
+  "road-rescue-monthly": {
+    title: ["Monthly rescue care for street animals hurt in road accidents", "Buwanang pagsagip at pag-aaruga sa mga hayop sa kalye na nasaktan sa aksidente sa daan", "Perawatan penyelamatan bulanan untuk hewan jalanan korban kecelakaan lalu lintas", "Chăm sóc cứu hộ hằng tháng cho động vật đường phố bị thương do tai nạn giao thông"],
+    purpose: ["monthly rescue transport, vet care and recovery space for street dogs and cats hurt by traffic in Yogyakarta", "buwanang transportasyon sa pagsagip, pangangalaga ng beterinaryo at lugar ng pagpapagaling para sa mga aso at pusa sa kalye na nasaktan ng trapiko sa Yogyakarta", "transportasi penyelamatan, perawatan dokter hewan, dan tempat pemulihan setiap bulan untuk anjing dan kucing jalanan yang tertabrak kendaraan di Yogyakarta", "vận chuyển cứu hộ, chăm sóc thú y và nơi hồi phục hằng tháng cho chó mèo đường phố bị xe va phải ở Yogyakarta"],
+    scene: ["two rescuers lifting an injured street dog onto a blanket at a Yogyakarta roadside", "dalawang tagasagip na nagbubuhat ng nasugatang aso sa kalye papunta sa isang kumot sa gilid ng daan sa Yogyakarta", "dua relawan penyelamat mengangkat anjing jalanan yang terluka ke atas selimut di pinggir jalan Yogyakarta", "hai người cứu hộ nhấc một chú chó đường phố bị thương lên tấm chăn bên lề đường ở Yogyakarta"],
+  },
   "orphanage-learning-room": {
     title: ["A learning room for children in care", "Silid-aralan para sa mga batang nasa pangangalaga", "Ruang belajar untuk anak dalam pengasuhan", "Phòng học cho trẻ em được chăm sóc"],
     purpose: ["books and a welcoming learning room for children in care", "mga aklat at maaliwalas na silid ng pag-aaral para sa mga batang nasa pangangalaga", "buku dan ruang belajar yang nyaman untuk anak dalam pengasuhan", "sách và phòng học thân thiện cho trẻ em được chăm sóc"],
@@ -129,6 +134,11 @@ const AUTHORED_CAUSES = {
     title: ["Community free-meal kitchen supplies", "Mga gamit sa kusinang pangkomunidad na may libreng pagkain", "Perlengkapan dapur makan gratis komunitas", "Vật dụng cho bếp ăn miễn phí cộng đồng"],
     purpose: ["supplies and cooking equipment for a community free-meal kitchen", "mga gamit at kagamitan sa pagluluto para sa kusinang pangkomunidad na may libreng pagkain", "bahan dan alat masak untuk dapur makan gratis komunitas", "vật dụng và thiết bị nấu ăn cho bếp ăn miễn phí cộng đồng"],
     scene: ["neighbors preparing free meals together in a clean community kitchen", "mga magkakapitbahay na sama-samang naghahanda ng libreng pagkain sa malinis na kusinang pangkomunidad", "warga bersama menyiapkan makanan gratis di dapur komunitas yang bersih", "những người hàng xóm cùng chuẩn bị bữa ăn miễn phí trong bếp cộng đồng sạch sẽ"],
+  },
+  "nek-ijah-monthly": {
+    title: ["Monthly help for Nek Ijah: food, medicine and a safer home", "Buwanang tulong kay Nek Ijah: pagkain, gamot at mas ligtas na tahanan", "Bantuan bulanan untuk Nek Ijah: makanan, obat, dan rumah yang lebih aman", "Hỗ trợ hằng tháng cho bà Ijah: thực phẩm, thuốc men và một ngôi nhà an toàn hơn"],
+    purpose: ["monthly staple food, health visits and home repairs for an older woman living alone in Bandung", "buwanang pangunahing pagkain, pagbisita para sa kalusugan at pagkukumpuni ng bahay para sa isang nakatatandang babaeng mag-isang nakatira sa Bandung", "sembako, kunjungan kesehatan, dan perbaikan rumah setiap bulan untuk seorang nenek yang tinggal sendirian di Bandung", "thực phẩm thiết yếu, thăm khám sức khỏe và sửa nhà hằng tháng cho một cụ bà sống một mình ở Bandung"],
+    scene: ["a volunteer bringing staple groceries to an elderly woman outside her small Bandung home", "isang boluntaryong nagdadala ng pangunahing pamilihan sa isang nakatatandang babae sa labas ng maliit niyang bahay sa Bandung", "relawan mengantarkan sembako kepada seorang nenek di depan rumah kecilnya di Bandung", "một tình nguyện viên mang thực phẩm thiết yếu đến cho một cụ bà trước ngôi nhà nhỏ của bà ở Bandung"],
   },
   "river-volunteer-kit": {
     title: ["Shared safety kits for river volunteers", "Pinagsasaluhang gamit pangkaligtasan para sa mga boluntaryo sa ilog", "Paket keselamatan bersama untuk relawan sungai", "Bộ đồ an toàn chung cho tình nguyện viên dòng sông"],
@@ -346,7 +356,7 @@ const RELATED_CAPTION: AuthoredText = [
   "Adegan konsep AI terkait. Bukan foto kampanye ini atau bukti penyaluran.",
   "Cảnh ý tưởng AI liên quan. Không phải ảnh của chiến dịch này hay bằng chứng bàn giao.",
 ];
-const TINO_GALLERY = new Map<string, { alt: AuthoredText; caption: AuthoredText }>([
+const CUSTOM_GALLERY = new Map<string, { alt: AuthoredText; caption: AuthoredText }>([
   ["/circles/generated/tino-relief.png", {
     alt: ["AI-generated fishing families repairing boats in a fictional Cebu coastal village, not verified evidence", "Larawang nilikha ng AI ng mga pamilyang mangingisda na nagkukumpuni ng bangka sa isang kathang-isip na barangay sa baybayin ng Cebu, hindi na-verify na ebidensya", "Gambar AI keluarga nelayan memperbaiki perahu di desa pesisir Cebu fiktif, bukan bukti terverifikasi", "Ảnh do AI tạo về các gia đình ngư dân sửa thuyền tại làng ven biển Cebu hư cấu, không phải bằng chứng đã xác minh"],
     caption: COVER_CAPTION,
@@ -359,11 +369,36 @@ const TINO_GALLERY = new Map<string, { alt: AuthoredText; caption: AuthoredText 
     alt: ["AI-generated volunteers testing a wooden boat near a fictional Cebu shore, not verified evidence", "Larawang nilikha ng AI ng mga boluntaryong sumusubok ng bangkang kahoy malapit sa kathang-isip na baybayin ng Cebu, hindi na-verify na ebidensya", "Gambar AI relawan menguji perahu kayu di dekat pesisir Cebu fiktif, bukan bukti terverifikasi", "Ảnh do AI tạo về tình nguyện viên thử thuyền gỗ gần bờ biển Cebu hư cấu, không phải bằng chứng đã xác minh"],
     caption: ["AI concept: intended coastal livelihood support. Not verified delivery evidence.", "Konsepto ng AI: nilalayong suporta sa kabuhayan sa baybayin. Hindi na-verify na ebidensya ng paghahatid.", "Konsep AI: dukungan mata pencaharian pesisir yang direncanakan. Bukan bukti penyaluran terverifikasi.", "Ý tưởng AI: hỗ trợ sinh kế ven biển dự kiến. Không phải bằng chứng bàn giao đã xác minh."],
   }],
+  ["/circles/generated/nek-ijah-monthly.png", {
+    alt: ["AI-generated volunteer bringing rice, cooking oil and eggs to an elderly woman outside her small Bandung home, not verified evidence", "Larawang nilikha ng AI ng isang boluntaryong nagdadala ng bigas, mantika at itlog sa isang nakatatandang babae sa labas ng maliit niyang bahay sa Bandung, hindi na-verify na ebidensya", "Gambar AI relawan mengantarkan beras, minyak goreng, dan telur kepada seorang nenek di depan rumah kecilnya di Bandung, bukan bukti terverifikasi", "Ảnh do AI tạo về một tình nguyện viên mang gạo, dầu ăn và trứng đến cho một cụ bà trước ngôi nhà nhỏ của bà ở Bandung, không phải bằng chứng đã xác minh"],
+    caption: COVER_CAPTION,
+  }],
+  ["/circles/generated/nek-ijah-monthly-health.png", {
+    alt: ["AI-generated community health worker checking an elderly woman with a stethoscope during a home visit, not verified evidence", "Larawang nilikha ng AI ng isang health worker sa komunidad na sumusuri sa isang nakatatandang babae gamit ang stethoscope habang bumibisita sa bahay, hindi na-verify na ebidensya", "Gambar AI kader kesehatan memeriksa seorang nenek dengan stetoskop saat kunjungan rumah, bukan bukti terverifikasi", "Ảnh do AI tạo về một nhân viên y tế cộng đồng dùng ống nghe khám cho một cụ bà trong buổi thăm nhà, không phải bằng chứng đã xác minh"],
+    caption: ["AI concept: a monthly health visit. Not an actual campaign photo or receipt.", "Konsepto ng AI: buwanang pagbisita para sa kalusugan. Hindi aktuwal na larawan ng kampanya o resibo.", "Konsep AI: kunjungan kesehatan bulanan. Bukan foto kampanye aktual atau tanda terima.", "Ý tưởng AI: buổi thăm khám sức khỏe hằng tháng. Không phải ảnh chiến dịch thực tế hay biên nhận."],
+  }],
+  ["/circles/generated/nek-ijah-monthly-repair.png", {
+    alt: ["AI-generated volunteers replacing roof tiles and repainting the wall of an elderly woman's home, not verified evidence", "Larawang nilikha ng AI ng mga boluntaryong nagpapalit ng tisa sa bubong at muling nagpipintura ng pader ng bahay ng isang nakatatandang babae, hindi na-verify na ebidensya", "Gambar AI relawan mengganti genteng dan mengecat ulang dinding rumah seorang nenek, bukan bukti terverifikasi", "Ảnh do AI tạo về các tình nguyện viên thay ngói và sơn lại tường nhà của một cụ bà, không phải bằng chứng đã xác minh"],
+    caption: ["AI concept: intended home repairs. Not verified delivery evidence.", "Konsepto ng AI: nilalayong pagkukumpuni ng bahay. Hindi na-verify na ebidensya ng paghahatid.", "Konsep AI: perbaikan rumah yang direncanakan. Bukan bukti penyaluran terverifikasi.", "Ý tưởng AI: việc sửa nhà dự kiến. Không phải bằng chứng bàn giao đã xác minh."],
+  }],
+  ["/circles/generated/road-rescue-monthly.png", {
+    alt: ["AI-generated rescuers lifting an injured street dog onto a blanket at a Yogyakarta roadside, not verified evidence", "Larawang nilikha ng AI ng mga tagasagip na nagbubuhat ng nasugatang aso sa kalye papunta sa isang kumot sa gilid ng daan sa Yogyakarta, hindi na-verify na ebidensya", "Gambar AI relawan penyelamat mengangkat anjing jalanan yang terluka ke atas selimut di pinggir jalan Yogyakarta, bukan bukti terverifikasi", "Ảnh do AI tạo về những người cứu hộ nhấc một chú chó đường phố bị thương lên tấm chăn bên lề đường ở Yogyakarta, không phải bằng chứng đã xác minh"],
+    caption: COVER_CAPTION,
+  }],
+  ["/circles/generated/road-rescue-monthly-vet.png", {
+    alt: ["AI-generated veterinarian wrapping a splint on a street cat's leg while a volunteer steadies it, not verified evidence", "Larawang nilikha ng AI ng isang beterinaryong naglalagay ng splint sa binti ng pusang kalye habang inaalalayan ito ng isang boluntaryo, hindi na-verify na ebidensya", "Gambar AI dokter hewan memasang bidai di kaki kucing jalanan sementara relawan menenangkannya, bukan bukti terverifikasi", "Ảnh do AI tạo về bác sĩ thú y nẹp chân cho một chú mèo đường phố trong khi tình nguyện viên giữ nó, không phải bằng chứng đã xác minh"],
+    caption: ["AI concept: vet treatment after a rescue. Not an actual campaign photo or receipt.", "Konsepto ng AI: gamutan ng beterinaryo matapos ang pagsagip. Hindi aktuwal na larawan ng kampanya o resibo.", "Konsep AI: perawatan dokter hewan setelah penyelamatan. Bukan foto kampanye aktual atau tanda terima.", "Ý tưởng AI: điều trị thú y sau khi cứu hộ. Không phải ảnh chiến dịch thực tế hay biên nhận."],
+  }],
+  ["/circles/generated/road-rescue-monthly-recovery.png", {
+    alt: ["AI-generated rescued dog with a leg cast resting in a shelter yard as a volunteer offers food, not verified evidence", "Larawang nilikha ng AI ng nasagip na asong may cast sa binti na nagpapahinga sa bakuran ng silungan habang inaabutan ng pagkain ng isang boluntaryo, hindi na-verify na ebidensya", "Gambar AI anjing yang diselamatkan dengan gips di kaki beristirahat di halaman penampungan sementara relawan memberinya makan, bukan bukti terverifikasi", "Ảnh do AI tạo về một chú chó được cứu bó bột ở chân đang nghỉ trong sân trạm cứu hộ khi tình nguyện viên đưa thức ăn, không phải bằng chứng đã xác minh"],
+    caption: ["AI concept: intended recovery care. Not verified delivery evidence.", "Konsepto ng AI: nilalayong pag-aaruga habang nagpapagaling. Hindi na-verify na ebidensya ng paghahatid.", "Konsep AI: perawatan pemulihan yang direncanakan. Bukan bukti penyaluran terverifikasi.", "Ý tưởng AI: chăm sóc hồi phục dự kiến. Không phải bằng chứng bàn giao đã xác minh."],
+  }],
 ]);
 
 function galleryDisplay(photo: CircleGalleryPhoto, circleId: string, locale: Locale): CircleGalleryPhoto {
   const index = localeIndex[locale];
-  const special = circleId === "tino-relief" ? TINO_GALLERY.get(photo.src) : undefined;
+  // Own-photo galleries (seed CUSTOM_GALLERIES) are named after their circle ID.
+  const special = photo.src.startsWith(`/circles/generated/${circleId}`) ? CUSTOM_GALLERY.get(photo.src) : undefined;
   if (special) {
     return photo.alt === special.alt[0] && photo.caption === special.caption[0]
       ? { ...photo, alt: special.alt[index], caption: special.caption[index] } : photo;

@@ -7,7 +7,7 @@ import { SEED_CIRCLES } from "./seed";
 // Testnet QA exercise; it does not verify an organizer, NGO, photo or delivery.
 export const CIRCLES_TESTNET_QA_LABEL = "QA Testnet · fictional cause" as const;
 export const CIRCLES_TESTNET_PURPOSE = "fictional-circles-qa" as const;
-export const CIRCLES_TESTNET_MAX_BATCH = 27;
+export const CIRCLES_TESTNET_MAX_BATCH = SEED_CIRCLES.length;
 export type CircleTestnetCode = "invalid_circle" | "not_configured" | "unmapped" | "unavailable" | "local_preview";
 export type CircleTestnetMapping = {
   campaignId: string;

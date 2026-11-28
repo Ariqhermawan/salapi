@@ -1,7 +1,8 @@
 # D4 Circles QA provisioning
 
-The script defaults to an offline dry run. It can explicitly create 27 D4
-Testnet campaigns. It never deploys a contract, funds accounts, donates,
+The script defaults to an offline dry run. It can explicitly create one D4
+Testnet campaign per active catalog Circle, or only the Circles listed in
+`circleSlugs`. It never deploys a contract, funds accounts, donates,
 releases, refunds, or writes to Supabase.
 
 The pinned deployment is `CC6D7P35SVCNZLOKTHKDNH4S2ZELYHBP5UO3IWADFORKEF7BCSBY37FU`.
@@ -35,6 +36,14 @@ The public manifest contains exactly these eight fields:
   "reviewDeadline": "<canonical epoch seconds>"
 }
 ```
+
+An optional ninth field, `circleSlugs`, limits the plan to the listed canonical
+active Circles. Use it to give one fictional organizer its own five wallets, as
+for `nek-ijah-monthly` (Ruang Peduli) and `road-rescue-monthly` (Paws & Home)
+on 2026-11-28. The journal, mapping rows and staged SQL then cover only those
+Circles. A slug outside the catalog, a duplicate or an empty list is rejected.
+The `circles_testnet_campaigns.circle_slug` check constraint must allow every
+slug before its mapping row can be inserted.
 
 `defaultQaProvisionInput(wallets, anchorEpochSeconds)` fixes funding at
 `anchor + 30 days` and review at `funding + 7 days`. Save these exact deadlines

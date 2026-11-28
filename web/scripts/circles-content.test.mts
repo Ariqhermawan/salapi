@@ -53,10 +53,10 @@ function deepFreeze<T>(value: T): T {
   return value;
 }
 
-test("all 27 active and 27 completed catalog causes have authored content in every supported locale", () => {
-  assert.equal(catalog.SEED_CIRCLES.length, 27);
+test("all 29 active and 27 completed catalog causes have authored content in every supported locale", () => {
+  assert.equal(catalog.SEED_CIRCLES.length, 29);
   assert.equal(catalog.COMPLETED_CIRCLES.length, 27);
-  assert.equal(new Set(circles.map(circle => circle.id)).size, 54);
+  assert.equal(new Set(circles.map(circle => circle.id)).size, 56);
   for (const circle of circles) for (const locale of LOCALES) {
     const display = circleDisplayContent(circle, locale);
     assert.equal(display.title, circleDisplayTitle(circle.id, locale), `${circle.id}/${locale}: trusted title`);

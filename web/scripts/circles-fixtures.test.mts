@@ -49,13 +49,18 @@ const { ORGANIZERS, getOrganizer, getOrganizerForCircle } = profiles;
 const all = [...SEED_CIRCLES, ...COMPLETED_CIRCLES];
 const categories: CircleCategory[] = ["disaster", "medical", "education", "community", "family", "creator", "animals", "care", "volunteer"];
 
-test("the active catalog has exactly three causes and three distinct organizers in all nine sectors", () => {
-  assert.equal(SEED_CIRCLES.length, 27);
+test("each sector keeps three base causes from three distinct organizers; monthly causes reuse an existing organizer", () => {
+  assert.equal(SEED_CIRCLES.length, 29);
   assert.equal(new Set(SEED_CIRCLES.map(circle => circle.category)).size, 9);
+  const monthly = SEED_CIRCLES.filter(circle => circle.id.endsWith("-monthly"));
+  assert.equal(monthly.map(circle => `${circle.id}:${circle.category}:${circle.organizerId}`).join(","),
+    "road-rescue-monthly:animals:paws-home,nek-ijah-monthly:care:ruang-peduli");
   for (const category of categories) {
     const causes = SEED_CIRCLES.filter(circle => circle.category === category);
-    assert.equal(causes.length, 3, category);
-    assert.equal(new Set(causes.map(circle => circle.organizerId)).size, 3, category);
+    const base = causes.filter(circle => !circle.id.endsWith("-monthly"));
+    assert.equal(base.length, 3, category);
+    assert.equal(new Set(base.map(circle => circle.organizerId)).size, 3, category);
+    assert.ok(causes.filter(circle => circle.id.endsWith("-monthly")).every(circle => base.some(item => item.organizerId === circle.organizerId)), category);
     assert.ok(causes.every(circle => circle.status === "funding"));
   }
 });
@@ -98,9 +103,9 @@ test("nine fictional organizer profiles each have active causes and exactly thre
   }
 });
 
-test("all 54 IDs resolve without collisions and organizer lookup preserves legacy circles", () => {
-  assert.equal(all.length, 54);
-  assert.equal(new Set(all.map(circle => circle.id)).size, 54);
+test("all 56 IDs resolve without collisions and organizer lookup preserves legacy circles", () => {
+  assert.equal(all.length, 56);
+  assert.equal(new Set(all.map(circle => circle.id)).size, 56);
   for (const circle of all) {
     assert.equal(getCircle(circle.id), circle);
     const organizer = getOrganizer(circle.organizerId!)!;
@@ -171,7 +176,7 @@ test("each cause points to a unique generated cover with explicit fictional-imag
     assert.match(circle.story, /synthetic examples/);
     assert.doesNotMatch(circle.story, /every peso.*on-chain|keep more.*kitabisa|receipts.*build-award/i);
   }
-  assert.equal(paths.size, 54);
+  assert.equal(paths.size, 56);
 });
 
 test("each active and completed cause has dated milestone, spend and delivery updates marked as synthetic", () => {
@@ -199,10 +204,10 @@ test("each active and completed cause has dated milestone, spend and delivery up
     }
     if (circle.status === "completed") assert.equal(previousDate, circle.completedOn);
   }
-  assert.equal(updateIds.size, 162);
+  assert.equal(updateIds.size, 168);
 });
 
-test("all 54 causes have at least three distinct existing illustrative gallery photos", () => {
+test("all 56 causes have at least three distinct existing illustrative gallery photos", () => {
   for (const circle of all) {
     const gallery = circle.gallery!;
     assert.equal(gallery.length, 3, circle.id);
@@ -263,7 +268,7 @@ test("example donor feeds include named comments and anonymous records without l
     }
     assert.ok(donors.length < circle.donorCount, "sample feed is not the full synthetic donor count");
   }
-  assert.equal(donorIds.size, 270);
+  assert.equal(donorIds.size, 280);
 });
 
 test("all displayed goals and synthetic totals are finite and statuses have coherent timelines", () => {

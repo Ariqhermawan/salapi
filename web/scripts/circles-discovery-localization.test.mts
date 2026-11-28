@@ -68,8 +68,8 @@ const screenNames = ["CirclesDiscoverScreen", "CircleDetailScreen", "CirclesDona
 type ScreenName = typeof screenNames[number];
 const scripts = new Map(screenNames.map(name => [name, transpile(`../components/screens/${name}.tsx`)]));
 
-test("all 27 concept proof flows expose photos, missing documents, missing hash and unrequested approval without false confirmation", () => {
-  assert.equal(seed.SEED_CIRCLES.length, 27);
+test("all 29 concept proof flows expose photos, missing documents, missing hash and unrequested approval without false confirmation", () => {
+  assert.equal(seed.SEED_CIRCLES.length, 29);
   for (const circle of seed.SEED_CIRCLES) for (const preview of [true, false]) {
     const screen = setup("CircleDetailScreen", "en", preview, circle.id);
     screen.click("Public proof");

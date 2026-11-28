@@ -239,9 +239,9 @@ function catalog(preview = true, campaignEntry = true) {
   } };
 }
 
-test("default local catalog renders all 27 causes with nine filters, original photos/profiles, and no D4 ID conversion", () => {
+test("default local catalog renders all 29 causes with nine filters, original photos/profiles, and no D4 ID conversion", () => {
   const before = JSON.stringify(seed.SEED_CIRCLES), screen = catalog();
-  const articles = nodes(screen.tree).filter(node => node.type === "article"); assert.equal(articles.length, 27);
+  const articles = nodes(screen.tree).filter(node => node.type === "article"); assert.equal(articles.length, 29);
   assert.equal(Object.keys(circleTypes.CATEGORY_LABEL).length, 9);
   for (let i = 0; i < articles.length; i++) {
     const circle = seed.SEED_CIRCLES[i], article = articles[i];
@@ -254,11 +254,11 @@ test("default local catalog renders all 27 causes with nine filters, original ph
   for (const category of Object.keys(circleTypes.CATEGORY_LABEL) as CircleCategory[]) {
     screen.filter(category);
     const expected = seed.SEED_CIRCLES.filter(circle => circle.category === category);
-    assert.equal(expected.length, 3);
+    assert.equal(expected.length, ["animals", "care"].includes(category) ? 4 : 3); // monthly causes (2026-11-28)
     assert.deepEqual(nodes(screen.tree).filter(node => node.type === "article").map(node => text(nodes(node).find(child => child.type === "h2"))), Array.from(expected, circle => contentCopy.circleDisplayContent(circle, "en").title));
     assert.equal(nodes(screen.tree).filter(node => node.type === "button" && node.props["aria-pressed"] === true).length, 1);
   }
-  screen.filter("all"); assert.equal(nodes(screen.tree).filter(node => node.type === "article").length, 27);
+  screen.filter("all"); assert.equal(nodes(screen.tree).filter(node => node.type === "article").length, 29);
   assert.equal(JSON.stringify(seed.SEED_CIRCLES), before);
   assert.deepEqual(screen.calls, { network: 0, action: 0, storage: 0 });
 });

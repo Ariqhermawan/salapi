@@ -231,9 +231,9 @@ test("unmapped, mismatched, unknown and completed associations do not invent liv
     assert.equal(covers.vaultCircleCover(slug), null);
 });
 
-test("all 27 active catalog associations resolve existing covers without mutating catalog data", () => {
+test("all 29 active catalog associations resolve existing covers without mutating catalog data", () => {
   const before = JSON.stringify(catalog);
-  assert.equal(catalog.SEED_CIRCLES.length, 27);
+  assert.equal(catalog.SEED_CIRCLES.length, 29);
   for (const circle of catalog.SEED_CIRCLES) {
     const src = covers.vaultCircleCover(circle.id);
     assert.equal(src, circle.coverImage);
