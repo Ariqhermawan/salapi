@@ -52,8 +52,12 @@ test("Allowed preview config keeps the current security headers and landing rewr
   const headers = await config.headers();
   const universal = headers.find(route => route.source === "/:path*");
   assert.ok(universal);
-  assert.ok(universal.headers.some(header => header.key === "X-Frame-Options" && header.value === "DENY"));
+  assert.ok(universal.headers.some(header => header.key === "X-Frame-Options" && header.value === "SAMEORIGIN"));
   assert.ok(universal.headers.some(header => header.key === "Permissions-Policy" && header.value === "camera=(), microphone=(), geolocation=()"));
-  assert.ok(headers.some(route => route.source === "/landing" && route.headers.some(header => header.key === "Content-Security-Policy")));
+  const landing = headers.find(route => route.source === "/landing");
+  assert.ok(landing);
+  const landingCsp = landing.headers.find(header => header.key === "Content-Security-Policy")?.value ?? "";
+  assert.match(landingCsp, /frame-ancestors 'none'/);
+  assert.match(landingCsp, /frame-src 'self'/);
   assert.equal(JSON.stringify(await config.rewrites()), JSON.stringify([{ source: "/landing", destination: "/landing/index.html" }]));
 });

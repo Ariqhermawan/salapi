@@ -27,7 +27,7 @@ const landingCsp = [
   "base-uri 'self'",
   "object-src 'none'",
   "frame-ancestors 'none'",
-  "frame-src 'none'",
+  "frame-src 'self'",
   "form-action 'self'",
   "script-src 'self' 'unsafe-inline'",
   // fonts.googleapis.com + fonts.gstatic.com allow Geist via Google Fonts on the
@@ -41,9 +41,9 @@ const landingCsp = [
 ].join("; ");
 
 const securityHeaders = [
-  // Clickjacking: the app is never meant to be framed (frame-ancestors 'none'
-  // in the CSP supersedes this on modern browsers; kept for legacy coverage).
-  { key: "X-Frame-Options", value: "DENY" },
+  // The app is framed only by its same-origin landing page; external framing
+  // remains blocked by CSP.
+  { key: "X-Frame-Options", value: "SAMEORIGIN" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },

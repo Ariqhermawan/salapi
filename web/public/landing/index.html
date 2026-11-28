@@ -51,46 +51,15 @@
     .device-slot{position:relative;display:none;flex:none;align-items:center;justify-content:center;aspect-ratio:414/868;height:min(86svh,764px);margin:0 58px 0 28px}
     .device{position:relative;width:100%;height:100%;isolation:isolate}
     .mock-screen{position:absolute;z-index:4;top:1.4%;left:2.9%;width:94.2%;height:97.2%;overflow:hidden;border-radius:11.5%/5.4%;background:#f7f8fc;color:#171717;box-shadow:0 0 0 1px #000}
+    .live-app{position:absolute;inset:0;display:block;width:100%;height:100%;border:0;background:#f7f8fc}
     .device-hand{position:absolute;z-index:3;top:-.8%;left:-38.6%;width:162%;height:116.5%;object-fit:fill;pointer-events:none}
-    .statusbar{height:6.5%;display:flex;align-items:center;justify-content:space-between;padding:4% 8% 0;font-size:11px;font-weight:700;line-height:1}
-    .dynamic-island{position:absolute;top:2.8%;left:37%;width:27%;height:3.4%;border-radius:99px;background:#080808}
-    .sys-icons{display:flex;align-items:center;gap:4px;font-size:9px}
-    .sys-icons i{display:block;width:13px;height:7px;border:1px solid #222;border-radius:2px}
-    .screen-content{height:86%;overflow:hidden;padding:3% 7% 0}
-    .screen-header{display:flex;align-items:center;gap:8px;margin-bottom:3.5%;font-size:clamp(10px,1vw,16px);font-weight:650;letter-spacing:-.035em;white-space:nowrap}
-    .screen-header img{width:12%;max-width:26px;height:auto}
-    .wallet-card{position:relative;overflow:hidden;padding:5% 5.5%;border-radius:20px;background:radial-gradient(90% 120% at 100% 100%,#8aabff 0%,transparent 60%),linear-gradient(135deg,#3156d8,#4d82ff);color:white}
-    .wallet-card:after{position:absolute;inset:0;background:repeating-radial-gradient(ellipse at 90% 20%,transparent 0 14px,#ffffff13 15px 17px);content:"";pointer-events:none}
-    .wallet-top{display:flex;align-items:center;justify-content:space-between;font-size:clamp(8px,1vw,14px)}
-    .testnet{padding:4px 10px;border-radius:999px;background:#ffffff26;font-size:.8em}
-    .wallet-status{position:relative;z-index:1;margin:9% 0 1%;font-size:clamp(11px,1.4vw,19px);font-weight:700;line-height:1.2}
-    .wallet-note{position:relative;z-index:1;color:#ecf2ff;font-size:clamp(7px,.9vw,12px)}
-    .quick-actions{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;margin:3% 0;padding:3% 1%;border:1px solid #e6e8ed;border-radius:17px;background:#fff;box-shadow:0 7px 18px #1112;text-align:center}
-    .quick-actions span{display:flex;flex-direction:column;align-items:center;gap:4px;color:#222;font-size:clamp(7px,.85vw,12px);font-weight:600}
-    .quick-actions i{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:#f5f6f8;color:#335cff;font-size:19px;font-style:normal}
-    .cause-head{display:flex;align-items:center;justify-content:space-between;margin:5% 1% 3%;font-size:clamp(12px,1.4vw,19px);font-weight:700}
-    .cause-head a{color:#335cff;font-size:.75em;font-weight:600}
-    .cause-cards{display:grid;grid-template-columns:1fr 1fr;gap:3%}
-    .cause-card{overflow:hidden;border:1px solid #e9e9e9;border-radius:14px;background:white;box-shadow:0 5px 12px #1112}
-    .cause-cover{position:relative;height:78px;overflow:hidden;background:#e8edf7}
-    .cause-cover img{width:100%;height:100%;object-fit:cover}
-    .example-tag{position:absolute;top:6px;left:6px;padding:2px 7px;border-radius:999px;background:#f87525;color:white;font-size:7px;font-weight:700}
-    .cause-name{padding:8px;font-size:clamp(7px,.9vw,12px);font-weight:650;line-height:1.35}
-    .feature-tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:2.5%;margin-top:5%}
-    .feature-tile{display:flex;min-height:67px;flex-direction:column;align-items:center;justify-content:center;gap:5px;border-radius:12px;background:#e9edfb;color:#262626;font-size:clamp(7px,.8vw,11px);font-weight:650;text-align:center}
-    .feature-tile:nth-child(2){background:#121a36;color:white;box-shadow:0 7px 16px #0004}
-    .feature-tile span:first-child{font-size:20px;line-height:1}
-    .screen-tabs{position:absolute;right:5%;bottom:4%;left:5%;display:flex;justify-content:space-around;align-items:center;padding:10px 6px 8px;border:1px solid #ececf0;border-radius:28px;background:#ffffffef;box-shadow:0 5px 20px #1112;color:#666;font-size:clamp(7px,.8vw,11px);font-weight:550}
-    .screen-tabs span{text-align:center}
-    .screen-tabs span:first-child{color:#335cff}
-    .home-indicator{position:absolute;bottom:1.3%;left:37%;width:26%;height:4px;border-radius:999px;background:#757575}
     @media(min-width:640px){.stage{align-items:center;gap:24px;padding:0 24px}.landing{width:100%;max-width:880px;padding:48px 40px 24px}.sub p{font-size:22px;line-height:30px}.actions{gap:12px}.action{min-height:86px;padding:16px 14px;font-size:15px}.device-slot{display:flex;height:min(88svh,764px);margin:0 14px 0 0}.device-hand{left:-38.6%;width:162%}}
     @media(min-width:640px) and (max-width:1023px){.stage{flex-direction:column;align-items:stretch;gap:0;padding:0 24px 48px}.landing{min-height:auto;margin-inline:auto}.device-slot{height:min(86svh,764px);margin:24px auto 0}.actions{flex-direction:row}}
     @media(min-width:1024px){.stage{justify-content:space-between;gap:0;width:min(100%,1440px);padding:0}.landing{flex:0 0 59%;max-width:none;min-height:min(100svh,960px);padding:64px 34px 42px 72px}.top{min-height:100px}.space{min-height:42px}.sub{padding:18px 0 28px}.actions{gap:12px}.action{min-height:82px;padding:16px 13px;font-size:15px}.device-slot{height:min(86svh,764px);margin:0 6.4% 0 0}.device-hand{left:-38.6%;width:162%}}
     @media(min-width:1024px) and (max-height:820px){.landing{padding-top:40px;padding-bottom:30px}.top{min-height:72px}.space{min-height:24px}.art{width:166px;height:107px}.sub{gap:12px;padding:12px 0 20px}}
     @media(min-width:1024px) and (max-width:1199px){.landing{flex-basis:58%;padding-left:38px}.device-slot{margin-right:2.5%}}
     @media(max-width:1023px){.landing{order:0}.device-slot{order:1}}
-    @media(max-width:639px){.stage{min-height:100svh;max-width:430px;padding:0}.landing{width:100%;min-height:100svh;padding:32px 20px 28px}.top{align-items:flex-start;flex-direction:column;gap:14px}.rule{display:none}.credits{gap:8px}.award{height:36px;font-size:13px}.credit-row{gap:4px 12px;font-size:13px;line-height:20px}.powered img{width:70px;height:21px}.documentation{font-size:13px}.documentation span{font-size:17px}.space{height:34px;min-height:20px}.brand{font-size:29px}.byline{font-size:16px}.landing h1{font-size:clamp(34px,8.8vw,40px);line-height:1.2;letter-spacing:-.035em}.sub{gap:8px;padding:20px 0 22px}.sub p{font-size:18px;line-height:26px}.art{width:221px;height:143px}.actions{flex-direction:column;gap:10px}.action{min-height:64px;padding:12px 16px;border-radius:17px;font-size:16px}.action svg{width:23px;height:23px}.bottom{align-items:flex-start;flex-direction:column;gap:5px;margin-top:20px;padding-top:15px;font-size:12px}.device-slot{display:none}}
+    @media(max-width:639px){.stage{flex-direction:column;align-items:stretch;min-height:100svh;max-width:430px;padding:0}.landing{width:100%;min-height:100svh;padding:32px 20px 28px}.top{align-items:flex-start;flex-direction:column;gap:14px}.rule{display:none}.credits{gap:8px}.award{height:36px;font-size:13px}.credit-row{gap:4px 12px;font-size:13px;line-height:20px}.powered img{width:70px;height:21px}.documentation{font-size:13px}.documentation span{font-size:17px}.space{height:34px;min-height:20px}.brand{font-size:29px}.byline{font-size:16px}.landing h1{font-size:clamp(34px,8.8vw,40px);line-height:1.2;letter-spacing:-.035em}.sub{gap:8px;padding:20px 0 22px}.sub p{font-size:18px;line-height:26px}.art{width:221px;height:143px}.actions{flex-direction:column;gap:10px}.action{min-height:64px;padding:12px 16px;border-radius:17px;font-size:16px}.action svg{width:23px;height:23px}.bottom{align-items:flex-start;flex-direction:column;gap:5px;margin-top:20px;padding-top:15px;font-size:12px}.device-slot{display:flex;align-self:center;width:min(calc(100vw - 32px),414px);height:auto;margin:24px auto 48px}}
     @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.action{transition:none}}
   </style>
 </head>
@@ -127,25 +96,9 @@
       <footer class="bottom"><span><strong>Testnet only.</strong> No real-money donations or cash-out.</span><span>Community money, with a clearer view of every step.</span></footer>
     </section>
 
-    <div class="device-slot" aria-hidden="true">
+    <div class="device-slot">
       <div class="device">
-        <div class="mock-screen">
-          <div class="statusbar"><span>9:41</span><span class="sys-icons" aria-hidden="true">▮▮ ◉ <i></i></span></div>
-          <span class="dynamic-island" aria-hidden="true"></span>
-          <div class="screen-content">
-            <div class="screen-header"><img src="/icon.svg" alt="" />Welcome to Salapi</div>
-            <div class="wallet-card"><div class="wallet-top"><span>Total balance</span><span class="testnet">Testnet</span><span>Stellar</span></div><p class="wallet-status">Connect a wallet to view balance</p><span class="wallet-note">No account is connected in this preview</span></div>
-            <div class="quick-actions" aria-hidden="true"><span><i>↓</i>Top up</span><span><i>↑</i>Withdraw</span><span><i>➤</i>Send</span><span><i>⌗</i>Receive</span></div>
-            <div class="cause-head"><span>Causes</span><a href="/causes">See all →</a></div>
-            <div class="cause-cards">
-              <article class="cause-card"><div class="cause-cover"><img src="/prototype-causes/campaign-bantayan.jpg" alt="" /><span class="example-tag">EXAMPLE</span></div><div class="cause-name">Explore community causes</div></article>
-              <article class="cause-card"><div class="cause-cover"><img src="/prototype-causes/campaign-mei.jpg" alt="" /><span class="example-tag">EXAMPLE</span></div><div class="cause-name">See how proof works</div></article>
-            </div>
-            <div class="feature-tiles"><div class="feature-tile"><span>◎</span>Arisan</div><div class="feature-tile"><span>◉</span>Disaster Vault</div><div class="feature-tile"><span>◇</span>Social feed</div></div>
-          </div>
-          <div class="screen-tabs" aria-hidden="true"><span>⌂<br />Home</span><span>♧<br />Arisan</span><span>＋<br />Cause</span><span>⌁<br />Activity</span><span>♙<br />You</span></div>
-          <span class="home-indicator" aria-hidden="true"></span>
-        </div>
+        <div class="mock-screen"><iframe class="live-app" src="/" title="Interactive Salapi app preview" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allow="clipboard-write"></iframe></div>
         <img class="device-hand" src="/landing/assets/hand-blue.webp" alt="" />
       </div>
     </div>
