@@ -37,7 +37,8 @@ const personalFilters = [
   { id: "sent", label: "filterSent" },
   { id: "received", label: "filterReceived" },
   { id: "topup", label: "filterTopup" },
-] as const satisfies ReadonlyArray<{ id: WalletActivityFilter; label: "filterAll" | "filterDonated" | "filterSent" | "filterReceived" | "filterTopup" }>;
+  { id: "withdraw", label: "filterWithdraw" },
+] as const satisfies ReadonlyArray<{ id: WalletActivityFilter; label: "filterAll" | "filterDonated" | "filterSent" | "filterReceived" | "filterTopup" | "filterWithdraw" }>;
 
 // Historical project evidence. These are never inserted into personal history.
 const TRAIL = [
@@ -448,15 +449,15 @@ export default function ActivityScreen() {
                         const context = receipt.context;
                         const referenceLabel = context?.referenceId ? context.type.startsWith("campaign-") ? h("campaignName", { id: context.referenceId })
                           : context.type.startsWith("arisan-") ? h("arisanName", { id: context.referenceId }) : null : null;
-                        const circleId = context?.type.startsWith("campaign-") ? context.circleId : undefined;
+                        const circleId = context && context.type !== "wallet-withdrawal" && context.type.startsWith("campaign-") ? context.circleId : undefined;
                         const circleTitle = circleId ? circleDisplayTitle(circleId, locale) : undefined;
                         const campaignCover = context?.type === "campaign-donation" ? vaultCircleCover(circleId) : null;
-                        const purposeName = (circleTitle ? `QA · ${circleTitle}` : context?.title) ?? referenceLabel ?? (context?.type.startsWith("disaster-") ? h("disasterPool")
-                          : context?.type.startsWith("savings-") ? h("savingsPool") : h("arisanPool"));
                         const counterparty = shortCounterparty(receipt.counterparty);
                         const counterpartIdentity = receipt.counterparty ? identitiesByAddress.get(receipt.counterparty) : undefined;
                         const counterpartName = counterpartIdentity?.handle ? `@${counterpartIdentity.handle}` : receipt.counterparty === address
                           ? h("you") : receipt.counterparty?.startsWith("C") ? h("contractWallet") : h("wallet");
+                        const purposeName = context?.type === "wallet-withdrawal" ? h("to", { name: counterpartName }) : (circleTitle ? `QA · ${circleTitle}` : context?.title) ?? referenceLabel ?? (context?.type.startsWith("disaster-") ? h("disasterPool")
+                          : context?.type.startsWith("savings-") ? h("savingsPool") : h("arisanPool"));
                         const equivalent = activityUsdcEquivalent(receipt.amountStroops, receipt.asset, prices);
                         const amountSign = received ? "+" : "−";
                         const selected = expanded === receipt.id;

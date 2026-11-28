@@ -165,6 +165,8 @@ export default function TestnetWithdrawScreen({ initialCurrency, localPreview = 
           <span className={styles.badge} aria-hidden="true">{receipt.ok ? "✓" : receipt.pending ? "…" : "!"}</span>
           <h1>{receipt.ok ? ("localPreview" in receipt && receipt.localPreview ? "Preview complete" : "XLM sent") : receipt.pending ? "Withdrawal status unknown" : "Withdrawal not confirmed"}</h1>
           <p>{receipt.ok ? ("localPreview" in receipt && receipt.localPreview ? "Local preview only. No transaction was submitted and no funds moved." : "The Testnet transaction was confirmed on Stellar.") : receipt.error}</p>
+          {receipt.ok && "activityLabelSaved" in receipt && !receipt.activityLabelSaved ? <p role="status">The transfer is confirmed. Its withdrawal label could not be saved, so it may appear under Sent in Activity.</p> : null}
+          {"pending" in receipt && receipt.pending && "activityLabelSaved" in receipt && !receipt.activityLabelSaved ? <p role="status">If the transfer is confirmed, it may appear under Sent in Activity because its withdrawal label could not be saved.</p> : null}
           {"link" in receipt && receipt.link ? <a href={receipt.link} target="_blank" rel="noreferrer">View transaction on Stellar Expert</a> : null}
         </section>
         <div className={styles.actions}>

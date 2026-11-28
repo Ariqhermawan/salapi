@@ -11,6 +11,7 @@ import {
 } from "@/lib/server/stellar";
 import { getAuthenticatedSigner } from "@/lib/server/userWallet";
 import { WalletAccountMissingError, getTestnetNativeBalance } from "@/lib/server/walletReadiness";
+import { recordWalletWithdrawalLabel } from "@/lib/server/walletActivityWithdrawal";
 import {
   cancelConfirmationIntent,
   consumeConfirmationIntent,
@@ -165,13 +166,15 @@ export async function confirmWalletWithdrawal(intentId: string) {
       memo: payload.memo,
       feeStroops: intent.feeStroops,
     });
-    if (result.ok) return { ok: true as const, hash: result.hash, link: txLink(result.hash) };
-    if (result.pending && result.hash)
-      return { ok: false as const, pending: true as const, hash: result.hash, link: txLink(result.hash),
+    if (result.ok || result.pending && result.hash) {
+      const activityLabelSaved = await recordWalletWithdrawalLabel({ ownerId: intent.ownerId, walletAddress: payload.sender, hash: result.hash });
+      if (result.ok) return { ok: true as const, hash: result.hash, link: txLink(result.hash), activityLabelSaved };
+      return { ok: false as const, pending: true as const, hash: result.hash, link: txLink(result.hash), activityLabelSaved,
         error: "The transaction status is still unknown. Do not send it again; check the Testnet transaction." };
+    }
     return { ok: false as const, ...(result.hash ? { hash: result.hash, link: txLink(result.hash) } : {}),
       error: "The Testnet network did not confirm this withdrawal. Check its status before trying again." };
-  } catch (error) {
+  } catch {
     return { ok: false as const, error: "The withdrawal could not be confirmed. Check wallet activity before trying again." };
   }
 }

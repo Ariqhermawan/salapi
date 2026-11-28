@@ -13,19 +13,28 @@ export type WalletActivityFee =
   | { status: "unavailable" }
   | { status: "available"; amountStroops: string; payer: string; paidByWallet: boolean; transactionHash: string; feeBump: boolean };
 
-/** Optional purpose, corroborated by a successful configured-contract invocation
- * and the actual asset movement. Never a source of balances or token amounts. */
+/** Optional purpose. Contract purposes are corroborated by successful invocations and movement;
+ * wallet withdrawals come from Salapi's reviewed Testnet submission. None supplies balance data. */
+type ContractActivityContextType = "campaign-donation" | "campaign-refund" | "campaign-payout" | "arisan-funding" | "arisan-win" | "arisan-refund" | "paluwagan-funding" | "paluwagan-payout" | "disaster-contribution" | "disaster-payout" | "savings-deposit" | "savings-withdrawal";
 export type WalletActivityContext = {
-  type: "campaign-donation" | "campaign-refund" | "campaign-payout" | "arisan-funding" | "arisan-win" | "arisan-refund" | "paluwagan-funding" | "paluwagan-payout" | "disaster-contribution" | "disaster-payout" | "savings-deposit" | "savings-withdrawal";
+  type: ContractActivityContextType;
   contractId: string;
   referenceId: string | null;
   title: string | null;
   circleId?: string;
+} | {
+  /** Set from a reviewed Testnet submission hash; the activity feed still requires Horizon confirmation. */
+  type: "wallet-withdrawal";
+  contractId?: undefined;
+  referenceId: null;
+  title: null;
+  circleId?: undefined;
 };
 
 /** Internal routes are constructed from typed purposes, never provider URLs. */
 export function activityContextHref(context: WalletActivityContext | undefined): string | null {
   if (!context) return null;
+  if (context.type === "wallet-withdrawal") return null;
   const id = context.referenceId && /^[1-9]\d{0,19}$/.test(context.referenceId) ? context.referenceId : null;
   if (context.type.startsWith("campaign-")) return context.circleId && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(context.circleId) && context.circleId.length <= 80
     ? `/circles/${context.circleId}` : id ? `/campaigns?id=${id}` : "/campaigns";
@@ -50,7 +59,7 @@ export type WalletActivityItem = {
   context?: WalletActivityContext;
 };
 
-export type WalletActivityFilter = "all" | "donated" | "sent" | "received" | "topup";
+export type WalletActivityFilter = "all" | "donated" | "sent" | "received" | "topup" | "withdraw";
 
 /** Categories use only confirmed movement direction and verified contract context. */
 export function filterWalletActivity(items: WalletActivityItem[], filter: WalletActivityFilter): WalletActivityItem[] {
@@ -58,8 +67,10 @@ export function filterWalletActivity(items: WalletActivityItem[], filter: Wallet
   if (filter === "donated") return items.filter(item => item.direction === "sent"
     && (item.context?.type === "campaign-donation" || item.context?.type === "disaster-contribution"));
   if (filter === "sent") return items.filter(item => item.direction === "sent"
-    && item.context?.type !== "campaign-donation" && item.context?.type !== "disaster-contribution");
+    && item.context?.type !== "campaign-donation" && item.context?.type !== "disaster-contribution"
+    && item.context?.type !== "wallet-withdrawal");
   if (filter === "topup") return items.filter(item => item.direction === "received" && item.kind === "account-created");
+  if (filter === "withdraw") return items.filter(item => item.direction === "sent" && item.context?.type === "wallet-withdrawal");
   return items.filter(item => item.direction === "received" && item.kind !== "account-created");
 }
 

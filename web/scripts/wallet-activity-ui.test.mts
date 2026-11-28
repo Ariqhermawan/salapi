@@ -239,6 +239,20 @@ test("activity filters keep donations, transfers, receipts and account funding i
   h.click("All"); assert.equal(ids().length, 5);
   h.unmount();
 });
+
+test("Withdraw shows only a confirmed Salapi wallet withdrawal and keeps ordinary payments under Sent", async () => {
+  const h = mount(); h.emitAuth("owner-a"); await h.flush();
+  const withdrawal: WalletActivityItem = { ...item("105:withdrawal", "sent", "20000000"), kind: "payment",
+    context: { type: "wallet-withdrawal", referenceId: null, title: null } };
+  const regular: WalletActivityItem = { ...item("106:payment", "sent", "30000000"), kind: "payment" };
+  h.historyRequests[0].deferred.resolve(pageResult([withdrawal, regular])); await h.flush();
+  const ids = () => nodes(h.tree).map(node => node.props["data-activity-receipt-trigger"]).filter((id): id is string => typeof id === "string");
+  assert.deepEqual(ids(), ["105:withdrawal", "106:payment"]);
+  h.click("Withdraw"); assert.deepEqual(ids(), ["105:withdrawal"]);
+  assert.match(text(h.tree), /Wallet withdrawal/); assert.match(text(h.tree), /To Stellar wallet/);
+  h.click("Sent"); assert.deepEqual(ids(), ["106:payment"]);
+  h.unmount();
+});
 test("empty activity filter offers a direct way to show the full list again", async () => {
   const h = mount(); h.emitAuth("owner-a"); await h.flush();
   h.historyRequests[0].deferred.resolve(pageResult([item("100:send", "sent", "10000000")])); await h.flush();

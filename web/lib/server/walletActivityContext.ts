@@ -7,6 +7,7 @@ import { SEED_CIRCLES } from "../circles/seed";
 import type { WalletActivityContext, WalletActivityItem } from "../wallet-activity";
 
 type Deployments = { campaign: string | null; arisan: string | null; disaster: string | null; paluwagan: string | null; savings: string | null };
+type ContractActivityContextType = Exclude<WalletActivityContext["type"], "wallet-withdrawal">;
 const deployments = (): Deployments => ({ campaign: donationCampaignId(), arisan: arisanRoomsId(), disaster: disasterId(), paluwagan: paluwaganId(), savings: smartSavingsId() });
 const object = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object" && !Array.isArray(value);
 const title = (value: unknown): string | null => typeof value === "string" && value.trim().length > 0 && value.length <= 200 && !/[\u0000-\u001f\u007f]/.test(value) ? value.trim() : null;
@@ -40,7 +41,7 @@ export function activityContextFromRecord(item: WalletActivityItem, record: unkn
     const amount = (index: number) => args[index]?.switch().name === "scvI128" && String(scValToNative(args[index])) === item.amountStroops;
     const sent = item.direction === "sent" && source === viewer;
     const received = item.direction === "received";
-    const context = (type: WalletActivityContext["type"], referenceId: string | null = null, name: string | null = null): WalletActivityContext => ({ type, contractId, referenceId, title: name });
+    const context = (type: ContractActivityContextType, referenceId: string | null = null, name: string | null = null): WalletActivityContext => ({ type, contractId, referenceId, title: name });
     if (contractId === configured.campaign) {
       const campaign = id(0, "scvU64");
       if (!campaign) return;
@@ -85,8 +86,8 @@ export function attachActivityContexts(items: WalletActivityItem[], records: unk
  * with one 2-second deadline. No extra getAccount call, signing or submission.
  * An unavailable title still displays the receipt-derived campaign/room ID. */
 export async function readActivityContextTitles(items: WalletActivityItem[], viewer: string): Promise<WalletActivityItem[]> {
-  const candidates = new Map<string, WalletActivityContext>();
-  for (const { context } of items) if (context?.referenceId && /^(campaign|arisan)-/.test(context.type)) candidates.set(`${context.contractId}:${context.referenceId}`, context);
+  const candidates = new Map<string, Extract<WalletActivityContext, { type: Exclude<WalletActivityContext["type"], "wallet-withdrawal"> }>>();
+  for (const { context } of items) if (context && context.type !== "wallet-withdrawal" && context.referenceId && /^(campaign|arisan)-/.test(context.type)) candidates.set(`${context.contractId}:${context.referenceId}`, context);
   const names = new Map<string, string>(), snapshots = new Map<string, unknown>(), deadline = Date.now() + 2_000;
   // Discovery metadata is not linkage proof. It is checked against the full
   // immutable contract config below, never inferred from a QA-looking title.
@@ -126,7 +127,7 @@ export async function readActivityContextTitles(items: WalletActivityItem[], vie
     if (circle) linked.set(key, { name: `QA · ${circle.title}`, circleId: circle.id });
   }
   return items.map(item => {
-    if (!item.context) return item;
+    if (!item.context || item.context.type === "wallet-withdrawal") return item;
     const key = `${item.context.contractId}:${item.context.referenceId}`, circle = linked.get(key);
     return { ...item, context: { ...item.context, title: circle?.name ?? names.get(key) ?? item.context.title, ...(circle ? { circleId: circle.circleId } : {}) } };
   });
