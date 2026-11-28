@@ -7,6 +7,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, BookmarkSimple, Check, DotsThree, Flag, Info, Plus, ShareNetwork, Star, UserCircle, X } from "@phosphor-icons/react";
 import { isLocalPreview, localPreviewCauses, type LocalPreviewCause } from "@/lib/local-preview";
+import { RECURRING_CAMPAIGN_PREVIEW_NOTICE } from "@/lib/prototype-recurring-preview";
 import { useGoBack } from "@/lib/ui/useGoBack";
 import { PROTOTYPE_CAUSES, type PrototypeCause } from "@/lib/prototype-causes";
 import styles from "./PrototypeCauseDetailScreen.module.css";
@@ -100,7 +101,6 @@ export default function PrototypeCauseDetailScreen({ id, initialTab = "Story", i
   const days = cause.closedOn ? `Closed ${cause.closedOn}` : cause.daysLeft === undefined ? "" : cause.daysLeft === 0 ? "Last day" : `${cause.daysLeft} days left`;
   const progress = cause.target ? Math.round((cause.raised / cause.target) * 10000) / 100 : 0;
   const stageCount = cause.stages?.length ?? 0;
-  const paidStages = cause.stages?.filter(stage => stage.status === "Paid").length ?? 0;
   const currentStageIndex = cause.stages?.findIndex(stage => stage.status !== "Paid") ?? -1;
   const reviews = cause.reviews ?? (cause.status === "Released" ? [
     { by: "@jamal_r", stars: 5, text: "The receipts match what was promised." },
@@ -115,17 +115,17 @@ export default function PrototypeCauseDetailScreen({ id, initialTab = "Story", i
   const proofDay = cause.proofOn ?? cause.closedOn ?? "Today";
   const proofSteps = cause.stages?.length ? [
     ...cause.stages.flatMap((stage, index) => stage.status === "Paid" ? [{
-      title: `Stage ${index + 1} paid · ${stage.title}`,
+      title: `Example · Stage ${index + 1} · ${stage.title}`,
       when: proofStamp(stage.paidOn ?? "Today", "19:10"),
-      text: `${stage.proofNote ?? "The organizer sent receipts and photos of the delivery."} ${money(stage.paidCents ?? stage.amountCents)} released to ${cause.organizer}.`,
+      text: `Illustrative activity only. ${stage.proofNote ?? "The organizer sent receipts and photos of the delivery."} ${money(stage.paidCents ?? stage.amountCents)} shown as released to ${cause.organizer}.`,
       photos: [] as string[],
     }] : []),
     ...(cause.status === "In review" && currentStageIndex >= 0 ? [{
-      title: `Stage ${currentStageIndex + 1} · Proof uploaded`, when: proofStamp(proofDay, "14:05"),
-      text: cause.stages[currentStageIndex].proofNote ?? cause.proofNote ?? "The organizer sent receipts and photos of the delivery.", photos: [] as string[],
+      title: `Example · Stage ${currentStageIndex + 1} · Proof`, when: proofStamp(proofDay, "14:05"),
+      text: cause.stages?.[currentStageIndex]?.proofNote ?? cause.proofNote ?? "Illustrative receipts and delivery photos.", photos: [] as string[],
     }, ...(ratings.length ? [{
-      title: `Stage ${currentStageIndex + 1} · Rated by donors`, when: proofStamp(proofDay, "18:30"),
-      text: `${ratingAverage} out of 5 from ${ratings.length} donors. 3 are needed.`, photos: [] as string[],
+      title: `Example · Stage ${currentStageIndex + 1} · Review`, when: proofStamp(proofDay, "18:30"),
+      text: `Illustrative rating activity: ${ratingAverage} out of 5 from ${ratings.length} donors. This is not an active D4 approval.`, photos: [] as string[],
     }] : [])] : []),
   ] : cause.status === "In review" || cause.status === "Released" ? [
     { title: "Proof uploaded", when: proofStamp(proofDay, "14:05"), text: cause.proofNote ?? "The organizer sent receipts and photos of the delivery.", photos: cause.photos?.slice(1, 4) ?? [] },
@@ -133,10 +133,7 @@ export default function PrototypeCauseDetailScreen({ id, initialTab = "Story", i
     ...(cause.releasedCents ? [{ title: "Funds released", when: proofStamp(proofDay, "19:10"), text: `${money(cause.releasedCents)} released to ${cause.organizer}.`, photos: [] as string[] }] : []),
   ] : [];
   const statusCopy = stageCount > 0
-    ? cause.status === "Funding" ? `Paid out in ${stageCount} stages, each after donors rate its proof.`
-      : cause.status === "In review" ? `${paidStages} of ${stageCount} stages paid. The organizer sent proof for stage ${currentStageIndex + 1}. Donors are rating it.`
-        : cause.status === "Released" ? `${money(cause.releasedCents ?? cause.raised)} was released in ${paidStages} stages, each after donors rated its proof.`
-          : `${paidStages} of ${stageCount} stages paid. Funds stay in escrow until donors rate proof for stage ${Math.max(1, currentStageIndex + 1)}.`
+    ? "Illustrative recurring schedule. No payout stages are connected to an active D4 campaign."
     : cause.status === "Awaiting proof" ? "The organizer has not submitted proof yet." : cause.status === "In review" ? "Donors are reviewing the submitted proof." : "The campaign funds have been released.";
   const stageDate = (value: string) => new Date(`${value}T12:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "short", ...(Number(value.slice(0, 4)) !== new Date().getFullYear() ? { year: "numeric" } : {}) });
   const tabs: ("Story" | "Activity" | "Proof" | "Reviews")[] = ["Story", "Activity", "Proof", ...(finished ? ["Reviews" as const] : [])];
@@ -192,6 +189,7 @@ export default function PrototypeCauseDetailScreen({ id, initialTab = "Story", i
         <span>{isLocalPreview
           ? "Amounts, donor activity, organizer details, and photos are illustrative. Preview actions stay in this browser; no funds move."
           : "Amounts, donor activity, organizer details, and photos are illustrative. No donation is collected on this page."}</span>
+        {cause.recurring && <span>{RECURRING_CAMPAIGN_PREVIEW_NOTICE}</span>}
       </aside>}
 
       <Link href={`/organizer/${cause.organizer.replace(/^@/, "")}`} className={styles.organizer}>
@@ -244,14 +242,14 @@ export default function PrototypeCauseDetailScreen({ id, initialTab = "Story", i
       </section>}
 
       {tab === "Proof" && cause.stages?.length ? <section className={styles.proof}>
-        <h2>Payout stages</h2>
-        <p className={styles.stageIntro}>Funds leave escrow one stage at a time, each after donors rate its proof.</p>
+        <h2>Example stage schedule</h2>
+        <p className={styles.stageIntro}>Amounts, due dates and statuses below are illustrative prototype data; no payout is scheduled.</p>
         <ol className={styles.stageProofList}>{cause.stages.map((stage, index) => {
           const isPaid = stage.status === "Paid";
-          const sub = isPaid ? `${money(stage.paidCents ?? stage.amountCents)} · Paid ${stage.paidOn ?? "today"}` : `${money(stage.amountCents)} · Due ${stageDate(stage.dueDate)}`;
+          const sub = isPaid ? `Example marked paid · ${money(stage.paidCents ?? stage.amountCents)} · ${stage.paidOn ?? "today"}` : `Planned · ${money(stage.amountCents)} · due ${stageDate(stage.dueDate)}`;
           return <li className={styles.stageProofRow} key={stage.title} data-complete={isPaid || undefined} data-current={stage.status === "In review" || undefined}>
             <span className={styles.stageNumber}>{index + 1}</span>
-            <span className={styles.stageProofCopy}><span className={styles.stageProofTop}><strong>{stage.title}</strong><em data-status={stage.status.toLowerCase().replace(" ", "-")}>{stage.status}</em></span><small>{sub}</small>{stage.status === "In review" && <small>Donors are rating the proof: 2 of 3.</small>}</span>
+            <span className={styles.stageProofCopy}><span className={styles.stageProofTop}><strong>{stage.title}</strong><em data-status={stage.status.toLowerCase().replace(" ", "-")}>{stage.status === "Paid" ? "Example complete" : stage.status === "In review" ? "Example review" : "Planned"}</em></span><small>{sub}</small>{stage.status === "In review" && <small>Illustrative review activity only; no signer request was sent.</small>}</span>
           </li>;
         })}</ol>
       </section> : null}
@@ -266,8 +264,9 @@ export default function PrototypeCauseDetailScreen({ id, initialTab = "Story", i
       </section> : null}
 
       {tab === "Proof" ? <section className={styles.proof}>
-        <header className={styles.proofTimelineHead}><h2>Proof of delivery</h2>{ratings.length > 0 && <span><Star size={15} weight="fill" />{ratingAverage}</span>}</header>
-        {!proofSteps.length ? <p className={styles.emptyProof}>{cause.stages?.length ? "No proof yet. The organizer sends proof for each stage, starting after the goal is reached or the deadline passes." : "No proof yet. The organizer sends it after the goal is reached or the deadline passes."}</p> : <ol className={styles.timeline}>{proofSteps.map(step => <li key={step.title}>
+        <header className={styles.proofTimelineHead}><h2>{stageCount ? "Example proof activity" : "Proof of delivery"}</h2>{ratings.length > 0 && <span><Star size={15} weight="fill" />{ratingAverage}</span>}</header>
+        {stageCount > 0 && <p className={styles.stageIntro}>Example history only. The local schedule fixture does not accept proof or reviewer decisions.</p>}
+        {!proofSteps.length ? <p className={styles.emptyProof}>{stageCount ? "No example proof activity is saved. This local schedule has no proof submission or payout flow." : "No proof yet. The organizer sends it after the goal is reached or the deadline passes."}</p> : <ol className={styles.timeline}>{proofSteps.map(step => <li key={step.title}>
           <strong>{step.title}</strong><small>{step.when}</small><p>{step.text}</p>
           {step.photos.length > 0 && <div className={styles.proofPhotos}>{step.photos.map(photo => <Image key={photo} src={photo} width={88} height={88} alt="Proof photo" />)}</div>}
         </li>)}</ol>}
@@ -291,7 +290,7 @@ export default function PrototypeCauseDetailScreen({ id, initialTab = "Story", i
 
     {proofInfo && layer ? createPortal(<div className={styles.proofInfoBackdrop} role="presentation" onClick={event => { if (event.target === event.currentTarget) setProofInfo(null); }}>
       <section className={styles.proofInfoSheet} role="dialog" aria-modal="true" aria-labelledby="proof-info-title"><div className={styles.proofInfoHandle} /><header><h2 id="proof-info-title">{proofInfo === "escrow" ? "Held in escrow" : "Confirmed contributions"}</h2><button type="button" aria-label="Close" onClick={() => setProofInfo(null)}><X size={18} /></button></header>
-        <p>{proofInfo === "escrow" ? "Donations are not paid to the organizer at once. They wait in escrow on Stellar until the organizer uploads proof of delivery and donors rate it. The percentage is the part of everything raised that is still waiting." : "Every donation that has settled on Stellar. A donation still on its way is not counted yet. The organizer fee under it is the part the organizer keeps for running the cause, at the rate donors saw before they gave."}</p>
+        <p>{proofInfo === "escrow" ? cause.recurring ? RECURRING_CAMPAIGN_PREVIEW_NOTICE : "Donations are not paid to the organizer at once. They wait in escrow on Stellar until the organizer uploads proof of delivery and donors rate it. The percentage is the part of everything raised that is still waiting." : "Every donation that has settled on Stellar. A donation still on its way is not counted yet. The organizer fee under it is the part the organizer keeps for running the cause, at the rate donors saw before they gave."}</p>
         <button type="button" onClick={() => setProofInfo(null)}>Got it</button>
       </section>
     </div>, layer) : null}
