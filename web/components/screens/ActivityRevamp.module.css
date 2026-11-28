@@ -599,10 +599,17 @@
   font-size: 10px;
 }
 .personalTimeline {
-  display: grid;
-  gap: 10px;
-  margin: 14px -7px 0;
+  display: block;
+  margin: 0;
+  padding: 4px 16px;
+  overflow: hidden;
+  border: 1px solid var(--sl-line);
+  border-radius: 17px;
+  background: var(--sl-surface);
+  box-shadow: 0 2px 5px #1118270d,0 5px 10px -8px #11182722;
 }
+.activityDayGroup + .activityDayGroup { margin-top: 15px; }
+.activityDayTitle { margin: 0 4px 8px; color: var(--sl-sub); font-size: 14px; font-weight: 500; line-height: 20px; }
 .liveStatus { color: #61758e; font-size: 10px; line-height: 1.5; margin: 8px 0; }
 .activityFilters {
   display: flex;
@@ -645,14 +652,15 @@
   cursor: pointer;
 }
 .personalTimeline .timelineItem {
-  isolation: isolate;
-  gap: 10px;
-  padding: 12px;
-  border: 1px solid #d5e0f0;
-  border-radius: 16px;
-  background: #fff;
+  display: block;
+  padding: 9px 0;
+  border: 0;
+  border-bottom: 1px solid var(--sl-line);
+  border-radius: 0;
+  background: transparent;
 }
 .personalTimeline .timelineItem:not(:last-child)::before { display: none; }
+.personalTimeline .timelineItem:last-child { border-bottom: 0; }
 .personalTimeline .campaignCover {
   border-radius: inherit;
   object-fit: cover;
@@ -677,12 +685,16 @@
 }
 .personalTimeline .transferButton {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 6px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto auto;
+  align-items: center;
+  gap: 2px 12px;
   padding: 0;
   border-radius: 4px;
 }
 .personalTimeline .transferButton > .transferHeading {
+  grid-column: 1;
+  grid-row: 1;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: baseline;
@@ -690,17 +702,19 @@
 }
 .personalTimeline .transferHeading > strong { font-size: 14px; }
 .personalTimeline .transferHeading > time { font-size: 11px; white-space: nowrap; }
-.transferIdentity { min-width: 0; }
+.personalTimeline .transferIdentity { grid-column: 1; grid-row: 2; min-width: 0; }
 .personalTimeline .receiptAmount {
-  align-items: flex-start;
+  grid-column: 2;
+  grid-row: 1 / span 3;
+  align-items: flex-end;
   gap: 2px;
   min-width: 0;
-  margin-top: 5px;
-  text-align: left;
+  margin-top: 0;
+  text-align: right;
 }
 .nativeLine { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 7px; min-width: 0; width: 100%; }
 .personalTimeline .nativeLine {
-  font-size: clamp(18px, 5.5cqi, 24px);
+  font-size: clamp(16px, 4.5cqi, 20px);
   font-weight: 700;
   letter-spacing: -.35px;
   line-height: 1.2;
@@ -732,11 +746,13 @@
 .personalTimeline .equivalent > span { color: inherit; font-size: inherit; }
 .personalTimeline .equivalent .staleQuote { color: #805323; font-size: 10px; }
 .personalTimeline .receiptToggle {
+  grid-column: 1;
+  grid-row: 3;
   display: inline-flex;
   align-items: center;
   gap: 5px;
   color: #174fca;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 650;
 }
 @media (max-width: 480px) {

@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import * as copy from "../lib/i18n/revamp-money.ts";
-import { activityCopy, activityEstimateLabel } from "../lib/i18n/wallet-activity.ts";
+import { activityCopy, activityDayLabel, activityEstimateLabel } from "../lib/i18n/wallet-activity.ts";
 import * as contentCopy from "../lib/i18n/circles-content.ts";
 import { XLM_ACTIVITY_ASSET, USDC_ACTIVITY_ASSET, activityContextHref, activityStroopsToXlm, activityUsdcEquivalent, filterWalletActivity } from "../lib/wallet-activity.ts";
 import type { MarketPriceResult } from "../lib/market-prices.ts";
@@ -129,7 +129,7 @@ function mount(options: { preview?: boolean; configured?: boolean; locale?: "en"
       if (dependency === "@/components/MarketPricesProvider") return { useMarketPrices: () => ({ prices: options.prices ?? { status: "unavailable", source: "CoinGecko", reason: "provider-unavailable" } }) };
       if (dependency === "@/lib/wallet-activity") return { activityContextHref, activityStroopsToXlm, activityUsdcEquivalent, filterWalletActivity };
       if (dependency === "@/lib/i18n/revamp-money") return copy;
-      if (dependency === "@/lib/i18n/wallet-activity") return { activityCopy, activityEstimateLabel };
+      if (dependency === "@/lib/i18n/wallet-activity") return { activityCopy, activityDayLabel, activityEstimateLabel };
       if (dependency === "@/lib/vault-campaign-cover") return { vaultCircleCover: () => null };
       if (dependency === "@/lib/i18n/circles-content") return contentCopy;
       if (dependency === "@/lib/ui/currency") return { formatLocal };
@@ -237,6 +237,23 @@ test("activity filters keep donations, transfers, receipts and account funding i
   h.click("Received"); assert.deepEqual(ids(), ["103:receive"]);
   h.click("Top up"); assert.deepEqual(ids(), ["104:create"]);
   h.click("All"); assert.equal(ids().length, 5);
+  h.unmount();
+});
+
+test("personal activity is grouped by local calendar day with translated Today and Yesterday headings", async () => {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12).toISOString();
+  const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 12).toISOString();
+  const h = mount({ locale: "id" }); h.emitAuth("owner-a"); await h.flush();
+  h.historyRequests[0].deferred.resolve(pageResult([
+    { ...item("today-a"), createdAt: today },
+    { ...item("today-b", "sent"), createdAt: today },
+    { ...item("yesterday", "sent"), createdAt: yesterday },
+  ])); await h.flush();
+  const groups = nodes(h.tree).filter(node => node.props["data-activity-day"]);
+  assert.equal(groups.length, 2);
+  assert.match(text(groups[0]), /Hari ini/);
+  assert.match(text(groups[1]), /Kemarin/);
   h.unmount();
 });
 
@@ -376,7 +393,8 @@ test("local preview Activity reloads browser-demo receipts after returning from 
   assert.ok(text(h.tree).includes(activityCopy("en")("empty")));
   h.previewTransfers.push({ id: "local-send-00000000-0000-4000-8000-000000000001", createdAt: "2026-11-28T00:00:00.000Z", senderAddress: PREVIEW_WALLET.address, recipientHandle: "maria_s", recipientAddress: "GCBKRBBNTQ2YA7U7SOC2NTZCCACFIIQCLKKO2FJYL5WJP5QVYH6UNDHL", pesos: 2, amountStroops: "178461538" });
   h.emitWindow("pageshow"); h.render();
-  assert.ok(text(h.tree).includes("Send demo to @maria_s"));
+  assert.ok(text(h.tree).includes("Sent XLM"));
+  assert.ok(text(h.tree).includes("@maria_s"));
   h.previewTransfers.splice(0);
   h.emitDocument("visibilitychange"); h.render();
   assert.ok(text(h.tree).includes(activityCopy("en")("empty")));
@@ -623,7 +641,7 @@ test("native receipt layout reserves a full-width line and never wraps digits in
   assert.match(native, /white-space:\s*nowrap/);
   assert.match(native, /overflow-wrap:\s*normal/);
   assert.match(native, /overflow-x:\s*auto/);
-  assert.match(css, /\.personalTimeline \.transferButton\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/);
+  assert.match(css, /\.personalTimeline \.transferButton\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto/);
   assert.doesNotMatch(css, /\.receiptAmount\s*\{[^}]*max-width:\s*55%/);
 });
 

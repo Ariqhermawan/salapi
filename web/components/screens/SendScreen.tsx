@@ -15,6 +15,7 @@ import { useMarketPrices } from "@/components/MarketPricesProvider";
 import { formatMarketValue, validateMarketPrices, type AvailableMarketPrices } from "@/lib/market-prices";
 import { isLocalPreview, localPreviewUsername, PREVIEW_WALLET, previewUsdcBalanceCents } from "@/lib/local-preview";
 import { recordPreviewTransfer } from "@/lib/local-preview-history";
+import { listRecentSendRecipients, rememberRecentSendRecipient } from "@/lib/ui/recent-send-recipients";
 import type { Locale } from "@/lib/i18n/config";
 import styles from "./SendRevamp.module.css";
 import SuccessMotion from "@/components/ui/SuccessMotion";
@@ -50,6 +51,7 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
   const router = useRouter();
   const goBack = useGoBack("/");
   const [mine, setMine] = useState<string | null>(isLocalPreview ? PREVIEW_WALLET.handle : null);
+  const [recentRecipients, setRecentRecipients] = useState<string[]>([]);
   const [previewBalanceCents, setPreviewBalanceCents] = useState(241_226);
   const [claim, setClaim] = useState("");
   const [to, setTo] = useState(initialTo ?? "");
@@ -114,7 +116,10 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
     // Restore browser-only session state after hydration, never in SSR output.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setUnresolved(saved);
-    myHandle().then(setMine).catch(() => setErr("Your username could not be loaded. Please try again."));
+    myHandle().then(handle => {
+      setMine(handle);
+      setRecentRecipients(listRecentSendRecipients(handle));
+    }).catch(() => setErr("Your username could not be loaded. Please try again."));
     const requestVersion = lookupVersion;
     return () => { requestVersion.current++; };
   }, []);
@@ -197,7 +202,11 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
     if (isLocalPreview) { setMine(claim.trim().toLowerCase()); return; }
     start(async () => {
       setErr("");
-      try { const r = await registerUsername(claim); if (r.ok) setMine(r.name); else setErr(r.error); }
+    try {
+      const r = await registerUsername(claim);
+      if (r.ok) { setMine(r.name); setRecentRecipients(listRecentSendRecipients(r.name)); }
+      else setErr(r.error);
+    }
       catch { setErr(m("The username service is unavailable. Please try again.")); }
     });
   }
@@ -280,6 +289,8 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
         const r = await confirmUsernameSend(recipient.intentId);
         if (r.ok) {
           clearUnresolved();
+          rememberRecentSendRecipient(mine, recipient.username);
+          if (mine) setRecentRecipients(current => [recipient.username, ...current.filter(handle => handle !== recipient.username)].slice(0, 5));
           setDone({ link: r.link, address: r.to, amount: { amountStroops: r.amountStroops, usdEstimate: recipient.usdEstimate } });
         } else if (r.pending) {
           // If updating storage fails, the existing 'unknown' marker remains.
@@ -412,6 +423,20 @@ export default function SendScreen({ initialTo }: { initialTo?: string }) {
                   placeholder={m("e.g. jamamam")} autoCapitalize="none" autoComplete="off" spellCheck={false} />
               </div>
               <p id="send-recipient-help" className={styles.recipientHelp}>{m("Use 3–32 letters, numbers or underscores. We check the exact username when you review.")}</p>
+              {recentRecipients.length > 0 ? <>
+                <span className={styles.recentLabel}>{m("Recent recipients")} · {m("Saved on this device")}</span>
+                <div className={styles.recentList} role="group" aria-label={m("Recent recipients")}>
+                  {recentRecipients.map(username => <button key={username} type="button" aria-label={`@${username}`} onClick={() => {
+                    lookupVersion.current++;
+                    setTo(username);
+                    setLookupError("");
+                    setErr("");
+                  }}>
+                    <AccountAvatar name={username} photoUrl={null} size={40} alt="" />
+                    <span>@{username}</span>
+                  </button>)}
+                </div>
+              </> : null}
               {clean && !validUsername ? <p role="alert" className={styles.inlineError}>{m("Enter a username with 3–32 letters, numbers or underscores.")}</p> : null}
               {lookupError ? <p role="alert" className={styles.inlineError}>{lookupError}</p> : null}
               {self ? <p role="alert" className={styles.inlineError}>{m("Choose a different recipient. You cannot send to yourself.")}</p> : null}

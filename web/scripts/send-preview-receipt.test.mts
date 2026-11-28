@@ -115,6 +115,7 @@ function setup(options: { preview?: boolean; storageUnavailable?: boolean } = {}
           return history.recordPreviewTransfer(input);
         },
       };
+      if (name === "@/lib/ui/recent-send-recipients") return { listRecentSendRecipients: () => [], rememberRecentSendRecipient() {} };
       if (name === "@/app/actions") return {
         myHandle: async () => null,
         registerUsername: async () => { throw new Error("Unexpected username write"); },

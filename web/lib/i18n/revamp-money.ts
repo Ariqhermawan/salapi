@@ -126,6 +126,8 @@ export const REVAMP_MONEY_COPY = {
   "Enter XLM with up to 7 decimal places.": ["Hanggang 7 decimal place ang puwede sa XLM.", "Masukkan XLM dengan maksimal 7 angka desimal.", "Nhập XLM với tối đa 7 chữ số thập phân."],
   "Testnet XLM · illustrative rate": ["Testnet XLM · halimbawang palitan", "Testnet XLM · kurs ilustratif", "Testnet XLM · tỷ giá minh họa"],
   "Recipient @username": ["@username ng tatanggap", "@username penerima", "@username người nhận"],
+  "Recent recipients": ["Mga kamakailang tatanggap", "Penerima terbaru", "Người nhận gần đây"],
+  "Saved on this device": ["Naka-save sa device na ito", "Tersimpan di perangkat ini", "Đã lưu trên thiết bị này"],
   "Choose a different recipient. You cannot send to yourself.": ["Pumili ng ibang tatanggap. Hindi puwedeng magpadala sa sarili.", "Pilih penerima lain. Kamu tidak dapat mengirim ke diri sendiri.", "Chọn người nhận khác. Bạn không thể gửi cho chính mình."],
   "Your username": ["Iyong username", "Username kamu", "Tên người dùng của bạn"],
   "Choose your username": ["Piliin ang iyong username", "Pilih username kamu", "Chọn tên người dùng"],

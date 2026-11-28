@@ -1,6 +1,8 @@
 import type { Locale } from "./config";
 
 const copy = {
+  today: ["Today", "Ngayong araw", "Hari ini", "Hôm nay"],
+  yesterday: ["Yesterday", "Kahapon", "Kemarin", "Hôm qua"],
   autoUpdates: ["Updates automatically while this page is open.", "Awtomatikong ina-update habang bukas ang pahinang ito.", "Diperbarui otomatis saat halaman ini terbuka.", "Tự động cập nhật khi trang này đang mở."],
   updating: ["Checking for new transfers…", "Sinusuri ang mga bagong transfer…", "Memeriksa transfer baru…", "Đang kiểm tra giao dịch mới…"],
   checking: ["Checking your latest activity…", "Sinusuri ang pinakabagong aktibidad…", "Memeriksa aktivitas terbaru…", "Đang kiểm tra hoạt động mới nhất…"],
@@ -96,6 +98,23 @@ const copy = {
 export function activityCopy(locale: Locale | undefined) {
   const index = locale === "tl" ? 1 : locale === "id" ? 2 : locale === "vi" ? 3 : 0;
   return (key: keyof typeof copy, variables?: Record<string, string>) => copy[key][index].replace(/\{(\w+)\}/g, (match, name: string) => variables?.[name] ?? match);
+}
+
+export function activityDayLabel(value: string, locale: Locale, now = new Date()): string {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "";
+  const sameDay = (left: Date, right: Date) => left.getFullYear() === right.getFullYear()
+    && left.getMonth() === right.getMonth() && left.getDate() === right.getDate();
+  const index = locale === "tl" ? 1 : locale === "id" ? 2 : locale === "vi" ? 3 : 0;
+  if (sameDay(date, now)) return copy.today[index];
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (sameDay(date, yesterday)) return copy.yesterday[index];
+  return new Intl.DateTimeFormat(locale, {
+    month: "short",
+    day: "numeric",
+    ...(date.getFullYear() !== now.getFullYear() ? { year: "numeric" } : {}),
+  }).format(date);
 }
 
 export function activityEstimateLabel(amount: number, locale: Locale) {
