@@ -76,6 +76,24 @@ test.describe("D4 isolated local UI and HTTP authorization", () => {
   test.beforeEach(({ baseURL }) => test.skip(!["localhost", "127.0.0.1", "[::1]"].includes(new URL(baseURL!).hostname),
     "Fixture interception and local action IDs never target a live deployment"));
 
+  test("live Causes keeps every prototype category visible when Testnet data is sparse", async ({ page }) => {
+    const names = actions();
+    await page.route("**/causes*", async route => {
+      if (names.get(route.request().headers()["next-action"]) !== "campaignState") return route.continue();
+      const value = { ok: true, contractId: "D4 UI fixture", viewer: null, now: "1000", campaigns: [campaign] };
+      await route.fulfill({ contentType: "text/x-component", body: `0:{"a":"$@1","f":"","i":false}\n1:${JSON.stringify(value)}\n` });
+    });
+    await page.goto("/causes");
+    const filters = page.getByRole("group", { name: "Campaign filters", exact: true });
+    await expect(filters.getByRole("button")).toHaveCount(10);
+    for (const label of ["Disaster relief", "Medical", "Education", "Community", "Family", "Creator support", "Care & meals", "Volunteer action", "Animal care"]) {
+      await expect(filters.getByRole("button", { name: label, exact: true })).toBeVisible();
+    }
+    await filters.getByRole("button", { name: "Family", exact: true }).click();
+    await expect(page).toHaveURL(/\/causes\?c=family$/);
+    await expect(page.getByRole("heading", { name: "No causes match", exact: true })).toBeVisible();
+  });
+
   test("public read-only view exposes terms but no write controls", async ({ page }) => {
     await fixture(page);
     await expect(page.getByText(/Explore campaign terms and proof publicly/)).toBeVisible();

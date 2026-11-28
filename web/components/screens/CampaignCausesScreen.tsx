@@ -26,9 +26,11 @@ import styles from "./CampaignCausesScreen.module.css";
 
 type State = Awaited<ReturnType<typeof campaignState>>;
 type CampaignRow = Campaign;
-type Category = { id: string; label: string; count: number };
 const SAVED_KEY = "salapi.d4.saved-campaigns.v1";
 const ALL = "All";
+const CATEGORY_ORDER: readonly CircleCategory[] = [
+  "disaster", "medical", "care", "education", "community", "family", "creator", "volunteer", "animals",
+];
 const PREVIEW_CIRCLE_LINKS: Record<string, string> = {
   "101": "tino-relief",
   "102": "ate-mei-dialysis",
@@ -221,17 +223,10 @@ function LiveCampaignCausesScreen({ initialSavedOnly = false }: { initialSavedOn
   const circleLinks = state?.ok && "circleLinks" in state
     ? state.circleLinks
     : isLocalPreview ? PREVIEW_CIRCLE_LINKS : undefined;
-  const availableCategories: Category[] = useMemo(() => {
-    const categories = new Map<string, number>();
-    for (const campaign of campaigns) {
-      const category = categoryFor(campaign, circleLinks);
-      if (category) categories.set(category, (categories.get(category) ?? 0) + 1);
-    }
-    return [...categories].map(([id, count]) => ({ id, count, label: circlesCategory(locale, id as CircleCategory) }));
-  }, [campaigns, circleLinks, locale]);
+  const categoryFilters = useMemo(() => CATEGORY_ORDER.map(id => ({ id, label: circlesCategory(locale, id) })), [locale]);
   const availableStatuses = useMemo(() => [...new Set(campaigns.map(campaign => d4CampaignStatus(campaign, now)))], [campaigns, now]);
   const validStatus = statusFilter || ALL;
-  const validCategory = selectedCategory === ALL || availableCategories.some(category => category.id === selectedCategory) ? selectedCategory : ALL;
+  const validCategory = selectedCategory === ALL || CATEGORY_ORDER.includes(selectedCategory as CircleCategory) ? selectedCategory : ALL;
   const statusCampaigns = filterD4Campaigns(campaigns, statusFilter === ALL ? validStatus : statusFilter, query, state?.ok ? state.viewer : null, now);
   const visible = statusCampaigns.filter(campaign => !savedOnly || saved.includes(campaign.id))
     .filter(campaign => validCategory === ALL || categoryFor(campaign, circleLinks) === validCategory);
@@ -288,7 +283,7 @@ function LiveCampaignCausesScreen({ initialSavedOnly = false }: { initialSavedOn
       {query && <button type="button" aria-label={copy("Clear search")} onClick={() => updateParams({ q: null })}><X size={18} aria-hidden="true" /></button>}
     </section>}
 
-    {!savedOnly && campaigns.length > 0 && <div className={styles.filters}>
+    {!savedOnly && !mineOnly && state?.ok && <div className={styles.filters}>
       <div className={styles.chips} role="group" aria-label={copy("Campaign filters")}>
         {statusOptions.length > 1 && <label className={styles.statusPicker}>
           <span className={styles.srOnly}>{copy("Status")}</span>
@@ -298,10 +293,10 @@ function LiveCampaignCausesScreen({ initialSavedOnly = false }: { initialSavedOn
           </select>
           <CaretDown size={16} aria-hidden="true" />
         </label>}
-        {statusOptions.length > 1 && availableCategories.length > 0 && <span className={styles.filterRule} aria-hidden="true" />}
+        {statusOptions.length > 1 && <span className={styles.filterRule} aria-hidden="true" />}
         <button type="button" className={styles.categoryFilter} aria-pressed={validCategory === ALL}
           onClick={() => updateParams({ c: null })}><span className={styles.categoryArt}><CauseCategoryDoodle category="all" /></span>{copy("All")}</button>
-        {availableCategories.map(category => <button type="button" key={category.id} className={styles.categoryFilter}
+        {categoryFilters.map(category => <button type="button" key={category.id} className={styles.categoryFilter}
           aria-pressed={validCategory === category.id} onClick={() => updateParams({ c: validCategory === category.id ? null : category.id })}>
           <span className={styles.categoryArt}><CauseCategoryDoodle category={category.id as CircleCategory} /></span>{category.label}
         </button>)}
